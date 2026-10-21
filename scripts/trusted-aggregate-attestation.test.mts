@@ -1,3 +1,4 @@
+import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
@@ -5,6 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { assemblerIdentityFixture, expected } from "./fixtures/assembler-identity-fixture.mts";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
+import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { assembleTrustedRelease } from "./trusted-release-assembly.mts";
 import {
@@ -12,14 +14,159 @@ import {
   verifyAggregateAttestation,
   verifyUploadedAggregate,
   aggregatePredicateType,
+  stageAggregatePackages,
+  prepareRecoveredAdmittedAggregateAttestation,
 } from "./trusted-aggregate-attestation.mts";
+import { controllerOidcSubject } from "./assembler-job-identity.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-async function fixture(t: test.TestContext) {
-  const f = await trustedAssemblyFixture(t);
+
+void test("current admitted custodian binds original failed-run artifact without relabeling or replacing its producer", async (t) => {
+  const f = await fixture(t);
+  const subject = controllerOidcSubject(expected.controller_ref, "production-release-admission");
+  const current = assemblerIdentityFixture(
+    { sub: subject, environment: "production-release-admission" },
+    {},
+    { workflow: productionControllerWorkflow, job: "Authenticate release control inputs" },
+  );
+  const original = {
+    actor_id: "1122",
+    before_checkpoint: "b".repeat(40),
+    check_run_id: "776",
+    controller_revision: expected.controller_revision,
+    execution_ref: expected.controller_ref,
+    expectation_sha256: "e".repeat(64),
+    job_id: 500,
+    operation_id: "d".repeat(64),
+    run_attempt: 1,
+    run_id: "7777",
+    workflow: productionControllerWorkflow,
+  };
+  const result = await prepareRecoveredAdmittedAggregateAttestation(
+    original,
+    current.token,
+    { ...expected, subject },
+    f.request,
+    [1, 2, 3, 4],
+    f.upload,
+    {
+      ...f.options,
+      identity: current,
+      spawn: (...args) => {
+        const response = f.options.spawn(...args);
+        const split = response.stdout.indexOf("\r\n\r\n") + 4;
+        const body: unknown = JSON.parse(response.stdout.slice(split));
+        assert.ok(isRecord(body) && isRecord(body.workflow_run));
+        body.name = "trusted-release-final-7777-1";
+        body.workflow_run.id = 7777;
+        return { ...response, stdout: response.stdout.slice(0, split) + JSON.stringify(body) };
+      },
+    },
+  );
+  assert.equal(result.predicate.producer_profile, "admitted-aggregate-recovery-v1");
+  assert.deepEqual(result.predicate.original_upload, original);
+  assert.equal(result.predicate.artifact.id, 99);
+  assert.equal(result.predicate.artifact.name, "trusted-release-final-7777-1");
+  assert.equal(result.predicate.assembler.run_id, expected.run_id);
+  assert.equal(result.predicate.assembler.job_id, 501);
+  const v = await verificationFixture(t);
+  const predicate = { ...result.predicate, evidence_scope: "github.com" };
+  v.value[0]!.verificationResult.statement.predicate = predicate;
+  v.value[0]!.verificationResult.statement.subject[0]!.name = result.subject_name;
+  const verificationExpected = {
+    ...v.verificationExpected,
+    producer_profile: "admitted-aggregate-recovery-v1" as const,
+    original_upload: original,
+  };
+  const accepted = await verifyAggregateAttestation(
+    v.root,
+    v.archive,
+    Buffer.from("synthetic fixed verifier result"),
+    verificationExpected,
+    { spawn: v.spawn },
+  );
+  assert.equal(accepted.evidence_scope, "injected-provider");
+  await assert.rejects(
+    verifyAggregateAttestation(
+      v.root,
+      v.archive,
+      Buffer.from("synthetic"),
+      v.verificationExpected,
+      { spawn: v.spawn },
+    ),
+    (error: unknown) =>
+      error instanceof Error &&
+      error.cause instanceof Error &&
+      /subject|predicate/u.test(error.cause.message),
+  );
+  await assert.rejects(
+    verifyAggregateAttestation(
+      v.root,
+      v.archive,
+      Buffer.from("synthetic"),
+      { ...verificationExpected, original_upload: { ...original, job_id: 999 } },
+      { spawn: v.spawn },
+    ),
+    (error: unknown) =>
+      error instanceof Error &&
+      error.cause instanceof Error &&
+      /predicate/u.test(error.cause.message),
+  );
+});
+
+void test("fixed finalizer staging materializes all six beta packages and checksum without replacing prior bytes", async (t) => {
+  const f = await fixture(t, "initial-beta-win-linux");
+  const directory = path.join(f.root, "publication-packages");
+  const result = await stageAggregatePackages(directory, f.archive, f.request, hash(f.archive));
+  assert.equal(result.authority, "none");
+  assert.equal(result.files.length, 7);
+  assert.deepEqual((await readdir(directory)).sort(), f.entries.map(([name]) => name).sort());
+  for (const [name, bytes] of f.entries)
+    assert.deepEqual(await readFile(path.join(directory, name)), bytes);
+  await assert.rejects(
+    stageAggregatePackages(directory, f.archive, f.request, hash(f.archive)),
+    /EEXIST/,
+  );
+  for (const [name, bytes] of f.entries)
+    assert.deepEqual(await readFile(path.join(directory, name)), bytes);
+});
+
+void test("changed aggregate member retains earlier verified files while wrong archive pin writes nothing", async (t) => {
+  const f = await fixture(t, "initial-beta-win-linux");
+  const never = path.join(f.root, "never-materialized");
+  await assert.rejects(
+    stageAggregatePackages(never, f.archive, f.request, "0".repeat(64)),
+    /archive differs/,
+  );
+  await assert.rejects(readdir(never));
+  const changed = createAuditZip(
+    f.entries.map(
+      ([name, bytes, options], index) =>
+        [
+          name,
+          index === f.entries.length - 1 ? Buffer.alloc(bytes.length, 120) : bytes,
+          options,
+        ] as const,
+    ),
+  );
+  const partial = path.join(f.root, "retained-partial");
+  await assert.rejects(
+    stageAggregatePackages(partial, changed, f.request, hash(changed)),
+    /retain partial state/,
+  );
+  const retained = await readdir(partial);
+  assert.equal(retained.length, f.entries.length - 1);
+  for (const name of retained)
+    assert.deepEqual(
+      await readFile(path.join(partial, name)),
+      f.entries.find(([filename]) => filename === name)![1],
+    );
+});
+async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-linux" = "full") {
+  const f = await trustedAssemblyFixture(t, profile);
   const aggregate = await assembleTrustedRelease(f.root, f.input, f.request);
   const entries = await Promise.all(
     aggregate.output_files.map(
@@ -108,6 +255,21 @@ void test("new opaque aggregate members bind fresh signed own-job identity witho
   );
 });
 
+void test("beta attestation binds the selected two-platform aggregate without inventing compiler acceptance", async (t) => {
+  const f = await fixture(t, "initial-beta-win-linux");
+  const result = await prepareAggregateAttestation(
+    f.identity.token,
+    expected,
+    f.request,
+    [1, 2],
+    f.upload,
+    f.options,
+  );
+  assert.equal(result.predicate.output_files.length, 7);
+  assert.equal(result.predicate.original_compiler, null);
+  assert.equal(result.authority, "none");
+});
+
 void test("old artifact IDs, wrong member bytes, forged identity and provider drift cannot form an accepted aggregate binding", async (t) => {
   const f = await fixture(t);
   await assert.rejects(
@@ -179,15 +341,29 @@ void test("old artifact IDs, wrong member bytes, forged identity and provider dr
   );
 });
 
-async function verificationFixture(t: test.TestContext) {
-  const f = await fixture(t);
+async function verificationFixture(t: test.TestContext, withPublic = false) {
+  const f = await fixture(t, withPublic ? "initial-beta-win-linux" : "full");
+  const publicInputs = withPublic ? await releasePublicBuildProvenanceFixture(t) : null;
+  const candidate = publicInputs
+    ? { ...f.request, schema_version: 3, public_build_inputs: publicInputs.binding }
+    : f.request;
+  const ids = withPublic ? [1, 2] : [1, 2, 3, 4];
+  const options = publicInputs
+    ? {
+        ...f.options,
+        evidenceRequest: publicInputs.expected,
+        evidence: { api: publicInputs.api },
+        download: (endpoint: string) =>
+          endpoint.includes("/99/") ? f.state.payload : publicInputs.download(endpoint),
+      }
+    : f.options;
   const prepared = await prepareAggregateAttestation(
     f.identity.token,
     expected,
-    f.request,
-    [1, 2, 3, 4],
+    candidate,
+    ids,
     f.upload,
-    f.options,
+    options,
   );
   // Synthetic successful CLI boundary, never cryptographic/production evidence.
   const predicate = { ...prepared.predicate, evidence_scope: "github.com" };
@@ -225,8 +401,8 @@ async function verificationFixture(t: test.TestContext) {
     artifact_id: 99,
     sha256: f.upload.sha256,
     bytes: f.archive.length,
-    candidate: f.request,
-    candidate_artifact_ids: [1, 2, 3, 4],
+    candidate,
+    candidate_artifact_ids: ids,
   };
   const calls: readonly string[][] = [];
   const spawn = (
@@ -247,8 +423,60 @@ async function verificationFixture(t: test.TestContext) {
     assert.ok(args.includes("--bundle") && args.includes("--deny-self-hosted-runners"));
     return { status: 0, stdout: JSON.stringify(value), stderr: "" };
   };
-  return { ...f, value, verificationExpected, calls, spawn };
+  return { ...f, value, verificationExpected, calls, spawn, publicInputs };
 }
+
+void test("schema3 aggregate attestation independently verifies public archives and binds their exact provenance into verification", async (t) => {
+  const f = await verificationFixture(t, true);
+  assert.ok(f.publicInputs);
+  assert.equal(f.publicInputs.state.reads, 2);
+  const result = await verifyAggregateAttestation(
+    f.root,
+    f.archive,
+    Buffer.from("synthetic bundle"),
+    f.verificationExpected,
+    { spawn: f.spawn },
+  );
+  assert.equal(result.authority, "none");
+  const predicate = f.value[0]!.verificationResult.statement.predicate;
+  assert.deepEqual(predicate.public_build_inputs, f.publicInputs.binding);
+  assert.match(predicate.public_build_inputs_scope!, /no compiler-content or execution claim/);
+  const changed = structuredClone(f.verificationExpected);
+  assert.ok("public_build_inputs" in changed.candidate);
+  changed.candidate.public_build_inputs.manifest_sha256 = "f".repeat(64);
+  await assert.rejects(
+    verifyAggregateAttestation(f.root, f.archive, Buffer.from("synthetic bundle"), changed, {
+      spawn: f.spawn,
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error && error.cause instanceof Error);
+      assert.match(error.cause.message, /association differs/);
+      return true;
+    },
+  );
+});
+
+void test("schema3 attester refuses altered public build bytes before obtaining its assembler identity", async (t) => {
+  const f = await fixture(t, "initial-beta-win-linux");
+  const p = await releasePublicBuildProvenanceFixture(t);
+  p.publicFiles.set(
+    "tauri.release-public.conf.json",
+    Buffer.from('{"bundle":{"createUpdaterArtifacts":false}}'),
+  );
+  p.replacePublicArchive();
+  await assert.rejects(
+    prepareAggregateAttestation(
+      f.identity.token,
+      expected,
+      { ...f.request, schema_version: 3, public_build_inputs: p.binding },
+      [1, 2],
+      f.upload,
+      { ...f.options, evidenceRequest: p.expected, evidence: { api: p.api }, download: p.download },
+    ),
+    CoordinatorRemoteError,
+  );
+  assert.deepEqual(f.identity.counts(), { requests: 0, keyReads: 0 });
+});
 
 void test("missing or changed aggregate checksum manifest and excess member length refuse before identity verification", async (t) => {
   const f = await fixture(t);

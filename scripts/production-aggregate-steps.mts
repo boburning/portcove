@@ -13,6 +13,7 @@ import {
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import {
   requestAssemblerToken,
+  controllerOidcSubject,
   inspectAssemblerIdentityExpectation,
 } from "./assembler-job-identity.mts";
 import { inspectReleaseEvidenceRequest } from "./release-run-evidence.mts";
@@ -50,11 +51,75 @@ export function inspectAggregateDescriptor(raw: string | undefined) {
   };
 }
 
+/** Data projection only. API observations remain distinct from the exact
+ * request consumed by assembly; genuine building admission precedes this call. */
+export function aggregateEvidenceRequestFromObservation(raw: unknown) {
+  if (
+    !isRecord(raw) ||
+    raw.schema_version !== 1 ||
+    raw.kind !== "release-run-api-evidence" ||
+    !isRecord(raw.run)
+  )
+    throw new Error("actual release API observation required for request projection");
+  return inspectReleaseEvidenceRequest({
+    schema_version: 1,
+    repository_id: raw.repository_id,
+    run_id: raw.run.id,
+    attempt: raw.run.attempt,
+    revision: raw.run.revision,
+    tree: raw.source_tree,
+    workflow_sha256: raw.source_workflow_sha256,
+  });
+}
+
 /** Association with the EXISTING reservation; never allocate or advance state.
  * Upstream acceptance and fresh policy/pause/capacity checks remain mandatory. */
 export async function requireReservedAggregate(rawDescriptor: string, rawState: unknown) {
+  return inspectReservedAggregate(rawDescriptor, rawState, ["building", "publishing"]);
+}
+/** Readback-only association; ordinary aggregate/signing callers keep the
+ * existing phase guard. A copied context cannot enter this branch. */
+export async function requireReservedPublicationCompletion(
+  rawDescriptor: string,
+  rawState: unknown,
+  context: object,
+) {
+  const { requireActualPublicationControllerContext } =
+    await import("./acquire-release-admission.mts");
+  if (requireActualPublicationControllerContext(context).mode !== "completion-only")
+    throw new Error("actual promoting completion context required");
+  return inspectReservedAggregate(rawDescriptor, rawState, ["promoting"]);
+}
+/** Inert association for the fixed GET-only native readback collector. Neither
+ * these public locators nor a matching journal can authorize an effect. */
+export async function inspectReservedPublicationReadback(rawDescriptor: string, rawState: unknown) {
+  const association = await inspectReservedAggregate(rawDescriptor, rawState, ["promoting"]);
+  if (
+    !isRecord(rawState) ||
+    !isRecord(rawState.input) ||
+    !isRecord(rawState.input.active_candidate)
+  )
+    throw new Error("promoting reservation missing");
+  const candidate = rawState.input.active_candidate;
+  const { inspectCandidateStageEvidence } =
+    await import("./release-candidate-progress-contract.mts");
+  const history = inspectCandidateStageEvidence(candidate.stage_evidence, candidate);
+  if (
+    !history.some((slot) => slot.phase === "publishing") ||
+    !history.some((slot) => slot.phase === "promoting")
+  )
+    throw new Error("promoting readback requires retained publication stage locators");
+  return association;
+}
+async function inspectReservedAggregate(
+  rawDescriptor: string,
+  rawState: unknown,
+  phases: readonly string[],
+) {
   const descriptor = inspectAggregateDescriptor(rawDescriptor);
   const { accepted } = await inspectTrustedAssemblyInput(descriptor.assembly);
+  if (accepted.release_profile === "initial-beta-win-linux" && !accepted.public_build_inputs)
+    throw new Error("protected beta assembly requires independently bound public build inputs");
   if (
     !isRecord(rawState) ||
     rawState.checkpoint !== descriptor.checkpoint ||
@@ -64,7 +129,7 @@ export async function requireReservedAggregate(rawDescriptor: string, rawState: 
   const candidate = rawState.input.active_candidate;
   if (
     !isRecord(candidate) ||
-    !["building", "publishing"].includes(String(candidate.phase)) ||
+    !phases.includes(String(candidate.phase)) ||
     candidate.prepared_commit !== accepted.source_commit ||
     candidate.prepared_tree !== accepted.source_tree ||
     candidate.version !== accepted.version ||
@@ -167,7 +232,7 @@ async function main() {
       } else if (mode === "bind") {
         const expected = inspectAssemblerIdentityExpectation({
           audience: process.env.PORTCOVE_AGGREGATE_AUDIENCE,
-          subject: process.env.PORTCOVE_AGGREGATE_SUBJECT,
+          subject: controllerOidcSubject(process.env.PORTCOVE_CONTROLLER_REF ?? ""),
           controller_revision: process.env.PORTCOVE_CONTROLLER_REVISION,
           controller_ref: process.env.PORTCOVE_CONTROLLER_REF,
           actor_id: process.env.PORTCOVE_CONTROLLER_ACTOR_ID,
@@ -198,7 +263,7 @@ async function main() {
             artifact_id: Number(process.env.PORTCOVE_NEW_ARTIFACT_ID),
             sha256: process.env.PORTCOVE_NEW_ARTIFACT_SHA256 ?? "",
           },
-          { cwd: root },
+          { cwd: root, evidenceRequest: inspectReleaseEvidenceRequest(descriptor.evidence) },
         );
         await output({
           artifact_id: String(binding.predicate.artifact.id),

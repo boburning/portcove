@@ -5,6 +5,10 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const hash = (text: string | Uint8Array) =>
@@ -13,18 +17,24 @@ const hash = (text: string | Uint8Array) =>
     .digest("hex");
 const canonicalText = (value: string) => value.replaceAll("\r\n", "\n");
 function scanCommand(name: string, args: string[], cwd: string) {
-  return execFileSync(name, args, {
+  const result = execFileSync(name, args, {
     cwd,
     encoding: "utf8",
-    timeout: 120_000,
+    timeout: coordinatorCommandTimeout(120_000),
     maxBuffer: 32 * 1024 * 1024,
     windowsHide: true,
   }).trim();
+  checkCoordinatorDeadline();
+  return result;
 }
 
 const groups = ["advisories", "bans", "licenses", "sources"] as const;
 
-export function scanDependencies(cwd = root, filename = process.env.PORTCOVE_706_SCAN_RECEIPT) {
+export function scanDependencies(
+  cwd = root,
+  filename = process.env.PORTCOVE_706_SCAN_RECEIPT,
+  observeRetained?: (raw: unknown) => void,
+) {
   const output = filename ?? path.join(cwd, "work", "linux-beta-risk-706", `${randomUUID()}.json`);
   mkdirSync(path.dirname(output), { recursive: true });
   const head = scanCommand("git", ["rev-parse", "HEAD"], cwd);
@@ -50,7 +60,7 @@ export function scanDependencies(cwd = root, filename = process.env.PORTCOVE_706
       cwd,
       encoding: "utf8",
       windowsHide: true,
-      timeout: 120_000,
+      timeout: coordinatorCommandTimeout(120_000),
       maxBuffer: 32 * 1024 * 1024,
     },
   );
@@ -79,6 +89,17 @@ export function scanDependencies(cwd = root, filename = process.env.PORTCOVE_706
   process.stdout.write(scan.stdout);
   process.stderr.write(scan.stderr);
   console.log(`[dependency-policy] original cargo-deny exit ${scan.exitCode}; evidence ${output}`);
+  observeRetained?.(scan);
+  checkCoordinatorDeadline();
+  if (
+    scanCommand("git", ["rev-parse", "HEAD"], cwd) !== head ||
+    hash(readFileSync(path.join(cwd, "Cargo.lock"))) !== lockSha256 ||
+    canonicalText(readFileSync(policyPath, "utf8")) !== strictPolicy ||
+    scanCommand("cargo", ["deny", "--version"], cwd) !== toolVersion
+  )
+    throw new Error(
+      "scanner source/lock/policy/tool changed during execution; retain original raw scan",
+    );
   return { scan, output };
 }
 
@@ -228,38 +249,49 @@ export function describeDevelopmentSecurity(
   return `Development security policy: PASS; dependency scanner: ${decision.scanPassed ? "PASS" : "FAIL — existing RUSTSEC-2024-0429; remediation #706 outstanding"}; Linux release authorization: not evaluated.`;
 }
 
-if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
-  try {
-    if (process.argv[2] === "--help") {
-      console.log(
-        "usage: dependency-security.mts [scan] — development policy by default; scan returns raw scanner status",
-      );
-    } else {
-      if (process.argv.length > 3 || (process.argv[2] && process.argv[2] !== "scan"))
-        throw new Error("usage: dependency-security.mts [scan]");
-      const { scan, output } = scanDependencies(root);
-      if (process.argv[2] === "scan") {
-        process.exitCode = scan.exitCode ?? 1;
-      } else {
-        const decision = developmentSecurity(
-          scan,
-          readFileSync(path.join(root, "deny.toml"), "utf8"),
+async function settleDirectCli() {
+  if (
+    /^dependency-security(?:[.]mts|(?:[.]bundle)?[.]mjs)$/u.test(
+      path.basename(process.argv[1] ?? ""),
+    ) &&
+    path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)
+  ) {
+    try {
+      if (process.argv[2] === "--help") {
+        console.log(
+          "usage: dependency-security.mts [scan] — development policy by default; scan returns raw scanner status",
         );
-        writeFileSync(`${output}.decision.json`, `${JSON.stringify(decision, null, 2)}\n`, {
-          flag: "wx",
-        });
-        console.log(describeDevelopmentSecurity(decision));
-        if (process.env.GITHUB_STEP_SUMMARY) {
-          const { appendFileSync } = await import("node:fs");
-          appendFileSync(
-            process.env.GITHUB_STEP_SUMMARY,
-            `${describeDevelopmentSecurity(decision)}\n`,
+      } else {
+        if (process.argv.length > 3 || (process.argv[2] && process.argv[2] !== "scan"))
+          throw new Error("usage: dependency-security.mts [scan]");
+        const { scan, output } = scanDependencies(root);
+        if (process.argv[2] === "scan") {
+          process.exitCode = scan.exitCode ?? 1;
+        } else {
+          const decision = developmentSecurity(
+            scan,
+            readFileSync(path.join(root, "deny.toml"), "utf8"),
           );
+          writeFileSync(`${output}.decision.json`, `${JSON.stringify(decision, null, 2)}\n`, {
+            flag: "wx",
+          });
+          console.log(describeDevelopmentSecurity(decision));
+          if (process.env.GITHUB_STEP_SUMMARY) {
+            const { appendFileSync } = await import("node:fs");
+            appendFileSync(
+              process.env.GITHUB_STEP_SUMMARY,
+              `${describeDevelopmentSecurity(decision)}\n`,
+            );
+          }
         }
       }
+    } catch (error) {
+      console.error(errorMessage(error));
+      process.exitCode = 1;
     }
-  } catch (error) {
-    console.error(errorMessage(error));
-    process.exitCode = 1;
   }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

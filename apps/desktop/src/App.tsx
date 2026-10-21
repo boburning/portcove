@@ -1,3 +1,7 @@
+import {
+  addRequiredSource,
+  replaceRegisteredSource,
+} from "./features/source-health/source-actions";
 import desktopPackage from "../package.json";
 import { AddGames } from "./components/AddGames";
 import { scrollWorkspaceTo, workspaceScrollTop } from "./workspace-scroll";
@@ -18,7 +22,8 @@ import { useSourceHealth } from "./features/source-health/use-source-health";
 import { useSourceIntakeState } from "./features/source-intake/use-source-intake-state";
 import { usePortBackups } from "./features/backups/use-port-backups";
 import { useUpdateCenter } from "./features/port-updates/use-update-center";
-import { useOperationState, type Perform } from "./features/operations/use-operation-state";
+import { useOperationState } from "./features/operations/use-operation-state";
+import { targetInvocationContext } from "./features/operations/invocation-state";
 import {
   useAdoptionPlanning,
   useInstallPlanning,
@@ -73,6 +78,7 @@ import { ArtworkProvider } from "./artwork";
 import { SourceIntakeDialog } from "./components/SourceIntake";
 import { UpdateCenter } from "./components/UpdateCenter";
 import { FailureDetails } from "./components/FailureDetails";
+import { SupportBundleExport } from "./components/SupportBundleExport";
 import { Button } from "./components/ui/button";
 import { WorkspaceRefreshNotice } from "./features/workspace/WorkspaceRefreshNotice";
 import {
@@ -96,7 +102,6 @@ import type {
   BootstrapStatus,
   HostToolStatus,
   PortDefinition,
-  SourceProfile,
   SourceRecord,
 } from "./types";
 import {
@@ -166,6 +171,7 @@ function PortcoveApp() {
   if (!bootstrap.ready)
     return (
       <BootstrapRecovery
+        key={bootstrap.generation}
         error={bootstrap.error ?? missingBootstrapError}
         recoveryPending={recoveryPending}
         chooseLibrary={chooseLibrary}
@@ -304,6 +310,17 @@ export function BootstrapRecovery({
           {actionError}
         </p>
       )}
+      <section
+        aria-label="Support bundle"
+        className="grid min-w-0 gap-3 border-t border-pc-border pt-4"
+        data-focus-group
+      >
+        <h2>Create support bundle</h2>
+        <SupportBundleExport
+          disabled={pending}
+          createSupportBundle={desktopApi.createSupportBundle}
+        />
+      </section>
     </main>
   );
 }
@@ -384,7 +401,7 @@ function Workspace({
     invalidateDiagnostics: data.invalidateDiagnostics,
     activities: data.activities,
   });
-  const github = useGithubAuth(operations.perform, operations.setError);
+  const github = useGithubAuth(operations.perform, operations.setError, bootstrap.generation);
   const updates = useUpdateCenter(operations.perform, data.statuses);
   const {
     ui,
@@ -456,6 +473,14 @@ function Workspace({
     model.port?.id,
     model.status?.channel ?? model.port?.channels[0],
     operations.perform,
+    model.port
+      ? targetInvocationContext(
+          "Review installation",
+          { kind: "port", id: model.port.id, label: gameIdentityLabel(model.port) },
+          bootstrap.generation,
+          "library",
+        )
+      : undefined,
   );
   const setupReviews = useSetupReviewSelection();
   const { pendingReview, takeReview } = setupReviews;
@@ -632,6 +657,7 @@ function Workspace({
         query={ui.query}
         setQuery={ui.setQuery}
         portCount={data.catalog?.ports.length ?? 0}
+        libraryCount={data.catalog ? model.overview.installed : undefined}
         onOpenCommands={() => commandSurface.setOpen(true)}
       />
     ));
@@ -750,7 +776,7 @@ function Workspace({
       pending={operations.pendingOperations}
     >
       <ArtworkProvider generation={bootstrap.generation} catalog={data.catalog}>
-        <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)] max-[75rem]:grid-cols-[var(--layout-sidebar-compact)_minmax(0,_1fr)]">
+        <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
           <Sidebar
             view={ui.view}
             setView={setPrimaryView}
@@ -774,83 +800,103 @@ function Workspace({
             }}
           />
           <main
-            className="w-full max-w-(--layout-content-max) overflow-auto px-10 pt-8 pb-12 max-[75rem]:px-6 max-[75rem]:pt-7 max-[75rem]:pb-10 max-[65rem]:px-5"
+            className="min-h-0 w-full min-w-0 overflow-auto px-10 pt-8 pb-12 max-[75rem]:px-6 max-[75rem]:pt-7 max-[75rem]:pb-10 max-[65rem]:px-5"
             ref={workspace}
             data-focus-region="workspace"
+            data-workspace-continuity-scope={JSON.stringify([
+              bootstrap.generation,
+              ui.view,
+              model.port?.id ?? null,
+              addGamesOpen,
+            ])}
             tabIndex={-1}
           >
-            {renderPageHeader()}
-            <StatusLayer
-              invocations={operations.invocations}
-              operationEvents={operations.operationEvents}
-              dismissInvocation={operations.dismissInvocation}
-              openActivity={(id) => {
-                ui.setReviewedActivityId(id);
-                setPrimaryView("updates");
-              }}
-              error={operations.error}
-              clearError={() => operations.setError(undefined)}
-              reviewCurrentState={data.retryRefresh}
-              preparationRecovery={(record) => {
-                const id = preparationRecoveryPort(
-                  record.failure,
-                  data.catalog?.ports ?? [],
-                  data.statuses,
-                );
-                return id ? () => openPortDetails(id, "error:preparation-review") : undefined;
-              }}
-              operation={operations.operation}
-              busy={operations.busy}
-              featureNotices={
-                <ApplicationUpdateNotices
-                  updateNotice={applicationUpdate.notice}
-                  updateChoiceRequired={applicationUpdateChoice.choiceRequired}
-                  productionTransitionRequired={applicationUpdateProductionTransition.offerRequired}
-                  productionTransitionBusy={applicationUpdateProductionTransition.busy}
-                  reviewUpdate={reviewApplicationUpdate}
-                  dismissUpdate={applicationUpdate.dismiss}
-                  dismissUpdateChoice={dismissApplicationUpdateChoice}
-                  useStable={() => void completeApplicationUpdateProductionTransition("use-stable")}
-                  keepPreview={() =>
-                    void completeApplicationUpdateProductionTransition("keep-preview")
+            <div
+              className={
+                !model.port && (ui.view === "catalog" || (ui.view === "library" && !addGamesOpen))
+                  ? "w-full min-w-0"
+                  : "w-full max-w-(--layout-content-max) min-w-0"
+              }
+            >
+              {renderPageHeader()}
+              <div className="flow-root min-w-0" data-workspace-feedback>
+                <StatusLayer
+                  invocations={operations.invocations}
+                  operationEvents={operations.operationEvents}
+                  dismissInvocation={operations.dismissInvocation}
+                  openActivity={(id) => {
+                    ui.setReviewedActivityId(id);
+                    setPrimaryView("updates");
+                  }}
+                  error={operations.error}
+                  clearError={() => operations.setError(undefined)}
+                  reviewCurrentState={data.retryRefresh}
+                  preparationRecovery={(record) => {
+                    const id = preparationRecoveryPort(
+                      record.failure,
+                      data.catalog?.ports ?? [],
+                      data.statuses,
+                    );
+                    return id ? () => openPortDetails(id, "error:preparation-review") : undefined;
+                  }}
+                  operation={operations.operation}
+                  busy={operations.busy}
+                  featureNotices={
+                    <ApplicationUpdateNotices
+                      updateNotice={applicationUpdate.notice}
+                      updateChoiceRequired={applicationUpdateChoice.choiceRequired}
+                      productionTransitionRequired={
+                        applicationUpdateProductionTransition.offerRequired
+                      }
+                      productionTransitionBusy={applicationUpdateProductionTransition.busy}
+                      reviewUpdate={reviewApplicationUpdate}
+                      dismissUpdate={applicationUpdate.dismiss}
+                      dismissUpdateChoice={dismissApplicationUpdateChoice}
+                      useStable={() =>
+                        void completeApplicationUpdateProductionTransition("use-stable")
+                      }
+                      keepPreview={() =>
+                        void completeApplicationUpdateProductionTransition("keep-preview")
+                      }
+                      dismissProductionTransition={dismissApplicationUpdateProductionTransition}
+                    />
                   }
-                  dismissProductionTransition={dismissApplicationUpdateProductionTransition}
                 />
-              }
-            />
-            <WorkspaceRefreshNotice
-              failure={data.refreshFailure}
-              recoveryFailure={data.recoveryFailure}
-              hasSnapshot={Boolean(data.catalog)}
-              refreshing={data.refreshing}
-              retry={data.retryRefresh}
-              retryRecovery={data.retryRecovery}
-              subscriptionFailure={
-                data.subscriptionFailure?.error ?? operations.subscriptionFailure
-              }
-            />
-            {renderPreferenceFailure()}
-            {renderWorkspaceView()}
-            {addGamesStarted && (
-              <AddGames
-                key={bootstrap.generation}
-                active={addGamesOpen && ui.view === "library" && !model.port}
-                generation={bootstrap.generation}
-                ports={data.catalog?.ports ?? []}
-                profiles={data.catalog?.source_profiles ?? []}
-                statuses={model.statusMap}
-                sources={data.sources}
-                refreshFailed={Boolean(data.refreshFailure)}
-                onAdded={data.refreshAfterMutation}
-                onOpenPort={openPortDetails}
-                onCheckFiles={openSourceIntake}
-                onBrowseCatalog={() => setPrimaryView("catalog")}
-                onCopyInstallation={() => ui.setAdoptOpen(true)}
-                setupSource={setupSource}
-                setSetupSource={setSetupSource}
-                close={closeAddGames}
-              />
-            )}
+                <WorkspaceRefreshNotice
+                  failure={data.refreshFailure}
+                  recoveryFailure={data.recoveryFailure}
+                  hasSnapshot={Boolean(data.catalog)}
+                  refreshing={data.refreshing}
+                  retry={data.retryRefresh}
+                  retryRecovery={data.retryRecovery}
+                  subscriptionFailure={
+                    data.subscriptionFailure?.error ?? operations.subscriptionFailure
+                  }
+                />
+                {renderPreferenceFailure()}
+              </div>
+              {renderWorkspaceView()}
+              {addGamesStarted && (
+                <AddGames
+                  key={bootstrap.generation}
+                  active={addGamesOpen && ui.view === "library" && !model.port}
+                  generation={bootstrap.generation}
+                  ports={data.catalog?.ports ?? []}
+                  profiles={data.catalog?.source_profiles ?? []}
+                  statuses={model.statusMap}
+                  sources={data.sources}
+                  refreshFailed={Boolean(data.refreshFailure)}
+                  onAdded={data.refreshAfterMutation}
+                  onOpenPort={openPortDetails}
+                  onCheckFiles={openSourceIntake}
+                  onBrowseCatalog={() => setPrimaryView("catalog")}
+                  onCopyInstallation={() => ui.setAdoptOpen(true)}
+                  setupSource={setupSource}
+                  setSetupSource={setSetupSource}
+                  close={closeAddGames}
+                />
+              )}
+            </div>
           </main>
           <AdoptionOverlay
             ui={ui}
@@ -1221,6 +1267,7 @@ function CurrentView({
             sourcePickerPurpose(source.profile_id, data.catalog?.ports ?? []),
             operations.perform,
             operations.setError,
+            bootstrap.generation,
           );
         }}
         sourceNeeds={model.sourceNeeds}
@@ -1235,6 +1282,7 @@ function CurrentView({
             sourcePickerPurpose(profile.id, data.catalog?.ports ?? []),
             operations.perform,
             operations.setError,
+            bootstrap.generation,
           );
         }}
       />
@@ -1259,6 +1307,7 @@ function CurrentView({
       recent={model.recent}
       filter={ui.filter}
       query={ui.query}
+      setQuery={ui.setQuery}
       catalogSort={ui.catalogSort}
       setCatalogSort={ui.setCatalogSort}
       setFilter={ui.setFilter}
@@ -1476,6 +1525,7 @@ function AdoptionOverlay({
     libraryGeneration,
     operations.perform,
     finish,
+    ports,
   );
   const setPath = (path: string) => {
     planning.invalidate();
@@ -1516,46 +1566,6 @@ async function applyPathChoice(
   try {
     const path = await choice;
     if (path) setPath(path);
-  } catch (value) {
-    setError(errorText(value));
-  }
-}
-
-async function replaceRegisteredSource(
-  profile: SourceProfile | undefined,
-  source: SourceRecord,
-  purpose: SourcePickerPurpose,
-  perform: Perform,
-  setError: (error?: string) => void,
-) {
-  if (!profile) {
-    setError("The selected file’s requirements are missing from the current catalog.");
-    return;
-  }
-  try {
-    const path = await pickSourcePath(profile, source.path, purpose);
-    if (path)
-      await perform("update game-file location", async () => {
-        const plan = await desktopApi.planSourceRelink(profile.id, path);
-        return desktopApi.relinkSource(profile.id, path, plan.preview_sha256);
-      });
-  } catch (value) {
-    setError(errorText(value));
-  }
-}
-
-async function addRequiredSource(
-  profile: SourceProfile,
-  archive: boolean,
-  purpose: SourcePickerPurpose,
-  perform: Perform,
-  setError: (error?: string) => void,
-) {
-  try {
-    const path = await (archive
-      ? pickSourceArchivePath("", purpose)
-      : pickSourcePath(profile, "", purpose));
-    if (path) await perform("add game files", () => desktopApi.addSource(profile.id, path));
   } catch (value) {
     setError(errorText(value));
   }

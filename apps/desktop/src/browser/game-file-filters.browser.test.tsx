@@ -226,7 +226,7 @@ it.each(["dark", "light"])(
     await closeFilters();
     await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
     await expect.element(button("Filters (1)")).toHaveFocus();
-    const card = page.getByRole("button", { name: /^Complete game\./ });
+    const card = page.getByRole("button", { name: /^Complete game\s/ });
     await userEvent.click(card);
     await expect
       .element(page.getByRole("region", { name: "Catalog game-file observation" }))
@@ -255,7 +255,7 @@ it("retains unavailable choices across library invalidation, persistence and iso
   await userEvent.click(button("Check game-file filters"));
   await userEvent.click(button("Needs checking (1)"));
   await closeFilters();
-  await userEvent.click(page.getByRole("button", { name: /^Checking game\./ }));
+  await userEvent.click(page.getByRole("button", { name: /^Checking game\s/ }));
   await expect
     .element(page.getByRole("region", { name: "Catalog game-file observation" }))
     .toBeInTheDocument();
@@ -297,12 +297,12 @@ it.each(["dark", "light"])(
     await openAdvancedFilters("Filters (0)");
     await userEvent.click(button("Check game-file filters"));
     await closeFilters();
-    await userEvent.click(page.getByRole("button", { name: /^Complete game\./ }));
+    await userEvent.click(page.getByRole("button", { name: /^Complete game\s/ }));
     await expect.element(page.getByLabelText("Catalog check history")).toBeInTheDocument();
     await userEvent.click(button("Check selected route game files"));
     await expect.element(page.getByLabelText("Selected-route check history")).toBeInTheDocument();
     await userEvent.click(button("Back to catalog"));
-    await userEvent.click(page.getByRole("button", { name: /^Complete game\./ }));
+    await userEvent.click(page.getByRole("button", { name: /^Complete game\s/ }));
     await expect.element(page.getByLabelText("Catalog check history")).toBeInTheDocument();
     await expect
       .element(page.getByLabelText("Selected-route check history"))
@@ -328,7 +328,7 @@ it.each(["dark", "light"])(
     await openAdvancedFilters("Filters (0)");
     await userEvent.click(button("Check game-file filters"));
     await closeFilters();
-    await userEvent.click(page.getByRole("button", { name: /^Complete game\./ }));
+    await userEvent.click(page.getByRole("button", { name: /^Complete game\s/ }));
     monotonic.mockReturnValue(301001);
     flushSync(() => root.render(<Fixture />));
     await expect

@@ -33,6 +33,7 @@ export const validationAreas = Object.freeze([
 export type ValidationGroup = (typeof fastGroups)[number];
 export type ValidationArea = (typeof validationAreas)[number];
 export type ValidationPlatform = "primary-host" | (typeof qualificationPlatforms)[number];
+export type ReleaseQualificationProfile = "full" | "initial-beta-win-linux";
 export interface ValidationChange {
   status: string;
   oldMode: string | null;
@@ -72,6 +73,7 @@ export interface ValidationPlan {
   groups: readonly ValidationGroup[];
   platforms: readonly ValidationPlatform[];
   qualification_required: boolean;
+  release_profile?: "initial-beta-win-linux";
   fallback: { kind: "all-fast-groups"; paths: string[] } | null;
   identities: {
     base: string | null;
@@ -130,6 +132,13 @@ export const qualificationPlatforms = Object.freeze([
   "windows-x86_64",
 ] as const);
 
+export function qualificationPlatformsForProfile(profile: string = "full") {
+  if (profile === "full") return qualificationPlatforms;
+  if (profile === "initial-beta-win-linux")
+    return Object.freeze(["linux-x86_64", "windows-x86_64"] as const);
+  throw new Error("unknown release qualification profile");
+}
+
 function withNodeTestCompanions(files: readonly string[]) {
   return new Set(
     files.flatMap((file: string) =>
@@ -163,6 +172,9 @@ const protectedPolicyFiles = withNodeTestCompanions([
   ".github/repository-security.json",
   "scripts/audit.mts",
   "scripts/linux-beta-risk-706.mts",
+  "scripts/linux-beta-risk-706-preparation.mts",
+  "scripts/linux-beta-risk-706-profile.mts",
+  "scripts/linux-beta-risk-706-controller.mts",
   "scripts/dependency-security.mts",
   "scripts/roadmap.mts",
   "scripts/audit-evidence.mts",
@@ -221,6 +233,45 @@ const nativeScenarioFiles = new Set([
 // qualification, and updater authorities. Node contract tests are protected
 // with their implementations so a gate cannot weaken its own required proof.
 const releaseSecurityFiles = withNodeTestCompanions([
+  "release-preview-withdrawals.json",
+  "scripts/release-preview-withdrawals.mts",
+  "scripts/release-native-stage-capture.mts",
+  "scripts/release-native-capture-files.mts",
+  "scripts/release-native-linux-report.mts",
+  "scripts/release-native-scheduler.mts",
+  "scripts/release-native-parent.mts",
+  "scripts/release-native-wsl-boundary.mts",
+  "apps/desktop/scripts/native-linux-driver-http.mts",
+  "apps/desktop/scripts/native-linux-isolated-init.py",
+  "apps/desktop/scripts/native-linux-isolated-plan.mts",
+  "apps/desktop/scripts/native-linux-isolated-session.mts",
+  "scripts/native-qualification-linux-supervisor.py",
+  "scripts/native-qualification-linux-supervisor.test.py",
+  "scripts/native-qualification-linux-transfer.py",
+  "scripts/native-qualification-linux-transfer.test.py",
+  "scripts/release-native-wsl-capture.mts",
+  "scripts/release-native-wsl-bootstrap.mts",
+  "scripts/release-native-wsl-wire.mts",
+  "scripts/release-native-wsl-host.mts",
+  "scripts/read-native-wsl-host.ps1",
+  "scripts/release-native-linux-driver.mts",
+  "scripts/release-native-linux-package.mts",
+  "scripts/release-native-candidate.mts",
+  "scripts/release-native-keyless-assembly.mts",
+  "scripts/release-native-attempt.mts",
+  "scripts/release-native-source-contract.mts",
+  "scripts/release-native-pre-sign-report.mts",
+  "scripts/release-native-check-broker.mts",
+  "scripts/release-native-worker.mts",
+  "scripts/release-native-windows-capture.mts",
+  "scripts/release-native-windows-public-continuation.mts",
+  "scripts/release-native-windows-driver.ps1",
+  "scripts/release-local-native-setup.mts",
+  "scripts/release-local-worker-tasks.mts",
+  "scripts/release-local-worker-accounts.ps1",
+  "scripts/release-native-account-capability.mts",
+  "scripts/read-native-scheduler.ps1",
+  "scripts/release-classification-request.mts",
   ".github/release.yml",
   ".agents/skills/portcove-port-qualification/SKILL.md",
   ".agents/skills/portcove-release-validation/SKILL.md",
@@ -234,21 +285,113 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "docs/SIGNED-CATALOG.md",
   "docs/UPGRADING.md",
   "docs/qualification/application-update-production.aggregate.yml",
+  "docs/qualification/application-update-production.payload-signing.yml",
   "docs/qualification/slice4-production-authorization-packet-2026-10-18.md",
   "scripts/check-release-metadata.mts",
   "scripts/controller-canary.mts",
   "scripts/production-controller-admission.mts",
+  "scripts/release-site-composer.mts",
+  "scripts/release-coordinator-journal-api.mts",
+  "scripts/release-coordinator-deadline.mts",
+  "scripts/release-publication-inventory.mts",
+  "scripts/release-coordinator-deadline.mts",
+  "scripts/release-preparation-source.mts",
+  "scripts/release-coordinator-driver.mts",
+  "scripts/release-review-request.mts",
+  "scripts/release-candidate-dispatch.mts",
+  "scripts/release-candidate-progress.mts",
+  "scripts/release-admitted-aggregate-controller.mts",
+  "scripts/release-aggregate-contract.mts",
+  "scripts/release-aggregate-upload.mts",
+  "scripts/release-readonly-child-environment.mts",
+  "scripts/release-candidate-progress-contract.mts",
+  "scripts/release-site-readback.mts",
+  "scripts/release-site-deployment.mts",
+  "scripts/release-site-controller.mts",
+  "scripts/release-site-launch.mts",
+  "scripts/release-control-step-bridge.mts",
+  "scripts/release-controller-transport.mts",
+  "scripts/release-controller-diagnostics.mts",
+  "docs/qualification/application-update-production.complete.yml",
+  ".github/actions/release-control-observer/action.yml",
+  ".github/actions/release-controller-transport/action.yml",
+  "scripts/release-controller-configuration.mts",
+  "scripts/release-controller-job.mts",
+  "scripts/release-controller-job-bootstrap.mts",
+  "scripts/release-controller-job-output.mts",
+  "scripts/release-aggregate-locator.mts",
+  "scripts/release-coordinator-namespace.mts",
+  ".github/actions/release-controller-job/action.yml",
+  "scripts/release-site-job-budget.mts",
+
+  "scripts/release-pages-provider.mts",
+  "scripts/release-pages-recovery.mts",
+  "scripts/release-pages-metadata-recovery.mts",
+  "scripts/release-capacity-executor.mts",
+
+  "scripts/release-publication-inventory.mts",
+  "scripts/release-compiler-source-admission.mts",
+  "scripts/release-compiler-source.mts",
+  "scripts/release-compiler-source-closure.mts",
+  "scripts/release-compiler-evidence.mts",
+  "scripts/release-compiler-outputs.mts",
+  "scripts/release-compiler-desktop.mts",
+  "scripts/release-source-attestation.mts",
   "scripts/assembler-job-identity.mts",
   "scripts/release-control-inputs.mts",
   "scripts/release-capacity.mts",
+  "scripts/release-canonical.mts",
+  "scripts/release-metadata-contract.mts",
+  "scripts/release-metadata-renewal.mts",
+  "scripts/release-bootstrap-preparation.mts",
+  "scripts/release-bootstrap-public-inputs.mts",
+  "scripts/fixtures/release-metadata-canonical.json",
+  "scripts/fixtures/release-metadata-fixture.mts",
   "scripts/release-semantic-review.mts",
   "scripts/release-semantic-inputs.mts",
+  "scripts/release-semantic-proposal.mts",
+  "scripts/release-review-request.mts",
+  "scripts/release-published-source.mts",
+  "scripts/release-semantic-disposition.mts",
+  "scripts/release-semantic-disposition-reader.mts",
+  "scripts/release-authority-configuration.mts",
+  "scripts/fixtures/release-semantic-disposition-fixture.mts",
+  "scripts/release-semantic-issuer.mts",
+  "scripts/release-semantic-issuer-http.mts",
   "scripts/release-semantic-runtime.mts",
+  "scripts/release-semantic-worker.mts",
+  "scripts/release-semantic-source.mts",
+  "scripts/release-semantic-source.test.mts",
+  "scripts/semantic-source-git.py",
+  "scripts/semantic-source-git.test.py",
+  "scripts/qualify-semantic-source.mts",
+  "scripts/release-semantic-worker-recovery.mts",
+  "scripts/release-semantic-request-pipeline.mts",
   "scripts/release-semantic-reader.mts",
   "scripts/release-semantic-reader-core.mts",
   "scripts/release-semantic-reader-server.mts",
   "scripts/release-semantic-broker.mts",
   "scripts/semantic-review-sandbox.ps1",
+  "apps/desktop/scripts/native-linux-public-fuse.py",
+  "apps/desktop/scripts/native-linux-public-fuse.test.py",
+  "apps/desktop/scripts/native-linux-public-services.py",
+  "apps/desktop/scripts/native-linux-public-services.test.py",
+  "apps/desktop/scripts/native-linux-public-plan.mts",
+  "scripts/native-linux-public-fuse.test.mts",
+  "scripts/native-linux-public-services.test.mts",
+  "scripts/native-linux-public-plan.test.mts",
+  "apps/desktop/scripts/desktop-public-update-state.mts",
+  "apps/desktop/scripts/desktop-public-update-state.native.test.mts",
+  "apps/desktop/scripts/desktop-public-update-files.mts",
+  "apps/desktop/scripts/desktop-linux-public-update.mts",
+  "apps/desktop/scripts/desktop-linux-public-update.native.test.mts",
+  "apps/desktop/scripts/native-linux-public-network.py",
+  "apps/desktop/scripts/native-linux-public-network.test.py",
+  "scripts/native-linux-public-network.test.mts",
+  "scripts/semantic-review-linux-supervisor.py",
+  "scripts/semantic-review-linux-supervisor.test.py",
+  "scripts/semantic-review-linux-supervisor.test.mts",
+  "scripts/qualify-semantic-linux.mts",
   "scripts/fixtures/semantic-review-appcontainer.cs.txt",
   "scripts/release-capacity-operation.mts",
   "scripts/release-input-protections.mts",
@@ -258,10 +401,84 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/production-aggregate-steps.mts",
   "scripts/acquire-release-admission.mts",
   "scripts/release-coordinator-errors.mts",
+  "scripts/release-candidate-qualification.mts",
+  "scripts/release-immutable-publication.mts",
   "scripts/finalize-release-assets.mts",
   "scripts/trusted-release-assembly.mts",
   "scripts/release-artifact-archive.mts",
   "scripts/release-artifact-assembly.mts",
+  "scripts/release-public-build-inputs.mts",
+  "scripts/release-public-build-provenance.mts",
+  "scripts/release-control-handshake.mts",
+  "scripts/release-controller-tool-build.mts",
+  "scripts/qualify-controller-tool-build.mts",
+  ".github/workflows/controller-tool-build-fixture.yml",
+  "scripts/release-controller-tool-bootstrap.mts",
+  "scripts/release-controller-tools.mts",
+  "scripts/release-compiler-source.mts",
+  "scripts/release-compiler-source-closure.mts",
+  "scripts/release-native-qualification-contract.mts",
+  "scripts/native-qualification-account.cs.txt",
+  "scripts/native-qualification-account-bridge.ps1",
+  "scripts/native-qualification-account-client.ps1",
+  "scripts/native-qualification-account-client.mts",
+  "scripts/native-qualification-account-adapter.psm1",
+  "scripts/native-qualification-account-registry.ps1",
+  "apps/desktop/scripts/desktop-native-account-session.mts",
+  "apps/desktop/scripts/desktop-windows-public-update.mts",
+  "apps/desktop/scripts/desktop-windows-public-update-files.mts",
+  "apps/desktop/scripts/desktop-windows-public-update.native.test.mts",
+  "scripts/release-native-acceptance.mts",
+  "scripts/release-native-admission.mts",
+  "scripts/release-native-check-discovery.mts",
+  "scripts/release-signing-handoff.mts",
+  "scripts/release-tuf-role-artifact.mts",
+  "scripts/fixtures/tuf-worker-fixture.mts",
+  "scripts/release-tuf-signing.mts",
+  "scripts/release-tuf-controller.mts",
+  "scripts/release-tuf-launch.mts",
+  "scripts/release-signing-job-budget.mts",
+  "scripts/release-metadata-signing-contract.mts",
+  "scripts/release-metadata-signing-context.mts",
+  "scripts/release-metadata-signing-controller.mts",
+  "scripts/release-metadata-context-recovery.mts",
+  "scripts/release-candidate-signing-recovery.mts",
+  "scripts/release-pending-release-recovery.mts",
+  "scripts/release-pending-result-recovery.mts",
+  "scripts/release-report-repair-contract.mts",
+  "scripts/release-report-repair-identity.mts",
+  "scripts/release-effect-contract.mts",
+  "scripts/release-run-artifact-inventory.mts",
+  "scripts/release-metadata-site-controller.mts",
+  "scripts/release-signing-context.mts",
+  "scripts/release-signing-context-artifact.mts",
+  "scripts/release-publication-controller.mts",
+  "scripts/release-publication-handoff.mts",
+  "scripts/release-publication-inputs.mts",
+  "scripts/release-publication-source.mts",
+  "scripts/release-tuf-publication.mts",
+  "scripts/release-native-publication-admission.mts",
+  "scripts/release-native-public-pair.mts",
+  "scripts/release-native-linux-public-capture.mts",
+  "scripts/release-native-public-compiler.mts",
+  "scripts/release-compiler-report-archive.mts",
+  "scripts/release-native-public-signature.mts",
+  "scripts/release-native-public-attempt-contract.mts",
+  "scripts/release-controller-wake.mts",
+  "scripts/release-publication-result.mts",
+  "scripts/release-publication-result-artifact.mts",
+  "scripts/release-signing-controller.mts",
+  "scripts/release-controller-tool-launch.mts",
+  "scripts/release-authority-configuration.mts",
+  "scripts/release-controller-tool-admission.mts",
+  "scripts/github-controller-attestation.mts",
+  "docs/qualification/application-update-production.controller-tools.yml",
+  "scripts/release-control-phases.mts",
+  "scripts/release-handshake-hosted-fixture.mts",
+  ".github/workflows/release-handshake-fixture.yml",
+  "scripts/release-control-ready.mts",
+  "scripts/release-live-control-admission.mts",
+  "apps/desktop/src-tauri/tauri.release-public.conf.json",
   "scripts/bounded-zip.mts",
   "scripts/github-binary.mts",
   "scripts/generate-release-downloads.mts",
@@ -275,11 +492,15 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-path-safety.mts",
   "scripts/release-result-gate.mts",
   "scripts/linux-beta-risk-706.mts",
+  "scripts/linux-beta-risk-706-preparation.mts",
+  "scripts/linux-beta-risk-706-profile.mts",
+  "scripts/linux-beta-risk-706-controller.mts",
   "scripts/dependency-security.mts",
   "scripts/roadmap.mts",
   "scripts/release-coordinator.mts",
   "scripts/release-coordinator-state.mts",
   "scripts/release-coordinator-remote.mts",
+  "scripts/release-prepared-transport.mts",
   "scripts/release-coordinator-recovery.mts",
   "scripts/release-run-evidence.mts",
   "scripts/release-source-changes.mts",
@@ -293,6 +514,9 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/test-linux-package-ownership.sh",
   "scripts/test-windows-installer.ps1",
   "scripts/updater-artifact-inventory.mts",
+  "scripts/release-payload-signing.mts",
+  "scripts/release-payload-preparation.mts",
+  "scripts/release-role-key-channel.mts",
   "scripts/verify-macos-release.ps1",
   "scripts/windows-qualification-session.ps1",
   "scripts/windows-qualification-session.integration.test.mts",
@@ -380,7 +604,9 @@ function classifyPath(file: string): PathOwnership {
     add(groups, ...selectedGroups);
     reasons.push(reason);
   };
-  const documentation = file.endsWith(".md") || file.startsWith("docs/") || inertGithubFile;
+  const documentation =
+    (file.endsWith(".md") || file.startsWith("docs/") || inertGithubFile) &&
+    !(releaseSecurity && /\.ya?ml$/u.test(file));
   const rust = file.startsWith("crates/") || file.startsWith("apps/desktop/src-tauri/");
   const rootRust = [
     "Cargo.toml",
@@ -973,6 +1199,8 @@ function assertPlanShape(plan: unknown): asserts plan is ValidationPlan {
     throw new Error("validation plan reason is missing");
   if (typeof plan.qualification_required !== "boolean")
     throw new Error("validation qualification authority is invalid");
+  if (Object.hasOwn(plan, "release_profile") && plan.release_profile !== "initial-beta-win-linux")
+    throw new Error("invalid release qualification profile");
   assertStringArray(plan.changed_files, [], "changed_files");
   assertStringArray(plan.areas, validationAreas, "area");
   assertStringArray(plan.groups, fastGroups, "group");
@@ -1136,6 +1364,13 @@ function validatePlanSemantics(plan: ValidationPlan): ValidationPlan {
     throw new Error("failed discovery cannot authorize validation");
   if (plan.mode !== "blocked" && plan.discovery !== "complete")
     throw new Error("active validation requires complete discovery");
+  if (
+    plan.release_profile !== undefined &&
+    (plan.mode !== "qualification" ||
+      plan.reason !== "explicit-reusable-qualification" ||
+      plan.paths.length !== 0)
+  )
+    throw new Error("release profile requires explicit reusable qualification");
   if (plan.mode === "blocked") {
     if (
       plan.changed_files.length ||
@@ -1158,7 +1393,8 @@ function validatePlanSemantics(plan: ValidationPlan): ValidationPlan {
   if (
     plan.mode === "qualification" &&
     (JSON.stringify(plan.groups) !== JSON.stringify(fastGroups) ||
-      JSON.stringify(plan.platforms) !== JSON.stringify(qualificationPlatforms))
+      JSON.stringify(plan.platforms) !==
+        JSON.stringify(qualificationPlatformsForProfile(plan.release_profile)))
   )
     throw new Error("qualification plan must include every protected group and platform");
   if (plan.platforms.length === 0) throw new Error("active validation plan must select a platform");
@@ -1249,12 +1485,17 @@ export function validateQualificationBinding({
   plan: input,
   digest,
   checkout,
+  releaseProfile = "full",
 }: {
   plan: unknown;
   digest: string | undefined;
   checkout: string | undefined;
+  releaseProfile?: string;
 }) {
   const plan = validateValidationPlan(input);
+  const expectedPlatforms = qualificationPlatformsForProfile(releaseProfile);
+  if ((plan.release_profile ?? "full") !== releaseProfile)
+    throw new Error("reusable qualification release profile mismatch");
   if (plan.mode !== "qualification" || !plan.qualification_required)
     throw new Error("reusable result is not a qualification plan");
   if (plan.digest !== digest) throw new Error("reusable qualification digest mismatch");
@@ -1267,7 +1508,7 @@ export function validateQualificationBinding({
     throw new Error("reusable qualification omitted a protected group");
   if (
     JSON.stringify([...plan.platforms].sort(compareStrings)) !==
-    JSON.stringify([...qualificationPlatforms].sort(compareStrings))
+    JSON.stringify([...expectedPlatforms].sort(compareStrings))
   )
     throw new Error("reusable qualification omitted a platform");
   return plan;
@@ -1284,6 +1525,7 @@ function main() {
     plan: input,
     digest: process.env.PORTCOVE_PLAN_DIGEST,
     checkout: process.env.PORTCOVE_EXPECTED_CHECKOUT,
+    releaseProfile: process.env.PORTCOVE_RELEASE_PROFILE ?? "full",
   });
   console.log(`Reusable qualification ${plan.digest} is bound to ${plan.identities.checkout}.`);
 }

@@ -1,0 +1,157 @@
+# Inert fragment for the existing fixed protected controller. This file is not
+# under .github/workflows. Merge only after exact owner review/provisioning.
+jobs:
+  payload_signing:
+    if: ${{ false }}
+    needs: [admission, independent_admission, aggregate, attest, verify]
+    name: Sign admitted updater payloads
+    environment: production-payload-signing
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - name: Hold missing authenticated positive admission and fixed configuration producer
+        shell: bash
+        run: |
+          echo 'HOLD: current independent admission has no positive signing disposition or configuration producer'
+          exit 2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: package.json
+      - name: Install only fixed trusted controller dependencies without candidate caches or hooks
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Reacquire admission, reservation and verified aggregate before any role-key access
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_HOST: github.com
+          PORTCOVE_CONTROLLER_REVISION: ${{ vars.PORTCOVE_CONTROLLER_REVISION }}
+          PORTCOVE_CONTROLLER_REF: ${{ vars.PORTCOVE_CONTROLLER_REF }}
+          PORTCOVE_CONTROLLER_ADMISSION: ${{ vars.PORTCOVE_CONTROLLER_ADMISSION }}
+          PORTCOVE_REVIEW_PRODUCER: ${{ vars.PORTCOVE_REVIEW_PRODUCER }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test ! -e "$RUNNER_TEMP/payload-preparation-process-ended.json"
+          node scripts/release-payload-preparation.mts "$RUNNER_TEMP/payload-controller.json" > "$RUNNER_TEMP/payload-preparation-process.log" 2>&1 &
+          reader_pid=$!
+          printf '%s\n' "$reader_pid" > "$RUNNER_TEMP/payload-preparation-process.pid"
+          for ((i=0; i<900; i++)); do
+            if [[ -f "$GITHUB_WORKSPACE/work/payload-preparation/ready-payload.json" ]]; then exit 0; fi
+            if [[ -f "$RUNNER_TEMP/payload-preparation-process-ended.json" ]] || ! kill -0 "$reader_pid" 2>/dev/null; then exit 2; fi
+            sleep 1
+          done
+          exit 2
+      - name: Publish payload-only readiness after exact aggregate acquisition
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-release-control-payload-ready-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ github.workspace }}/work/payload-preparation/ready-payload.json
+          retention-days: 7
+          overwrite: false
+          if-no-files-found: error
+          compression-level: 0
+      - name: Await same-process fresh payload control gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          reader_pid=$(cat "$RUNNER_TEMP/payload-preparation-process.pid")
+          [[ "$reader_pid" =~ ^[1-9][0-9]*$ ]]
+          for ((i=0; i<300; i++)); do
+            if [[ -f "$RUNNER_TEMP/payload-preparation-process-ended.json" ]] && ! kill -0 "$reader_pid" 2>/dev/null; then exit 2; fi
+            sleep 1
+          done
+          exit 2
+      - name: Retain token-free payload holds and diagnostic requests
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: payload-preparation-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ github.workspace }}/work/payload-preparation/*.json
+            ${{ runner.temp }}/payload-preparation-process-ended.json
+          retention-days: 7
+          overwrite: false
+          if-no-files-found: warn
+      # No payload key/environment, signing continuation or upload action exists
+      # here. Future integration must independently bind immutable signature IDs,
+      # seven-day retention/no overwrite and consumption before feed assembly.
+
+  payload_protection_observation:
+    if: ${{ false }}
+    needs: [admission, independent_admission, aggregate, attest, verify]
+    name: Observe payload signing input protections
+    environment: production-release-protection-observer
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    outputs:
+      observation: ${{ steps.observe.outputs.observation }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Wait GET-only for exact private acquisition readiness before credential release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_CONTROLLER_ADMISSION: ${{ vars.PORTCOVE_CONTROLLER_ADMISSION }}
+          PORTCOVE_CONTROLLER_REVISION: ${{ vars.PORTCOVE_CONTROLLER_REVISION }}
+          PORTCOVE_CONTROLLER_REF: ${{ vars.PORTCOVE_CONTROLLER_REF }}
+        run: node scripts/release-control-ready.mts payload
+      # Administration-write is released only to GET-only observer code.
+      # This new held source invalidates the previous capacity/workflow binding;
+      # the final complete job set must fit the unchanged 100-minute ceiling.
+      - id: observer-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          app-id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
+          private-key: ${{ secrets.PORTCOVE_PROTECTION_APP_KEY }}
+          owner: boburning
+          repositories: portcove
+          permission-administration: write
+          permission-metadata: read
+      - id: observe
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer-token.outputs.token }}
+          PORTCOVE_CONTROLLER_ADMISSION: ${{ vars.PORTCOVE_CONTROLLER_ADMISSION }}
+        run: node scripts/release-reviewed-inputs.mts observe-production-payload
+      - name: Publish fresh tiny report while observer job is still active
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-release-control-payload-observation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/observation-payload.json
+          if-no-files-found: error
+          overwrite: false
+          retention-days: 7
+          compression-level: 0
+      - name: Retain token-free observer evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-payload-protection-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/release-reviewed-inputs-observe-production-payload.jsonl
+            ${{ runner.temp }}/release-control-ready-payload/*
+          if-no-files-found: warn
+          overwrite: false
+          retention-days: 7

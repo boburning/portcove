@@ -5,268 +5,72 @@ import { execFileSync } from "node:child_process";
 import { mkdtemp, mkdir, copyFile, writeFile, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import {
   persistReviewedClassification,
   readPublicationPause,
   readRatifiedCapacityConfiguration,
   readReviewedClassification,
+  readReviewedClassificationForRequest,
 } from "./release-control-inputs.mts";
+import { createReleaseReviewRequest } from "./release-review-request.mts";
 import {
   observeReleaseInputProtections,
   requireReleaseInputWriterPolicy,
+  requireReleaseImmutabilityPolicy,
 } from "./release-input-protections.mts";
-import { prepareSemanticReviewHandoff } from "./release-semantic-review.mts";
+import { capacityDigest } from "./release-capacity.mts";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
-import { isRecord } from "./runtime-values.mts";
-const source = "a".repeat(40),
-  tree = "b".repeat(40),
-  before = "c".repeat(40),
-  after = "d".repeat(40);
-const opportunity = {
-  source_commit: source,
-  source_tree: tree,
-  base_commit: "e".repeat(40),
-  change_set_sha256: "f".repeat(64),
-  complete_change_set: true,
-  meaningful: true,
-  documentation_only: false,
-  urgency: false,
-  requested_channel: "preview",
-  classification: {
-    source_commit: source,
-    reviewed_commit: source,
-    source_tree: tree,
-    reviewed_tree: tree,
-    change_set_sha256: "f".repeat(64),
-    change_set_scope: "portcove-release-net-tree-delta-v1",
-    base_version: "0.1.0-alpha.2",
-    change: "prerelease",
-    compatibility: "compatible",
-  },
-};
-const config = {
-  schema_version: 1,
-  review_app_id: 101,
-  writer_app_id: 202,
-  review_check_name: "Independent semantic review",
-};
-function fixture(capacityDocument?: unknown) {
-  let content: string | null = null,
-    mutations = 0;
-  const objects = new Map<string, unknown>();
-  const git = (kind: string, bytes: Buffer) =>
-    createHash("sha1").update(`${kind} ${bytes.length}\0`).update(bytes).digest("hex");
-  const blob = (text: string) => {
-    const bytes = Buffer.from(text),
-      sha = git("blob", bytes);
-    objects.set(`blobs/${sha}`, {
-      sha,
-      encoding: "base64",
-      size: bytes.length,
-      content: bytes.toString("base64"),
-    });
-    return sha;
-  };
-  const makeTree = (entries: { path: string; mode: string; type: string; sha: string }[]) => {
-    entries.sort((a, b) =>
-      Buffer.compare(
-        Buffer.from(a.path + (a.type === "tree" ? "/" : "")),
-        Buffer.from(b.path + (b.type === "tree" ? "/" : "")),
-      ),
-    );
-    const sha = git(
-      "tree",
-      Buffer.concat(
-        entries.map((entry) =>
-          Buffer.concat([
-            Buffer.from(`${entry.mode === "040000" ? "40000" : entry.mode} ${entry.path}\0`),
-            Buffer.from(entry.sha, "hex"),
-          ]),
-        ),
-      ),
-    );
-    objects.set(`trees/${sha}`, { sha, truncated: false, tree: entries });
-    return sha;
-  };
-  const makeCommit = () => {
-    const entries = [
-      {
-        path: "publication.json",
-        mode: "100644",
-        type: "blob",
-        sha: blob(JSON.stringify({ schema_version: 1, publication_paused: true })),
-      },
-    ];
-    if (capacityDocument !== undefined)
-      entries.push({
-        path: "capacity.json",
-        mode: "100644",
-        type: "blob",
-        sha: blob(JSON.stringify(capacityDocument)),
-      });
-    if (content !== null) {
-      const file = makeTree([
-        {
-          path: `${opportunity.change_set_sha256}.json`,
-          mode: "100644",
-          type: "blob",
-          sha: blob(content),
-        },
-      ]);
-      const directory = makeTree([{ path: source, mode: "040000", type: "tree", sha: file }]);
-      entries.push({ path: "classification", mode: "040000", type: "tree", sha: directory });
-    }
-    const tree = makeTree(entries),
-      message = "fixture\n";
-    const sha = git(
-      "commit",
-      Buffer.from(
-        `tree ${tree}\nauthor Fixture <fixture@example.invalid> 946684800 +0000\ncommitter Fixture <fixture@example.invalid> 946684800 +0000\n\n${message}`,
-      ),
-    );
-    objects.set(`commits/${sha}`, {
-      sha,
-      tree: { sha: tree },
-      parents: [],
-      message,
-      author: { name: "Fixture", email: "fixture@example.invalid", date: "2000-01-01T00:00:00Z" },
-      committer: {
-        name: "Fixture",
-        email: "fixture@example.invalid",
-        date: "2000-01-01T00:00:00Z",
-      },
-    });
-    return sha;
-  };
-  let head = makeCommit();
-  const initial = head;
-  const faults = { value: "" };
-  const requests: string[] = [];
-  let refReads = 0;
-  const api: CoordinatorRemoteApi = {
-    request(method, endpoint) {
-      assert.equal(method, "GET");
-      requests.push(endpoint);
-      let body: unknown;
-      if (endpoint === "repos/boburning/portcove")
-        body = { id: 1354613114, full_name: "boburning/portcove", node_id: "fixture-repo" };
-      else if (endpoint.includes("/git/ref/heads/"))
-        body = {
-          ref: `refs/heads/${endpoint.split("/").at(-1)}`,
-          object: {
-            type: "commit",
-            sha:
-              faults.value === "pause-drift" &&
-              requests.filter((route) => route.includes("/git/ref/heads/")).length > 1
-                ? after
-                : head,
-          },
-        };
-      else if (endpoint.endsWith("/check-runs/303"))
-        body = {
-          id: 303,
-          app: { id: faults.value === "issuer" ? 202 : 101 },
-          name: config.review_check_name,
-          head_sha: source,
-          status: "completed",
-          conclusion: faults.value === "failure" ? "failure" : "success",
-          completed_at: "2026-01-01T00:00:00Z",
-          output: {
-            title: "Portcove independent release review v1",
-            annotations_count: faults.value === "annotations" ? 1 : 0,
-            summary: (() => {
-              const reviewed =
-                faults.value === "input" ? { ...opportunity, urgency: true } : opportunity;
-              const prepared = prepareSemanticReviewHandoff(reviewed, {
-                scope: "complete-release-opportunity",
-                runtime: "codex-independent-local-review",
-                session_ref: "fixture:independent-task",
-                completed_at: "2026-01-01T00:00:00Z",
-                coverage: { accumulated_changes: true, classification: true, compatibility: true },
-                accepted_opportunity: reviewed,
-                report:
-                  faults.value === "report-change"
-                    ? "Changed fixture semantic report"
-                    : "Fixture independent semantic review; no live authority.",
-              });
-              const wire: unknown = JSON.parse(prepared.proposed_request.body.output.summary);
-              assert.ok(isRecord(wire) && isRecord(wire.review));
-              if (faults.value === "report-bytes") wire.review.report = "Tampered transcript";
-              if (faults.value === "pr-scope") wire.review.scope = "implementation-pr";
-              if (faults.value === "legacy-report") {
-                delete wire.review;
-                wire.schema_version = 1;
-              }
-              return JSON.stringify(wire);
-            })(),
-          },
-        };
-      else if (endpoint.includes("/git/")) {
-        body = objects.get(endpoint.split("/git/")[1]!);
-        if (!body) throw new Error("unknown Git fixture object");
-      } else throw new Error("unexpected route");
-      return { status: 200, headers: new Map(), body };
-    },
-    graphql(query, variables) {
-      if (query.startsWith("query")) {
-        refReads++;
-        return {
-          data: {
-            node: {
-              __typename: "Repository",
-              id: "fixture-repo",
-              databaseId: 1354613114,
-              nameWithOwner: "boburning/portcove",
-              ref: {
-                id: `opaque-${String(variables.ref)}`,
-                name: String(variables.ref).slice(11),
-                prefix: "refs/heads/",
-                target: {
-                  __typename: "Commit",
-                  oid: faults.value === "pause-drift" && refReads > 1 ? after : head,
-                },
-              },
-            },
-          },
-        };
-      }
-      mutations++;
-      const input = variables.input as {
-        expectedHeadOid: string;
-        branch: { id: string };
-        fileChanges: { additions: { contents: string; path: string }[] };
-      };
-      assert.equal(input.expectedHeadOid, initial);
-      assert.equal(input.branch.id, "opaque-refs/heads/portcove-release-inputs");
-      assert.equal(input.fileChanges.additions.length, 1);
-      if (faults.value === "cas") throw new Error("preimage race");
-      content = Buffer.from(input.fileChanges.additions[0]!.contents, "base64").toString();
-      head = makeCommit();
-      if (faults.value === "ambiguous") throw new Error("lost response");
-      return { data: { createCommitOnBranch: { commit: { oid: head } } } };
-    },
-  };
-  return {
-    api,
-    faults,
-    requests,
-    mutations: () => mutations,
-    conflicting: () => {
-      content = "{}";
-      head = makeCommit();
-    },
-    legacy: () => {
-      assert.ok(content);
-      const record: unknown = JSON.parse(content);
-      assert.ok(isRecord(record));
-      record.schema_version = 1;
-      delete record.review_sha256;
-      content = JSON.stringify(record);
-      head = makeCommit();
-    },
-  };
-}
+import {
+  releaseControlInputsFixture as fixture,
+  source,
+  before,
+  after,
+  opportunity,
+  config,
+} from "./fixtures/release-control-inputs-fixture.mts";
+void test("neutral request discovers only its existing exact D1 path and reauthenticates the unchanged consumer", () => {
+  const f = fixture();
+  const request = createReleaseReviewRequest({
+    before_checkpoint: "1".repeat(40),
+    requested_at: "2026-01-01T00:00:00.000Z",
+    base_commit: opportunity.base_commit,
+    base_version: opportunity.classification.base_version,
+    source_commit: opportunity.source_commit,
+    source_tree: opportunity.source_tree,
+    change_set_sha256: opportunity.change_set_sha256,
+  });
+  assert.equal(readReviewedClassificationForRequest(f.api, config, request).status, "missing");
+  assert.equal(f.mutations(), 0);
+  persistReviewedClassification(f.api, config, opportunity, 303, () => {});
+  const result = readReviewedClassificationForRequest(f.api, config, request);
+  assert.equal(result.status, "reviewed");
+  if (result.status !== "reviewed") assert.fail("verified fixture classification missing");
+  assert.deepEqual(result.opportunity, opportunity);
+  assert.equal(result.review_check_id, 303);
+  const wrongBase = createReleaseReviewRequest({
+    before_checkpoint: request.before_checkpoint,
+    requested_at: request.requested_at,
+    base_commit: request.base_commit,
+    base_version: "0.1.0-alpha.1",
+    source_commit: request.source_commit,
+    source_tree: request.source_tree,
+    change_set_sha256: request.change_set_sha256,
+  });
+  assert.throws(
+    () => readReviewedClassificationForRequest(f.api, config, wrongBase),
+    /exact neutral request/,
+  );
+  f.legacy();
+  assert.throws(
+    () => readReviewedClassificationForRequest(f.api, config, request),
+    /schema differs/,
+  );
+  assert.equal(f.mutations(), 1);
+  const malformed = fixture();
+  malformed.conflicting();
+  assert.throws(() => readReviewedClassificationForRequest(malformed.api, config, request));
+  assert.equal(malformed.mutations(), 0);
+});
 void test("semantic review binds exact inputs; CAS writes once; identical repeat does not write", () => {
   const f = fixture();
   assert.equal(
@@ -334,8 +138,18 @@ void test("immutable conflicts, CAS refusal and ambiguous acknowledgment never o
   assert.equal(recovered.mutations(), 1);
 });
 void test("isolated observer only GETs and refuses hidden bypass, inherited coverage and drift", () => {
-  for (const fault of ["", "bypass", "inherited", "drift"]) {
+  for (const fault of [
+    "",
+    "bypass",
+    "inherited",
+    "drift",
+    "release-ok",
+    "release-disabled",
+    "release-drift",
+  ]) {
     let refReads = 0;
+    let settingReads = 0;
+    const publication = fault.startsWith("release-");
     const api = {
       request(method: string, endpoint: string) {
         assert.equal(method, "GET");
@@ -353,7 +167,14 @@ void test("isolated observer only GETs and refuses hidden bypass, inherited cove
         };
         if (endpoint === "repos/boburning/portcove")
           body = { id: 1354613114, full_name: "boburning/portcove" };
-        else if (endpoint.includes("/rulesets?")) body = [rule];
+        else if (endpoint.endsWith("/immutable-releases")) {
+          settingReads++;
+          body = {
+            enabled:
+              fault !== "release-disabled" && !(fault === "release-drift" && settingReads === 2),
+            enforced_by_owner: false,
+          };
+        } else if (endpoint.includes("/rulesets?")) body = [rule];
         else if (endpoint.includes("/rulesets/1?"))
           body = fault === "bypass" ? { ...rule, bypass_actors: undefined } : rule;
         else if (endpoint.includes("/git/ref/heads/")) {
@@ -368,13 +189,41 @@ void test("isolated observer only GETs and refuses hidden bypass, inherited cove
         return { status: 200, headers: new Map<string, string>(), body };
       },
     };
-    if (fault) assert.throws(() => observeReleaseInputProtections(api));
+    if ((fault && !publication) || fault === "release-drift")
+      assert.throws(() => observeReleaseInputProtections(api, { releasePublication: publication }));
     else {
-      const result = observeReleaseInputProtections(api);
+      const result = observeReleaseInputProtections(api, { releasePublication: publication });
       assert.equal(result.admission, "hold");
       assert.equal(result.enforcement, "uninterpreted");
+      if (fault === "release-ok") {
+        assert.equal(requireReleaseImmutabilityPolicy(result).enabled, true);
+        assert.equal(settingReads, 2);
+      } else assert.throws(() => requireReleaseImmutabilityPolicy(result));
     }
   }
+});
+
+void test("release immutability requires fresh complete isolated setting, not an imported enabled flag", () => {
+  const now = Date.now();
+  const inventory = { immutable_releases: { enabled: true, enforced_by_owner: false } };
+  const proof = {
+    schema_version: 1,
+    repository_id: 1354613114,
+    coverage: "current-repository-input-branches-and-release-immutability",
+    observed_at: new Date(now).toISOString(),
+    inventory,
+    inventory_sha256: capacityDigest(inventory),
+  };
+  assert.equal(requireReleaseImmutabilityPolicy(proof, now).enforced_by_owner, false);
+  for (const value of [
+    { enabled: true },
+    { ...proof, coverage: "current-repository-input-branches-only" },
+    { ...proof, observed_at: new Date(now - 60001).toISOString() },
+    { ...proof, observed_at: new Date(now + 1).toISOString() },
+    { ...proof, inventory_sha256: "0".repeat(64) },
+    { ...proof, inventory: { immutable_releases: { enabled: true } } },
+  ])
+    assert.throws(() => requireReleaseImmutabilityPolicy(value, now));
 });
 
 void test("writer policy requires fresh exact per-ref principals and unbypassable immutable ref rules", () => {
@@ -455,6 +304,7 @@ void test("held CLI source admission runs without installed dependencies and ref
   await mkdir(path.join(root, ".github/workflows"), { recursive: true });
   for (const file of [
     "release-reviewed-inputs.mts",
+    "release-control-phases.mts",
     "assembler-job-identity.mts",
     "production-controller-admission.mts",
     "github-api.mts",

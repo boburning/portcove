@@ -4,13 +4,77 @@ import { cleanup, render } from "vitest-browser-react";
 import axe from "axe-core";
 import catalog from "../../../../crates/portcove-core/catalog/catalog.json";
 import type { PortDefinition } from "../types";
-import { fixtureValue } from "../test-fixtures";
+import { fixtureValue, portDefinition, portStatus } from "../test-fixtures";
 import { DetailPanel, type DetailActions } from "./DetailPanel";
+import "../styles/index.css";
 
 afterEach(cleanup);
 
+it("keeps an unknown external installation's folder and maintenance facts distinct from readiness", async () => {
+  await page.viewport(960, 640);
+  const port = portDefinition();
+  const noop = vi.fn();
+  const status = {
+    ...portStatus(),
+    external_runtime: {
+      id: "external-owned-fixture",
+      port_id: port.id,
+      path: "C:\\Player\\External Folder",
+      executable: "C:\\Player\\External Folder\\game.exe",
+      version: "1",
+      platform: "windows-x86-64" as const,
+      archive_sha256: "a".repeat(64),
+      immutable_tree_sha256: "b".repeat(64),
+      registered_at: 1,
+    },
+  };
+  await render(
+    <DetailPanel
+      port={port}
+      status={status}
+      sourcePath=""
+      setSourcePath={noop}
+      actions={{
+        activate: noop,
+        backup: noop,
+        check: async () => undefined,
+        close: noop,
+        deleteBackup: noop,
+        dismissInstallReview: noop,
+        install: noop,
+        launch: noop,
+        openUserData: noop,
+        reviewInstall: noop,
+        restoreBackup: noop,
+        rollback: noop,
+        remove: noop,
+        setChannel: async () => undefined,
+        setPolicy: async () => undefined,
+        verify: noop,
+      }}
+    />,
+  );
+  const facts = page.getByRole("region", { name: "Existing installation", exact: true });
+  await expect
+    .element(facts.getByText(status.external_runtime.path, { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(facts.getByText("You maintain this folder and its updates.", { exact: true }))
+    .toBeVisible();
+  expect(
+    document.querySelector('[data-confirmed-play]:not(:disabled):not([aria-disabled="true"])'),
+  ).toBeNull();
+  expect(
+    page.getByRole("region", { name: "Installation and version", exact: true }).query(),
+  ).toBeNull();
+  await page.screenshot({
+    element: document.querySelector<HTMLElement>("[data-detail-workspace]")!,
+    path: "../../../../outputs/detail-composition/unknown-external-960.png",
+  });
+});
+
 for (const width of [1200, 960]) {
-  it(`keeps primary actions next to the hero before optional route observations at ${width}px`, async () => {
+  it(`keeps the current action with full identity before optional route observations at ${width}px`, async () => {
     await page.viewport(width, 640);
     const port = fixtureValue(
       catalog.ports.find((port) => port.id === "snap64-recomp"),
@@ -45,9 +109,11 @@ for (const width of [1200, 960]) {
     );
     const hero = document.querySelector(".detail-hero")!;
     const action = document.querySelector(".primary-actions button")!;
-    const gap = action.getBoundingClientRect().top - hero.getBoundingClientRect().bottom;
-    expect(gap).toBeGreaterThanOrEqual(0);
-    expect(gap).toBeLessThan(160);
+    expect(hero.contains(action)).toBe(true);
+    const title = document.getElementById("port-detail-title")!;
+    expect(action.getBoundingClientRect().top).toBeGreaterThan(
+      title.getBoundingClientRect().bottom,
+    );
     await page.getByText("File and filter details", { exact: true }).click();
     const routeCheck = page.getByRole("heading", { name: "Game files for this route" });
     expect(routeCheck.element().getBoundingClientRect().top).toBeGreaterThan(

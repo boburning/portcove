@@ -3,6 +3,7 @@ import { open } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { errorMessage, isRecord } from "./runtime-values.mts";
+import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 
 export const productionControllerWorkflow = ".github/workflows/application-update-production.yml";
 const repository = "boburning/portcove";
@@ -22,6 +23,7 @@ function admitController(
   rawPolicy: string | undefined,
   environment: NodeJS.ProcessEnv,
   workflowBytes: Uint8Array,
+  job = "admission",
 ) {
   if (!rawPolicy || Buffer.byteLength(rawPolicy) > 4096) refuse("missing or oversized policy");
   let policy: unknown;
@@ -30,12 +32,23 @@ function admitController(
   } catch {
     refuse("policy JSON");
   }
+  if (!isRecord(policy)) refuse("policy schema or exact identities");
+  const legacy =
+    policy.schema_version === 1 &&
+    policy.mode === "admission-only" &&
+    Object.keys(policy).sort().join(",") ===
+      "actor_id,execution_ref,mode,revision,schema_version,workflow_sha256";
+  const bounded =
+    policy.schema_version === 2 &&
+    policy.mode === "bounded-application-release" &&
+    Object.keys(policy).sort().join(",") ===
+      "actor_id,authority_configuration_sha256,execution_ref,grant_sha256,mode,revision,schema_version,workflow_sha256" &&
+    typeof policy.authority_configuration_sha256 === "string" &&
+    /^[a-f0-9]{64}$/u.test(policy.authority_configuration_sha256) &&
+    typeof policy.grant_sha256 === "string" &&
+    /^[a-f0-9]{64}$/u.test(policy.grant_sha256);
   if (
-    !isRecord(policy) ||
-    Object.keys(policy).sort().join(",") !==
-      "actor_id,execution_ref,mode,revision,schema_version,workflow_sha256" ||
-    policy.schema_version !== 1 ||
-    policy.mode !== "admission-only" ||
+    (!legacy && !bounded) ||
     typeof policy.execution_ref !== "string" ||
     !/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(
       policy.execution_ref,
@@ -74,7 +87,7 @@ function admitController(
     environment.GITHUB_TRIGGERING_ACTOR !== environment.GITHUB_ACTOR ||
     !/^[1-9][0-9]{0,15}$/u.test(environment.GITHUB_RUN_ID ?? "") ||
     environment.GITHUB_RUN_ATTEMPT !== "1" ||
-    environment.GITHUB_JOB !== "admission" ||
+    environment.GITHUB_JOB !== job ||
     environment.RUNNER_ENVIRONMENT !== "github-hosted"
   )
     refuse("principal, first attempt, job or runner identity");
@@ -85,8 +98,14 @@ function admitController(
   )
     refuse("workflow source byte identity");
   return {
-    schema_version: 1,
-    mode: "admission-only",
+    schema_version: policy.schema_version,
+    mode: policy.mode,
+    ...(bounded
+      ? {
+          authority_configuration_sha256: String(policy.authority_configuration_sha256),
+          grant_sha256: String(policy.grant_sha256),
+        }
+      : {}),
     repository_id: repositoryId,
     repository,
     workflow,
@@ -108,6 +127,64 @@ export function admitProductionController(
 ) {
   return admitController(productionControllerWorkflow, rawPolicy, environment, workflowBytes);
 }
+/** Fixed read-only consumer of the same reviewed controller and needs graph. */
+export function admitProductionInputReader(
+  rawPolicy: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+  phase: unknown = "admission",
+) {
+  return admitController(
+    productionControllerWorkflow,
+    rawPolicy,
+    environment,
+    workflowBytes,
+    releaseControlPhaseProfile(phase).reader_job,
+  );
+}
+export function admitProductionProtectionObserver(
+  rawPolicy: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+  phase: unknown = "admission",
+) {
+  return admitController(
+    productionControllerWorkflow,
+    rawPolicy,
+    environment,
+    workflowBytes,
+    releaseControlPhaseProfile(phase).observer_job,
+  );
+}
+/** Dedicated D1 jobs in the complete fixed controller. These named profiles do
+ * not add a generic release-input reader or a capacity executor role. */
+export function admitProductionClassificationWriter(
+  rawPolicy: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+) {
+  return admitController(
+    productionControllerWorkflow,
+    rawPolicy,
+    environment,
+    workflowBytes,
+    "classification_writer",
+  );
+}
+export function admitProductionClassificationObserver(
+  rawPolicy: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+) {
+  return admitController(
+    productionControllerWorkflow,
+    rawPolicy,
+    environment,
+    workflowBytes,
+    "classification_protection_observation",
+  );
+}
+
 export function admitReviewedInputsController(
   rawPolicy: string | undefined,
   environment: NodeJS.ProcessEnv,
@@ -120,12 +197,30 @@ export function admitReviewedInputsController(
     workflowBytes,
   );
 }
+export function admitReviewedInputsWriter(
+  rawPolicy: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+) {
+  return admitController(
+    ".github/workflows/release-reviewed-inputs.yml",
+    rawPolicy,
+    environment,
+    workflowBytes,
+    "classification_writer",
+  );
+}
 
-async function main() {
-  if (process.argv.length !== 2) refuse("no candidate or policy path arguments are accepted");
+export async function readProductionControllerWorkflowBytes() {
+  return readFixedControllerWorkflowBytes(productionControllerWorkflow);
+}
+export async function readReviewedInputsWorkflowBytes() {
+  return readFixedControllerWorkflowBytes(".github/workflows/release-reviewed-inputs.yml");
+}
+async function readFixedControllerWorkflowBytes(workflow: string) {
   // A fixed trusted-checkout path, never a candidate-supplied file. Read from one
   // handle with a one-byte growth probe; no dependency install or candidate code.
-  const filename = new URL(`../${productionControllerWorkflow}`, import.meta.url);
+  const filename = new URL(`../${workflow}`, import.meta.url);
   const handle = await open(filename, "r");
   try {
     if (!(await handle.stat()).isFile()) refuse("workflow must be a regular file");
@@ -136,18 +231,23 @@ async function main() {
       if (read.bytesRead === 0) break;
       length += read.bytesRead;
     }
-    console.log(
-      JSON.stringify(
-        admitProductionController(
-          process.env.PORTCOVE_CONTROLLER_ADMISSION,
-          process.env,
-          bytes.subarray(0, length),
-        ),
-      ),
-    );
+    return bytes.subarray(0, length);
   } finally {
     await handle.close();
   }
+}
+
+async function main() {
+  if (process.argv.length !== 2) refuse("no candidate or policy path arguments are accepted");
+  console.log(
+    JSON.stringify(
+      admitProductionController(
+        process.env.PORTCOVE_CONTROLLER_ADMISSION,
+        process.env,
+        await readProductionControllerWorkflowBytes(),
+      ),
+    ),
+  );
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

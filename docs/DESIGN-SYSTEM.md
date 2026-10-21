@@ -12,17 +12,35 @@ Other destructive reviews retain their own consent contracts.
 ## Library covers and compact rows
 
 Library defaults to covers; Compact rows presents the same entries and action
-selector. Columns derive from usable space: ordinary frames are 176–220 CSS
-pixels wide, with 112px artwork in short windows. Fixed 2:3 frames contain the
-whole image with neutral padding. Full game titles and port/variant labels grow
-below the frame without changing its height. Cover actions align within rows.
-Compact rows use 48×72px thumbnails and become an in-flow identity → state →
-actions sequence below 48rem.
+selector. The heading counts entries, including separate ports of one original
+game. Search, readiness, Favorites and declared filters share the retrieval area;
+Favorites is independent of readiness. View and Add games sit alongside them.
+Filtered results state the visible and total entry counts with one reset action.
+First-use Library omits retrieval controls. Last played is a disclosure; Collection
+commands states that Steam selection includes entries hidden by filters.
+
+Columns derive from usable space, with a 180px minimum column and a text-relative
+12rem preferred minimum. Fixed 2:3 frames contain the complete image on a neutral
+stage. Artwork caps at 260px ordinarily, 180px below 820px window height and
+160px below 680px; text enlargement independently reduces the cap toward 160px.
+Unclassified and user artwork retain intrinsic padding and proportions; no logo
+crop classification is inferred. Missing artwork uses a quiet icon. Failed/stale
+feedback remains outside the identity button. Cover titles show two lines and
+port labels one at ordinary widths, expanding on keyboard focus. At an effective
+collection width below 40em, identity wraps in full. Details and rows always expose
+the full distinguishing identity. Artwork geometry does not depend on title height.
+
+Compact rows use 32×48px contained thumbnails (up to 40×60px with text enlargement),
+10px block padding and 20px column gaps: approximately 69px for ordinary identity.
+The list caps at max(840px, 52.5rem), keeping actions near identity while allowing
+reading-size growth. Titles and port labels wrap without clipping. Below 46em,
+readiness stacks under identity with thumbnail alignment indentation; readiness
+in its own column has no indentation. Below 28em actions follow readiness.
 
 One details button owns artwork/title/port identity. Favorite, Play/review,
 update review and menus are siblings, never nested controls. Routine Stable and
 maintenance facts stay out of ordinary entries. Play remains beside a secondary
-downloaded-update review link. Steam bulk selection belongs to Integrations.
+downloaded-update review link. Steam bulk selection uses its existing chooser.
 Counts are library entries, including separate ports for one game. Details put
 current update decisions after identity/readiness/actions; Future update
 preferences are disclosed and saving them does not execute an update.
@@ -34,7 +52,60 @@ controls. Both themes share semantic roles. This supersedes earlier Library
 card-density assumptions; Find games retains its discovery composition and
 dated audit/reference evidence remains retained.
 
+Find games currently uses a whole-card details button. Its accessible name comes
+from its content, including the visible game/port, state and action; do not
+replace it with a shorter synthesized label that omits visible card text.
+Decorative artwork remains hidden from the accessibility tree. Library keeps
+its separate identity and action controls. The discovery card's longer natural
+name is a consequence of that composition, not a reason to hide meaningful
+content or give it a conflicting speech-input label.
+
+The workspace remains the full available width. The desktop main element owns
+vertical scrolling; narrow navigation retains the existing document scroll owner.
+Below an effective workspace width of 80em, desktop navigation becomes
+a named icon rail; existing narrow top navigation remains. Query, view, selection,
+detail-return and operation eligibility retain their existing owners. This Library
+slice reuses the existing interface-size controller and does not establish new
+native enlargement acceptance.
+
+## Game details
+
+Details keep the complete original-game title, port/project and distinguishing
+variant together with the current Core-derived action. The action follows identity
+inside the hero rather than occupying a distant right-hand column. Whole-image
+2:3 cover frames are bounded independently of text:80CSS pixels in the narrow
+reading flow,120at24rem of detail width,160at48rem; the hero becomes two columns
+at32rem. Enlarged reading and long identities grow the text/action block and may
+require vertical scrolling. They never stretch or crop artwork.
+
+About, current installation/version facts and registered external-folder ownership
+precede routine update preferences and artwork management. A downloaded update's
+notice remains beside the current action; review and activation retain their
+existing separate controls. External-folder facts come from the registered runtime,
+not readiness or a support flag. Recorded compatibility checks use a keyboard
+disclosure. Existing file, backup, maintenance, artwork-override and technical
+controls remain reachable in their named sections, and Back retains its existing
+exact entry/query/view/scroll/focus contract.
+
+Missing hero artwork uses the existing quiet gamepad fallback, without repeating
+the title. Failure/stale artwork notices and all image precedence/cache behavior
+remain with the existing artwork owner. This presentation adds no crop inference
+or provider/asset mapping.
+
 ## Activity and contextual task feedback
+
+Pending launch controls in Library covers/rows, Continue, details and Activity retain
+focusability through Base UI's focusable-disabled behavior and expose `aria-busy`.
+They refuse pointer and keyboard activation while excluded. This preserves the
+origin during native foreground re-entry without moving focus back after a player
+has navigated elsewhere. Unavailable launch requirements retain ordinary disabled
+behavior; focusability never supplies launch authority.
+
+Changing task or workspace feedback preserves the current visible reading anchor.
+The workspace reflow owner coordinates feedback-height and window changes using
+the remaining measured displacement, not a saved launch scroll offset. New user
+input, navigation, library/detail changes and modal interaction take precedence;
+feedback changes never take focus or reveal a control the player left behind.
 
 Primary destinations display Library, Find games, Activity and Settings; internal `catalog`/`updates` route identities stay compatible. Ordinary Activity entry selects Tasks & history. Explicit game-update links select its Updates section; application-update preferences remain in Settings. Section controls retain a non-color pressed cue and keep their content mounted, hidden from interaction when inactive.
 
@@ -48,7 +119,7 @@ The React/Vite/Tauri desktop is migrating incrementally under [#917](https://git
 
 `apps/desktop/components.json` records Base UI, Base Nova (`style: base-nova`), React Server Components off, Lucide, the Tailwind entry, and the app-local aliases. The initial checked-in controls are Button, Dialog, and Select. They exist to prove the difficult installation-review nesting; they do not authorize broad screen migration by themselves. Portcove retained the generated internal implementations but removed the unused generated helper and unused public exports after static analysis; future regeneration must preserve that deliberately smaller maintained surface.
 
-The following table preserves the initial generation inputs. Current runtime inputs are Base UI 1.9.0, cn 0.4.0 and Tailwind 4.3.3 under Vite+ 1.2.0. The finite [CSS architecture cutover](reference/css-architecture.md) uses Preflight, explicit layers and Base UI transitions; tw-animate-css is removed. The wider #917 acceptance remains open.
+The following table preserves the initial generation inputs. Current runtime inputs are Base UI 1.9.0, cn 0.5.0 and Tailwind 4.3.3 under Vite+ 1.3.0. The finite [CSS architecture cutover](reference/css-architecture.md) uses Preflight, explicit layers and Base UI transitions; tw-animate-css is removed. The wider #917 acceptance remains open.
 
 | Input                             | Version | License    | Demonstrated purpose                                              |
 | --------------------------------- | ------- | ---------- | ----------------------------------------------------------------- |
@@ -103,7 +174,7 @@ build targets, operating-system minima or publication qualification.
 - The migration checks official shadcn/ui component source into Portcove; it then becomes Portcove-owned control code. Initialization explicitly selects Base UI and the compact Nova style, records React/Vite rather than Next.js assumptions, keeps React Server Components disabled, retains Lucide, and uses semantic CSS variables. Nova is initial density and composition scaffolding, not the visual acceptance target: the reference compositions must deliberately establish Portcove typography, spacing, radii, surfaces, and artwork hierarchy. Exact compatible stable versions and generated configuration are verified at implementation time instead of relying on CLI defaults.
 - Tailwind utilities and variants are the primary component styling approach. Limited custom CSS remains appropriate for specialized artwork, layout, input, or native-integration behavior where it is clearer than utilities. CSS Modules may survive only for justified specialized ownership; they are no longer the default migration destination.
 - `html[data-theme]` is the runtime theme marker and activates Tailwind `dark:` variants. `html[lang]`, `html[dir]`, and Base UI's `DirectionProvider` are now driven together by the [desktop localization owner](LOCALIZATION.md), including for portaled controls. New layout rules use logical properties and mixed-direction technical values keep an explicit direction.
-- Shared Button intent is explicit: neutral `default`, signature-red `primary` for the dominant Play/Install/Apply action, blue `selected`, and danger-semantic `destructive`. All retain the shared gold focus signal and the 30/36/42 control scale. Dialog owns the semantic scrim without backdrop blur; Dialog and Select use logical positioning and spacing where direction matters.
+- Shared Button intent is explicit: neutral `default`, signature-red `primary` for the dominant Play/Install/Apply action, blue `selected`, and danger-semantic `destructive`. All retain the shared gold focus signal and 36px compact and 40px ordinary/large minimum heights. Dialog owns the semantic scrim without backdrop blur; Dialog and Select use logical positioning and spacing where direction matters.
 - Graphite and warm controller-gray surfaces carry most of the interface. Blue means selected or interactive, yellow means keyboard/controller focus or rare emphasis, green means healthy or complete, and red is reserved for Portcove's signature and dangerous or critical action.
 - Selected state and focus are deliberately different: blue and an inset double-line marker communicate state; a gold outline communicates the current keyboard or controller target. The marker remains present in both themes and forced colors without changing the control's dimensions.
 - Depth comes from borders, tonal steps, restrained inset treatment, and small shadows. Portcove does not use gradients, glass, blur, neon glow, scanlines, or pixel-interface typography.
@@ -124,7 +195,7 @@ Game-port release channels display as **Stable / Preview / Rolling**. Current ga
 
 - Import only controls demonstrated by current product needs. Checked-in controls should stay close to official composition, refs, events, and accessibility behavior; do not put a near-identical Portcove wrapper around every shadcn control.
 - A specific Base UI control may be replaced when a reproducible Tauri, controller, accessibility, or supported-platform failure remains after bounded repair. Preserve the shared API, semantics, and theme where practical, record the evidence, and review the replacement independently; one incompatible control does not reopen the selected system.
-- Controls use the shared 30, 36, and 42-pixel-equivalent height tokens and modest radius scale. Shared selects use these as minimum heights: option labels and selected decision text wrap within the available width, including long unbroken values, rather than clipping source requirements or relying on hover. Pills are reserved for compact status badges.
+- Controls use shared 36-pixel-equivalent compact and 40-pixel-equivalent ordinary/large minimum-height tokens and modest radius scale. Shared selects use these as minimum heights: option labels and selected decision text wrap within the available width, including long unbroken values, rather than clipping source requirements or relying on hover. Pills are reserved for compact status badges.
 - Ordinary buttons are neutral by default. Signature-red Play, Install, or Apply emphasis is an explicit variant; destructive actions have distinct semantics, wording, placement, and confirmation behavior. Focus remains gold and visibly distinct from both selection and destructive intent, including the combined selected-and-focused state.
 - Buttons name the action or review: `Review installation`, `Play`, `Check game files`, and `Remove managed files`. Avoid `Submit`, `Proceed`, `Execute`, `Yes`, and `No` when the action can be named.
 - Setup and launch controls consume the current core action availability and supplied reason. A scoped hold or unoffered managed setup route has a readable explanation instead of an enabled installation review; source and BIOS input keep their existing selection/review flow. Installed launch still requires positive core readiness, and a retained-definition hold explains its exact reason. Missing legacy action projections keep the existing readiness behavior; malformed or incomplete current projections do not enable an action. An existing review can still be dismissed during a hold, and owned-operation cancellation stays reachable. A later allowed snapshot can restore the control, but preview and presentation never authorize execution: core rechecks current inputs under its existing guards.
@@ -154,12 +225,14 @@ Finishing is acceptance within the owning journeys, not a separate perpetual pol
 - Preserve query, filters, sort, scroll anchor, stable item selection, and sensible browsing focus per section and library. Restore context after navigation, picker cancellation, and returning from a launched game without reviving dismissed dialogs, stale review plans, cached authorization, another library's selection, or destructive confirmations.
 - Browsing query/search/sort inputs also survive restart through versioned optional local view preferences, keyed by the supplied canonical library root with the existing Windows namespace aliases. They contain no selected detail, source/BIOS/adoption inputs, review authorization or DOM focus/scroll. Runtime position continuity retains its existing owner. Unsupported query predicates and legacy identifiers remain unresolved for explicit filter correction; unreadable, future-format or oversized preference documents are retained until the player explicitly saves current choices. Storage failure is visible and does not block ordinary browsing or library switching. This persistence does not provide coherent route/build matching or additional filter controls.
 - Reserve artwork and card geometry; retain useful existing content during refresh; keep loading, missing-artwork, failure, pending, and inline-confirmation states from shifting important controls. First paint uses the selected theme, application/window background, and offline typography without a bright flash or disruptive reflow.
+- When late artwork feedback grows a Library card, retain focus on its current action and reveal it within the actual scrolling pane. Keyboard return from an overflow menu also reveals that exact action. The workspace reflow owner observes the focused card; it does not move focus, override an open overlay, or pull back an action the player intentionally scrolled away from. Leading-workspace feedback keeps its existing continuity behavior.
 - Acknowledge an action promptly without inventing its outcome. Copy confirmation is local; launch distinguishes accepted, starting, running when authoritative, and failure; install/update uses real stages or an honest indeterminate state; cancellation distinguishes requested from stopped; integration results distinguish core success from optional partial failure. The existing operation/event authority owns progress and durable outcomes, while toasts remain supplemental.
 - Catalog completion identifies the applied update, restored catalog, selected source or publisher trust change. Relocation results display the supplied retained and pending-cleanup folder paths without deletion advice. Retained logs explain available saved output independently of the operation outcome. Digest copy announces success or failure and offers the exact selectable value on failure; an older attempt cannot replace current feedback. Zero-total progress retains the concrete action and indeterminate state without an absent-telemetry sentence or fabricated percentage.
 - Command-palette query changes choose the best eligible result predictably, background refresh preserves the active command by stable identity where possible, and Enter during IME composition never executes a command.
 - Command-palette pointer movement, option focus and direct clicks remain usable alongside keyboard selection. A popup appearing beneath a stationary pointer must not replace the command selected with the arrow keys.
 - Artwork remains legible and stable across bright, dark, white, missing, unusual-aspect, and long-title cases. Optional artwork failure does not become launch failure, and essential actions never depend on imagery.
 - Optical review covers icon/label alignment, tabular numerals where values change or align in columns, consistent dialog geometry, subordinate shortcut hints, long-path identification and exact copying, and reduced nested-card emphasis. Essential instructions and warnings never exist only in a tooltip or browser title.
+- Shared review dialogs permit long path and identifier text to wrap anywhere when space requires it, including inline values in consequence paragraphs. Preserve the complete selectable value; do not hide horizontal overflow. Check real Windows paths spanning several directory names at 240px and 320px effective widths as well as ordinary windows: hyphenated or Unicode-only samples can introduce break opportunities that mask failures.
 - Motion is small, interruptible, reduced-motion safe, and independent of business logic. Approximately 100–140 ms for ordinary visual transitions and 160–220 ms for small floating surfaces are evaluation ranges, not standards or global release gates.
 - First use, no filtered matches, unavailable storage, refresh failure with retained data, operation failure, partial success, and cancellation remain distinct. Settings either persist immediately and report persistence truthfully or use an explicit Apply/Cancel transaction.
 
@@ -230,14 +303,26 @@ shown and distinguish that preview from the history loaded by core. Put
 interruption guidance inline, and describe older diagnostic availability as
 possible when retention is not known.
 
-Use **Updates & activity** consistently for the combined workspace. An available
-or saved update opens the existing fresh Core review directly from its row.
+Use **Activity** for the combined workspace, opening to **Tasks & history** with
+a separate **Updates** section. An available or saved update opens the existing
+fresh Core review directly from its row.
 Play is independent and uses the current version when Core permits launch.
 Reviewing an immediate update defaults to installation; keeping it for later
 requires a new download-only plan and confirmation. Neither choice changes the
 saved update policy. A successful launch activity says **Process exited**, with
 an explicit explanation that successful process termination does not establish
 tested gameplay. Keep update and activity statuses in readable sentence case.
+
+Details first offers Review game update without a disposition selector for an
+unidentified candidate. Its first review retains the saved policy's current
+default (automatic installs; other policies keep for later). Once Core supplies
+the release, show its consequences and offer the alternate action through a new
+reviewed plan. Switching action never reuses the previous plan's fingerprint.
+Details labels matching saved checks as earlier observations, shows their update
+version when available, and makes Check for updates primary when no available or
+saved candidate is known. Manual review remains available as a secondary action.
+The optional application-update choice notice uses a secondary review action;
+ordinary first-use Add games remains the primary task.
 
 Use **Check method** for a configured way to inspect game files; say whether a check
 actually ran and what it found separately. Show the planned output folder with
@@ -348,9 +433,15 @@ Long words wrap, filters can wrap, and the collection scrolls rather than shrink
 covers to fit a row count. The grid chooses columns from available width; a
 reference composition's fixed frame width or column count is not a window rule.
 
-The collection now caps at 66.5rem so the 1600x1000 reference retains five
-approximately 200x300 artwork frames, while the actual desktop shell reflows to
-four columns at 1280x800 and three at 960x640. Title space reserves three lines;
+The scrolling workspace fills the available window width. Library and Catalog
+grids use that width to add columns as the window grows; the 1600x1000 reference
+does not impose a maximum collection width or column count. Catalog tracks are
+bounded at 13.75rem and can shrink below their 12.5rem preferred minimum when
+the available width requires it. Library covers retain their existing bounded
+tracks and short-window sizing. Text-heavy workspaces retain a readable inner
+content width; that content limit must not constrain the scrolling viewport or
+leave an inactive scrolling area at the right of a wide window.
+Title space reserves three lines;
 the recognizable original-game title leads. A separate one-line project row
 follows it and precedes status. Relevant variants remain visible as wrapping
 labels in the state area, with the full identity in the accessible card name
@@ -601,6 +692,12 @@ for work the application did not perform.
 
 ### Add games composition
 
+The genuine first-use Library omits collection layout, sorting and filter tools
+until there is content or a browsing constraint to operate on. Keep its mascot
+compact (4rem) and Add games visible at the supported minimum window, including
+the initial application-update choice notice. Filtered no-results retains its
+reset and filtering controls; hiding first-use tools must not clear preferences.
+
 Library's contextual Add games action and empty-state primary action open the
 same in-flow workspace. Keep source choice, current port identity and the next
 review action together. The initial stage list is orientation, not a claim that
@@ -615,3 +712,19 @@ opening another destination must not imply cancellation or task completion.
 The details control contains the game title and Port: project label with an explicit text boundary. Its accessible name includes both visible labels. Missing Library artwork uses a non-text game symbol; artwork availability/staleness messages sit outside the button in entry feedback. Decorative monograms and changing artwork notices must not become omitted or unstable words in a control's visible label. Other artwork consumers retain their existing presentation. ArtworkFrame owns fitting/fallback rendering; the collection retains the same visibility-gated artwork request and one cache subscription.
 
 Restore review inventories the supplied content and destination; an existing empty folder can be planned. Review does not verify a complete recovery copy. Execution verifies recorded installed payloads before publication; manual copying and unrecorded external content remain independently unverified.
+
+## Read-only diagnostics
+
+`components/ui/read-only-text-field.tsx` owns the shared read-only field used by
+error-detail manual-copy fallback and Activity's retained output, error and
+manual-copy fields. Its label and exact value come from the feature. Technical values use isolated left-to-right direction and the existing monospace role, including inside an RTL workspace. The field
+uses semantic inset/input/text roles and the shared focus treatment, wraps long
+content within the available width, and allows vertical resize and scrolling.
+Its 80–384px equivalent height bounds preserve access to long output without
+expanding the whole task; text remains selectable with keyboard or pointer.
+
+Features retain lazy capture, redaction, request/generation guards, clipboard
+outcomes and announcements. The primitive does not fetch, redact, copy or store
+diagnostics. Existing failure and Activity semantics remain authoritative.
+
+Saved-file verification failures use a contextual check message. Keep Core error code, mutation metadata and diagnostic context in collapsed technical details, but do not project generic preparation or mutation-outcome claims into the ordinary saved-file check. Current inspection results and reconnect/relink guidance remain separately visible; pending, cancelled and unavailable inspection states retain their own contracts. This presentation rule does not change Core error authority or claim database-byte immutability.

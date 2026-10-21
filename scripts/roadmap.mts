@@ -5432,7 +5432,7 @@ async function main(argv: readonly string[]) {
           throw new Error("#706 covers only ordinary Linux Public beta");
         const { scan, output } = scanDependencies(projectRoot);
         risk706Output = output;
-        risk706Evidence = decisionInputs706(projectRoot, scan, undefined, "release");
+        risk706Evidence = await decisionInputs706(projectRoot, scan, undefined, "release");
       }
       const analysis = analyzeReleaseReadiness(
         client.itemList(config.project.number, { includeDependencies: true }),

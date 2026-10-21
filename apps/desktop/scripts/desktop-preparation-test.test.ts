@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import process from "node:process";
+import { readFile } from "node:fs/promises";
+import { stripTypeScriptTypes } from "node:module";
 import { test } from "vite-plus/test";
 import type {
   ReviewElement,
@@ -9,11 +11,120 @@ import type {
   ReviewWaiter,
 } from "./desktop-preparation-test.mts";
 import { By } from "selenium-webdriver";
+import { gameTitle } from "../src/port-identity.ts";
+import { runTypeScriptInNewContext } from "../../../scripts/test-source.mts";
+import { planDesktopExecution } from "../../../scripts/desktop-execution-plan.mts";
+import { resolveDesktopSelection } from "../../../scripts/desktop-scenarios.mts";
 import {
   assertPreparedLibrarySummary,
   rollbackWitnessWithinLibrary,
   waitForReviewedUpdateAction,
 } from "./desktop-preparation-test.mts";
+
+test("native detail return callers assert the game headline while retaining the stable target", async () => {
+  const invokeCaller = (value: unknown): unknown => {
+    assert.ok(typeof value === "function");
+    const result: unknown = Reflect.apply(value, undefined, []);
+    return result;
+  };
+  const preparation = new URL("./desktop-preparation-test.mts", import.meta.url);
+  const source = await readFile(preparation, "utf8");
+  const executed = stripTypeScriptTypes(source, { mode: "strip" });
+  const dependency = [
+    ...executed.matchAll(/import\s*\{([^}]+)\}\s*from\s*["']([^"']+)["']/gu),
+  ].find((match) => match[1]?.split(",").some((name) => name.trim() === "gameTitle"))?.[2];
+  assert.ok(dependency, "The actual preparation caller must import the canonical display helper");
+  assert.equal(
+    new URL(dependency, preparation).href,
+    new URL("../src/port-identity.ts", preparation).href,
+  );
+  assert.equal(
+    planDesktopExecution(resolveDesktopSelection({ profile: "smoke", platform: "win32" }), {
+      platform: "win32",
+    }).receiptInputs.filter(
+      (input) => input.kind === "file" && input.path === "apps/desktop/src/port-identity.ts",
+    ).length,
+    1,
+  );
+  const navigationStart = source.indexOf(
+    'assert.equal((await browser.findElements(By.css("[data-detail-workspace]"))).length, 0);',
+  );
+  const navigationEnd = source.indexOf("observations.navigation_verified = true;", navigationStart);
+  assert.ok(navigationStart >= 0 && navigationEnd > navigationStart);
+  const recoveryStart = source.indexOf(
+    'const titles = await browser.findElements(By.css("#port-detail-title"));',
+  );
+  const recoveryEnd = source.indexOf("\n        },", recoveryStart);
+  assert.ok(recoveryStart >= 0 && recoveryEnd > recoveryStart);
+  for (const fixture of [
+    {
+      port: {
+        id: "opengoal-jak1",
+        name: "OpenGOAL: Jak and Daxter",
+        presentation: { original_game_title: " Jak and Daxter: The Precursor Legacy " },
+      },
+      title: "Jak and Daxter: The Precursor Legacy",
+    },
+    {
+      port: { id: "owned-no-display-title", name: "Owned port", presentation: undefined },
+      title: "Owned port",
+    },
+  ]) {
+    for (const title of [
+      fixture.title,
+      "Wrong game",
+      ...(fixture.title !== fixture.port.name ? [fixture.port.name] : []),
+    ]) {
+      const clicked: string[] = [];
+      const browser = {
+        findElements: () => [],
+        findElement: (selector: string) => ({ selector, getText: () => title }),
+        wait: async () => undefined,
+      };
+      // Execute the real Activity navigation/heading assertion, not a duplicate
+      // expected-title implementation or a permissive name-or-title fallback.
+      const navigate: unknown = runTypeScriptInNewContext(
+        `async function actualCaller() { ${source.slice(navigationStart, navigationEnd)} }; actualCaller`,
+        {
+          assert,
+          browser,
+          port: fixture.port,
+          gameTitle,
+          By: { css: (value: string) => value, id: (value: string) => value },
+          until: { elementLocated: (value: unknown) => value },
+          clickVisible: async (_browser: unknown, control: { selector: string }) => {
+            clicked.push(control.selector);
+          },
+        },
+      );
+      assert.ok(typeof navigate === "function");
+      if (title === fixture.title) await invokeCaller(navigate);
+      else await assert.rejects(async () => invokeCaller(navigate));
+      assert.deepEqual(clicked, [`[data-detail-origin="updates:installed:${fixture.port.id}"]`]);
+      for (const count of [0, 1, 2]) {
+        // Exercise the actual direct-recovery wait predicate, including its
+        // single-detail guard and wrong-game rejection.
+        const matches: unknown = runTypeScriptInNewContext(
+          `async function actualPredicate() { ${source.slice(recoveryStart, recoveryEnd)} }; actualPredicate`,
+          {
+            browser: {
+              findElements: () => Array.from({ length: count }, () => ({ getText: () => title })),
+            },
+            port: fixture.port,
+            gameTitle,
+            By: { css: (value: string) => value },
+            required: (value: unknown) => {
+              assert.ok(value !== undefined);
+              return value;
+            },
+          },
+        );
+        assert.ok(typeof matches === "function");
+        assert.equal(await invokeCaller(matches), count === 1 && title === fixture.title);
+      }
+    }
+  }
+});
 
 test("accepts owned rollback witnesses across ordinary and namespaced library paths", () => {
   const library = path.resolve("work", "owned-rollback-library");
@@ -48,7 +159,7 @@ const prepared = {
 };
 
 test("preparation summary accounts for installations from earlier full-profile journeys", () => {
-  assertPreparedLibrarySummary("1 library entry\nAll can launch", [prepared], "prepared");
+  assertPreparedLibrarySummary("1 entry · On this computer", [prepared], "prepared");
   const statuses = [
     { ...prepared, port_id: "earlier-install" },
     {
@@ -60,16 +171,14 @@ test("preparation summary accounts for installations from earlier full-profile j
     prepared,
     { port_id: "available", active: null, external_runtime: null },
   ];
-  assertPreparedLibrarySummary("3 library entries\nAll can launch", statuses, "prepared");
+  assertPreparedLibrarySummary("3 entries · On this computer", statuses, "prepared");
   assert.throws(() =>
-    assertPreparedLibrarySummary("1 library entry All can launch", statuses, "prepared"),
+    assertPreparedLibrarySummary("1 entry · On this computer", statuses, "prepared"),
   );
 });
 
 test("all-ready summary still requires the prepared fixture and native readiness of every entry", () => {
-  assert.throws(() =>
-    assertPreparedLibrarySummary("0 library entries All can launch", [], "prepared"),
-  );
+  assert.throws(() => assertPreparedLibrarySummary("0 entries · On this computer", [], "prepared"));
   for (const changes of [
     { readiness: { ...prepared.readiness, launchable: false } },
     { readiness: { ...prepared.readiness, pending_setup: true } },
@@ -78,7 +187,7 @@ test("all-ready summary still requires the prepared fixture and native readiness
   ]) {
     const statuses = [prepared, { ...prepared, port_id: "earlier-install", ...changes }];
     assert.throws(() =>
-      assertPreparedLibrarySummary("2 library entries All can launch", statuses, "prepared"),
+      assertPreparedLibrarySummary("2 entries · On this computer", statuses, "prepared"),
     );
   }
   assert.throws(() =>

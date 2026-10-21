@@ -1,4 +1,6 @@
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
+import { metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
+import { validateCapacityTransition } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -17,6 +19,58 @@ const tree = "2".repeat(40);
 const controllerRevision = "3".repeat(40);
 const baseCommit = "0".repeat(40);
 const changeSet = "a".repeat(64);
+
+void test("explicit initial metadata can have no semantic opportunity without inventing release identity", () => {
+  const { descriptor } = metadataBootstrapFixture();
+  const now = new Date(descriptor.generated_at).toISOString();
+  const input = fixture({
+    schema_version: 2,
+    now,
+    opportunity: null,
+    metadata_bootstrap: descriptor,
+  });
+  const publication = input.publication;
+  assert.ok(isRecord(publication));
+  publication.observed_at = now;
+  const controller = {
+    workflow: ".github/workflows/application-update-production.yml",
+    revision: controllerRevision,
+    publication_paused: false,
+    capacity_attempt: { ...capacityFixture(), schema_version: 2 },
+  };
+  input.controller = controller;
+  const ready = planReleaseOpportunity(input);
+  assert.equal(ready.action, "skip");
+  for (const key of [
+    "opportunity_commit",
+    "opportunity_tree",
+    "opportunity_base_commit",
+    "reviewed_classification_sha256",
+    "change_set_sha256",
+  ])
+    assert.equal(Object.hasOwn(ready.authority, key), false);
+  assert.equal(
+    planReleaseOpportunity({
+      ...input,
+      controller: { ...controller, publication_paused: true },
+    }).action,
+    "pause",
+  );
+  assert.throws(
+    () => planReleaseOpportunity({ ...input, metadata_bootstrap: null }),
+    /explicit initial/,
+  );
+  assert.throws(
+    () =>
+      planReleaseOpportunity({
+        ...input,
+        publication: { ...publication, reserved_versions: ["0.1.0-alpha.3"] },
+      }),
+    /without a reservation/,
+  );
+  const existing = { ...input, opportunity: fixture().opportunity };
+  assert.throws(() => validateCapacityTransition(existing, input, "f".repeat(40)), /cannot erase/);
+});
 
 function fixture(overrides: Record<string, unknown> = {}) {
   const input: Record<string, unknown> = {
@@ -83,6 +137,43 @@ function active(overrides = {}) {
     ...overrides,
   };
 }
+
+void test("explicit complete all-Preview history is a conservative cadence upper bound", () => {
+  const exact = fixture({
+    publication: { last_routine_preview_at: "2026-09-13T11:00:00.000Z" },
+  });
+  assert.equal(planReleaseOpportunity(exact).action, "prepare");
+  const mixed = fixture({
+    publication: {
+      // This later Preview may have been urgent; including it can delay a
+      // routine candidate but cannot let one bypass the real routine cadence.
+      last_routine_preview_at: "2026-09-14T10:00:00.000Z",
+      last_routine_preview_bound: "all-published-previews",
+    },
+  });
+  const bound = planReleaseOpportunity(mixed);
+  assert.equal(bound.action, "coalesce");
+  assert.ok("next_opportunity_at" in bound);
+  assert.equal(bound.next_opportunity_at, "2026-09-15T10:00:00.000Z");
+  const sameTimeExact = structuredClone(mixed);
+  assert.ok(isRecord(sameTimeExact.publication));
+  delete sameTimeExact.publication.last_routine_preview_bound;
+  assert.equal(planReleaseOpportunity(sameTimeExact).action, bound.action);
+  assert.notEqual(planReleaseOpportunity(sameTimeExact).plan_sha256, bound.plan_sha256);
+  assert.equal(
+    planReleaseOpportunity(
+      fixture({ publication: { last_routine_preview_bound: "all-published-previews" } }),
+    ).action,
+    "prepare",
+  );
+  assert.throws(
+    () =>
+      planReleaseOpportunity(
+        fixture({ publication: { last_routine_preview_bound: "routine-assumed" } }),
+      ),
+    /upper-bound scope/,
+  );
+});
 
 void test("immutable delivered legacy prepare/resume/retry/repair serializations remain unchanged", async () => {
   const oracle: unknown = JSON.parse(
@@ -154,7 +245,8 @@ void test("prepares one deterministic Preview from complete reviewed authority",
   assert.equal(first.proposal.source_commit, commit);
   assert.equal(first.authority.opportunity_tree, tree);
   assert.equal(first.authority.change_set_sha256, changeSet);
-  assert.match(first.authority.reviewed_classification_sha256, /^[a-f0-9]{64}$/u);
+  assert.equal(typeof first.authority.reviewed_classification_sha256, "string");
+  assert.match(first.authority.reviewed_classification_sha256!, /^[a-f0-9]{64}$/u);
   assert.match(first.plan_sha256, /^[a-f0-9]{64}$/u);
   assert.deepEqual(first.invocation, {
     preparation: "apps/desktop/scripts/prepare-release-version.mts",

@@ -21,6 +21,40 @@ import {
   baselineRequiresPython,
   baselineRequiresRust,
 } from "./ci-baseline.mts";
+void test("Linux reviewer boundary edits retain protected ownership and Python contract execution", () => {
+  for (const file of [
+    "scripts/semantic-review-linux-supervisor.py",
+    "scripts/semantic-review-linux-supervisor.test.py",
+    "scripts/semantic-review-linux-supervisor.test.mts",
+    "scripts/qualify-semantic-linux.mts",
+  ]) {
+    const plan = make([file]);
+    assert.ok(plan.areas.includes("release-security"), file);
+    assert.ok(
+      baselineContractTests(plan).includes("scripts/semantic-review-linux-supervisor.test.mts"),
+      file,
+    );
+    assert.ok(baselineRequiresPython(plan), file);
+  }
+});
+
+void test("semantic source acquisition retains release ownership and its Python parser boundary contracts", () => {
+  for (const file of [
+    "scripts/release-semantic-source.mts",
+    "scripts/semantic-source-git.py",
+    "scripts/semantic-source-git.test.py",
+    "scripts/qualify-semantic-source.mts",
+  ]) {
+    const plan = make([file]);
+    assert.ok(plan.areas.includes("release-security"), file);
+    assert.ok(
+      baselineContractTests(plan).includes("scripts/release-semantic-source.test.mts"),
+      file,
+    );
+    assert.ok(baselineRequiresPython(plan), file);
+  }
+});
+
 const make = (files: string[]) =>
   buildValidationPlan({
     changes: files.map((file: string) => ({
@@ -208,6 +242,23 @@ void test("release run evidence contracts are selected for implementation and te
     assert.ok(baselineContractTests(plan).includes("scripts/release-run-evidence.test.mts"));
   }
 });
+void test("payload signer and held caller changes preserve release security and both connected contracts", () => {
+  for (const file of [
+    "scripts/release-payload-signing.mts",
+    "scripts/release-payload-preparation.mts",
+    "docs/qualification/application-update-production.payload-signing.yml",
+    "docs/qualification/application-update-production.aggregate.yml",
+  ]) {
+    const plan = make([file]);
+    assert.ok(plan.areas.includes("release-security"), file);
+    const tests = baselineContractTests(plan);
+    assert.ok(tests.includes("scripts/release-payload-signing.test.mts"), file);
+    assert.ok(tests.includes("scripts/release-payload-preparation.test.mts"), file);
+    const local = classifyChanges([{ status: "M", path: file }]);
+    assert.ok(local.nodeTests.has("scripts/release-payload-signing.test.mts"), file);
+    assert.ok(local.nodeTests.has("scripts/release-payload-preparation.test.mts"), file);
+  }
+});
 void test("shared and unknown frontend inputs use full units; sources use the related graph", () => {
   const related = baselineFrontendPlan(make(["apps/desktop/src/App.tsx"]));
   assert.ok(
@@ -385,4 +436,30 @@ void test("semantic helper-only changes retain their actual broker consumer loca
       "scripts/release-semantic-broker.test.mts",
     ),
   );
+});
+
+void test("fixed controller bootstrap and shared attestation verifier retain protected release ownership", () => {
+  for (const file of [
+    "scripts/release-controller-tool-build.mts",
+    "scripts/qualify-controller-tool-build.mts",
+    ".github/workflows/controller-tool-build-fixture.yml",
+    "scripts/release-controller-tools.mts",
+    "scripts/release-controller-tool-admission.mts",
+    "scripts/release-controller-tool-bootstrap.mts",
+    "scripts/github-controller-attestation.mts",
+    "docs/qualification/application-update-production.controller-tools.yml",
+  ]) {
+    const plan = make([file]);
+    assert.ok(plan.areas.includes("release-security"), file);
+    assert.ok(
+      baselineContractTests(plan).includes("scripts/release-controller-tools.test.mts"),
+      file,
+    );
+    assert.ok(
+      classifyChanges([{ status: "M", path: file }]).nodeTests.has(
+        "scripts/release-controller-tools.test.mts",
+      ),
+      file,
+    );
+  }
 });

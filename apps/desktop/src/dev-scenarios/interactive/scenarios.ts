@@ -13,6 +13,7 @@ import type {
 export const journeys = [
   { id: "library", label: "Interactive Library" },
   { id: "collection", label: "Mixed collection · simulated content" },
+  { id: "collection-large", label: "60-entry collection · simulated content" },
   { id: "setup", label: "Interactive preparation" },
   { id: "recovery", label: "Interactive startup recovery" },
 ] as const;
@@ -89,9 +90,10 @@ export function workspace(journey: Journey): WorkspaceSnapshot {
     { ...portDefinition(), id: "orchard", name: "Orchard Quest" },
     { ...portDefinition(), id: "summit", name: "Summit Racer" },
   ];
-  const ports =
-    journey === "collection"
-      ? Array.from({ length: 12 }, (_, index): PortDefinition => ({
+  const ports = journey.startsWith("collection")
+    ? Array.from(
+        { length: journey === "collection-large" ? 60 : 12 },
+        (_, index): PortDefinition => ({
           ...portDefinition(),
           id: `collection-${index}`,
           name:
@@ -115,21 +117,21 @@ export function workspace(journey: Journey): WorkspaceSnapshot {
                     ]!,
             variant_label: index === 1 ? "Modern renderer" : null,
           },
-        }))
-      : ordinaryPorts;
+        }),
+      )
+    : ordinaryPorts;
   return {
     catalog: { schema_version: 1, ports, source_profiles: [] },
     statuses: ports.map((port): PortStatus => ({
       ...portStatus(),
       port_id: port.id,
-      active:
-        journey === "collection"
-          ? { ...install, port_id: port.id, id: `fixture-${port.id}` }
-          : port.id === "sample"
-            ? install
-            : port.id === "orchard"
-              ? { ...install, port_id: port.id, id: `fixture-${port.id}` }
-              : null,
+      active: journey.startsWith("collection")
+        ? { ...install, port_id: port.id, id: `fixture-${port.id}` }
+        : port.id === "sample"
+          ? install
+          : port.id === "orchard"
+            ? { ...install, port_id: port.id, id: `fixture-${port.id}` }
+            : null,
       readiness: {
         launchable:
           port.id !== "collection-4" &&
@@ -139,7 +141,7 @@ export function workspace(journey: Journey): WorkspaceSnapshot {
         blockers: port.id === "collection-4" ? ["missing_source"] : [],
         ...(port.id === "collection-4" ? { source: "missing" as const } : {}),
       },
-      ...(journey === "collection" && port.id === "collection-3"
+      ...(journey.startsWith("collection") && port.id === "collection-3"
         ? { staged: { ...install, id: "fixture-staged", port_id: port.id, staged: true } }
         : {}),
     })),

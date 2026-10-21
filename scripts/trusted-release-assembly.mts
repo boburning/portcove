@@ -9,8 +9,11 @@ import {
   loadPackagePolicy,
   packagesForPlatform,
   releaseLabels,
+  inspectReleaseProfile,
+  selectReleasePackagePolicy,
 } from "./release-package-policy.mts";
 import { reconcileReleaseAssets } from "./reconcile-release-assets.mts";
+import { inspectPublicBuildInputBinding } from "./release-public-build-provenance.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -35,9 +38,18 @@ function hex(value: unknown, length: number): asserts value is string {
 function request(raw: unknown) {
   if (
     !isRecord(raw) ||
-    Object.keys(raw).sort().join(",") !==
-      "files,run_attempt,run_id,schema_version,source_commit,source_tree,version" ||
-    raw.schema_version !== 1 ||
+    !(
+      (raw.schema_version === 1 &&
+        Object.keys(raw).sort().join(",") ===
+          "files,run_attempt,run_id,schema_version,source_commit,source_tree,version") ||
+      (raw.schema_version === 2 &&
+        Object.keys(raw).sort().join(",") ===
+          "files,release_profile,run_attempt,run_id,schema_version,source_commit,source_tree,version") ||
+      (raw.schema_version === 3 &&
+        raw.release_profile === "initial-beta-win-linux" &&
+        Object.keys(raw).sort().join(",") ===
+          "files,public_build_inputs,release_profile,run_attempt,run_id,schema_version,source_commit,source_tree,version")
+    ) ||
     typeof raw.version !== "string" ||
     raw.version.length > 128 ||
     typeof raw.run_id !== "string" ||
@@ -84,7 +96,18 @@ function request(raw: unknown) {
   )
     throw new Error("duplicate assembly input identity");
   return {
-    schema_version: 1 as const,
+    schema_version:
+      raw.schema_version === 3
+        ? (3 as const)
+        : raw.schema_version === 2
+          ? (2 as const)
+          : (1 as const),
+    ...(raw.schema_version === 3
+      ? { public_build_inputs: inspectPublicBuildInputBinding(raw.public_build_inputs) }
+      : {}),
+    ...(raw.schema_version === 2 || raw.schema_version === 3
+      ? { release_profile: inspectReleaseProfile(raw.release_profile) }
+      : {}),
     version: raw.version,
     source_commit: raw.source_commit,
     source_tree: raw.source_tree,
@@ -200,7 +223,10 @@ async function outputIdentity(filename: string, maximum: number, withinBound: ()
 export async function inspectTrustedAssemblyInput(rawRequest: unknown) {
   const accepted = request(rawRequest);
   // The policy is loaded only from this fixed trusted checkout, never inputs.
-  const policy = await loadPackagePolicy(trustedProject);
+  const policy = selectReleasePackagePolicy(
+    await loadPackagePolicy(trustedProject),
+    accepted.release_profile,
+  );
   const labels = releaseLabels(policy);
   const expected = labels
     .flatMap((label) => [
@@ -236,15 +262,18 @@ export async function assembleTrustedRelease(
   ownedRoot: string,
   inputRoot: string,
   rawRequest: unknown,
+  options: { deadline?: number } = {},
 ) {
   const started = performance.now();
+  const deadline = Math.min(started + maximumMilliseconds, options.deadline ?? Infinity);
+  const withinBound = () => {
+    if (!Number.isFinite(deadline) || performance.now() >= deadline)
+      throw new Error("assembly duration bound exhausted");
+  };
+  withinBound();
   const { accepted, policy, labels } = await inspectTrustedAssemblyInput(rawRequest);
   const root = path.resolve(ownedRoot);
   const input = await assertOwnedUnlinkedPath(root, inputRoot, "assembly input");
-  const withinBound = () => {
-    if (performance.now() - started > maximumMilliseconds)
-      throw new Error("assembly duration bound exhausted");
-  };
   for (const file of accepted.files) {
     await assertOwnedUnlinkedPath(
       root,
@@ -252,6 +281,7 @@ export async function assembleTrustedRelease(
       "assembly input file",
     );
   }
+  withinBound();
   const directory = await mkdtemp(path.join(root, "trusted-assembly-"));
   try {
     const staging = path.join(directory, "inputs");

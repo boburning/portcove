@@ -17,6 +17,11 @@ use tough::schema::{KeyHolder, RoleKeys, RoleType, Root};
 use tough::{RepositoryLoader, TargetName};
 use url::Url;
 
+#[path = "tuf_repository/isolated.rs"]
+mod isolated_roles;
+#[path = "tuf_repository/offline.rs"]
+mod offline_ceremony;
+
 const PAYLOAD_PUBLIC_KEY: &[u8] = b"untrusted comment: minisign public key E7620F1842B4E81F\nRWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3\n";
 
 fn key(path: PathBuf) -> Box<dyn KeySource> {

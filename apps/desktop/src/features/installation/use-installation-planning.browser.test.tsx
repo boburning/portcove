@@ -2,6 +2,8 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../../api";
+import { portDefinition } from "../../test-fixtures";
+import { targetInvocationContext } from "../operations/invocation-state";
 import type { Perform } from "../operations/use-operation-state";
 import { useAdoptionPlanning, useInstallPlanning } from "./use-installation-planning";
 
@@ -43,8 +45,23 @@ function Fixture({
   open?: boolean;
   generation?: number;
 }) {
-  install = useInstallPlanning(port ?? undefined, channel, perform);
-  adoption = useAdoptionPlanning(path, port ?? undefined, open, generation, perform, done);
+  install = useInstallPlanning(
+    port ?? undefined,
+    channel,
+    perform,
+    port
+      ? targetInvocationContext(
+          "Review installation",
+          { kind: "port", id: port, label: `Game ${port}` },
+          generation,
+          "library",
+        )
+      : undefined,
+  );
+  adoption = useAdoptionPlanning(path, port ?? undefined, open, generation, perform, done, [
+    { ...portDefinition(), id: "first", name: "Game first" },
+    { ...portDefinition(), id: "second", name: "Game second" },
+  ]);
   return null;
 }
 async function render(props: Parameters<typeof Fixture>[0] = {}) {
@@ -104,7 +121,7 @@ describe("current review intent", () => {
     expect(adopt).toHaveBeenCalledExactlyOnceWith("A", "bound", 1, "second");
   });
 
-  it.each([{ port: "second" }, { channel: "beta" as const }])(
+  it.each([{ port: "second" }, { channel: "beta" as const }, { generation: 2 }])(
     "rejects reverse install completion after %j changes",
     async (props) => {
       const old = deferred<Plan>();

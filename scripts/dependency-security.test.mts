@@ -106,6 +106,10 @@ void test("actual development CLI succeeds without approval/API and retains raw 
     path.join(dir, "scripts/runtime-values.mts"),
     readFileSync(new URL("./runtime-values.mts", import.meta.url)),
   );
+  writeFileSync(
+    path.join(dir, "scripts/release-coordinator-deadline.mts"),
+    readFileSync(new URL("./release-coordinator-deadline.mts", import.meta.url)),
+  );
   const environment: NodeJS.ProcessEnv = {
     ...process.env,
     GH_TOKEN: "",
@@ -159,6 +163,44 @@ void test("actual development CLI succeeds without approval/API and retains raw 
   assert.equal(decision.scanPassed, false);
   assert.equal(decision.releaseAuthorization, "not-evaluated");
   assert.equal(run(["scan"]).status, 1);
+  const originalFixture = readFileSync(preload, "utf8");
+  writeFileSync(
+    preload,
+    originalFixture
+      .replace(
+        "import cp from 'node:child_process';",
+        "import cp from 'node:child_process'; import {writeFileSync} from 'node:fs';",
+      )
+      .replace(
+        "return {status:1,signal:null",
+        "writeFileSync('Cargo.lock','changed during scan'); return {status:1,signal:null",
+      ),
+  );
+  const changed = run();
+  assert.equal(changed.status, 1);
+  assert.match(changed.stderr, /source\/lock\/policy\/tool changed/u);
+  const after = readdirSync(evidenceDir);
+  assert.equal(after.filter((name) => name.endsWith(".decision.json")).length, 1);
+  assert.equal(after.filter((name) => !name.endsWith(".decision.json")).length, 3);
+  writeFileSync(path.join(dir, "Cargo.lock"), "version = 4\n");
+  const callbackFile = path.join(dir, "failed-compiler-diagnostic.json");
+  const callback = spawnSync(
+    process.execPath,
+    [
+      "--import",
+      pathToFileURL(preload).href,
+      "--input-type=module",
+      "-e",
+      `import {writeFileSync} from 'node:fs'; import {scanDependencies} from ${JSON.stringify(pathToFileURL(path.join(dir, "scripts/dependency-security.mts")).href)}; try { scanDependencies(${JSON.stringify(dir)},undefined,(raw)=>writeFileSync(${JSON.stringify(callbackFile)},JSON.stringify(raw))); } catch(error) { console.error(error.message); process.exitCode=1; }`,
+    ],
+    { cwd: dir, encoding: "utf8", timeout: 10000, env: environment },
+  );
+  assert.equal(callback.status, 1);
+  assert.match(callback.stderr, /source\/lock\/policy\/tool changed/u);
+  const diagnostic: unknown = JSON.parse(readFileSync(callbackFile, "utf8"));
+  assert.ok(isRecord(diagnostic));
+  assert.equal(diagnostic.stderr, raw.stderr);
+  assert.equal(diagnostic.exitCode, 1);
 });
 
 void test("source/test edits, expired approval and unavailable release API have no development prerequisites", (t) => {

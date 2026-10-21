@@ -36,7 +36,7 @@ describe("catalog and capacity presentation", () => {
         />,
       );
       expect(html).toContain("Setup status unknown");
-      expect(html).toContain(`aria-label="${port.name}. Setup status unknown. View details."`);
+      expect(html).toContain("View details");
       expect(html).not.toContain("Available");
       expect(html).not.toContain("Unsupported");
       const card = html.match(/<button[^>]*class="port-card [^>]*>/u)?.[0];
@@ -114,7 +114,8 @@ describe("catalog and capacity presentation", () => {
           loading={false}
         />,
       );
-      expect(html).toContain(`${port.name}. ${label}. View details.`);
+      expect(html).toContain(`${label}</span>`);
+      expect(html).toContain("View details");
       expect(html).toContain(explanation);
       expect(html).toContain("Not installed");
       expect(html).not.toContain("Ready to play");

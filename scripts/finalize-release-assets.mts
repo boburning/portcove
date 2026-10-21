@@ -13,6 +13,9 @@ type FinalizationInventory = Pick<ReconciledInventory, "schema_version" | "versi
 export interface FinalizeOptions {
   projectRoot?: string;
   sbomSubjectChecksums?: string;
+  // The protected caller materializes/authenticates this exact inert prepared
+  // source. Storage/policy ownership remains projectRoot; no scanner waiver.
+  linuxQualificationRoot?: string;
 }
 
 function assertInventory(value: unknown): asserts value is FinalizationInventory {
@@ -121,7 +124,10 @@ export async function finalizeReleaseAssets(
     )
   ) {
     const { authorizeLinuxRelease } = await import("./linux-beta-risk-706.mts");
-    const decision = authorizeLinuxRelease(projectRoot, inventory.tag);
+    const decision = await authorizeLinuxRelease(
+      options.linuxQualificationRoot ?? projectRoot,
+      inventory.tag,
+    );
     if (
       !inventory.workflow_producers?.some(
         (producer) =>
@@ -221,8 +227,14 @@ function parseArguments(argv: readonly string[]) {
   };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
-  const options = parseArguments(process.argv.slice(2));
-  const result = await finalizeReleaseAssets(options.assets, options.inventory, options);
-  console.log(`Finalized ${result.assets.length} public assets with an SPDX SBOM.`);
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+    const options = parseArguments(process.argv.slice(2));
+    const result = await finalizeReleaseAssets(options.assets, options.inventory, options);
+    console.log(`Finalized ${result.assets.length} public assets with an SPDX SBOM.`);
+  }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

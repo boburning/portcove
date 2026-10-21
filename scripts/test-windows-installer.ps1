@@ -9,9 +9,18 @@ param(
     [string]$EvidencePath,
     [string]$NormalPackageManifestPath,
     [string]$NormalPackageAdmissionPath,
+    [string]$NativeAccountBindingPath,
+    [string]$NativeAccountBindingSha256,
+    [switch]$NativeParentOwnsFinish,
+    [string]$OrdinaryPublicUpdateInputsPath,
+    [string]$OrdinaryPublicUpdateInputsSha256,
+    [ValidateRange(0, 1750000)]
+    [int]$OrdinaryPublicUpdateRemainingMilliseconds = 0,
     [ValidateSet("Silent", "Passive")]
     [string]$InstallMode = "Silent",
     [string]$ExpectedVersion,
+    [switch]$QualifyPackageRollback,
+    [string]$ExpectedPredecessorVersion,
     [ValidateRange(1, 600)]
     [int]$ProcessTimeoutSeconds = 120,
     [ValidateRange(1, 60)]
@@ -34,6 +43,101 @@ param(
 $ErrorActionPreference = "Stop"
 $null = $ProcessTimeoutSeconds, $TestFault
 $ProcessIdentityClockToleranceMilliseconds = 1000
+$nativeAccount = $null
+$ordinaryPublicClock = [Diagnostics.Stopwatch]::StartNew()
+$ordinaryPublicInputs = $null
+$ordinaryPublicPark = $false
+$ordinaryPublicContinue = $false
+$ordinaryPublicMode = [bool]($OrdinaryPublicUpdateInputsPath -or $OrdinaryPublicUpdateInputsSha256 -or $OrdinaryPublicUpdateRemainingMilliseconds)
+if ($ordinaryPublicMode) {
+    if (-not $NativeParentOwnsFinish -or -not $NativeAccountBindingPath -or -not $OrdinaryPublicUpdateInputsPath -or
+        $OrdinaryPublicUpdateInputsSha256 -cnotmatch '^[a-f0-9]{64}$' -or $OrdinaryPublicUpdateRemainingMilliseconds -lt 1 -or
+        $UpgradeFromInstallerPath -or $RendererUpdate -or $InstalledUpdateTrustedRootPath -or $InstalledUpdateMetadataPath -or
+        $InstalledUpdateTargetsPath -or $InstalledUpdateCandidatePath -or $PayloadPrivateKeyPath -or $TufPrivateRootPath -or
+        $NormalPackageManifestPath -or $NormalPackageAdmissionPath -or $QualifyPackageRollback -or $TestFault) {
+        throw 'Ordinary public update requires its fixed isolated parent session and forbids qualification feed/key/marker modes'
+    }
+    if (-not [IO.Path]::IsPathFullyQualified($OrdinaryPublicUpdateInputsPath) -or $OrdinaryPublicUpdateInputsPath.StartsWith('\\') -or
+        -not [IO.Path]::IsPathFullyQualified($InstallerPath) -or $InstallerPath.StartsWith('\\')) { throw 'Ordinary public inputs require local absolute paths' }
+    $inputItem=Get-Item -LiteralPath $OrdinaryPublicUpdateInputsPath -Force
+    if ($inputItem.PSIsContainer -or $inputItem.Length -lt 1 -or $inputItem.Length -gt 16384 -or
+        ($inputItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw 'Ordinary public update fixed input bytes differ'
+    }
+    $publicStream=[IO.File]::Open($OrdinaryPublicUpdateInputsPath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+    try {
+        $bounded=[byte[]]::new(16385);$read=0
+        while($read -lt $bounded.Length) { $count=$publicStream.Read($bounded,$read,$bounded.Length-$read);if($count -eq 0){break};$read+=$count }
+        if($read -lt 1 -or $read -gt 16384){throw 'Ordinary public update input exceeds its byte bound'}
+        $publicInputBytes=$bounded[0..($read-1)]
+        if ([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([byte[]]$publicInputBytes)).ToLowerInvariant() -cne $OrdinaryPublicUpdateInputsSha256) { throw 'Ordinary public update retained input hash differs' }
+        $ordinaryPublicInputs=[Text.UTF8Encoding]::new($false,$true).GetString([byte[]]$publicInputBytes) | ConvertFrom-Json
+    } finally {$publicStream.Dispose()}
+    $publicInputNames=@('schema_version','kind','prior_installer_sha256','prior_executable_sha256','prior_version','candidate_executable_sha256','candidate_installer_sha256','candidate_version')
+    if($ordinaryPublicInputs.schema_version -eq 2){
+        $publicInputNames+=@('phase')
+        if($ordinaryPublicInputs.phase -cne 'park-v0-with-v1'){throw 'Ordinary public update park phase differs'}
+        $ordinaryPublicPark=$true
+    }
+    if($ordinaryPublicInputs.schema_version -eq 3){
+        $publicInputNames+=@('phase','continuation')
+        if($ordinaryPublicInputs.phase -cne 'continue-with-v2'){throw 'Ordinary public continuation phase differs'}
+        $ordinaryPublicContinue=$true
+        $continued=$ordinaryPublicInputs.continuation
+        $continuationNames='application,install_root,library_root,parked_executable_sha256,parked_installer_bytes,parked_installer_sha256,parked_release_path,parked_release_sha256,parked_version,previous_invocation_id,previous_report,previous_staging,registration_path,run_root,runtime_root,test_base,uninstaller,uninstaller_sha256,work_root'
+        if((@($continued.PSObject.Properties.Name|Sort-Object)-join ',') -cne $continuationNames -or
+            $continued.previous_invocation_id -cnotmatch '^[a-f0-9]{64}$' -or
+            (@($continued.previous_report.PSObject.Properties.Name|Sort-Object)-join ',') -cne 'bytes,path,sha256' -or
+            $continued.previous_report.sha256 -cnotmatch '^[a-f0-9]{64}$' -or $continued.previous_report.bytes -lt 1 -or $continued.previous_report.bytes -gt 4MB){throw 'Public continuation fixed original inputs differ'}
+        foreach($field in @('parked_executable_sha256','parked_installer_sha256','uninstaller_sha256')){
+            if($continued.$field -cnotmatch '^[a-f0-9]{64}$'){throw 'Public continuation original digest differs'}
+        }
+    }
+    if ((@($ordinaryPublicInputs.PSObject.Properties.Name | Sort-Object) -join '|') -cne (($publicInputNames | Sort-Object) -join '|') -or
+        $ordinaryPublicInputs.schema_version -notin @(1,2,3) -or $ordinaryPublicInputs.kind -cne 'ordinary-public-windows-update-inputs') {
+        throw 'Ordinary public update fixed input schema differs'
+    }
+    foreach ($field in @('prior_installer_sha256','prior_executable_sha256','candidate_executable_sha256','candidate_installer_sha256')) {
+        if ($ordinaryPublicInputs.$field -isnot [string] -or $ordinaryPublicInputs.$field -cnotmatch '^[a-f0-9]{64}$') { throw 'Ordinary public update digest absent' }
+    }
+    foreach ($field in @('prior_version','candidate_version')) {
+        if ($ordinaryPublicInputs.$field -isnot [string] -or $ordinaryPublicInputs.$field -cnotmatch '^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$') { throw 'Ordinary public update version absent' }
+    }
+    if ($ExpectedVersion -cne $ordinaryPublicInputs.prior_version -or
+        $ordinaryPublicInputs.prior_version -ceq $ordinaryPublicInputs.candidate_version -or
+        $ordinaryPublicInputs.prior_executable_sha256 -ceq $ordinaryPublicInputs.candidate_executable_sha256 -or
+        (Get-FileHash -LiteralPath $InstallerPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ordinaryPublicInputs.prior_installer_sha256) {
+        throw 'Ordinary public update must begin with the distinct exact appointed V0 installer/version'
+    }
+}
+if ($NativeParentOwnsFinish -and (-not $NativeAccountBindingPath -or -not $NativeAccountBindingSha256)) {
+    throw 'Parent-owned settlement requires the exact isolated account binding'
+}
+if ($NativeAccountBindingPath -or $NativeAccountBindingSha256) {
+    if (-not $NativeAccountBindingPath -or $NativeAccountBindingSha256 -cnotmatch '^[a-f0-9]{64}$' -or
+        -not $EvidencePath -or $PayloadPrivateKeyPath -or $TufPrivateRootPath) {
+        throw 'Isolated native qualification requires exact binding, external evidence and no private signing inputs'
+    }
+    Import-Module (Join-Path $PSScriptRoot 'native-qualification-account-adapter.psm1') -Force
+    $nativeAccount = Open-PortcoveNativeAccountSession $NativeAccountBindingPath $NativeAccountBindingSha256
+    # This mode never substitutes the owner registry or launches an unsupported
+    # candidate in the owner account. The complete renderer/update adapter must
+    # supply its own public signed-context route before those modes are usable.
+    if ($RendererUpdate -or $InstalledUpdateTrustedRootPath -or $NormalPackageManifestPath) {
+        throw 'Selected account route does not yet qualify renderer/update/ordinary-manifest modes'
+    }
+    if (-not $TestBase -or -not [IO.Path]::GetFullPath($TestBase).StartsWith(
+            [IO.Path]::GetFullPath($nativeAccount.binding.work_root).TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Isolated installer TestBase must be below the qualification work root'
+    }
+    $nativeCapturePrefix=[IO.Path]::GetFullPath($nativeAccount.binding.capture_root).TrimEnd('\') + '\'
+    if (-not [IO.Path]::GetFullPath($EvidencePath).StartsWith($nativeCapturePrefix,[StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Isolated installer evidence must be in owner-only capture storage'
+    }
+}
+$nativeFailure=$null
+try {
+if ($nativeAccount) { $null=Start-PortcoveNativeProfileKeeper $nativeAccount }
 
 if ([string]::IsNullOrWhiteSpace($TestBase)) {
     $storageJson = & node (Join-Path $PSScriptRoot "dev-storage.mts") preflight --json
@@ -44,13 +148,14 @@ if ([string]::IsNullOrWhiteSpace($TestBase)) {
 
 function Get-UninstallEntries([string]$InstallLocation) {
     $roots = @(
-        "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+        $(if (-not $nativeAccount) { "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" }),
         "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
         "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
     )
-    @($roots | ForEach-Object {
+    $userEntries = if ($nativeAccount) { @(Read-PortcoveNativeOwnRegistry $nativeAccount).uninstall } else { @() }
+    @(@($userEntries) + @($roots | Where-Object { $_ } | ForEach-Object {
         Get-ItemProperty -Path $_ -ErrorAction SilentlyContinue
-    } | Where-Object {
+    }) | Where-Object {
         if (-not $InstallLocation) {
             return $_.DisplayName -eq "Portcove"
         }
@@ -66,6 +171,15 @@ function Get-UninstallEntries([string]$InstallLocation) {
         )
         $locationMatches -or $uninstallMatches
     })
+}
+
+function Assert-InstallerUserRegistration([string]$RegistrationPath, [string]$QualificationSid = '', [string]$ObservedSid = '') {
+    # HKCU provenance belongs to the held trusted reader token, not the broker.
+    if ($QualificationSid -and $ObservedSid -cne $QualificationSid) { throw 'Target-account registration SID differs' }
+    $prefix = 'Microsoft.PowerShell.Core\Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall\'
+    if (-not $RegistrationPath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Expected installation ownership in the exact target-account HKCU observation'
+    }
 }
 
 function Assert-NoReparseAncestry([string]$Path) {
@@ -141,7 +255,8 @@ function Invoke-ApplicationSmoke([string]$Application, [string]$Role) {
     }
     finally {
         if (-not $process.HasExited) {
-            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            if ($nativeAccount) { $process.Kill($true) }
+            else { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
             $launch.run.status = "forced_termination"
             $launch.run.exit_observation = "Installer smoke cleanup forced the process to stop"
             Write-InstallerEvidence $evidence.phase
@@ -198,6 +313,20 @@ function Get-PreservationManifest([string]$LibraryRoot) {
     }
 }
 
+function Assert-NativePackageRollbackObservation($Observation, [string]$ExpectedHash, [string]$ExpectedVersion, [string]$ExpectedSentinel) {
+    if ($ExpectedHash -cnotmatch '^[a-f0-9]{64}$' -or $ExpectedSentinel -cnotmatch '^[a-f0-9]{64}$' -or -not $ExpectedVersion -or
+        $Observation.install_exit_code -ne 0 -or $Observation.registered_version -cne $ExpectedVersion -or
+        $Observation.executable_sha256 -cne $ExpectedHash -or $Observation.registration_count -ne 1 -or
+        -not $Observation.smoke.responding -or $Observation.smoke.exit_code -ne 0 -or
+        -not $Observation.database_present -or $Observation.sentinel_sha256 -cne $ExpectedSentinel -or
+        $null -eq $Observation.manifest_before_install -or $null -eq $Observation.manifest_after_install -or
+        @($Observation.manifest_before_install.library).Count -lt 1 -or
+        ($Observation.manifest_before_install | ConvertTo-Json -Depth 6 -Compress) -cne
+            ($Observation.manifest_after_install | ConvertTo-Json -Depth 6 -Compress)) {
+        throw 'Native package rollback did not restore exact predecessor bytes/version, launch or retained data'
+    }
+}
+
 $installer = (Resolve-Path -LiteralPath $InstallerPath).Path
 if ([System.IO.Path]::GetExtension($installer) -ne ".exe") {
     throw "Installer must be an executable: $installer"
@@ -207,6 +336,14 @@ if ($predecessor -and [System.IO.Path]::GetExtension($predecessor) -ne ".exe") {
     throw "Upgrade predecessor must be an executable"
 }
 $installedUpdate = -not [string]::IsNullOrWhiteSpace($InstalledUpdateTrustedRootPath)
+if ($QualifyPackageRollback -and (-not $nativeAccount -or -not $predecessor -or $installedUpdate -or
+        $RendererUpdate -or $NormalPackageManifestPath -or -not $ExpectedPredecessorVersion -or
+        -not $ExpectedVersion -or $ExpectedPredecessorVersion -ceq $ExpectedVersion)) {
+    throw 'Package rollback requires isolated-account distinct predecessor/candidate package compatibility mode'
+}
+if ($ExpectedPredecessorVersion -and -not $QualifyPackageRollback) {
+    throw 'ExpectedPredecessorVersion belongs only to the explicit package rollback mode'
+}
 if ($RendererUpdate -and -not $installedUpdate) {
     throw "Renderer update qualification requires an installed application update"
 }
@@ -254,7 +391,7 @@ if ($NormalPackageManifestPath) {
         }
     }
 }
-if (@(Get-UninstallEntries "").Count -ne 0) {
+if (-not $ordinaryPublicContinue -and @(Get-UninstallEntries "").Count -ne 0) {
     throw "A Portcove installer registration already exists. Refusing to replace another installation during qualification."
 }
 
@@ -266,7 +403,15 @@ if (-not $base -or $base -eq $volumeRoot) {
 [System.IO.Directory]::CreateDirectory($base) | Out-Null
 $base = (Resolve-Path -LiteralPath $base).Path.TrimEnd('\')
 
-$runRoot = Join-Path $base ("run-" + [System.Guid]::NewGuid().ToString("N"))
+$runRoot = if($ordinaryPublicContinue){
+    if(-not $nativeAccount -or -not [string]::Equals($base,[IO.Path]::GetFullPath($continued.test_base),[StringComparison]::OrdinalIgnoreCase) -or
+        -not [string]::Equals($base,(Join-Path $nativeAccount.binding.work_root 'installer'),[StringComparison]::OrdinalIgnoreCase)){throw 'Public continuation TestBase differs'}
+    $originalRun=[IO.Path]::GetFullPath($continued.run_root)
+    if([IO.Path]::GetFileName($originalRun) -cnotmatch '^run-[a-f0-9]{32}$' -or
+        -not [string]::Equals([IO.Path]::GetDirectoryName($originalRun),$base,[StringComparison]::OrdinalIgnoreCase)){throw 'Public continuation original run differs'}
+    Assert-NoReparseAncestry $originalRun
+    $originalRun
+}else{Join-Path $base ("run-" + [System.Guid]::NewGuid().ToString("N"))}
 $installRoot = Join-Path $runRoot "installed"
 $expectedPrefix = $base + [System.IO.Path]::DirectorySeparatorChar
 if (-not $runRoot.StartsWith($expectedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -290,6 +435,19 @@ $libraryRoot = if ($RetainedLibraryRoot) {
     Join-Path $runRoot "library"
 }
 [System.IO.Directory]::CreateDirectory($runRoot) | Out-Null
+if($ordinaryPublicContinue){
+    foreach($entry in @(@($installRoot,$continued.install_root),@($libraryRoot,$continued.library_root),@((Join-Path $installRoot 'portcove-desktop.exe'),$continued.application),@((Join-Path $installRoot 'uninstall.exe'),$continued.uninstaller))){
+        if(-not [string]::Equals([IO.Path]::GetFullPath($entry[0]),[IO.Path]::GetFullPath($entry[1]),[StringComparison]::OrdinalIgnoreCase)){throw 'Public continuation original paths differ'}
+        Assert-NoReparseAncestry $entry[0]
+    }
+    $originalRegistration=@(Get-UninstallEntries '')
+    if($originalRegistration.Count -ne 1 -or $originalRegistration[0].PSPath -cne $continued.registration_path -or
+        $originalRegistration[0].DisplayVersion -cne $ordinaryPublicInputs.prior_version -or
+        @(Get-UninstallEntries $installRoot).Count -ne 1){throw 'Public continuation requires exactly its original V0 registration'}
+    Assert-InstallerUserRegistration ([string]$originalRegistration[0].PSPath) ([string]$nativeAccount.binding.account_sid) $(if ($nativeAccount) { [string]$originalRegistration[0].account_sid } else { '' })
+    if((Get-FileHash -LiteralPath $continued.application -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ordinaryPublicInputs.prior_executable_sha256 -or
+        (Get-FileHash -LiteralPath $continued.uninstaller -Algorithm SHA256).Hash.ToLowerInvariant() -cne $continued.uninstaller_sha256){throw 'Public continuation original installed bytes differ'}
+}
 
 $evidence = if ($EvidencePath) {
     $evidenceFull = [System.IO.Path]::GetFullPath($EvidencePath)
@@ -305,6 +463,22 @@ $evidence = if ($EvidencePath) {
     }
     [ordered]@{
         format = 1
+        observation_identity = [ordered]@{
+            schema_version = 1
+            harness = "scripts/test-windows-installer.ps1"
+            harness_sha256 = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            source_commit = (& git rev-parse HEAD | Out-String).Trim()
+            source_tree = (& git rev-parse 'HEAD^{tree}' | Out-String).Trim()
+            started_at = [DateTime]::UtcNow.ToString('o')
+            host_os = [Runtime.InteropServices.RuntimeInformation]::OSDescription
+            host_architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+            powershell = $PSVersionTable.PSVersion.ToString()
+            authority = "none; local native observation requires independently authenticated handoff"
+        }
+        package_inputs = [ordered]@{
+            installer_sha256 = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+            predecessor_installer_sha256 = if ($predecessor) { (Get-FileHash -LiteralPath $predecessor -Algorithm SHA256).Hash.ToLowerInvariant() } else { $null }
+        }
         phase = "initialized"
         process_runs = @()
         unverified_child_observations = @()
@@ -342,15 +516,14 @@ function Write-InstallerEvidence([string]$Phase, $Details = $null) {
 
 function Get-WebDriverHostBaseline([string]$RepositoryRoot = (Join-Path $PSScriptRoot "..")) {
     $registryPaths = @(
-        "HKCU:\Software\Microsoft\EdgeUpdate\Clients\*",
+        $(if (-not $nativeAccount) { "HKCU:\Software\Microsoft\EdgeUpdate\Clients\*" }),
         "HKLM:\Software\Microsoft\EdgeUpdate\Clients\*",
         "HKLM:\Software\WOW6432Node\Microsoft\EdgeUpdate\Clients\*"
     )
-    $runtimeVersions = @($registryPaths | ForEach-Object {
-        Get-ItemProperty -Path $_ -ErrorAction SilentlyContinue |
-            Where-Object { $_.name -eq "Microsoft Edge WebView2 Runtime" } |
-            ForEach-Object { [string]$_.pv }
-    } | Where-Object { $_ -match '^\d+\.\d+\.\d+\.\d+$' } | Sort-Object -Unique)
+    $userVersions = if ($nativeAccount) { @(Read-PortcoveNativeOwnRegistry $nativeAccount).webview } else { @() }
+    $runtimeVersions = @(@($userVersions) + @($registryPaths | Where-Object { $_ } | ForEach-Object {
+        Get-ItemProperty -Path $_ -ErrorAction SilentlyContinue
+    }) | Where-Object { $_.name -eq "Microsoft Edge WebView2 Runtime" } | ForEach-Object { [string]$_.pv } | Where-Object { $_ -match '^\d+\.\d+\.\d+\.\d+$' } | Sort-Object -Unique)
     $statePath = Join-Path $RepositoryRoot "work/tool-bin/tool-state.json"
     $toolState = if ([IO.File]::Exists($statePath)) {
         Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
@@ -461,7 +634,17 @@ function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$A
     $outputTask = $null
     $errorTask = $null
     if ($evidence) { $evidence.process_runs += $run; Write-InstallerEvidence $evidence.phase }
-    if ($Role -in @("predecessor_smoke", "candidate_smoke", "installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage", "installed_update_tampered_stage",
+    if ($nativeAccount) {
+        $nativeId='installer-' + $run.id
+        $runtime=@{ PORTCOVE_LIBRARY=$libraryRoot }
+        $identity=Start-PortcoveNativeAccountRoot -Session $nativeAccount -Id $nativeId -Executable $exact `
+            -Arguments ([string[]]$Arguments) -Directory $runRoot -Runtime $runtime -TemporaryRoot $runRoot -Nsis:($Role -match 'installer$')
+        $process=New-PortcoveNativeProcessProxy $nativeAccount $nativeId $identity
+        $run.native_root_id=$nativeId
+        $run.native_invocation_id=$nativeAccount.binding.invocation_id
+        $run.output_capture=Join-Path $nativeAccount.binding.capture_root ($nativeId + '.stdout.bin')
+        $run.error_capture=Join-Path $nativeAccount.binding.capture_root ($nativeId + '.stderr.bin')
+    } elseif ($Role -in @("predecessor_smoke", "candidate_smoke", "installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage", "installed_update_tampered_stage",
             "installed_update_recovery_status", "installed_update_recovery_repair", "installed_update_recovery_verified")) {
         $outputName = if ($Role -eq "installed_update_helper") { "installed-update-helper" }
             elseif ($recoveryCommand) { "$($Role.Replace('_', '-'))-stage" }
@@ -595,6 +778,35 @@ function Read-UninstallerChildImage($Process, $Child, [DateTime]$Deadline) {
 }
 
 function Wait-JournaledUninstallerChild($ParentRun, [string]$TemporaryRoot, [DateTime]$Deadline) {
+    if ($nativeAccount) {
+        # The nested broker job owns the entire NSIS self-copy tree, even after
+        # its initial root exits. A recyclable parent PID is not ownership.
+        do {
+            $observation=Invoke-PortcoveNativeAccountCommand $nativeAccount observe $ParentRun.native_root_id
+            foreach ($child in @($observation.processes)) {
+                $exact=[IO.Path]::GetFullPath($child.path)
+                if (-not $exact.StartsWith([IO.Path]::GetFullPath($TemporaryRoot).TrimEnd('\') + '\',[StringComparison]::OrdinalIgnoreCase)) {
+                    throw 'Isolated NSIS child escaped its owned temporary root'
+                }
+                Assert-NoReparseAncestry $exact
+                if ((Get-FileHash -LiteralPath $exact -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ParentRun.executable_sha256) {
+                    throw 'Isolated NSIS child is not the exact self-copy'
+                }
+            }
+            if (@($observation.processes).Count -eq 0) {
+                $teardown=Invoke-PortcoveNativeAccountCommand $nativeAccount readback $ParentRun.native_root_id
+                if ($teardown.root_pid -ne $ParentRun.pid -or $teardown.root_created_filetime -cne [string]$ParentRun.start_time_filetime -or
+                    -not $teardown.root_exited -or -not $teardown.job_empty -or @($teardown.remaining_pids).Count -ne 0) {
+                    throw 'Isolated NSIS teardown lacks exact-root positive readback'
+                }
+                $ParentRun.native_teardown=$teardown
+                if ($evidence) { Write-InstallerEvidence $evidence.phase }
+                return
+            }
+            if ([DateTime]::UtcNow -ge $Deadline) { throw 'Isolated NSIS self-copy exceeded its operation deadline' }
+            Start-Sleep -Milliseconds 25
+        } while ($true)
+    }
     # NSIS's initial process starts an exact temporary self-copy and exits.
     # Its launcher's exit code does not establish completion of that child.
     $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $($ParentRun.pid)" -OperationTimeoutSec 2)
@@ -747,6 +959,19 @@ try {
     $uninstaller = Join-Path $installRoot "uninstall.exe"
     [System.Environment]::SetEnvironmentVariable("PORTCOVE_LIBRARY", $libraryRoot, "Process")
     $upgrade = $null
+    if($ordinaryPublicContinue){
+        # Reuse only the already settled B installation. No installer, smoke
+        # startup, profile/library seed or sentinel write precedes raw capture.
+        $install=$null;$smoke=$null;$normalBoundary=$null
+        $registryEntries=$originalRegistration
+        $installedHash=$ordinaryPublicInputs.prior_executable_sha256
+        $sentinel=Join-Path $libraryRoot 'user\installer-qualification\preserve.txt'
+        Assert-NoReparseAncestry $sentinel
+        $sentinelHash=(Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
+        $beforeUninstallManifest=Get-PreservationManifest $libraryRoot
+        $evidence.uninstaller_sha256=$continued.uninstaller_sha256
+        Write-InstallerEvidence 'public_original_b_verified'
+    }else{
     if ($predecessor) {
         Write-InstallerEvidence "predecessor_installing"
         $previousInstall = Invoke-JournaledProcess -Role "predecessor_installer" -Executable $predecessor -Arguments @("/S", "/D=$installRoot") -AllowedRelocationRoot $runRoot
@@ -1135,9 +1360,8 @@ try {
         if ($registryEntries[0].DisplayVersion -ne $ExpectedVersion) {
             throw "Installed registration does not match expected version $ExpectedVersion"
         }
-        if ($registryEntries[0].PSPath -notmatch 'HKEY_CURRENT_USER') {
-            throw "Expected current-user installation ownership"
-        }
+        $qualificationSid = if ($nativeAccount) { [string]$nativeAccount.binding.account_sid } else { '' }
+        Assert-InstallerUserRegistration ([string]$registryEntries[0].PSPath) $qualificationSid $(if ($nativeAccount) { [string]$registryEntries[0].account_sid } else { '' })
     }
     $smoke = Invoke-ApplicationSmoke $application "candidate_smoke"
     if ((Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash) {
@@ -1172,6 +1396,7 @@ try {
                 installed_executable_sha256 = $installedHash
                 installed_executable_path = $application
                 install_root = $installRoot
+                registration_account_sid = if ($nativeAccount) { $nativeAccount.binding.account_sid } else { $null }
                 registration_path = $registryEntries[0].PSPath
                 uninstall_registration_count = @($registryEntries).Count
                 registered_version = $registryEntries[0].DisplayVersion
@@ -1250,6 +1475,104 @@ try {
         Write-InstallerEvidence "current_installed_boundary_complete" $normalBoundary
     }
 
+    }
+    $isolatedAccountBoundary=$null
+    if ($nativeAccount) {
+        # Exercise the maintained ordinary client before uninstalling its actual
+        # installed image. Every driver/application/WebView root uses the same
+        # broker group; the owner-side Node harness remains assertion-only.
+        $accountDesktopOutput=Join-Path $evidenceParent 'isolated-account-desktop'
+        $oldBinding=[Environment]::GetEnvironmentVariable('PORTCOVE_NATIVE_ACCOUNT_BINDING','Process')
+        $oldBindingSha=[Environment]::GetEnvironmentVariable('PORTCOVE_NATIVE_ACCOUNT_BINDING_SHA256','Process')
+        try {
+            $env:PORTCOVE_NATIVE_ACCOUNT_BINDING=[IO.Path]::GetFullPath($NativeAccountBindingPath)
+            $env:PORTCOVE_NATIVE_ACCOUNT_BINDING_SHA256=$NativeAccountBindingSha256
+            $accountNode=$nativeAccount.binding.desktop_tools.node
+            if ((Get-FileHash -LiteralPath $accountNode.path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $accountNode.sha256) { throw 'Qualified desktop assertion runtime changed' }
+            if ($ordinaryPublicMode) {
+                if ((Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ordinaryPublicInputs.prior_executable_sha256) { throw 'Ordinary public update V0 executable differs' }
+                $publicOutput=Join-Path $evidenceParent 'ordinary-public-update'
+                $publicConfiguration=[ordered]@{schema_version=1;kind='ordinary-windows-public-update';journey=[ordered]@{
+                    binding=[IO.Path]::GetFullPath($NativeAccountBindingPath);binding_sha256=$NativeAccountBindingSha256;application=$application;output=$publicOutput;
+                    prior_sha256=$ordinaryPublicInputs.prior_executable_sha256;prior_version=$ordinaryPublicInputs.prior_version;
+                    candidate_sha256=$ordinaryPublicInputs.candidate_executable_sha256;candidate_installer_sha256=$ordinaryPublicInputs.candidate_installer_sha256;candidate_version=$ordinaryPublicInputs.candidate_version}}
+                if($ordinaryPublicPark){$publicConfiguration.schema_version=2;$publicConfiguration.journey['phase']='park-v0-with-v1'}
+                if($ordinaryPublicContinue){$publicConfiguration.schema_version=3;$publicConfiguration.journey['phase']='continue-with-v2';$publicConfiguration.journey['continuation']=$continued}
+                $publicConfigurationPath=Join-Path $evidenceParent 'ordinary-public-update.json'
+                $stream=[IO.File]::Open($publicConfigurationPath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+                try { $bytes=[Text.UTF8Encoding]::new($false).GetBytes(($publicConfiguration|ConvertTo-Json -Depth 6 -Compress)+"`n");$stream.Write($bytes);$stream.Flush($true) } finally {$stream.Dispose()}
+                $publicConfigurationSha=(Get-FileHash -LiteralPath $publicConfigurationPath -Algorithm SHA256).Hash.ToLowerInvariant()
+                $remaining=$OrdinaryPublicUpdateRemainingMilliseconds-$ordinaryPublicClock.ElapsedMilliseconds
+                if ($remaining -lt 1) { throw 'Original public native invocation lifetime expired before UI launch' }
+                & $accountNode.path (Join-Path $PSScriptRoot '../apps/desktop/scripts/desktop-windows-update-test.mts') --ordinary-public $publicConfigurationPath $publicConfigurationSha $remaining
+                if ($LASTEXITCODE -ne 0) { throw 'Isolated ordinary public updater journey failed; retain raw preimages and process evidence' }
+                $currentPublicRegistration=@(Get-UninstallEntries $installRoot)
+                $publicExpectedVersion=if($ordinaryPublicPark){$ordinaryPublicInputs.prior_version}else{$ordinaryPublicInputs.candidate_version}
+                $publicExpectedExecutable=if($ordinaryPublicPark){$ordinaryPublicInputs.prior_executable_sha256}else{$ordinaryPublicInputs.candidate_executable_sha256}
+                if ($currentPublicRegistration.Count -ne 1 -or $currentPublicRegistration[0].DisplayVersion -cne $publicExpectedVersion -or
+                    (Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant() -cne $publicExpectedExecutable) { throw 'Ordinary public installation readback differs' }
+                Assert-InstallerUserRegistration ([string]$currentPublicRegistration[0].PSPath) ([string]$nativeAccount.binding.account_sid) $(if ($nativeAccount) { [string]$currentPublicRegistration[0].account_sid } else { '' })
+                $evidence.ordinary_public_update=[ordered]@{configuration_sha256=$publicConfigurationSha;output=$publicOutput;prior_version=$ordinaryPublicInputs.prior_version;
+                    candidate_version=$ordinaryPublicInputs.candidate_version;registration=$currentPublicRegistration[0].PSPath;authority='none';native_acceptance='not-established'}
+                $evidence.uninstaller_sha256=(Get-FileHash -LiteralPath $uninstaller -Algorithm SHA256).Hash.ToLowerInvariant()
+                if($ordinaryPublicPark) {
+                    $completed=$true
+                    $parked=[ordered]@{application=$application;installed_executable_sha256=$publicExpectedExecutable;registered_version=$publicExpectedVersion;
+                        registration_account_sid=$nativeAccount.binding.account_sid;registration_path=$currentPublicRegistration[0].PSPath;public_update_output=$publicOutput;kept_installed=$true;authority='none';native_acceptance='not-established'}
+                    Write-InstallerEvidence 'public_v1_parked' $parked
+                    $parked|ConvertTo-Json -Depth 6 -Compress
+                    return
+                }
+            } else {
+                & $accountNode.path (Join-Path $PSScriptRoot '../apps/desktop/scripts/desktop-test.mts') `
+                    --app $application --output $accountDesktopOutput --scenario empty-library --port 45874
+                if ($LASTEXITCODE -ne 0) { throw 'Isolated installed ordinary-client observation failed' }
+            }
+            $actualDesktopOutput=if ($ordinaryPublicMode) {$publicOutput} else {$accountDesktopOutput}
+            $isolatedAccountBoundary=[ordered]@{ output=$actualDesktopOutput; installed_executable_path=$application;
+                installed_executable_sha256=(Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant();
+                native_invocation_id=$nativeAccount.binding.invocation_id; acceptance='not-established; parent stage capture is separate' }
+            Write-InstallerEvidence 'isolated_account_desktop_complete' $isolatedAccountBoundary
+        } finally {
+            [Environment]::SetEnvironmentVariable('PORTCOVE_NATIVE_ACCOUNT_BINDING',$oldBinding,'Process')
+            [Environment]::SetEnvironmentVariable('PORTCOVE_NATIVE_ACCOUNT_BINDING_SHA256',$oldBindingSha,'Process')
+        }
+    }
+
+    $packageRollback=$null
+    if ($QualifyPackageRollback) {
+        # This is installer/package compatibility, not public updater selection,
+        # a private feed, or application-update journal recovery. The fixed
+        # parent must independently bind signed context and predecessor inputs.
+        $rollbackBefore=Get-PreservationManifest $libraryRoot
+        if ((Get-FileHash -LiteralPath $predecessor -Algorithm SHA256).Hash.ToLowerInvariant() -cne $upgrade.predecessor_installer_sha256) {
+            throw 'Original predecessor package changed before rollback'
+        }
+        Write-InstallerEvidence 'package_rollback_installing'
+        $rollbackInstall=Invoke-JournaledProcess -Role 'package_rollback_installer' -Executable $predecessor -Arguments @('/S','/UPDATE') -AllowedRelocationRoot $runRoot
+        $rollbackAfter=Get-PreservationManifest $libraryRoot
+        $rollbackRegistration=@(Get-UninstallEntries $installRoot)
+        if ($rollbackRegistration.Count -ne 1) { throw 'Package rollback registration is absent or ambiguous' }
+        Assert-InstallerUserRegistration ([string]$rollbackRegistration[0].PSPath) ([string]$nativeAccount.binding.account_sid) $(if ($nativeAccount) { [string]$rollbackRegistration[0].account_sid } else { '' })
+        $rollbackSmoke=Invoke-ApplicationSmoke $application 'package_rollback_smoke'
+        $packageRollback=[ordered]@{
+            install_exit_code=$rollbackInstall.ExitCode;registered_version=$rollbackRegistration[0].DisplayVersion;
+            registration_account_sid=$nativeAccount.binding.account_sid;registration_path=$rollbackRegistration[0].PSPath;registration_count=$rollbackRegistration.Count;
+            executable_sha256=(Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant();
+            predecessor_installer_sha256=$upgrade.predecessor_installer_sha256;smoke=$rollbackSmoke;
+            manifest_before_install=$rollbackBefore;manifest_after_install=$rollbackAfter;
+            manifest_after_launch=Get-PreservationManifest $libraryRoot;
+            database_present=[IO.File]::Exists((Join-Path $libraryRoot 'portcove.sqlite3'));
+            sentinel_sha256=(Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash.ToLowerInvariant();
+            scope='signed-package compatibility only; ordinary public updater journey remains pending'
+        }
+        Assert-NativePackageRollbackObservation $packageRollback $upgrade.predecessor_executable_sha256 $ExpectedPredecessorVersion $sentinelHash.ToLowerInvariant()
+        # Startup may legitimately change SQLite/cache state. Retain that full
+        # observation and require uninstall to preserve the post-launch state;
+        # never call installer replacement a public updater rollback.
+        $beforeUninstallManifest=$packageRollback.manifest_after_launch
+        Write-InstallerEvidence 'package_rollback_verified' $packageRollback
+    }
     Write-InstallerEvidence "uninstalling"
     # NSIS may continue from an exact self-copy below TEMP. The original bytes
     # are journaled before launch; permit only that same image below this run.
@@ -1310,10 +1633,11 @@ try {
         installer = $installer
         installer_sha256 = $installerHash
         signature_status = $signature.Status.ToString()
-        install_exit_code = if ($RendererUpdate) { $null } else { $install.ExitCode }
+        install_exit_code = if ($RendererUpdate -or $ordinaryPublicContinue) { $null } else { $install.ExitCode }
         install_mode = $InstallMode
         update_path = if ($RendererUpdate) { "installed_app_renderer" } elseif ($installedUpdate) { "installed_app_helper" } elseif ($predecessor) { "registered_nsis_update" } else { "explicit_bootstrap_destination" }
         registered_version = $registryEntries[0].DisplayVersion
+        registration_account_sid = if ($nativeAccount) { $nativeAccount.binding.account_sid } else { $null }
         registration_path = $registryEntries[0].PSPath
         installed_executable_sha256 = $installedHash
         expected_executable = $expected
@@ -1329,6 +1653,8 @@ try {
         preservation_manifest_before_uninstall = $beforeUninstallManifest
         preservation_manifest_after_uninstall = $afterUninstallManifest
         current_installed_boundary = $normalBoundary
+        isolated_account_boundary = $isolatedAccountBoundary
+        package_rollback = $packageRollback
     }
     Write-InstallerEvidence "complete" $result
     $result | ConvertTo-Json -Depth 10 -Compress
@@ -1349,7 +1675,7 @@ finally {
         else { [System.Environment]::SetEnvironmentVariable($name, $previousTemp[$name], "Process") }
     }
     [System.Environment]::SetEnvironmentVariable("PORTCOVE_LIBRARY", $previousLibrary, "Process")
-    if ($completed -and [System.IO.Directory]::Exists($runRoot)) {
+    if ($completed -and -not $nativeAccount -and [System.IO.Directory]::Exists($runRoot)) {
         $resolvedRunRoot = (Resolve-Path -LiteralPath $runRoot).Path
         if (-not $resolvedRunRoot.StartsWith($expectedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
             throw "Refusing to clean a test directory outside TestBase"
@@ -1358,5 +1684,17 @@ finally {
     }
     elseif (-not $completed) {
         Write-Warning "Installer test evidence was preserved at $runRoot"
+    }
+}
+} catch { $nativeFailure=$_; throw }
+finally {
+    if ($nativeAccount -and -not $NativeParentOwnsFinish) {
+        try {
+            $settlement=Invoke-PortcoveNativeAccountCommand $nativeAccount finish 'installer-stage-finish'
+            if ($settlement.group_empty -isnot [bool] -or -not $settlement.group_empty) { throw 'Isolated installer group settlement is incomplete' }
+        } catch {
+            if ($nativeFailure) { Write-Warning ('Isolated installer cleanup also failed: ' + $_.Exception.Message) }
+            else { throw }
+        }
     }
 }

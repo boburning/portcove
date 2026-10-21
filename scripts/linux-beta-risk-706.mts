@@ -1,10 +1,17 @@
 import { errorMessage, isRecord } from "./runtime-values.mts";
+import { inspectRiskVersionPreparation706 } from "./linux-beta-risk-706-preparation.mts";
 // One owner-approved disposition, not a general advisory exception mechanism.
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import {
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isDeepStrictEqual } from "node:util";
+import { risk706GraphDigest } from "./linux-beta-risk-706-profile.mts";
 import { GitHubApiClient } from "./github-api.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -12,7 +19,7 @@ export const approval706 =
   "https://github.com/boburning/portcove/issues/706#issuecomment-6182222682";
 export const expiry706 = "2026-11-15T04:59:00.000Z";
 export const target706 = "x86_64-unknown-linux-gnu";
-const nativePaths = [
+export const nativePaths706 = [
   "Cargo.toml",
   "Cargo.lock",
   "rust-toolchain.toml",
@@ -20,6 +27,7 @@ const nativePaths = [
   "apps/desktop/src-tauri",
   "crates/portcove-core",
 ];
+const nativePaths = nativePaths706;
 const approvalPath = ".github/linux-beta-risk-706.json";
 const hash = (value: string | Uint8Array) => createHash("sha256").update(value).digest("hex");
 const sha = /^[a-f0-9]{40}$/u;
@@ -33,13 +41,19 @@ import {
 
 type Execute706 = (commandName: string, args: string[], cwd: string) => string;
 function command(commandName: string, args: string[], cwd: string) {
-  return execFileSync(commandName, args, {
+  const result = execFileSync(commandName, args, {
     cwd,
     encoding: "utf8",
-    timeout: 120_000,
+    timeout: coordinatorCommandTimeout(120_000),
     maxBuffer: 32 * 1024 * 1024,
     windowsHide: true,
-  }).trim();
+  });
+  checkCoordinatorDeadline();
+  // Preparation verification hashes raw commit/blob bytes, including their
+  // final newline. Control responses keep the existing trimmed convention.
+  return commandName === "git" && ["cat-file", "show"].includes(args[0] ?? "")
+    ? result
+    : result.trim();
 }
 
 interface CargoPackage706 {
@@ -105,7 +119,7 @@ function cargoMetadata706(value: unknown): { packages: CargoPackage706[]; nodes:
   return { packages, nodes };
 }
 
-export function candidate706(cwd = root, execute: Execute706 = command) {
+export async function candidate706(cwd = root, execute: Execute706 = command) {
   const head = execute("git", ["rev-parse", "HEAD"], cwd);
   if (!sha.test(head)) throw new Error("#706 candidate lacks exact source identity");
   if (
@@ -131,9 +145,19 @@ export function candidate706(cwd = root, execute: Execute706 = command) {
     !sha.test(approval.reconfirmedHead)
   )
     throw new Error("#706 source review baseline missing");
+  const versionPreparation = await inspectRiskVersionPreparation706(head, (args) =>
+    execute("git", [...args], cwd),
+  );
   const productionChanges = execute(
     "git",
-    ["diff", "--name-only", approval.reconfirmedHead, "HEAD", "--", ...nativePaths],
+    [
+      "diff",
+      "--name-only",
+      approval.reconfirmedHead,
+      versionPreparation?.source_commit ?? "HEAD",
+      "--",
+      ...nativePaths,
+    ],
     cwd,
   );
   const rawMetadata: unknown = JSON.parse(
@@ -190,7 +214,15 @@ export function candidate706(cwd = root, execute: Execute706 = command) {
     features: ["default", "tauri/custom-protocol"],
     productionChanges,
     reviewedHead: approval.reconfirmedHead,
+    ...(versionPreparation ? { versionPreparation } : {}),
     native,
+    sourceNativeInputsSha256: hash(
+      execute(
+        "git",
+        ["ls-tree", versionPreparation?.source_commit ?? head, "--", ...nativePaths],
+        cwd,
+      ).trimEnd() + "\n",
+    ),
   };
 }
 
@@ -230,6 +262,154 @@ export function validateApproval706(
     instant >= Date.parse(expiry706)
   )
     throw new Error("#706 approval is not valid at this instant");
+}
+
+/** A dispatched build can measure the candidate without exercising a risk
+ * waiver. This result is deliberately unusable as a distribution decision. */
+export function assessDispatchedBuild706({
+  candidate,
+  scan,
+  policy,
+  now = new Date().toISOString(),
+}: {
+  candidate: unknown;
+  scan: unknown;
+  policy: string;
+  now?: string;
+}) {
+  if (
+    !isRecord(candidate) ||
+    typeof candidate.head !== "string" ||
+    !sha.test(candidate.head) ||
+    typeof candidate.lockSha256 !== "string" ||
+    !sha256.test(candidate.lockSha256) ||
+    candidate.target !== target706 ||
+    JSON.stringify(candidate.features) !== '["default","tauri/custom-protocol"]' ||
+    !Array.isArray(candidate.native) ||
+    candidate.native.length === 0 ||
+    typeof candidate.productionChanges !== "string" ||
+    !isRecord(scan) ||
+    scan.head !== candidate.head ||
+    scan.lockSha256 !== candidate.lockSha256 ||
+    typeof scan.completedAt !== "string" ||
+    !Number.isFinite(Date.parse(now)) ||
+    !Number.isFinite(Date.parse(scan.completedAt)) ||
+    Date.parse(scan.completedAt) > Date.parse(now) ||
+    Date.parse(now) - Date.parse(scan.completedAt) > 15 * 60 * 1000
+  )
+    throw new Error("dispatched build requires fresh exact-source Linux assessment inputs");
+  const ids = new Set<string>();
+  for (const node of candidate.native) {
+    if (
+      !isRecord(node) ||
+      typeof node.id !== "string" ||
+      !node.id ||
+      ids.has(node.id) ||
+      !Array.isArray(node.features) ||
+      !node.features.every((feature: unknown) => typeof feature === "string")
+    )
+      throw new Error("dispatched build dependency graph is incomplete");
+    ids.add(node.id);
+  }
+  const development = developmentSecurity(scan, policy);
+  if (
+    development.scanPassed &&
+    candidate.native.some(
+      (node: unknown) =>
+        isRecord(node) && typeof node.id === "string" && node.id.startsWith("glib@0.18.5:"),
+    )
+  )
+    throw new Error("affected compiler graph requires original full-scope scanner finding");
+  // Do not turn an additional advisory warning into an initial-proof exception.
+  const { diagnostics } = parseDependencyScan(String(scan.stdout), String(scan.stderr));
+  if (
+    diagnostics.some(
+      (entry) =>
+        entry.advisory &&
+        !knownFinding706(entry) &&
+        !(
+          entry.severity === "warning" &&
+          entry.code === "unmaintained" &&
+          isRecord(entry.advisory) &&
+          entry.advisory.id === "RUSTSEC-2024-0370" &&
+          entry.advisory.package === "proc-macro-error"
+        ),
+    )
+  )
+    throw new Error("dispatched build assessment contains another advisory finding");
+  return {
+    schema_version: 1,
+    disposition: "build-assessment-only",
+    authority: "none",
+    candidate: candidate.head,
+    lockSha256: candidate.lockSha256,
+    dependencyGraphSha256: risk706GraphDigest(candidate.native),
+    policySha256: hash(policy),
+    sourceReview: "not-authorized",
+    productionChanges: candidate.productionChanges,
+    versionPreparation: candidate.versionPreparation ?? null,
+    evaluatedAt: now,
+    scanPassed: development.scanPassed,
+    scanExitCode: development.scanExitCode,
+    knownFinding: development.knownFinding,
+    riskAuthorization: "pending-protected-controller-assessment",
+    releaseAuthorization: "not-evaluated",
+    pending: [
+      "authenticated-owner-amendment",
+      "protected-risk-admission",
+      "publication-exposure-readback",
+    ],
+  };
+}
+
+/** Routing only. Environment strings cannot appoint a risk waiver. */
+export function dispatchedBuildAssessment706(environment: NodeJS.ProcessEnv) {
+  return (
+    environment.GITHUB_EVENT_NAME === "workflow_dispatch" &&
+    environment.PORTCOVE_RELEASE_PROFILE === "initial-beta-win-linux"
+  );
+}
+
+/** Inert decoding inside the existing authenticated compiler subject. The
+ * producing job, source closure and report attestation are checked by its caller. */
+export function inspectCompilerRiskAssessment706(
+  raw: unknown,
+  expected: {
+    source_commit: string;
+    started: number;
+    finished: number;
+    lock_sha256: string;
+  },
+) {
+  if (
+    !isRecord(raw) ||
+    Object.keys(raw).sort().join(",") !== "assessment,candidate,scan" ||
+    Buffer.byteLength(JSON.stringify(raw)) > 128 * 1024 ||
+    !isRecord(raw.candidate) ||
+    raw.candidate.head !== expected.source_commit ||
+    !isRecord(raw.scan) ||
+    raw.scan.lockSha256 !== expected.lock_sha256 ||
+    typeof raw.scan.completedAt !== "string" ||
+    !isRecord(raw.assessment) ||
+    raw.assessment.evaluatedAt !== raw.scan.completedAt ||
+    typeof raw.scan.sourceConfig !== "string" ||
+    Date.parse(raw.scan.completedAt) < expected.started ||
+    Date.parse(raw.scan.completedAt) > expected.finished
+  )
+    throw new Error("compiler risk assessment lacks bounded same-producing-job source custody");
+  const assessed = assessDispatchedBuild706({
+    candidate: raw.candidate,
+    scan: raw.scan,
+    policy: raw.scan.sourceConfig,
+    now: raw.scan.completedAt,
+  });
+  if (!isDeepStrictEqual(assessed, raw.assessment))
+    throw new Error("compiler risk assessment differs from raw scan");
+  return {
+    candidate: structuredClone(raw.candidate),
+    scan: structuredClone(raw.scan),
+    assessment: assessed,
+  };
 }
 
 export function decide706({
@@ -372,14 +552,15 @@ export function decide706({
   };
 }
 
-export function decisionInputs706(
+export async function decisionInputs706(
   cwd: string,
   scan: unknown,
   now: string | undefined,
   purpose = "release",
   publicationTag = process.env.GITHUB_REF_NAME,
-  candidate = candidate706(cwd),
+  candidate?: Awaited<ReturnType<typeof candidate706>>,
 ) {
+  const selectedCandidate = candidate ?? (await candidate706(cwd));
   const approval: unknown = JSON.parse(readFileSync(path.join(cwd, approvalPath), "utf8"));
   if (!isRecord(approval) || typeof approval.approvedAt !== "string")
     throw new Error("#706 approval is absent or out of scope");
@@ -406,7 +587,7 @@ export function decisionInputs706(
   }
   return {
     approval,
-    candidate,
+    candidate: selectedCandidate,
     scan,
     releases,
     ...(now === undefined ? {} : { now }),
@@ -416,13 +597,13 @@ export function decisionInputs706(
 }
 
 // Fresh, fail-closed check at distribution boundaries; a development decision is never an input.
-export function releaseSecurity(
+export async function releaseSecurity(
   cwd: string,
   scan: unknown,
   publicationTag = process.env.GITHUB_REF_NAME,
 ) {
   const development = developmentSecurity(scan, readFileSync(path.join(cwd, "deny.toml"), "utf8"));
-  const candidate = candidate706(cwd);
+  const candidate = await candidate706(cwd);
   if (!isRecord(scan) || typeof scan.completedAt !== "string")
     throw new Error("Linux release requires fresh exact-candidate scanner evidence");
   const age = Date.now() - Date.parse(scan.completedAt);
@@ -439,34 +620,50 @@ export function releaseSecurity(
       throw new Error("Affected Linux release lacks the expected full-scope advisory evidence");
     return { disposition: "clean-scan", candidate: candidate.head, publicationTag };
   }
-  return decide706(decisionInputs706(cwd, scan, undefined, "release", publicationTag, candidate));
+  return decide706(
+    await decisionInputs706(cwd, scan, undefined, "release", publicationTag, candidate),
+  );
 }
 
-export function authorizeLinuxRelease(cwd = root, publicationTag = process.env.GITHUB_REF_NAME) {
+export async function authorizeLinuxRelease(
+  cwd = root,
+  publicationTag = process.env.GITHUB_REF_NAME,
+) {
   const { scan, output } = scanDependencies(cwd);
-  const decision = releaseSecurity(cwd, scan, publicationTag);
+  const decision = await releaseSecurity(cwd, scan, publicationTag);
   writeFileSync(`${output}.release.json`, `${JSON.stringify(decision, null, 2)}\n`, { flag: "wx" });
   return decision;
 }
 
-if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
-  try {
-    const [mode] = process.argv.slice(2);
-    if (mode === "candidate") console.log(JSON.stringify(candidate706(), null, 2));
-    else if (mode === "check") {
-      const decision = authorizeLinuxRelease();
-      console.log(JSON.stringify(decision));
-      if (process.env.GITHUB_OUTPUT)
-        appendFileSync(
-          process.env.GITHUB_OUTPUT,
-          `expires_at=${"expiresAt" in decision ? decision.expiresAt : ""}\nauthorized_at=${new Date().toISOString()}\n`,
+async function settleDirectCli() {
+  if (
+    /^linux-beta-risk-706(?:[.]mts|(?:[.]bundle)?[.]mjs)$/u.test(
+      path.basename(process.argv[1] ?? ""),
+    ) &&
+    path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)
+  ) {
+    try {
+      const [mode] = process.argv.slice(2);
+      if (mode === "candidate") console.log(JSON.stringify(await candidate706(), null, 2));
+      else if (mode === "check") {
+        const decision = await authorizeLinuxRelease();
+        console.log(JSON.stringify(decision));
+        if (process.env.GITHUB_OUTPUT)
+          appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `expires_at=${"expiresAt" in decision ? decision.expiresAt : ""}\nauthorized_at=${new Date().toISOString()}\n`,
+          );
+      } else
+        throw new Error(
+          "usage: linux-beta-risk-706.mts check|candidate (Linux release authorization)",
         );
-    } else
-      throw new Error(
-        "usage: linux-beta-risk-706.mts check|candidate (Linux release authorization)",
-      );
-  } catch (error) {
-    console.error(errorMessage(error));
-    process.exitCode = 1;
+    } catch (error) {
+      console.error(errorMessage(error));
+      process.exitCode = 1;
+    }
   }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(errorMessage(error));
+  process.exitCode = 1;
+});

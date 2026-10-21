@@ -211,6 +211,14 @@ download on a DEB or RPM installation still uses that package manager's source;
 the in-app Restart to update action is withheld. Eligibility is checked again
 at restart, so a status read alone does not authorize replacement.
 
+If a staged release is withdrawn before restart, Portcove rechecks the current
+authenticated feed and refuses that old update. Check again, download the newer
+eligible release and choose **Retry restart to update**. That explicit action can
+replace an older restart request only before its native installation started and
+for the same installation, library and channel. An interrupted or ambiguous native
+installation still needs its existing recovery; downloading a newer release does
+not clear it.
+
 The same ownership check is available without starting the GUI:
 
 ```text
@@ -226,6 +234,13 @@ or manual-recovery guidance. Installations copied or unpacked by hand remain und
 their existing manual owner.
 
 #### Rootless AppImage lifecycle
+
+On Linux, the update helper and relaunched application preserve an inherited
+`FUSERMOUNT_PROG` value exactly so the AppImage runtime can use the same host
+FUSE helper. This variable selects external executable helper code; it is not
+an updater trust override. Hosts that isolate Portcove must appoint and protect
+that helper themselves. Portcove does not discover a replacement helper or
+relax its installed-path, ownership, signature or update-eligibility checks.
 
 For a rootless Portcove installation, keep the maintained AppImage as one direct
 file at a stable absolute path owned by the current user. Do not place that file

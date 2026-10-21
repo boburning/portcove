@@ -54,6 +54,16 @@ interface HelperSelectionPlan {
 }
 
 const helperPaths = new Set([
+  "scripts/release-local-worker-accounts.ps1",
+  "scripts/release-local-worker-accounts.test.mts",
+  "scripts/release-native-account-capability.mts",
+  "scripts/release-native-account-capability.test.mts",
+  "scripts/native-qualification-account-client.mts",
+  "scripts/native-qualification-account-client.ps1",
+  "scripts/native-qualification-account-bridge.ps1",
+  "scripts/native-qualification-account.cs.txt",
+  "scripts/native-qualification-account-registry.ps1",
+  "scripts/fixtures/native-account-gui-probe.ps1",
   "scripts/daily-discovery-session.mts",
   "scripts/daily-discovery.test.mts",
   ...nativeHelperSharedSources,

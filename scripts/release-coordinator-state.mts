@@ -1,9 +1,21 @@
-import { validateCapacityTransition } from "./release-capacity.mts";
+import { validatePublicationReportRepairTransition } from "./release-report-repair-contract.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import {
+  validateCapacityTransition,
+  verifyRetainedCapacityOperation,
+  capacityDigest,
+} from "./release-capacity.mts";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import path from "node:path";
+import {
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 import { planReleaseOpportunity } from "./release-coordinator.mts";
 import { isRecord } from "./runtime-values.mts";
+import { validateCandidateStageTransition } from "./release-candidate-progress-contract.mts";
+import { validateReleaseReviewRequestTransition } from "./release-review-request.mts";
 import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
 
 // One coordinating Git repository, shared by its linked worktrees. This is not
@@ -33,7 +45,11 @@ function canonical(value: unknown): string {
 
 function gitRepository(repository: string) {
   const env = {
-    ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_"))),
+    ...Object.fromEntries(
+      Object.entries(readOnlyReleaseChildEnvironment() ?? process.env).filter(
+        ([key]) => !key.startsWith("GIT_"),
+      ),
+    ),
     GIT_NO_REPLACE_OBJECTS: "1",
     GIT_NO_LAZY_FETCH: "1",
     GIT_AUTHOR_NAME: "Portcove release coordinator",
@@ -60,12 +76,13 @@ function gitRepository(repository: string) {
   const read = (args: readonly string[], input?: string | Uint8Array, preserveBytes = false) => {
     const bytes = execFileSync("git", [...base, ...args], {
       input,
-      timeout: 30_000,
+      timeout: coordinatorCommandTimeout(),
       maxBuffer: maximumBytes * 2,
       windowsHide: true,
       stdio: ["pipe", "pipe", "pipe"],
       env,
     });
+    checkCoordinatorDeadline();
     const text = bytes.toString("utf8");
     if (!Buffer.from(text, "utf8").equals(bytes))
       throw new Error("coordinator Git output is not UTF-8");
@@ -76,7 +93,7 @@ function gitRepository(repository: string) {
       const child = spawn("git", [...base, "update-ref", "--no-deref", "--stdin"], {
         env,
         windowsHide: true,
-        timeout: 30_000,
+        timeout: coordinatorCommandTimeout(),
         stdio: ["pipe", "pipe", "pipe"],
       });
       let output = "";
@@ -123,6 +140,7 @@ function gitRepository(repository: string) {
                 "symbolic coordinator/preparation refs are refused under the transaction locks",
               );
           }
+          checkCoordinatorDeadline();
           child.stdin.end("commit\n");
         } catch (error) {
           failure = error;
@@ -133,7 +151,14 @@ function gitRepository(repository: string) {
         if (failure) reject(failure);
         else if (code !== 0 || !output.includes("commit: ok\n"))
           reject(new Error(`Git coordinator transaction refused: ${diagnostic.slice(0, 2048)}`));
-        else resolve();
+        else {
+          try {
+            checkCoordinatorDeadline();
+            resolve();
+          } catch (error) {
+            reject(error);
+          }
+        }
       });
       child.stdin.write(`start\n${commands.join("\n")}\nprepare\n`);
     });
@@ -186,7 +211,66 @@ function readCheckpoint(git: Git, commit: string) {
   const expectedParents = state.previous === null ? [] : [`parent ${state.previous}`];
   if (canonical(parents) !== canonical(expectedParents) || canonical(state) !== raw)
     throw new Error("coordinator checkpoint history or canonical bytes disagree");
-  return { previous: state.previous, ...checkedInput(state.input) };
+  const checked = checkedInput(state.input);
+  if (
+    state.previous === null &&
+    (checked.input.review_request != null || checked.input.review_disposition != null)
+  )
+    throw new Error("initial coordinator cannot invent a frozen review request");
+  return { previous: state.previous, ...checked };
+}
+
+/** Inspect one explicitly authenticated historical checkpoint without moving or
+ * verifying the current ref. Inert state only; no recovery/admission authority. */
+export function readRetainedCoordinatorCheckpoint(repository: string, checkpoint: string) {
+  identity(checkpoint);
+  return {
+    checkpoint,
+    ...readCheckpoint(gitRepository(repository), checkpoint),
+    authority: "none" as const,
+  };
+}
+
+/** Resolve public raw receipts referenced by a compact summary in this same
+ * immutable journal. No ref mutation, ancestry walk, candidate execution or
+ * lazy fetch occurs; sparse callers must explicitly hydrate this exact object.
+ */
+export function readRetainedCapacityOperation(repository: string, proof: unknown) {
+  if (!isRecord(proof) || Object.keys(proof).sort().join(",") !== "checkpoint,id,operation_sha256")
+    throw new Error("retained operation proof schema differs");
+  identity(proof.checkpoint);
+  if (
+    typeof proof.id !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(proof.id) ||
+    typeof proof.operation_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(proof.operation_sha256)
+  )
+    throw new Error("retained operation proof identity invalid");
+  const checkpoint = readCheckpoint(gitRepository(repository), proof.checkpoint);
+  const controller = checkpoint.input.controller;
+  const capacity =
+    isRecord(controller) && isRecord(controller.capacity_attempt)
+      ? controller.capacity_attempt
+      : null;
+  if (!capacity) throw new Error("original checkpoint has no raw capacity receipt");
+  const retained: unknown[] = Array.isArray(capacity.prior_operations)
+    ? capacity.prior_operations
+    : [];
+  const candidates: unknown[] = [capacity.operation, ...retained];
+  const raw = candidates.find(
+    (entry) =>
+      isRecord(entry) &&
+      !Object.hasOwn(entry, "summary_schema_version") &&
+      entry.id === proof.id &&
+      capacityDigest(entry) === proof.operation_sha256,
+  );
+  if (!raw) throw new Error("original checkpoint does not contain exact raw capacity operation");
+  return structuredClone(
+    verifyRetainedCapacityOperation(raw, {
+      id: proof.id,
+      operation_sha256: proof.operation_sha256,
+    }),
+  );
 }
 
 function active(input: Record<string, unknown>): Record<string, unknown> | null {
@@ -199,8 +283,21 @@ function transition(
   checkpoint: string,
 ) {
   validateCapacityTransition(previous.input, next, checkpoint);
+  validateReleaseReviewRequestTransition(previous.input, next, checkpoint);
   const old = active(previous.input);
   const candidate = active(next);
+  validateCandidateStageTransition(old, candidate, checkpoint);
+  const capacity =
+    isRecord(previous.input.controller) && isRecord(previous.input.controller.capacity_attempt)
+      ? previous.input.controller.capacity_attempt
+      : null;
+  validatePublicationReportRepairTransition(
+    old,
+    candidate,
+    checkpoint,
+    capacity?.operation,
+    capacity?.prior_operations,
+  );
   const controller = next.controller;
   if ((old || candidate) && canonical(controller) !== canonical(previous.input.controller)) {
     // Pause/capacity may change, but execution policy identity cannot drift.
@@ -402,6 +499,8 @@ export async function checkpointReleaseOpportunity(
   if (previous) transition(previous, input, expectedPrevious!);
   else if (active(input))
     throw new Error("first coordinator checkpoint cannot invent an active reservation");
+  else if (input.review_request != null || input.review_disposition != null)
+    throw new Error("first coordinator checkpoint cannot invent a frozen review request");
   const verifies = preparationVerifies(git, input);
   // Clearing a completed active candidate still verifies its exact allocation.
   if (previous && !active(input)) verifies.push(...preparationVerifies(git, previous.input));

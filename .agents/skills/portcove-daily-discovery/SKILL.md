@@ -20,6 +20,8 @@ reads the latest receipt. Recover retained candidate identities before new intak
 Use GPT-6.1-Sol Medium for scheduled collection and research, with a separate
 GPT-6.1-Sol High non-writing review of proposed writes. Ordinary and cold budgets
 are selected by the runner. Retain an explicit continuation when work does not fit.
+The one permitted count-drift recollection spends the existing delivery reserve
+for one complete replacement inventory; it does not start a new delivery budget.
 This workflow researches metadata and applies authorized neutral intake or
 material factual updates. It does not implement, install, admit, qualify or
 publish ports, change release commitments, reverse deferrals or assign work.

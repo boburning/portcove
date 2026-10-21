@@ -1,13 +1,16 @@
+import { inspectAggregateOriginalUpload } from "./release-aggregate-contract.mts";
+import { verifyControllerArtifactStatement } from "./github-controller-attestation.mts";
 import { orderedJsonValue as canonical } from "./json-values.mts";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
+import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import {
   inspectAssemblerIdentityExpectation,
   verifyAssemblerJobIdentity,
+  verifyAdmittedAssemblerJobIdentity,
 } from "./assembler-job-identity.mts";
 import type { AssemblerIdentityExpectation } from "./assembler-job-identity.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
@@ -18,6 +21,18 @@ import { productionControllerWorkflow } from "./production-controller-admission.
 import { isRecord } from "./runtime-values.mts";
 import { performance } from "node:perf_hooks";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+import {
+  collectReleaseRunEvidence,
+  inspectReleaseEvidenceRequest,
+} from "./release-run-evidence.mts";
+import type { ReleaseEvidenceRequest, ReleaseEvidenceOptions } from "./release-run-evidence.mts";
+import {
+  requireStablePublicBuildInputEvidence,
+  verifyReleasePublicBuildInputs,
+} from "./release-public-build-provenance.mts";
+
+const publicInputScope =
+  "verified public configuration bytes and archive provenance only; no compiler-content or execution claim";
 
 export const aggregatePredicateType = "https://portcove.dev/attestations/package-aggregate/v1";
 const repository = "boburning/portcove";
@@ -74,6 +89,7 @@ async function expectedMembers(rawRequest: unknown) {
 function verifyMembers(
   archive: Buffer,
   files: { filename: string; bytes: number; sha256: string }[],
+  consume?: (file: { filename: string; bytes: number; sha256: string }, bytes: Buffer) => void,
 ) {
   const { entries } = inspectBoundedZip(archive, {
     compressedBytes: maximumArchiveBytes,
@@ -103,6 +119,64 @@ function verifyMembers(
       hash(bytes) !== expected.sha256
     )
       throw new Error("aggregate archive member bytes differ from independently accepted inputs");
+    consume?.(expected, bytes);
+  }
+}
+
+/** Data-only staging for the fixed finalizer. The existing aggregate verifier
+ * must establish provider provenance separately. No member is executed, no
+ * receipt supplies release authority, and a later failure retains partial files. */
+export async function stageAggregatePackages(
+  directory: string,
+  rawArchive: Buffer,
+  rawAssembly: unknown,
+  expectedArchiveSha256: string,
+) {
+  digest(expectedArchiveSha256);
+  if (
+    !path.isAbsolute(directory) ||
+    !Buffer.isBuffer(rawArchive) ||
+    rawArchive.length < 22 ||
+    rawArchive.length > maximumArchiveBytes
+  )
+    throw new Error("aggregate package staging requires bounded bytes and private storage");
+  const archive = Buffer.from(rawArchive);
+  if (hash(archive) !== expectedArchiveSha256)
+    throw new Error("aggregate package staging archive differs");
+  const { files } = await expectedMembers(rawAssembly);
+  if (files.some((file) => path.basename(file.filename) !== file.filename))
+    throw new Error("aggregate package staging path is not a filename");
+  const parent = path.dirname(directory);
+  const parentInfo = await lstat(parent);
+  if (
+    !parentInfo.isDirectory() ||
+    parentInfo.isSymbolicLink() ||
+    (await realpath(parent)) !== path.resolve(parent)
+  )
+    throw new Error("aggregate staging parent is linked or unavailable");
+  await mkdir(directory, { mode: 0o700 });
+  try {
+    verifyMembers(archive, files, (file, bytes) => {
+      // One bounded decoded member at a time; no all-members buffer or generic
+      // archive extractor. wx preserves both prior and partially written state.
+      writeFileSync(path.join(directory, file.filename), bytes, { flag: "wx", mode: 0o600 });
+    });
+    return {
+      directory,
+      files,
+      archive_sha256: expectedArchiveSha256,
+      authority: "none",
+      scope: "aggregate package bytes only; independent acceptance still required",
+    };
+  } catch {
+    throw new CoordinatorRemoteError(
+      "aggregate package materialization refused; retain partial state",
+      {
+        directory,
+        authority: "none",
+        automatic_retry: false,
+      },
+    );
   }
 }
 
@@ -149,6 +223,25 @@ function artifact(
  * verification itself. A supplied identity receipt cannot replace that call.
  * The result is input to existing actions/attest, never a signature or grant.
  */
+const admittedPreparations = new WeakSet<object>();
+const recoveredPreparations = new WeakMap<
+  object,
+  ReturnType<typeof inspectAggregateOriginalUpload>
+>();
+export function prepareRecoveredAdmittedAggregateAttestation(
+  original: unknown,
+  ...args: Parameters<typeof prepareAggregateAttestation>
+) {
+  recoveredPreparations.set(args[5], inspectAggregateOriginalUpload(structuredClone(original)));
+  admittedPreparations.add(args[5]);
+  return prepareAggregateAttestation(...args);
+}
+export function prepareAdmittedAggregateAttestation(
+  ...args: Parameters<typeof prepareAggregateAttestation>
+) {
+  admittedPreparations.add(args[5]);
+  return prepareAggregateAttestation(...args);
+}
 export async function prepareAggregateAttestation(
   token: string,
   rawExpected: AssemblerIdentityExpectation,
@@ -160,8 +253,21 @@ export async function prepareAggregateAttestation(
     identity?: IdentityOptions;
     spawn?: Spawn;
     download?: typeof readGitHubArtifactArchive;
+    evidenceRequest?: ReleaseEvidenceRequest;
+    evidence?: ReleaseEvidenceOptions;
+    deadline?: number;
   },
 ) {
+  const admitted = admittedPreparations.has(options);
+  const original = recoveredPreparations.get(options);
+  const deadline = Math.min(performance.now() + 120000, options.deadline ?? Infinity);
+  const remaining = (cap: number) => {
+    const left = deadline - performance.now();
+    if (!Number.isFinite(left) || left <= 0)
+      throw new Error("aggregate binding deadline exhausted");
+    return Math.max(1, Math.min(cap, Math.floor(left)));
+  };
+  remaining(1);
   const expected = inspectAssemblerIdentityExpectation(rawExpected);
   const request = structuredClone(rawRequest);
   const ids = [...rawCandidateArtifactIds];
@@ -181,11 +287,40 @@ export async function prepareAggregateAttestation(
     throw new Error("aggregate candidate artifact matrix is incomplete");
   if (accepted.run_id === expected.run_id)
     throw new Error("candidate run cannot impersonate its trusted assembler run");
+  let publicBefore: ReturnType<typeof collectReleaseRunEvidence> | null = null;
+  let publicRequest: ReleaseEvidenceRequest | null = null;
+  let publicVerification: Awaited<ReturnType<typeof verifyReleasePublicBuildInputs>> | null = null;
+  if (accepted.public_build_inputs) {
+    if (
+      accepted.public_build_inputs.artifacts.some(
+        (item) => ids.includes(item.artifact_id) || item.artifact_id === upload.artifact_id,
+      )
+    )
+      throw new Error(
+        "public input archives must be distinct from packages and the trusted aggregate",
+      );
+    publicRequest = inspectReleaseEvidenceRequest(options.evidenceRequest);
+    if (
+      String(publicRequest.run_id) !== accepted.run_id ||
+      publicRequest.attempt !== accepted.run_attempt ||
+      publicRequest.revision !== accepted.source_commit ||
+      publicRequest.tree !== accepted.source_tree ||
+      publicRequest.repository_id !== 1354613114
+    )
+      throw new Error("public input source and independently expected Release evidence differ");
+    publicBefore = collectReleaseRunEvidence(publicRequest, options.evidence);
+    publicVerification = await verifyReleasePublicBuildInputs(
+      options.cwd,
+      accepted.public_build_inputs,
+      publicBefore,
+      { download: options.download },
+    );
+  }
   const runner = createGitHubRunner({
     cwd: options.cwd,
     ...(options.spawn ? { spawn: options.spawn } : {}),
     maxBuffer: 128 * 1024,
-    timeoutMs: 15000,
+    timeoutMs: remaining(15000),
   });
   const get = () => {
     const response = parseIncludedResponse(
@@ -200,32 +335,51 @@ export async function prepareAggregateAttestation(
       ]),
     );
     if (response.status !== 200) throw new Error("new aggregate artifact unavailable");
-    return artifact(response.body, upload.artifact_id, upload.sha256, expected);
+    remaining(1);
+    return artifact(response.body, upload.artifact_id, upload.sha256, original ?? expected);
   };
   const before = get();
   const downloaded = (options.download ?? readGitHubArtifactArchive)(
     `repos/${repository}/actions/artifacts/${upload.artifact_id}/zip`,
-    { cwd: options.cwd, maxBytes: before.bytes, timeoutMs: 120000 },
+    { cwd: options.cwd, maxBytes: before.bytes, timeoutMs: remaining(120000) },
   );
   if (!Buffer.isBuffer(downloaded) || downloaded.length !== before.bytes)
     throw new Error("uploaded aggregate archive digest differs");
   const archive = Buffer.from(downloaded);
   if (hash(archive) !== upload.sha256) throw new Error("uploaded aggregate archive digest differs");
   verifyMembers(archive, files);
-  const identity = await verifyAssemblerJobIdentity(
-    token,
-    expected,
-    options.identity ?? { transport: { cwd: options.cwd } },
-  );
+  remaining(1);
+  const identity = await (
+    admitted ? verifyAdmittedAssemblerJobIdentity : verifyAssemblerJobIdentity
+  )(token, expected, options.identity ?? { transport: { cwd: options.cwd, deadline } });
+  if (original && original.run_id === expected.run_id && original.job_id === identity.job_id)
+    throw new Error(
+      "aggregate current custodian cannot impersonate its original terminal producer",
+    );
   if (!same(get(), before)) throw new Error("new aggregate artifact changed during binding");
+  if (accepted.public_build_inputs && publicBefore && publicRequest)
+    requireStablePublicBuildInputEvidence(
+      accepted.public_build_inputs,
+      publicBefore,
+      collectReleaseRunEvidence(publicRequest, options.evidence),
+    );
   if (Date.now() >= Date.parse(identity.expires_at))
     throw new Error("assembler identity expired before binding completed");
   const evidence_scope =
-    options.spawn || options.download || identity.evidence_scope !== "github.com"
+    options.spawn ||
+    options.download ||
+    identity.evidence_scope !== "github.com" ||
+    (accepted.public_build_inputs &&
+      (options.evidence || publicVerification?.evidence_scope !== "github.com"))
       ? "injected-provider"
       : "github.com";
+  remaining(1);
   const predicate = {
     schema_version: 1,
+    ...(admitted
+      ? { producer_profile: original ? "admitted-aggregate-recovery-v1" : "admitted-aggregate-v1" }
+      : {}),
+    ...(original ? { original_upload: original } : {}),
     role: "package-aggregate-assembler",
     evidence_scope,
     repository,
@@ -244,6 +398,12 @@ export async function prepareAggregateAttestation(
     artifact: before,
     candidate: accepted,
     candidate_artifact_ids: ids,
+    ...(accepted.public_build_inputs
+      ? {
+          public_build_inputs: accepted.public_build_inputs,
+          public_build_inputs_scope: publicInputScope,
+        }
+      : {}),
     output_files: files,
     original_compiler: null,
     release_authorization: "not-evaluated",
@@ -279,10 +439,18 @@ export async function verifyAggregateAttestation(
     bytes: number;
     candidate: unknown;
     candidate_artifact_ids: number[];
+    producer_profile?: "admitted-aggregate-v1" | "admitted-aggregate-recovery-v1";
+    original_upload?: ReturnType<typeof inspectAggregateOriginalUpload>;
   },
   options: { spawn?: Spawn } = {},
 ) {
   const expected = structuredClone(rawExpected);
+  const original =
+    expected.original_upload === undefined
+      ? undefined
+      : inspectAggregateOriginalUpload(expected.original_upload);
+  if ((expected.producer_profile === "admitted-aggregate-recovery-v1") !== !!original)
+    throw new Error("aggregate recovery requires exact original upload association");
   if (
     !Buffer.isBuffer(rawArchive) ||
     rawArchive.length < 22 ||
@@ -322,6 +490,14 @@ export async function verifyAggregateAttestation(
     throw new Error("aggregate expected candidate artifact matrix is incomplete");
   if (accepted.run_id === expected.run_id)
     throw new Error("candidate run cannot impersonate trusted controller");
+  if (
+    accepted.public_build_inputs?.artifacts.some(
+      (item) =>
+        expected.candidate_artifact_ids.includes(item.artifact_id) ||
+        item.artifact_id === expected.artifact_id,
+    )
+  )
+    throw new Error("public input archive identities overlap packages or the aggregate");
   verifyMembers(archive, files);
   const directory = await mkdtemp(path.join(path.resolve(privateRoot), "aggregate-attestation-"));
   try {
@@ -330,77 +506,15 @@ export async function verifyAggregateAttestation(
     const bundlePath = path.join(directory, "input", "attestation.json");
     await writeFile(filename, archive, { flag: "wx", mode: 0o600 });
     await writeFile(bundlePath, bundle, { flag: "wx", mode: 0o600 });
-    const runner = createGitHubRunner({
-      cwd: directory,
-      spawn:
-        options.spawn ??
-        ((command, args, settings) =>
-          spawnSync(command, args, {
-            ...settings,
-            env: { ...process.env, GH_HOST: "github.com" },
-          })),
-      maxBuffer: 1024 * 1024,
-      timeoutMs: 30000,
-    });
-    const raw: unknown = JSON.parse(
-      runner([
-        "attestation",
-        "verify",
-        filename,
-        "--bundle",
-        bundlePath,
-        "--repo",
-        repository,
-        "--signer-workflow",
-        `${repository}/${productionControllerWorkflow}`,
-        "--signer-digest",
-        expected.controller_revision,
-        "--source-digest",
-        expected.controller_revision,
-        "--source-ref",
-        expected.controller_ref,
-        "--cert-oidc-issuer",
-        "https://token.actions.githubusercontent.com",
-        "--deny-self-hosted-runners",
-        "--predicate-type",
-        aggregatePredicateType,
-        "--format",
-        "json",
-      ]),
+    const statement = verifyControllerArtifactStatement(
+      directory,
+      filename,
+      bundlePath,
+      expected,
+      aggregatePredicateType,
+      options,
     );
-    if (
-      !Array.isArray(raw) ||
-      raw.length !== 1 ||
-      !isRecord(raw[0]) ||
-      !isRecord(raw[0].verificationResult)
-    )
-      throw new Error("aggregate bundle verification is missing or ambiguous");
-    const result = raw[0].verificationResult;
-    if (
-      !isRecord(result.signature) ||
-      !isRecord(result.signature.certificate) ||
-      !Array.isArray(result.verifiedTimestamps) ||
-      result.verifiedTimestamps.length < 1 ||
-      !isRecord(result.statement)
-    )
-      throw new Error("aggregate verified certificate, timestamp or statement is absent");
-    const certificate = result.signature.certificate;
-    const workflowUri = `https://github.com/${repository}/${productionControllerWorkflow}@${expected.controller_ref}`;
-    if (
-      certificate.issuer !== "https://token.actions.githubusercontent.com" ||
-      certificate.sourceRepositoryIdentifier !== "1354613114" ||
-      certificate.sourceRepositoryURI !== `https://github.com/${repository}` ||
-      certificate.buildSignerURI !== workflowUri ||
-      certificate.buildSignerDigest !== expected.controller_revision ||
-      certificate.sourceRepositoryDigest !== expected.controller_revision ||
-      certificate.sourceRepositoryRef !== expected.controller_ref ||
-      certificate.runnerEnvironment !== "github-hosted" ||
-      certificate.runInvocationURI !==
-        `https://github.com/${repository}/actions/runs/${expected.run_id}/attempts/${expected.run_attempt}`
-    )
-      throw new Error("aggregate attester certificate identity differs");
-    const statement = result.statement;
-    const name = `trusted-release-final-${expected.run_id}-${expected.run_attempt}`;
+    const name = `trusted-release-final-${original?.run_id ?? expected.run_id}-${original?.run_attempt ?? expected.run_attempt}`;
     if (
       statement._type !== "https://in-toto.io/Statement/v1" ||
       statement.predicateType !== aggregatePredicateType ||
@@ -421,6 +535,8 @@ export async function verifyAggregateAttestation(
       throw new Error("aggregate signed check-run identity is invalid");
     const expectedPredicate = {
       schema_version: 1,
+      ...(expected.producer_profile ? { producer_profile: expected.producer_profile } : {}),
+      ...(original ? { original_upload: original } : {}),
       role: "package-aggregate-assembler",
       evidence_scope: "github.com",
       repository,
@@ -446,6 +562,12 @@ export async function verifyAggregateAttestation(
       },
       candidate: accepted,
       candidate_artifact_ids: expected.candidate_artifact_ids,
+      ...(accepted.public_build_inputs
+        ? {
+            public_build_inputs: accepted.public_build_inputs,
+            public_build_inputs_scope: publicInputScope,
+          }
+        : {}),
       output_files: files,
       original_compiler: null,
       release_authorization: "not-evaluated",
@@ -486,6 +608,12 @@ export async function verifyUploadedAggregate(
   options: { spawn?: Spawn; download?: typeof readGitHubArtifactArchive } = {},
 ) {
   const expected = structuredClone(rawExpected);
+  const original =
+    expected.original_upload === undefined
+      ? undefined
+      : inspectAggregateOriginalUpload(expected.original_upload);
+  if ((expected.producer_profile === "admitted-aggregate-recovery-v1") !== !!original)
+    throw new Error("aggregate recovered receiver requires exact original upload");
   positive(expected.artifact_id);
   positive(expected.bundle_artifact_id);
   digest(expected.sha256);
@@ -504,6 +632,12 @@ export async function verifyUploadedAggregate(
   )
     throw new Error("aggregate verification requires distinct exact trusted upload identities");
   const { accepted, platformCount } = await expectedMembers(expected.candidate);
+  if (
+    accepted.public_build_inputs?.artifacts.some(
+      (item) => item.artifact_id === expected.bundle_artifact_id,
+    )
+  )
+    throw new Error("public input archive cannot impersonate the trusted attestation bundle");
   if (
     expected.candidate_artifact_ids.length !== platformCount ||
     new Set(expected.candidate_artifact_ids).size !== platformCount ||
@@ -580,7 +714,7 @@ export async function verifyUploadedAggregate(
         get(`actions/artifacts/${expected.artifact_id}`),
         expected.artifact_id,
         expected.sha256,
-        expected,
+        original ?? expected,
       ),
       bundle: artifact(
         get(`actions/artifacts/${expected.bundle_artifact_id}`),
@@ -685,4 +819,27 @@ export async function verifyUploadedAggregate(
       evidence,
     );
   }
+}
+
+/** Exact opaque member bytes only; no provenance or publication authority. */
+export async function verifyAggregateUploadBytes(archive: Buffer, assembly: unknown) {
+  const { files } = await expectedMembers(assembly);
+  verifyMembers(archive, files);
+  return files;
+}
+
+/** Maintained complete-pipeline receiver fixes the admitted producer contract. */
+export function verifyAdmittedUploadedAggregate(
+  ...args: Parameters<typeof verifyUploadedAggregate>
+) {
+  return verifyUploadedAggregate(
+    args[0],
+    {
+      ...args[1],
+      producer_profile: args[1].original_upload
+        ? "admitted-aggregate-recovery-v1"
+        : "admitted-aggregate-v1",
+    },
+    args[2],
+  );
 }

@@ -292,9 +292,7 @@ it.each(["dark", "light"])(
     await expect.element(button("Remove Linux filter")).not.toBeInTheDocument();
     await expect.element(button("Filters (1)")).toHaveFocus();
     await userEvent.click(
-      page
-        .getByRole("group", { name: "Library filters", exact: true })
-        .getByRole("button", { name: "Clear search and filters", exact: true }),
+      page.getByRole("button", { name: "Clear search and filters", exact: true }),
     );
     await expect.element(button("All (3)")).toHaveAttribute("aria-pressed", "true");
     await expect.element(button("Filters (0)")).toBeInTheDocument();
@@ -324,6 +322,15 @@ it("distinguishes missing snapshot and Favorites from known empty while preservi
   await userEvent.click(button("Reset library filters"));
   await closeFilters();
   expect(invoke).not.toHaveBeenCalled();
+});
+it("clears retained Favorites when its facts are unavailable", async () => {
+  flushSync(() => root.render(<Fixture />));
+  await userEvent.click(button("Favorites (2)"));
+  await userEvent.click(button("Toggle favorite facts"));
+  await expect.element(button("Favorites (unavailable)")).toBeDisabled();
+  await userEvent.click(button("Clear search and filters"));
+  await expect.element(button("Favorites (unavailable)")).toHaveAttribute("aria-pressed", "false");
+  await expect.element(button("All (3)")).toHaveAttribute("aria-pressed", "true");
 });
 it("holds unknown migrated readiness and query separately until correction", async () => {
   flushSync(() => root.render(<Fixture />));

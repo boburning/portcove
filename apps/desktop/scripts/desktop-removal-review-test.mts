@@ -47,6 +47,12 @@ export async function removalReviewScenario({
     assert.equal(path.resolve(library), path.resolve(output, "library"));
     const port = transportValue("port", command(["catalog", "show", "opengoal-jak3"]));
     const original = path.join(output, `owned-${port.id}`);
+    // The backup prerequisite intentionally finishes with retained saves and no
+    // installed game. Restore this scenario's owned installation through Core.
+    if (transportValue("status", command(["status", port.id])).active === null) {
+      installObservation(command(["adopt", original, "--port", port.id, "--yes"]));
+    }
+    assert.ok(transportValue("status", command(["status", port.id])).active);
     const paths = transportValue("port_paths", command(["paths", port.id]));
     const save = path.join(paths.user_data_root, "owned-review-save.bin");
     const { portId: otherInstallPortId, install: otherInstall } = installedPreservationWitness(
@@ -65,7 +71,21 @@ export async function removalReviewScenario({
     await open(port);
     const { button, click } = reviewControls(browser);
     const dialog = By.css('[aria-labelledby="removal-review-title"]');
-    await click(By.css("summary.advanced-summary"));
+    // The future-install folder summary is intentionally hidden when not
+    // deferred. Open management in this selected game's visible detail owner.
+    const management = By.css(
+      `[data-detail-port-id="${port.id}"] .detail-body > details.advanced-settings > summary.advanced-summary`,
+    );
+    const managementControls = await browser.findElements(management);
+    assert.equal(
+      managementControls.length,
+      1,
+      "Selected detail must have one management disclosure",
+    );
+    const managementControl = managementControls[0];
+    assert.ok(managementControl);
+    assert.match(await managementControl.getText(), /Technical details.*Commands and maintenance/s);
+    await click(management);
     const trigger = button(`Uninstall ${port.name}`);
     const review = async () => {
       await click(trigger);
@@ -125,7 +145,7 @@ export async function removalReviewScenario({
     assert.ok(typeof initialConsentText === "string");
     for (const expected of [port.name, port.id, ...initialPreview.managed_paths])
       assert.ok(initialConsentText.includes(expected), `native consent omitted ${expected}`);
-    assert.ok(initialConsentText.includes("game files are kept"));
+    assert.ok(initialConsentText.includes("Backups and original game files will be kept"));
     assert.ok(initialConsentText.includes("saved release-channel and update-policy settings"));
     assert.ok(!initialConsentText.includes("review you just read"));
     await assertManagedFolders(initialPreview.managed_paths);

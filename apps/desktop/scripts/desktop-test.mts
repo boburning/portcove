@@ -28,6 +28,10 @@ import { planDesktopExecution } from "../../../scripts/desktop-execution-plan.mt
 import { runOwnedFixtureJourneys } from "./desktop-owned-fixture-journeys.mts";
 import { isUntrustworthyProbeError } from "./desktop-owned-ipc-probe.mts";
 import { spawn } from "node:child_process";
+import {
+  DesktopNativeAccountSession,
+  AccountDriverView,
+} from "./desktop-native-account-session.mts";
 import { writeFileSync } from "node:fs";
 import { mkdir, readFile, writeFile, lstat } from "node:fs/promises";
 import path from "node:path";
@@ -54,6 +58,10 @@ import {
   readNativeSessionObservation,
 } from "./desktop-owned-native-session.mts";
 import { launchLinuxNativeSession } from "./desktop-linux-native-session.mts";
+import { launchIsolatedLinuxNativeSession } from "./native-linux-isolated-session.mts";
+import { inspectIsolatedNativeLinuxBinding } from "./native-linux-isolated-plan.mts";
+import { createHash } from "node:crypto";
+import { get as httpGet } from "node:http";
 import {
   connectLinuxInspector,
   LinuxInspectorProtocol,
@@ -131,7 +139,9 @@ import type {
   NativeProcessSnapshot,
   CapturedNativeProcess,
 } from "./desktop-owned-native-session.mts";
-type LinuxLaunch = Awaited<ReturnType<typeof launchLinuxNativeSession>>;
+type LinuxLaunch =
+  | Awaited<ReturnType<typeof launchLinuxNativeSession>>
+  | Awaited<ReturnType<typeof launchIsolatedLinuxNativeSession>>;
 type LinuxCleanup = Awaited<ReturnType<LinuxLaunch["stop"]>>;
 type HarnessInput = FileIdentity &
   Partial<Pick<ConsumedInput, "binding" | "retained">> & { role?: string; kind?: string };
@@ -181,7 +191,39 @@ function success<Value>(reply: IpcReply<Value>): Value {
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const { values } = parseDesktopHarnessOptions();
-const cachedDrivers = cachedDesktopDrivers();
+const linuxBinding = await (async () => {
+  const filename = process.env.PORTCOVE_NATIVE_LINUX_BINDING,
+    expected = process.env.PORTCOVE_NATIVE_LINUX_BINDING_SHA256;
+  if (!filename && !expected) return undefined;
+  assert.equal(process.platform, "linux");
+  assert.ok(filename && expected && /^[a-f0-9]{64}$/u.test(expected));
+  const info = await lstat(filename);
+  assert.ok(info.isFile() && !info.isSymbolicLink() && info.nlink === 1 && info.size <= 128 * 1024);
+  const bytes = await readFile(filename);
+  assert.equal(createHash("sha256").update(bytes).digest("hex"), expected);
+  const selected = inspectIsolatedNativeLinuxBinding(JSON.parse(bytes.toString("utf8")));
+  assert.equal(path.posix.dirname(filename), selected.capture_root);
+  return selected;
+})();
+const nativeAccount =
+  process.env.PORTCOVE_NATIVE_ACCOUNT_BINDING || process.env.PORTCOVE_NATIVE_ACCOUNT_BINDING_SHA256
+    ? DesktopNativeAccountSession.open(
+        required(process.env.PORTCOVE_NATIVE_ACCOUNT_BINDING),
+        required(process.env.PORTCOVE_NATIVE_ACCOUNT_BINDING_SHA256),
+      )
+    : undefined;
+assert.ok(!(linuxBinding && nativeAccount), "Native host boundaries cannot be combined");
+const accountDrivers =
+  nativeAccount?.drivers() ??
+  (linuxBinding
+    ? {
+        tauri_driver: required(linuxBinding.tools.driver).path,
+        webview_driver: required(linuxBinding.tools.webkit_driver).path,
+      }
+    : undefined);
+const cachedDrivers = accountDrivers
+  ? { driver: accountDrivers.tauri_driver, nativeDriver: accountDrivers.webview_driver }
+  : cachedDesktopDrivers();
 if (cachedDrivers?.driver) values.driver ??= cachedDrivers.driver;
 if (cachedDrivers?.nativeDriver) values["native-driver"] ??= cachedDrivers.nativeDriver;
 for (const name of ["app", "output"] as const) {
@@ -195,6 +237,7 @@ for (const name of ["driver", "native-driver"] as const) {
     );
 }
 const application = required(values.app);
+if (linuxBinding) assert.equal(application, linuxBinding.application.path);
 const driverPath = required(values.driver);
 const nativeDriverPath = required(values["native-driver"]);
 const port = Number(values.port);
@@ -227,9 +270,10 @@ const {
   ordinaryCloseSession,
   minimizedPreparationSession,
   normalPackageSession,
-  identityBoundSession,
+  identityBoundSession: plannedIdentityBoundSession,
   cleanupName,
 } = executionPlan.session;
+const identityBoundSession = plannedIdentityBoundSession || Boolean(nativeAccount);
 const savedLibraryRecoverySession =
   bootstrapRecoverySession || librarySwitchRecoverySession || preferencesRecoverySession;
 const hostPublicationSession = selection.selected_scenarios.includes(
@@ -252,6 +296,10 @@ const revision = spawnCommand("git", ["rev-parse", "HEAD"], {
 }).stdout.trim();
 const output = path.resolve(required(values.output));
 await mkdir(output); // Existing output is never reused, including after failed runs.
+const runtimeRoot = nativeAccount
+  ? nativeAccount.runtimeRoot(output)
+  : (linuxBinding?.home ?? output);
+if (nativeAccount) await mkdir(runtimeRoot); // A previous candidate's state is never reused.
 const custody = process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST
   ? await readPrelaunchCustody(process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST, {
       root,
@@ -307,13 +355,17 @@ let bootstrapRecoveryFixture:
   | Awaited<ReturnType<typeof prepareBootstrapRecoveryFixture>>
   | undefined;
 let connectedLaunches = 0;
-const library = path.join(output, "library");
-const profile = path.join(output, "webview");
+const library = path.join(runtimeRoot, "library");
+const profile = path.join(runtimeRoot, "webview");
 const checks: EvidenceCheck[] = [];
 const setupChecks: EvidenceCheck[] = [];
 const artifacts: string[] = [];
 const scenarioOutcomes = new Map<string, EvidenceCheck["outcome"]>();
-let driver: ChildProcessByStdio<null, Readable, Readable> | LinuxLaunch["child"] | undefined;
+let driver:
+  | ChildProcessByStdio<null, Readable, Readable>
+  | LinuxLaunch["child"]
+  | AccountDriverView
+  | undefined;
 let browser: WebDriver | LinuxInspectorProtocol | undefined;
 let driverLog = "";
 let startupAttempt = 0;
@@ -323,17 +375,18 @@ const linuxPackagedInspector =
 let historyInventory: Awaited<ReturnType<typeof captureHistoryDriver>> | undefined;
 const linuxSelectedSession =
   process.platform === "linux" &&
-  selection.selected_scenarios.some(
-    (name) =>
-      [
-        "native-selected-setup-completion",
-        "native-saved-folder-selected-setup",
-        "native-linux-packaged-webview-boundary",
-        "native-linux-webview-origin-boundary",
-        "native-linux-interrupted-preparation",
-      ].includes(name) ||
-      (name === "native-preparation-cancellation" && selection.selected_scenarios.length === 1),
-  );
+  (Boolean(linuxBinding) ||
+    selection.selected_scenarios.some(
+      (name) =>
+        [
+          "native-selected-setup-completion",
+          "native-saved-folder-selected-setup",
+          "native-linux-packaged-webview-boundary",
+          "native-linux-webview-origin-boundary",
+          "native-linux-interrupted-preparation",
+        ].includes(name) ||
+        (name === "native-preparation-cancellation" && selection.selected_scenarios.length === 1),
+    ));
 let linuxLaunch: LinuxLaunch | undefined;
 let linuxCleanup: LinuxCleanup | undefined;
 let linuxLaunchCount = 0;
@@ -411,6 +464,59 @@ const admission = executionAdmission(
   harnessStarted.toISOString(),
   desktopHarnessDeadlineMs(selection),
 );
+async function releaseNativeResources() {
+  const closeFixtures = async () => {
+    if (installFixture) await installFixture.close();
+    if (originFixture) await originFixture.close();
+  };
+  if (process.platform !== "win32" || !identityBoundSession) {
+    await closeFixtures();
+    await nativeLock.release();
+    return;
+  }
+  try {
+    await ownedSession.releaseResources({
+      closeFixtures,
+      releaseLock: () => nativeLock.release(),
+    });
+  } catch (error) {
+    await retainNativeCustody(error);
+  }
+}
+
+async function retainNativeCustody(error: unknown): Promise<never> {
+  process.exitCode = 1;
+  const evidence = path.join(output, `${cleanupName}-unknown-custody.json`);
+  try {
+    await writeFile(
+      evidence,
+      JSON.stringify(
+        {
+          error: errorMessage(error),
+          driver: ownedSession.driver,
+          inventory: ownedSession.inventory,
+          cleanup: ownedSession.cleanup,
+          retained_at: new Date().toISOString(),
+        },
+        null,
+        2,
+      ) + "\n",
+      { flag: "wx" },
+    );
+  } catch (publicationError) {
+    console.error(`Could not publish retained native custody: ${errorMessage(publicationError)}`);
+  } finally {
+    console.error(
+      `Native custody remains unresolved; retained ${output}; runner and any unreleased reservations remain owned: ${errorMessage(error)}`,
+    );
+    // Keep the admitted runner alive even if evidence publication failed. No
+    // PID-only fallback or owner-death reclamation is implied by this failure.
+    setInterval(() => {}, 60_000);
+    await new Promise<never>(() => {});
+  }
+  throw new Error("Retained native custody unexpectedly resumed without a resolution.");
+}
+
 async function stopDriver() {
   if (linuxSelectedSession) {
     if (!linuxLaunch) return;
@@ -510,7 +616,7 @@ function stopBackupFocusDriver() {
   if (ownedSession.cleanup || !driver?.pid) return;
   const snapshot = captureBackupFocusCleanup();
   const stopped =
-    driver.exitCode === null
+    nativeAccount || driver.exitCode === null
       ? observeNativeSession("StopDriver", snapshot)
       : { method: "observed-child-exit" as const, exit_code: driver.exitCode };
   const exited = observeNativeSession("Wait", snapshot);
@@ -527,6 +633,8 @@ function validateBackupFocusInventory(captured: NativeProcessSnapshot, requireQu
         [
           "native-real-prepared-runtime",
           "native-reviewed-backup-restore-and-delete",
+          "native-reviewed-source-reference-removal",
+          "native-reviewed-steam-batch-add",
           "native-host-publication-recovery",
           "native-game-update-review",
           "native-selected-setup-completion",
@@ -800,8 +908,8 @@ interface SettingsRows {
 }
 function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; height: number }) {
   const expectedRows: Record<string, number> = {
-    appearance: 2,
-    "library-storage": 2,
+    appearance: 3,
+    "library-storage": 3,
     "game-files": 3,
     updates: 2,
     integrations: 1,
@@ -938,6 +1046,12 @@ async function selectSettingsCategory(id: string) {
 const harnessDeadlineMs = desktopHarnessDeadlineMs(selection);
 const deadline = setTimeout(
   () => {
+    checks.push({
+      scenario: "native-harness-deadline",
+      outcome: "failed",
+      message: `Native harness exceeded its ${harnessDeadlineMs}ms allowance; stopping the owned driver.`,
+    });
+    process.exitCode = 1;
     void (async () => {
       try {
         await stopDriver();
@@ -983,6 +1097,10 @@ function invoke(
   command: "get_activities",
   args?: object | null,
 ): Promise<IpcReply<TransportOutputs["activity"]>>;
+function invoke(
+  command: "create_support_bundle",
+  args?: object | null,
+): Promise<IpcReply<TransportOutputs["desktop_support_bundle_export"]>>;
 function invoke(
   command: "get_application_update_preferences",
   args?: object | null,
@@ -1035,6 +1153,12 @@ async function invoke(command: string, args: object | null = {}): Promise<IpcRep
       };
     case "get_activities":
       return { ...reply, ok: true, value: transportValue("activity", reply.value) };
+    case "create_support_bundle":
+      return {
+        ...reply,
+        ok: true,
+        value: transportValue("desktop_support_bundle_export", reply.value),
+      };
     case "get_application_update_preferences":
       return {
         ...reply,
@@ -1441,7 +1565,7 @@ async function connectObservedDriver() {
       : null;
   try {
     admission.assertReady();
-    browser = await new Builder()
+    const builder = new Builder()
       .disableEnvironmentOverrides()
       .usingServer(`http://127.0.0.1:${port}`)
       .withCapabilities({
@@ -1450,8 +1574,10 @@ async function connectObservedDriver() {
           application: application,
           ...(process.platform === "win32" ? { webviewOptions: { userDataFolder: profile } } : {}),
         },
-      })
-      .build();
+      });
+    if (linuxLaunch && "privateAgent" in linuxLaunch)
+      builder.usingHttpAgent(linuxLaunch.privateAgent);
+    browser = await builder.build();
   } finally {
     if (finishObservation) {
       const observation = await finishObservation();
@@ -1845,6 +1971,14 @@ function observeNativeSession<Mode extends NativeSessionMode>(
   snapshot: string,
   identity?: { applicationPid: number; parentPid: number; sha256: string },
 ): NativeSessionObservations[Mode] {
+  if (nativeAccount) {
+    assert.equal(
+      identity,
+      undefined,
+      "Direct application capture needs its own reviewed account root; no owner fallback",
+    );
+    return nativeAccount.observe(mode, snapshot, application);
+  }
   const driverProcessId = identity?.applicationPid ?? (mode === "Wait" ? 0 : required(driver).pid);
   const result = spawnCommand(
     "pwsh",
@@ -1875,20 +2009,14 @@ function observeNativeSession<Mode extends NativeSessionMode>(
   return readNativeSessionObservation(mode, JSON.parse(result.stdout));
 }
 
+let driverStartupSequence = 0;
 function captureBackupFocusDriverLaunch(launchStarted: number) {
   const child = required(driver);
-  const suffix =
-    hostInterruptionSession ||
-    hostPublicationSession ||
-    ordinaryCloseSession ||
-    savedLibraryRecoverySession ||
-    selection.selected_scenarios.includes("native-real-prepared-runtime") ||
-    selection.selected_scenarios.includes("native-selected-setup-completion")
-      ? `-${child.pid}`
-      : "";
+  // Every launch retains a new immutable proof, including full-profile restarts
+  // and a later launch that happens to reuse an earlier PID.
+  const suffix = `-${++driverStartupSequence}-${child.pid}`;
   const snapshot = path.join(output, `${cleanupName}-driver-startup${suffix}.json`);
   const captured = observeNativeSession("SnapshotDriver", snapshot);
-  artifacts.push(snapshot);
   assert.equal(captured.driver.pid, child.pid);
   assert.equal(
     path.resolve(captured.driver.path).toLowerCase(),
@@ -1900,10 +2028,27 @@ function captureBackupFocusDriverLaunch(launchStarted: number) {
     "Driver creation must belong to this launch",
   );
   ownedSession.driver = captured.driver;
+  artifacts.push(snapshot);
 }
 
 async function driverReady() {
   try {
+    if (linuxBinding) {
+      const launch = required(linuxLaunch);
+      assert.ok("privateAgent" in launch);
+      return await new Promise<boolean>((resolve, reject) => {
+        const request = httpGet(
+          `http://127.0.0.1:${port}/status`,
+          { agent: launch.privateAgent },
+          (response) => {
+            response.resume();
+            resolve(response.statusCode === 200);
+          },
+        );
+        request.on("error", reject);
+        request.setTimeout(500, () => request.destroy(new Error("private driver status timeout")));
+      });
+    }
     const response = await fetch(`http://127.0.0.1:${port}/status`, {
       signal: AbortSignal.timeout(500),
     });
@@ -1917,7 +2062,7 @@ async function driverReady() {
 let publicationRestartRoot: string | undefined;
 function driverEnvironment(childEnvironment: NodeJS.ProcessEnv) {
   const environment: NodeJS.ProcessEnv = {
-    ...process.env,
+    ...(nativeAccount || linuxBinding ? {} : process.env),
     ...childEnvironment,
     ...(originFixture
       ? {
@@ -1940,10 +2085,13 @@ function driverEnvironment(childEnvironment: NodeJS.ProcessEnv) {
           ),
         }
       : {}),
-    PORTCOVE_PREFERENCES: path.join(output, "preferences.json"),
-    PORTCOVE_APPLICATION_UPDATE_PREFERENCES: path.join(output, "application-updates.json"),
-    PORTCOVE_APPLICATION_UPDATE_SCHEDULE: path.join(output, "application-update-schedule.json"),
-    PORTCOVE_APPLICATION_UPDATE_STAGING: path.join(output, "application-update-state"),
+    PORTCOVE_PREFERENCES: path.join(runtimeRoot, "preferences.json"),
+    PORTCOVE_APPLICATION_UPDATE_PREFERENCES: path.join(runtimeRoot, "application-updates.json"),
+    PORTCOVE_APPLICATION_UPDATE_SCHEDULE: path.join(
+      runtimeRoot,
+      "application-update-schedule.json",
+    ),
+    PORTCOVE_APPLICATION_UPDATE_STAGING: path.join(runtimeRoot, "application-update-state"),
     WEBVIEW2_USER_DATA_FOLDER: profile,
   };
   if (externalBrowser) {
@@ -1960,7 +2108,6 @@ async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
       await import("../../../scripts/desktop-linux-media.mts");
     await verifyApplicationMediaInputs(inputs, admission);
   } else await admission.verify(custody?.inputs ?? []);
-  ownedSession.beginLaunch();
   const launchStarted = Date.now();
   const arguments_ = [
     "--port",
@@ -1971,30 +2118,55 @@ async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
     nativeDriverPath,
   ];
   if (linuxSelectedSession) {
+    ownedSession.beginLaunch();
     assert.equal(linuxLaunch, undefined, "The previous Linux launch must finish publication");
     linuxCleanup = undefined;
     linuxStop = undefined;
     linuxLaunchCount++;
-    linuxLaunch = await launchLinuxNativeSession(
-      linuxPackagedInspector ? process.execPath : driverPath,
-      linuxPackagedInspector
-        ? [
-            path.join(root, "scripts/desktop-linux-media.mts"),
-            "--launch-probed-app",
-            required(process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG),
-            application,
-            required(inputs[0]).sha256,
-            applicationMediaEvidence,
-          ]
-        : arguments_,
-      linuxPackagedInspector
-        ? linuxInspectorEnvironment(driverEnvironment(childEnvironment), port)
-        : driverEnvironment(childEnvironment),
-      { beforeLaunch: admission.assertReady },
-    );
+    if (linuxBinding) {
+      assert.equal(
+        linuxPackagedInspector,
+        false,
+        "Inspector media route is separate from isolated WebDriver package qualification",
+      );
+      linuxLaunch = await launchIsolatedLinuxNativeSession(
+        linuxBinding,
+        driverPath,
+        arguments_,
+        driverEnvironment(childEnvironment),
+        admission.assertReady,
+      );
+    } else
+      linuxLaunch = await launchLinuxNativeSession(
+        linuxPackagedInspector ? process.execPath : driverPath,
+        linuxPackagedInspector
+          ? [
+              path.join(root, "scripts/desktop-linux-media.mts"),
+              "--launch-probed-app",
+              required(process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG),
+              application,
+              required(inputs[0]).sha256,
+              applicationMediaEvidence,
+            ]
+          : arguments_,
+        linuxPackagedInspector
+          ? linuxInspectorEnvironment(driverEnvironment(childEnvironment), port)
+          : driverEnvironment(childEnvironment),
+        { beforeLaunch: admission.assertReady },
+      );
     driver = linuxLaunch.child;
+  } else if (nativeAccount) {
+    admission.assertReady();
+    ownedSession.beginLaunch();
+    driver = nativeAccount.start(
+      driverPath,
+      arguments_,
+      runtimeRoot,
+      driverEnvironment(childEnvironment),
+    );
   } else {
     admission.assertReady();
+    ownedSession.beginLaunch();
     driver = spawn(driverPath, arguments_, {
       windowsHide: true,
       detached: process.platform !== "win32",
@@ -2003,35 +2175,59 @@ async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
     });
   }
   let spawnError: Error | undefined;
-  driver.on("error", (error) => {
-    spawnError = error;
-  });
-  for (const stream of [driver.stdout, driver.stderr])
+  if (!(driver instanceof AccountDriverView)) {
+    driver.on("error", (error) => {
+      spawnError = error;
+    });
+  }
+  for (const stream of [driver.stdout, driver.stderr]) {
+    if (!stream) throw new Error("Owned driver capture stream is missing");
     stream.on("data", (chunk: Buffer) => {
       driverLog = (driverLog + chunk.toString()).slice(-1024 * 1024);
     });
+  }
   if (linuxSelectedSession) await required(linuxLaunch).ready();
   if (linuxPackagedInspector) return;
-  await captureSelectedDriverLaunch(launchStarted);
-  if (historySession)
-    historyInventory = await captureHistoryDriver(required(driver.pid), driverPath);
-  for (let attempt = 0; attempt < 40; attempt++) {
-    if (spawnError) throw spawnError;
-    if (driver.exitCode !== null) throw new Error(`tauri-driver exited: ${driver.exitCode}`);
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    if (await driverReady()) return;
+  try {
+    await captureSelectedDriverLaunch(launchStarted);
+    if (historySession)
+      historyInventory = await captureHistoryDriver(required(driver.pid), driverPath);
+    for (let attempt = 0; attempt < 40; attempt++) {
+      if (spawnError) throw spawnError;
+      if (driver.exitCode !== null) throw new Error(`tauri-driver exited: ${driver.exitCode}`);
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      if (await driverReady()) return;
+    }
+    throw new Error("tauri-driver did not become ready within ten seconds");
+  } catch (error) {
+    // A later startup observation must not strand the newly captured driver.
+    // Without positive launch identity, retain the failure and refuse PID-only cleanup.
+    if (identityBoundSession && ownedSession.driver && driver?.pid) {
+      try {
+        await stopDriver();
+      } catch (cleanupError) {
+        checks.push({
+          scenario: "native-driver-launch-cleanup",
+          outcome: "failed",
+          message: errorMessage(cleanupError),
+        });
+        process.exitCode = 1;
+      }
+    }
+    throw error;
   }
-  throw new Error("tauri-driver did not become ready within ten seconds");
 }
 
 async function captureSelectedDriverLaunch(launchStarted: number) {
   if (linuxSelectedSession) return;
   if (!identityBoundSession) return;
   const child = required(driver);
-  await new Promise<void>((resolve, reject) => {
-    child.once("spawn", resolve);
-    child.once("error", reject);
-  });
+  if (!(child instanceof AccountDriverView)) {
+    await new Promise<void>((resolve, reject) => {
+      child.once("spawn", resolve);
+      child.once("error", reject);
+    });
+  }
   captureBackupFocusDriverLaunch(launchStarted);
 }
 
@@ -2579,6 +2775,7 @@ try {
       browser,
       invoke,
       library,
+      preferencesPath: path.join(runtimeRoot, "preferences.json"),
       output,
       artifacts,
       packageEvidence: required(packageEvidence),
@@ -2591,6 +2788,7 @@ try {
       browser,
       invoke,
       library,
+      preferencesPath: path.join(runtimeRoot, "preferences.json"),
       output,
       artifacts,
       packageEvidence: required(packageEvidence),
@@ -2613,6 +2811,104 @@ try {
   });
   await scenario("empty-library", async () => {
     const browser = driverBrowser();
+    if (linuxBinding) {
+      const capabilities = await invoke("get_engine_capabilities");
+      assert.ok(capabilities.ok, "Installed Linux Core capability observation failed");
+      const observed = object(capabilities.value);
+      assert.equal(observed.product, "Portcove");
+      assert.ok(Number.isSafeInteger(observed.schema_version));
+      assert.equal(typeof observed.product_version, "string");
+      const filename = path.join(output, "linux-native-core-capabilities.json");
+      await writeFile(
+        filename,
+        JSON.stringify({
+          schema_version: 1,
+          observed_at: new Date().toISOString(),
+          binding_sha256: process.env.PORTCOVE_NATIVE_LINUX_BINDING_SHA256,
+          core: observed,
+          authority: "none",
+        }) + "\n",
+        { flag: "wx" },
+      );
+      artifacts.push(filename);
+      const launch = required(linuxLaunch);
+      assert.ok("observeRuntime" in launch);
+      const runtime = await launch.observeRuntime();
+      const browserCapabilities = await browser.getCapabilities();
+      const browserName: unknown = browserCapabilities.get("browserName"),
+        browserVersion: unknown = browserCapabilities.get("browserVersion");
+      const runtimePath = path.join(output, "linux-native-runtime.json");
+      await writeFile(
+        runtimePath,
+        JSON.stringify({
+          schema_version: 1,
+          observed_at: new Date().toISOString(),
+          binding_sha256: process.env.PORTCOVE_NATIVE_LINUX_BINDING_SHA256,
+          runtime,
+          core: observed,
+          browser: {
+            name: browserName ?? null,
+            version: browserVersion ?? null,
+          },
+          authority: "none",
+        }) + "\n",
+        { flag: "wx" },
+      );
+      artifacts.push(runtimePath);
+    }
+    if (nativeAccount) {
+      // Observe the existing Core capability endpoint through this actual
+      // installed renderer. This data is not a new client capability or a
+      // native acceptance receipt; the fixed parent must bind it separately.
+      const capabilities = await invoke("get_engine_capabilities");
+      assert.ok(capabilities.ok, "Installed Core capability observation failed");
+      const value = object(capabilities.value);
+      assert.equal(value.product, "Portcove");
+      assert.ok(Number.isSafeInteger(value.schema_version));
+      assert.equal(typeof value.product_version, "string");
+      const snapshotPath = path.join(output, "native-runtime-processes.json");
+      const snapshot = observeNativeSession("Snapshot", snapshotPath);
+      const enginePaths = [
+        ...new Set(
+          snapshot.processes
+            .filter((item) => path.basename(item.path).toLowerCase() === "msedgewebview2.exe")
+            .map((item) => item.path),
+        ),
+      ];
+      assert.ok(
+        enginePaths.length >= 1 && enginePaths.length <= 4,
+        "Actual loaded WebView images required",
+      );
+      const loaded = await Promise.all(
+        enginePaths.map((image) =>
+          fileIdentity(image, { maxBytes: 256 * 1024 * 1024, signal: admission.signal }),
+        ),
+      );
+      const browserCapabilities = await browser.getCapabilities();
+      const browserName: unknown = browserCapabilities.get("browserName");
+      const browserVersion: unknown = browserCapabilities.get("browserVersion");
+      const runtimePath = path.join(output, "native-runtime-capabilities.json");
+      await writeFile(
+        runtimePath,
+        JSON.stringify({
+          schema_version: 1,
+          observed_at: new Date().toISOString(),
+          account_binding_sha256: process.env.PORTCOVE_NATIVE_ACCOUNT_BINDING_SHA256,
+          operating_system: os.release(),
+          architecture: process.arch,
+          core: value,
+          browser: {
+            name: browserName ?? null,
+            version: browserVersion ?? null,
+          },
+          loaded_engine_images: loaded,
+          process_snapshot: snapshotPath,
+          authority: "none",
+        }) + "\n",
+        { flag: "wx" },
+      );
+      artifacts.push(snapshotPath, runtimePath);
+    }
     const bootstrap = await invoke("get_bootstrap_status");
     assert.ok(bootstrap.ok);
     assert.equal(path.resolve(required(bootstrap.value.library_root)), library);
@@ -2667,14 +2963,16 @@ try {
     await captureScenarioScreenshot("first-use-port-catalog", true);
     await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
     const browse = await browser.wait(
-      until.elementLocated(By.xpath('//button[normalize-space(.)="Browse port catalog"]')),
+      until.elementLocated(
+        By.xpath('//*[contains(@class,"empty-state")]//button[normalize-space(.)="Add games"]'),
+      ),
       15_000,
     );
     assert.equal(await browse.getAttribute("data-slot"), "button");
     assert.equal(await browse.getAttribute("data-variant"), "primary");
     assert.match(
       await browser.findElement(By.css(".empty-state")).getText(),
-      /Your library is empty[\s\S]*use an existing installation/,
+      /Your library is empty[\s\S]*copy a supported installation without changing its original folder/,
     );
     await captureScenarioScreenshot("empty-library-shared-controls");
     const updateChoice = await browser.wait(
@@ -2698,7 +2996,7 @@ try {
     await captureScenarioScreenshot("empty-library-compact-first-use", true);
     assert.ok(
       firstUseAction.top >= 0 && firstUseAction.bottom <= firstUseAction.viewportHeight,
-      `Browse port catalog must be visible without scrolling: ${JSON.stringify(firstUseAction)}`,
+      `Add games must be visible without scrolling: ${JSON.stringify(firstUseAction)}`,
     );
     await browser.manage().window().setRect({ width: 1280, height: 800 });
     const search = await browser.findElement(By.id("port-search"));
@@ -2715,10 +3013,30 @@ try {
     await clearSearch.click();
     assert.equal(await search.getAttribute("value"), "");
     await browser.wait(
-      until.elementLocated(By.xpath('//button[normalize-space(.)="Browse port catalog"]')),
+      until.elementLocated(
+        By.xpath('//*[contains(@class,"empty-state")]//button[normalize-space(.)="Add games"]'),
+      ),
       5000,
     );
     assert.equal((await browser.findElements(By.css(".filter-row"))).length, 0);
+    await browser
+      .findElement(
+        By.xpath('//*[contains(@class,"empty-state")]//button[normalize-space(.)="Add games"]'),
+      )
+      .click();
+    await browser.wait(
+      until.elementIsVisible(
+        await browser.findElement(By.css('[aria-label="Add games workspace"]')),
+      ),
+      5_000,
+    );
+    for (const name of ["Choose game files", "Search game-file folders", "Browse Find games"])
+      assert.equal(
+        await browser.findElement(By.xpath(`//button[normalize-space(.)="${name}"]`)).isDisplayed(),
+        true,
+        `Add games route is missing: ${name}`,
+      );
+    await browser.findElement(By.xpath('//button[normalize-space(.)="Back to library"]')).click();
     await browser
       .findElement(By.xpath('//button[normalize-space(.)="Connect game-file folder"]'))
       .click();
@@ -2782,7 +3100,7 @@ try {
     const defaultRoot = await invoke("get_default_library_root");
     assert.ok(defaultRoot.ok);
     assert.ok(defaultRoot.value);
-    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    await selectSettingsCategory("library-storage");
     const card = await browser.wait(
       until.elementLocated(By.xpath('//article[.//h2[normalize-space(.)="Library at startup"]]')),
       15_000,
@@ -3143,6 +3461,9 @@ try {
   }
   await scenario("keyboard-layout", async () => {
     const browser = driverBrowser();
+    const futureFolderSummary = By.xpath(
+      '//details[contains(@class,"future-setup-disclosure")]/summary[normalize-space(.)="Folder for a future install"]',
+    );
     const verifySidebarLabels = async () => {
       const labels = await executeBrowserScript(browser, () =>
         [...document.querySelectorAll(".sidebar nav .nav-item")].map((button) => {
@@ -3407,13 +3728,20 @@ try {
       ),
       "port-detail-title",
     );
-    assert.equal(
-      await executeBrowserScript(browser, () =>
-        document.activeElement?.classList.contains("detail-back"),
-      ),
-      true,
+    await browser.wait(
+      () =>
+        executeBrowserScript(browser, () =>
+          document.activeElement?.classList.contains("detail-back"),
+        ),
+      5_000,
+      "Detail navigation did not focus Back",
     );
     const verifyDetailActionHierarchy = async () => {
+      await executeBrowserScript(browser, () =>
+        document
+          .querySelector(".detail-hero")
+          ?.scrollIntoView({ block: "start", behavior: "instant" }),
+      );
       const hierarchy = await executeBrowserScript(browser, () => {
         const hero = document.querySelector(".detail-hero");
         const title = document.querySelector(".detail-title");
@@ -3467,14 +3795,25 @@ try {
       );
       assert.equal(hierarchy.actionText, "Choose game files");
       assert.match(hierarchy.requirementText, /Required for setup: Super Mario 64 \(US\) source/u);
-      assert.equal(hierarchy.titleFits, true);
-      assert.equal(hierarchy.reasonFits, true);
-      assert.equal(hierarchy.requirementFits, true);
-      assert.equal(hierarchy.reasonInHero, true);
-      assert.equal(hierarchy.requirementInHero, true);
-      assert.equal(hierarchy.requirementVisible, true);
+      assert.equal(hierarchy.titleFits, true, `Title fit: ${JSON.stringify(hierarchy)}`);
+      assert.equal(hierarchy.reasonFits, true, `Reason fit: ${JSON.stringify(hierarchy)}`);
+      assert.equal(
+        hierarchy.requirementFits,
+        true,
+        `Requirement fit: ${JSON.stringify(hierarchy)}`,
+      );
+      assert.equal(hierarchy.reasonInHero, true, `Reason grouping: ${JSON.stringify(hierarchy)}`);
+      assert.equal(
+        hierarchy.requirementInHero,
+        true,
+        `Requirement grouping: ${JSON.stringify(hierarchy)}`,
+      );
+      assert.equal(
+        hierarchy.requirementVisible,
+        true,
+        `Requirement visibility after scroll: ${JSON.stringify(hierarchy)}`,
+      );
       assert.deepEqual(hierarchy.futureChoices, [
-        { title: "Release and update choices for later", open: false },
         { title: "Folder for a future install", open: false },
       ]);
       assert.ok(hierarchy.actionGap >= 0 && hierarchy.actionGap < 160);
@@ -3485,25 +3824,26 @@ try {
     await browser.manage().window().setRect({ width: 960, height: 640 });
     await verifyDetailActionHierarchy();
     await captureScenarioScreenshot("game-details-action-hierarchy");
-    const updateChoices = await browser.findElement(By.css(".future-setup-disclosure > summary"));
-    await updateChoices.click();
+    const outputChoices = await browser.findElement(futureFolderSummary);
+    const outputDisclosure = await outputChoices.findElement(By.xpath(".."));
+    await outputChoices.click();
     assert.equal(
-      await executeBrowserScript(browser, () =>
-        document.querySelector(".future-setup-disclosure")?.hasAttribute("open"),
+      await executeBrowserScript(
+        browser,
+        (element) => element.hasAttribute("open"),
+        outputDisclosure,
       ),
       true,
     );
-    await updateChoices.sendKeys(Key.ENTER);
+    await outputChoices.sendKeys(Key.ENTER);
     assert.equal(
-      await executeBrowserScript(browser, () =>
-        document.querySelector(".future-setup-disclosure")?.hasAttribute("open"),
+      await executeBrowserScript(
+        browser,
+        (element) => element.hasAttribute("open"),
+        outputDisclosure,
       ),
       false,
     );
-    const outputChoices = (
-      await browser.findElements(By.css(".future-setup-disclosure > summary"))
-    )[1];
-    assert.ok(outputChoices);
     await outputChoices.click();
     const outputDraft = await browser.wait(
       until.elementLocated(By.css('[id^="output-location-path-"]')),
@@ -3519,10 +3859,10 @@ try {
     await sourceDraft.sendKeys("C:\\Portcove-fixture\\candidate.z64");
     await browser.wait(
       async () =>
-        (await executeBrowserScript(browser, () =>
-          [...document.querySelectorAll(".future-setup-disclosure")].every(
-            (choice) => !choice.classList.contains("is-deferred"),
-          ),
+        (await executeBrowserScript(
+          browser,
+          (element) => !element.classList.contains("is-deferred") && element.hasAttribute("open"),
+          outputDisclosure,
         )) === true,
       5_000,
       "future setup choices did not expand after selecting game files",
@@ -3531,10 +3871,10 @@ try {
     await sourceDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE);
     await browser.wait(
       async () =>
-        (await executeBrowserScript(browser, () =>
-          [...document.querySelectorAll(".future-setup-disclosure")].every((choice) =>
-            choice.classList.contains("is-deferred"),
-          ),
+        (await executeBrowserScript(
+          browser,
+          (element) => element.classList.contains("is-deferred") && !element.hasAttribute("open"),
+          outputDisclosure,
         )) === true,
       5_000,
       "future setup choices did not defer after removing the selected path",
@@ -3685,10 +4025,7 @@ try {
             `game-details-missing-source-${theme}-${size.width}`,
             true,
           );
-          const folderChoices = (
-            await browser.findElements(By.css(".future-setup-disclosure > summary"))
-          )[1];
-          assert.ok(folderChoices);
+          const folderChoices = await browser.findElement(futureFolderSummary);
           await folderChoices.click();
           await captureOutputDestinationReview(`game-details-${theme}-${size.width}`);
           await folderChoices.click();
@@ -3840,7 +4177,7 @@ try {
 
     await captureApplicationUpdateSettingsComparison();
 
-    await writeFile(path.join(output, "application-update-schedule.json"), "not-json\n", {
+    await writeFile(path.join(runtimeRoot, "application-update-schedule.json"), "not-json\n", {
       flag: "wx",
     });
     await browser
@@ -3873,7 +4210,7 @@ try {
     );
     assert.deepEqual(success(await invoke("get_activities")), activities.value);
 
-    await writeFile(path.join(output, "application-updates.json"), "not-json\n");
+    await writeFile(path.join(runtimeRoot, "application-updates.json"), "not-json\n");
     await refreshSettings("updates");
     await browser.wait(
       until.elementLocated(By.xpath('//button[normalize-space(.)="Reset update settings"]')),
@@ -4119,7 +4456,7 @@ try {
     );
     assert.deepEqual(success(await invoke("get_locale_preference")), { locale: "en" });
 
-    const preferencePath = path.join(output, "preferences.json");
+    const preferencePath = path.join(runtimeRoot, "preferences.json");
     const savedPreferences = await readFile(preferencePath);
     try {
       await writeFile(preferencePath, "not-json\n");
@@ -4555,8 +4892,6 @@ try {
         clearInterval(hold);
       }
     }
-    if (installFixture) await installFixture.close();
-    if (originFixture) await originFixture.close();
-    await nativeLock.release();
+    await releaseNativeResources();
   }
 }

@@ -96,6 +96,7 @@ interface MacUpdateReport {
   predecessor_process_id?: number | undefined;
   predecessor_identity?: ProcessIdentity | null;
   staged?: Awaited<ReturnType<typeof verifyInstalledUpdateStaging>>;
+  ordinary_staging?: Awaited<ReturnType<typeof driveInstalledUpdateToRestart>>;
   restart_click?: string;
   predecessor_exit?: ApplicationExit;
   helper?: ProcessMarker;
@@ -429,8 +430,8 @@ try {
   assert.ok(application.pid);
   report.predecessor_identity = processIdentity(application.pid, "candidate");
   assert.ok(report.predecessor_identity, "Installed predecessor identity was not observed");
-  await bounded(
-    driveInstalledUpdateToRestart(browser, report.actions),
+  report.ordinary_staging = await bounded(
+    driveInstalledUpdateToRestart(browser, report.actions, candidateVersion),
     "installed renderer journey",
     180_000,
   );

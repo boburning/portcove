@@ -599,6 +599,25 @@ export type SteamEntryChangeKind = "add" | "repair" | "remove" | "unchanged";
 export type SteamClientState = "closed" | "running" | "unknown";
 export type SteamEntryOperation = "add_or_repair" | "remove";
 export type OutputDesktopSteamProfiles = string[];
+export type SupportBundleScope = "bounded_recent_diagnostics";
+export type SupportBundleSectionKind = "startup" | "doctor" | "activities" | "activity_capture" | "runtime_log";
+export type SupportBundleProvenance =
+  "desktop_startup" | "library_doctor_snapshot" | "activity_history" | "activity_diagnostics" | "desktop_runtime_log";
+export type SupportBundleReason =
+  | "unavailable"
+  | "read_failed"
+  | "invalid_record"
+  | "unsafe_file"
+  | "section_limit"
+  | "total_limit"
+  | "record_limit"
+  | "deadline"
+  | "incomplete_record"
+  | "capture_incomplete"
+  | "capture_truncated"
+  | "capture_not_collected"
+  | "bounded_snapshot";
+export type SupportBundleSectionStatus = "included" | "partial" | "omitted";
 
 export interface TransportOutputs {
   about: OutputAbout;
@@ -727,6 +746,7 @@ export interface TransportOutputs {
   desktop_steam_entry_apply_result: OutputDesktopSteamEntryApplyResult;
   desktop_steam_entry_review: OutputDesktopSteamEntryReview;
   desktop_steam_profiles: OutputDesktopSteamProfiles;
+  desktop_support_bundle_export: OutputDesktopSupportBundleExport;
   desktop_update_check_outcome: OutputCheckBatchOutcome;
   desktop_workspace_snapshot: OutputDesktopWorkspaceSnapshot;
 }
@@ -2983,6 +3003,54 @@ export interface OutputDesktopSteamEntryReview {
   steam_root: string;
   steam_user_id: string;
   writes_required: boolean;
+  [k: string]: unknown;
+}
+export interface OutputDesktopSupportBundleExport {
+  manifest: SupportBundleManifest;
+  path: string;
+  [k: string]: unknown;
+}
+export interface SupportBundleManifest {
+  created_at_ms: number;
+  library_available: boolean;
+  limits: SupportBundleLimits;
+  product_version: string;
+  schema_version: number;
+  scope: SupportBundleScope;
+  sections: SupportBundleSection[];
+  /**
+   * No source revision is invented when the build does not provide one.
+   */
+  source_revision: string | null;
+  target_arch: string;
+  target_os: string;
+  [k: string]: unknown;
+}
+export interface SupportBundleLimits {
+  activity_count: number;
+  capture_count: number;
+  /**
+   * Cooperative checkpoints; this does not time out a blocked OS call.
+   */
+  collection_seconds: number;
+  log_bytes: number;
+  record_bytes: number;
+  section_bytes: number;
+  total_bytes: number;
+  [k: string]: unknown;
+}
+export interface SupportBundleSection {
+  bytes_read: number | null;
+  bytes_written: number;
+  entry: string | null;
+  kind: SupportBundleSectionKind;
+  provenance: SupportBundleProvenance;
+  /**
+   * Closed reasons only. OS/SQL errors, paths and payloads never enter here.
+   */
+  reasons: SupportBundleReason[];
+  records: number | null;
+  status: SupportBundleSectionStatus;
   [k: string]: unknown;
 }
 export interface OutputDesktopWorkspaceSnapshot {

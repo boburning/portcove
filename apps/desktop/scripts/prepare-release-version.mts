@@ -1,14 +1,20 @@
 import { isRecord } from "../../../scripts/runtime-values.mts";
+import {
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "../../../scripts/release-coordinator-deadline.mts";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import { parseWorkspacePackage } from "../../../scripts/check-release-metadata.mts";
 import {
   proposeApplicationVersion,
   parseVersionClassification,
+  classifyApplicationVersion,
 } from "./release-version-policy.mts";
 
 function repositoryGit(repository: string, environment: NodeJS.ProcessEnv = {}) {
@@ -19,8 +25,8 @@ function repositoryGit(repository: string, environment: NodeJS.ProcessEnv = {}) 
   );
   // Link-based object creation preserves existing content when simultaneous
   // preparations write identical objects (including on Windows).
-  return (args: readonly string[], input?: string) =>
-    execFileSync(
+  return (args: readonly string[], input?: string) => {
+    const result = execFileSync(
       "git",
       [
         "-C",
@@ -40,13 +46,16 @@ function repositoryGit(repository: string, environment: NodeJS.ProcessEnv = {}) 
       {
         encoding: "utf8",
         input,
-        env: { ...env, GIT_NO_REPLACE_OBJECTS: "1", ...environment },
+        env: { ...env, GIT_NO_REPLACE_OBJECTS: "1", GIT_NO_LAZY_FETCH: "1", ...environment },
         windowsHide: true,
-        timeout: 30_000,
+        timeout: coordinatorCommandTimeout(30_000),
         maxBuffer: 8 * 1024 * 1024,
         stdio: ["pipe", "pipe", "pipe"],
       },
     );
+    checkCoordinatorDeadline();
+    return result;
+  };
 }
 
 type Git = ReturnType<typeof repositoryGit>;
@@ -74,7 +83,7 @@ function replaceOnce(
   return updated;
 }
 
-function workspacePackages(git: Git, commit: string, cargo: string) {
+function workspaceMemberPaths(cargo: string) {
   // Support the repository's explicit member list, rejecting globs, traversal
   // and other TOML forms instead of guessing the version authority.
   const list = cargo.match(/^members\s*=\s*(\[[\s\S]*?\])/m)?.[1];
@@ -82,10 +91,28 @@ function workspacePackages(git: Git, commit: string, cargo: string) {
   if (!Array.isArray(members) || !members.length)
     throw new Error("explicit workspace members are required");
   const values: unknown[] = members;
-  const names = values.map((member) => {
+  return values.map((member) => {
     if (typeof member !== "string" || !/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)+$/.test(member))
       throw new Error("unsupported workspace member path");
-    const manifest = sourceFile(git, commit, `${member}/Cargo.toml`);
+    return member;
+  });
+}
+
+/** Exact inert source paths needed for preparation; no candidate execution or
+ * arbitrary checkout is required. Contents/modes remain checked by preparation. */
+export function preparationSourcePaths(cargo: string) {
+  return [
+    "Cargo.toml",
+    "Cargo.lock",
+    "apps/desktop/package.json",
+    "apps/desktop/src-tauri/tauri.conf.json",
+    ...workspaceMemberPaths(cargo).map((member) => `${member}/Cargo.toml`),
+  ];
+}
+
+function workspacePackages(readSource: (filename: string) => string, cargo: string) {
+  const names = workspaceMemberPaths(cargo).map((member) => {
+    const manifest = readSource(`${member}/Cargo.toml`);
     const table = manifest.match(/^\[package\]\r?\n([\s\S]*?)(?=^\[|(?![\s\S]))/m)?.[1];
     const name = table?.match(/^name\s*=\s*"([a-zA-Z0-9_-]+)"\s*$/m)?.[1];
     if (!name || !/^version\.workspace\s*=\s*true\s*$/m.test(table ?? ""))
@@ -121,12 +148,36 @@ function updatedLock(lock: string, names: readonly string[], base: string, versi
   return updated;
 }
 
-function versionedFiles(git: Git, proposal: Proposal) {
-  const { source_commit: source, base_version: base, version } = proposal;
-  const cargo = sourceFile(git, source, "Cargo.toml");
+function versionedFiles(
+  git: Git,
+  proposal: Pick<Proposal, "source_commit" | "base_version" | "version">,
+) {
+  // Publication eligibility uses the independently reviewed published base.
+  // The off-main preparation must instead transform the actual frozen source
+  // authorities: publishing a prepared child never rewrites main's version.
+  const readSource = (filename: string) => sourceFile(git, proposal.source_commit, filename);
+  const sourceVersion = parseWorkspacePackage(readSource("Cargo.toml")).version;
+  if (typeof sourceVersion !== "string") throw new Error("frozen source workspace version absent");
+  return reproducePreparedReleaseVersionFiles(readSource, {
+    base_version: sourceVersion,
+    version: proposal.version,
+  });
+}
+
+/** Exact existing preparation transform, reusable with authenticated inert blob
+ * readers. It computes bytes only and grants no source, version or execution
+ * authority; callers must independently bind their reservation and parent. */
+export function reproducePreparedReleaseVersionFiles(
+  readSource: (filename: string) => string,
+  proposal: Pick<Proposal, "base_version" | "version">,
+) {
+  const { base_version: base, version } = proposal;
+  classifyApplicationVersion(base);
+  classifyApplicationVersion(version);
+  const cargo = readSource("Cargo.toml");
   if (parseWorkspacePackage(cargo).version !== base)
     throw new Error("frozen workspace version differs from reviewed base");
-  const names = workspacePackages(git, source, cargo);
+  const names = workspacePackages(readSource, cargo);
   const files = new Map<string, string>();
   files.set(
     "Cargo.toml",
@@ -137,9 +188,9 @@ function versionedFiles(git: Git, proposal: Proposal) {
       "workspace version",
     ),
   );
-  files.set("Cargo.lock", updatedLock(sourceFile(git, source, "Cargo.lock"), names, base, version));
+  files.set("Cargo.lock", updatedLock(readSource("Cargo.lock"), names, base, version));
   for (const filename of ["apps/desktop/package.json", "apps/desktop/src-tauri/tauri.conf.json"]) {
-    const original = sourceFile(git, source, filename);
+    const original = readSource(filename);
     const metadata: unknown = JSON.parse(original);
     if (!isRecord(metadata) || metadata.version !== base)
       throw new Error(`frozen version authority drift: ${filename}`);
@@ -154,6 +205,142 @@ function versionedFiles(git: Git, proposal: Proposal) {
     );
   }
   return files;
+}
+
+/** Export an already allocated preparation. No checkout, ref write, reallocation
+ * or network access occurs. The caller must authenticate the reservation. */
+type PreparedVersionIdentity = {
+  source_commit: string;
+  source_tree: string;
+  prepared_commit: string;
+  prepared_tree: string;
+  version: string;
+  intent_sha256: string;
+};
+
+export function exportPreparedReleaseVersion(
+  repository: string,
+  candidate: PreparedVersionIdentity,
+) {
+  const read = repositoryGit(repository);
+  if (read(["rev-parse", "--is-bare-repository"]).trim() !== "true")
+    throw new Error("prepared export requires a caller-owned bare repository");
+  return inspectPreparedReleaseVersionObjects(read, candidate);
+}
+
+/** Data-only verification of the maintained transform against actual Git
+ * objects. The reader must supply inert raw objects; this grants no review,
+ * reservation or publication authority and never changes a repository. */
+export function inspectPreparedReleaseVersionObjects(
+  read: (args: readonly string[], input?: string) => string,
+  candidate: PreparedVersionIdentity,
+) {
+  const started = performance.now();
+  let reads = 0;
+  const git: Git = (args, input) => {
+    if (++reads > 64 || performance.now() - started > 120000)
+      throw new Error("prepared export Git read or duration bound exceeded");
+    const result = read(args, input);
+    if (performance.now() - started > 120000)
+      throw new Error("prepared export Git response was late");
+    return result;
+  };
+  for (const oid of [
+    candidate.source_commit,
+    candidate.source_tree,
+    candidate.prepared_commit,
+    candidate.prepared_tree,
+  ])
+    if (!/^[a-f0-9]{40}$/u.test(oid))
+      throw new Error("prepared export requires exact Git identities");
+  if (!/^[a-f0-9]{64}$/u.test(candidate.intent_sha256))
+    throw new Error("preparation intent identity invalid");
+  if (
+    git(["rev-parse", `${candidate.source_commit}^{tree}`]).trim() !== candidate.source_tree ||
+    git(["rev-parse", `${candidate.prepared_commit}^{tree}`]).trim() !== candidate.prepared_tree
+  )
+    throw new Error("prepared export tree identity differs");
+  const date = git(["show", "-s", "--format=%cI", candidate.source_commit]).trim();
+  const offset = date.endsWith("Z") ? "+0000" : date.slice(-6).replace(":", "");
+  if (!/^[+-][0-9]{4}$/u.test(offset) || !Number.isSafeInteger(Date.parse(date) / 1000))
+    throw new Error("preparation date cannot be represented exactly");
+  const actor = `Portcove version preparation <version-preparation@portcove.invalid> ${Date.parse(date) / 1000} ${offset}`;
+  const raw = git(["cat-file", "commit", candidate.prepared_commit]);
+  const rawBytes = Buffer.from(raw);
+  if (
+    rawBytes.length > 128 * 1024 ||
+    createHash("sha1").update(`commit ${rawBytes.length}\0`).update(rawBytes).digest("hex") !==
+      candidate.prepared_commit
+  )
+    throw new Error("prepared raw commit bytes differ or exceed bound");
+  const prefix = `tree ${candidate.prepared_tree}\nparent ${candidate.source_commit}\nauthor ${actor}\ncommitter ${actor}\n\nPrepare application ${candidate.version}\n\nPortcove-Preparation-SHA256: ${candidate.intent_sha256}\n`;
+  if (!raw.startsWith(prefix) || !raw.endsWith("\n"))
+    throw new Error("prepared commit metadata or parent differs");
+  const intentBytes = raw.slice(prefix.length, -1);
+  if (createHash("sha256").update(intentBytes).digest("hex") !== candidate.intent_sha256)
+    throw new Error("prepared intent bytes differ");
+  const intent: unknown = JSON.parse(intentBytes);
+  if (
+    !isRecord(intent) ||
+    !isRecord(intent.proposal) ||
+    JSON.stringify(intent) !== intentBytes ||
+    intent.proposal.source_commit !== candidate.source_commit ||
+    intent.proposal.version !== candidate.version ||
+    typeof intent.proposal.base_version !== "string"
+  )
+    throw new Error("prepared proposal differs");
+  const files = versionedFiles(git, {
+    source_commit: candidate.source_commit,
+    version: candidate.version,
+    base_version: intent.proposal.base_version,
+  });
+  const changed = git([
+    "diff-tree",
+    "--no-renames",
+    "--no-commit-id",
+    "--name-only",
+    "-r",
+    "-z",
+    candidate.source_commit,
+    candidate.prepared_commit,
+  ])
+    .split("\0")
+    .filter(Boolean)
+    .sort();
+  if (JSON.stringify(changed) !== JSON.stringify([...files.keys()].sort()))
+    throw new Error("prepared tree changes more than the exact version authorities");
+  let total = 0;
+  const blobs = [...files].map(([filename, contents]) => {
+    if (sourceFile(git, candidate.prepared_commit, filename) !== contents)
+      throw new Error(`prepared version edit differs: ${filename}`);
+    const bytes = Buffer.from(contents);
+    total += bytes.length;
+    if (bytes.length > 8 * 1024 * 1024 || total > 16 * 1024 * 1024)
+      throw new Error("prepared object byte bound exceeded");
+    const oid = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+    return { path: filename, oid, contents: bytes.toString("base64") };
+  });
+  const message = raw.slice(raw.indexOf("\n\n") + 2);
+  return {
+    ...candidate,
+    blobs,
+    raw_commit: raw,
+    commit: {
+      tree: candidate.prepared_tree,
+      parents: [candidate.source_commit],
+      message,
+      author: {
+        name: "Portcove version preparation",
+        email: "version-preparation@portcove.invalid",
+        date,
+      },
+      committer: {
+        name: "Portcove version preparation",
+        email: "version-preparation@portcove.invalid",
+        date,
+      },
+    },
+  };
 }
 
 function allocationRefs(proposal: Proposal): [string, string] {
@@ -189,7 +376,10 @@ async function preparedTree(repository: string, proposal: Proposal) {
       const blob = git(["hash-object", "-w", "--stdin"], contents).trim();
       git(["update-index", "--add", "--cacheinfo", `100644,${blob},${filename}`]);
     }
-    return git(["write-tree"]).trim();
+    // Unchanged source entries are opaque Git identities. A fresh coordinating
+    // repository needs verified trees and the version authorities, not every
+    // application blob. The exact four changed blobs are all present above.
+    return git(["write-tree", "--missing-ok"]).trim();
   } finally {
     // Only the unique temporary index created above is owned by this operation.
     await rm(temporary, { recursive: true, force: true });
@@ -263,15 +453,21 @@ export async function prepareReleaseVersion(
   };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [repository, inputPath] = process.argv.slice(2);
-  if (process.argv.length !== 4 || !repository || !inputPath)
-    throw new Error("usage: prepare-release-version.mts REPOSITORY INPUT.json");
-  const input: unknown = JSON.parse(await readFile(inputPath, "utf8"));
-  if (!isRecord(input)) throw new Error("version preparation input must be an object");
-  console.log(
-    JSON.stringify(
-      await prepareReleaseVersion(repository, input.classification, input.published_versions),
-    ),
-  );
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+    const [repository, inputPath] = process.argv.slice(2);
+    if (process.argv.length !== 4 || !repository || !inputPath)
+      throw new Error("usage: prepare-release-version.mts REPOSITORY INPUT.json");
+    const input: unknown = JSON.parse(await readFile(inputPath, "utf8"));
+    if (!isRecord(input)) throw new Error("version preparation input must be an object");
+    console.log(
+      JSON.stringify(
+        await prepareReleaseVersion(repository, input.classification, input.published_versions),
+      ),
+    );
+  }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

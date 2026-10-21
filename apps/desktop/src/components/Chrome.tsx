@@ -1,7 +1,9 @@
+import { PortSearch } from "./PortSearch";
 import { OperationProgress } from "./OperationProgress";
 import { cn } from "cn";
 import { Notice, SettingsRow } from "./ui/patterns";
 import { SourceRemovalControl } from "./SourceRemoval";
+import { SupportBundleExport } from "./SupportBundleExport";
 import { desktopApi } from "../api";
 import {
   useLayoutEffect,
@@ -24,7 +26,6 @@ import {
   HardDrive,
   Library,
   LoaderCircle,
-  Search,
   Settings,
   ShieldCheck,
   Wrench,
@@ -37,6 +38,7 @@ import type {
   ActivityRecord,
   PortDefinition,
   PortStatus,
+  DesktopSupportBundleExport,
   DoctorReport,
   GithubAuthStatus,
   GithubDeviceLogin,
@@ -138,7 +140,7 @@ export function Sidebar({
             onClick={() => setView(item.view)}
           >
             <Icon glyph={item.icon} />
-            <span className="min-w-0 flex-1">{item.label}</span>
+            <span className="nav-label min-w-0 flex-1">{item.label}</span>
             {item.view === "library" && (
               <b
                 className="rounded-pc-md bg-[var(--color-warning-subtle)] p-[2px_7px] text-[length:var(--text-xs)] text-[var(--color-warning-text)]"
@@ -150,16 +152,15 @@ export function Sidebar({
             {item.view === "updates" && (updateCount > 0 || activityState) && (
               <NavigationStatus updateCount={updateCount} activityState={activityState} />
             )}
-            <Shortcut className="hidden opacity-0 group-hover/nav:opacity-100 group-focus-visible/nav:opacity-100 min-[65rem]:block">
-              {commandShortcut(item.shortcut)}
-            </Shortcut>
+            <Shortcut className="hidden">{commandShortcut(item.shortcut)}</Shortcut>
           </Button>
         ))}
       </nav>
       <div className="sidebar-footer mt-auto">
         {onAbout && (
           <Button data-focusable variant="ghost" className="mb-2 w-full" onClick={onAbout}>
-            About Portcove
+            <Icon glyph={CircleUserRound} />
+            <span className="sidebar-action-label">About Portcove</span>
           </Button>
         )}
         <Button
@@ -170,7 +171,7 @@ export function Sidebar({
           onClick={onAdopt}
         >
           <Icon glyph={FolderInput} />
-          Copy existing installation
+          <span className="sidebar-action-label">Copy existing installation</span>
         </Button>
         <NavigationHints controller={controller} workspace />
       </div>
@@ -223,19 +224,29 @@ export function PageHeader({
   query,
   setQuery,
   portCount,
+  libraryCount,
   onOpenCommands,
 }: {
   view: View;
   query: string;
   setQuery: Dispatch<SetStateAction<string>>;
   portCount?: number;
+  libraryCount?: number | undefined;
   onOpenCommands?: () => void;
 }) {
   const copy = pageCopy(view, portCount ?? 0);
   return (
-    <header className="mb-6 flex flex-wrap items-center justify-between gap-6">
+    <header
+      data-library-header={view === "library" || undefined}
+      className="mb-6 flex flex-wrap items-center justify-between gap-6"
+    >
       <div>
         <h1 tabIndex={-1}>{copy.title}</h1>
+        {view === "library" && libraryCount !== undefined && (
+          <p className="mt-2 mb-0 text-sm text-pc-muted-foreground">
+            {libraryCount} {libraryCount === 1 ? "entry" : "entries"} · On this computer
+          </p>
+        )}
         {copy.description && (
           <p className="page-description m-[7px_0_0] max-w-[620px] text-[length:var(--text-xs)] leading-[var(--leading-normal)] text-[var(--color-text-muted)]">
             {copy.description}
@@ -246,28 +257,7 @@ export function PageHeader({
         className="header-tools flex max-w-full min-w-0 flex-wrap items-center justify-end gap-2 max-[75rem]:ms-auto"
         data-focus-group
       >
-        {(view === "library" || view === "catalog") && (
-          <label
-            className="search flex h-[var(--control-height-lg)] min-h-[var(--control-height-lg)] w-[min(330px,_34vw)] max-w-full min-w-0 items-center gap-2 rounded-pc-md border border-[var(--color-control-border)] bg-[var(--color-bg-elevated)] p-[0_var(--space-3)] text-[var(--color-text-muted)] shadow-[inset_0_1px_2px_var(--color-bg)] focus-within:[outline:3px_solid_var(--color-focus)] focus-within:[outline-offset:3px] max-[65rem]:w-[16rem]"
-            htmlFor="port-search"
-          >
-            <Icon glyph={Search} />
-            <span className="sr-only">
-              {view === "library" ? "Search your library" : "Search Find games"}
-            </span>
-            <input
-              className="h-full min-h-0 w-full min-w-0 border-0 bg-[var(--color-transparent)] p-[12px_2px] py-0 text-[var(--color-text)]"
-              id="port-search"
-              aria-label={view === "library" ? "Search your library" : "Search Find games"}
-              style={{ outline: "none" }}
-              data-focusable
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Game or port name"
-            />
-            <Shortcut className="ms-auto">{commandShortcut("F")}</Shortcut>
-          </label>
-        )}
+        {view === "catalog" && <PortSearch query={query} setQuery={setQuery} />}
         <Button
           data-focusable
           data-detail-origin={`command-trigger:${view}`}
@@ -1083,8 +1073,12 @@ function SourceHealthRow({
       )}
       {outcome?.error && (
         <div className="min-w-0">
-          <p className="text-pc-danger-foreground">{errorText(outcome.error)}</p>
-          <FailureDetails presentation={outcome.error.presentation} code={outcome.error.code} />
+          <p className="text-pc-danger-foreground">Saved-file check did not pass.</p>
+          <FailureDetails
+            presentation={outcome.error.presentation}
+            code={outcome.error.code}
+            showMutationSummary={false}
+          />
         </div>
       )}
       {(profile || report) && (
@@ -1357,18 +1351,13 @@ function DiagnosticsCard({
   hasSnapshot,
 }: {
   busy?: string | undefined;
-  createSupportBundle?: (() => Promise<string | undefined>) | undefined;
+  createSupportBundle?: (() => Promise<DesktopSupportBundleExport | undefined>) | undefined;
   refreshing?: boolean | undefined;
   stale?: boolean | undefined;
   failure?: unknown;
   refresh?: (() => Promise<unknown>) | undefined;
   hasSnapshot?: boolean | undefined;
 }) {
-  const [bundlePath, setBundlePath] = useState<string>();
-  const create = async () => {
-    const path = await createSupportBundle?.();
-    if (path) setBundlePath(path);
-  };
   return (
     <SettingsRow className="diagnostics-card" data-focus-group>
       <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
@@ -1378,20 +1367,6 @@ function DiagnosticsCard({
         <Icon glyph={ShieldCheck} />
         Create support bundle
       </h2>
-      <p>
-        Create a support bundle with recent logs, operation history, and system details. Game-file
-        contents and saved credentials are excluded, but paths, file names, and other metadata may
-        remain. Review the bundle before sharing it.
-      </p>
-      <details>
-        <summary className="[scroll-margin-block:var(--space-2)]">
-          Examples of details that may remain
-        </summary>
-        <p>
-          Port and tool identifiers, timestamps, and other system details can remain after sensitive
-          values are redacted.
-        </p>
-      </details>
       <p role="status">
         {refreshing
           ? "Checking current host and library diagnostics…"
@@ -1413,22 +1388,7 @@ function DiagnosticsCard({
       >
         {failure ? "Retry diagnostics" : "Refresh diagnostics"}
       </Button>
-      <Button
-        data-focusable
-        variant="outline"
-        size="sm"
-        disabled={Boolean(busy) || !createSupportBundle}
-        onClick={() => {
-          void create();
-        }}
-      >
-        Create support bundle
-      </Button>
-      {bundlePath && (
-        <p role="status">
-          Saved to <code className="[overflow-wrap:anywhere]">{bundlePath}</code>
-        </p>
-      )}
+      <SupportBundleExport disabled={Boolean(busy)} createSupportBundle={createSupportBundle} />
     </SettingsRow>
   );
 }
@@ -1527,7 +1487,7 @@ export function SettingsView({
   openSourceEvidence?: (evidenceId: string) => void;
   addSource?: (profile: SourceProfile, archive: boolean) => void;
   appearance?: ThemeState | undefined;
-  createSupportBundle?: (() => Promise<string | undefined>) | undefined;
+  createSupportBundle?: (() => Promise<DesktopSupportBundleExport | undefined>) | undefined;
   exportMetadata?: (() => Promise<LibraryMetadataFile | undefined>) | undefined;
   sourceProfiles?: SourceProfile[];
   onSourceAdded?: () => Promise<unknown>;

@@ -1,3 +1,4 @@
+import { PortSearch } from "./PortSearch";
 import { controlFocus, floatingMotion } from "./ui/control-style";
 import { gameTitle, gameProjectLabel, gameIdentityLabel } from "../port-identity";
 import { cn } from "cn";
@@ -17,7 +18,6 @@ import {
   ArrowRight,
   Boxes,
   CheckCircle2,
-  Download,
   Gamepad2,
   LoaderCircle,
   MoreHorizontal,
@@ -89,6 +89,7 @@ export function PortBrowser({
   recent,
   filter,
   query = "",
+  setQuery,
   catalogSort = "catalog",
   setCatalogSort,
   setFilter,
@@ -122,6 +123,7 @@ export function PortBrowser({
   overview: LibraryOverview;
   filter: Filter | CatalogQuery;
   query?: string;
+  setQuery?: Dispatch<SetStateAction<string>> | undefined;
   catalogSort?: CatalogSort;
   setCatalogSort?: Dispatch<SetStateAction<CatalogSort>>;
   recent?: RecentPort | undefined;
@@ -280,8 +282,6 @@ export function PortBrowser({
     recent &&
     onContinue &&
     !favorites?.only && <ContinueCard recent={recent} launch={onContinue} details={onSelect} />;
-  const renderLibrarySummary = () =>
-    view === "library" && overview.installed > 0 && <LibrarySummary overview={overview} />;
   const renderSteamBatch = () =>
     view === "library" &&
     steamBatch &&
@@ -314,7 +314,7 @@ export function PortBrowser({
   const renderFilters = () =>
     !firstUseEmpty && (
       <div
-        className="filter-row flex flex-1 flex-wrap items-center gap-2"
+        className="filter-row flex flex-wrap items-center gap-2"
         data-focus-group
         role="group"
         aria-label={view === "library" ? "Library filters" : "Release channel filters"}
@@ -360,7 +360,7 @@ export function PortBrowser({
             {favoriteCount === undefined ? " (unavailable)" : ` (${favoriteCount})`}
           </Button>
         )}
-        {favorites?.only && (
+        {favorites?.only && view !== "library" && (
           <Button data-focusable size="sm" variant="ghost" onClick={reset}>
             Clear search and filters
           </Button>
@@ -410,47 +410,15 @@ export function PortBrowser({
       </p>
       {renderDropAnnouncement()}
       {renderConnectPrompt()}
-      {renderContinue()}
-      {view === "library" && (
-        <div
-          className="collection-tools mb-4 flex flex-wrap items-end justify-end gap-3"
-          data-focus-group
-        >
-          {renderLibrarySummary()}
-          {onBrowseCatalog && overview.installed > 0 && (
-            <Button
-              data-focusable
-              data-add-games-trigger
-              variant="outline"
-              onClick={onBrowseCatalog}
-            >
-              Add games
-            </Button>
-          )}
-          {setCollectionLayout && (
-            <div role="group" aria-label="Collection view" className="flex flex-wrap gap-1">
-              {(["covers", "rows"] as const).map((layout) => (
-                <Button
-                  key={layout}
-                  variant={collectionLayout === layout ? "selected" : "outline"}
-                  aria-pressed={collectionLayout === layout}
-                  data-focusable
-                  onClick={() => setCollectionLayout(layout)}
-                >
-                  {layout === "covers" ? "Covers" : "Compact rows"}
-                </Button>
-              ))}
-            </div>
-          )}
-          {collectionLayoutFailure && (
-            <p role="status" className="basis-full text-end text-xs text-pc-muted-foreground">
-              {collectionLayoutFailure === "read"
-                ? "The saved collection view could not be read. Covers are shown."
-                : "This collection view is available for this session; it could not be saved."}
-            </p>
-          )}
-        </div>
+      {view === "library" && recent && onContinue && !favorites?.only && (
+        <details className="mb-4 text-sm text-pc-muted-foreground">
+          <summary data-focusable className="cursor-pointer py-2">
+            Last played
+          </summary>
+          {renderContinue()}
+        </details>
       )}
+
       {renderFavoritesFailure()}
       {unresolvedReadiness && (
         <p role="alert" className="mb-3 text-sm text-pc-muted-foreground">
@@ -466,12 +434,74 @@ export function PortBrowser({
           These filters are not supported. Reset filters to choose a supported query.
         </p>
       )}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        {renderFilters()}
-        {renderDeclaredFilters()}
-        {renderSort()}
-        {renderSteamBatch()}
-      </div>
+      {!firstUseEmpty && (
+        <div
+          className="library-query-tools mb-5 flex flex-wrap items-center gap-3"
+          data-focus-group
+        >
+          {view === "library" && setQuery && (
+            <PortSearch query={query} setQuery={setQuery} library />
+          )}
+          {renderFilters()}
+          {renderDeclaredFilters()}
+          {renderSort()}
+          {view === "library" && !firstUseEmpty && (
+            <div
+              className="collection-tools ms-auto flex flex-wrap items-center gap-3"
+              data-focus-group
+            >
+              {onBrowseCatalog && overview.installed > 0 && (
+                <Button
+                  data-focusable
+                  data-add-games-trigger
+                  variant="outline"
+                  onClick={onBrowseCatalog}
+                >
+                  Add games
+                </Button>
+              )}
+              {setCollectionLayout && (
+                <div role="group" aria-label="Collection view" className="flex flex-wrap gap-1">
+                  <span className="self-center text-xs text-pc-muted-foreground">View</span>
+                  {(["covers", "rows"] as const).map((layout) => (
+                    <Button
+                      key={layout}
+                      variant={collectionLayout === layout ? "selected" : "outline"}
+                      aria-pressed={collectionLayout === layout}
+                      data-focusable
+                      onClick={() => setCollectionLayout(layout)}
+                    >
+                      {layout === "covers" ? "Covers" : "Compact rows"}
+                    </Button>
+                  ))}
+                </div>
+              )}
+              {collectionLayoutFailure && (
+                <p role="status" className="basis-full text-end text-xs text-pc-muted-foreground">
+                  {collectionLayoutFailure === "read"
+                    ? "The saved collection view could not be read. Covers are shown."
+                    : "This collection view is available for this session; it could not be saved."}
+                </p>
+              )}
+            </div>
+          )}
+          {renderSteamBatch()}
+        </div>
+      )}
+      {view === "library" && !firstUseEmpty && (constrained || query.trim()) && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-2 text-sm">
+          <p className="m-0" role="status">
+            {resultsUnavailable
+              ? "Results unavailable"
+              : `${visiblePorts.length} of ${overview.installed} library ${overview.installed === 1 ? "entry" : "entries"}`}
+          </p>
+          {(resultsUnavailable || visiblePorts.length > 0) && (
+            <Button variant="ghost" onClick={reset}>
+              Clear search and filters
+            </Button>
+          )}
+        </div>
+      )}
       <BrowserResults
         layout={view === "library" ? collectionLayout : "covers"}
         view={view}
@@ -545,9 +575,12 @@ function SteamBatchLibraryAction({
     <>
       <details className="text-xs text-pc-muted-foreground">
         <summary data-focusable className="cursor-pointer py-2">
-          Integrations
+          Collection commands
         </summary>
-        <p>Choose library entries to add to Steam. This does not install or launch a game.</p>
+        <p>
+          Choose from {ports.length} installed entries in this library, including any hidden by
+          filters. This does not install or launch a game.
+        </p>
         <Button data-focusable variant="outline" onClick={() => setOpen(true)}>
           <Icon glyph={Gamepad2} />
           Choose games for Steam…
@@ -610,7 +643,7 @@ function BrowserResults({
       className={
         view === "library"
           ? `port-grid collection-${layout} @container/collection grid w-full ${layout === "rows" ? "gap-0" : "gap-4"}`
-          : "port-grid @container/collection grid w-full max-w-[66.5rem] grid-cols-[repeat(auto-fill,minmax(min(100%,12.5rem),1fr))] gap-4"
+          : "port-grid @container/collection grid w-full grid-cols-[repeat(auto-fill,minmax(min(100%,12.5rem),13.75rem))] gap-4"
       }
       aria-label={view === "library" ? "Library entries" : "Find games entries"}
       data-focus-group
@@ -680,11 +713,10 @@ function BrowserEmptyState({
     return (
       <EmptyState
         visual={
-          <span className="empty-mascot-stage grid h-40 w-52 place-items-center overflow-hidden rounded-pc-lg border border-[var(--color-border-strong)] bg-[var(--color-brand-stage)] shadow-(--shadow-raised)">
+          <span className="empty-mascot-stage grid size-16 place-items-center overflow-hidden rounded-pc-lg border border-[var(--color-border-strong)] bg-[var(--color-brand-stage)]">
             <BrandMascot className="size-full" decorative />
           </span>
         }
-        eyebrow="EMPTY LIBRARY"
         title="Your library is empty"
         description="Add games using your original files, search a chosen folder, or find a port. You can also copy a supported installation without changing its original folder."
         action={
@@ -792,6 +824,8 @@ function ContinueCard({
           size="lg"
           data-detail-origin={launchable ? undefined : `library:continue-review:${port.id}`}
           disabled={launchable && Boolean(action.busy)}
+          focusableWhenDisabled={launchable && Boolean(action.busy)}
+          aria-busy={launchable && Boolean(action.busy)}
           title={action.assessment.reason}
           onClick={() =>
             launchable ? launch(port.id) : details(port.id, `library:continue-review:${port.id}`)
@@ -807,35 +841,6 @@ function ContinueCard({
             : "Review launch"}
         </Button>
       </div>
-    </section>
-  );
-}
-
-function LibrarySummary({ overview }: { overview: LibraryOverview }) {
-  return (
-    <section
-      className="me-auto flex flex-wrap items-center gap-x-3 gap-y-2 text-xs"
-      aria-label="Library readiness"
-    >
-      <strong className="text-pc-foreground">
-        {overview.installed} library {overview.installed === 1 ? "entry" : "entries"}
-      </strong>
-      <span className="inline-flex items-center gap-1 text-[var(--color-success-text-raised)]">
-        <Icon glyph={CheckCircle2} size="sm" />
-        {overview.ready === overview.installed ? "All can launch" : `${overview.ready} can launch`}
-      </span>
-      {overview.needsSetup > 0 && (
-        <span className="inline-flex items-center gap-1 text-pc-warning-foreground">
-          <Icon glyph={Wrench} size="sm" />
-          {overview.needsSetup} {overview.needsSetup === 1 ? "needs" : "need"} attention
-        </span>
-      )}
-      {overview.staged > 0 && (
-        <span className="inline-flex items-center gap-1 text-pc-interactive-foreground">
-          <Icon glyph={Download} size="sm" />
-          {overview.staged} {overview.staged === 1 ? "update" : "updates"} downloaded
-        </span>
-      )}
     </section>
   );
 }
@@ -934,7 +939,6 @@ function PortCard({
       </Button>
     );
   const favoriteToggle = renderFavoriteToggle();
-  const accessibleLabel = `${gameIdentityLabel(port)}. ${state.label}. ${status?.staged ? "Update downloaded. " : ""}${state.action}.`;
   if (view === "library")
     return (
       <LibraryEntry
@@ -965,7 +969,6 @@ function PortCard({
           `${className} h-full w-full`,
           "active:[transform:translateY(1px)] active:bg-[var(--color-bg-hover)] active:shadow-[var(--shadow-pressed)]",
         )}
-        aria-label={accessibleLabel}
         aria-describedby={setup || input ? setupDescriptionId : undefined}
         onClick={() => onSelect(port.id, detailOrigin)}
         data-source-drop-port-id={dropEligible ? port.id : undefined}
@@ -1042,20 +1045,21 @@ function LibraryEntry({
         <span
           role="heading"
           aria-level={2}
-          className="collection-title block text-sm leading-snug font-semibold wrap-anywhere"
+          className="collection-title text-base leading-snug font-semibold wrap-anywhere"
         >
           {gameTitle(port)}
         </span>{" "}
-        <span className="collection-project block text-xs leading-normal wrap-anywhere text-[var(--color-text-secondary)]">
-          Port: {gameProjectLabel(port) ?? port.name}
+        <span className="collection-project block text-sm leading-normal wrap-anywhere text-[var(--color-text-secondary)]">
+          <span>Port: </span>
+          {gameProjectLabel(port) ?? port.name}
         </span>
       </button>
-      <div className="collection-state flex min-w-0 flex-col items-start gap-1 text-xs leading-normal wrap-anywhere">
+      <div className="collection-state flex min-w-0 flex-col items-start gap-1 text-sm leading-normal wrap-anywhere">
         {artworkNotice && <p className="m-0 text-pc-muted-foreground">{artworkNotice}</p>}
         <span
           className={cn(
             `readiness ${state.tone} inline-flex items-start gap-1.5 font-medium`,
-            "[&.ready]:text-[var(--color-success-text-raised)] [&.setup]:text-pc-warning-foreground [&.staged]:text-pc-interactive-foreground",
+            "[&.ready]:text-pc-muted-foreground [&.setup]:text-pc-warning-foreground [&.staged]:text-pc-interactive-foreground",
           )}
         >
           <Icon glyph={state.tone === "ready" ? CheckCircle2 : Wrench} size="sm" />
@@ -1322,7 +1326,6 @@ function PortCardStatus({
         hasFavorite && (view === "library" ? "ps-8" : "pe-9"),
       )}
     >
-      {favoriteToggle}
       {view === "catalog" && (
         <strong className="font-semibold text-[var(--color-text-secondary)]">
           {cardInstallationLabel(port, status)}
@@ -1351,6 +1354,8 @@ function PortCardStatus({
               size="sm"
               className="flex-1"
               disabled={Boolean(action.busy)}
+              focusableWhenDisabled={Boolean(action.busy)}
+              aria-busy={Boolean(action.busy)}
               title={action.assessment.reason}
               onClick={() => onLaunch?.(port.id)}
             >
@@ -1361,6 +1366,7 @@ function PortCardStatus({
                   : "Play"}
             </Button>
           )}
+          {favoriteToggle}
           <Menu.Root>
             <Menu.Trigger
               render={

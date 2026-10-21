@@ -1,5 +1,17 @@
-import { assessBoundedCapacity } from "./release-capacity.mts";
+import { inspectPublicationReportRepair } from "./release-report-repair-contract.mts";
+import { assessBoundedCapacity, capacityDigest } from "./release-capacity.mts";
+import {
+  inspectPublishedMetadata,
+  inspectMetadataRenewalDescriptor,
+  inspectMetadataBootstrapDescriptor,
+} from "./release-metadata-contract.mts";
 import { isRecord } from "./runtime-values.mts";
+import { inspectPreviewWithdrawals } from "./release-preview-withdrawals.mts";
+import { inspectCandidateStageEvidence } from "./release-candidate-progress-contract.mts";
+import {
+  inspectReleaseReviewRequest,
+  inspectReleaseReviewDisposition,
+} from "./release-review-request.mts";
 import { createHash } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -215,6 +227,11 @@ export function validateOpportunity(opportunity: unknown) {
   if (opportunity.requested_channel !== "preview" && opportunity.requested_channel !== "stable")
     throw new Error("requested channel must be preview or stable");
   object(opportunity.classification, "reviewed classification");
+  if (opportunity.classification.preview_withdrawals !== undefined) {
+    inspectPreviewWithdrawals(opportunity.classification.preview_withdrawals);
+    if (opportunity.requested_channel !== "preview")
+      throw new Error("Preview withdrawals cannot appoint Stable eligibility");
+  }
   if (
     opportunity.classification.source_commit !== opportunity.source_commit ||
     opportunity.classification.reviewed_commit !== opportunity.source_commit ||
@@ -248,9 +265,14 @@ function validatePublication(publication: unknown, now: number) {
       "reserved_versions",
       "last_routine_preview_at",
     ],
-    [],
+    ["last_routine_preview_bound"],
     "publication inventory",
   );
+  if (
+    Object.hasOwn(publication, "last_routine_preview_bound") &&
+    publication.last_routine_preview_bound !== "all-published-previews"
+  )
+    throw new Error("unsupported Preview cadence upper-bound scope");
   if (publication.complete !== true) throw new Error("publication inventory is incomplete");
   const observed = instant(publication.observed_at, "publication observation");
   if (observed > now) throw new Error("publication observation is in the future");
@@ -288,7 +310,7 @@ function validateActive(active: unknown) {
       "transient_retries",
       "substantive_repairs",
     ],
-    ["release_run", "frozen_opportunity"],
+    ["release_run", "frozen_opportunity", "stage_evidence", "report_repair"],
     "active candidate",
   );
   for (const field of ["source_commit", "source_tree", "prepared_commit", "prepared_tree"])
@@ -313,6 +335,8 @@ function validateActive(active: unknown) {
     if (frozen.source_commit !== active.source_commit || frozen.source_tree !== active.source_tree)
       throw new Error("frozen opportunity differs from active original source");
   }
+  if (active.report_repair !== undefined)
+    inspectPublicationReportRepair(active.report_repair, active);
   if (active.release_run !== undefined && active.release_run !== null) {
     exactKeys(active.release_run, ["run_id", "attempt", "revision"], [], "release run");
     if (
@@ -342,8 +366,14 @@ function validateActive(active: unknown) {
     transient_retries: boundedCount(active.transient_retries, 2, "transient retries"),
     substantive_repairs: boundedCount(active.substantive_repairs, 3, "substantive repairs"),
     release_run: active.release_run ?? null,
+    ...(active.report_repair === undefined
+      ? {}
+      : { report_repair: inspectPublicationReportRepair(active.report_repair, active) }),
     ...(Object.hasOwn(active, "frozen_opportunity")
       ? { frozen_opportunity: validateOpportunity(active.frozen_opportunity) }
+      : {}),
+    ...(Object.hasOwn(active, "stage_evidence")
+      ? { stage_evidence: inspectCandidateStageEvidence(active.stage_evidence, active) }
       : {}),
   };
 }
@@ -353,12 +383,15 @@ type Authority = {
   controller_revision: string;
   publication_observed_at: string;
   publication_sha256: string;
-  opportunity_base_commit: string;
-  opportunity_commit: string;
-  opportunity_tree: string;
-  change_set_sha256: string;
-  reviewed_classification_sha256: string;
+  opportunity_base_commit?: string;
+  opportunity_commit?: string;
+  opportunity_tree?: string;
+  change_set_sha256?: string;
+  reviewed_classification_sha256?: string;
   capacity_attempt?: ReturnType<typeof assessBoundedCapacity>;
+  published_metadata_sha256?: string;
+  metadata_renewal_sha256?: string;
+  metadata_bootstrap_sha256?: string;
 };
 function activePlan(
   active: NonNullable<ReturnType<typeof validateActive>>,
@@ -385,9 +418,11 @@ function activePlan(
     transient_retries: active.transient_retries,
     substantive_repairs: active.substantive_repairs,
     release_run: active.release_run ?? null,
+    ...(active.report_repair === undefined ? {} : { report_repair: active.report_repair }),
     ...(Object.hasOwn(active, "frozen_opportunity")
       ? { frozen_opportunity: active.frozen_opportunity }
       : {}),
+    ...(Object.hasOwn(active, "stage_evidence") ? { stage_evidence: active.stage_evidence } : {}),
   };
   if (active.phase !== "failed")
     return plan(
@@ -442,17 +477,100 @@ export function planReleaseOpportunity(input: unknown) {
   exactKeys(
     input,
     ["schema_version", "now", "controller", "opportunity", "publication", "active_candidate"],
-    [],
+    [
+      "published_metadata",
+      "metadata_renewal",
+      "metadata_bootstrap",
+      "review_request",
+      "review_disposition",
+    ],
     "release coordinator input",
   );
   if (input.schema_version !== 1 && input.schema_version !== 2)
     throw new Error("unsupported release coordinator schema");
   const now = instant(input.now, "coordinator time");
   const controller = validateController(input.controller, input.schema_version);
-  const opportunity = validateOpportunity(input.opportunity);
   const publication = validatePublication(input.publication, now);
   const active = validateActive(input.active_candidate);
+  const hasMetadata =
+    Object.hasOwn(input, "published_metadata") ||
+    Object.hasOwn(input, "metadata_renewal") ||
+    Object.hasOwn(input, "metadata_bootstrap") ||
+    Object.hasOwn(input, "review_request") ||
+    Object.hasOwn(input, "review_disposition");
+  if (
+    hasMetadata &&
+    (input.schema_version !== 2 ||
+      !isRecord(input.controller) ||
+      !isRecord(input.controller.capacity_attempt) ||
+      input.controller.capacity_attempt.schema_version !== 2)
+  )
+    throw new Error("metadata journal fields require bounded capacity schema2");
+  const publishedMetadata = inspectPublishedMetadata(input.published_metadata);
+  const reviewRequest = inspectReleaseReviewRequest(input.review_request);
+  const reviewDisposition = inspectReleaseReviewDisposition(input.review_disposition);
+  const metadataRenewal =
+    input.metadata_renewal === undefined || input.metadata_renewal === null
+      ? null
+      : inspectMetadataRenewalDescriptor(input.metadata_renewal);
+  const metadataBootstrap =
+    input.metadata_bootstrap == null
+      ? null
+      : inspectMetadataBootstrapDescriptor(input.metadata_bootstrap);
+  if (input.opportunity === null) {
+    if (!metadataBootstrap || active || publication.reserved_versions.length !== 0)
+      throw new Error(
+        "null semantic opportunity requires explicit initial metadata state without a reservation",
+      );
+    const authority: Authority = {
+      controller_workflow: controller.workflow,
+      controller_revision: controller.revision,
+      publication_observed_at: publication.observed_at,
+      publication_sha256: capacityDigest(input.publication),
+      metadata_bootstrap_sha256: capacityDigest(metadataBootstrap),
+      ...(controller.capacity ? { capacity_attempt: controller.capacity } : {}),
+      ...(Object.hasOwn(input, "published_metadata")
+        ? { published_metadata_sha256: capacityDigest(publishedMetadata) }
+        : {}),
+      ...(Object.hasOwn(input, "metadata_renewal")
+        ? { metadata_renewal_sha256: capacityDigest(metadataRenewal) }
+        : {}),
+      ...(Object.hasOwn(input, "review_request")
+        ? { review_request_sha256: capacityDigest(reviewRequest) }
+        : {}),
+      ...(Object.hasOwn(input, "review_disposition")
+        ? { review_disposition_sha256: capacityDigest(reviewDisposition) }
+        : {}),
+    };
+    return plan(
+      controller.publication_paused || controller.capacity?.eligibility !== "eligible"
+        ? "pause"
+        : "skip",
+      controller.publication_paused
+        ? "publication emergency pause is active"
+        : controller.capacity?.eligibility !== "eligible"
+          ? "bounded initial metadata state is held"
+          : "explicit initial metadata state has no semantic release opportunity",
+      authority,
+    );
+  }
+  const opportunity = validateOpportunity(input.opportunity);
   const authority = {
+    ...(Object.hasOwn(input, "review_disposition")
+      ? { review_disposition_sha256: capacityDigest(reviewDisposition) }
+      : {}),
+    ...(Object.hasOwn(input, "review_request")
+      ? { review_request_sha256: capacityDigest(reviewRequest) }
+      : {}),
+    ...(Object.hasOwn(input, "published_metadata")
+      ? { published_metadata_sha256: capacityDigest(publishedMetadata) }
+      : {}),
+    ...(Object.hasOwn(input, "metadata_renewal")
+      ? { metadata_renewal_sha256: capacityDigest(metadataRenewal) }
+      : {}),
+    ...(Object.hasOwn(input, "metadata_bootstrap")
+      ? { metadata_bootstrap_sha256: capacityDigest(metadataBootstrap) }
+      : {}),
     ...(controller.capacity ? { capacity_attempt: controller.capacity } : {}),
     controller_workflow: controller.workflow,
     controller_revision: controller.revision,
@@ -539,22 +657,28 @@ async function readInput(filename: string): Promise<unknown> {
   return JSON.parse(await readFile(filename, "utf8"));
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
-  const filename = process.argv[2];
-  if (process.argv.length !== 3 || !filename)
-    throw new Error("usage: release-coordinator.mts INPUT.json");
-  const input = await readInput(path.resolve(filename));
-  object(input, "release coordinator input");
-  const controller = isRecord(input.controller) ? input.controller : {};
-  if (
-    process.env.PORTCOVE_CONTROLLER_REVISION &&
-    controller.revision !== process.env.PORTCOVE_CONTROLLER_REVISION
-  )
-    throw new Error("coordinator input does not match the executing controller revision");
-  if (
-    process.env.PORTCOVE_CONTROLLER_WORKFLOW &&
-    controller.workflow !== process.env.PORTCOVE_CONTROLLER_WORKFLOW
-  )
-    throw new Error("coordinator input does not match the executing controller workflow");
-  console.log(JSON.stringify(planReleaseOpportunity(input), null, 2));
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+    const filename = process.argv[2];
+    if (process.argv.length !== 3 || !filename)
+      throw new Error("usage: release-coordinator.mts INPUT.json");
+    const input = await readInput(path.resolve(filename));
+    object(input, "release coordinator input");
+    const controller = isRecord(input.controller) ? input.controller : {};
+    if (
+      process.env.PORTCOVE_CONTROLLER_REVISION &&
+      controller.revision !== process.env.PORTCOVE_CONTROLLER_REVISION
+    )
+      throw new Error("coordinator input does not match the executing controller revision");
+    if (
+      process.env.PORTCOVE_CONTROLLER_WORKFLOW &&
+      controller.workflow !== process.env.PORTCOVE_CONTROLLER_WORKFLOW
+    )
+      throw new Error("coordinator input does not match the executing controller workflow");
+    console.log(JSON.stringify(planReleaseOpportunity(input), null, 2));
+  }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

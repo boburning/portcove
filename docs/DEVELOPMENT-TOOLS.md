@@ -158,6 +158,13 @@ review; missing command records fail. #1973 still needs a naturally occurring
 hosted proposal/artifact readback, and full lockfile maintenance remains outside
 this scoped transitive-age guarantee.
 
+Playnite build-package updates use the existing
+[manual reviewed MSBuild route](../integrations/playnite/README.md#build-package-maintenance).
+The [NuGet compatibility investigation](qualification/playnite-nuget-renovate-2026-10-21.md)
+records why the classic project/lock pairs remain outside NuGet-manager coverage
+and the evidence required before adopting it. PSScriptAnalyzer's custom NuGet
+datasource remains independently configured in `renovate.json`.
+
 ## Frontend workflow
 
 ### TypeScript execution and compatibility files
@@ -274,6 +281,11 @@ with literal files for exact Node/browser selection and `just test-ui-related`
 for the public import graph. Failed browser
 screenshots and traces remain under `.vitest` and `work/bt`.
 The trace-probe script deliberately fails and preserves diagnostics.
+
+Browser-session connection has a finite 180-second Windows budget and a
+60-second budget elsewhere. This accommodates cold startup on shared Windows
+storage; it does not lengthen test assertions or retry failed tests. Retain a
+failed connection attempt separately from tests that actually ran.
 
 `vp check` integrates formatting, linting and TypeScript checking. `pnpm check`
 first verifies the coordinated installed toolchain and also runs Stylelint. The
@@ -1121,6 +1133,33 @@ just desktop-verify --scenario keyboard-layout --scenario accessibility
 just desktop-verify --profile presentation
 ```
 
+`native-interface-size` selects presets through the actual Appearance control.
+Before sending its selection keys, it waits for the popup to own focus and
+checks the highlighted option before committing. A mounted listbox alone does
+not establish keyboard readiness. Failures retain viewport/preference observations
+and a screenshot before reset/resize cleanup; the original assertion still fails.
+
+`native-library-layout` uses two owned inert installations to check both Library
+views and themes through ordinary window sizes and native interface sizing. At
+startup it imports the existing red/blue diagnostic JPEGs into the disposable
+Library and waits for their loaded images, isolating resize behavior from
+catalog-network arrival and failure notices. These are geometry fixtures, not
+game-artwork references. At
+200%, it retains settled screenshots and an ordinary/wider/compact/ordinary
+resize cycle with the exact overflow trigger focused. Observations distinguish
+requested outer size, actual outer size, effective viewport and scroll-owner
+geometry. Query, view, entry count and trigger focus must survive the cycle;
+the existing 300%/400% reflow and detail-return checks still apply. This is a
+bounded native fixture check. It also inserts an explicitly recorded DOM-only
+artwork-feedback notice while the menu is open, checks menu focus/scroll, then
+inserts feedback again after returning to the exact trigger. It checks visible
+focus before and through resizing. This layout
+perturbation does not establish a Core artwork failure or provider behavior.
+The notice is removed after capture; imported artwork and selections remain
+unchanged. It is not
+large-collection, gameplay, OS DPI, physical
+controller or assistive-technology acceptance.
+
 `just desktop-verify --scenario native-saved-folder-hash-resume --require-clean`
 selects one standalone
 Windows journey outside routine profiles. An isolated first-party CLI seeds a
@@ -1275,6 +1314,24 @@ The curated profiles are:
   library-move and CLI-handoff scenarios.
 - `full`: smoke, owned lifecycle and artwork. It remains a curated native suite,
   not universal desktop, physical-device, gameplay or human qualification.
+
+Run staged-update composition separately from preparation journeys: its saved
+update deliberately remains staged, while preparation verifies an unstaged
+fixture preimage. Library layout and preparation cancellation also require
+separate fresh libraries because they use different JakII runtime modes. The
+planner rejects these pairs, including prerequisite closure, before launch;
+ordinary profiles remain unchanged. Do not activate/delete staged evidence or
+overwrite fixture modes to combine them. Layout measurement reloads after its
+fixture commits and waits for both exact rendered entries before measuring.
+
+Selections containing reviewed backup restore/delete use the finite ten-minute
+lifecycle watchdog even in a small focused chain. The three-minute allowance
+proved insufficient for preparation, game return and the native backup reviews;
+per-action waits and cleanup remain unchanged. Watchdog expiry records an explicit
+failed check before stopping the owned driver. Game-return evidence includes
+timestamped pre-click, post-click and settled focus/busy/scroll observations; it
+waits for readback exclusion to settle without focusing the origin or relaxing
+the original focus, connected-control, query/filter and scroll assertions.
 
 `--scenario native-host-publication-recovery` is a standalone instrumented Windows
 journey at existing Core install, restore, whole-library move and import checkpoints. It
@@ -1473,6 +1530,15 @@ or establish installed-package, physical-input or platform-default-reset evidenc
 Owned-lifecycle and full sequences use a bounded ten-minute watchdog because they
 compose more than eight independently bounded scenarios; this does not change any
 scenario's operation, UI wait, confirmation or process-shutdown timeout.
+
+Windows native `Wait` keeps the captured identity inventory unchanged. When a
+protected process hides its .NET start time, readable CIM creation time may prove
+that the PID now belongs to a different incarnation. Values within one millisecond
+remain ambiguous because the providers can differ in precision. Missing CIM
+metadata, an inaccessible same-incarnation image or unknown identity fails closed;
+it never establishes exit or permits termination. Only the existing exact-identity
+path can wait for a still-matching process. This fallback changes no stop mode or
+lease-release requirement.
 
 For low-level harness diagnosis, the existing command remains available:
 

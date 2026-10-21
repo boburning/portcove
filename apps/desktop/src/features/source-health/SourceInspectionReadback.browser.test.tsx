@@ -87,7 +87,7 @@ it.each(["failed", "cancelled"])(
       ]);
     await root.rerender(createElement(Fixture));
     await act(async () => state.verifyAll());
-    expect(row().textContent).toContain(failure.presentation.summary);
+    expect(row().textContent).toContain("Saved-file check did not pass.");
     expect(row().textContent).toContain(failure.presentation.technical_message);
     expect(row().textContent).toContain("Exact match");
 
@@ -95,7 +95,7 @@ it.each(["failed", "cancelled"])(
     await act(async () => {
       attempt = state.verifyAll();
     });
-    expect(row().textContent).not.toContain(failure.presentation.summary);
+    expect(row().textContent).not.toContain("Saved-file check did not pass.");
     expect(row().textContent).not.toContain(failure.presentation.technical_message);
     expect(row().textContent).not.toContain("private/source.z64");
     expect(row().textContent).toContain(report.summary);
@@ -107,7 +107,7 @@ it.each(["failed", "cancelled"])(
       });
       await attempt;
     });
-    expect(row().textContent).not.toContain(failure.presentation.summary);
+    expect(row().textContent).not.toContain("Saved-file check did not pass.");
     expect(row().textContent).not.toContain(failure.presentation.technical_message);
     expect(row().textContent).toContain(report.summary);
     const check = [...row().querySelectorAll("button")].find(
@@ -116,6 +116,7 @@ it.each(["failed", "cancelled"])(
     expect(check?.disabled).toBe(false);
     await act(async () => state.verifyAll());
     expect(state.outcomes).toMatchObject([{ ok: true }]);
+    expect(row().textContent).not.toContain("Saved-file check did not pass.");
     expect(row().textContent).toContain("Exact match");
   },
 );
@@ -245,3 +246,46 @@ it("keeps a healthy sibling visible when another current inspection fails", asyn
   expect(healthy.textContent).not.toContain("Check unavailable");
   expect(healthy.textContent).not.toContain(failure.presentation.summary);
 });
+
+it.each(["unknown", "committed"] as const)(
+  "keeps %s metadata technical when a saved-file verification returns a failed outcome",
+  async (mutationState) => {
+    const typedFailure = structuredClone(failure);
+    typedFailure.presentation.mutation_state = mutationState;
+    typedFailure.presentation.summary =
+      "The required game files could not be accepted or prepared.";
+    const missingReport: SourceInspectionReport = {
+      ...report,
+      health: "missing",
+      state_code: "source_missing",
+      summary: "The registered source could not be found.",
+      next_action: "Reconnect the original storage or relink to an unchanged copy.",
+    };
+    vi.spyOn(desktopApi, "inspectSource").mockResolvedValue(missingReport);
+    vi.spyOn(desktopApi, "verifySources").mockResolvedValue([
+      { error: typedFailure, ok: false, profile_id: source.profile_id, result: null },
+    ]);
+    await root.rerender(createElement(Fixture));
+    await act(async () => state.verifyAll());
+    expect(state.outcomes).toMatchObject([{ ok: false }]);
+    const primary = row().cloneNode(true) as HTMLElement;
+    primary.querySelectorAll("details").forEach((item) => item.remove());
+    expect(primary.textContent).toContain("Saved-file check did not pass.");
+    expect(primary.textContent).toContain(missingReport.summary);
+    expect(primary.textContent).toContain("Files not found");
+    expect(primary.textContent).not.toContain("Result unavailable");
+    expect(primary.textContent).toContain(missingReport.next_action);
+    expect(primary.textContent).not.toContain(typedFailure.presentation.summary);
+    expect(primary.textContent).not.toContain("couldn't confirm whether anything changed");
+    expect(primary.textContent).not.toContain("The change was saved");
+    expect(primary.textContent).not.toContain("No files were changed");
+    expect(primary.textContent).not.toContain(typedFailure.presentation.technical_message);
+    const technical = row().querySelector("details pre")!;
+    expect(JSON.parse(technical.textContent)).toMatchObject({
+      code: typedFailure.code,
+      mutation_state: mutationState,
+      message: typedFailure.presentation.technical_message,
+      context: typedFailure.presentation.technical_context,
+    });
+  },
+);

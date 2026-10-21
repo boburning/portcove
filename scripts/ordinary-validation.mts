@@ -299,12 +299,462 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map<string, readonly string[]>([
-  ...["inputs", "runtime", "reader", "reader-core", "reader-server", "broker"].map(
+  ...[
+    "release-controller-configuration",
+    "release-controller-job",
+    "release-controller-job-bootstrap",
+    "release-controller-job-output",
+    "release-aggregate-locator",
+    "release-coordinator-namespace",
+  ].map((name): [string, string[]] => [
+    `scripts/${name}.mts`,
+    ["scripts/release-tuf-controller.test.mts", "scripts/release-controller-tools.test.mts"],
+  ]),
+  [
+    ".github/actions/release-controller-job/action.yml",
+    ["scripts/release-controller-tools.test.mts"],
+  ],
+  ["scripts/read-native-wsl-host.ps1", ["scripts/release-native-wsl-boundary.test.mts"]],
+  [
+    "scripts/native-qualification-linux-transfer.py",
+    ["scripts/native-qualification-linux-transfer.test.mts"],
+  ],
+  [
+    "scripts/native-qualification-linux-transfer.test.py",
+    ["scripts/native-qualification-linux-transfer.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/native-linux-isolated-plan.mts",
+    ["scripts/native-linux-isolated-plan.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/native-linux-isolated-session.mts",
+    ["scripts/native-linux-isolated-plan.test.mts", "scripts/desktop-linux-stop.test.mts"],
+  ],
+  [
+    "scripts/native-qualification-linux-supervisor.py",
+    ["scripts/native-qualification-linux-supervisor.test.mts"],
+  ],
+  [
+    "scripts/native-qualification-linux-supervisor.test.py",
+    ["scripts/native-qualification-linux-supervisor.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/native-linux-isolated-init.py",
+    ["scripts/native-linux-isolated-init.test.mts"],
+  ],
+  ["scripts/native-linux-isolated-init.test.py", ["scripts/native-linux-isolated-init.test.mts"]],
+  ...["release-tuf-controller", "release-tuf-launch", "release-signing-job-budget"].map(
     (name): [string, string[]] => [
-      `scripts/release-semantic-${name}.mts`,
-      ["scripts/release-semantic-broker.test.mts"],
+      `scripts/${name}.mts`,
+      ["scripts/release-tuf-controller.test.mts"],
     ],
   ),
+  ...[
+    "release-metadata-signing-contract",
+    "release-metadata-signing-context",
+    "release-metadata-signing-controller",
+  ].map((name): [string, string[]] => [
+    `scripts/${name}.mts`,
+    ["scripts/release-metadata-signing-context.test.mts"],
+  ]),
+  [
+    "scripts/release-metadata-context-recovery.mts",
+    ["scripts/release-metadata-context-recovery.test.mts"],
+  ],
+  [
+    "scripts/release-candidate-signing-recovery.mts",
+    ["scripts/release-candidate-signing-recovery.test.mts"],
+  ],
+  [
+    "scripts/release-pending-release-recovery.mts",
+    ["scripts/release-pending-release-recovery.test.mts"],
+  ],
+  ["scripts/release-effect-contract.mts", ["scripts/release-pending-release-recovery.test.mts"]],
+  [
+    "scripts/release-pending-result-recovery.mts",
+    ["scripts/release-pending-result-recovery.test.mts"],
+  ],
+  [
+    "scripts/release-report-repair-contract.mts",
+    ["scripts/release-report-repair-contract.test.mts"],
+  ],
+  [
+    "scripts/release-report-repair-identity.mts",
+    ["scripts/release-report-repair-identity.test.mts"],
+  ],
+  [
+    "scripts/release-run-artifact-inventory.mts",
+    ["scripts/release-run-artifact-inventory.test.mts"],
+  ],
+  [
+    "scripts/release-metadata-site-controller.mts",
+    ["scripts/release-metadata-site-controller.test.mts"],
+  ],
+  ["scripts/release-coordinator-deadline.mts", ["scripts/release-coordinator-deadline.test.mts"]],
+  ...["worker", "worker-recovery", "request-pipeline"].map((name): [string, string[]] => [
+    `scripts/release-semantic-${name}.mts`,
+    ["scripts/release-semantic-worker.test.mts"],
+  ]),
+  ...[
+    "scripts/release-semantic-source.mts",
+    "scripts/semantic-source-git.py",
+    "scripts/semantic-source-git.test.py",
+    "scripts/qualify-semantic-source.mts",
+  ].map((name): [string, string[]] => [name, ["scripts/release-semantic-source.test.mts"]]),
+  [
+    "scripts/release-classification-request.mts",
+    ["scripts/release-classification-request.test.mts"],
+  ],
+  ["scripts/release-preparation-source.mts", ["scripts/release-preparation-source.test.mts"]],
+  ["scripts/release-coordinator-driver.mts", ["scripts/release-coordinator-driver.test.mts"]],
+  ["scripts/release-coordinator-deadline.mts", ["scripts/release-coordinator-deadline.test.mts"]],
+  ["scripts/release-review-request.mts", ["scripts/release-review-request.test.mts"]],
+  ["scripts/release-candidate-dispatch.mts", ["scripts/release-candidate-dispatch.test.mts"]],
+  ["scripts/release-candidate-progress.mts", ["scripts/release-candidate-progress.test.mts"]],
+  [
+    "scripts/release-admitted-aggregate-controller.mts",
+    ["scripts/release-admitted-aggregate-controller.test.mts"],
+  ],
+  [
+    "scripts/release-aggregate-contract.mts",
+    ["scripts/release-admitted-aggregate-controller.test.mts"],
+  ],
+  [
+    "scripts/release-aggregate-upload.mts",
+    ["scripts/release-admitted-aggregate-controller.test.mts"],
+  ],
+  [
+    "scripts/release-readonly-child-environment.mts",
+    ["scripts/release-admitted-aggregate-controller.test.mts"],
+  ],
+
+  [
+    "scripts/release-candidate-progress-contract.mts",
+    ["scripts/release-candidate-progress-contract.test.mts"],
+  ],
+  ["scripts/release-publication-inventory.mts", ["scripts/acquire-release-admission.test.mts"]],
+  ["scripts/release-published-source.mts", ["scripts/release-published-source.test.mts"]],
+  ["scripts/release-semantic-disposition.mts", ["scripts/release-semantic-disposition.test.mts"]],
+  [
+    "scripts/release-semantic-disposition-reader.mts",
+    ["scripts/release-semantic-disposition-reader.test.mts"],
+  ],
+  [
+    "scripts/release-authority-configuration.mts",
+    [
+      "scripts/production-controller-admission.test.mts",
+      "scripts/release-bootstrap-preparation.test.mts",
+    ],
+  ],
+  [
+    "scripts/fixtures/release-semantic-disposition-fixture.mts",
+    [
+      "scripts/release-semantic-disposition.test.mts",
+      "scripts/release-semantic-disposition-reader.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-coordinator-journal-api.mts",
+    ["scripts/release-coordinator-journal-api.test.mts"],
+  ],
+  ["scripts/release-site-deployment.mts", ["scripts/release-site-deployment.test.mts"]],
+  ["scripts/release-site-controller.mts", ["scripts/release-site-controller.test.mts"]],
+  ["scripts/release-site-launch.mts", ["scripts/release-site-controller.test.mts"]],
+  ["scripts/release-control-step-bridge.mts", ["scripts/release-control-step-bridge.test.mts"]],
+  ["scripts/release-controller-transport.mts", ["scripts/release-controller-transport.test.mts"]],
+  ["scripts/release-controller-diagnostics.mts", ["scripts/release-controller-transport.test.mts"]],
+  [
+    "docs/qualification/application-update-production.complete.yml",
+    ["scripts/release-production-dag.test.mts"],
+  ],
+  [
+    ".github/actions/release-control-observer/action.yml",
+    ["scripts/release-production-dag.test.mts"],
+  ],
+  [
+    ".github/actions/release-controller-transport/action.yml",
+    ["scripts/release-controller-transport.test.mts"],
+  ],
+  ["scripts/release-site-job-budget.mts", ["scripts/release-site-controller.test.mts"]],
+
+  ["scripts/release-site-readback.mts", ["scripts/release-site-readback.test.mts"]],
+  ["scripts/release-metadata-renewal.mts", ["scripts/release-metadata-renewal.test.mts"]],
+  ["scripts/release-bootstrap-preparation.mts", ["scripts/release-bootstrap-preparation.test.mts"]],
+  [
+    "scripts/release-bootstrap-public-inputs.mts",
+    ["scripts/release-bootstrap-preparation.test.mts"],
+  ],
+  [
+    "scripts/release-compiler-source-closure.mts",
+    ["scripts/release-compiler-source.test.mts", "scripts/release-controller-tools.test.mts"],
+  ],
+  [
+    "scripts/release-compiler-source-admission.mts",
+    [
+      "scripts/release-compiler-source-admission.test.mts",
+      "scripts/release-compiler-evidence.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-source-attestation.mts",
+    ["scripts/release-source-attestation.test.mts", "scripts/release-compiler-evidence.test.mts"],
+  ],
+  [
+    "scripts/release-compiler-source.mts",
+    [
+      "scripts/release-compiler-source.test.mts",
+      "scripts/release-compiler-source-admission.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-compiler-evidence.mts",
+    ["scripts/release-compiler-evidence.test.mts", "scripts/acquire-release-admission.test.mts"],
+  ],
+  [
+    "scripts/release-compiler-outputs.mts",
+    ["scripts/release-compiler-outputs.test.mts", "scripts/release-compiler-evidence.test.mts"],
+  ],
+  [
+    "scripts/release-compiler-desktop.mts",
+    [
+      "scripts/release-compiler-outputs.test.mts",
+      "scripts/release-compiler-capture.test.mts",
+      "scripts/release-compiler-evidence.test.mts",
+    ],
+  ],
+  ["scripts/release-publication-inventory.mts", ["scripts/acquire-release-admission.test.mts"]],
+  ["scripts/release-site-composer.mts", ["scripts/release-site-composer.test.mts"]],
+  ["scripts/release-pages-provider.mts", ["scripts/release-pages-provider.test.mts"]],
+  ["scripts/release-pages-recovery.mts", ["scripts/release-pages-recovery.test.mts"]],
+  [
+    "scripts/release-pages-metadata-recovery.mts",
+    ["scripts/release-pages-metadata-recovery.test.mts"],
+  ],
+  ["scripts/release-capacity-executor.mts", ["scripts/release-capacity-executor.test.mts"]],
+  [
+    "scripts/release-native-admission.mts",
+    [
+      "scripts/release-native-admission.test.mts",
+      "scripts/release-native-check-discovery.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-native-check-discovery.mts",
+    ["scripts/release-native-check-discovery.test.mts"],
+  ],
+  ["scripts/release-native-stage-capture.mts", ["scripts/release-native-stage-capture.test.mts"]],
+  ["scripts/release-native-scheduler.mts", ["scripts/release-native-scheduler.test.mts"]],
+  ["scripts/release-local-native-setup.mts", ["scripts/release-local-native-setup.test.mts"]],
+  ["scripts/release-local-worker-tasks.mts", ["scripts/release-local-worker-tasks.test.mts"]],
+  ["scripts/release-local-worker-accounts.ps1", ["scripts/release-local-worker-accounts.test.mts"]],
+  [
+    "scripts/release-native-account-capability.mts",
+    ["scripts/release-native-account-capability.test.mts"],
+  ],
+  ["scripts/release-native-parent.mts", ["scripts/release-native-parent.test.mts"]],
+  ["scripts/release-native-wsl-boundary.mts", ["scripts/release-native-wsl-boundary.test.mts"]],
+  [
+    "apps/desktop/scripts/native-linux-driver-http.mts",
+    ["scripts/native-linux-driver-http.test.mts"],
+  ],
+  [
+    "scripts/release-native-candidate.mts",
+    ["scripts/release-native-candidate.test.mts", "scripts/release-native-attempt.test.mts"],
+  ],
+  ["scripts/release-native-keyless-assembly.mts", ["scripts/release-native-candidate.test.mts"]],
+  [
+    "scripts/release-native-linux-public-capture.mts",
+    ["scripts/release-native-linux-public-capture.test.mts"],
+  ],
+  [
+    "scripts/release-native-attempt.mts",
+    [
+      "scripts/release-native-attempt.test.mts",
+      "scripts/release-native-public-attempt-contract.test.mts",
+    ],
+  ],
+  ...["pair", "compiler", "signature", "attempt-contract"].map(
+    (name): [string, readonly string[]] => [
+      `scripts/release-native-public-${name}.mts`,
+      [`scripts/release-native-public-${name}.test.mts`],
+    ],
+  ),
+  [
+    "scripts/release-compiler-report-archive.mts",
+    [
+      "scripts/release-compiler-evidence.test.mts",
+      "scripts/release-native-public-compiler.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-native-source-contract.mts",
+    ["scripts/release-native-source-contract.test.mts"],
+  ],
+  [
+    "scripts/release-native-pre-sign-report.mts",
+    ["scripts/release-native-pre-sign-report.test.mts"],
+  ],
+  ["scripts/release-native-check-broker.mts", ["scripts/release-native-check-broker.test.mts"]],
+  [
+    "scripts/release-native-worker.mts",
+    [
+      "scripts/release-native-windows-driver.test.mts",
+      "scripts/release-native-public-attempt-contract.test.mts",
+      "scripts/release-native-linux-public-capture.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-native-windows-capture.mts",
+    [
+      "scripts/release-native-windows-driver.test.mts",
+      "scripts/release-native-public-attempt-contract.test.mts",
+      "scripts/release-native-public-signature.test.mts",
+    ],
+  ],
+  ["scripts/release-native-windows-driver.ps1", ["scripts/release-native-windows-driver.test.mts"]],
+  [
+    "scripts/release-native-windows-public-continuation.mts",
+    [
+      "scripts/release-native-windows-public-continuation.test.mts",
+      "scripts/release-native-windows-driver.test.mts",
+    ],
+  ],
+  [
+    "scripts/fixtures/native-authority-configuration-fixture.mts",
+    ["scripts/release-native-parent.test.mts"],
+  ],
+  ["scripts/read-native-scheduler.ps1", ["scripts/release-native-scheduler.test.mts"]],
+  ["scripts/release-signing-handoff.mts", ["scripts/release-signing-handoff.test.mts"]],
+  ["scripts/release-tuf-role-artifact.mts", ["scripts/release-tuf-role-artifact.test.mts"]],
+  [
+    "scripts/fixtures/tuf-worker-fixture.mts",
+    ["scripts/release-tuf-signing.test.mts", "scripts/release-connected-fixture.test.mts"],
+  ],
+  ["scripts/release-tuf-signing.mts", ["scripts/release-tuf-signing.test.mts"]],
+  ["scripts/release-signing-context.mts", ["scripts/release-signing-context.test.mts"]],
+  [
+    "scripts/release-preview-withdrawals.mts",
+    [
+      "scripts/release-preview-withdrawals.test.mts",
+      "scripts/reconstruct-application-update-records.test.mts",
+    ],
+  ],
+  [
+    "release-preview-withdrawals.json",
+    [
+      "scripts/release-preview-withdrawals.test.mts",
+      "scripts/reconstruct-application-update-records.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-publication-controller.mts",
+    ["scripts/release-publication-controller.test.mts"],
+  ],
+  ["scripts/release-publication-handoff.mts", ["scripts/release-publication-controller.test.mts"]],
+  ["scripts/release-publication-inputs.mts", ["scripts/release-publication-inputs.test.mts"]],
+  ["scripts/release-publication-source.mts", ["scripts/release-publication-source.test.mts"]],
+  [
+    "scripts/linux-beta-risk-706-preparation.mts",
+    ["scripts/linux-beta-risk-706.test.mts", "scripts/release-publication-source.test.mts"],
+  ],
+  [
+    "scripts/linux-beta-risk-706-profile.mts",
+    ["scripts/linux-beta-risk-706-controller.test.mts", "scripts/linux-beta-risk-706.test.mts"],
+  ],
+  [
+    "scripts/linux-beta-risk-706-controller.mts",
+    [
+      "scripts/linux-beta-risk-706-controller.test.mts",
+      "scripts/release-compiler-evidence.test.mts",
+      "scripts/release-immutable-publication.test.mts",
+      "scripts/release-site-deployment.test.mts",
+    ],
+  ],
+  ["scripts/release-tuf-publication.mts", ["scripts/release-tuf-signing.test.mts"]],
+  [
+    "scripts/release-native-publication-admission.mts",
+    ["scripts/release-native-admission.test.mts"],
+  ],
+  ["scripts/release-controller-wake.mts", ["scripts/release-controller-wake.test.mts"]],
+  ["scripts/release-publication-result.mts", ["scripts/release-publication-result.test.mts"]],
+  [
+    "scripts/release-publication-result-artifact.mts",
+    ["scripts/release-publication-result-artifact.test.mts"],
+  ],
+  [
+    "scripts/release-signing-context-artifact.mts",
+    ["scripts/release-signing-context-artifact.test.mts"],
+  ],
+  [
+    "scripts/release-authority-configuration.mts",
+    [
+      "scripts/production-controller-admission.test.mts",
+      "scripts/release-bootstrap-preparation.test.mts",
+    ],
+  ],
+  ...["fuse", "services"].flatMap((name): [string, string[]][] => [
+    [
+      `apps/desktop/scripts/native-linux-public-${name}.py`,
+      [`scripts/native-linux-public-${name}.test.mts`],
+    ],
+    [
+      `apps/desktop/scripts/native-linux-public-${name}.test.py`,
+      [`scripts/native-linux-public-${name}.test.mts`],
+    ],
+  ]),
+  [
+    "apps/desktop/scripts/native-linux-public-plan.mts",
+    ["scripts/native-linux-public-plan.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/desktop-public-update-state.mts",
+    [
+      "apps/desktop/scripts/desktop-public-update-state.native.test.mts",
+      "apps/desktop/scripts/desktop-windows-public-update.native.test.mts",
+    ],
+  ],
+  [
+    "apps/desktop/scripts/desktop-public-update-files.mts",
+    [
+      "apps/desktop/scripts/desktop-linux-public-update.native.test.mts",
+      "apps/desktop/scripts/desktop-windows-public-update.native.test.mts",
+    ],
+  ],
+  [
+    "apps/desktop/scripts/desktop-linux-public-update.mts",
+    ["apps/desktop/scripts/desktop-linux-public-update.native.test.mts"],
+  ],
+  ...[
+    "apps/desktop/scripts/native-linux-public-network.py",
+    "apps/desktop/scripts/native-linux-public-network.test.py",
+  ].map((name): [string, string[]] => [name, ["scripts/native-linux-public-network.test.mts"]]),
+  ...[
+    "scripts/semantic-review-linux-supervisor.py",
+    "scripts/semantic-review-linux-supervisor.test.py",
+    "scripts/qualify-semantic-linux.mts",
+  ].map((name): [string, string[]] => [
+    name,
+    [
+      "scripts/semantic-review-linux-supervisor.test.mts",
+      "scripts/release-semantic-broker.test.mts",
+      "scripts/release-semantic-worker.test.mts",
+    ],
+  ]),
+  ...[
+    "inputs",
+    "proposal",
+    "issuer",
+    "issuer-http",
+    "runtime",
+    "reader",
+    "reader-core",
+    "reader-server",
+    "broker",
+  ].map((name): [string, string[]] => [
+    `scripts/release-semantic-${name}.mts`,
+    ["scripts/release-semantic-broker.test.mts"],
+  ]),
   [".github/workflows/native-design-compatibility.yml", ["scripts/workflow-provenance.test.mts"]],
   [
     "scripts/validation-evidence.mts",
@@ -373,6 +823,12 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ],
   ]),
   ...[
+    "apps/desktop/scripts/desktop-application-update-journey.mts",
+    "apps/desktop/scripts/desktop-installed-update-harness.mts",
+    "apps/desktop/scripts/desktop-windows-public-update.mts",
+    "apps/desktop/scripts/desktop-windows-public-update-files.mts",
+  ].map((file): [string, string[]] => [file, ["scripts/desktop-scenarios.test.mts"]]),
+  ...[
     "scripts/validation-plan.mts",
     "scripts/validation-plan.test.mts",
     "scripts/local-validation.mts",
@@ -437,7 +893,61 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   ["scripts/upstream-observer.mts", ["scripts/discovery-checkpoint.test.mts"]],
   ["scripts/observe-configured-upstream.mts", ["scripts/discovery-checkpoint.test.mts"]],
-  ["scripts/test-windows-installer.ps1", ["scripts/repository-skills.test.mts"]],
+  [
+    "scripts/test-windows-installer.ps1",
+    [
+      "scripts/repository-skills.test.mts",
+      "scripts/native-qualification-account-adapter.test.mts",
+      "scripts/desktop-scenarios.test.mts",
+    ],
+  ],
+  [
+    "scripts/native-qualification-account.cs.txt",
+    ["scripts/native-qualification-account.test.mts"],
+  ],
+  [
+    "scripts/native-qualification-account-bridge.ps1",
+    [
+      "scripts/native-qualification-account.test.mts",
+      "scripts/native-qualification-account-adapter.test.mts",
+    ],
+  ],
+  [
+    "scripts/native-qualification-account-client.ps1",
+    [
+      "scripts/native-qualification-account.test.mts",
+      "scripts/native-qualification-account-client.test.mts",
+    ],
+  ],
+  [
+    "scripts/native-qualification-account-client.mts",
+    [
+      "scripts/native-qualification-account-client.test.mts",
+      "scripts/desktop-native-account-session.test.mts",
+    ],
+  ],
+  [
+    "scripts/native-qualification-account-adapter.psm1",
+    ["scripts/native-qualification-account-adapter.test.mts"],
+  ],
+  [
+    "scripts/native-qualification-account-registry.ps1",
+    [
+      "scripts/native-qualification-account-adapter.test.mts",
+      "scripts/release-native-account-capability.test.mts",
+    ],
+  ],
+  [
+    "scripts/fixtures/native-account-gui-probe.ps1",
+    ["scripts/native-qualification-account.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/desktop-native-account-session.mts",
+    [
+      "scripts/desktop-native-account-session.test.mts",
+      "scripts/native-helper-dependencies.test.mts",
+    ],
+  ],
   ["scripts/windows-qualification-session.ps1", ["scripts/repository-skills.test.mts"]],
   [
     "crates/portcove-core/catalog/catalog-current-authoring.json",
@@ -538,28 +1048,114 @@ const explicitNodeTests = new Map<string, readonly string[]>([
 ]);
 
 const workflowTests = new Map([
-  ["application-update-production.yml", ["scripts/production-controller-admission.test.mts"]],
+  ["controller-tool-build-fixture.yml", ["scripts/release-controller-tools.test.mts"]],
+  [
+    "application-update-production.yml",
+    ["scripts/production-controller-admission.test.mts", "scripts/release-production-dag.test.mts"],
+  ],
+  [
+    "application-update-wake.yml",
+    ["scripts/release-controller-wake.test.mts", "scripts/release-production-dag.test.mts"],
+  ],
   ["release.yml", ["scripts/release-workflow.test.mts"]],
   ["qualification.yml", ["scripts/qualification-coverage.test.mts"]],
   ["configured-upstream-observer.yml", ["scripts/upstream-observer.test.mts"]],
   ["upstream-health.yml", ["scripts/upstream-observer.test.mts"]],
-  ["updater-artifact-rehearsal.yml", ["scripts/updater-artifact-inventory.test.mts"]],
+  [
+    "updater-artifact-rehearsal.yml",
+    ["scripts/updater-artifact-inventory.test.mts", "scripts/release-payload-signing.test.mts"],
+  ],
   ["pr-conventions.yml", ["scripts/pr-conventions.test.mts"]],
 ]);
 
 const releaseContractTests = Object.freeze([
+  "scripts/release-native-account-capability.test.mts",
+  "scripts/release-local-worker-accounts.test.mts",
+  "scripts/release-local-worker-tasks.test.mts",
+  "scripts/release-native-public-pair.test.mts",
+  "scripts/release-native-public-compiler.test.mts",
+  "scripts/release-native-public-signature.test.mts",
+  "scripts/release-native-public-attempt-contract.test.mts",
   "scripts/production-controller-admission.test.mts",
   "scripts/controller-canary.test.mts",
   "scripts/check-release-metadata.test.mts",
   "scripts/release-package-policy.test.mts",
+  "scripts/release-public-build-inputs.test.mts",
+  "scripts/release-public-build-provenance.test.mts",
+  "scripts/release-handshake-hosted-fixture.test.mts",
+  "scripts/release-controller-tools.test.mts",
+  "scripts/release-compiler-source.test.mts",
+  "scripts/release-native-qualification-contract.test.mts",
+  "scripts/release-native-stage-capture.test.mts",
+  "scripts/release-native-scheduler.test.mts",
+  "scripts/release-native-parent.test.mts",
+  "scripts/release-native-wsl-boundary.test.mts",
+  "scripts/native-linux-driver-http.test.mts",
+  "scripts/native-linux-isolated-init.test.mts",
+  "scripts/native-linux-isolated-plan.test.mts",
+  "scripts/native-linux-public-fuse.test.mts",
+  "scripts/native-linux-public-services.test.mts",
+  "scripts/native-linux-public-plan.test.mts",
+
+  "scripts/release-native-linux-driver.test.mts",
+  "scripts/native-qualification-linux-supervisor.test.mts",
+  "scripts/native-qualification-linux-transfer.test.mts",
+  "scripts/release-native-wsl-capture.test.mts",
+  "scripts/release-native-candidate.test.mts",
+  "scripts/release-native-public-pair.test.mts",
+  "scripts/release-native-public-attempt-contract.test.mts",
+  "scripts/release-native-linux-public-capture.test.mts",
+  "scripts/release-native-public-compiler.test.mts",
+  "scripts/release-native-attempt.test.mts",
+  "scripts/release-native-windows-driver.test.mts",
+  "scripts/release-native-windows-public-continuation.test.mts",
+  "scripts/release-native-source-contract.test.mts",
+  "scripts/release-native-pre-sign-report.test.mts",
+  "scripts/release-native-check-broker.test.mts",
+  "scripts/release-local-native-setup.test.mts",
+  "scripts/release-native-acceptance.test.mts",
+  "scripts/release-native-admission.test.mts",
+  "scripts/release-native-check-discovery.test.mts",
+  "scripts/release-bootstrap-preparation.test.mts",
+  "scripts/release-role-key-channel.test.mts",
+  "scripts/release-control-handshake.test.mts",
+  "scripts/release-live-control-admission.test.mts",
   "scripts/write-release-checksums.test.mts",
   "scripts/updater-artifact-inventory.test.mts",
+  "scripts/release-payload-signing.test.mts",
+  "scripts/release-payload-preparation.test.mts",
+  "scripts/release-signing-handoff.test.mts",
+  "scripts/release-tuf-role-artifact.test.mts",
+  "scripts/release-tuf-signing.test.mts",
+  "scripts/release-connected-fixture.test.mts",
+  "scripts/release-tuf-controller.test.mts",
+  "scripts/release-metadata-signing-context.test.mts",
+  "scripts/release-metadata-context-recovery.test.mts",
+  "scripts/release-candidate-signing-recovery.test.mts",
+  "scripts/release-pending-release-recovery.test.mts",
+  "scripts/release-pending-result-recovery.test.mts",
+  "scripts/release-report-repair-contract.test.mts",
+  "scripts/release-report-repair-identity.test.mts",
+  "scripts/release-run-artifact-inventory.test.mts",
+  "scripts/release-metadata-site-controller.test.mts",
+  "scripts/release-signing-context.test.mts",
+  "scripts/release-preview-withdrawals.test.mts",
+  "scripts/release-signing-context-artifact.test.mts",
+  "scripts/release-publication-controller.test.mts",
+  "scripts/release-publication-inputs.test.mts",
+  "scripts/release-publication-source.test.mts",
+  "scripts/release-controller-wake.test.mts",
+  "scripts/release-publication-result.test.mts",
+  "scripts/release-publication-result-artifact.test.mts",
   "scripts/reconcile-release-assets.test.mts",
+  "scripts/release-candidate-qualification.test.mts",
+  "scripts/release-immutable-publication.test.mts",
   "scripts/finalize-release-assets.test.mts",
   "scripts/generate-release-downloads.test.mts",
   "scripts/select-release-channel.test.mts",
   "scripts/release-coordinator.test.mts",
   "scripts/release-coordinator-state.test.mts",
+  "scripts/release-prepared-transport.test.mts",
   "scripts/release-run-evidence.test.mts",
   "scripts/reconstruct-application-update-records.test.mts",
   "scripts/release-workflow.test.mts",
@@ -668,6 +1264,15 @@ function classifyOnePath(
   }
   const includeFileChecks = options.includeFileChecks ?? true;
   let recognized = false;
+  if (
+    file.startsWith("docs/") &&
+    /\.ya?ml$/u.test(file) &&
+    validationOwnershipForPath(file).areas.includes("release-security")
+  ) {
+    selection.scopes.add("release-tooling");
+    for (const testFile of releaseContractTests) addNodeTest(selection, testFile);
+    recognized = true;
+  }
   if (
     file.startsWith("apps/desktop/src/browser/") ||
     file.startsWith("apps/desktop/src/components/ui/") ||
@@ -1102,6 +1707,8 @@ function sorted(set: ReadonlySet<string>) {
 export function nodeTestCommand(files: string[]) {
   const serialWindowsQualification = [
     "scripts/updater-artifact-inventory.test.mts",
+    "scripts/release-payload-signing.test.mts",
+    "scripts/release-payload-preparation.test.mts",
     "scripts/windows-qualification-session.integration.test.mts",
   ].every((file) => files.includes(file));
   return command(

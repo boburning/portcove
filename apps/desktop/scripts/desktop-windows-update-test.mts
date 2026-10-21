@@ -31,6 +31,17 @@ import {
 } from "./desktop-installed-update-harness.mts";
 
 assert.equal(process.platform, "win32", "Installed NSIS renderer qualification requires Windows");
+if (process.argv[2] === "--ordinary-public") {
+  const [, , , configuration, sha256, remaining, ...extra] = process.argv;
+  assert.ok(
+    configuration && sha256 && remaining && !extra.length && /^[1-9][0-9]*$/u.test(remaining),
+  );
+  const { runFixedWindowsPublicUpdateConfiguration } =
+    await import("./desktop-windows-public-update.mts");
+  await runFixedWindowsPublicUpdateConfiguration(configuration, sha256, Number(remaining));
+  // The public route has completed its own positive owned-tree cleanup. Never enter the marker route.
+  process.exit(0);
+}
 const { values } = parseArgs({
   options: Object.fromEntries(
     [
@@ -107,6 +118,7 @@ interface WindowsUpdateReport extends InstalledUpdateFailure {
   embedded_listener?: EmbeddedSession["listener"];
   embedded_startup?: EmbeddedSession["startup"];
   staged?: Awaited<ReturnType<typeof verifyInstalledUpdateStaging>>;
+  ordinary_staging?: Awaited<ReturnType<typeof driveInstalledUpdateToRestart>>;
   native_processes_before_restart?: NativeProcessSnapshot;
   bootstrap_before_restart?: unknown;
   restart_action_attempted?: boolean;
@@ -321,7 +333,11 @@ try {
     await awaitInstalledUpdateDriver(driver);
     browser = await connectInstalledUpdateDriver(app, webviewProfile);
   }
-  await driveInstalledUpdateToRestart(browser, report.actions);
+  report.ordinary_staging = await driveInstalledUpdateToRestart(
+    browser,
+    report.actions,
+    candidateVersion,
+  );
   const staged = await verifyInstalledUpdateStaging({
     stagingRoot: staging,
     payloadName: "candidate-installer.exe",

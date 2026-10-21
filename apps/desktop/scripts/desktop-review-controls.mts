@@ -144,19 +144,59 @@ export async function assertCompactReview(browser: WebDriver, selector: string) 
       const review = document.querySelector(selector);
       if (!review) throw new Error(`Review not found: ${selector}`);
       const bounds = review.getBoundingClientRect();
+      const geometry = (element: Element) => {
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return {
+          tag: element.tagName,
+          class: element.getAttribute("class"),
+          text: element.textContent?.slice(0, 100),
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth,
+          rect: { left: rect.left, right: rect.right, width: rect.width },
+          width: style.width,
+          minWidth: style.minWidth,
+          gridTemplateColumns: style.gridTemplateColumns,
+          padding: style.padding,
+          margin: style.margin,
+          boxSizing: style.boxSizing,
+          overflowX: style.overflowX,
+          overflowWrap: style.overflowWrap,
+          whiteSpace: style.whiteSpace,
+          fontSize: style.fontSize,
+        };
+      };
       return {
         pageOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
         dialogOverflow: review.scrollWidth > review.clientWidth + 1,
         inView: bounds.left >= 0 && bounds.right <= window.innerWidth,
+        diagnostics: {
+          viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
+          review: geometry(review),
+          children: [...review.children].map(geometry),
+          overflowing: [...review.querySelectorAll("*")]
+            .filter(
+              (element) =>
+                element.scrollWidth > element.clientWidth + 1 ||
+                element.getBoundingClientRect().right > bounds.right + 1,
+            )
+            .slice(0, 30)
+            .map(geometry),
+        },
       };
     },
     selector,
   );
-  assert.deepEqual(layout, {
-    pageOverflow: false,
-    dialogOverflow: false,
-    inView: true,
-  });
+  const { pageOverflow, dialogOverflow, inView } = layout;
+  assert.deepEqual(
+    { pageOverflow, dialogOverflow, inView },
+    {
+      pageOverflow: false,
+      dialogOverflow: false,
+      inView: true,
+    },
+    JSON.stringify(layout.diagnostics),
+  );
 }
 
 async function assertSemanticReviewAction(

@@ -1,4 +1,9 @@
 import {
+  createReleasePublicationReader,
+  peelReleaseReference,
+  releasePublicationRefsQuery as refsQuery,
+} from "./release-publication-inventory.mts";
+import {
   assessBoundedCapacity,
   capacityDigest,
   slice4CapacityResourceDigest,
@@ -9,21 +14,39 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import {
-  recoverRemoteCoordinator,
-  inspectRemoteCommitObject,
-} from "./release-coordinator-recovery.mts";
-import { inspectPreparationCommitBytes } from "./release-coordinator-state.mts";
+import { recoverRemoteCoordinator } from "./release-coordinator-recovery.mts";
 import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
+import {
+  collectReleaseSbomEvidence,
+  requireVerifiedReleaseSbomDocument,
+} from "./release-acceptance-evidence.mts";
+import { compareVerifiedReleaseCompilerSource } from "./release-compiler-source-admission.mts";
+import {
+  collectReleaseCompilerEvidence,
+  requireVerifiedReleaseCompilerEvidence,
+} from "./release-compiler-evidence.mts";
 import {
   requiredCheckContexts,
   requiredContextsFromConfigs,
   PullRequestDeliveryClient,
 } from "./pr-delivery.mts";
-import { loadPackagePolicy, releaseLabels } from "./release-package-policy.mts";
+import {
+  loadPackagePolicy,
+  releaseLabels,
+  releaseBuildArtifactName,
+  inspectReleaseProfile,
+  selectReleasePackagePolicy,
+} from "./release-package-policy.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { discoverReleaseArtifactFiles } from "./release-artifact-archive.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
+import {
+  inspectPublicBuildConfiguration,
+  selectPublicBuildInputBinding,
+  verifyReleasePublicBuildInputs,
+  requireStablePublicBuildInputEvidence,
+  requireVerifiedReleasePublicBuildInputs,
+} from "./release-public-build-provenance.mts";
 import { planReleaseOpportunity } from "./release-coordinator.mts";
 import {
   classifyApplicationVersion,
@@ -34,21 +57,188 @@ import { isRecord } from "./runtime-values.mts";
 import { isDeepStrictEqual } from "node:util";
 import { retainAggregateStepReceipt } from "./production-aggregate-steps.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+import { releaseControlRefQuery } from "./release-control-inputs.mts";
+import {
+  authenticateReleaseControlSource,
+  authenticateControlReaderJob,
+  requireAuthenticatedReleaseControlSource,
+} from "./release-live-control-admission.mts";
+import type { AuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
+import { readProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
+import { prepareControlReadiness, waitForControlArtifact } from "./release-control-handshake.mts";
+import { inspectReleaseControlPhase } from "./release-control-phases.mts";
+import type { ReleaseControlPhase } from "./release-control-phases.mts";
+import {
+  requireNativeReleaseQualificationPair,
+  collectConfiguredNativeReleaseQualificationPair,
+} from "./release-native-admission.mts";
+import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
+import { readControllerToolFile } from "./release-controller-tools.mts";
+import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
+import { requireControllerReleaseAuthorities } from "./release-authority-configuration.mts";
+import type { NativeQualificationStage } from "./release-native-qualification-contract.mts";
+import type { VerifiedNativeReleaseQualification } from "./release-native-acceptance.mts";
 
 const project = fileURLToPath(new URL("..", import.meta.url));
 const repository = "boburning/portcove";
 const base = `repos/${repository}`;
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
-const refsQuery = `query AdmissionRefs($cursor:String) {
- repository(owner:"boburning",name:"portcove") { id databaseId nameWithOwner
-  refs(refPrefix:"refs/tags/",first:100,after:$cursor,orderBy:{field:ALPHABETICAL,direction:ASC}) {
-   totalCount pageInfo { hasNextPage endCursor }
-   nodes { id name prefix target { __typename oid ... on Tag { target { __typename oid ... on Tag { target { __typename oid ... on Tag { target { __typename oid } } } } } } } }
-  }
- }
-}`;
+// A caller-supplied option/JSON field cannot activate qualifying acquisition.
+const qualifyingCollections = new WeakSet<object>();
+const aggregateCollections = new WeakSet<object>();
+const publicationCompletionCollections = new WeakSet<object>();
+const aggregateReadbacks = new WeakSet<object>();
+const acquiredCandidates = new WeakMap<object, Readonly<Record<string, unknown>>>();
+export interface ActualCandidateBuildingEligibility {
+  stage: "candidate-building";
+  repository: string;
+  checkpoint: string;
+  candidate: Readonly<Record<string, unknown>>;
+  facts: Readonly<PreparedReleaseAdmissionFacts>;
+  controls: AuthenticatedReleaseControlSource;
+  admission: Readonly<Awaited<ReturnType<typeof acquireReleaseAdmission>>>;
+  reader: Readonly<Awaited<ReturnType<typeof authenticateControlReaderJob>>>;
+  namespace: string;
+  controller_tools: object;
+  native_qualifications: readonly object[];
+  sbom_receipt: object;
+  public_build_inputs_receipt: object;
+  pending_obligations: readonly string[];
+  aggregate_readback_only?: true;
+}
+const actualBuildingEligibility = new WeakMap<object, ActualCandidateBuildingEligibility>();
+/** Data-only stage association. Candidate building consumes pre-sign native
+ * qualification, but is never itself payload-signing admission. */
+export function inspectAdmissionNativeStage(
+  phase: unknown,
+  admissionStage: unknown,
+): NativeQualificationStage {
+  if (
+    (phase === "admission" && admissionStage === "candidate-building") ||
+    (phase === "payload" && admissionStage === "payload-signing")
+  )
+    return "payload-signing";
+  if (phase === "release-publication" && admissionStage === "release-publication")
+    return "release-publication";
+  throw new Error("actual admission context cannot appoint another execution stage");
+}
 type Api = Pick<GitHubApiClient, "request" | "graphql">;
 type Recover = (...args: Parameters<typeof recoverRemoteCoordinator>) => Promise<unknown>;
+export interface PreparedReleaseAdmissionFacts {
+  checkpoint: string;
+  configuration: unknown;
+  opportunity: unknown;
+  assembly: unknown;
+  archives: readonly { platform: string; artifact_id: number; bytes: number; sha256: string }[];
+  public_build_inputs: unknown;
+  evidence: ReturnType<typeof collectReleaseRunEvidence>;
+  contexts: unknown;
+  allocations: unknown;
+  compiler_evidence?: unknown;
+  native_evidence?: readonly {
+    check_id: number;
+    report_sha256: string;
+    stage: NativeQualificationStage;
+  }[];
+}
+export interface ReleaseCompilerAdmissionPrerequisite {
+  controller_tools: object;
+  controller_source: { source_commit: string; source_tree: string };
+}
+export interface ActualReleaseAdmissionContext {
+  stage: "payload-signing" | "release-publication";
+  facts: Readonly<PreparedReleaseAdmissionFacts>;
+  controls: AuthenticatedReleaseControlSource;
+  admission: Readonly<Awaited<ReturnType<typeof acquireReleaseAdmission>>>;
+  checkpoint: string;
+  native_qualifications: readonly object[];
+  coordinator_repository: string;
+  sbom_receipt: object;
+  public_build_inputs_receipt: object;
+  pending_obligations: readonly string[];
+}
+const actualAdmissionContexts = new WeakMap<
+  object,
+  { context: Readonly<ActualReleaseAdmissionContext>; phase: ReleaseControlPhase }
+>();
+const actualPublicationCompletionContexts = new WeakMap<
+  object,
+  Readonly<ActualReleaseAdmissionContext>
+>();
+/** The fixed publisher may reconstruct settled output after a promoting phase
+ * crash. This separate brand never enters the ordinary effect admission map. */
+export function requireActualPublicationControllerContext(raw: object) {
+  const completion = actualPublicationCompletionContexts.get(raw);
+  if (!completion)
+    return {
+      mode: "publication" as const,
+      context: requireActualReleaseAdmissionContext(raw, "release-publication"),
+    };
+  if (
+    completion.stage !== "release-publication" ||
+    completion.admission.decision !== "admitted" ||
+    completion.admission.holds.length ||
+    completion.admission.evidence_scope !== "github.com" ||
+    completion.controls.evidence_scope !== "github.com" ||
+    completion.facts.checkpoint !== completion.checkpoint
+  )
+    throw new Error("actual promoting readback context required");
+  requireAuthenticatedReleaseControlSource(completion.controls, "release-publication");
+  return { mode: "completion-only" as const, context: completion };
+}
+const acquiredSbomReceipts = new WeakMap<object, object>();
+const acquiredNativeReceipts = new WeakMap<object, readonly object[]>();
+const acquiredCoordinatorRepositories = new WeakMap<object, string>();
+const acquiredPublicInputReceipts = new WeakMap<object, object>();
+const acquiredCompilerReceipts = new WeakMap<object, object>();
+const actualRiskCompilerReceipts = new WeakMap<object, object>();
+
+/** Retain the original scanner subject through actual fixed admission. It is
+ * evidence custody only, never a replacement for owner risk authorization. */
+export async function requireActualAdmissionCompilerReceipt706(raw: object) {
+  if (actualPublicationCompletionContexts.has(raw)) requireActualPublicationControllerContext(raw);
+  else {
+    const retained = actualAdmissionContexts.get(raw);
+    if (!retained) throw new Error("actual fixed admission required for Linux risk assessment");
+    requireActualReleaseAdmissionContext(raw, retained.context.stage);
+  }
+  const receipt = actualRiskCompilerReceipts.get(raw);
+  if (!receipt) throw new Error("actual compiler scanner subject missing from admission");
+  await requireVerifiedReleaseCompilerEvidence(receipt);
+  return receipt;
+}
+/** Same-process authority continuation only. Serialization, imported snapshots,
+ * fixture source brands and an assembly artifact cannot mint this context. Each
+ * protected consumer must still perform its own fresh controls/reservation check. */
+export function requireActualReleaseAdmissionContext(
+  raw: object,
+  expectedStage: ActualReleaseAdmissionContext["stage"],
+): Readonly<ActualReleaseAdmissionContext> {
+  const retained = actualAdmissionContexts.get(raw);
+  if (
+    !retained ||
+    !["payload-signing", "release-publication"].includes(expectedStage) ||
+    retained.context.stage !== expectedStage ||
+    retained.context.admission.decision !==
+      (expectedStage === "payload-signing" ? "eligible-for-payload-signing" : "admitted") ||
+    retained.context.admission.holds.length !== 0 ||
+    retained.context.admission.evidence_scope !== "github.com" ||
+    retained.context.controls.evidence_scope !== "github.com" ||
+    retained.context.facts.checkpoint !== retained.context.checkpoint ||
+    retained.context.admission.checkpoint !== retained.context.checkpoint
+  )
+    throw new Error("actual same-process zero-hold release admission context required");
+  requireAuthenticatedReleaseControlSource(retained.context.controls, retained.phase);
+  return retained.context;
+}
+function freezePreparedFacts<T>(value: T, depth = 0): T {
+  if (depth > 32) throw new Error("private prepared facts nesting bound exceeded");
+  if (value !== null && typeof value === "object") {
+    for (const child of Object.values(value)) freezePreparedFacts(child, depth + 1);
+    Object.freeze(value);
+  }
+  return value;
+}
 
 function oid(value: unknown): asserts value is string {
   if (typeof value !== "string" || !/^[a-f0-9]{40}$/u.test(value))
@@ -65,26 +255,34 @@ function record(value: unknown): Record<string, unknown> {
 function configuration(raw: unknown) {
   const value = record(raw);
   if (
-    Object.keys(value).sort().join(",") !== "namespace,schema_version" ||
-    value.schema_version !== 1 ||
+    !(
+      (value.schema_version === 1 &&
+        Object.keys(value).sort().join(",") === "namespace,schema_version") ||
+      (value.schema_version === 2 &&
+        Object.keys(value).sort().join(",") === "namespace,release_profile,schema_version") ||
+      (value.schema_version === 3 &&
+        value.release_profile === "initial-beta-win-linux" &&
+        Object.keys(value).sort().join(",") ===
+          "namespace,public_build_inputs,release_profile,schema_version")
+    ) ||
     typeof value.namespace !== "string" ||
     !/^portcove-[a-z0-9]+(?:-[a-z0-9]+){0,5}$/u.test(value.namespace) ||
     value.namespace.length > 64
   )
     throw new Error("admission needs separately ratified coordinator configuration");
-  return { schema_version: 1, namespace: value.namespace };
+  return {
+    schema_version: value.schema_version,
+    namespace: value.namespace,
+    public_build_inputs:
+      value.schema_version === 3
+        ? inspectPublicBuildConfiguration(value.public_build_inputs)
+        : null,
+    release_profile:
+      value.schema_version === 2 || value.schema_version === 3
+        ? inspectReleaseProfile(value.release_profile)
+        : ("full" as const),
+  };
 }
-function peel(ref: Record<string, unknown>) {
-  let target = record(ref.target);
-  for (let depth = 0; depth < 4; depth++) {
-    oid(target.oid);
-    if (target.__typename === "Commit") return target.oid;
-    if (target.__typename !== "Tag") break;
-    target = record(target.target);
-  }
-  throw new Error("published tag does not resolve to one bounded commit");
-}
-
 /** Executable remote-read-only gate. Acquires facts; never allocates, writes a
  * ref, executes candidate code or equates provider identity with acceptance.
  * Unconfigured independent control/producer authorities remain explicit holds.
@@ -92,14 +290,60 @@ function peel(ref: Record<string, unknown>) {
 export async function acquireReleaseAdmission(
   privateRoot: string,
   rawConfiguration: unknown,
-  options: {
+  rawOptions: {
     api?: Api;
     recover?: Recover;
     download?: typeof readGitHubArtifactArchive;
     now?: () => number;
     capacity?: { ratification: unknown; readBoundary: () => Promise<unknown> };
+    controls?: AuthenticatedReleaseControlSource;
+    controlPhase?: ReleaseControlPhase;
+    compiler?: ReleaseCompilerAdmissionPrerequisite;
+    // Inert updater package custody only; full archive verification precedes it.
+    retainDesktopPackage?: NonNullable<
+      Parameters<typeof discoverReleaseArtifactFiles>[4]
+    >["retainDesktopPackage"];
+    // Fixed caller obtains actual native Check receipts against these privately
+    // acquired candidate facts. Serialized reports are never prerequisites.
+    establishNative?: (
+      facts: Readonly<PreparedReleaseAdmissionFacts>,
+    ) => Promise<readonly object[]>;
+    // Called once after all large immutable archives have been privately
+    // validated. The same process retains its facts; no serialized facts import.
+    establishControls?: (
+      preparedFactsSha256: string,
+      facts: Readonly<PreparedReleaseAdmissionFacts>,
+    ) => Promise<AuthenticatedReleaseControlSource>;
   } = {},
 ) {
+  const qualifyingOnly = qualifyingCollections.has(rawOptions);
+  const aggregateResume = aggregateCollections.has(rawOptions);
+  const allowPublicationCompletion = publicationCompletionCollections.has(rawOptions);
+  // Preserve actual/injected transport provenance and capability references
+  // throughout asynchronous acquisition. A caller cannot clear an injected
+  // option after collection to obtain a production context.
+  const options = Object.freeze({
+    ...rawOptions,
+    ...(rawOptions.compiler
+      ? {
+          compiler: Object.freeze({
+            ...rawOptions.compiler,
+            controller_source: structuredClone(rawOptions.compiler.controller_source),
+          }),
+        }
+      : {}),
+  });
+  const controlPhase = inspectReleaseControlPhase(options.controlPhase);
+  if (qualifyingOnly && controlPhase !== "admission")
+    throw new Error("qualifying collection requires its fixed independent reader phase");
+  const nativeStage: NativeQualificationStage =
+    controlPhase === "release-publication" ? "release-publication" : "payload-signing";
+  let nativeReceipts: readonly object[] | null = null;
+  let nativeReports: readonly VerifiedNativeReleaseQualification[] | null = null;
+  if (options.controls) requireAuthenticatedReleaseControlSource(options.controls, controlPhase);
+  if (options.controls && options.establishControls)
+    throw new Error("admission accepts exactly one live control establishment path");
+  let controls = options.controls;
   const capacitySource = options.capacity
     ? {
         ratification: structuredClone(options.capacity.ratification),
@@ -146,7 +390,7 @@ export async function acquireReleaseAdmission(
         const contents = route === "/contents/.github/workflows/release.yml";
         const single =
           route === "" ||
-          /^\/(?:git\/commits\/[a-f0-9]{40}|actions\/runs\/[1-9][0-9]*(?:\/attempts\/[1-9][0-9]*)?)$/u.test(
+          /^\/(?:git\/(?:commits|blobs)\/[a-f0-9]{40}|check-runs\/[1-9][0-9]*|actions\/runs\/[1-9][0-9]*(?:\/attempts\/[1-9][0-9]*)?)$/u.test(
             route,
           );
         const keys = [...url.searchParams.keys()];
@@ -178,7 +422,7 @@ export async function acquireReleaseAdmission(
               (url.searchParams.has("page") &&
                 !/^(?:[1-9]|1[0-6])$/u.test(url.searchParams.get("page") ?? "")))) ||
           (route.endsWith("/check-runs") && url.searchParams.get("filter") !== "latest") ||
-          (tree && url.searchParams.get("recursive") !== "1") ||
+          (tree && keys.length !== 0 && url.searchParams.get("recursive") !== "1") ||
           (contents && !/^[a-f0-9]{40}$/u.test(url.searchParams.get("ref") ?? ""))
         )
           throw new Error("admission traversal escaped its remote-read-only repository");
@@ -195,7 +439,7 @@ export async function acquireReleaseAdmission(
         return response;
       },
       graphql(query, variables) {
-        if (query !== refsQuery)
+        if (query !== refsQuery && query !== releaseControlRefQuery)
           throw new Error("admission permits only the fixed read-only ref query");
         budget();
         const requestStarted = performance.now();
@@ -206,133 +450,33 @@ export async function acquireReleaseAdmission(
         return response;
       },
     };
-    const get = (endpoint: string) =>
-      api.request("GET", endpoint ? `${base}/${endpoint}` : base).body;
-    const page = (endpoint: string, key?: string) => {
-      let count = 0;
-      return GitHubApiClient.prototype.paginateRest
-        .call({ request: api.request }, `${base}/${endpoint}`, {
-          select: (body: unknown) => {
-            const rows = key ? record(body)[key] : body;
-            if (!Array.isArray(rows) || rows.length > 100 || (count += rows.length) > 1600)
-              throw new Error("admission collection exceeds record bound");
-            return rows as unknown[];
-          },
-          identity: (item: unknown) => {
-            const id = record(item).id;
-            integer(id);
-            return id;
-          },
-          ...(key
-            ? {
-                totalCount: (body: unknown) => {
-                  const n = record(body).total_count;
-                  if (typeof n !== "number" || !Number.isSafeInteger(n) || n < 0 || n > 1600)
-                    throw new Error("admission collection exceeds bound");
-                  return n;
-                },
-              }
-            : {}),
-          label: "release admission inventory",
-        })
-        .map(record);
-    };
     phase = "repository-and-reservation";
-    const repo = record(get(""));
-    if (repo.id !== 1354613114 || repo.full_name !== repository || typeof repo.node_id !== "string")
-      throw new Error("admission repository identity differs");
-    const tags = () => {
-      const result: Record<string, unknown>[] = [];
-      const ids = new Set<string>();
-      const names = new Set<string>();
-      const cursors = new Set<string>();
-      let cursor: string | null = null;
-      let total: number | null = null;
-      for (let index = 0; index < 16; index++) {
-        const data = record(api.graphql(refsQuery, { cursor }).data);
-        const r = record(data.repository);
-        if (r.id !== repo.node_id || r.databaseId !== 1354613114 || r.nameWithOwner !== repository)
-          throw new Error("admission ref repository identity differs");
-        const connection = record(r.refs);
-        const info = record(connection.pageInfo);
-        if (
-          typeof connection.totalCount !== "number" ||
-          !Number.isSafeInteger(connection.totalCount) ||
-          connection.totalCount < 0 ||
-          connection.totalCount > 1600 ||
-          !Array.isArray(connection.nodes) ||
-          connection.nodes.length > 100 ||
-          typeof info.hasNextPage !== "boolean"
-        )
-          throw new Error("admission ref connection is incomplete or oversized");
-        total ??= connection.totalCount;
-        if (total !== connection.totalCount) throw new Error("admission ref count changed");
-        for (const raw of connection.nodes) {
-          const ref = record(raw);
-          if (
-            typeof ref.id !== "string" ||
-            !ref.id ||
-            ref.id.length > 512 ||
-            typeof ref.name !== "string" ||
-            ref.name.length > 256 ||
-            ref.prefix !== "refs/tags/" ||
-            ids.has(ref.id) ||
-            names.has(ref.name)
-          )
-            throw new Error("admission refs duplicate identities or names");
-          ids.add(ref.id);
-          names.add(ref.name);
-          result.push(structuredClone(ref));
-        }
-        if (result.length > total) throw new Error("admission refs exceed total");
-        if (!info.hasNextPage) {
-          if (result.length !== total) throw new Error("admission refs omit records");
-          return result.sort((a, b) => String(a.name).localeCompare(String(b.name)));
-        }
-        if (
-          typeof info.endCursor !== "string" ||
-          !info.endCursor ||
-          info.endCursor.length > 1024 ||
-          cursors.has(info.endCursor) ||
-          connection.nodes.length === 0
-        )
-          throw new Error("admission ref cursor did not advance");
-        cursors.add(info.endCursor);
-        cursor = info.endCursor;
-      }
-      throw new Error("admission refs exceed page bound");
-    };
-    const releases = () =>
-      page("releases?per_page=100")
-        .map((r) => {
-          integer(r.id);
-          if (
-            typeof r.tag_name !== "string" ||
-            r.tag_name.length > 128 ||
-            typeof r.draft !== "boolean" ||
-            typeof r.prerelease !== "boolean" ||
-            (r.published_at !== null && typeof r.published_at !== "string") ||
-            typeof r.updated_at !== "string"
-          )
-            throw new Error("publication record is incomplete");
-          return {
-            id: r.id,
-            tag_name: r.tag_name,
-            draft: r.draft,
-            prerelease: r.prerelease,
-            published_at: r.published_at,
-            updated_at: r.updated_at,
-          };
-        })
-        .sort((a, b) => a.id - b.id);
+    const publicationReader = createReleasePublicationReader(api);
+    const { tags, releases } = publicationReader;
     const recover = () =>
-      (options.recover ?? recoverRemoteCoordinator)(root, config, { transport: { cwd: root } });
+      (options.recover ?? recoverRemoteCoordinator)(
+        root,
+        { schema_version: 1, namespace: config.namespace },
+        { transport: { cwd: root } },
+      );
     const before = record(structuredClone(await recover()));
     oid(before.checkpoint);
     checkpoint = before.checkpoint;
     const state = record(before.input);
     const candidate = record(state.active_candidate);
-    if (!["building", "publishing"].includes(String(candidate.phase)))
+    if (
+      qualifyingOnly
+        ? candidate.phase !== "qualifying" &&
+          !(
+            aggregateResume &&
+            ["building", "publishing", "promoting"].includes(String(candidate.phase))
+          )
+        : ![
+            "building",
+            "publishing",
+            ...(allowPublicationCompletion ? ["promoting"] : []),
+          ].includes(String(candidate.phase))
+    )
       throw new Error("admission cannot revive an inactive or failed candidate");
     for (const key of ["source_commit", "source_tree", "prepared_commit", "prepared_tree"])
       oid(candidate[key]);
@@ -345,68 +489,11 @@ export async function acquireReleaseAdmission(
       throw new Error("admission frozen run differs from prepared source");
     const initialTags = tags();
     const initialReleases = releases();
-    const commits = new Map<string, ReturnType<typeof inspectRemoteCommitObject>>();
-    const commit = (id: string) => {
-      let value = commits.get(id);
-      if (!value) {
-        value = inspectRemoteCommitObject(get(`git/commits/${id}`), id);
-        commits.set(id, value);
-      }
-      return value;
-    };
-    const versionPrefix = `${config.namespace}-prepared/`;
-    const sourcePrefix = `${config.namespace}-prepared-source/`;
-    const versions = initialTags.filter((r) => String(r.name).startsWith(versionPrefix));
-    const sources = initialTags.filter((r) => String(r.name).startsWith(sourcePrefix));
-    if ([...versions, ...sources].some((ref) => record(ref.target).__typename !== "Commit"))
-      throw new Error("preparation receipts must point directly to raw commits");
-    if (versions.length !== sources.length)
-      throw new Error("reservation namespace has incomplete receipt pairs");
-    const allocations = [];
-    let activePreparationIntent: string | null = null;
-    const seenSources = new Set<string>();
-    for (const ref of versions) {
-      const tag = String(ref.name).slice(versionPrefix.length);
-      if (!tag.startsWith("v")) throw new Error("reservation version prefix differs");
-      const allocated = classifyApplicationVersion(tag.slice(1)).version;
-      const prepared = peel(ref);
-      const object = commit(prepared);
-      const matches = sources.filter((r) => peel(r) === prepared);
-      if (matches.length !== 1) throw new Error("reservation source pair is missing or ambiguous");
-      const source = String(matches[0]!.name).slice(sourcePrefix.length);
-      oid(source);
-      if (seenSources.has(source)) throw new Error("reservation source allocated more than once");
-      seenSources.add(source);
-      const original = commit(source);
-      const text = Buffer.from(object.object.bytes).toString("utf8");
-      const intent = text.match(/\nPortcove-Preparation-SHA256: ([a-f0-9]{64})\n/u)?.[1];
-      if (!intent) throw new Error("reservation prepared intent is missing");
-      const payload = inspectPreparationCommitBytes(
-        Buffer.from(original.object.bytes).toString("utf8"),
-        text,
-        {
-          source_commit: source,
-          source_tree: original.tree,
-          prepared_commit: prepared,
-          prepared_tree: object.tree,
-          version: allocated,
-          intent_sha256: intent,
-        },
-      );
-      const declared = record(JSON.parse(payload));
-      const proposal = record(declared.proposal);
-      if (proposal.source_commit !== source || proposal.version !== allocated)
-        throw new Error("reservation intent does not match its complete receipt pair");
-      if (allocated === version) activePreparationIntent = payload;
-      allocations.push({
-        version: allocated,
-        source_commit: source,
-        source_tree: original.tree,
-        prepared_commit: prepared,
-        prepared_tree: object.tree,
-        intent_sha256: intent,
-      });
-    }
+    const { allocations, intents } = publicationReader.readAllocations(
+      initialTags,
+      config.namespace,
+    );
+    const activePreparationIntent = intents.get(version) ?? null;
     const active = allocations.find((a) => a.version === version);
     if (
       !active ||
@@ -416,6 +503,9 @@ export async function acquireReleaseAdmission(
     )
       throw new Error("active reservation differs from complete namespace receipts");
     const holds = new Set<string>();
+    let controlsBefore: ReturnType<AuthenticatedReleaseControlSource["read"]> | null = null;
+    let controlsAfter: ReturnType<AuthenticatedReleaseControlSource["read"]> | null = null;
+    let frozenControlsOpportunity: unknown = null;
     // Separate live source seam; retained coordinator facts cannot self-attest
     // a current provider boundary. Missing/invalid input holds independently.
     let capacityBefore: unknown = null;
@@ -471,6 +561,11 @@ export async function acquireReleaseAdmission(
           intent.migration_notes !== (parsed.migration_notes ?? "")
         )
           throw new Error("frozen classification differs from the existing preparation intent");
+        frozenControlsOpportunity = structuredClone(frozen);
+        if (controls) {
+          phase = "authenticated-controls-before";
+          controlsBefore = controls.read(api, frozenControlsOpportunity);
+        }
       }
     }
     const publishedVersions: string[] = [];
@@ -489,7 +584,7 @@ export async function acquireReleaseAdmission(
         holds.add("published-tag-identity-unavailable");
         continue;
       }
-      const publishedCommit = peel(ref);
+      const publishedCommit = peelReleaseReference(ref);
       const allocation = allocations.find(
         (a) => a.prepared_commit === publishedCommit && a.version === published,
       );
@@ -568,11 +663,22 @@ export async function acquireReleaseAdmission(
     const contexts = readQualification();
     if (contexts.some((context) => context.outcome !== "success" || context.source !== "check-run"))
       holds.add("exact-prepared-head-required-contexts-not-successful");
-    const policy = await loadPackagePolicy(project);
+    const policy = selectReleasePackagePolicy(
+      await loadPackagePolicy(project),
+      config.release_profile,
+    );
     const labels = releaseLabels(policy);
-    const archives = [];
+    const archives: { platform: string; artifact_id: number; bytes: number; sha256: string }[] = [];
     for (const platform of labels) {
-      const matches = evidence.artifacts.filter((a) => a.name === `release-build-${platform}`);
+      const matches = evidence.artifacts.filter(
+        (a) =>
+          a.name ===
+          releaseBuildArtifactName(
+            platform,
+            String(evidenceRequest.run_id),
+            evidenceRequest.attempt,
+          ),
+      );
       const artifact = matches[0];
       if (
         matches.length !== 1 ||
@@ -595,6 +701,7 @@ export async function acquireReleaseAdmission(
     phase = "archive-acquisition";
     const files = [];
     const declarations = [];
+    const cliPackages = new Map<string, Buffer>();
     for (const archive of archives) {
       if (performance.now() - started > 15 * 60 * 1000)
         throw new Error("admission archive acquisition deadline exhausted");
@@ -612,12 +719,43 @@ export async function acquireReleaseAdmission(
           run_attempt: evidenceRequest.attempt,
           source_commit: active.prepared_commit,
         },
+        {
+          ...(options.retainDesktopPackage
+            ? { retainDesktopPackage: options.retainDesktopPackage }
+            : {}),
+          ...(options.compiler
+            ? {
+                retainCliPackage: async (identity, bytes) => {
+                  cliPackages.set(identity.filename, bytes);
+                },
+              }
+            : {}),
+        },
       );
       files.push(...discovered.files);
       declarations.push(discovered.declared_producer);
     }
+    phase = "public-build-input-acquisition";
+    const publicBinding = config.public_build_inputs
+      ? selectPublicBuildInputBinding(config.public_build_inputs, evidence)
+      : null;
+    const publicBuildInputs = publicBinding
+      ? await verifyReleasePublicBuildInputs(root, publicBinding, evidence, {
+          download: options.download,
+        })
+      : null;
+    if (config.release_profile === "initial-beta-win-linux" && !publicBinding)
+      holds.add("ratified-public-build-inputs-unavailable");
+    if (
+      publicBinding?.artifacts.some((item) =>
+        archives.some((archive) => archive.artifact_id === item.artifact_id),
+      )
+    )
+      throw new Error("public build inputs cannot reuse package artifact identities");
     const assembly = {
-      schema_version: 1,
+      schema_version: publicBinding ? 3 : 2,
+      ...(publicBinding ? { public_build_inputs: publicBinding } : {}),
+      release_profile: config.release_profile,
       source_commit: active.prepared_commit,
       source_tree: active.prepared_tree,
       version,
@@ -626,8 +764,101 @@ export async function acquireReleaseAdmission(
       files,
     };
     await inspectTrustedAssemblyInput(assembly);
+    phase = "actual-compiler-source-and-output-acquisition";
+    let compilerEvidence: Awaited<ReturnType<typeof collectReleaseCompilerEvidence>> | null = null;
+    if (options.compiler && publicBuildInputs) {
+      if (options.api || options.recover || options.download || options.now)
+        throw new Error("actual compiler acceptance cannot use injected admission sources");
+      const sourceBinding = await compareVerifiedReleaseCompilerSource(
+        options.compiler.controller_tools,
+        {
+          source_commit: active.source_commit,
+          source_tree: active.source_tree,
+          prepared_commit: active.prepared_commit,
+          prepared_tree: active.prepared_tree,
+          version,
+        },
+        options.compiler.controller_source,
+      );
+      compilerEvidence = await collectReleaseCompilerEvidence(
+        root,
+        assembly,
+        evidence,
+        publicBuildInputs,
+        cliPackages,
+        sourceBinding,
+        { preparedNamespace: config.namespace },
+      );
+      if (
+        compilerEvidence.state === "verified-compiler-output-bindings" &&
+        compilerEvidence.evidence_scope === "github.com"
+      ) {
+        await requireVerifiedReleaseCompilerEvidence(compilerEvidence);
+      }
+    }
+    cliPackages.clear();
+    phase = "signed-SBOM-document-acquisition";
+    const sbomEvidence = await collectReleaseSbomEvidence(root, assembly, evidence, {
+      download: options.download,
+      preparedNamespace: config.namespace,
+      maximumArchiveBytes: Math.min(
+        512 * 1024 * 1024,
+        2 * 1024 * 1024 * 1024 -
+          archives.reduce((sum, item) => sum + item.bytes, 0) -
+          (compilerEvidence?.state === "verified-compiler-output-bindings"
+            ? compilerEvidence.archive_bytes
+            : 0) -
+          (publicBinding?.artifacts.reduce((sum, item) => sum + item.bytes, 0) ?? 0),
+      ),
+    });
+    if (options.establishControls || options.establishNative) {
+      if (!frozenControlsOpportunity)
+        throw new Error("late control acquisition requires the actual frozen complete opportunity");
+      phase = "private-facts-ready-awaiting-fresh-observer";
+      if (!checkpoint) throw new Error("private prepared facts lack exact checkpoint");
+      const facts: PreparedReleaseAdmissionFacts = {
+        checkpoint,
+        configuration: config,
+        opportunity: frozenControlsOpportunity,
+        assembly,
+        archives,
+        public_build_inputs: publicBuildInputs?.binding ?? null,
+        evidence,
+        contexts,
+        allocations,
+        compiler_evidence: compilerEvidence,
+      };
+      if (options.establishNative) {
+        phase = "actual-stage-native-qualification";
+        nativeReceipts = Object.freeze([
+          ...(await options.establishNative(freezePreparedFacts(structuredClone(facts)))),
+        ]);
+        nativeReports = await requireNativeReleaseQualificationPair(
+          nativeReceipts,
+          assembly,
+          archives,
+          nativeStage,
+        );
+        facts.native_evidence = nativeReports.map((report) => ({
+          check_id: report.check.id,
+          report_sha256: report.check.report_sha256,
+          stage: report.stage,
+        }));
+      }
+      if (options.establishControls) {
+        controls = await options.establishControls(
+          hash(JSON.stringify(facts)),
+          freezePreparedFacts(structuredClone(facts)),
+        );
+        requireAuthenticatedReleaseControlSource(controls, controlPhase);
+        phase = "authenticated-controls-before-final-readback";
+        controlsBefore = controls.read(api, frozenControlsOpportunity);
+      }
+    }
     phase = "freshness-bracket";
     const afterEvidence = collectReleaseRunEvidence(evidenceRequest, { api });
+    if (publicBinding)
+      requireStablePublicBuildInputEvidence(publicBinding, evidence, afterEvidence);
     if (
       !isDeepStrictEqual(evidence.run, afterEvidence.run) ||
       !isDeepStrictEqual(evidence.jobs, afterEvidence.jobs) ||
@@ -643,6 +874,12 @@ export async function acquireReleaseAdmission(
     const after = record(await recover());
     if (after.checkpoint !== checkpoint)
       throw new Error("coordinator checkpoint changed during admission");
+    if (controls && controlsBefore) {
+      phase = "authenticated-controls-after";
+      controlsAfter = controls.read(api, frozenControlsOpportunity);
+      if (controlsBefore.facts_sha256 !== controlsAfter.facts_sha256)
+        throw new Error("authenticated control inputs changed during admission");
+    }
     // The retained snapshot's classification/pause/capacity fields are supplied
     // facts, not independent live authority. Do not feed them to an executing
     // plan or adopt a package's own checksum as acceptance.
@@ -655,12 +892,16 @@ export async function acquireReleaseAdmission(
         isRecord(state.controller.capacity_attempt)
           ? state.controller.capacity_attempt.prior_operations
           : [],
-      ratification: capacitySource?.ratification ?? {
-        active: false,
-        boundary_sha256: "0".repeat(64),
-        resource_policy_sha256: slice4CapacityResourceDigest,
-        selection: "slice4-d2-c6470ec28ba9addb0f70d9f86953322d835bb8c0",
-      },
+      ratification:
+        controlsBefore?.capacity_source.capacity &&
+        isRecord(controlsBefore.capacity_source.capacity)
+          ? controlsBefore.capacity_source.capacity.ratification
+          : (capacitySource?.ratification ?? {
+              active: false,
+              boundary_sha256: "0".repeat(64),
+              resource_policy_sha256: slice4CapacityResourceDigest,
+              selection: "slice4-d2-c6470ec28ba9addb0f70d9f86953322d835bb8c0",
+            }),
       boundary: null as unknown,
       operation:
         isRecord(state.controller) && isRecord(state.controller.capacity_attempt)
@@ -673,6 +914,13 @@ export async function acquireReleaseAdmission(
         capacityInput.boundary = boundary;
     } catch {
       /* unavailable provider source never supplies eligibility */
+    }
+    if (controlsBefore && controlsAfter && isRecord(controlsAfter.capacity_source.capacity)) {
+      capacityInput.boundary = controlsAfter.resource_policy_matches_controller
+        ? controlsAfter.capacity_source.capacity.boundary
+        : null;
+      if (!controlsAfter.resource_policy_matches_controller)
+        holds.add("current-controller-workflow-differs-from-ratified-capacity-resource-policy");
     }
     let capacity;
     try {
@@ -687,11 +935,68 @@ export async function acquireReleaseAdmission(
       };
       capacity = assessBoundedCapacity(capacityInput);
     }
-    if (!capacitySource) holds.add("admitted-spending-boundary-source-unconfigured");
-    if (capacity.eligibility !== "eligible") holds.add("bounded-no-spend-attempt-ineligible");
-    holds.add("independent-classification-and-pause-sources-unconfigured");
-    holds.add("candidate-workflow-execution-and-producer-acceptance-unproven");
-    holds.add("strict-release-SBOM-and-native-authorization-not-evaluated");
+    if (!capacitySource && !controlsBefore)
+      holds.add("admitted-spending-boundary-source-unconfigured");
+    const operation = isRecord(capacityInput.operation) ? capacityInput.operation : null;
+    const aggregatePendingReadback =
+      aggregateResume &&
+      candidate.phase === "building" &&
+      operation &&
+      operation.destination === "github-actions:boburning/portcove:admitted-aggregate" &&
+      operation.kind === "upload" &&
+      operation.receipt_limit === 1 &&
+      ["pending", "ambiguous", "capacity-refused"].includes(String(operation.outcome)) &&
+      isRecord(operation.executor_identity) &&
+      operation.executor_identity.role === "aggregate-assembly" &&
+      operation.aggregate_expectation !== undefined &&
+      assessBoundedCapacity({ ...capacityInput, operation: null }).eligibility === "eligible";
+    const aggregateReadback =
+      aggregatePendingReadback ||
+      (aggregateResume && ["publishing", "promoting"].includes(String(candidate.phase)));
+    if (capacity.eligibility !== "eligible" && !aggregatePendingReadback)
+      holds.add("bounded-no-spend-attempt-ineligible");
+    if (!controlsBefore || !controlsAfter)
+      holds.add(
+        options.controls
+          ? "independent-controls-not-bound-to-active-frozen-opportunity"
+          : "independent-classification-and-pause-sources-unconfigured",
+      );
+    else if (controlsAfter.pause.publication_paused)
+      holds.add("publication-paused-by-owner-source");
+    if (
+      !compilerEvidence ||
+      compilerEvidence.state !== "verified-compiler-output-bindings" ||
+      compilerEvidence.evidence_scope !== "github.com"
+    )
+      holds.add("candidate-workflow-execution-and-producer-acceptance-unproven");
+    else await requireVerifiedReleaseCompilerEvidence(compilerEvidence);
+    // The existing attester authenticates the exact SPDX document and package
+    // subjects. It cannot substitute for the compiler or a native journey.
+    if (
+      sbomEvidence.state !== "verified-document" ||
+      sbomEvidence.evidence_scope !== "github.com" ||
+      options.api ||
+      options.recover ||
+      options.download ||
+      options.now
+    )
+      holds.add("strict-release-SBOM-document-unverified");
+    if (!nativeReceipts || !nativeReports)
+      holds.add("strict-release-native-authorization-not-evaluated");
+    else {
+      phase = "actual-stage-native-final-readback";
+      nativeReports = await requireNativeReleaseQualificationPair(
+        nativeReceipts,
+        assembly,
+        archives,
+        nativeStage,
+      );
+    }
+    // The post-sign journey must also join the actual signed context/records,
+    // not just a report's declared digest. The private context consumer owns
+    // that remaining connection; native observations alone cannot clear it.
+    if (nativeStage === "release-publication")
+      holds.add("authenticated-signed-context-qualification-unavailable");
     const publication = {
       complete: publishedSources.length === publishedVersions.length,
       observed_at: new Date((options.now ?? Date.now)()).toISOString(),
@@ -717,14 +1022,32 @@ export async function acquireReleaseAdmission(
             },
           })
         : null;
-    return {
+    const evidenceScope =
+      options.api ||
+      options.recover ||
+      options.download ||
+      options.now ||
+      options.capacity ||
+      (controls?.evidence_scope !== undefined && controls.evidence_scope !== "github.com")
+        ? "injected-provider"
+        : "github.com";
+    const result = {
       schema_version: 1,
-      decision: "hold",
+      decision:
+        holds.size === 0 && nativeReports && evidenceScope === "github.com"
+          ? qualifyingOnly
+            ? "eligible-for-candidate-building"
+            : nativeStage === "payload-signing"
+              ? "eligible-for-payload-signing"
+              : "admitted"
+          : "hold",
+      stage: qualifyingOnly ? "candidate-building" : nativeStage,
       descriptor: null,
       directory: root,
       checkpoint,
       holds: [...holds].sort(),
       capacity,
+      controls: controlsAfter,
       publication,
       allocations,
       contexts,
@@ -732,16 +1055,55 @@ export async function acquireReleaseAdmission(
       evidence,
       assembly,
       archives,
+      public_build_inputs: publicBuildInputs,
       declared_producers: declarations,
+      sbom_evidence: sbomEvidence,
+      compiler_evidence: compilerEvidence,
+      native_evidence:
+        nativeReports?.map((report) => ({
+          check_id: report.check.id,
+          stage: report.stage,
+          report_sha256: report.check.report_sha256,
+          candidate: report.candidate,
+          producer: report.producer,
+        })) ?? null,
+      pending_obligations:
+        nativeStage === "payload-signing"
+          ? [
+              "post-sign-native-compatible-update-rollback-journal",
+              "post-publication-full-public-V0-to-V1-acceptance",
+            ]
+          : ["post-publication-full-public-V0-to-V1-acceptance"],
       diagnostic_plan: diagnosticPlan,
       diagnostic_plan_scope: "conservative paused schema check only; no acquired control authority",
       api_requests: requests,
-      evidence_scope:
-        options.api || options.recover || options.download || options.now || options.capacity
-          ? "injected-provider"
-          : "github.com",
+      evidence_scope: evidenceScope,
       authority: "none",
     };
+    if (result.evidence_scope === "github.com" && sbomEvidence.state === "verified-document") {
+      await requireVerifiedReleaseSbomDocument(sbomEvidence);
+      acquiredSbomReceipts.set(result, sbomEvidence);
+      if (
+        compilerEvidence?.state === "verified-compiler-output-bindings" &&
+        compilerEvidence.evidence_scope === "github.com"
+      )
+        acquiredCompilerReceipts.set(result, compilerEvidence);
+      if (publicBuildInputs) {
+        await requireVerifiedReleasePublicBuildInputs(publicBuildInputs);
+        acquiredPublicInputReceipts.set(result, publicBuildInputs);
+      }
+      if (nativeReceipts && nativeReports) acquiredNativeReceipts.set(result, nativeReceipts);
+      if (
+        typeof before.repository === "string" &&
+        path.isAbsolute(before.repository) &&
+        /^coordinator-recovery-[A-Za-z0-9]+$/u.test(path.relative(root, before.repository))
+      ) {
+        acquiredCoordinatorRepositories.set(result, before.repository);
+        acquiredCandidates.set(result, freezePreparedFacts(structuredClone(candidate)));
+        if (aggregateReadback) aggregateReadbacks.add(result);
+      }
+    }
+    return result;
   } catch {
     const evidence = {
       schema_version: 1,
@@ -767,8 +1129,479 @@ export async function acquireReleaseAdmission(
   }
 }
 
+/** The existing one-process handshake, shared with later fixed controller roles.
+ * An optional trusted continuation finishes additional immutable byte work
+ * before readiness; it receives only a detached frozen view, never authority. */
+async function performAdmissionHandshake(
+  root: string,
+  configuration: unknown,
+  rawPhase: unknown = "admission",
+  additionalFacts?: (
+    facts: Readonly<PreparedReleaseAdmissionFacts>,
+    factsSha256: string,
+  ) => Promise<string>,
+  onAdmitted?: (context: Readonly<ActualReleaseAdmissionContext>) => Promise<void>,
+  compiler?: ReleaseCompilerAdmissionPrerequisite,
+  establishNative?: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]>["establishNative"],
+  building?: {
+    tools: object;
+    namespace: string;
+    receive: (proof: object) => Promise<void>;
+    aggregate?: true;
+  },
+  deadline?: number,
+  publicationCompletion = false,
+) {
+  const phase = inspectReleaseControlPhase(rawPhase);
+  const env = { ...process.env };
+  const workflow = await readProductionControllerWorkflowBytes();
+  const reader = await authenticateControlReaderJob(env, workflow, {
+    phase,
+    ...(deadline === undefined ? {} : { deadline }),
+  });
+  if (building) {
+    const tools = await verifiedControllerToolPaths(building.tools);
+    if (
+      tools.identity.controller_revision !== reader.admitted.revision ||
+      tools.identity.controller_ref !== reader.admitted.execution_ref ||
+      tools.identity.run_id !== String(reader.admitted.run_id) ||
+      tools.identity.run_attempt !== reader.admitted.run_attempt
+    )
+      throw new Error("qualifying reader and actual controller tools differ");
+  }
+  const retained: {
+    facts: Readonly<PreparedReleaseAdmissionFacts> | null;
+    controls: AuthenticatedReleaseControlSource | null;
+  } = { facts: null, controls: null };
+  const collection: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]> = {
+    ...(compiler ? { compiler } : {}),
+    ...(establishNative ? { establishNative } : {}),
+    controlPhase: phase,
+    establishControls: async (factsSha256, facts) => {
+      retained.facts = facts;
+      const readyDigest = additionalFacts ? await additionalFacts(facts, factsSha256) : factsSha256;
+      if (!/^[a-f0-9]{64}$/u.test(readyDigest))
+        throw new Error("prepared continuation requires its exact facts digest");
+      await writeFile(
+        path.join(root, `ready-${phase}.json`),
+        JSON.stringify(prepareControlReadiness(reader.identity, readyDigest, phase)),
+        { flag: "wx", mode: 0o600 },
+      );
+      await (
+        await import("./release-control-step-bridge.mts")
+      ).retainControlStepLocator(path.join(root, `ready-${phase}.json`), phase, 0);
+      const observedArtifact = await waitForControlArtifact(
+        root,
+        "observation",
+        {
+          phase,
+          controller_revision: reader.admitted.revision,
+          controller_ref: reader.admitted.execution_ref,
+          run_id: String(reader.admitted.run_id),
+          run_attempt: reader.admitted.run_attempt,
+        },
+        deadline === undefined ? {} : { phaseDeadline: deadline },
+      );
+      retained.controls = await authenticateReleaseControlSource(env, workflow, {
+        phase,
+        observedArtifact,
+        ...(deadline === undefined ? {} : { deadline }),
+      });
+      return retained.controls;
+    },
+  };
+  if (building) {
+    if (phase !== "admission" || onAdmitted)
+      throw new Error("building eligibility is separate from payload/publication admission");
+    qualifyingCollections.add(collection);
+    if (building.aggregate) aggregateCollections.add(collection);
+  }
+  if (publicationCompletion) {
+    if (phase !== "release-publication" || building || !onAdmitted || !compiler || !establishNative)
+      throw new Error("fixed publication completion prerequisites unavailable");
+    publicationCompletionCollections.add(collection);
+  }
+  const admission = await acquireReleaseAdmission(root, configuration, collection);
+  // Native stage qualification is necessary but cannot clear unrelated holds.
+  // Only this actual acquisition process can create the corresponding private
+  // continuation; no JSON/injected descriptor appoints an execution stage.
+  if (
+    (onAdmitted || building) &&
+    ["admitted", "eligible-for-payload-signing", "eligible-for-candidate-building"].includes(
+      admission.decision,
+    ) &&
+    admission.holds.length === 0
+  ) {
+    const { facts, controls } = retained;
+    if (
+      admission.evidence_scope !== "github.com" ||
+      !admission.controls ||
+      !facts ||
+      !controls ||
+      controls.evidence_scope !== "github.com" ||
+      facts.checkpoint !== admission.checkpoint
+    )
+      throw new Error(
+        "positive continuation requires actual same-process facts/control/reservation binding",
+      );
+    requireAuthenticatedReleaseControlSource(controls, phase);
+    const sbomReceipt = acquiredSbomReceipts.get(admission);
+    if (!sbomReceipt) throw new Error("positive continuation requires actual signed SPDX custody");
+    await requireVerifiedReleaseSbomDocument(sbomReceipt);
+    if (building ? phase !== "admission" : phase !== "payload" && phase !== "release-publication")
+      throw new Error("actual admission context cannot appoint another execution stage");
+    const stage = inspectAdmissionNativeStage(phase, admission.stage);
+    const nativeReceipts = acquiredNativeReceipts.get(admission);
+    if (!nativeReceipts) throw new Error("positive continuation requires actual native custody");
+    await requireNativeReleaseQualificationPair(
+      nativeReceipts,
+      facts.assembly,
+      facts.archives,
+      stage,
+    );
+    const coordinatorRepository = acquiredCoordinatorRepositories.get(admission);
+    if (!coordinatorRepository)
+      throw new Error(
+        "positive continuation requires actual privately recovered coordinator repository",
+      );
+    const publicInputs = acquiredPublicInputReceipts.get(admission);
+    if (!publicInputs)
+      throw new Error("positive continuation requires actual public root/key custody");
+    await requireVerifiedReleasePublicBuildInputs(publicInputs);
+    if (building) {
+      if (phase !== "admission" || admission.decision !== "eligible-for-candidate-building")
+        throw new Error("actual qualifying eligibility target differs");
+      const candidate = acquiredCandidates.get(admission);
+      if (
+        !candidate ||
+        (candidate.phase !== "qualifying" &&
+          !(
+            building.aggregate &&
+            ["building", "publishing", "promoting"].includes(String(candidate.phase))
+          ))
+      )
+        throw new Error("actual qualifying candidate custody missing");
+      const proof = Object.freeze({
+        kind: "actual-candidate-building-eligibility",
+        checkpoint: admission.checkpoint,
+        authority: "none",
+      });
+      actualBuildingEligibility.set(proof, {
+        stage: "candidate-building",
+        ...(aggregateReadbacks.has(admission) ? { aggregate_readback_only: true as const } : {}),
+        repository: coordinatorRepository,
+        checkpoint: admission.checkpoint,
+        candidate,
+        facts,
+        controls,
+        admission: freezePreparedFacts(structuredClone(admission)),
+        reader: freezePreparedFacts(structuredClone(reader)),
+        namespace: building.namespace,
+        controller_tools: building.tools,
+        native_qualifications: nativeReceipts,
+        sbom_receipt: sbomReceipt,
+        public_build_inputs_receipt: publicInputs,
+        pending_obligations: Object.freeze([
+          "actual-aggregate-and-payload-eligibility-still-required",
+          ...admission.pending_obligations,
+        ]),
+      });
+      await building.receive(proof);
+      return admission;
+    }
+    const context = Object.freeze({
+      stage,
+      facts,
+      controls,
+      admission: freezePreparedFacts(structuredClone(admission)),
+      checkpoint: admission.checkpoint,
+      native_qualifications: nativeReceipts,
+      coordinator_repository: coordinatorRepository,
+      sbom_receipt: sbomReceipt,
+      public_build_inputs_receipt: publicInputs,
+      pending_obligations: Object.freeze([...admission.pending_obligations]),
+    });
+    const candidate = acquiredCandidates.get(admission);
+    if (publicationCompletion && candidate?.phase === "promoting")
+      actualPublicationCompletionContexts.set(context, context);
+    else actualAdmissionContexts.set(context, { context, phase });
+    const compilerReceipt = acquiredCompilerReceipts.get(admission);
+    if (compilerReceipt) actualRiskCompilerReceipts.set(context, compilerReceipt);
+    await onAdmitted!(context);
+  }
+  return admission;
+}
+
+/** Existing payload/publication entry retains its exact phase restrictions. */
+export function acquireReleaseAdmissionWithControlHandshake(
+  root: string,
+  configuration: unknown,
+  rawPhase: unknown = "admission",
+  additionalFacts?: (
+    facts: Readonly<PreparedReleaseAdmissionFacts>,
+    factsSha256: string,
+  ) => Promise<string>,
+  onAdmitted?: (context: Readonly<ActualReleaseAdmissionContext>) => Promise<void>,
+  compiler?: ReleaseCompilerAdmissionPrerequisite,
+  establishNative?: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]>["establishNative"],
+  deadline?: number,
+) {
+  return performAdmissionHandshake(
+    root,
+    configuration,
+    rawPhase,
+    additionalFacts,
+    onAdmitted,
+    compiler,
+    establishNative,
+    undefined,
+    deadline,
+  );
+}
+
+/** Fixed Release caller only. Promoting acquisition yields the distinct
+ * readback-only brand above, never a publication/signing/aggregate capability. */
+export function acquirePublicationControllerAdmission(
+  root: string,
+  configuration: unknown,
+  onAdmitted: NonNullable<Parameters<typeof acquireReleaseAdmissionWithControlHandshake>[4]>,
+  compiler: ReleaseCompilerAdmissionPrerequisite,
+  establishNative: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]>["establishNative"],
+  deadline: number,
+) {
+  return performAdmissionHandshake(
+    root,
+    configuration,
+    "release-publication",
+    undefined,
+    onAdmitted,
+    compiler,
+    establishNative,
+    undefined,
+    deadline,
+    true,
+  );
+}
+
+/** Read-only qualifying evidence under the fixed independent reader. It neither
+ * advances the candidate nor creates payload/publication admission. */
+export async function acquireActualCandidateBuildingEligibility(
+  ...args: [root: string, configuration: unknown, tools: object, native: unknown, deadline?: number]
+) {
+  return acquireBuildingEligibility(...args);
+}
+export async function acquireActualAdmittedAggregateEligibility(
+  ...args: [root: string, configuration: unknown, tools: object, native: unknown, deadline?: number]
+) {
+  return acquireBuildingEligibility(...args, true);
+}
+async function acquireBuildingEligibility(
+  root: string,
+  rawConfiguration: unknown,
+  controllerTools: object,
+  rawNativeLocators: unknown,
+  deadline?: number,
+  aggregate?: true,
+) {
+  const capturedConfiguration: unknown = structuredClone(rawConfiguration),
+    nativeLocators: unknown = structuredClone(rawNativeLocators);
+  const tools = await verifiedControllerToolPaths(controllerTools);
+  const authorities = await requireControllerReleaseAuthorities("admission");
+  const configured = configuration(capturedConfiguration);
+  if (
+    configured.namespace !== authorities.namespace ||
+    configured.release_profile !== "initial-beta-win-linux"
+  )
+    throw new Error(
+      "qualifying source requires the actual ratified namespace and selected package profile",
+    );
+  const closure = inspectReleaseCompilerSourceClosure(
+    JSON.parse(
+      (await readControllerToolFile(tools.compiler_source_closure, 65536)).toString("utf8"),
+    ),
+  );
+  if (
+    closure.source_commit !== tools.identity.controller_revision ||
+    closure.source_tree !== tools.identity.source_tree
+  )
+    throw new Error("qualifying compiler closure differs from authenticated tools");
+  let proof: object | undefined;
+  const admission = await performAdmissionHandshake(
+    root,
+    capturedConfiguration,
+    "admission",
+    undefined,
+    undefined,
+    {
+      controller_tools: controllerTools,
+      controller_source: { source_commit: closure.source_commit, source_tree: closure.source_tree },
+    },
+    (facts) =>
+      collectConfiguredNativeReleaseQualificationPair(
+        root,
+        nativeLocators,
+        facts.assembly,
+        facts.archives,
+        "admission",
+      ),
+    {
+      tools: controllerTools,
+      namespace: authorities.namespace,
+      ...(aggregate ? { aggregate } : {}),
+      receive: async (actual) => {
+        proof = actual;
+      },
+    },
+    deadline,
+  );
+  return (
+    proof ??
+    Object.freeze({
+      kind: "candidate-building-eligibility-unavailable",
+      decision: "hold",
+      admission,
+      authority: "none",
+    })
+  );
+}
+
+/** Exact private proof for the separate durable phase writer. A caller cannot
+ * import a successful report, change a hold or reinterpret payload admission. */
+export async function requireActualCandidateBuildingEligibility(receipt: object) {
+  if (actualBuildingEligibility.get(receipt)?.aggregate_readback_only)
+    throw new Error("aggregate readback proof cannot authorize candidate building");
+  return requireAdmittedAggregateEligibility(receipt);
+}
+export async function requireActualAdmittedAggregateEligibility(receipt: object) {
+  return requireAdmittedAggregateEligibility(receipt);
+}
+async function requireAdmittedAggregateEligibility(receipt: object) {
+  const actual = actualBuildingEligibility.get(receipt);
+  if (!actual) throw new Error("actual same-process candidate building eligibility required");
+  requireAuthenticatedReleaseControlSource(actual.controls, "admission");
+  await verifiedControllerToolPaths(actual.controller_tools);
+  await requireNativeReleaseQualificationPair(
+    actual.native_qualifications,
+    actual.facts.assembly,
+    actual.facts.archives,
+    "payload-signing",
+  );
+  await requireVerifiedReleaseSbomDocument(actual.sbom_receipt);
+  await requireVerifiedReleasePublicBuildInputs(actual.public_build_inputs_receipt);
+  requireAuthenticatedReleaseControlSource(actual.controls, "admission");
+  return Object.freeze({
+    ...actual,
+    candidate: freezePreparedFacts(structuredClone(actual.candidate)),
+  });
+}
+
+/** Complete fixed admission caller. Actual tools, native pair, independent
+ * controls and the same-process phase writer precede any aggregate locator. */
+export async function runFixedBuildingConfiguration(raw: unknown, root: string, deadline: number) {
+  const { withCoordinatorDeadline } = await import("./release-coordinator-deadline.mts");
+  return withCoordinatorDeadline(deadline, async () => {
+    if (
+      !isRecord(raw) ||
+      Object.keys(raw).sort().join(",") !== "configuration,native_locators,tools" ||
+      !isRecord(raw.tools) ||
+      Object.keys(raw.tools).sort().join(",") !== "artifact,bundle" ||
+      !isRecord(raw.tools.artifact) ||
+      !isRecord(raw.tools.bundle) ||
+      !path.isAbsolute(root)
+    )
+      throw new Error("fixed building admission caller fields differ");
+    await requireControllerReleaseAuthorities("admission");
+    const { receiveControllerTools } = await import("./release-controller-tool-admission.mts");
+    const tools = await receiveControllerTools(
+      root,
+      raw.tools.artifact as unknown as Parameters<typeof receiveControllerTools>[1],
+      raw.tools.bundle as unknown as Parameters<typeof receiveControllerTools>[2],
+      { deadline },
+    );
+    const eligibility = await acquireActualCandidateBuildingEligibility(
+      root,
+      raw.configuration,
+      tools,
+      raw.native_locators,
+      deadline,
+    );
+    const admitted = await requireActualCandidateBuildingEligibility(eligibility);
+    const { advanceActualCandidateToBuilding, requireActualCandidatePhaseAdvance } =
+      await import("./release-candidate-progress.mts");
+    const advanced = await advanceActualCandidateToBuilding(eligibility, { deadline });
+    const actual = await requireActualCandidatePhaseAdvance(advanced, "building");
+    const { aggregateEvidenceRequestFromObservation } =
+      await import("./production-aggregate-steps.mts");
+    const descriptor = {
+      schema_version: 1,
+      checkpoint: actual.checkpoint,
+      coordinator: { schema_version: 1, namespace: actual.namespace },
+      assembly: admitted.facts.assembly,
+      archives: admitted.facts.archives,
+      evidence: aggregateEvidenceRequestFromObservation(admitted.facts.evidence),
+    };
+    const encoded = JSON.stringify(descriptor);
+    const { requireReservedAggregate } = await import("./production-aggregate-steps.mts");
+    const { readRemoteCoordinatorSnapshot } = await import("./release-coordinator-recovery.mts");
+    await requireReservedAggregate(
+      encoded,
+      await readRemoteCoordinatorSnapshot(root, descriptor.coordinator, {
+        transport: { cwd: root, deadline },
+      }),
+    );
+    if (Buffer.byteLength(encoded) > 65536)
+      throw new Error("actual building descriptor exceeds output bound");
+    await requireActualCandidatePhaseAdvance(advanced, "building");
+    return Object.freeze({
+      decision: "candidate-building-admitted",
+      descriptor,
+      authority: "none",
+    });
+  });
+}
+async function runBuildingCli() {
+  if (
+    process.argv.length !== 3 ||
+    process.argv[2] !== "--building" ||
+    !process.env.RUNNER_TEMP ||
+    !process.env.GITHUB_OUTPUT
+  )
+    throw new Error("fixed building caller channels required");
+  const authorities = await requireControllerReleaseAuthorities("admission");
+  const raw = process.env.PORTCOVE_FIXED_BUILDING_CONFIGURATION;
+  if (!raw || Buffer.byteLength(raw) > 65536)
+    throw new Error("bounded fixed building configuration required");
+  const { currentBuildingJobDeadline } = await import("./release-signing-job-budget.mts");
+  const deadline = currentBuildingJobDeadline(
+    {
+      run_id: process.env.GITHUB_RUN_ID ?? "",
+      run_attempt: 1,
+      controller_revision: process.env.PORTCOVE_CONTROLLER_REVISION ?? "",
+      controller_ref: process.env.PORTCOVE_CONTROLLER_REF ?? "",
+    },
+    process.cwd(),
+    performance.now() + 405000,
+  );
+  const selected: unknown = JSON.parse(raw);
+  if (
+    !isRecord(selected) ||
+    !isRecord(selected.configuration) ||
+    selected.configuration.namespace !== authorities.namespace
+  )
+    throw new Error("fixed building namespace differs from ratified authority");
+  const result = await runFixedBuildingConfiguration(selected, process.env.RUNNER_TEMP, deadline);
+  const { appendFile } = await import("node:fs/promises");
+  await appendFile(process.env.GITHUB_OUTPUT, `descriptor=${JSON.stringify(result.descriptor)}\n`);
+  await writeFile(
+    path.join(process.env.RUNNER_TEMP, "building-admission-result.json"),
+    JSON.stringify(result),
+    { flag: "wx", mode: 0o600 },
+  );
+}
+
 async function main() {
-  if (process.argv.length !== 2)
+  const handshake = process.argv.length === 3 && process.argv[2] === "--handshake";
+  if (process.argv.length !== 2 && !handshake)
     throw new Error("admission accepts no candidate path or dispatch arguments");
   const raw = process.env.PORTCOVE_COORDINATOR_CONFIGURATION;
   if (!raw || Buffer.byteLength(raw) > 4096)
@@ -786,7 +1619,13 @@ async function main() {
       stage("acquire-publication-reservation-and-qualification");
       let result;
       try {
-        result = await acquireReleaseAdmission(root, JSON.parse(raw));
+        if (handshake) {
+          result = await acquireReleaseAdmissionWithControlHandshake(root, JSON.parse(raw));
+        } else {
+          const workflow = await readProductionControllerWorkflowBytes();
+          const controls = await authenticateReleaseControlSource(process.env, workflow);
+          result = await acquireReleaseAdmission(root, JSON.parse(raw), { controls });
+        }
       } catch (error) {
         if (error instanceof CoordinatorRemoteError)
           await writeFile(
@@ -818,10 +1657,25 @@ async function main() {
   );
   process.exitCode = 2;
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
-  main().catch(() => {
-    console.error(
-      "independent release admission refused; retain owned acquisition evidence; no descriptor or mutation emitted",
-    );
-    process.exitCode = 2;
-  });
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+    await (process.argv[2] === "--building" ? runBuildingCli() : main()).catch(() => {
+      console.error(
+        "independent release admission refused; retain owned acquisition evidence; no descriptor or mutation emitted",
+      );
+      process.exitCode = 2;
+    });
+    if (["--handshake", "--building"].includes(process.argv[2] ?? "") && process.env.RUNNER_TEMP)
+      await writeFile(
+        path.join(process.env.RUNNER_TEMP, "release-admission-process-ended.json"),
+        JSON.stringify({ exit_code: process.exitCode ?? 0, authority: "none" }),
+        { flag: "wx", mode: 0o600 },
+      ).catch(() => {
+        process.exitCode = 2;
+      });
+  }
+}
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

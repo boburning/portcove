@@ -1,6 +1,11 @@
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { errorCode, errorMessage, isRecord } from "./runtime-values.mts";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { spawnSync } from "node:child_process";
+import {
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 
 export interface GitHubRateLimit {
   resource: string | null;
@@ -209,10 +214,13 @@ export function createGitHubRunner({
   return (args, input) => {
     const result = spawn(command, args, {
       cwd,
+      ...(readOnlyReleaseChildEnvironment() === undefined
+        ? {}
+        : { env: readOnlyReleaseChildEnvironment() }),
       encoding: "utf8",
       input,
       maxBuffer,
-      timeout: timeoutMs,
+      timeout: coordinatorCommandTimeout(timeoutMs),
       killSignal: "SIGKILL",
       stdio: input === undefined ? ["ignore", "pipe", "pipe"] : ["pipe", "pipe", "pipe"],
       windowsHide: true,
@@ -269,6 +277,7 @@ export function createGitHubRunner({
         },
       );
     }
+    checkCoordinatorDeadline();
     return result.stdout.trim();
   };
 }

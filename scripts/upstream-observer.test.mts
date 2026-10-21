@@ -21,6 +21,8 @@ import {
   validateObserverConfig,
   githubDirectPin,
   validateGithubPinMetadata,
+  githubSourceArchive,
+  validateGithubSourceArchiveMetadata,
 } from "./upstream-observer.mts";
 import { advanceObservation, withCheckpointLock } from "./observe-configured-upstream.mts";
 import {
@@ -1494,7 +1496,11 @@ void test("live monitoring policy retains valid explicit port contract bindings"
   );
   assert.ok(isRecord(catalog) && Array.isArray(catalog.ports));
   const ports: unknown[] = catalog.ports;
-  for (const rule of [...policy.pins, ...policy.original_conditions]) {
+  for (const rule of [
+    ...policy.pins,
+    ...policy.original_conditions,
+    ...(policy.source_archives ?? []),
+  ]) {
     const port = requiredFixture(
       ports.find((value) => isRecord(value) && value.id === rule.port_id),
     );
@@ -2379,7 +2385,7 @@ void test("fixed mixed inventory retains every location and pin check with eight
     assert.equal(calls.length, expanded ? 130 : 47);
     assert.equal(report.limits.requests, expanded ? 139 : 55);
     assert.equal(report.request_plan.conservative_requests, report.limits.requests);
-    assert.equal(report.request_plan.hard_ceiling, 256);
+    assert.equal(report.request_plan.hard_ceiling, 320);
     assert.equal(report.request_plan.conditional_repository_reuses, expanded ? 9 : 8);
     assert.equal(report.observations.filter((record) => record.pin_assessment).length, 10);
     for (const pin of reviewedAccounting.pins) {
@@ -2410,7 +2416,7 @@ void test("repository reuse retains all obligations across the former cap and ne
     [123, false],
     [124, false],
     [124, true],
-    [251, false],
+    [315, false],
   ] as const) {
     const catalog = {
       ports: [
@@ -2437,7 +2443,7 @@ void test("repository reuse retains all obligations across the former cap and ne
       },
     });
     assert.equal(report.limits.requests, ordinaryCount + 5 + Number(nextLive));
-    assert.equal(report.request_plan.hard_ceiling, 256);
+    assert.equal(report.request_plan.hard_ceiling, 320);
     assert.equal(report.consumed.requests, ordinaryCount + 4 + Number(nextLive));
     assert.equal(calls.length, ordinaryCount + 4 + Number(nextLive));
     assert.equal(calls.filter((call) => call.url === prefix).length, 1);
@@ -2911,8 +2917,8 @@ const capacityFetch =
     );
   };
 
-void test("validated forecasts admit 255/256 and refuse 257 before any network I/O", async () => {
-  for (const count of [255, 256, 257]) {
+void test("validated forecasts admit 319/320 and refuse 321 before any network I/O", async () => {
+  for (const count of [319, 320, 321]) {
     const catalog = {
       ports: Array.from({ length: count }, (_, i) => capacityPort(`boundary-${i}`)),
     };
@@ -2922,16 +2928,16 @@ void test("validated forecasts admit 255/256 and refuse 257 before any network I
       now: () => 0,
     });
     assert.equal(report.request_plan.conservative_requests, count);
-    assert.equal(report.request_plan.hard_ceiling, 256);
-    assert.equal(report.request_plan.status, count > 256 ? "overflow" : "admitted");
-    assert.equal(report.limits.requests, count > 256 ? 0 : count);
-    assert.equal(calls.length, count > 256 ? 0 : count);
+    assert.equal(report.request_plan.hard_ceiling, 320);
+    assert.equal(report.request_plan.status, count > 320 ? "overflow" : "admitted");
+    assert.equal(report.limits.requests, count > 320 ? 0 : count);
+    assert.equal(calls.length, count > 320 ? 0 : count);
     assert.equal(report.consumed.requests, calls.length);
     assert.equal(report.observations.length, count);
     assert.equal(report.port_health.length, count);
     assert.equal(report.coverage.repositories, count);
     assert.equal(report.scope.mode, "full");
-    if (count > 256) {
+    if (count > 320) {
       assert.equal(report.outcome, "incomplete");
       assert.equal(report.scope.global_health, "not assessed");
       assert.ok(
@@ -2987,7 +2993,7 @@ void test("overflow preserves static missing-release and conflicting-identity cl
   });
   const catalog = {
     ports: [
-      ...Array.from({ length: 255 }, (_, i) => capacityPort(`mixed-${i}`)),
+      ...Array.from({ length: 319 }, (_, i) => capacityPort(`mixed-${i}`)),
       direct("unlocated"),
       direct("conflicting", true),
     ],
@@ -3007,10 +3013,10 @@ void test("overflow preserves static missing-release and conflicting-identity cl
     fetch: () => assert.fail("Overflow must not fetch"),
     now: () => 0,
   });
-  assert.equal(report.request_plan.conservative_requests, 257);
+  assert.equal(report.request_plan.conservative_requests, 321);
   assert.equal(report.limits.requests, 0);
-  assert.equal(report.observations.length, 258);
-  assert.equal(report.coverage.monitored_ports, 257);
+  assert.equal(report.observations.length, 322);
+  assert.equal(report.coverage.monitored_ports, 321);
   assert.equal(
     requiredFixture(report.observations.find((r) => r.provider === "unlocated-historical")).reason,
     "release-identity-unavailable",
@@ -3094,4 +3100,458 @@ void test("reuse opportunities require the pin read to precede a shared hosted s
     assert.equal(report.limits.requests, 5);
     assert.equal(report.consumed.requests, pinFirst ? 4 : 5);
   }
+});
+
+function sourceArchiveFixture(parents = ["3".repeat(40), "4".repeat(40)]) {
+  const repository = { id: 567, full_name: "fixture/source", archived: false };
+  const sha = "1".repeat(40),
+    tree = "2".repeat(40);
+  const api = `https://api.github.com/repos/${repository.full_name}/git`;
+  const html = `https://github.com/${repository.full_name}/commit`;
+  const commit = {
+    sha,
+    url: `${api}/commits/${sha}`,
+    html_url: `${html}/${sha}`,
+    tree: { sha: tree, url: `${api}/trees/${tree}` },
+    parents: parents.map((value) => ({
+      sha: value,
+      url: `${api}/commits/${value}`,
+      html_url: `${html}/${value}`,
+    })),
+  };
+  const port = {
+    id: "source-archive",
+    project_url: `https://github.com/${repository.full_name}`,
+    release: {
+      provider: "direct-manifest",
+      direct: {
+        windows: {
+          url: `https://github.com/${repository.full_name}/archive/${sha}.zip`,
+          version: "source-pinned",
+          size: 10,
+          sha256: "a".repeat(64),
+        },
+      },
+    },
+  };
+  const scope = {
+    port_id: port.id,
+    port_contract_sha256: observationHash(port),
+    platform: "windows",
+    ...port.release.direct.windows,
+    repository: repository.full_name,
+    repository_id: repository.id,
+    archived: false,
+    commit_sha: sha,
+    tree_sha: tree,
+    commit_facts_sha256: observationHash({ sha, tree_sha: tree, parents }),
+  };
+  const { version: _version, ...rule } = scope;
+  return { repository, commit, port, rule, api: api.slice(0, -4) };
+}
+function sourceArchivePolicy(fixture = sourceArchiveFixture()) {
+  return {
+    format_version: 1,
+    authority: "fixture metadata only",
+    decision: "independent synthetic case",
+    pins: [],
+    original_conditions: [],
+    source_archives: [structuredClone(fixture.rule)],
+  };
+}
+function sourceArchiveFetch(
+  fixture: ReturnType<typeof sourceArchiveFixture>,
+  calls: HealthCall[],
+): HealthFetch {
+  return async (url, options) => {
+    calls.push({ url, options });
+    assert.equal(options.redirect, "manual");
+    if (url === fixture.rule.url) {
+      assert.equal(options.method, "HEAD");
+      assert.equal(options.headers.Authorization, undefined);
+      return new Response(null, {
+        status: 302,
+        headers: { location: "https://untrusted.invalid/private-signed-url" },
+      });
+    }
+    const body =
+      url === fixture.api
+        ? fixture.repository
+        : url === `${fixture.api}/git/commits/${fixture.rule.commit_sha}`
+          ? fixture.commit
+          : null;
+    assert.ok(body, `unexpected source metadata request ${url}`);
+    return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
+  };
+}
+void test("exact source commit accounting supports roots and merges, preserving Unknown bytes and destinations", async () => {
+  for (const parents of [
+    [],
+    ["3".repeat(40)],
+    ["3".repeat(40), "4".repeat(40)],
+    Array.from({ length: 16 }, (_, i) => (i + 5).toString(16).padStart(40, "0")),
+  ]) {
+    const fixture = sourceArchiveFixture(parents),
+      calls: HealthCall[] = [];
+    const report = await collectRepositoryHealthWithPolicy(
+      { ports: [fixture.port] },
+      {
+        reviewedAccounting: sourceArchivePolicy(fixture),
+        fetch: sourceArchiveFetch(fixture, calls),
+        githubToken: "fixture-token",
+      },
+    );
+    assert.equal(report.outcome, "complete");
+    assert.equal(report.degradation, true);
+    assert.equal(report.request_plan.conservative_requests, 4);
+    assert.equal(report.request_plan.conditional_archive_requests, 2);
+    assert.equal(report.consumed.requests, 3);
+    assert.equal(report.coverage.reused_repositories, 1);
+    const record = requiredFixture(
+      report.observations.find((r) => r.provider === "direct-manifest"),
+    );
+    assert.equal(record.status, "unknown");
+    assert.equal(record.http_status, 302);
+    assert.equal(record.source_archive_assessment?.status, "provider-reported-commit-present");
+    assert.equal(record.source_archive_assessment?.accepted_bytes, "unverified");
+    assert.equal(record.source_archive_assessment?.destination_availability, "unknown");
+    assert.match(record.classification ?? "", /provider-reported-commit-present/);
+    assert.equal(report.port_health[0]?.accepted_artifact_obtainability.status, "unknown");
+    assert.ok(calls.every((c) => !c.url.includes("untrusted.invalid")));
+    assert.ok(!JSON.stringify(report).includes("private-signed-url"));
+    assert.match(
+      renderRepositoryHealth(report),
+      /Source commit metadata: provider-reported-commit-present/,
+    );
+    const repeat = await collectRepositoryHealthWithPolicy(
+      { ports: [fixture.port] },
+      {
+        reviewedAccounting: sourceArchivePolicy(fixture),
+        fetch: sourceArchiveFetch(fixture, []),
+        previousReport: report,
+      },
+    );
+    assert.equal(repeat.material_changes.length, 0);
+    const changed = await collectRepositoryHealthWithPolicy(
+      { ports: [fixture.port] },
+      {
+        reviewedAccounting: sourceArchivePolicy(fixture),
+        previousReport: report,
+        fetch: async (url, options) =>
+          url.includes("/git/commits/")
+            ? new Response(
+                JSON.stringify({
+                  ...fixture.commit,
+                  tree: { ...fixture.commit.tree, sha: "f".repeat(40) },
+                }),
+              )
+            : sourceArchiveFetch(fixture, [])(url, options),
+      },
+    );
+    assert.equal(changed.outcome, "incomplete");
+    assert.ok(changed.material_changes.length);
+  }
+});
+void test("source archive URLs and immutable graph facts refuse escaped, changed, ambiguous and partial metadata", () => {
+  const fixture = sourceArchiveFixture();
+  for (const url of [
+    fixture.rule.url + "?x=1",
+    fixture.rule.url + "#x",
+    fixture.rule.url.replace("github.com", "github.com:443"),
+    fixture.rule.url.replace("https://", "https://user@"),
+    fixture.rule.url.replace("archive/", "archive/refs/heads/"),
+    fixture.rule.url.replace(fixture.rule.commit_sha, "main"),
+    fixture.rule.url.replace(".zip", ".tar.gz"),
+    fixture.rule.url.replace("github.com", "github.com.evil.invalid"),
+  ])
+    assert.throws(() => githubSourceArchive(url), url);
+  const mutations: ((f: ReturnType<typeof sourceArchiveFixture>) => void)[] = [
+    (f) => {
+      f.repository.id++;
+    },
+    (f) => {
+      f.repository.full_name = "other/source";
+    },
+    (f) => {
+      f.repository.archived = true;
+    },
+    (f) => {
+      f.commit.sha = "f".repeat(40);
+    },
+    (f) => {
+      f.commit.tree.sha = "f".repeat(40);
+    },
+    (f) => {
+      f.commit.tree.url += "?x=1";
+    },
+    (f) => {
+      f.commit.url = "https://example.invalid/commit";
+    },
+    (f) => {
+      f.commit.html_url += "#x";
+    },
+    (f) => {
+      requiredFixture(f.commit.parents[0]).sha = "f".repeat(40);
+    },
+    (f) => {
+      requiredFixture(f.commit.parents[0]).url += "?x=1";
+    },
+    (f) => {
+      requiredFixture(f.commit.parents[0]).html_url += "#x";
+    },
+    (f) => {
+      f.commit.parents.reverse();
+    },
+    (f) => {
+      f.commit.parents.pop();
+    },
+    (f) => {
+      f.commit.parents.push(requiredFixture(f.commit.parents[0]));
+    },
+    (f) => {
+      f.commit.parents = Array.from({ length: 17 }, () => requiredFixture(f.commit.parents[0]));
+    },
+    (f) => {
+      delete objectFixture(f.commit).parents;
+    },
+    (f) => {
+      objectFixture(f.commit).tree = null;
+    },
+  ];
+  for (const mutate of mutations) {
+    const altered = structuredClone(fixture);
+    mutate(altered);
+    assert.throws(() =>
+      validateGithubSourceArchiveMetadata(altered.repository, altered.commit, altered.rule),
+    );
+  }
+  const prose = {
+    ...fixture.commit,
+    message: "untrusted prose",
+    verification: { verified: false },
+  };
+  assert.doesNotThrow(() =>
+    validateGithubSourceArchiveMetadata(fixture.repository, prose, fixture.rule),
+  );
+});
+void test("source archive collection keeps failed metadata, redirects, pagination and response budgets unaccounted", async () => {
+  const fixture = sourceArchiveFixture(),
+    endpoint = `${fixture.api}/git/commits/${fixture.rule.commit_sha}`;
+  const failures = [
+    ...[301, 302, 303, 307, 308, 401, 403, 404, 429, 500].map(
+      (status) => () => new Response(null, { status }),
+    ),
+    () =>
+      new Response(JSON.stringify(fixture.commit), {
+        headers: { link: '<https://untrusted.invalid>; rel="next"' },
+      }),
+    () => new Response("not json"),
+    () => new Response(" ".repeat(1024 * 1024 + 1)),
+    () => {
+      throw new Error("transport failure with private details");
+    },
+  ];
+  for (const failure of failures) {
+    const calls: HealthCall[] = [],
+      fixed = sourceArchiveFetch(fixture, calls);
+    let attempts = 0;
+    const report = await collectRepositoryHealthWithPolicy(
+      { ports: [fixture.port] },
+      {
+        reviewedAccounting: sourceArchivePolicy(fixture),
+        fetch: async (url, options) => {
+          if (url === endpoint) {
+            attempts++;
+            return failure();
+          }
+          return fixed(url, options);
+        },
+      },
+    );
+    assert.equal(attempts, 1);
+    assert.equal(report.outcome, "incomplete");
+    const record = requiredFixture(
+      report.observations.find((r) => r.provider === "direct-manifest"),
+    );
+    assert.equal(record.source_archive_assessment?.status, "unknown");
+    assert.equal(record.accounted_for, false);
+    assert.equal(record.http_status, 302);
+    assert.ok(!JSON.stringify(report).includes("private details"));
+    assert.ok(calls.every((c) => !c.url.includes("untrusted.invalid")));
+  }
+});
+void test("source archive accounting binds every shared port, exact catalog bytes and current contract", async () => {
+  const fixture = sourceArchiveFixture();
+  for (const change of [
+    "contract",
+    "size",
+    "sha256",
+    "platform",
+    "missing",
+    "shared",
+    "conflict",
+  ]) {
+    const port = structuredClone(fixture.port),
+      policy = sourceArchivePolicy(fixture);
+    const catalog = { ports: [port] };
+    if (change === "contract") objectFixture(port).new_behavior = true;
+    if (change === "size") port.release.direct.windows.size++;
+    if (change === "sha256") port.release.direct.windows.sha256 = "b".repeat(64);
+    if (change === "size" || change === "sha256")
+      requiredFixture(policy.source_archives[0]).port_contract_sha256 = observationHash(port);
+    if (change === "platform") requiredFixture(policy.source_archives[0]).platform = "linux";
+    if (change === "missing") policy.source_archives = [];
+    if (change === "shared") catalog.ports.push({ ...port, id: "unreviewed-shared" });
+    if (change === "conflict")
+      objectFixture(port.release.direct).linux = {
+        ...port.release.direct.windows,
+        sha256: "b".repeat(64),
+      };
+    const report = await collectRepositoryHealthWithPolicy(catalog, {
+      reviewedAccounting: policy,
+      fetch: sourceArchiveFetch(fixture, []),
+    });
+    assert.equal(report.outcome, "incomplete", change);
+    assert.equal(
+      report.observations.find((r) => r.provider === "direct-manifest")?.accounted_for,
+      false,
+      change,
+    );
+  }
+  const shared = { ...fixture.port, id: "reviewed-shared" },
+    policy = sourceArchivePolicy(fixture);
+  policy.source_archives.push({
+    ...fixture.rule,
+    port_id: shared.id,
+    port_contract_sha256: observationHash(shared),
+  });
+  const report = await collectRepositoryHealthWithPolicy(
+    { ports: [fixture.port, shared] },
+    {
+      reviewedAccounting: policy,
+      fetch: sourceArchiveFetch(fixture, []),
+    },
+  );
+  assert.equal(report.outcome, "complete");
+});
+void test("accounting record boundaries include source archives and reject duplicates across acquisition families", () => {
+  const fixture = sourceArchiveFixture();
+  for (const count of [63, 64, 65]) {
+    const policy = {
+      ...sourceArchivePolicy(fixture),
+      source_archives: Array.from({ length: count }, (_, i) => ({
+        ...fixture.rule,
+        port_id: `fixture-${i}`,
+      })),
+    };
+    if (count <= 64) assert.doesNotThrow(() => validateHealthAccountingPolicy(policy));
+    else assert.throws(() => validateHealthAccountingPolicy(policy));
+  }
+  const retainedCount =
+    reviewedAccounting.pins.length + reviewedAccounting.original_conditions.length;
+  for (const total of [64, 65]) {
+    const mixed = {
+      ...structuredClone(reviewedAccounting),
+      source_archives: Array.from({ length: total - retainedCount }, (_, i) => ({
+        ...fixture.rule,
+        port_id: `mixed-${i}`,
+      })),
+    };
+    if (total === 64) assert.doesNotThrow(() => validateHealthAccountingPolicy(mixed));
+    else assert.throws(() => validateHealthAccountingPolicy(mixed));
+  }
+  for (const mutate of [
+    (p: ReturnType<typeof sourceArchivePolicy>) => {
+      p.source_archives.push(fixture.rule);
+    },
+    (p: ReturnType<typeof sourceArchivePolicy>) => {
+      requiredFixture(p.source_archives[0]).size = 0;
+    },
+    (p: ReturnType<typeof sourceArchivePolicy>) => {
+      requiredFixture(p.source_archives[0]).sha256 = "bad";
+    },
+    (p: ReturnType<typeof sourceArchivePolicy>) => {
+      objectFixture(requiredFixture(p.source_archives[0])).extra = true;
+    },
+    (p: ReturnType<typeof sourceArchivePolicy>) => {
+      requiredFixture(p.source_archives[0]).url += "?x=1";
+    },
+  ]) {
+    const policy = sourceArchivePolicy(fixture);
+    mutate(policy);
+    assert.throws(() => validateHealthAccountingPolicy(policy));
+  }
+  const crossFamily = {
+    ...sourceArchivePolicy(fixture),
+    pins: [
+      {
+        ...requiredFixture(reviewedAccounting.pins[0]),
+        port_id: fixture.rule.port_id,
+        platform: fixture.rule.platform,
+      },
+    ],
+  };
+  assert.throws(() => validateHealthAccountingPolicy(crossFamily));
+});
+
+void test("source archive conditional reads participate in zero-I/O forecast overflow", async () => {
+  const fixture = sourceArchiveFixture();
+  const report = await collectRepositoryHealthWithPolicy(
+    {
+      ports: [
+        fixture.port,
+        ...Array.from({ length: 317 }, (_, i) => capacityPort(`archive-capacity-${i}`)),
+      ],
+    },
+    {
+      reviewedAccounting: sourceArchivePolicy(fixture),
+      now: () => 0,
+      fetch: () => assert.fail("321-call archive forecast must refuse every request"),
+    },
+  );
+  assert.equal(report.request_plan.conservative_requests, 321);
+  assert.equal(report.request_plan.conditional_archive_requests, 2);
+  assert.equal(report.limits.requests, 0);
+  assert.equal(report.consumed.requests, 0);
+  assert.equal(report.scope.global_health, "not assessed");
+  assert.equal(report.observations.length, 319);
+  assert.ok(report.observations.every((r) => !r.attempted && !r.accounted_for));
+});
+
+void test("reviewed release URL tags remain exact when catalog version labels omit their v prefix", async () => {
+  const policy = structuredClone(reviewedAccounting),
+    pin = requiredFixture(policy.pins[0]);
+  const port = structuredClone(
+    requiredFixture(currentHealthCatalog.ports.find((p) => p.id === pin.port_id)),
+  );
+  const direct = objectFixture(objectFixture(objectFixture(port.release).direct)[pin.platform]);
+  assert.ok(pin.tag.startsWith("v"));
+  direct.version = pin.tag.slice(1);
+  const { summary: _summary, ...contract } = port;
+  pin.port_contract_sha256 = observationHash(contract);
+  const report = await collectRepositoryHealthWithPolicy(
+    { ports: [port] },
+    {
+      reviewedAccounting: policy,
+      fetch: accountingFetch([]),
+    },
+  );
+  assert.equal(report.outcome, "complete");
+  assert.equal(report.request_plan.conditional_pin_requests, 3);
+  assert.equal(
+    report.observations.find((r) => r.repository === pin.url)?.pin_assessment?.status,
+    "provider-reported-pin-present",
+  );
+  direct.version = "different-catalog-contract";
+  const changed = await collectRepositoryHealthWithPolicy(
+    { ports: [port] },
+    {
+      reviewedAccounting: policy,
+      fetch: accountingFetch([]),
+    },
+  );
+  assert.equal(changed.outcome, "incomplete");
+  assert.equal(changed.request_plan.conditional_pin_requests, 0);
+  pin.tag = "different-provider-tag";
+  assert.throws(() => validateHealthAccountingPolicy(policy));
 });

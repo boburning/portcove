@@ -6024,6 +6024,243 @@
     "title": "Array_of_string",
     "type": "array"
   },
+  "support_bundle_export": {
+    "$defs": {
+      "SupportBundleLimits": {
+        "properties": {
+          "activity_count": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "capture_count": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "collection_seconds": {
+            "description": "Cooperative checkpoints; this does not time out a blocked OS call.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "log_bytes": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "record_bytes": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "section_bytes": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total_bytes": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_bytes",
+          "section_bytes",
+          "log_bytes",
+          "record_bytes",
+          "activity_count",
+          "capture_count",
+          "collection_seconds"
+        ],
+        "type": "object"
+      },
+      "SupportBundleManifest": {
+        "properties": {
+          "created_at_ms": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "library_available": {
+            "type": "boolean"
+          },
+          "limits": {
+            "$ref": "#/$defs/SupportBundleLimits"
+          },
+          "product_version": {
+            "type": "string"
+          },
+          "schema_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "scope": {
+            "$ref": "#/$defs/SupportBundleScope"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/$defs/SupportBundleSection"
+            },
+            "type": "array"
+          },
+          "source_revision": {
+            "description": "No source revision is invented when the build does not provide one.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "target_arch": {
+            "type": "string"
+          },
+          "target_os": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "created_at_ms",
+          "product_version",
+          "target_os",
+          "target_arch",
+          "source_revision",
+          "scope",
+          "library_available",
+          "limits",
+          "sections"
+        ],
+        "type": "object"
+      },
+      "SupportBundleProvenance": {
+        "enum": [
+          "desktop_startup",
+          "library_doctor_snapshot",
+          "activity_history",
+          "activity_diagnostics",
+          "desktop_runtime_log"
+        ],
+        "type": "string"
+      },
+      "SupportBundleReason": {
+        "enum": [
+          "unavailable",
+          "read_failed",
+          "invalid_record",
+          "unsafe_file",
+          "section_limit",
+          "total_limit",
+          "record_limit",
+          "deadline",
+          "incomplete_record",
+          "capture_incomplete",
+          "capture_truncated",
+          "capture_not_collected",
+          "bounded_snapshot"
+        ],
+        "type": "string"
+      },
+      "SupportBundleScope": {
+        "enum": [
+          "bounded_recent_diagnostics"
+        ],
+        "type": "string"
+      },
+      "SupportBundleSection": {
+        "properties": {
+          "bytes_read": {
+            "format": "uint",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "bytes_written": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "entry": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "$ref": "#/$defs/SupportBundleSectionKind"
+          },
+          "provenance": {
+            "$ref": "#/$defs/SupportBundleProvenance"
+          },
+          "reasons": {
+            "description": "Closed reasons only. OS/SQL errors, paths and payloads never enter here.",
+            "items": {
+              "$ref": "#/$defs/SupportBundleReason"
+            },
+            "type": "array"
+          },
+          "records": {
+            "format": "uint",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/$defs/SupportBundleSectionStatus"
+          }
+        },
+        "required": [
+          "kind",
+          "provenance",
+          "entry",
+          "status",
+          "reasons",
+          "bytes_read",
+          "bytes_written",
+          "records"
+        ],
+        "type": "object"
+      },
+      "SupportBundleSectionKind": {
+        "enum": [
+          "startup",
+          "doctor",
+          "activities",
+          "activity_capture",
+          "runtime_log"
+        ],
+        "type": "string"
+      },
+      "SupportBundleSectionStatus": {
+        "enum": [
+          "included",
+          "partial",
+          "omitted"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "manifest": {
+        "$ref": "#/$defs/SupportBundleManifest"
+      },
+      "path": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "path",
+      "manifest"
+    ],
+    "title": "SupportBundleExport",
+    "type": "object"
+  },
   "update_check_outcome": {
     "$defs": {
       "ArtifactIdentity": {

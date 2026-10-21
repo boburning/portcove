@@ -19,6 +19,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { stripTypeScriptTypes } from "node:module";
 import { verifyConsumedInputs } from "./retained-evidence.mts";
 import {
   expandNativeHelperInputs,
@@ -77,8 +78,23 @@ void test("actual declarations cover wrappers and every transitive conditional h
     "native-confirmation.ps1",
     "native-session.ps1",
     "native-startup-observation.ps1",
+    "native-linux-public-plan.mts",
   ])
     assert(files.includes(prefix + name));
+  for (const name of ["services", "network", "fuse"])
+    assert(nativeHelperSharedSources.includes(prefix + `native-linux-public-${name}.py`));
+});
+
+void test("fixed captured public init module does not permit another dynamic Python loader", async () => {
+  const file = prefix + "native-linux-isolated-init.py";
+  const source = await readFile(path.join(root, file), "utf8");
+  assert.deepEqual(nativeHelperSourceDependencies(file, source), []);
+  for (const changed of [
+    source.replace('"/native/public-services.py", "exec"', '"/native/other.py", "exec"'),
+    source + "\nexec('import foreign')\n",
+    source + '\nexec(compile(data, "/native/public-services.py", "exec"), module.__dict__)\n',
+  ])
+    assert.throws(() => nativeHelperSourceDependencies(file, changed), /Unsupported/);
 });
 
 void test("native wrapper imports reject added dynamic URLs and unregistered local modules", () => {
@@ -339,9 +355,26 @@ void test("missing admission source retains failed capture and resource mutation
 });
 
 void test("native receipt capture binds schema validation and reproduction inputs for every harness selection", async (t) => {
+  const preparation = new URL(
+    "../apps/desktop/scripts/desktop-preparation-test.mts",
+    import.meta.url,
+  );
+  const executed = stripTypeScriptTypes(await readFile(preparation, "utf8"), { mode: "strip" });
+  const identityImport = [
+    ...executed.matchAll(/import\s*\{([^}]+)\}\s*from\s*["']([^"']+)["']/gu),
+  ].find((match) => match[1]?.split(",").some((name) => name.trim() === "gameTitle"))?.[2];
+  assert.ok(
+    identityImport,
+    "The actual preparation caller must execute the display-identity import",
+  );
+  assert.equal(
+    fileURLToPath(new URL(identityImport, preparation)),
+    path.join(root, "apps/desktop/src/port-identity.ts"),
+  );
   const expected = [
     "apps/desktop/scripts/desktop-scenario-state.mts",
     "apps/desktop/scripts/transport-values.mts",
+    "apps/desktop/src/port-identity.ts",
     "apps/desktop/src/transport-schemas.generated.json",
     "apps/desktop/src/transport-host-output.generated.json",
     "apps/desktop/package.json",

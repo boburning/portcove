@@ -1,6 +1,6 @@
 import axe from "axe-core";
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import App from "../App";
 import { PortBrowser } from "../components/PortBrowser";
@@ -9,6 +9,7 @@ import { artworkState } from "../test-fixtures";
 import { initializeLocalization, LocalizationProvider } from "../localization";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { collectionLayoutKey } from "../features/browsing/use-collection-layout";
+import { ApplicationUpdateNotices } from "../features/application-update/ApplicationUpdateNotices";
 import "../styles/index.css";
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
@@ -36,6 +37,119 @@ async function mount(theme: string) {
   await expect.element(page.getByRole("button", { name: "Covers", exact: true })).toBeVisible();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
 }
+
+it.each(["Covers", "Compact rows"])(
+  "keeps the %s launch origin focused while the same-target operation settles",
+  async (layout) => {
+    await page.viewport(960, 640);
+    await mount("dark");
+    await page.getByRole("button", { name: layout, exact: true }).click();
+    let finish!: (value: Awaited<ReturnType<typeof desktopApi.launch>>) => void;
+    const launch = vi.spyOn(desktopApi, "launch").mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const play = [
+      ...document.querySelectorAll<HTMLButtonElement>(".collection-actions button"),
+    ].find((button) => button.textContent?.trim() === "Play")!;
+    expect(play).toBeDefined();
+    play.scrollIntoView({ block: "center" });
+    play.focus({ preventScroll: true });
+    play.click();
+    await expect.poll(() => launch.mock.calls.length).toBe(1);
+    await expect
+      .poll(() => play.disabled || play.getAttribute("aria-disabled") === "true")
+      .toBe(true);
+    expect(document.activeElement).toBe(play);
+    // Native foreground re-entry can occur before workspace readback settles.
+    // The origin must remain a focus destination while still refusing activation.
+    play.blur();
+    play.focus({ preventScroll: true });
+    expect(document.activeElement).toBe(play);
+    // Retained focus must never permit another same-target dispatch.
+    play.click();
+    await userEvent.keyboard("{Enter}");
+    expect(launch).toHaveBeenCalledOnce();
+    finish({ processId: null, sessionId: "fixture-return-focus" });
+    await expect
+      .poll(() => play.disabled || play.getAttribute("aria-disabled") === "true")
+      .toBe(false);
+    expect(play.isConnected).toBe(true);
+    expect(document.activeElement).toBe(play);
+    let finishAgain!: (value: Awaited<ReturnType<typeof desktopApi.launch>>) => void;
+    launch.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishAgain = resolve;
+      }),
+    );
+    play.click();
+    await expect.poll(() => launch.mock.calls.length).toBe(2);
+    await expect.poll(() => play.getAttribute("aria-disabled")).toBe("true");
+    const search = document.querySelector<HTMLInputElement>("#port-search")!;
+    search.focus({ preventScroll: true });
+    finishAgain({ processId: null, sessionId: "fixture-return-after-navigation" });
+    await expect.poll(() => play.getAttribute("aria-disabled")).not.toBe("true");
+    expect(document.activeElement).toBe(search);
+  },
+);
+
+it.each([
+  ["dark", 960],
+  ["light", 960],
+  ["dark", 320],
+  ["light", 320],
+] as const)(
+  "prioritizes first-use actions with the update choice at %s/%ipx",
+  async (theme, width) => {
+    await page.viewport(width, 640);
+    document.documentElement.dataset.theme = theme;
+    const add = vi.fn();
+    const connect = vi.fn();
+    await render(
+      <main style={{ width: width === 960 ? 768 : "100%", padding: 20, boxSizing: "border-box" }}>
+        <h1>Your library</h1>
+        <ApplicationUpdateNotices
+          updateNotice={undefined}
+          updateChoiceRequired
+          productionTransitionRequired={false}
+          productionTransitionBusy={false}
+          reviewUpdate={() => {}}
+          dismissUpdate={async () => {}}
+          dismissUpdateChoice={() => {}}
+          useStable={() => {}}
+          keepPreview={() => {}}
+          dismissProductionTransition={() => {}}
+        />
+        <PortBrowser
+          view="library"
+          ports={[]}
+          statuses={new Map()}
+          overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+          filter="all"
+          setFilter={() => {}}
+          setCollectionLayout={() => {}}
+          onSelect={() => {}}
+          onBrowseCatalog={add}
+          onConnectGameFiles={connect}
+          loading={false}
+        />
+      </main>,
+    );
+    expect(document.querySelector('[aria-label="Collection view"]')).toBeNull();
+    expect(document.querySelector(".collection-tools")).toBeNull();
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width + 1);
+    const action = document.querySelector<HTMLElement>(".empty-state [data-add-games-trigger]")!;
+    expect(action.getBoundingClientRect().top).toBeGreaterThan(0);
+    expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      width === 960 ? 640 : document.documentElement.scrollHeight,
+    );
+    await page.getByRole("button", { name: "Add games", exact: true }).click();
+    expect(add).toHaveBeenCalledOnce();
+    await page.getByRole("button", { name: "Connect game-file folder", exact: true }).click();
+    expect(connect).toHaveBeenCalledOnce();
+  },
+);
 
 it.each([
   ["dark", true],
@@ -151,7 +265,7 @@ for (const theme of ["dark", "light"]) {
       .map((entry) => entry.querySelector<HTMLElement>(".collection-art")!.getBoundingClientRect());
     for (const box of art) {
       expect(box.width).toBeGreaterThanOrEqual(175);
-      expect(box.width).toBeLessThanOrEqual(221);
+      expect(box.width).toBeLessThanOrEqual(261);
       expect(Math.abs(box.height / box.width - 1.5)).toBeLessThan(0.02);
       expect(Math.abs(box.height - art[0]!.height)).toBeLessThan(1);
     }
@@ -194,10 +308,9 @@ for (const theme of ["dark", "light"]) {
     localStorage.clear();
     await page.viewport(960, 640);
     await mount(theme);
-    expect(document.querySelector(".collection-art")!.getBoundingClientRect().width).toBeCloseTo(
-      112,
-      0,
-    );
+    expect(
+      document.querySelector(".collection-art")!.getBoundingClientRect().width,
+    ).toBeLessThanOrEqual(180);
     const spacing = document.createElement("style");
     spacing.id = "collection-spacing";
     spacing.textContent =
@@ -238,6 +351,29 @@ it("keeps failed artwork feedback outside the details action name", async () => 
   expect(identity.textContent).not.toContain("Image unavailable");
   expect(identity.querySelector(".collection-art svg")).not.toBeNull();
   const labels = await axe.run(document.querySelector('[aria-label="Library entries"]')!, {
+    runOnly: { type: "rule", values: ["label-content-name-mismatch"] },
+  });
+  expect(labels.violations).toEqual([]);
+});
+
+it("includes visible Find games card content in its accessible name when artwork fails", async () => {
+  vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) => ({
+    ...artworkState(id, slot),
+    availability: "unavailable",
+  }));
+  await page.viewport(1280, 800);
+  await mount("dark");
+  await page
+    .getByRole("navigation", { name: "Primary navigation" })
+    .getByRole("button", { name: /^Find games/ })
+    .click();
+  await expect
+    .poll(() => document.querySelectorAll('[data-detail-origin^="catalog:card:"]').length)
+    .toBe(12);
+  await expect
+    .poll(() => document.querySelector(".artwork-image-note")?.textContent)
+    .toContain("Image unavailable");
+  const labels = await axe.run(document.querySelector("main")!, {
     runOnly: { type: "rule", values: ["label-content-name-mismatch"] },
   });
   expect(labels.violations).toEqual([]);

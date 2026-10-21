@@ -6,6 +6,8 @@ interface ResourceCommandOptions {
   cwd?: string;
   exclusive?: readonly string[];
   supervise?: (args: string[], options: RustRunDependencies) => Promise<number>;
+  /** Optional absolute monotonic admission deadline; never a payload timeout. */
+  queueDeadline?: number;
 }
 import { toolCachePaths } from "./tool-cache.mts";
 import { acquireHeavyRustTestLock } from "./heavy-rust-test-lock.mts";
@@ -36,6 +38,26 @@ export async function runResourceCommand(
   args: string[],
   options: ResourceCommandOptions = {},
 ) {
+  const queueDeadline = options.queueDeadline;
+  const remainingQueue = () => {
+    if (queueDeadline === undefined) return undefined;
+    const remaining = Math.floor(queueDeadline - performance.now());
+    if (!Number.isFinite(queueDeadline) || remaining < 1)
+      throw Object.assign(new Error("Resource admission deadline exhausted; no payload started"), {
+        code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT",
+      });
+    return Math.min(3_600_000, remaining);
+  };
+  remainingQueue();
+  const afterAdmission = async <T extends { release: () => Promise<void> }>(lease: T) => {
+    try {
+      remainingQueue();
+      return lease;
+    } catch (error) {
+      await lease.release();
+      throw error;
+    }
+  };
   const environment: NodeJS.ProcessEnv = {
     ...(options.environment ?? process.env),
     ...(profile === "rust" ? {} : { RUSTUP_AUTO_INSTALL: "0" }),
@@ -48,8 +70,20 @@ export async function runResourceCommand(
       environment,
       cwd: options.cwd ?? process.cwd(),
       acquireLock: async (metadata, admission) => {
+        const remaining = remainingQueue();
+        if (remaining !== undefined)
+          admission = {
+            ...admission,
+            waitMs: Math.min(admission.waitMs ?? remaining, remaining),
+            waitMilliseconds: Math.min(
+              admission.waitMilliseconds === ""
+                ? remaining
+                : Number(admission.waitMilliseconds ?? remaining),
+              remaining,
+            ),
+          };
         if (environment.GITHUB_ACTIONS === "true" || environment.PORTCOVE_CONTAINER_GUEST === "1")
-          return acquireHeavyRustTestLock(metadata, admission);
+          return afterAdmission(await acquireHeavyRustTestLock(metadata, admission));
         const lease = await (
           profile === "rust"
             ? (ignored: string, metadata: ResourceMetadata, options: RustResourceOptions) =>
@@ -65,6 +99,7 @@ export async function runResourceCommand(
               options.exclusive ?? (profile === "browser" ? [frontendOutputResource(root)] : []),
           },
         );
+        await afterAdmission(lease);
         queueMs = "queueMs" in lease ? lease.queueMs : 0;
         if (!lease.inherited)
           console.error(

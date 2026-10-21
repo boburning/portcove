@@ -70,6 +70,8 @@ interface ReconciliationObservations {
   };
   source?: { profile_id: string; converged_ms: number; card_after_source: string | null };
   policy?: {
+    before: string;
+    displayed_before: string;
     value: string;
     converged_ms: number;
     activity_rows_before: number;
@@ -340,7 +342,7 @@ export async function workspaceRefreshScenario({
       await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
       await browser.wait(until.elementLocated(By.css('b[aria-label="1 in library"]')), 15_000);
       const cardLocator = By.xpath(
-        `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
+        `//article[contains(@class,"port-card") and .//button[@data-detail-game-id="${port.id}"]]`,
       );
       const card = await browser.wait(until.elementLocated(cardLocator), 15_000);
       const beforeSource = await card.getAttribute("aria-label");
@@ -366,10 +368,29 @@ export async function workspaceRefreshScenario({
       };
 
       await card.findElement(By.css("button[data-detail-origin]")).click();
+      const preferences = await browser.wait(
+        until.elementLocated(By.xpath('//summary[normalize-space(.)="Future update preferences"]')),
+        15_000,
+      );
+      await preferences.click();
+      const policyControl = By.xpath('//button[contains(., "Game update behavior")]');
+      await browser.wait(until.elementIsVisible(await browser.findElement(policyControl)), 10_000);
+      const policyBefore = transportValue("status", command(["status", port.id])).update_policy;
+      assert.notEqual(policyBefore, "automatic", "Policy reconciliation requires a real change");
+      const expectedBefore = policyBefore === "notify" ? "Notify me" : "Keep update for later";
+      await browser.wait(
+        async () => (await browser.findElement(policyControl).getText()).includes(expectedBefore),
+        15_000,
+        "Displayed policy must match the different Core preimage before the external mutation",
+      );
+      const displayedBefore = await browser.findElement(policyControl).getText();
       const activityBefore = activity(await invoke("get_activities"));
       const policyStarted = Date.now();
       command(["policy", "set", port.id, "automatic"]);
-      const policyControl = By.xpath('//button[contains(., "Game update behavior")]');
+      assert.equal(
+        transportValue("status", command(["status", port.id])).update_policy,
+        "automatic",
+      );
       await browser.wait(
         async () =>
           (await browser.findElement(policyControl).getText()).includes(
@@ -391,6 +412,8 @@ export async function workspaceRefreshScenario({
       assert.ok(adoptedActivity);
       assert.equal(adoptedActivity.status, "succeeded");
       observations.policy = {
+        before: policyBefore,
+        displayed_before: displayedBefore,
         value: "automatic",
         converged_ms: Date.now() - policyStarted,
         activity_rows_before: activityBefore.records.length,
@@ -433,6 +456,15 @@ export async function workspaceRefreshScenario({
         .then((result) => assert.equal(object(result).ok, true, JSON.stringify(result)));
       observations.synthetic_desktop_events = 1;
       await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+      const advanced = await browser.wait(
+        until.elementLocated(By.xpath('//button[@aria-controls="settings-advanced"]')),
+        10_000,
+      );
+      await advanced.click();
+      await browser.wait(
+        until.elementIsVisible(await browser.findElement(By.id("settings-advanced"))),
+        10_000,
+      );
       await executeBrowserScript(browser, () => {
         const runtime = window as RefreshWindow;
         const probe = runtime.__portcoveExternalReconciliationProbe;
@@ -618,8 +650,22 @@ export async function workspaceRefreshScenario({
             (await browser.findElement(By.css(".detail-panel")).getText()).includes(expected),
           10_000,
         );
-        const play = await browser.findElement(By.css(".detail-panel .primary-actions button"));
-        assert.equal(await play.isEnabled(), false);
+        const launchControls = await browser.findElements(
+          By.xpath(
+            '//section[contains(@class,"detail-panel")]//div[contains(@class,"primary-actions")]//button[normalize-space(.)="Play" or normalize-space(.)="Try launch"]',
+          ),
+        );
+        for (const launch of launchControls) assert.equal(await launch.isEnabled(), false);
+        const locate = await browser.findElement(
+          By.xpath(
+            '//section[contains(@class,"detail-panel")]//div[contains(@class,"primary-actions")]//button[normalize-space(.)="Locate game files"]',
+          ),
+        );
+        assert.equal(
+          await locate.isEnabled(),
+          true,
+          "The specific file recovery must remain actionable",
+        );
         sourceFormat.guidance = expected;
         sourceFormat.injections = await executeBrowserScript(browser, () => {
           const probe = (window as RefreshWindow).__portcoveExternalReconciliationProbe;

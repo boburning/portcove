@@ -36,6 +36,62 @@ const evaluate = (overrides: Partial<CiResultInputs> = {}) =>
     ...overrides,
   });
 
+void test("beta Rust qualification skips only the inapplicable Intel jobs and requires every Windows/Linux producer", () => {
+  const beta = discoverCiPlan({
+    eventName: "workflow_dispatch",
+    checkoutSha: sha("d"),
+    forceQualification: true,
+    qualificationCaller: "release",
+    callerWorkflow: "release.yml",
+    releaseProfile: "initial-beta-win-linux",
+  });
+  const results = {
+    rust_tests: "success",
+    rust_workspace_tests: "success",
+    rust_clippy: "success",
+    windows_storage: "success",
+    native_rust: "success",
+    rust_docs: "success",
+    intel_build: "skipped",
+    intel_tests: "skipped",
+  };
+  const check = (qualification: Record<string, string>, selectedPlan = beta) =>
+    evaluate({
+      group: "rust",
+      plan: selectedPlan,
+      fast: { fast_rust: "skipped" },
+      qualification,
+    });
+  assert.match(check(results), /Accepted qualification/);
+  for (const name of Object.keys(results)) {
+    assert.throws(() => check({ ...results, [name]: "failure" }));
+    const omitted = { ...results };
+    delete omitted[name as keyof typeof omitted];
+    assert.throws(() => check(omitted), /every applicable/);
+    assert.throws(() =>
+      check({ ...results, [name]: name.startsWith("intel_") ? "success" : "skipped" }),
+    );
+  }
+  assert.throws(() => check({ ...results, foreign: "success" }), /every applicable/);
+  const full = discoverCiPlan({
+    eventName: "workflow_call",
+    checkoutSha: sha("d"),
+    forceQualification: true,
+  });
+  assert.throws(() => check(results, full), /expected success/);
+  for (const group of ["catalog", "dependency-review", "frontend", "rust-quality"])
+    assert.throws(
+      () =>
+        evaluate({
+          group,
+          plan: beta,
+          fast: { fast_group: "skipped" },
+          qualification: { producer: "skipped" },
+        }),
+      /expected success/,
+    );
+});
+
 void test("dependent aggregates name the failed producer without changing acceptance or asserting its cause", () => {
   for (const result of ["failure", "timed_out", "cancelled", "startup_failure"])
     assert.throws(

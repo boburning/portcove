@@ -3,6 +3,7 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { stageReleaseArtifact } from "./release-artifact-archive.mts";
+import { releaseBuildArtifactName } from "./release-package-policy.mts";
 import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import type { ReleaseEvidenceOptions, ReleaseEvidenceRequest } from "./release-run-evidence.mts";
 import {
@@ -11,6 +12,10 @@ import {
 } from "./trusted-release-assembly.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import {
+  requireStablePublicBuildInputEvidence,
+  verifyReleasePublicBuildInputs,
+} from "./release-public-build-provenance.mts";
 
 /** Non-signing integration: independently accepted exact artifact inputs become
  * a NEW full-policy aggregate in fresh private storage. Run/artifact evidence
@@ -26,6 +31,7 @@ export async function assembleReleaseArtifacts(
   options: {
     evidence?: ReleaseEvidenceOptions;
     download?: typeof readGitHubArtifactArchive;
+    deadline?: number;
   } = {},
 ) {
   // Freeze caller-owned expectations before any async filesystem/policy read.
@@ -33,8 +39,9 @@ export async function assembleReleaseArtifacts(
   rawArchives = structuredClone(rawArchives);
   evidenceRequest = structuredClone(evidenceRequest);
   const started = performance.now();
+  const deadline = Math.min(started + 15 * 60 * 1000, options.deadline ?? Infinity);
   const active = () => {
-    if (performance.now() - started >= 15 * 60 * 1000)
+    if (!Number.isFinite(deadline) || performance.now() >= deadline)
       throw new Error("artifact assembly deadline exhausted");
   };
   const { accepted, labels } = await inspectTrustedAssemblyInput(rawAssembly);
@@ -94,7 +101,12 @@ export async function assembleReleaseArtifacts(
         matched.length !== 1 ||
         !actual ||
         actual.expired ||
-        actual.name !== `release-build-${archive.platform}` ||
+        actual.name !==
+          releaseBuildArtifactName(
+            archive.platform,
+            String(evidenceRequest.run_id),
+            evidenceRequest.attempt,
+          ) ||
         actual.bytes !== archive.bytes ||
         actual.archive_sha256 !== archive.sha256
       )
@@ -102,9 +114,20 @@ export async function assembleReleaseArtifacts(
     }
   };
   check(before);
+  if (
+    accepted.public_build_inputs?.artifacts.some((item) =>
+      archives.some((archive) => archive.artifact_id === item.artifact_id),
+    )
+  )
+    throw new Error("public build inputs and package archives require distinct immutable IDs");
   active();
   const directory = await mkdtemp(path.join(path.resolve(privateRoot), "artifact-assembly-"));
   try {
+    const publicBuildInputs = accepted.public_build_inputs
+      ? await verifyReleasePublicBuildInputs(directory, accepted.public_build_inputs, before, {
+          download: options.download,
+        })
+      : null;
     const inputs = path.join(directory, "inputs");
     await mkdir(inputs);
     for (const archive of archives) {
@@ -114,20 +137,26 @@ export async function assembleReleaseArtifacts(
         {
           cwd: directory,
           maxBytes: archive.bytes,
-          timeoutMs: Math.min(
-            120000,
-            Math.max(1, Math.floor(15 * 60 * 1000 - (performance.now() - started))),
-          ),
+          timeoutMs: Math.min(120000, Math.max(1, Math.floor(deadline - performance.now()))),
         },
       );
       active();
-      await stageReleaseArtifact(inputs, bytes, accepted, archive.platform, {
-        bytes: archive.bytes,
-        sha256: archive.sha256,
-      });
+      await stageReleaseArtifact(
+        inputs,
+        bytes,
+        accepted,
+        archive.platform,
+        {
+          bytes: archive.bytes,
+          sha256: archive.sha256,
+        },
+        { exactProducerAttempt: true },
+      );
     }
     const after = collectReleaseRunEvidence(evidenceRequest, evidenceOptions);
     check(after);
+    if (accepted.public_build_inputs)
+      requireStablePublicBuildInputEvidence(accepted.public_build_inputs, before, after);
     if (
       JSON.stringify(before.run) !== JSON.stringify(after.run) ||
       archives.some(
@@ -138,13 +167,14 @@ export async function assembleReleaseArtifacts(
     )
       throw new Error("selected artifact or run changed during collection");
     active();
-    const aggregate = await assembleTrustedRelease(directory, inputs, accepted);
+    const aggregate = await assembleTrustedRelease(directory, inputs, accepted, { deadline });
     active();
     return {
       schema_version: 1,
       directory,
       aggregate,
       archives,
+      public_build_inputs: publicBuildInputs,
       before_api_evidence: before,
       after_api_evidence: after,
       evidence_scope: options.download || options.evidence ? "injected-provider" : "github.com",

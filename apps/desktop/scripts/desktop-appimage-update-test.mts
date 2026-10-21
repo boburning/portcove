@@ -84,6 +84,7 @@ interface AppImageUpdateReport extends InstalledUpdateFailure {
   actions: string[];
   driver?: ProcIdentity;
   staged?: Awaited<ReturnType<typeof verifyInstalledUpdateStaging>>;
+  ordinary_staging?: Awaited<ReturnType<typeof driveInstalledUpdateToRestart>>;
   processes_before_restart?: ProcIdentity[];
   loaded_engine_before_restart?: Awaited<ReturnType<typeof loadedWebKitLibraries>>;
   restart_action_attempted?: boolean;
@@ -282,7 +283,11 @@ try {
   report.driver = await awaitInstalledUpdateDriver(driver, procIdentity);
   assert.ok(report.driver);
   browser = await connectInstalledUpdateDriver(app);
-  await driveInstalledUpdateToRestart(browser, report.actions);
+  report.ordinary_staging = await driveInstalledUpdateToRestart(
+    browser,
+    report.actions,
+    candidateVersion,
+  );
   const stagedPayload = path.join(staging, "candidate.payload");
   const staged = await verifyInstalledUpdateStaging({
     stagingRoot: staging,

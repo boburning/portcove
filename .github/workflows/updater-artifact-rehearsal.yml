@@ -88,9 +88,11 @@ jobs:
           if ($actual -notmatch '^\d+\.\d+\.\d+\.\d+$' -or $minimum -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw 'Unknown Windows updater runtime prerequisite' }
           if ([version]$actual -lt [version]$minimum) { throw "Updater environment has WebView2 $actual; requires $minimum or later. Prepare a supported Evergreen runtime before another rehearsal." }
       - name: Test signature rejection and inventory identity
+        env:
+          PORTCOVE_REQUIRE_SIGNER_FIXTURE: "1"
         run: |
           cargo test --locked -p portcove-release-tools
-          node --test scripts/updater-artifact-inventory.test.mts
+          node --test scripts/updater-artifact-inventory.test.mts scripts/release-payload-signing.test.mts
       - name: Build and verify disposable signed packages and selected version transition
         shell: pwsh
         run: ./scripts/rehearse-updater-artifacts.ps1 -PlatformLabel '${{ matrix.label }}' -TransitionProfile '${{ inputs.transition_profile }}'

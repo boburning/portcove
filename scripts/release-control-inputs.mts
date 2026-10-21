@@ -11,12 +11,15 @@ import {
 import { inspectSemanticReviewEvidence } from "./release-semantic-review.mts";
 import { isRecord } from "./runtime-values.mts";
 import { assessBoundedCapacity, capacityDigest } from "./release-capacity.mts";
+import { inspectReleaseReviewRequest } from "./release-review-request.mts";
 
 const repository = "boburning/portcove";
 const repositoryId = 1354613114;
 const classificationBranch = "portcove-release-inputs";
 const pauseBranch = "portcove-release-pause";
 const maximumBytes = 128 * 1024;
+export const releaseControlRefQuery =
+  "query($id:ID!,$ref:String!){node(id:$id){__typename ... on Repository{id databaseId nameWithOwner ref(qualifiedName:$ref){id name prefix target{__typename oid}}}}}";
 
 function exact(value: unknown, keys: string): asserts value is Record<string, unknown> {
   if (!isRecord(value) || Object.keys(value).sort().join(",") !== keys)
@@ -74,10 +77,10 @@ function session(api: CoordinatorRemoteApi) {
   const refIds = new Map<string, string>();
   const ref = (branch: string) => {
     bound();
-    const response = api.graphql(
-      "query($id:ID!,$ref:String!){node(id:$id){__typename ... on Repository{id databaseId nameWithOwner ref(qualifiedName:$ref){id name prefix target{__typename oid}}}}}",
-      { id: identity.node_id, ref: `refs/heads/${branch}` },
-    );
+    const response = api.graphql(releaseControlRefQuery, {
+      id: identity.node_id,
+      ref: `refs/heads/${branch}`,
+    });
     const node = isRecord(response.data) ? response.data.node : null;
     const value = isRecord(node) ? node.ref : null;
     if (
@@ -227,6 +230,9 @@ function configuration(value: unknown): ReviewProducerConfiguration {
     writer_app_id: value.writer_app_id,
     review_check_name: value.review_check_name,
   };
+}
+export function inspectReviewProducerConfiguration(value: unknown) {
+  return configuration(structuredClone(value));
 }
 function review(
   get: ReturnType<typeof session>["get"],
@@ -435,6 +441,48 @@ export function readReviewedClassification(
     observed_at: new Date().toISOString(),
     authority: "none",
   };
+}
+
+/** Locate the existing D1 record from the exact neutral request, then reuse the
+ * same authenticated Check/record verifier. Only an absent path is missing;
+ * malformed, legacy, substituted or changed records remain hard refusals. */
+export function readReviewedClassificationForRequest(
+  api: CoordinatorRemoteApi,
+  rawConfig: unknown,
+  rawRequest: unknown,
+) {
+  const config = configuration(rawConfig);
+  const request = inspectReleaseReviewRequest(rawRequest);
+  if (!request) throw new Error("classification extraction requires an exact neutral request");
+  const io = session(api);
+  const before = io.ref(classificationBranch);
+  const text = io.contents(
+    before,
+    `classification/${request.source_commit}/${request.change_set_sha256}.json`,
+    true,
+  );
+  if (text === null) {
+    if (io.ref(classificationBranch) !== before)
+      throw new Error("classification ref changed while path was absent");
+    return { status: "missing" as const, commit: before, authority: "none" as const };
+  }
+  const declared: unknown = JSON.parse(text);
+  if (!isRecord(declared)) throw new Error("request classification record malformed");
+  const opportunity = validateOpportunity(declared.opportunity);
+  if (
+    opportunity.base_commit !== request.base_commit ||
+    opportunity.source_commit !== request.source_commit ||
+    opportunity.source_tree !== request.source_tree ||
+    opportunity.change_set_sha256 !== request.change_set_sha256 ||
+    opportunity.requested_channel !== request.requested_channel ||
+    opportunity.classification.base_version !== request.base_version ||
+    opportunity.classification.change_set_scope !== request.change_set_scope
+  )
+    throw new Error("persisted classification differs from exact neutral request");
+  const verified = readReviewedClassification(api, config, opportunity);
+  if (verified.commit !== before || io.ref(classificationBranch) !== before)
+    throw new Error("request classification changed during independent reauthentication");
+  return { ...verified, status: "reviewed" as const };
 }
 
 export function readPublicationPause(api: CoordinatorRemoteApi) {

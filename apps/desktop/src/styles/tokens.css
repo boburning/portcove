@@ -162,8 +162,8 @@
     --icon-md: 1rem;
     --icon-lg: 1.25rem;
     --layer-floating: 10;
-    --layout-sidebar: 15.5rem;
-    --layout-sidebar-compact: 12rem;
+    --layout-sidebar: 216px;
+    --layout-sidebar-compact: 76px;
     --layout-detail: 32rem;
     --layout-content-max: 100rem;
 

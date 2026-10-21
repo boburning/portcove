@@ -247,6 +247,89 @@ export function releaseLabels(policy: ReleasePackagePolicy) {
   return [...new Set(policy.packages.map((entry) => entry.platform_label))];
 }
 
+export type ReleaseProfile = "full" | "initial-beta-win-linux";
+
+export function inspectReleaseProfile(value: unknown = "full"): ReleaseProfile {
+  if (value !== "full" && value !== "initial-beta-win-linux")
+    throw new Error("unknown trusted release profile");
+  return value;
+}
+
+/** Select only after validating the complete repository-owned package policy.
+ * The profile is bound by the controller/admission input, never inferred from
+ * whatever packages happened to arrive. Every selected package remains required. */
+export function selectReleasePackagePolicy(
+  policy: ReleasePackagePolicy,
+  rawProfile: unknown = "full",
+) {
+  assertPackagePolicy(policy);
+  const profile = inspectReleaseProfile(rawProfile);
+  const selected = {
+    ...policy,
+    packages: policy.packages
+      .filter(
+        (entry) =>
+          profile === "full" ||
+          entry.platform_label === "windows-x86_64" ||
+          entry.platform_label === "linux-x86_64",
+      )
+      .map((entry) => ({ ...entry })),
+  };
+  if (
+    profile === "initial-beta-win-linux" &&
+    JSON.stringify(
+      selected.packages
+        .map((entry) => `${entry.interface}:${entry.platform_label}:${entry.format}`)
+        .sort(),
+    ) !==
+      JSON.stringify(
+        [
+          "desktop:windows-x86_64:nsis",
+          "cli:windows-x86_64:zip",
+          "desktop:linux-x86_64:appimage",
+          "desktop:linux-x86_64:deb",
+          "desktop:linux-x86_64:rpm",
+          "cli:linux-x86_64:tar.gz",
+        ].sort(),
+      )
+  )
+    throw new Error("initial beta must declare the exact six Windows/Linux distributions");
+  return selected;
+}
+
+export function releaseBuildMatrix(rawProfile: unknown = "full") {
+  const profile = inspectReleaseProfile(rawProfile);
+  return {
+    include: [
+      { os: "windows-latest", label: "windows-x86_64", bundles: "nsis", target: "" },
+      { os: "ubuntu-24.04", label: "linux-x86_64", bundles: "appimage,deb,rpm", target: "" },
+      ...(profile === "full"
+        ? [
+            {
+              os: "macos-14",
+              label: "macos-aarch64",
+              bundles: "dmg",
+              target: "aarch64-apple-darwin",
+            },
+          ]
+        : []),
+    ],
+  };
+}
+
+/** Provider artifact names identify one immutable producer attempt. Local
+ * verified staging directories deliberately retain their platform-only layout. */
+export function releaseBuildArtifactName(platform: string, runId: string, attempt: number) {
+  if (
+    !allowedPlatforms.has(platform) ||
+    !/^[1-9][0-9]{0,15}$/u.test(runId) ||
+    !Number.isSafeInteger(attempt) ||
+    attempt < 1
+  )
+    throw new Error("release artifact requires exact platform/run/attempt identity");
+  return `release-build-${platform}-${runId}-${attempt}`;
+}
+
 export async function workspaceVersion(projectRoot = defaultProjectRoot) {
   const cargo = await readFile(path.join(projectRoot, "Cargo.toml"), "utf8");
   const table = cargo.match(/(?:^|\r?\n)\[workspace\.package\]\r?\n([\s\S]*?)(?=\r?\n\[|$)/)?.[1];
@@ -257,16 +340,31 @@ export async function workspaceVersion(projectRoot = defaultProjectRoot) {
 }
 
 function parseArguments(argv: readonly string[]) {
-  const options: { projectRoot: string; platform?: string; interface?: string; version?: string } =
-    { projectRoot: defaultProjectRoot };
+  const options: {
+    projectRoot: string;
+    platform?: string;
+    interface?: string;
+    version?: string;
+    profile?: ReleaseProfile;
+    buildPlan?: boolean;
+  } = { projectRoot: defaultProjectRoot };
   for (let index = 0; index < argv.length; index += 1) {
     const name = argv[index];
-    if (!["--project-root", "--platform", "--interface", "--version"].includes(name ?? "")) {
+    if (name === "--build-plan") {
+      options.buildPlan = true;
+      continue;
+    }
+    if (
+      !["--project-root", "--platform", "--interface", "--version", "--profile"].includes(
+        name ?? "",
+      )
+    ) {
       throw new Error(`unknown argument: ${name}`);
     }
     const value = argv[index + 1];
     if (!value || value.startsWith("--")) throw new Error(`${name} requires a value`);
     if (name === "--project-root") options.projectRoot = path.resolve(value);
+    else if (name === "--profile") options.profile = inspectReleaseProfile(value);
     else if (name === "--platform") options.platform = value;
     else if (name === "--interface") options.interface = value;
     else options.version = value;
@@ -277,7 +375,16 @@ function parseArguments(argv: readonly string[]) {
 
 async function main() {
   const options = parseArguments(process.argv.slice(2));
-  const policy = await loadPackagePolicy(options.projectRoot);
+  const policy = selectReleasePackagePolicy(
+    await loadPackagePolicy(options.projectRoot),
+    options.profile,
+  );
+  if (options.buildPlan) {
+    console.log(
+      `profile=${options.profile ?? "full"}\nbuild_matrix=${JSON.stringify(releaseBuildMatrix(options.profile))}`,
+    );
+    return;
+  }
   const version = options.version ?? (await workspaceVersion(options.projectRoot));
   let entries = options.platform ? packagesForPlatform(policy, options.platform) : policy.packages;
   if (options.interface) entries = entries.filter((entry) => entry.interface === options.interface);
@@ -288,4 +395,10 @@ async function main() {
   console.log(artifactName(entry, version));
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) await main();
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) await main();
+}
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

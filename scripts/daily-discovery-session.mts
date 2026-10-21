@@ -143,10 +143,7 @@ const discoveryMaterial = (v: ReturnType<typeof investigateDiscoveryUpstream>) =
     readme_blob: v.readme.blob,
   });
 const material = discoveryMaterial;
-export function discoveryDeliveryCost(
-  inventory: RoadmapInventory,
-  candidates: readonly { body: string; requests?: number; bytes?: number }[],
-) {
+export function discoveryInventoryCost(inventory: RoadmapInventory) {
   const pages =
     Math.ceil(inventory.issues.length / 100) +
     Math.ceil((inventory.items.length + inventory.archivedItems.length) / 100) +
@@ -160,6 +157,13 @@ export function discoveryDeliveryCost(
         })),
       ),
     ) + Buffer.byteLength(JSON.stringify(inventory.issues.map((i) => ({ ...i, body: undefined }))));
+  return { requests: pages, bytes: thin };
+}
+export function discoveryDeliveryCost(
+  inventory: RoadmapInventory,
+  candidates: readonly { body: string; requests?: number; bytes?: number }[],
+) {
+  const { requests: pages, bytes: thin } = discoveryInventoryCost(inventory);
   const requests =
     (candidates.length + 1) * pages +
     candidates.length * 8 +
@@ -380,7 +384,9 @@ export class DiscoverySession {
       this.persist();
       try {
         if (this.inventory) {
-          const cost = discoveryDeliveryCost(this.inventory, []);
+          // The batch reserve already includes this one replacement inventory.
+          // Do not require another doctor plus another recollection reserve here.
+          const cost = discoveryInventoryCost(this.inventory);
           this.budget.admit(cost.requests, cost.bytes);
         } else this.budget.admit(1, 1);
         this.client._completeProjectContext = undefined;

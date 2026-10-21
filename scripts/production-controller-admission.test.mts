@@ -5,11 +5,16 @@ import { mkdtemp, mkdir, copyFile, writeFile, rm, readFile } from "node:fs/promi
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { parse } from "yaml";
 import {
   admitProductionController,
   admitReviewedInputsController,
+  admitReviewedInputsWriter,
+  admitProductionClassificationWriter,
+  admitProductionClassificationObserver,
 } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
+import { inspectReleaseAuthorityConfiguration } from "./release-authority-configuration.mts";
 
 const source = Buffer.from("independently selected workflow fixture\n");
 const policy = {
@@ -45,6 +50,26 @@ const environment = {
   PORTCOVE_CONTROLLER_REF: "refs/tags/portcove-production-controller-fixture",
 };
 const raw = JSON.stringify(policy);
+
+void test("classification writer admits only its own fixed workflow, job and ratified bytes", () => {
+  const writer = {
+    ...environment,
+    GITHUB_JOB: "classification_writer",
+    GITHUB_WORKFLOW_REF: `boburning/portcove/.github/workflows/release-reviewed-inputs.yml@${policy.execution_ref}`,
+  };
+  const accepted = admitReviewedInputsWriter(raw, writer, source);
+  assert.equal(accepted.workflow, ".github/workflows/release-reviewed-inputs.yml");
+  for (const change of [
+    { GITHUB_JOB: "admission" },
+    { GITHUB_JOB: "protection_observation" },
+    { GITHUB_WORKFLOW_REF: environment.GITHUB_WORKFLOW_REF },
+    { GITHUB_RUN_ATTEMPT: "2" },
+    { GITHUB_REF_PROTECTED: "false" },
+  ])
+    assert.throws(() => admitReviewedInputsWriter(raw, { ...writer, ...change }, source));
+  assert.throws(() => admitReviewedInputsWriter(raw, writer, Buffer.from("other workflow")));
+  assert.throws(() => admitProductionController(raw, writer, source));
+});
 
 void test("exact separately configured fixture admits only its source execution", () => {
   const result = admitProductionController(raw, environment, source);
@@ -84,6 +109,124 @@ void test("policy is absent by default and cannot add candidate or privileged mo
     const missing: Record<string, unknown> = { ...policy };
     delete missing[key];
     assert.throws(() => admitProductionController(JSON.stringify(missing), environment, source));
+  }
+});
+
+void test("bounded source policy binds both complete authority configuration and the separate grant", () => {
+  const selected = {
+    ...policy,
+    schema_version: 2,
+    mode: "bounded-application-release",
+    authority_configuration_sha256: "b".repeat(64),
+    grant_sha256: "c".repeat(64),
+  };
+  const result = admitProductionController(JSON.stringify(selected), environment, source);
+  assert.equal(result.mode, selected.mode);
+  assert.equal(result.authority_configuration_sha256, selected.authority_configuration_sha256);
+  assert.equal(result.grant_sha256, selected.grant_sha256);
+  assert.match(result.qualification, /no candidate acceptance/u);
+  for (const change of [
+    { grant_sha256: null },
+    { authority_configuration_sha256: "b".repeat(63) },
+    { mode: "admission-only" },
+    { accepted: true },
+  ])
+    assert.throws(() =>
+      admitProductionController(JSON.stringify({ ...selected, ...change }), environment, source),
+    );
+  for (const changed of [
+    { GITHUB_REF: "refs/heads/main" },
+    { GITHUB_REF_PROTECTED: "false" },
+    { GITHUB_ACTOR_ID: "2" },
+    { GITHUB_RUN_ATTEMPT: "2" },
+  ])
+    assert.throws(() =>
+      admitProductionController(JSON.stringify(selected), { ...environment, ...changed }, source),
+    );
+});
+
+void test("global configured role inventory refuses every App conflation and weakened beta host floor", () => {
+  const names = [
+    "semantic",
+    "classification",
+    "native_qualification",
+    "protection_observer",
+    "coordinator_journal",
+    "dispatch",
+    "release_publication",
+  ];
+  const apps = Object.fromEntries(
+    names.map((name, index) => [
+      name,
+      {
+        app_id: 100 + index,
+        installation_id: 200 + index,
+        ...(name === "dispatch" ? { actor_id: "123456" } : {}),
+      },
+    ]),
+  );
+  const native = Object.fromEntries(
+    ["windows-x86_64", "linux-x86_64"].map((platform) => [
+      platform,
+      {
+        producer: {
+          source_commit: "a".repeat(40),
+          source_tree: "b".repeat(40),
+          harness: { path: "scripts/qualify-native-release.ps1", sha256: "c".repeat(64) },
+        },
+        host: {
+          machine_id_sha256: "d".repeat(64),
+          qualification_profile: "inert-config-only",
+          minimum_platform:
+            platform === "windows-x86_64" ? "windows-11-26h2-x64" : "ubuntu-24.04-x64",
+          account:
+            platform === "windows-x86_64"
+              ? {
+                  kind: "windows-sid",
+                  broker: "S-1-5-21-1-2-3-1001",
+                  qualification: "S-1-5-21-1-2-3-1002",
+                }
+              : { kind: "linux-uid", broker: "1000", qualification: "1001" },
+          engine: {
+            name: platform === "windows-x86_64" ? "WebView2" : "WebKitGTK",
+            minimum_version: platform === "windows-x86_64" ? "155.0.4283.62" : "2.52.6",
+          },
+        },
+        compatibility: {
+          minimum_os_version: "fixture",
+          required_capabilities: [],
+          cli_protocol: { min: 1, max: 1 },
+          catalog_formats: [3],
+          library: { read: { min: 1, max: 1 }, write_schema: 1, lock_protocol: "fixture" },
+        },
+      },
+    ]),
+  );
+  const config = {
+    schema_version: 1,
+    repository_id: 1354613114,
+    namespace: "portcove-fixture",
+    apps,
+    native,
+  };
+  assert.equal(inspectReleaseAuthorityConfiguration(config).apps.semantic.app_id, 100);
+  for (const name of names) {
+    const changed = structuredClone(config);
+    changed.apps[name]!.app_id = 15368;
+    assert.throws(() => inspectReleaseAuthorityConfiguration(changed), /conflated/);
+    for (const other of names.filter((entry) => entry !== name)) {
+      const conflated = structuredClone(config);
+      conflated.apps[name] = conflated.apps[other]!;
+      assert.throws(() => inspectReleaseAuthorityConfiguration(conflated));
+    }
+  }
+  for (const [platform, lower] of [
+    ["windows-x86_64", "155.0.4283.61"],
+    ["linux-x86_64", "2.52.5"],
+  ] as const) {
+    const changed = structuredClone(config);
+    changed.native[platform]!.host.engine.minimum_version = lower;
+    assert.throws(() => inspectReleaseAuthorityConfiguration(changed), /floor weakened/);
   }
 });
 
@@ -128,10 +271,18 @@ const workflow = await readFile(
   "utf8",
 );
 
-void test("inactive workflow enforces bootstrap identities before checkout without a candidate lane", () => {
-  const marker = "      - uses: actions/checkout@";
-  const before = workflow.slice(0, workflow.indexOf(marker));
-  const script = before.split("        run: |\n")[1]?.replaceAll(/^ {10}/gmu, "");
+void test("configured held workflow enforces bootstrap identities before checkout or any credential role", () => {
+  const parsed = parse(workflow) as {
+    jobs: {
+      admission: {
+        environment?: string;
+        "timeout-minutes": number;
+        steps: { run?: string; uses?: string }[];
+      };
+    };
+  };
+  const bootstrap = parsed.jobs.admission;
+  const script = bootstrap.steps[0]?.run;
   assert.ok(script, "bootstrap script must precede checkout");
   const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
   const execute = (delta: Record<string, string | undefined>) =>
@@ -161,12 +312,13 @@ void test("inactive workflow enforces bootstrap identities before checkout witho
   assert.match(workflow, /package-manager-cache: false/u);
   assert.match(workflow, /contents: read/u);
   assert.match(workflow, /cancel-in-progress: false/u);
-  assert.match(workflow, /timeout-minutes: 5/u);
+  assert.equal(bootstrap["timeout-minutes"], 1);
   assert.match(workflow, /run: node scripts\/production-controller-admission\.mts/u);
-  assert.doesNotMatch(
-    workflow,
-    /^\s*(?:environment|secrets|inputs|schedule|push|pull_request|workflow_call|cache):|: write|pnpm |npm |uses: \.\//mu,
-  );
+  assert.equal(bootstrap.environment, undefined);
+  assert.ok(!JSON.stringify(bootstrap).includes("secrets."));
+  assert.ok(!JSON.stringify(bootstrap).includes("inputs."));
+  assert.ok(!bootstrap.steps.some((step) => step.uses?.startsWith("./")));
+  assert.ok(bootstrap.steps[1]?.uses?.startsWith("actions/checkout@"));
 });
 
 void test("CLI runs with only fixed source files and no installed dependencies", async (t) => {
@@ -174,7 +326,11 @@ void test("CLI runs with only fixed source files and no installed dependencies",
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, "scripts"), { recursive: true });
   await mkdir(path.join(root, ".github/workflows"), { recursive: true });
-  for (const file of ["production-controller-admission.mts", "runtime-values.mts"])
+  for (const file of [
+    "production-controller-admission.mts",
+    "runtime-values.mts",
+    "release-control-phases.mts",
+  ])
     await copyFile(new URL(file, import.meta.url), path.join(root, "scripts", file));
   await writeFile(path.join(root, ".github/workflows/application-update-production.yml"), source);
   const command = path.join(root, "scripts/production-controller-admission.mts");
@@ -215,4 +371,32 @@ void test("reviewed inputs source admission pins its own fixed workflow and reje
   );
   assert.throws(() => admitProductionController(raw, env, source));
   assert.throws(() => admitReviewedInputsController(raw, environment, source));
+});
+
+void test("complete controller classification jobs retain separate fixed source and roles", () => {
+  for (const [admit, job] of [
+    [admitProductionClassificationWriter, "classification_writer"],
+    [admitProductionClassificationObserver, "classification_protection_observation"],
+  ] as const) {
+    const env = { ...environment, GITHUB_JOB: job };
+    assert.equal(
+      admit(raw, env, source).workflow,
+      ".github/workflows/application-update-production.yml",
+    );
+    for (const changed of [
+      { GITHUB_JOB: "admission" },
+      {
+        GITHUB_JOB:
+          job === "classification_writer"
+            ? "classification_protection_observation"
+            : "classification_writer",
+      },
+      { GITHUB_RUN_ATTEMPT: "2" },
+      {
+        GITHUB_WORKFLOW_REF: `boburning/portcove/.github/workflows/release-reviewed-inputs.yml@${policy.execution_ref}`,
+      },
+    ])
+      assert.throws(() => admit(raw, { ...env, ...changed }, source));
+    assert.throws(() => admit(raw, env, Buffer.from("changed controller")));
+  }
 });

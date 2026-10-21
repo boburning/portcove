@@ -33,8 +33,8 @@ void test("opaque transport discards real subprocess output overflow and timeout
   }
 });
 
-async function fixture(t: test.TestContext) {
-  const f = await trustedAssemblyFixture(t);
+async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-linux" = "full") {
+  const f = await trustedAssemblyFixture(t, profile);
   const stage = path.join(f.root, "stage");
   await mkdir(stage);
   const platform = f.request.files[0]!.platform_label;
@@ -63,6 +63,112 @@ void test("provider-byte discovery derives fixed matrix facts while retaining no
   );
   assert.equal(found.declared_producer.run_id, "12345");
   assert.equal(found.archive_sha256, expected.sha256);
+});
+void test("compiler handoff retains only actual CLI package bytes after the complete archive checksum/producer checks", async (t) => {
+  const f = await fixture(t, "initial-beta-win-linux");
+  const retained: string[] = [];
+  const options = {
+    retainCliPackage: async (
+      file: { filename: string; bytes: number; sha256: string },
+      bytes: Buffer,
+    ) => {
+      assert.equal(file.bytes, bytes.length);
+      assert.equal(file.sha256, hash(bytes));
+      assert.ok(file.filename.startsWith("portcove-cli-"));
+      retained.push(file.filename);
+    },
+  };
+  const archive = createAuditZip(f.entries);
+  await discoverReleaseArtifactFiles(archive, identity(archive), f.platform, f.request, options);
+  assert.equal(retained.length, 1);
+  const changed = createAuditZip(
+    f.entries.map(
+      ([name, bytes]) =>
+        [
+          name,
+          name.startsWith("SHA256SUMS-")
+            ? Buffer.from(bytes.toString().replace(/^[a-f0-9]{64}/u, "0".repeat(64)))
+            : bytes,
+        ] as const,
+    ),
+  );
+  retained.length = 0;
+  await assert.rejects(
+    discoverReleaseArtifactFiles(changed, identity(changed), f.platform, f.request, options),
+    /checksum inventory differs/,
+  );
+  assert.equal(retained.length, 0);
+});
+
+void test("current attempt identity refuses older declared producer bytes in discovery and provider staging", async (t) => {
+  const f = await fixture(t);
+  const archive = createAuditZip(f.entries);
+  const current = { ...f.request, run_attempt: 2 };
+  await assert.rejects(
+    discoverReleaseArtifactFiles(archive, identity(archive), f.platform, current),
+    /producer attempt differs/,
+  );
+  await assert.rejects(
+    stageReleaseArtifact(f.stage, archive, current, f.platform, identity(archive), {
+      exactProducerAttempt: true,
+    }),
+    (error: unknown) =>
+      error instanceof Error &&
+      error.cause instanceof Error &&
+      error.cause.message === "release artifact producer attempt differs from artifact identity",
+  );
+});
+
+void test("native handoff retains only exact NSIS/AppImage after the entire selected platform inventory and checksum declaration pass", async (t) => {
+  const f = await trustedAssemblyFixture(t, "initial-beta-win-linux");
+  for (const platform of ["windows-x86_64", "linux-x86_64"]) {
+    const files = f.request.files.filter((file) => file.platform_label === platform);
+    const entries = files.map(
+      (file) => [file.filename, f.contents.get(`${platform}/${file.filename}`)!] as const,
+    );
+    const retained: string[] = [];
+    const options = {
+      retainDesktopPackage: async (
+        file: { platform_label: string; filename: string; bytes: number; sha256: string },
+        bytes: Buffer,
+      ) => {
+        assert.equal(file.platform_label, platform);
+        assert.equal(file.bytes, bytes.length);
+        assert.equal(file.sha256, hash(bytes));
+        assert.ok(file.filename.endsWith("-setup.exe") || file.filename.endsWith(".AppImage"));
+        retained.push(file.filename);
+      },
+    };
+    const archive = createAuditZip(entries);
+    const found = await discoverReleaseArtifactFiles(
+      archive,
+      identity(archive),
+      platform,
+      f.request,
+      options,
+    );
+    assert.equal(found.authority, "none");
+    assert.equal(retained.length, 1);
+    retained.length = 0;
+    for (const invalid of [
+      entries.slice(1),
+      entries.map(
+        ([name, bytes]) =>
+          [
+            name,
+            name.startsWith("SHA256SUMS-")
+              ? Buffer.from(bytes.toString().replace(/^[a-f0-9]{64}/u, "0".repeat(64)))
+              : bytes,
+          ] as const,
+      ),
+    ]) {
+      const rejected = createAuditZip(invalid);
+      await assert.rejects(
+        discoverReleaseArtifactFiles(rejected, identity(rejected), platform, f.request, options),
+      );
+      assert.equal(retained.length, 0);
+    }
+  }
 });
 
 void test("discovery refuses changed checksum declarations, producer identity and oversized metadata", async (t) => {
@@ -259,8 +365,11 @@ void test("opaque transfer fixes github.com and bounds collection before returni
     );
 });
 
-async function integration(t: test.TestContext) {
-  const f = await fixture(t);
+async function integration(
+  t: test.TestContext,
+  profile: "full" | "initial-beta-win-linux" = "full",
+) {
+  const f = await fixture(t, profile);
   const workflow = Buffer.from("inert release workflow fixture; never execute");
   const expected = {
     schema_version: 1 as const,
@@ -329,7 +438,7 @@ async function integration(t: test.TestContext) {
           total_count: archives.length,
           artifacts: archives.map((a) => ({
             id: a.artifact_id,
-            name: `release-build-${a.platform}`,
+            name: `release-build-${a.platform}-12345-1`,
             size_in_bytes: a.bytes,
             digest: `sha256:${drift && inventoryReads > 1 ? "0".repeat(64) : a.sha256}`,
             expired: false,
@@ -413,6 +522,21 @@ void test("complete admitted opaque artifacts stage into a fresh aggregate with 
       name.startsWith("release-build-"),
     ),
   );
+});
+
+void test("beta provider archives produce the complete six-package aggregate through the real consumer path", async (t) => {
+  const f = await integration(t, "initial-beta-win-linux");
+  assert.equal(f.archives.length, 2);
+  const result = await assembleReleaseArtifacts(
+    f.stage,
+    f.request,
+    f.archives,
+    f.expected,
+    f.options,
+  );
+  assert.equal(result.aggregate.output_files.length, 7);
+  assert.equal(result.original_compiler, null);
+  assert.equal(result.authority, "none");
 });
 
 void test("artifact matrix and run mismatch refuse before transport or private output", async (t) => {

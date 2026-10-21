@@ -1,7 +1,7 @@
 use std::{
     collections::BTreeMap,
-    fs::{self, File, OpenOptions},
-    io::{Read, Write},
+    fs::{self, OpenOptions},
+    io::Write,
     path::{Path, PathBuf},
     sync::{
         Arc, Mutex,
@@ -11,7 +11,8 @@ use std::{
 };
 
 use portcove_core::{
-    PortcoveError, PortcoveService, Result, redact_diagnostic_text as redact_text,
+    FailureReport, HostPreferenceStore, Library, PortcoveError, Result, SupportBundleExport,
+    SupportBundleRequest, export_support_bundle, redact_diagnostic_text as redact_text,
     redact_diagnostic_value, sensitive_diagnostic_field as is_sensitive_field,
 };
 use serde_json::{Value, json};
@@ -77,7 +78,7 @@ struct FieldVisitor {
 }
 
 pub fn initialize(logs_dir: &Path) -> Result<()> {
-    fs::create_dir_all(logs_dir)?;
+    let logs_dir = portcove_core::prepare_support_log_directory(logs_dir)?;
     let log = DiagnosticLog::new(
         logs_dir.join(LOG_FILE_NAME),
         MAX_LOG_BYTES,
@@ -91,103 +92,35 @@ pub fn initialize(logs_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn create_support_bundle(service: &PortcoveService) -> Result<PathBuf> {
-    let logs_dir = service.library().logs_dir();
-    fs::create_dir_all(&logs_dir)?;
-    let timestamp = unix_timestamp_millis();
-    let output = logs_dir.join(format!("portcove-support-{timestamp}.zip"));
-    let doctor = service.doctor()?;
-    let activities = service.library().activities(100)?;
-    let mut summary = json!({
-        "schema_version": 1,
-        "created_at_ms": timestamp,
-        "platform": doctor.platform,
-        "catalog_port_count": doctor.catalog_port_count,
-        "installed_port_count": doctor.installed_port_count,
-        "registered_source_count": doctor.registered_source_count,
-        "volume_total_bytes": doctor.library.volume_total_bytes,
-        "volume_available_bytes": doctor.library.volume_available_bytes,
-        "repair_items": doctor.repair.items,
-        "host_tools": doctor.host_tools.into_iter().map(|tool| json!({
-            "id": tool.id,
-            "state": tool.state,
-            "source": tool.source,
-            "configuration_variable": tool.configuration_variable,
-            "purpose": tool.purpose,
-        })).collect::<Vec<_>>(),
-        "activities": &activities,
-    });
-
-    let log_files = support_log_files(&logs_dir)?;
-    let file = File::create(&output)?;
-    let mut archive = zip::ZipWriter::new(file);
-    let options = zip::write::SimpleFileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated);
-    archive
-        .start_file("diagnostics.json", options)
-        .map_err(zip_error)?;
-    redact_diagnostic_value(&mut summary);
-    archive.write_all(&serde_json::to_vec_pretty(&summary)?)?;
-    archive.write_all(b"\n")?;
-    for (index, activity) in activities.iter().enumerate() {
-        let captures = service.library().activity_diagnostic(&activity.id)?;
-        if !captures.is_empty() {
-            archive
-                .start_file(format!("logs/activity-{index}.json"), options)
-                .map_err(zip_error)?;
-            // Fixed archive names cannot turn a stored activity ID into a path.
-            let mut value = serde_json::to_value(captures)?;
-            redact_diagnostic_value(&mut value);
-            serde_json::to_writer_pretty(&mut archive, &value)?;
-            archive.write_all(b"\n")?;
-        }
-    }
-    for path in log_files {
-        let name = path
-            .file_name()
-            .and_then(|value| value.to_str())
-            .ok_or_else(|| {
-                PortcoveError::unsupported("diagnostic log name is not valid Unicode")
-            })?;
-        let mut contents = String::new();
-        File::open(&path)?.read_to_string(&mut contents)?;
-        archive
-            .start_file(format!("logs/{name}"), options)
-            .map_err(zip_error)?;
-        for line in contents.lines() {
-            let redacted = match serde_json::from_str::<Value>(line) {
-                Ok(mut value) => {
-                    redact_diagnostic_value(&mut value);
-                    serde_json::to_string(&value)?
-                }
-                Err(_) => redact_text(line),
-            };
-            archive.write_all(redacted.as_bytes())?;
-            archive.write_all(b"\n")?;
-        }
-    }
-    archive.finish().map_err(zip_error)?.sync_all()?;
-    Ok(output)
+/// This host-owned location survives library initialization/replacement. It
+/// carries no library state and never grants recovery or sharing authority.
+#[derive(Clone)]
+pub(crate) struct HostDiagnostics {
+    pub(crate) directory: crate::DesktopResult<PathBuf>,
 }
 
-fn support_log_files(logs_dir: &Path) -> Result<Vec<PathBuf>> {
-    let mut files = fs::read_dir(logs_dir)?
-        .collect::<std::io::Result<Vec<_>>>()?
-        .into_iter()
-        .filter_map(|entry| {
-            let name = entry.file_name();
-            let name = name.to_str()?;
-            (entry.file_type().ok()?.is_file() && name.starts_with(LOG_FILE_NAME))
-                .then(|| entry.path())
-        })
-        .collect::<Vec<_>>();
-    files.sort();
-    Ok(files)
+impl HostDiagnostics {
+    pub(crate) fn new(preferences: &crate::DesktopResult<HostPreferenceStore>) -> Self {
+        Self {
+            directory: preferences
+                .as_ref()
+                .map(HostPreferenceStore::diagnostics_directory)
+                .map_err(Clone::clone),
+        }
+    }
 }
 
-fn zip_error(error: zip::result::ZipError) -> PortcoveError {
-    PortcoveError::state("could not create the diagnostic support bundle")
-        .detail("cause", error.to_string())
+pub fn create_support_bundle(
+    library: Option<&Library>,
+    startup_failure: Option<&FailureReport>,
+    directory: &Path,
+) -> Result<SupportBundleExport> {
+    export_support_bundle(SupportBundleRequest {
+        destination_dir: directory,
+        logs_dir: Some(directory),
+        library,
+        startup_failure,
+    })
 }
 
 impl DiagnosticLog {
@@ -308,6 +241,41 @@ fn unix_timestamp_millis() -> u128 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use portcove_core::PortcoveService;
+    use std::{fs::File, io::Read};
+
+    #[test]
+    fn support_export_uses_host_location_without_a_ready_library() {
+        let temporary = tempfile::tempdir().unwrap();
+        let preferences =
+            HostPreferenceStore::new(temporary.path().join("preferences.json")).unwrap();
+        let host = HostDiagnostics::new(&Ok(preferences));
+        let directory = host.directory.unwrap();
+        assert_eq!(directory, temporary.path().join("diagnostics"));
+        fs::create_dir(&directory).unwrap();
+        DiagnosticLog::new(
+            directory.join(LOG_FILE_NAME),
+            MAX_LOG_BYTES,
+            RETAINED_LOG_FILES,
+        )
+        .append(&json!({"fields": {"message": "startup host log remains available"}}))
+        .unwrap();
+        let failure = PortcoveError::state("unavailable library token=startup-canary").report();
+        let original = failure.clone();
+        let exported = create_support_bundle(None, Some(&failure), &directory).unwrap();
+        assert!(!exported.manifest.library_available);
+        assert_eq!(failure, original);
+        assert!(exported.path.is_file());
+        let mut archive = zip::ZipArchive::new(File::open(exported.path).unwrap()).unwrap();
+        let mut log = String::new();
+        archive
+            .by_name(&format!("logs/{LOG_FILE_NAME}"))
+            .unwrap()
+            .read_to_string(&mut log)
+            .unwrap();
+        assert!(log.contains("startup host log remains available"));
+        assert!(!temporary.path().join("preferences.json").exists());
+    }
 
     #[test]
     fn auth_observation_preserves_results_and_records_only_fixed_safe_fields() {
@@ -389,6 +357,30 @@ mod tests {
     }
 
     #[test]
+    fn unsafe_existing_host_log_cannot_be_enabled_for_startup_writes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let foreign = temporary.path().join("private-file");
+        fs::write(&foreign, b"preserve foreign data").unwrap();
+        let directory = temporary.path().join("diagnostics");
+        fs::create_dir(&directory).unwrap();
+        fs::hard_link(&foreign, directory.join(LOG_FILE_NAME)).unwrap();
+        assert!(initialize(&directory).is_err());
+        assert_eq!(fs::read(&foreign).unwrap(), b"preserve foreign data");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unsafe_host_ancestor_cannot_redirect_early_logging() {
+        let temporary = tempfile::tempdir().unwrap();
+        let foreign = temporary.path().join("foreign");
+        fs::create_dir(&foreign).unwrap();
+        let alias = temporary.path().join("aliased-host");
+        std::os::unix::fs::symlink(&foreign, &alias).unwrap();
+        assert!(initialize(&alias.join("diagnostics")).is_err());
+        assert!(!foreign.join("diagnostics").exists());
+    }
+
+    #[test]
     fn log_rotation_retains_prior_output_and_restart_appends() {
         let temporary = tempfile::tempdir().unwrap();
         let path = temporary.path().join(LOG_FILE_NAME);
@@ -414,29 +406,143 @@ mod tests {
     fn support_bundle_redacts_logs_and_omits_source_payloads() {
         let temporary = tempfile::tempdir().unwrap();
         let library = portcove_core::Library::open(temporary.path().join("library")).unwrap();
+        let runtime = json!({
+            "timestamp_ms": 1,
+            "level": "ERROR",
+            "target": "portcove_desktop",
+            "memo": "unmarked-envelope-canary",
+            "fields": {
+                "message": "diagnostic token=runtime-canary safe=structured",
+                "operation_id": "operation-1",
+                "memo": "unmarked-runtime-canary",
+                "event": { "memo": "unmarked-nested-canary" },
+                "library_root": "unmarked-location-canary",
+                "component_stack": "unmarked-frontend-canary"
+            }
+        });
         fs::write(
             library.logs_dir().join(LOG_FILE_NAME),
-            "request Authorization: Bearer private-token safe=visible\n",
+            format!("request Authorization: Bearer private-token safe=visible\n{runtime}\n"),
         )
         .unwrap();
+        fs::write(
+            library.logs_dir().join(format!("{LOG_FILE_NAME}.1")),
+            "{\"memo\":\"unmarked-incomplete-canary\"",
+        )
+        .unwrap();
+        fs::write(
+            library
+                .logs_dir()
+                .join(format!("{LOG_FILE_NAME}.private-canary")),
+            "unmarked-extra-file-canary",
+        )
+        .unwrap();
+        let source_payload = library.root().join("private-source-payload.bin");
+        fs::write(&source_payload, "unmarked-source-payload-canary").unwrap();
+        fs::create_dir(library.root().join("private-credentials")).unwrap();
+        fs::write(
+            library.root().join("private-credentials/account.json"),
+            "{\"memo\":\"unmarked-credential-store-canary\"}",
+        )
+        .unwrap();
+        // Owned persisted fixtures exercise the real activity/capture readers.
+        let failure = PortcoveError::state("failed password=failure-canary")
+            .detail("memo", "unmarked-failure-canary")
+            .report();
+        let activity_id = "../not-an-archive-path";
+        let capture = portcove_core::ActivityDiagnostic {
+            activity_id: activity_id.into(),
+            phase: "preparation.setup".into(),
+            stdout: portcove_core::DiagnosticStream {
+                text: "compiler progress token=capture-stdout-canary".into(),
+                observed_bytes: 3_000_000,
+                truncated: true,
+            },
+            stderr: portcove_core::DiagnosticStream {
+                text: "Bearer capture-stderr-canary".into(),
+                observed_bytes: 100,
+                truncated: false,
+            },
+            complete: false,
+            updated_at: 3,
+            stream_limit_bytes: 2 * 1024 * 1024,
+        };
+        let payload = serde_json::to_string(&capture).unwrap();
+        let failure_json = serde_json::to_string(&failure).unwrap();
+        let connection =
+            rusqlite::Connection::open(library.root().join("portcove.sqlite3")).unwrap();
+        connection.execute(
+            "INSERT INTO activity_history(id,operation,target_kind,target_id,status,message,started_at,finished_at,failure_json)
+             VALUES(?1,'prepare','source',?2,'failed','retained failure',1,2,?3)",
+            rusqlite::params![activity_id, source_payload.to_string_lossy(), failure_json],
+        ).unwrap();
+        connection.execute(
+            "INSERT INTO activity_diagnostics(activity_id,phase,payload,updated_at,payload_bytes)
+             VALUES(?1,'preparation.setup',?2,3,?3)",
+            rusqlite::params![activity_id, payload, payload.len()],
+        ).unwrap();
+        drop(connection);
         let service = PortcoveService::new(library).unwrap();
 
-        let bundle = create_support_bundle(&service).unwrap();
-        let mut archive = zip::ZipArchive::new(File::open(bundle).unwrap()).unwrap();
-        assert!(archive.by_name("diagnostics.json").is_ok());
-        let mut log = String::new();
-        archive
-            .by_name("logs/portcove-desktop.jsonl")
-            .unwrap()
-            .read_to_string(&mut log)
-            .unwrap();
-        assert!(!log.contains("private-token"));
-        assert!(log.contains("[REDACTED]"));
-        assert!(log.contains("safe=visible"));
-        assert!(
-            archive
-                .file_names()
-                .all(|name| !name.unwrap().contains("sources/"))
+        let bundle =
+            create_support_bundle(Some(service.library()), None, &service.library().logs_dir())
+                .unwrap();
+        let mut archive = zip::ZipArchive::new(File::open(&bundle.path).unwrap()).unwrap();
+        let mut entries = BTreeMap::new();
+        for index in 0..archive.len() {
+            let mut entry = archive.by_index(index).unwrap();
+            let name = entry.name().unwrap().into_owned();
+            let mut contents = String::new();
+            entry.read_to_string(&mut contents).unwrap();
+            entries.insert(name, contents);
+        }
+        assert_eq!(
+            entries.keys().map(String::as_str).collect::<Vec<_>>(),
+            [
+                "activities.json",
+                "doctor.json",
+                "logs/activity-0.json",
+                "logs/portcove-desktop.jsonl",
+                "logs/portcove-desktop.jsonl.1",
+                "manifest.json",
+                "startup.json",
+            ]
+        );
+        let exported = serde_json::to_string(&entries).unwrap();
+        for canary in [
+            "unmarked",
+            "private-canary",
+            "private-source-payload",
+            "private-token",
+            "runtime-canary",
+            "failure-canary",
+            "capture-stdout-canary",
+            "capture-stderr-canary",
+        ] {
+            assert!(!exported.contains(canary), "archive leaked {canary}");
+        }
+        assert!(exported.contains("[REDACTED]"));
+        assert!(exported.contains("safe=visible"));
+        assert!(exported.contains("safe=structured"));
+        let summary: Value = serde_json::from_str(&entries["activities.json"]).unwrap();
+        assert_eq!(summary["schema_version"], 1);
+        assert_eq!(summary["activities"][0]["failure"]["details_omitted"], 1);
+        assert_eq!(summary["activities"][0]["target_id_omitted"], true);
+        let captures: Value = serde_json::from_str(&entries["logs/activity-0.json"]).unwrap();
+        assert_eq!(captures[0]["complete"], false);
+        assert_eq!(captures[0]["stdout"]["truncated"], true);
+        assert_eq!(captures[0]["stdout"]["observed_bytes"], 3_000_000);
+        assert_eq!(
+            service.library().activity_diagnostic(activity_id).unwrap(),
+            vec![capture]
+        );
+        assert_eq!(
+            service.library().activities(1).unwrap()[0].failure.as_ref(),
+            Some(&failure)
+        );
+        assert_eq!(
+            fs::read_to_string(source_payload).unwrap(),
+            "unmarked-source-payload-canary"
         );
     }
 }

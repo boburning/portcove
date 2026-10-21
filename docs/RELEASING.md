@@ -338,20 +338,151 @@ and the corresponding versioned `channels/preview` and `channels/stable` paths.
 Bootstrap is an offline custody operation; this tooling does not grant production
 custody or signing authority.
 
-For a routine schema-2 build, omit `keys.targets` and provide `offline_targets`
-as the exact signed `<version>.targets.json` produced by bootstrap. Supply only
-the five snapshot, timestamp, releases, Preview and Stable private keys. The
-targets version and expiration must match bootstrap. The tool authenticates the
-offline metadata against the configured root before every build, including an
-exact retry, and preserves its bytes unchanged. It refuses changed payload
-registry bytes, delegation keys/policy, unsupported target/package namespaces,
-and ambiguous bootstrap/online configurations. Routine signing can allocate a
-new version within those namespaces without loading the targets private key.
-Renewing targets, changing delegation keys, or changing the payload registry
-requires a new independently authorized offline bootstrap.
+The older schema-2 `build-tuf` mode can omit `keys.targets` and consume exact
+`offline_targets` bytes with the other five keys together. That consolidated
+builder remains an offline setup/qualification tool, not the routine production
+custody path. Initial setup must supply a valid signed empty Stable role and
+complete public seed repository. Root and top-level targets keys stay offline.
+Renewing targets, changing delegation keys or changing the payload registry
+requires independently authorized offline setup.
+
+### One-key initial offline ceremony
+
+The maintained `portcove-release-tools` commands below prepare initial Root v1
+and top-level Targets v1 with one private key per signing process. They use
+existing Tough verification and fixed namespaces. They do not rotate keys,
+provision custody or authorize publication; production invocation requires an
+independent custody grant. The test-only
+repository generator and consolidated `build-tuf` mode are not this custody route.
+
+The four proposal/signing configurations are strict schema 1 JSON, resolve paths
+relative to their configuration file and contain `generated_at` plus `output`. Public key inputs
+are `{ "path": "public-key.json", "sha256": "<raw-file-sha256>" }` objects;
+files contain only TUF `keytype`, `scheme` and `keyval.public`. Expected public
+hashes and the Root body digest must be independently reviewed before custody
+use. A digest reported by the proposal builder is a calculation, not approval.
+
+Before these steps, each independently authorized custodian can use
+`create-offline-key CONFIG` with exactly `{ "schema_version": 1,
+"output_directory": "NEW_CUSTODIAN_DIRECTORY" }`. It creates a new directory,
+one Ed25519 PKCS#8 `private.pk8` and its Tough-compatible `public.json` using the
+existing aws-lc/Tough implementation; it reads no existing private key. Standard
+output contains only public key ID/digest and fixed filenames. Unix output modes
+are directory 0700/files 0600; Windows ACL protection must be independently
+established and read back before production invocation. Existing or partial
+output is never replaced or silently regenerated. Each role's custody location,
+backup and public transfer are independently appointed at setup; never run nine
+production creations in one shared custody location. No production key creation
+is authorized by this implementation or its disposable tests.
+
+1. `prepare-offline-root CONFIG` reads **public files only**: exactly three
+   `root_public_keys`, and separate `targets_public_key`, `snapshot_public_key`
+   and `timestamp_public_key`, plus `expires`. It emits an unsigned Root proposal
+   and canonical `signed_body_sha256`. The fixed policy is consistent snapshots,
+   Root threshold two of three distinct keys and three distinct threshold-one
+   top-level roles. Existing Root expiry remains at most 365 days.
+2. Each custodian separately invokes `sign-offline-root CONFIG` with `root`, the
+   independently approved `signed_body_sha256` and exactly one `signing_key`.
+   The first custodian emits a partial; the second receives those public bytes
+   and emits a complete quorum over the identical original body. Existing
+   signatures are verified individually; duplicate IDs and foreign signers
+   refuse. A partial keeps threshold two and cannot bootstrap a repository.
+3. `finalize-offline-root CONFIG` accepts `root` and `signed_body_sha256`, with
+   **no private-key field**. It verifies the original complete threshold and
+   retains the exact signed bytes. No threshold-one verification projection is
+   emitted or accepted as Root metadata.
+4. The independent Targets custodian invokes `sign-offline-targets CONFIG` with
+   `trusted_root`, `trusted_root_sha256`, `payload_key_registry`,
+   `payload_key_registry_sha256`, `delegated_public_keys` containing public
+   `releases`/`preview`/`stable` objects, `version: 1`, `expires`, and exactly one
+   `signing_key`. It verifies the completed Root and fixed payload/delegation
+   contract, including distinct online keys and the existing 90-day ceiling.
+   It receives no online private key. Five separate `sign-tuf-role` jobs and
+   keyless `assemble-tuf` then consume these exact public offline bytes.
+
+Inputs are bounded regular files; linked/reparse ancestry refuses. Outputs use
+CreateNew and file sync, with no overwrite or automatic retry. An existing or
+partial output stays retained; inspect it and use a new explicitly reviewed
+output path rather than silently replacing it. Config/public-key/private-key
+limits are 64 KiB, signed metadata 1 MiB and the payload registry 256 KiB.
+Custodian isolation, offline transfer/media, protected file ownership, backup and
+restoration, final fingerprints and conditional execution authority still need
+actual initial setup evidence. See the scoped
+[one-key ceremony qualification](qualification/slice4-one-key-offline-ceremony-2026-10-21.md).
+
+Routine role jobs use `portcove-release-tools sign-tuf-role ROLE CONFIG.json`,
+where `ROLE` is exactly `releases`, `preview`, `stable`, `snapshot` or `timestamp`.
+Each strict schema-1 configuration contains `context`, `signing_key` and `output`;
+there is no other private-key field. Paths resolve relative to the configuration.
+Snapshot and timestamp additionally require `signed_roles`, a directory containing
+the public `releases.json`, `preview.json` and `stable.json` envelopes. Timestamp
+also requires `snapshot.json`. Signed inputs must match the exact expected
+version, expiry, content and upstream envelope byte hashes before signing.
+
+The public context is a separate strict schema-1 JSON document with
+`generated_at`, `trusted_root`, `offline_targets`, `payload_key_registry`,
+`reconstructed_records`, `previous_repository`, `versions` and `expires`.
+The last two objects use the six names `targets`, `snapshot`, `timestamp`,
+`releases`, `preview` and `stable`, as in the existing builder. The caller must
+independently ratify the root and complete prior repository; a path or digest
+alone does not authenticate their provenance. The prior repository is bounded,
+snapshotted and verified by Tough, including current expiration, before any
+private-key read. Each online version must advance its authenticated prior floor.
+Expired current state refuses routine renewal and needs separate recovery
+authority. Offline targets bytes, version, expiry, delegations and payload registry
+remain exact. Previously published releases cannot disappear or change.
+
+`portcove-release-tools assemble-tuf CONFIG.json` consumes strict schema 1 with
+only `context`, `signed_roles` and `output`. The public directory must contain all
+five envelopes, including `timestamp.json`; extra files refuse. Assembly loads no
+private keys. It verifies role signatures and exact content, then verifies the
+assembled current repository through Tough. The output retains the existing
+metadata/targets layout and `repository-manifest.json`, including authenticated
+prior versioned metadata and immutable target bytes. Versioned path collisions
+must be byte-identical; only timestamp and the derived inventory are replaced.
+Historical envelopes may be expired, but are signature/hash verified and never
+serve as current freshness evidence. Existing file/byte limits bound retained
+history; exceeding them refuses rather than deleting it. Routine root/top-level
+rotation is outside this unchanged-anchor path.
+
+For the bounded beta, Stable signing and assembly require both the authenticated
+prior Stable target map and the new map to be empty. This only renews an unchanged
+empty map; it cannot promote a release or erase a populated Stable channel.
+Each signer reports its role/output digest and `authority: "none"`; assembly
+reports exact public file identities. Repeating exact output reuses it; a changed
+existing output refuses. Payload signing remains a separate operation.
+
+`portcove-release-tools prepare-tuf-renewal CONFIG.json` prepares public inputs
+for metadata-only renewal. Its strict schema-1 configuration has `generated_at`,
+`trusted_root`, `previous_repository` and `output`. The caller independently
+ratifies the root and authenticates complete current public feed/readback
+provenance. The frozen generation time supports identical retries; it cannot
+override expirations. The tool verifies current TUF signatures and expiration,
+the unchanged offline anchors and retained signed history before returning a
+plan. Expired current state requires separate recovery. It reads no private key.
+
+The prepared context preserves all record bytes and advances the five online
+versions by exactly one, with increasing expirations within the existing caps:
+48 hours for timestamp, seven days for snapshot/Preview/Stable and 90 days for
+releases. Targets version/expiry and root/targets bytes remain unchanged. Stable
+remains empty. The output supplies the same context to the existing isolated
+role jobs and keyless assembler; it allocates no application version, candidate
+or semantic approval. Signing and publication remain later protected operations.
+
+`renewal.json` binds the current and next versions/expirations, frozen clock,
+root/targets digests, prior timestamp/snapshot digests, unchanged record identities
+and exact prior public component inventory. Versions in this descriptor are
+canonical positive decimal strings, preserving TUF's full `u64` identity in
+JavaScript; TUF/config versions retain their existing numeric representation.
+Descriptor digests use compact JSON with sorted object keys and no terminal
+newline. The prior component digest covers sorted `{path, bytes, sha256}` entries
+for public `metadata/**` and `targets/**`. It excludes the internal
+`repository-manifest.json`, which is derived locally and is not a required public
+endpoint. Shared-site generation identity is separate. A digest or persisted
+plan does not authenticate provider provenance or grant an effect.
 
 The unchanged reconstruction step still requires the complete retained inventory
-history and protects existing immutable releases. Schema 2 changes local signing
+history and protects existing immutable releases. Role isolation changes local signing
 custody, not allocation, qualification, controller, publication or platform
 acceptance. The same file/byte/record, expiry, distinct-key and atomic-output guards
 apply. Schema 1 remains available for existing explicit all-key fixtures.
@@ -454,23 +585,28 @@ Pages/feed permissions remain disabled pending #534. The checked-in fixture test
 are nonproduction evidence, not proof that a subscription task or production
 credential path is active.
 
-### Inactive fixed-controller source admission
+### Configuration-held fixed-controller source admission
 
-`.github/workflows/application-update-production.yml` currently performs only
-source admission. It has no candidate input, schedule, reusable caller, production
-environment, credential, cache, dependency installation, signing or publication
-step. Its only token permission is `contents:read`. Missing configuration refuses
-before checkout. This workflow does not execute the planner or its plans.
+`.github/workflows/application-update-production.yml` contains the complete fixed
+controller. Its secret-free admission job starts only with the existing admission
+configuration and exact configured revision/ref; every downstream role retains its
+own authenticated admission. The separate automatic wake starts only with its
+existing wake configuration. Neither source installation activates these settings,
+credentials, protected environments, signing or publication. See the
+[current controller integration](qualification/slice4-complete-controller-integration-2026-10-21.md).
 
-The prospective operator configuration consists of three **public identity**
+The source-admission bootstrap uses three **public identity**
 variables: `PORTCOVE_CONTROLLER_REVISION`, `PORTCOVE_CONTROLLER_REF`, and
 `PORTCOVE_CONTROLLER_ADMISSION`. None is configured or authorized by this change.
 The first two bind an exact commit and a protected tag in the
 `refs/tags/portcove-production-controller-` namespace. No particular production
 tag or principal is selected here; the exhausted disposable canary is excluded.
-The JSON policy has exactly `schema_version:1`, `mode:"admission-only"`,
-`execution_ref`, `revision`, `workflow_sha256`, and string `actor_id`. Its ref and
-revision must match those bootstrap variables. The digest is SHA-256 of the
+The complete-controller JSON policy has exactly `schema_version:2`,
+`mode:"bounded-application-release"`, `execution_ref`, `revision`,
+`workflow_sha256`, string `actor_id`, `authority_configuration_sha256` and
+`grant_sha256`. Historical schema-1 admission-only records cannot authorize the
+complete role operations. Its ref and revision must match the bootstrap variables.
+The workflow digest is SHA-256 of the
 reviewed workflow's raw bytes. Policy must come from separately ratified operator
 configuration, never candidate data or a dispatch input.
 
@@ -490,15 +626,18 @@ Contract fixtures execute bootstrap refusal paths and the CLI without installed
 dependencies. They establish source admission only. `GITHUB_REF_PROTECTED=true`
 does not prove immutable tag rules, absence of bypass actors or production secret
 isolation. Actual platform enforcement must be independently provisioned and
-proven before any secret-bearing job is added. This change activates no dispatch,
-environment, variable, credential, protected tag, signing or publication.
-Trusted live inventory/check acquisition, producer job/attempt/artifact binding,
-candidate-runner/cache isolation, protected durable coordination, role operations,
-custody and real Windows/Linux public recovery proof remain under #534. The
-existing canonical owner packet must acquire the separately reviewed controller
-identities and those proofs before an exact production-authority request.
+proven before any secret-bearing job executes. Installed role sources are not
+provider enforcement or grants. Actual host and issuer qualification, protected
+configuration, custody, eligible coordinator state and real Windows/Linux public
+recovery proof remain under #534. The existing canonical owner packet binds the
+final reviewed controller, configuration and exact protected grant before use.
 
 ### Durable local coordinator checkpoints
+
+The [coordinator and initial empty-feed implementation receipt](qualification/slice4-534-coordinator-and-initial-feed-2026-10-20.md)
+describes the request-bound continuation, automatic classification writer and
+explicit no-prior bootstrap context, including the remaining runtime joins and
+ungranted production prerequisites.
 
 `await checkpointReleaseOpportunity(repository, expectedPrevious, input)` in
 `scripts/release-coordinator-state.mts` persists the existing planner's validated
@@ -597,6 +736,31 @@ See the [canonical Slice 4 packet](qualification/slice4-production-authorization
 for the selected boundary, retained provider observation and resource estimate.
 
 ### Inactive remote checkpoint transport
+
+`publishPreparedCoordinatorCheckpoint` in `scripts/release-prepared-transport.mts`
+connects the existing deterministic version preparation to remote object custody
+and then to the existing checkpoint CAS below. Its read-only export reconstructs
+the four authorized version edits (`Cargo.toml`, `Cargo.lock`, desktop package
+metadata and Tauri configuration), verifies the sole source parent, canonical
+intent, actors/date and exact raw commit identity, and refuses extra tree edits.
+Lazy fetching is disabled; missing application objects in sparse recovery refuse.
+
+The fixed repository's source commit/tree must already exist remotely. The
+adapter stages only four bounded blobs, their overlay over that base tree, and
+the exact prepared commit. It verifies returned OIDs and fresh commit readback
+before using the unchanged checkpoint/ref transaction. Replay creates no objects
+or refs when the same complete state already exists. Lost object acknowledgments
+require exact readback; unresolved outcomes retain original errors/known OIDs and
+stop before later effects. No blind retry, alternate allocator or ref writer is
+introduced. Local allocation and partial immutable remote objects remain retained.
+
+Local export is capped at 64 Git reads/120 seconds, 8 MiB per blob and 16 MiB
+total; raw commits are capped at 128 KiB. Remote staging has 32 requests/120 seconds
+plus 30 seconds for failure collection. The injected synchronous transport must
+itself enforce per-request time/response bounds. Its separately ratified identity,
+credential and execution boundary are still required; no CLI/default credential
+lookup or production activation is added. Object custody is not admission,
+semantic acceptance, qualification or an execution grant.
 
 `exportCoordinatorCheckpoint(repository, expected)` exports the existing journal's
 exact blob, tree and commit from a caller-owned bare coordinator. It validates
@@ -717,6 +881,43 @@ producing run/attempt/job and exact artifact/attestation binding through the
 existing protected architecture.
 
 ### Bounded artifact-to-aggregate integration
+
+The trusted `initial-beta-win-linux` profile declares exactly six distributions:
+Windows x86-64 current-user NSIS and CLI ZIP; ordinary Linux x86-64 AppImage,
+DEB, RPM and CLI tar.gz. NSIS/AppImage retain application-updater ownership;
+DEB/RPM retain package-manager ownership. The complete repository package policy
+is validated before selecting this fixed subset; missing selected packages refuse.
+Default `full` builds and qualification retain all four platforms and ten packages.
+
+The Release identity job validates the named profile and emits its fixed build
+matrix. Reusable qualification binds the same profile into the plan digest and
+requires all applicable Windows/Linux checks. The reduced profile is available
+only to explicitly forced Release qualification, not PRs or nightly qualification.
+The result gate requires macOS jobs to be skipped for that profile; it still
+requires every applicable producer. An expected-full consumer refuses a reduced
+qualification plan. Assembly schema 2 and ratified admission configuration schema
+2 bind `release_profile`; historical schema 1 still means the complete full matrix.
+Provider archive selection, verified aggregation, aggregate attestation and download
+guidance consume the selected inventory. Selecting a distribution profile grants
+no execution, signing, publication, native acceptance or catalog authority.
+
+Release workflow uploads use immutable attempt names:
+`release-build-<platform>-<run-id>-<attempt>` and
+`release-{final,attestation-metadata,publication-metadata}-<run-id>-<attempt>`.
+Uploads refuse overwrite and request seven-day retention. Downloads select the
+same run and attempt; reconciliation requires matching declared producer lineage.
+A partial rerun cannot silently borrow a prior attempt's builds. Verified local
+staging still uses `release-build-<platform>` directories. Artifact names do not
+authenticate the original compiler or establish its job/attempt identity.
+
+Rehearsal and draft publication no longer delete run artifacts: neither proves
+the downstream controller has durable custody. Provider expiry remains the
+fallback; earlier deletion requires a separately verified terminal handoff and
+exact artifact IDs. Each attempt adds its build archives, aggregate and metadata
+to the seven-day storage window. This retention request supplies neither space
+nor a reservation: admission remains a bounded attempt under the ratified $0
+stop-usage boundary, with availability/headroom Unknown. Provider refusal stops
+the attempt and preserves available effects for explicit recovery.
 
 `assembleReleaseArtifacts` in `scripts/release-artifact-assembly.mts` connects
 the existing complete Release run evidence collector, opaque artifact transport,
@@ -1264,12 +1465,13 @@ next retry restores the complete exact asset set, and a published release is
 refused without mutation. The fixture has no network, tag, release, credential,
 or publication authority.
 
-After a successful rehearsal or publication handoff, an isolated
-cleanup job with only `actions: write` deletes transient workflow artifacts. A
-failed run retains them for no more than one day for diagnosis. Tags containing
-a SemVer prerelease suffix are marked as prereleases automatically. Tauri updater
-metadata remains disabled until Portcove has an explicit signed desktop
-self-update contract.
+Rehearsal, draft publication and failed runs retain immutable attempt artifacts
+under the seven-day policy above. There is no automatic early-deletion job or
+additional cleanup credential. Earlier deletion requires independently verified
+successor custody and exact IDs; expiry proves neither custody nor headroom.
+Tags containing a SemVer prerelease suffix are marked as prereleases automatically.
+The signed application-updater path remains subject to #534's separately approved
+initial configuration and applicable native/public acceptance.
 
 The verified inventory adds or replaces one marked desktop-first download
 section in the draft body while preserving reviewed prose and GitHub's
@@ -1284,7 +1486,7 @@ outputs.
 
 ## Release rehearsal
 
-Run the **Release** workflow manually from GitHub Actions before the first v1 tag or after changing packaging. A manual run executes the same cheap identity gate, reusable exhaustive qualification, bound release validation, three-platform matrix and dedicated Intel build, immediate downstream native Intel verification, read-only assembly, SBOM generation, payload finalization, public checksum verification, and internal SBOM-subject checksum verification, but the tag-only attestation and publication jobs remain disabled. It deletes the transient copies only after those contracts pass. A failed rehearsal retains its artifacts for no more than one day for diagnosis; a successful rehearsal keeps the run logs and verification result without consuming ongoing Actions artifact storage. A rehearsal never creates an attestation, tag, draft release, or published release.
+The **Release** workflow also offers a separate manual packaging rehearsal. A manual run executes the same cheap identity gate, reusable exhaustive qualification, bound release validation, selected package profile, read-only assembly, SBOM generation, payload finalization, public checksum verification, and internal SBOM-subject checksum verification, but tag-only attestation and publication remain disabled. Successful and failed rehearsals retain attempt artifacts under the seven-day policy. A rehearsal never creates an attestation, tag, draft release, or published release. This diagnostic entry point is separate from #534's automatic fixed-controller path and is not a recurring owner step for that path.
 
 From an authenticated GitHub CLI, start and follow the rehearsal with:
 
@@ -1421,3 +1623,258 @@ production/build graph requires focused source review; there is no routine Rust
 source fingerprint to maintain. See the [current procedure and dated approval](releases/2026-10-14-linux-beta-risk-706.md).
 Ordinary Windows preflight remains independent of Linux authorization. No
 publication, approval renewal, advisory dismissal or remediation is implied.
+
+## Metadata-only renewal in the existing coordinator journal
+
+A schema2 coordinator may retain `published_metadata` and `metadata_renewal`
+with capacity sub-schema2. The former binds the application public component,
+root/offline targets, six exact decimal-string version floors and expirations,
+unchanged record digest, actual publication receipt and whole-site
+`publication.site_generation_sha256`. The whole-site marker includes the catalog;
+it is distinct from the application-only public component digest. Missing state
+holds renewal. Initial seeding is a separately authorized import: its fixed caller
+must actually verify the independently ratified root, safe-expiry Tough feed and
+independent public readback. Hash parsing and Git persistence do not authenticate
+those observations or grant initial setup authority.
+
+`runBoundedMetadataRenewalOperation` freezes the verified renewal descriptor,
+uses its own observation time, and commits its exact pending effect through the
+existing remote checkpoint adapter before the supplied effect. It never allocates
+a candidate, invents a source/version/review, changes the active reservation or
+rewrites earlier release observations. Two transient and three substantive
+recovery increments apply across the same prior published generation; changing
+the descriptor does not reset them. Stable logical destinations identify purposes,
+such as a role artifact or Pages deployment, rather than changing run/artifact IDs.
+Remote completion remains pending until exact provider readback is durably
+recorded. Publication advancement needs a resolved operation with the matching
+receipt and all five advancing online floors. Offline anchors remain unchanged.
+
+Compact prior-effect groups remain inside the same checkpoint. They retain the
+logical subject/destination, completion and retry floors, plus the original raw
+operation checkpoint, ID and full-operation digest. The original immutable Git
+history retains provider receipts. `readRetainedCapacityOperation` resolves that
+bounded original checkpoint without traversing history; a sparse restored caller
+must obtain the explicitly named checkpoint objects before requesting its raw
+receipt. Current candidate effects and current published-generation effects
+cannot be dropped or rewritten. Old metadata groups become collectible only after
+a bound published successor readback; active-candidate groups survive renewal.
+A 96-purpose lifecycle cap and six proof attempts per purpose remain fail closed.
+The focused workload covers 63 candidate purposes, seven metadata purposes and
+all five recovery increments within the existing64KiB checkpoint bound. The
+operation also reserves its declared bounded receipt budget before any effect.
+
+An operation may bind an original fixed executor identity and a separately
+recorded recovery executor identity. These are association fields, never caller
+authentication. The admitted wrapper must freshly verify the actual job identity,
+remote ownership and original-job termination before another executor resolves
+its result. A nonce, local checkpoint, imported report or JSON receipt provides no
+credential, lease, protected execution or publication authority. Legacy schema1
+replay bytes remain unchanged; routine metadata admission uses the new explicit
+schema and authenticated published-state prerequisite.
+
+`prepareAuthenticatedMetadataRenewal` is the maintained fixed-tool adapter. The
+admitted caller supplies independently ratified executable/root hashes and the
+independently observed complete application component digest. It snapshots the
+bounded public inputs, invokes the actual copied `prepare-tuf-renewal` executable
+with a credential-free environment, then binds its verified descriptor, context
+and complete output inventory to an in-process session. Imported JSON cannot
+replace that session. `inspectPreparedMetadataRenewal` rechecks retained output
+and tool identities before role-job or journal use. Failures retain private work;
+the adapter neither discovers keys nor grants provisioning or execution.
+
+The automatic coordinator retains its actual renewal session, controller-tool
+receipt, full public-site custody and current maintenance-reader controls in a
+same-process continuation. `requireActualCoordinatorMetadataPreparation` checks
+those original receipts, the unchanged published seed and descriptor, exact
+local/remote checkpoint, public generation marker and fresh controls before a
+fixed context producer may consume them. Its mode is explicitly `renewal`; an
+initial empty feed requires the separate bootstrap route. The original 170-second
+role deadline continues through this handoff. Serialized CLI output cannot
+recreate the private session or reset that budget.
+
+On a later renewal wake, the context continuation first reconciles the existing
+settled context upload. Its exact original numeric coordinator job and complete
+artifact inventory must be terminal and unchanged across the read. A surviving
+context is reused only after the existing pinned attestation verifier, original
+receipt/predicate association and exact current Tough input inventory agree;
+its original checkpoint remains historical lineage. A missing or expired handoff,
+or a failed original producing job, may consume the existing bounded transient
+recovery counter before a new upload. Incomplete inventories, active producers,
+unavailable reads and failed context verification refuse rather than authorize
+another effect. Reuse emits an explicit `attestation_required: false` locator;
+fresh uploads retain the separate required attestation. Neither result is signing
+or publication authority, and neither resets the original coordinator deadline.
+
+`acquireActualCandidateBuildingEligibility` collects genuine compiler, SPDX,
+whole-opportunity control and pre-sign native evidence while the exact candidate
+is still qualifying. Its private same-process proof is exclusively for the
+separate qualifying-to-building journal CAS; it creates no aggregate, payload or
+publication admission. Ordinary acquisition still requires building/publishing,
+and caller flags or imported successful reports cannot select the earlier gate.
+`advanceActualCandidateToBuilding` consumes that same-process proof, rechecks the
+actual retained native/SPDX/public inputs and fresh controls, then advances the
+exact qualifying reservation through the existing local/remote checkpoint CAS.
+It uses the dedicated journal credential only after protected admission. An
+ambiguous remote handoff retains its local checkpoint and requires recovery;
+the helper never retries a mutation. Aggregation and payload admission still
+perform their own checks after the durable building checkpoint.
+The publishing writer separately requires the genuine post-sign
+`release-publication` context and its native journey/SPDX/public-input custody.
+`requireActualCandidatePhaseAdvance` rechecks the original private context,
+controls and exact local/remote checkpoint before exposing a same-process
+handoff. A prepared publication may bind that exact original context to the
+returned phase checkpoint; an imported receipt or caller-updated hash cannot
+rebind it. This handoff does not establish a published Release, a public TUF
+generation or candidate completion.
+The promoting writer separately consumes the actual owned immutable-Release
+completion receipt, retains the exact settled publish operation and Release
+identity in its projection, and rechecks post-sign custody and current controls
+before the same journal CAS. Public Release presence or an imported completion
+object cannot select this route. The active reservation remains intact for the
+later independently authenticated TUF/site publication and completion proof.
+
+Optional candidate `stage_evidence` retains at most three phase histories with
+six attempts each, matching the initial attempt plus two transient retries and
+three substantive repairs. Each attempt binds the preceding checkpoint, exact
+release run and consumed recovery counters to a public projection of immutable
+Check/artifact/operation locators and hashes. Prior entries cannot be changed,
+removed or backfilled; only the corresponding forward phase transition may
+append one entry. The existing 64KiB whole-checkpoint bound applies before any
+ref mutation. These projections support recollection after a crash; stored
+hashes or locators never authenticate a later action. Missing or expired actual
+proof remains held. Legacy candidates without this optional field retain their
+historical encoding and behavior.
+The complete workflow's existing `independent_admission` job requires the signed
+`production-release-admission` environment identity before that phase writer may
+release its journal credential. Consolidated setup must restrict this environment
+to the exact protected controller tag, disable administrator bypass and require
+no recurring human reviewers. This is preparation, with no environment settings
+or credentials activated. Schema-1 admission-only remains a separate read-only
+tag-bound identity and cannot mint this proof.
+
+`prepareReleaseSigningContext` connects the actual same-process pre-sign native,
+SPDX, payload signature and public build-input receipts to a Tough-authenticated
+prior repository. It reconstructs the selected Windows/Linux Preview records
+with the existing record factory, preserves every historical target byte, and
+refuses changed immutable paths, Root/key mismatches or a different verifier.
+The private getter rechecks the complete retained tree and original receipts;
+its full record digest and candidate/aggregate/signature binding are expected
+inputs for the later role and publication joins. Versions retain exact numeric
+`u64` JSON tokens. Initial empty-feed bootstrap, cross-job attestation, five-role
+execution and post-sign qualification remain separate requirements. This
+preparation neither publishes nor turns pre-sign qualification into publication
+admission, and it cannot accept imported context or qualification JSON.
+
+The prepared `signed-package-compatibility-v1` temporal profile requires global
+authority configuration schema 2, explicitly ratified under its existing source,
+configuration and grant digests. Native report schema 1 keeps its original
+interpretation. Report schema 2 binds the exact signed context, signatures and a
+distinct predecessor to install-over-prior, candidate-launch, retained-state and
+package-rollback observations. A report cannot select the profile for its reader.
+The configured native reader must independently expect the same profile and pair.
+
+Only an independently established initial empty feed can use the distinct report-2
+`initial-empty-feed` journey: it binds the metadata-bootstrap descriptor, setup,
+initial site preimage and empty logical-record digest, with fresh-install,
+candidate-launch, retained-state and signature-cryptography observations. The
+fixed caller must derive that expectation from the actual bootstrap journal,
+authenticated Tough empty prior and current published seed. Parsing its public
+digest fields cannot establish absence. It cannot assert rollback or supply an
+invented predecessor; a noninitial release retains the distinct predecessor rule.
+
+Both report-2 branches retain the three explicit obligations for ordinary public
+discovery/download, updater journal/recovery and the public manifest journey.
+Package compatibility is a prepublication predicate; actual public V0-to-V1 proof
+remains necessary for #534 acceptance after publication. These contracts prepare
+the consolidated conditional setup selection. They grant no signing, host,
+credential, publication or native acceptance authority and do not clear current
+holds without genuine fixed producer and consumer evidence.
+
+The shared installed-updater UI driver additionally reads the shipping sanitized
+`get_application_update_status` command before any UI mutation and after staging.
+Unconfigured/package-managed installations, earlier staged/apply state and pending
+recovery refuse. A restart control alone cannot qualify a candidate: staged
+version, Preview channel, positive byte count and install eligibility must match.
+All maintained NSIS/AppImage/macOS adapters retain both status observations in
+their existing report. The macOS adapter remains outside the initial-beta gate.
+The shipping status query requires no qualification feature, IPC hook or loopback
+feed. It performs the product's normal staging reconciliation; retain raw fault
+preimages before application startup or querying status. The shared driver also
+exercises one explicitly selected existing schedule, staging or apply recovery
+button, then checks that its hold cleared while unrelated holds and unrelated
+staged/apply state remain. It performs no implicit recovery or generic IPC
+mutation. Controlled driver tests establish harness behavior only; actual public
+origins, payload hashes, restart/process ownership, retained user state, signature
+refusal, withdrawal/forward repair and recovery remain independently observed
+obligations. Existing qualification-marker restart harnesses retain their scope.
+
+The fixed `prepareControllerReleaseSigningContext` caller additionally recovers
+the current journal at the settled payload checkpoint and derives the complete
+public-site pins from its published seed. It acquires the whole site, invokes
+the authenticated Rust Tough verifier, checks the exact prior publication and
+ratified public Root/offline Targets/payload-registry bytes, then prepares new
+records and brackets the journal again. It shares the payload role's remaining
+deadline through provider, site and verifier reads. Missing prior publication
+refuses; it cannot manufacture bootstrap from an empty directory. The optional
+`publication` projection in the existing authority configuration binds these
+three immutable public JSON sources and the initial setup/preimage digests under
+the same ratified configuration/grant; the complete signing caller requires it.
+This source preparation neither fetches private keys nor changes settings.
+
+`release-signing-controller` is the fixed bundled payload/context continuation.
+After actual payload signatures settle, it derives that prior and record set,
+then opens a second existing pending upload operation for the fixed
+`payload-signing-context` output. Only then does it expose the exact two public
+upload files. Original opaque provider readback and fresh payload-job OIDC bind
+the resulting predicate before journal settlement. It keeps the payload role's
+single 570-second working deadline and allocates subsequent observer rounds from
+the same private counter, bounded at twelve. Executor identity and dedicated
+journal transports inherit that deadline; late write replies remain unresolved.
+The context still needs its fixed attestation step and actual five-role
+consumers. The sixth tool bundle has local isolated refusal smoke evidence;
+its new complete hosted artifact and consolidated job wiring remain pending.
+Secret jobs must launch the authenticated bundle rather than install checkout
+dependencies or execute the unbundled entry. No role settings are activated.
+
+The dependency-free `release-controller-tool-launch.mts` implements that initial
+payload entry. It authenticates the tool artifact with the existing receiver,
+requires the running Node bytes to match the authenticated executable and imports
+only the fixed manifest-owned signing-controller bundle. That bundle performs
+its own actual receiver check to establish its module-private custody; no brand
+or acceptance flag is serialized across the boundary. Both acquisitions and the
+entire continuation share the original launcher deadline, which the bundle can
+only tighten. Local isolated tests load the launcher without `node_modules`,
+exercise the real six-entry pack and prove the deadline cannot be extended.
+These observations do not qualify protected hosted signing or role execution.
+
+The context artifact preparation additionally requires actual complete public-site
+custody matched to that Tough prior. Its fixed two-file ZIP contains a bounded
+manifest and packed public bytes; the existing raw ZIP preflight, CRC and exact
+ordered file inventory bind the entire context. The producer rechecks the
+uploaded opaque archive against the private factory and obtains fresh signed
+payload-job identity before preparing the existing custom attestation predicate.
+The receiver invokes the pinned GitHub verifier, matches the exact source,
+run/attempt, manifest, artifact and completed numeric producer job, brackets
+provider readback, and rehashes all retained public proof and context files.
+Injected providers cannot mint a private receiver receipt. This transfers pre-sign
+context provenance only. Actual callable role orchestration, fresh role controls,
+post-sign qualification and publication admission remain separate joins; no
+workflow permissions or credential provisioning follow from this preparation.
+
+The actual `assemble-tuf` report additionally returns `publication`: root/offline
+anchor hashes, public-only repository/timestamp/snapshot/record hashes, six
+canonical decimal-string version floors and exact expirations. These facts are
+derived after the maintained stack verifies the assembled signatures, freshness,
+content and retained history. The fixed controller binds this actual tool output
+to the private assembly session, independently reads back the published bytes,
+then attaches the actual operation and provider/whole-site receipt for
+`recordPublishedMetadata`. An imported report alone is not publication evidence.
+
+The Windows installer harness has an explicit ordinary-public updater mode,
+connected to the existing separate-account driver and normal shipped updater UI.
+Its [prepared journey and proof scopes](qualification/slice4-windows-public-update-preparation-2026-10-21.md)
+cover exact V0/V1 bytes, automatic relaunch identity, real favorite and preference
+preservation, raw local fault preimages, and named recovery. Controlled tests do
+not establish the actual Windows public journey or native acceptance. The proposed
+signature-subtype component/native proof split requires the single consolidated
+conditional grant; no negative public feed or verifier bypass is prepared.

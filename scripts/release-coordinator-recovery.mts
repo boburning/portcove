@@ -4,9 +4,16 @@ import { mkdtemp } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { createGitHubRunner, GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
+import type { GitHubRestReader } from "./github-api.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import type { CoordinatorGitObject } from "./release-coordinator-state.mts";
 import { isRecord } from "./runtime-values.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import {
+  withCoordinatorDeadline,
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 
 const repository = "boburning/portcove";
 const maximumResponseBytes = 256 * 1024;
@@ -172,6 +179,118 @@ export function inspectRemoteCommitObject(value: unknown, expected: string, exac
   };
 }
 
+/** Hydrate only a raw operation receipt explicitly named by the current
+ * journal's compact summary. No refs, history traversal or provider mutation. */
+export async function hydrateRetainedCoordinatorOperation(
+  repository: string,
+  proof: unknown,
+  options: { api?: GitHubRestReader } = {},
+) {
+  if (!isRecord(proof) || Object.keys(proof).sort().join(",") !== "checkpoint,id,operation_sha256")
+    throw new Error("retained operation proof schema differs");
+  oid(proof.checkpoint);
+  if (
+    typeof proof.id !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(proof.id) ||
+    typeof proof.operation_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(proof.operation_sha256)
+  )
+    throw new Error("retained operation proof identity differs");
+  await hydrateRetainedCoordinatorCheckpoint(repository, proof.checkpoint, options);
+  const { readRetainedCapacityOperation } = await import("./release-coordinator-state.mts");
+  return readRetainedCapacityOperation(repository, proof);
+}
+
+/** Exactly three inert Git objects from an explicitly authenticated historical
+ * checkpoint. No refs, ancestry walk, lazy fetch or current-state authority. */
+export async function hydrateRetainedCoordinatorCheckpoint(
+  repository: string,
+  checkpoint: unknown,
+  options: { api?: GitHubRestReader } = {},
+) {
+  oid(checkpoint);
+  const api =
+    options.api ??
+    new GitHubApiClient((args, input) =>
+      createGitHubRunner({
+        cwd: repository,
+        maxBuffer: 256 * 1024,
+        timeoutMs: coordinatorCommandTimeout(15000),
+      })([...args, "--hostname", "github.com"], input),
+    );
+  const get = (suffix: string) => {
+    const result = api.request("GET", `repos/boburning/portcove/${suffix}`);
+    if (result.status !== 200) throw new Error("retained operation unavailable");
+    return result.body;
+  };
+  const commit = inspectRemoteCommitObject(get(`git/commits/${checkpoint}`), checkpoint);
+  const raw = get(`git/trees/${commit.tree}`);
+  if (
+    !isRecord(raw) ||
+    raw.sha !== commit.tree ||
+    raw.truncated !== false ||
+    !Array.isArray(raw.tree) ||
+    raw.tree.length !== 1
+  )
+    throw new Error("retained checkpoint tree differs");
+  const entry: unknown = raw.tree[0];
+  if (
+    !isRecord(entry) ||
+    entry.path !== "state.json" ||
+    entry.mode !== "100644" ||
+    entry.type !== "blob"
+  )
+    throw new Error("retained checkpoint member differs");
+  oid(entry.sha);
+  const tree = inspectRemoteGitObject(
+    "tree",
+    commit.tree,
+    Buffer.concat([Buffer.from("100644 state.json\0"), Buffer.from(entry.sha, "hex")]),
+  );
+  const blobRaw = get(`git/blobs/${entry.sha}`);
+  if (
+    !isRecord(blobRaw) ||
+    blobRaw.sha !== entry.sha ||
+    blobRaw.encoding !== "base64" ||
+    typeof blobRaw.size !== "number" ||
+    !Number.isSafeInteger(blobRaw.size) ||
+    blobRaw.size < 1 ||
+    blobRaw.size > 65536 ||
+    typeof blobRaw.content !== "string" ||
+    blobRaw.content.length > 90 * 1024
+  )
+    throw new Error("retained checkpoint payload exceeds bound");
+  const bytes = Buffer.from(blobRaw.content, "base64");
+  if (bytes.length !== blobRaw.size) throw new Error("retained checkpoint payload differs");
+  const blob = inspectRemoteGitObject("blob", entry.sha, bytes);
+  const env = {
+    PATH: process.env.PATH,
+    SystemRoot: process.env.SystemRoot,
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null",
+    GIT_NO_LAZY_FETCH: "1",
+    GIT_NO_REPLACE_OBJECTS: "1",
+    GIT_CONFIG_COUNT: "1",
+    GIT_CONFIG_KEY_0: "core.hooksPath",
+    GIT_CONFIG_VALUE_0: process.platform === "win32" ? "NUL" : "/dev/null",
+  };
+  for (const object of [commit.object, tree, blob]) {
+    const id = execFileSync("git", ["hash-object", "-w", "-t", object.kind, "--stdin"], {
+      cwd: repository,
+      env,
+      input: object.bytes,
+      encoding: "utf8",
+      timeout: coordinatorCommandTimeout(),
+      maxBuffer: 128 * 1024,
+      windowsHide: true,
+    }).trim();
+    checkCoordinatorDeadline();
+    if (id !== object.oid) throw new Error("retained checkpoint import differs");
+  }
+  const { readRetainedCoordinatorCheckpoint } = await import("./release-coordinator-state.mts");
+  return readRetainedCoordinatorCheckpoint(repository, checkpoint);
+}
+
 /** Read the minimum raw recovery closure without Git writes, planner imports,
  * source checkout or a complete allocation inventory. The admitted caller
  * supplies separately ratified namespace configuration and a fixed transport.
@@ -179,7 +298,7 @@ export function inspectRemoteCommitObject(value: unknown, expected: string, exac
 export async function readRemoteCoordinatorSnapshot(
   _parentDirectory: string,
   configuration: unknown,
-  options: { transport?: { cwd: string; spawn?: Spawn } } = {},
+  options: { transport?: { cwd: string; spawn?: Spawn; deadline?: number } } = {},
 ) {
   if (
     !isRecord(configuration) ||
@@ -191,13 +310,21 @@ export async function readRemoteCoordinatorSnapshot(
   )
     throw new Error("recovery requires separately ratified destination configuration");
   if (!options.transport) throw new Error("remote recovery transport is unconfigured");
-  const runner = createGitHubRunner({
-    ...options.transport,
-    maxBuffer: maximumResponseBytes,
-    timeoutMs: 15_000,
-  });
+  const deadline = options.transport.deadline;
+  if (deadline !== undefined && (!Number.isFinite(deadline) || deadline <= performance.now()))
+    throw new Error("remote recovery phase deadline exhausted");
+  const remaining = () => {
+    const timeoutMs =
+      deadline === undefined ? 15000 : Math.floor(Math.min(15000, deadline - performance.now()));
+    if (timeoutMs < 1) throw new Error("remote recovery phase deadline exhausted");
+    return timeoutMs;
+  };
+  const transport = options.transport;
   const api = new GitHubApiClient((args, input) =>
-    runner([...args, "--hostname", "github.com"], input),
+    createGitHubRunner({ ...transport, maxBuffer: maximumResponseBytes, timeoutMs: remaining() })(
+      [...args, "--hostname", "github.com"],
+      input,
+    ),
   );
   const started = performance.now();
   let requests = 0;
@@ -205,7 +332,11 @@ export async function readRemoteCoordinatorSnapshot(
     if (++requests > 20 || performance.now() - started > duration)
       throw new Error("remote recovery request or duration bound exhausted");
     const response = api.request("GET", `repos/${repository}${endpoint}`);
-    if (response.status !== 200 || performance.now() - started > duration)
+    if (
+      response.status !== 200 ||
+      performance.now() - started > duration ||
+      (deadline !== undefined && performance.now() >= deadline)
+    )
       throw new Error("remote recovery response unavailable or late");
     return response.body;
   };
@@ -366,6 +497,21 @@ export async function recoverRemoteCoordinator(
   configuration: unknown,
   options: Parameters<typeof readRemoteCoordinatorSnapshot>[2] = {},
 ) {
+  const captured = {
+    ...options,
+    ...(options.transport ? { transport: { ...options.transport } } : {}),
+  };
+  const work = () => recoverRemoteCoordinatorWithinScope(parentDirectory, configuration, captured);
+  return captured.transport?.deadline === undefined
+    ? work()
+    : withCoordinatorDeadline(captured.transport.deadline, work);
+}
+
+async function recoverRemoteCoordinatorWithinScope(
+  parentDirectory: string,
+  configuration: unknown,
+  options: Parameters<typeof readRemoteCoordinatorSnapshot>[2] = {},
+) {
   const snapshot = await readRemoteCoordinatorSnapshot(parentDirectory, configuration, options);
   const localRepository = await mkdtemp(
     path.join(path.resolve(parentDirectory), "coordinator-recovery-"),
@@ -373,7 +519,9 @@ export async function recoverRemoteCoordinator(
   let phase = "initialize-bare";
   try {
     const env = Object.fromEntries(
-      Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")),
+      Object.entries(readOnlyReleaseChildEnvironment() ?? process.env).filter(
+        ([key]) => !key.startsWith("GIT_"),
+      ),
     );
     execFileSync(
       "git",
@@ -388,11 +536,12 @@ export async function recoverRemoteCoordinator(
       ],
       {
         env,
-        timeout: 30_000,
+        timeout: coordinatorCommandTimeout(),
         maxBuffer: 128 * 1024,
         windowsHide: true,
       },
     );
+    checkCoordinatorDeadline();
     phase = "validate-and-import";
     const { importCoordinatorCheckpoint } = await import("./release-coordinator-state.mts");
     const state = await importCoordinatorCheckpoint(
@@ -400,6 +549,7 @@ export async function recoverRemoteCoordinator(
       snapshot.checkpoint,
       snapshot.objects,
     );
+    checkCoordinatorDeadline();
     return {
       ...state,
       repository: localRepository,

@@ -272,6 +272,32 @@ metadata excludes withdrawn versions from staging/application and normally offer
 a newer forward repair. Withdrawal neither deletes user data nor terminates an
 already installed offline application.
 
+The controlled new-release path accepts an optional, source-bound
+`release-preview-withdrawals.json` request. Its exact schema is
+`{ "schema_version": 1, "withdrawals": [...] }`; each entry contains
+`promotion_path`, `promotion_sha256`, `release_path`, `release_sha256`, `reason`,
+`prior_promotion_utf8` and `prior_release_utf8`. The last two fields retain the
+complete original JSON bytes as UTF-8 strings. The fixed snapshot builder checks
+their digests and relationships, then carries only the path/digest/reason map in
+`classification.preview_withdrawals`. Source-provided prior bytes remain untrusted
+data throughout independent whole-opportunity review. The actual signing factory
+must match them against its current Tough-authenticated prior before changing any
+record. Accepted review alone cannot authenticate a feed or authorize signing.
+
+Requests are sorted by promotion path, unique, limited to 16 entries and 32 KiB
+for the complete source file, with a 1 KiB nonempty reason per entry. Only an
+eligible non-production Preview promotion may become ineligible and withdrawn;
+its release reference and all other record fields remain fixed. A later ordinary
+candidate supplies the forward-repair version. The factory updates the exact
+Preview record and its reconstruction-manifest identity while preserving immutable
+Releases, Stable targets, catalog content and historical metadata. Existing role
+version/expiration advancement and per-role isolated signing remain applicable.
+The complete source request must be observed in both proposal and full review,
+even if it is unchanged in the accumulated diff. An absent or empty request keeps
+normal record construction unchanged; clear an applied request before a later
+candidate because a changed or already withdrawn prior refuses rather than being
+silently reinterpreted. Routine metadata renewal still retains exact record bytes.
+
 The Tauri host's `application_update` module now owns the strict schema and
 selection boundary after TUF verification. It accepts only fully consumed release
 and channel target bytes, verifies that the promotion binds the exact release path
@@ -320,8 +346,15 @@ for either safe normal exit or an explicit one-restart action. The strict bounde
 journal binds the selected candidate to the observed preference revision and choice,
 installed application context, and canonical current-library root under process and
 OS locks. Only Portcove-owned application installations are admitted. Compare-and-
-swap revisions stop stale exit observers, a different candidate cannot overwrite a
-pending intent, and explicit recovery clears only this journal. Normal Exit matches
+swap revisions stop stale exit observers. An explicit restart may supersede an older
+restart request only with a strictly newer staged candidate on the same channel,
+installed context and library root, before any native launch or replacement state.
+The apply lock either excludes this change while the previous helper owns admission,
+or publishes a higher revision that permanently fences that helper's old request.
+This proves revision exclusion, not helper process teardown. Started, failed,
+successful, ambiguous and unrelated intents remain subject to their existing
+recovery rules; automatic safe-exit requests cannot supersede a pending intent.
+Malformed-state recovery still clears only this journal. Normal Exit matches
 safe exit and Restart to apply matches the explicit action. Crash, OS shutdown,
 Steam Stop, missing hooks and every mismatched observation remain held on restart.
 A matching record permits only a fresh revalidation attempt; it does not establish
@@ -771,3 +804,71 @@ their applicable implementation proofs before activation.
 References inspected 2026-09-08: [TUF specification](https://theupdateframework.github.io/specification/latest/),
 [`tough`](https://github.com/awslabs/tough), [Tauri updater](https://v2.tauri.app/plugin/updater/)
 and downloaded `tough` 0.24.0 / `tauri-plugin-updater` 2.11.0 registry sources.
+
+### Exact public signature component control
+
+The existing `verify_packaged_application_update` example accepts the additive
+`public-signature-control CONFIG CONFIG_SHA256` command. Its strict schema-1 JSON
+contains absolute `payload_path` and `registry_path`, exact shipping `artifact`
+(`ArtifactIdentity`), `registry_sha256`, `prior_signature` and
+`prior_payload_key_id`. The parent must derive the V1 artifact, V0 signature and
+same-key association from actual authenticated public records and retain that
+provenance. A pinned config or registry digest alone does not authenticate them.
+
+The command reads only bounded regular inputs (64 KiB config/registry; 2 GiB
+payload), selects the exact public registry key and streams the same held V1
+payload through the shipping verifier twice. The V1 signature must first pass.
+It then rewinds the same handle and changes only the signature; only the typed
+`PayloadVerificationError::SignatureMismatch` succeeds as the negative control.
+Hash, length, parser, key and I/O errors fail the command. Output retains raw input
+digests and reports component-only scope, `authority: none` and native acceptance
+not established. No staging, installation, candidate execution or private key is
+involved. The public test fixture uses a deliberately altered signature; it does
+not establish an actual publicly released V0/V1 pair or native error subtype.
+The existing missing/wrong/valid packaged staging modes retain their behavior.
+
+### Dedicated Windows public-proof account
+
+The proposed schema-2 Windows `public_journey` pins a separate
+`public_account_boundary: {path, sha256}` inside the protected controller tree.
+The referenced schema-2 boundary has the original account-boundary fields plus
+`purpose: ordinary-public-proof`. Its target SID, profile and work root must be
+distinct from the primary native qualification account and from each other in
+both ancestry directions. Broker SID, controller, capture root and helper digest
+remain identical. The schema-1 primary account and native Check issuer identity
+retain their existing meaning; a public factory requires the separate actual
+public boundary rather than reinterpreting the native producer's SID.
+
+The installed scheduler pins and reads the additional boundary file under its
+existing owner/ACL guard. Its public-account projection additionally verifies
+actual local SID/name, enabled state, registered profile, protected isolated
+profile/work ACLs and observed HKU-loaded state. An unloaded hive is allowed
+before logon; the existing profile keeper and live HKU lookup remain mandatory
+inside the actual capture. Candidates in either account cannot be granted
+access to the other account's roots or to owner-only source credentials,
+issuer material or capture files.
+
+The same fixed broker/helper uses a closed credential-purpose enum. Primary
+schema-1 calls retain `Portcove/native-qualification/local-account/v1`; only the
+protected public-purpose branch selects
+`Portcove/public-update-proof/local-account/v1`. Neither accepts an arbitrary
+credential target, supplied password or candidate role selection. This is a
+single initial setup proposal: account/profile creation, isolated ACLs, the
+distinct broker-owned Credential Manager entry, pinned configuration/task/source
+and actual negative cross-write checks need the consolidated setup grant.
+No account, credential, ACL or task is created or changed by these parsers.
+The existing ordinary signed-in broker session is still required; the public
+account uses the maintained credentialed private-desktop logon/profile keeper,
+not a new recurring interactive-owner approval.
+
+The fixed Windows public continuation reuses only the original positively
+settled B work/install/runtime under that selected public SID, with a fresh
+supervised invocation and no profile reconstruction or V0 reinstall. Current
+registration/V0/uninstaller checks precede startup. The ordinary parked-V1
+Restart must leave pre-native state and genuine V0 bytes, followed by ordinary
+V2 forward staging/Retry Restart, actual new V2 process/bytes and same-profile
+readback before owned uninstall. Same-image helper processes remain in the
+owned group and cannot substitute for a visible shipping-title GUI generation.
+Source wiring and controlled fixtures do not establish actual native behavior
+or the helper's unexposed failure subtype; initial setup/grant and host evidence
+remain required.

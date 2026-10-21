@@ -37,10 +37,12 @@ function fixture(options: { publicationError?: unknown; joinError?: unknown } = 
   const artifacts: string[] = [];
   const context = {
     assert,
+    AccountDriverView: class {},
     path: path.posix,
     output: "/owned",
     artifacts,
     linuxSelectedSession: true,
+    linuxBinding: undefined,
     linuxPackagedInspector: false,
     linuxLaunch: launch(),
     linuxLaunchCount: 1,

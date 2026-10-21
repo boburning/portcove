@@ -684,11 +684,13 @@ export async function normalPackageBoundaryScenario({
   browser,
   invoke,
   library,
+  preferencesPath,
   output,
   artifacts,
   packageEvidence,
   externalBrowser,
 }: Omit<NormalContext, "observations"> & {
+  preferencesPath: string;
   output: string;
   artifacts: string[];
   packageEvidence: NonNullable<NormalObservations["package"]>;
@@ -763,6 +765,7 @@ export async function normalPackageBoundaryScenario({
       browser,
       invoke,
       library,
+      preferencesPath,
       observations,
       initialUrl,
       fixtureUrl,
@@ -781,7 +784,10 @@ export async function normalPackageBoundaryScenario({
     );
     assert.equal(observations.remoteMarkerExecuted, false);
     const diagnostics = (
-      await readFile(path.join(library, "logs", "portcove-desktop.jsonl"), "utf8")
+      await readFile(
+        path.join(path.dirname(preferencesPath), "diagnostics", "portcove-desktop.jsonl"),
+        "utf8",
+      )
     )
       .trim()
       .split("\n")
@@ -1138,12 +1144,13 @@ export async function assertMainWebviewAccess({
 export async function assertMainWebviewContainment({
   browser,
   invoke,
-  library,
+  preferencesPath,
   observations,
   fixtureUrl,
   initialUrl,
   onNavigation = () => {},
 }: MainScenarioContext & {
+  preferencesPath: string;
   fixtureUrl: string;
   initialUrl: string;
   onNavigation?: (destination: string) => void;
@@ -1334,7 +1341,11 @@ export async function assertMainWebviewContainment({
   assert.equal(observations.permissionRequests.notifications, "denied");
   assert.equal(object(observations.permissionRequests.geolocation).code, 1);
   assert.notEqual(observations.permissionRequests.media, "unexpected-grant");
-  const diagnosticPath = path.join(library, "logs", "portcove-desktop.jsonl");
+  const diagnosticPath = path.join(
+    path.dirname(preferencesPath),
+    "diagnostics",
+    "portcove-desktop.jsonl",
+  );
   const navigationRefusals = async () =>
     (await readFile(diagnosticPath, "utf8"))
       .trim()

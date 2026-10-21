@@ -19,6 +19,8 @@ export interface ReconcileOptions {
   version?: string;
   tag?: string;
   lineage?: ReleaseConsumerLineage;
+  profile?: import("./release-package-policy.mts").ReleaseProfile;
+  artifactLayout?: "staged" | "attempt";
 }
 import { createHash } from "node:crypto";
 import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
@@ -30,6 +32,9 @@ import {
   assertExactArtifactNames,
   loadPackagePolicy,
   packagesForPlatform,
+  releaseBuildArtifactName,
+  inspectReleaseProfile,
+  selectReleasePackagePolicy,
   releaseLabels as policyReleaseLabels,
   workspaceVersion,
 } from "./release-package-policy.mts";
@@ -142,7 +147,9 @@ export async function reconcileReleaseAssets(
   if (inventoryPath && contains(output, inventoryPath)) {
     throw new Error("release inventory must remain outside the public asset directory");
   }
-  const policy = options.policy ?? (await loadPackagePolicy(projectRoot));
+  const policy =
+    options.policy ??
+    selectReleasePackagePolicy(await loadPackagePolicy(projectRoot), options.profile);
   const version = options.version ?? (await workspaceVersion(projectRoot));
   const tag = options.tag ?? `v${version}`;
   if (tag !== `v${version}`) throw new Error(`release tag ${tag} must exactly match v${version}`);
@@ -151,7 +158,18 @@ export async function reconcileReleaseAssets(
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort();
-  const expectedDirectories = releaseLabels.map((label) => `release-build-${label}`).sort();
+  if (
+    options.artifactLayout !== undefined &&
+    !["staged", "attempt"].includes(options.artifactLayout)
+  )
+    throw new Error("invalid release artifact layout");
+  if (options.artifactLayout === "attempt" && !options.lineage)
+    throw new Error("attempt artifact layout requires exact consumer lineage");
+  const directoryFor = (label: string) =>
+    options.artifactLayout === "attempt"
+      ? releaseBuildArtifactName(label, options.lineage!.runId, options.lineage!.maxAttempt)
+      : `release-build-${label}`;
+  const expectedDirectories = releaseLabels.map(directoryFor).sort();
   if (JSON.stringify(directories) !== JSON.stringify(expectedDirectories)) {
     throw new Error(`release matrix must contain exactly: ${expectedDirectories.join(", ")}`);
   }
@@ -160,7 +178,7 @@ export async function reconcileReleaseAssets(
   const producers: ReleaseProducerRecord[] = [];
   const globalNames = new Set();
   for (const label of releaseLabels) {
-    const root = path.join(input, `release-build-${label}`);
+    const root = path.join(input, directoryFor(label));
     const files = await walk(root);
     for (const file of files) {
       const parts = path.relative(root, file).split(path.sep);
@@ -192,14 +210,18 @@ export async function reconcileReleaseAssets(
       throw new Error(`expected at most one ${producerName}`);
     const producerFile = producerFiles[0];
     if (producerFiles.length === 1 && producerFile) {
-      producers.push(
-        inspectReleaseProducer(
-          JSON.parse(await readFile(producerFile, "utf8")),
-          label,
-          version,
-          options.lineage,
-        ),
+      const producer = inspectReleaseProducer(
+        JSON.parse(await readFile(producerFile, "utf8")),
+        label,
+        version,
+        options.lineage,
       );
+      if (
+        options.artifactLayout === "attempt" &&
+        producer.run_attempt !== options.lineage!.maxAttempt
+      )
+        throw new Error(`${label} producer attempt differs from artifact identity`);
+      producers.push(producer);
     }
     assertExactArtifactNames(
       [...expectedNames, manifestName, ...(producerFiles.length ? [producerName] : [])],
@@ -308,6 +330,8 @@ function parseArguments(argv: readonly string[]) {
         "--run-id",
         "--revision",
         "--max-attempt",
+        "--artifact-layout",
+        "--profile",
       ].includes(name) ||
       !value
     ) {
@@ -328,7 +352,12 @@ function parseArguments(argv: readonly string[]) {
     } else if (name === "--run-id") options.runId = value;
     else if (name === "--revision") options.revision = value;
     else if (name === "--max-attempt") options.maxAttempt = Number(value);
-    else if (name === "--version") options.version = value;
+    else if (name === "--profile") options.profile = inspectReleaseProfile(value);
+    else if (name === "--artifact-layout") {
+      if (value !== "attempt" && value !== "staged")
+        throw new Error("invalid release artifact layout");
+      options.artifactLayout = value;
+    } else if (name === "--version") options.version = value;
     else if (name === "--tag") options.tag = value;
   }
   if (!options.input || !options.output) throw new Error("--input and --output are required");
@@ -360,10 +389,16 @@ function parseArguments(argv: readonly string[]) {
   return { ...options, input: options.input, output: options.output };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
-  const options = parseArguments(process.argv.slice(2));
-  const result = await reconcileReleaseAssets(options.input, options.output, options);
-  console.log(
-    `Reconciled ${result.assets.length} public release assets from all four platform jobs.`,
-  );
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+    const options = parseArguments(process.argv.slice(2));
+    const result = await reconcileReleaseAssets(options.input, options.output, options);
+    console.log(
+      `Reconciled ${result.assets.length} public release assets from all four platform jobs.`,
+    );
+  }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

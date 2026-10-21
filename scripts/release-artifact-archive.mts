@@ -47,6 +47,18 @@ export async function discoverReleaseArtifactFiles(
   archiveIdentity: unknown,
   platform: string,
   expected: { version: string; run_id: string; run_attempt: number; source_commit: string },
+  options: {
+    retainCliPackage?: (
+      identity: { platform_label: string; filename: string; bytes: number; sha256: string },
+      bytes: Buffer,
+    ) => Promise<void>;
+    /** Inert NSIS/AppImage bytes only, after complete matrix/checksum/producer
+     * validation. Retention supplies no package execution or native authority. */
+    retainDesktopPackage?: (
+      identity: { platform_label: string; filename: string; bytes: number; sha256: string },
+      bytes: Buffer,
+    ) => Promise<void>;
+  } = {},
 ) {
   const deadline = performance.now() + 10 * 60 * 1000;
   const retained = retainArchive(rawArchive, archiveIdentity);
@@ -56,6 +68,14 @@ export async function discoverReleaseArtifactFiles(
     throw new Error("unknown release artifact platform");
   const packages = packagesForPlatform(policy, platform).map((entry) =>
     artifactName(entry, expected.version),
+  );
+  const updaterPackages = new Set(
+    packagesForPlatform(policy, platform)
+      .filter(
+        (entry) =>
+          entry.interface === "desktop" && (entry.format === "nsis" || entry.format === "appimage"),
+      )
+      .map((entry) => artifactName(entry, expected.version)),
   );
   const checksum = `SHA256SUMS-${platform}.txt`;
   const producer = `release-producer-${platform}.json`;
@@ -86,6 +106,8 @@ export async function discoverReleaseArtifactFiles(
   }
   const metadata = new Map<string, string>();
   const files: { platform_label: string; filename: string; bytes: number; sha256: string }[] = [];
+  const cliMembers = new Map<string, Buffer>();
+  const desktopMembers = new Map<string, Buffer>();
   for (const entry of entries) {
     if (performance.now() >= deadline) throw new Error("release discovery deadline exhausted");
     const filename = normalize(entry.name);
@@ -107,6 +129,17 @@ export async function discoverReleaseArtifactFiles(
       if (!Buffer.from(text).equals(bytes)) throw new Error("release metadata is not UTF-8");
       metadata.set(filename, text);
     }
+    if (
+      options.retainCliPackage &&
+      filename.startsWith("portcove-cli-") &&
+      packages.includes(filename)
+    ) {
+      if (bytes.length > 128 * 1024 * 1024)
+        throw new Error("CLI proof member exceeds fixed retained bound");
+      cliMembers.set(filename, bytes);
+    }
+    if (options.retainDesktopPackage && updaterPackages.has(filename))
+      desktopMembers.set(filename, bytes);
   }
   const manifest = parseReleaseChecksumManifest(metadata.get(checksum)!, platform);
   if (
@@ -124,6 +157,18 @@ export async function discoverReleaseArtifactFiles(
     expected.version,
     { runId: expected.run_id, revision: expected.source_commit, maxAttempt: expected.run_attempt },
   );
+  if (declared.run_attempt !== expected.run_attempt)
+    throw new Error("release discovery producer attempt differs from artifact identity");
+  for (const [filename, bytes] of cliMembers)
+    await options.retainCliPackage!(
+      files.find((file) => file.filename === filename)!,
+      bytes,
+    );
+  for (const [filename, bytes] of desktopMembers)
+    await options.retainDesktopPackage!(
+      structuredClone(files.find((file) => file.filename === filename)!),
+      bytes,
+    );
   return {
     files,
     declared_producer: {
@@ -150,8 +195,10 @@ export async function stageReleaseArtifact(
   rawRequest: unknown,
   platform: string,
   archiveIdentity: unknown,
+  options: { exactProducerAttempt?: boolean } = {},
 ) {
   const started = performance.now();
+  const exactProducerAttempt = options.exactProducerAttempt === true;
   // Take exclusive custody before the first asynchronous operation. Copying a
   // shared or externally mutable buffer must reproduce the accepted digest.
   const { archive: retainedArchive, sha256: archiveSha256 } = retainArchive(
@@ -221,6 +268,20 @@ export async function stageReleaseArtifact(
       )
         throw new Error("release artifact bytes or CRC differ from accepted input");
       active();
+      if (exactProducerAttempt && filename === `release-producer-${platform}.json`) {
+        const declared = inspectReleaseProducer(
+          JSON.parse(bytes.toString("utf8")),
+          platform,
+          accepted.version,
+          {
+            runId: accepted.run_id,
+            revision: accepted.source_commit,
+            maxAttempt: accepted.run_attempt,
+          },
+        );
+        if (declared.run_attempt !== accepted.run_attempt)
+          throw new Error("release artifact producer attempt differs from artifact identity");
+      }
       await writeFile(path.join(directory, filename), bytes, { flag: "wx", mode: 0o600 });
       active();
       files.push({ filename, bytes: bytes.length, sha256: expectedFile.sha256 });

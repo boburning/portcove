@@ -98,7 +98,7 @@ it.each(["dark", "light"])(
     await expect
       .element(page.getByRole("button", { name: "Favorites (1)", exact: true }))
       .toHaveAttribute("aria-pressed", "true");
-    await userEvent.click(page.getByRole("button", { name: /One independent port\. Setup/ }));
+    await userEvent.click(page.getByRole("button", { name: /^One independent port\s+Setup\b/ }));
     await userEvent.click(page.getByRole("button", { name: "Back to ports", exact: true }));
     await expect
       .element(page.getByRole("button", { name: "Favorite One independent port", exact: true }))

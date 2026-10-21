@@ -305,6 +305,41 @@ const missingRuntimeFixture = (updateAvailable: boolean) => {
 };
 
 describe("desktop components", () => {
+  it.each(["unknown", "available", "none", "stale-channel"] as const)(
+    "puts the %s update observation before the appropriate next action",
+    (state) => {
+      const fixture = missingRuntimeFixture(state === "available");
+      const status: PortStatus = {
+        ...fixture.status,
+        last_update_check: state === "unknown" ? null : fixture.status.last_update_check,
+        channel: state === "stale-channel" ? "beta" : "stable",
+      };
+      const html = renderToStaticMarkup(
+        <DetailPanel
+          port={port}
+          status={status}
+          sourcePath=""
+          setSourcePath={vi.fn()}
+          actions={actions}
+        />,
+      );
+      const check = html.indexOf("Check for updates</button>");
+      const review = html.indexOf("Review game update</button>");
+      expect(check).toBeGreaterThan(-1);
+      expect(review).toBeGreaterThan(-1);
+      expect(check < review).toBe(state !== "available");
+      const expected =
+        state === "available"
+          ? "was available at the saved check"
+          : state === "none"
+            ? "No update was found at the saved check"
+            : "There is no saved update check for this installation and channel";
+      expect(html).toContain(expected);
+      expect(html.indexOf(expected)).toBeLessThan(Math.min(check, review));
+      expect(html).not.toContain(">This update<");
+      expect(html.indexOf("Future update preferences")).toBeGreaterThan(Math.max(check, review));
+    },
+  );
   it("keeps a valid ZIP source distinct from the retained external runtime's required launch format", () => {
     const runtimePort = currentCatalogPort("wave-race-64-recomp");
     const source = {
@@ -1185,7 +1220,10 @@ describe("desktop components", () => {
     expect(html).toContain("Choose and add the game files again before playing.");
     expect(html).toContain("Files have changed since they were added");
     expect(html).toContain("Play unavailable");
-    expect(html.indexOf("Requirements")).toBeLessThan(html.indexOf(port.summary));
+    expect(html.indexOf("Choose and add the game files again before playing.")).toBeLessThan(
+      html.indexOf(port.summary),
+    );
+    expect(html.indexOf("Installation and version")).toBeLessThan(html.indexOf("Requirements"));
     expect(html).toMatch(/<details class="requirements-disclosure[^"]*" open="">/u);
     expect(html).toContain("Installation and version");
     expect(html).not.toContain(">Play</button>");
@@ -1337,7 +1375,7 @@ describe("desktop components", () => {
       />,
     );
 
-    expect(choice).toMatch(/data-variant="primary"[^>]*>Review options<\/button>/u);
+    expect(choice).toMatch(/data-variant="outline"[^>]*>Review options<\/button>/u);
     expect(choice).toMatch(/data-variant="ghost"[^>]*>Not now<\/button>/u);
     expect(transition).toMatch(/data-variant="primary"[^>]*>Use Stable<\/button>/u);
     expect(transition).toMatch(/data-variant="outline"[^>]*>Keep Preview<\/button>/u);
@@ -2513,7 +2551,7 @@ describe("desktop components", () => {
     expect(uninstalled.indexOf("Choose game files")).toBeLessThan(
       uninstalled.indexOf(port.summary),
     );
-    expect(uninstalled.indexOf("Requirements")).toBeLessThan(uninstalled.indexOf(port.summary));
+    expect(uninstalled.indexOf(port.summary)).toBeLessThan(uninstalled.indexOf("Requirements"));
     expect(uninstalled).not.toContain("Installation and version");
     expect(uninstalled).toContain("Add all required game files before installing");
     expect(uninstalled).toContain("Choose the required game file");
@@ -2550,7 +2588,7 @@ describe("desktop components", () => {
     expect(installed).toMatch(/<button[^>]*data-variant="primary"[^>]*>[^]*?Play<\/button>/u);
     expect(installed).toMatch(/<button[^>]*data-variant="ghost"[^>]*>[^]*?Back<\/button>/u);
     expect(installed).toMatch(
-      /<button[^>]*data-variant="outline"[^>]*>[^]*?Check for updates<\/button>/u,
+      /<button[^>]*data-variant="primary"[^>]*>[^]*?Check for updates<\/button>/u,
     );
     expect(installed).toMatch(
       /<button[^>]*data-variant="destructive"[^>]*aria-label="Delete backup/u,
@@ -3039,7 +3077,6 @@ describe("desktop components", () => {
     expect(filteredEmptyLibrary).toContain(
       "No ports in your library match your search and filters",
     );
-    expect(filteredEmptyLibrary).toContain('aria-label="Library readiness"');
     expect(filteredEmptyLibrary).toContain('aria-label="Library filters"');
     expect(filteredEmptyLibrary).toContain("Clear search and filters");
     expect(filteredEmptyLibrary).toContain("Clear the search or change the readiness filter.");
@@ -3208,9 +3245,10 @@ describe("desktop components", () => {
     );
     const headings = [
       'aria-label="Game actions"',
-      "Updates",
-      "Requirements",
+      "About this port",
       "Installation and version",
+      "Requirements",
+      "Updates",
       "Saves and storage",
       "Compatibility and testing",
       "Project and release",
@@ -3223,7 +3261,7 @@ describe("desktop components", () => {
       previous = current;
     }
     expect(html).toContain("Installed version");
-    expect(html.indexOf("Requirements")).toBeLessThan(html.indexOf(port.summary));
+    expect(html.indexOf(port.summary)).toBeLessThan(html.indexOf("Installation and version"));
     expect(html).toContain("Installed folder");
     expect(html).toContain(install.path);
     expect(html).toContain("Latest available for your settings");
@@ -3377,7 +3415,7 @@ describe("desktop components", () => {
     expect(details).toContain("Check game files");
   });
 
-  it("summarizes an installed library around play readiness", () => {
+  it("shows per-entry play readiness and a separate available-update review", () => {
     const install = installRecord();
     const status: PortStatus = {
       ...portStatus(),
@@ -3440,7 +3478,7 @@ describe("desktop components", () => {
     expect(html).toMatch(/<article class="port-card [^"]*\bport-card-library\b/u);
     expect(html).toContain(">Play</button>");
     expect(html).not.toMatch(/<button[^>]*class="port-card/u);
-    expect(html).toContain("All can launch");
+    expect(html).toContain("Ready to play");
     expect(html).not.toContain("updates downloaded");
     expect(html).toContain("Review update seen at last check");
     expect(html).not.toContain("need attention");
@@ -3491,7 +3529,6 @@ describe("desktop components", () => {
     );
 
     expect(html).toContain("Review downloaded update");
-    expect(html).toContain("1 update downloaded");
     expect(html).toMatch(
       /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Ready to play/u,
     );
@@ -3525,7 +3562,7 @@ describe("desktop components", () => {
     },
     { readiness: null, label: "Readiness unavailable", action: "Review game" },
   ] satisfies { readiness: PortStatus["readiness"]; label: string; action: string }[])(
-    "announces downloaded update attention beside $label on Catalog cards",
+    "keeps downloaded update attention beside $label and its action inside the Catalog card",
     ({ readiness, label, action }) => {
       const install = installRecord();
       const status: PortStatus = {
@@ -3547,7 +3584,15 @@ describe("desktop components", () => {
           loading={false}
         />,
       );
-      expect(html).toContain(`aria-label="Sample Port. ${label}. Update downloaded. ${action}."`);
+      const card = html.match(
+        /<button[^>]*data-detail-origin="catalog:card:[^"]+"[^>]*>[\s\S]*?<\/button>/u,
+      )?.[0];
+      expect(card).toBeDefined();
+      expect(card).not.toContain("aria-label=");
+      expect(card).toContain("Sample Port");
+      expect(card).toContain(`${label}</span>`);
+      expect(card).toContain("Update downloaded</span>");
+      expect(card).toContain(`${action}<`);
       expect(html).toContain("Update downloaded</span>");
     },
   );

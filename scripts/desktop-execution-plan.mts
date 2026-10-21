@@ -6,10 +6,12 @@ import type { DesktopSelection } from "./desktop-scenarios.mts";
 
 // The preparation journey is statically imported by the harness. Its validator
 // reads these schemas during module initialization, including smoke selections.
+// Its shared display-identity helper is also a runtime import, not a type input.
 // Package/lock files are reproduction inputs, never claims of executed source.
 export const nativeTransportReceiptSources = Object.freeze([
   "apps/desktop/scripts/desktop-scenario-state.mts",
   "apps/desktop/scripts/transport-values.mts",
+  "apps/desktop/src/port-identity.ts",
   "apps/desktop/src/transport-schemas.generated.json",
   "apps/desktop/src/transport-host-output.generated.json",
   "apps/desktop/package.json",
@@ -72,6 +74,10 @@ export function planDesktopExecution(
     selection.selected_scenarios.includes("native-saved-folder-hash-resume") ||
     selection.selected_scenarios.includes("native-preliminary-source-review") ||
     (platform === "win32" && selection.selected_scenarios.includes("native-game-update-review")) ||
+    (platform === "win32" &&
+      selection.selected_scenarios.includes("native-reviewed-source-reference-removal")) ||
+    (platform === "win32" &&
+      selection.selected_scenarios.includes("native-reviewed-steam-batch-add")) ||
     (platform === "win32" &&
       selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete")) ||
     (platform === "win32" &&
@@ -138,7 +144,19 @@ export function planDesktopExecution(
                                                 "native-retained-contract-repair-state",
                                               )
                                             ? "retained-contract-repair"
-                                            : "backup-focus";
+                                            : platform === "win32" &&
+                                                !backupFocusSession &&
+                                                selection.selected_scenarios.includes(
+                                                  "native-reviewed-source-reference-removal",
+                                                )
+                                              ? "source-reference-removal"
+                                              : platform === "win32" &&
+                                                  !backupFocusSession &&
+                                                  selection.selected_scenarios.includes(
+                                                    "native-reviewed-steam-batch-add",
+                                                  )
+                                                ? "steam-batch"
+                                                : "backup-focus";
   const inputs: ReceiptInput[] = ["app", "driver", "native-driver"].map((name) => ({
     kind: "executable",
     name,
@@ -237,6 +255,9 @@ export function planDesktopExecution(
       inputs.push({ kind: "executable", name });
     }
     inputs.push(receiptSource(new URL("./desktop-preparation-test.mts", harnessUrl)));
+    if (selection.selected_scenarios.includes("native-library-layout"))
+      for (const name of ["testdata/catalog-artwork-red.jpg", "testdata/catalog-artwork-blue.jpg"])
+        inputs.push(receiptSource(new URL(name, harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-readiness-test.mts", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-artwork-observations.mts", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-preparation-recovery-test.mts", harnessUrl)));

@@ -20,6 +20,7 @@ import type {
   OutputGameUpdatePlan,
 } from "../src/transport-types.generated.d.ts";
 import { transportValue, transportValues } from "./transport-values.mts";
+import { gameTitle, gameIdentityLabel } from "../src/port-identity.ts";
 export interface PreparationContext {
   browser: WebDriver;
   invoke: ScenarioInvoke;
@@ -49,10 +50,58 @@ export interface PreparationContext {
   chooseOwnedLibrary: ReturnType<typeof nativeConfirmation>;
 }
 // Preserve original error identity, including deliberate non-Error boundary failures.
+function launchContinuityPoint(element: Element) {
+  if (!(element instanceof HTMLButtonElement)) throw new Error("Launch origin must be a button");
+  const workspace = document.querySelector<HTMLElement>('main[data-focus-region="workspace"]');
+  const owner =
+    workspace && getComputedStyle(workspace).overflowY !== "visible"
+      ? workspace
+      : document.scrollingElement;
+  const active = document.activeElement;
+  const rectangle = (item: Element | null) => {
+    const bounds = item?.getBoundingClientRect();
+    return bounds
+      ? { top: bounds.top, bottom: bounds.bottom, width: bounds.width, height: bounds.height }
+      : null;
+  };
+  return {
+    observedAt: new Date().toISOString(),
+    documentFocused: document.hasFocus(),
+    visibility: document.visibilityState,
+    activeTag: active?.tagName,
+    activeText: active?.textContent?.trim().slice(0, 160),
+    originFocused: active === element,
+    originConnected: element.isConnected,
+    disabled: element.disabled,
+    ariaDisabled: element.getAttribute("aria-disabled"),
+    ariaBusy: element.getAttribute("aria-busy"),
+    scrollTop: owner?.scrollTop,
+    scrollHeight: owner?.scrollHeight,
+    clientHeight: owner?.clientHeight,
+    maximumScroll: owner ? owner.scrollHeight - owner.clientHeight : null,
+    viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
+    fontStatus: document.fonts.status,
+    workspaceOverflowY: workspace ? getComputedStyle(workspace).overflowY : null,
+    originRectangle: rectangle(element),
+    cardRectangle: rectangle(element.closest("article")),
+    continueRectangle: rectangle(document.querySelector(".continue-card")),
+    workspaceRectangle: rectangle(workspace),
+    workspaceChildren: workspace
+      ? Array.from(workspace.children).map((item) => ({
+          tag: item.tagName,
+          className: item.className,
+          rectangle: rectangle(item),
+        }))
+      : [],
+  };
+}
+
 function rethrowFailure(error: unknown): never {
   throw error;
 }
 import { executeBrowserScript } from "./browser-script.mts";
+import { observeVisibleTarget } from "./browser-readiness.mts";
+import { captureSettledVisual } from "../../../scripts/native-readiness.mts";
 import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 // Optional owned-fixture scenarios; all state stays under desktop-test's new output directory.
 import assert from "node:assert/strict";
@@ -390,7 +439,7 @@ async function assertIndividualUpdateFailure({
       await browser.findElement(By.css(`[data-detail-origin="updates:installed:${port.id}"]`)),
     );
     await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
-    assert.equal(await browser.findElement(By.id("port-detail-title")).getText(), port.name);
+    assert.equal(await browser.findElement(By.id("port-detail-title")).getText(), gameTitle(port));
     observations.navigation_verified = true;
     observations.after = transportValue("status", command(["status", port.id]));
     observations.sources_after = transportValues("source", command(["source", "list"]));
@@ -570,7 +619,7 @@ async function assertReviewedUpdateOutcomes({
   command: FixtureCommand;
 }) {
   const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
-  const dialog = By.css('[aria-labelledby="game-update-review-title"]');
+  const dialog = By.css("[data-game-update-review]");
   interface CaseObservation extends ReviewObservation, Partial<ProbeCleanup> {
     availability?: string;
     reason?: string;
@@ -841,7 +890,7 @@ export function assertPreparedLibrarySummary(
   }
   assert.equal(
     text.replace(/\s+/gu, " ").trim(),
-    `${installed.length} library ${installed.length === 1 ? "entry" : "entries"} All can launch`,
+    `${installed.length} ${installed.length === 1 ? "entry" : "entries"} · On this computer`,
   );
 }
 
@@ -950,6 +999,26 @@ export async function preparationScenarios({
     );
     await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
+    const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
+    await search.sendKeys(
+      Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
+      Key.BACK_SPACE,
+    );
+    await clickVisible(
+      browser,
+      await browser.wait(
+        until.elementLocated(
+          By.xpath(
+            '//div[@aria-label="Library filters"]//button[starts-with(normalize-space(.),"All (")]',
+          ),
+        ),
+        15_000,
+      ),
+    );
+    for (const favorite of await browser.findElements(
+      By.css('[data-favorites-filter][aria-pressed="true"]'),
+    ))
+      await clickVisible(browser, favorite);
     const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);
     await browser.wait(until.elementLocated(card), 15_000);
     await browser.findElement(card).click();
@@ -1274,22 +1343,51 @@ export async function preparationScenarios({
     await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
     await browser.findElement(By.css(".detail-back")).click();
-    const readinessSummary = await browser.wait(
-      until.elementLocated(By.css('[aria-label="Library readiness"]')),
+    const libraryHeader = await browser.wait(
+      until.elementLocated(By.css("[data-library-header] p")),
       15_000,
     );
-    const readinessText = await readinessSummary.getText();
+    const headerText = await libraryHeader.getText();
     const libraryStatuses = await invoke("get_statuses");
     assert.equal(libraryStatuses.ok, true);
     assertPreparedLibrarySummary(
-      readinessText,
+      headerText,
       transportValues("status", libraryStatuses.value),
       port.id,
     );
-    assert.doesNotMatch(readinessText, /0 (?:needs? attention|updates? downloaded)/iu);
+    const installedCount = transportValues("status", libraryStatuses.value).filter(
+      (item) => item.active || item.external_runtime,
+    ).length;
+    const libraryFilters = await browser.findElement(By.css('[aria-label="Library filters"]'));
+    for (const label of [
+      `All (${installedCount})`,
+      `Ready (${installedCount})`,
+      "Needs attention (0)",
+    ]) {
+      const filter = await libraryFilters.findElement(
+        By.xpath(`.//button[normalize-space(.)="${label}"]`),
+      );
+      assert.equal(await filter.isDisplayed(), true, label);
+    }
     const card = await browser.wait(
       until.elementLocated(By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`)),
       15_000,
+    );
+    // Core launch settlement can trigger a workspace refresh after navigation.
+    // Observe the authoritative presentation becoming actionable; never bypass
+    // its pending/conflict state to take the geometry measurement.
+    await browser.wait(
+      async () => {
+        const current = await browser.findElement(
+          By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`),
+        );
+        const launch = await current.findElements(
+          By.xpath('.//button[normalize-space(.)="Try launch"]'),
+        );
+        return launch.length === 1 && (await launch[0]!.isEnabled());
+      },
+      15_000,
+      "Library launch must settle before the card composition check",
     );
     const cardActions = await executeBrowserScript(
       browser,
@@ -1446,6 +1544,30 @@ export async function preparationScenarios({
     const first = await seed("opengoal-jak1", "success");
     const second = await seed("opengoal-jak2", "success");
     const before = [await status(first.port.id), await status(second.port.id)];
+    // Geometry diagnostics use local reviewed test images, so late catalog
+    // downloads or failure notices cannot change the focused row mid-resize.
+    for (const [index, port] of [first.port, second.port].entries()) {
+      const image = path.join(output, `library-layout-${port.id}.jpg`);
+      await copyFile(
+        new URL(`./testdata/catalog-artwork-${index === 0 ? "red" : "blue"}.jpg`, import.meta.url),
+        image,
+      );
+      const imported = transportValue(
+        "artwork_state",
+        command(["artwork", "import", port.id, image, "--slot", "cover"]),
+      );
+      assert.equal(imported.availability, "available");
+      assert.equal(imported.resolved_source.kind, "local_import");
+      artifacts.push(image);
+    }
+    // Establish the post-seeding render before measuring. An in-flight
+    // workspace read may legitimately have observed the two fixture commits.
+    await browser.navigate().refresh();
+    await browser.wait(
+      until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+      15_000,
+    );
+    await dismissApplicationUpdateChoice();
     const originalWindow = await browser.manage().window().getRect();
     const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
     const shortcut = (key: string) =>
@@ -1475,6 +1597,45 @@ export async function preparationScenarios({
         const search = await browser.findElement(By.id("port-search"));
         await search.clear();
         await search.sendKeys("Jak");
+        await browser.wait(
+          () =>
+            executeBrowserScript(
+              browser,
+              (ids) => {
+                const rendered = [
+                  ...document.querySelectorAll<HTMLButtonElement>(
+                    ".collection-entry button[data-detail-game-id]",
+                  ),
+                ].map((item) => item.dataset.detailGameId);
+                return ids.every((id) => rendered.includes(id));
+              },
+              [first.port.id, second.port.id],
+            ),
+          15_000,
+          "Both exact prepared Library entries must render before layout measurement",
+        );
+        await browser.wait(
+          () =>
+            executeBrowserScript(browser, () => {
+              const frames = [
+                ...document.querySelectorAll<HTMLElement>(".collection-entry .artwork-image"),
+              ];
+              return (
+                document.fonts.status === "loaded" &&
+                frames.length === 2 &&
+                frames.every((frame) => {
+                  const image = frame.querySelector("img");
+                  return (
+                    frame.dataset.artworkSource === "local_import" &&
+                    image?.complete &&
+                    image.naturalWidth > 0
+                  );
+                })
+              );
+            }),
+          10_000,
+          "Both owned local artwork images must load before the resize journey",
+        );
         for (const layout of ["Covers", "Compact rows"]) {
           await clickVisible(browser, await browser.findElement(button(layout)));
           for (const { width, height } of [
@@ -1488,7 +1649,11 @@ export async function preparationScenarios({
             const state = await measure();
             assert.ok(state.entries >= 2 && state.query === "Jak", JSON.stringify(state));
             assert.ok(state.scrollWidth <= state.contentWidth + 1, JSON.stringify(state));
-            observations.push({ window: { width, height }, ...state });
+            observations.push({
+              requestedWindow: { width, height },
+              window: await browser.manage().window().getRect(),
+              ...state,
+            });
             const file = path.join(
               output,
               `library-${theme}-${layout === "Covers" ? "covers" : "rows"}-${width}.png`,
@@ -1503,6 +1668,185 @@ export async function preparationScenarios({
           for (const size of [125, 150, 175, 200, 250, 300, 400]) {
             await shortcut("+");
             await browser.wait(async () => (await measure()).zoom === String(size), 10_000);
+            if (size === 200) {
+              await browser.manage().window().setRect({ width: 1366, height: 768 });
+              const target = '.collection-entry button[aria-label^="More actions for "]';
+              const more = await browser.findElement(By.css(target));
+              const waitForVisibleAction = () =>
+                browser.wait(
+                  () =>
+                    executeBrowserScript(
+                      browser,
+                      (element) => {
+                        const bounds = element.getBoundingClientRect();
+                        return (
+                          document.activeElement === element &&
+                          bounds.top >= 0 &&
+                          bounds.bottom <= innerHeight + 1 &&
+                          bounds.left >= 0 &&
+                          bounds.right <= innerWidth + 1
+                        );
+                      },
+                      more,
+                    ),
+                  5000,
+                  "The focused Library action must remain visible through feedback and resizing",
+                );
+              await clickVisible(browser, more);
+              await browser.wait(until.elementLocated(By.css('[role="menu"]')), 5000);
+              const menuFocus = await browser.switchTo().activeElement();
+              const feedbackBefore = await executeBrowserScript(
+                browser,
+                launchContinuityPoint,
+                more,
+              );
+              // Owned DOM-only geometry diagnostic: this does not report a Core
+              // artwork failure or change either imported asset/selection.
+              const insertFeedback = () =>
+                executeBrowserScript(
+                  browser,
+                  async (element) => {
+                    const state = element
+                      .closest(".collection-entry")
+                      ?.querySelector(".collection-state");
+                    if (!state) throw new Error("Owned Library state region missing");
+                    const notice = document.createElement("p");
+                    notice.dataset.ownedArtworkFeedback = "true";
+                    notice.className = "m-0 text-pc-muted-foreground";
+                    notice.textContent = "Image unavailable";
+                    state.prepend(notice);
+                    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+                    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+                  },
+                  more,
+                );
+              await insertFeedback();
+              const feedbackWithMenu = await executeBrowserScript(
+                browser,
+                launchContinuityPoint,
+                more,
+              );
+              assert.equal(
+                await executeBrowserScript(
+                  browser,
+                  (element) => document.activeElement === element,
+                  menuFocus,
+                ),
+                true,
+                "Library feedback must not take focus from the open menu",
+              );
+              assert.equal(feedbackWithMenu.scrollTop, feedbackBefore.scrollTop);
+              observations.push({
+                phase: "owned-dom-artwork-feedback-with-menu",
+                limitation: "DOM-only geometry diagnostic; no Core artwork-failure claim",
+                before: feedbackBefore,
+                after: feedbackWithMenu,
+              });
+              await executeBrowserScript(
+                browser,
+                (element) => {
+                  element
+                    .closest(".collection-entry")
+                    ?.querySelector("[data-owned-artwork-feedback]")
+                    ?.remove();
+                },
+                more,
+              );
+              await browser.actions().sendKeys(Key.ESCAPE).perform();
+              await browser.wait(
+                () =>
+                  executeBrowserScript(
+                    browser,
+                    (element) => document.activeElement === element,
+                    more,
+                  ),
+                5000,
+                "Closing the enlarged Library menu must restore its exact trigger",
+              );
+              await insertFeedback();
+              await waitForVisibleAction();
+              observations.push({
+                phase: "owned-dom-artwork-feedback-after-menu",
+                limitation: "DOM-only geometry diagnostic; no Core artwork-failure claim",
+                ...(await measure()),
+                continuity: await executeBrowserScript(browser, launchContinuityPoint, more),
+              });
+              for (const requestedWindow of [
+                { width: 1366, height: 768 },
+                { width: 1920, height: 1080 },
+                { width: 960, height: 640 },
+                { width: 1366, height: 768 },
+              ]) {
+                await browser.manage().window().setRect(requestedWindow);
+                const state = await measure();
+                const continuity = await executeBrowserScript(browser, launchContinuityPoint, more);
+                observations.push({
+                  phase: "focused-resize-200",
+                  requestedWindow,
+                  window: await browser.manage().window().getRect(),
+                  ...state,
+                  continuity,
+                });
+                await waitForVisibleAction();
+                observations.push({
+                  phase: "settled-focused-resize-200",
+                  requestedWindow,
+                  window: await browser.manage().window().getRect(),
+                  ...(await measure()),
+                  continuity: await executeBrowserScript(browser, launchContinuityPoint, more),
+                });
+                assert.equal(state.zoom, "200");
+                assert.equal(state.query, "Jak");
+                assert.equal(state.layout, layout === "Covers" ? "covers" : "rows");
+                assert.equal(state.entries, 2);
+                assert.ok(state.scrollWidth <= state.contentWidth + 1, JSON.stringify(state));
+                assert.ok(
+                  continuity.originFocused && continuity.originConnected,
+                  JSON.stringify(continuity),
+                );
+                assert.ok(continuity.documentFocused, JSON.stringify(continuity));
+              }
+              // One scoped target avoids claiming that the whole scrollable collection
+              // fits above the fold. The screenshot still retains the native viewport.
+              const exactTarget = await more.getAttribute("data-detail-origin");
+              assert.ok(exactTarget, "The focused menu must have a stable Library return identity");
+              const selector = `button[data-detail-origin=${JSON.stringify(exactTarget)}]`;
+              const capture = await captureSettledVisual({
+                browser,
+                output,
+                name: `library-${theme}-${layout === "Covers" ? "covers" : "rows"}-200`,
+                scenario: "native-library-layout",
+                target: selector,
+                observeTarget: () =>
+                  executeBrowserScript(browser, observeVisibleTarget, selector, "visual" as const),
+                readiness: () =>
+                  executeBrowserScript(
+                    browser,
+                    (element) => ({
+                      ready:
+                        document.fonts.status === "loaded" &&
+                        Array.from(document.images).every((image) => image.complete) &&
+                        document.activeElement === element &&
+                        localStorage.getItem("portcove.appearance.interface-size") === "200",
+                      feedbackFixture:
+                        "Owned DOM-only artwork feedback; imported artwork remains available",
+                    }),
+                    more,
+                  ),
+              });
+              artifacts.push(capture.image.path, capture.receipt);
+              await executeBrowserScript(
+                browser,
+                (element) => {
+                  element
+                    .closest(".collection-entry")
+                    ?.querySelector("[data-owned-artwork-feedback]")
+                    ?.remove();
+                },
+                more,
+              );
+              await browser.manage().window().setRect({ width: 960, height: 640 });
+            }
           }
           await browser.wait(async () => (await measure()).zoom === "400", 10_000);
           const enlarged = await measure();
@@ -1546,12 +1890,18 @@ export async function preparationScenarios({
       for (const [index, port] of [first.port, second.port].entries()) {
         assert.deepEqual((await status(port.id)).active, before[index]!.active);
       }
-      const file = path.join(output, "native-library-layout-observations.json");
-      await writeFile(file, JSON.stringify(observations, null, 2) + "\n", { flag: "wx" });
-      artifacts.push(file);
     } finally {
-      await shortcut("0");
-      await browser.manage().window().setRect(originalWindow);
+      try {
+        const file = path.join(output, "native-library-layout-observations.json");
+        await writeFile(file, JSON.stringify(observations, null, 2) + "\n", { flag: "wx" });
+        artifacts.push(file);
+      } finally {
+        try {
+          await shortcut("0");
+        } finally {
+          await browser.manage().window().setRect(originalWindow);
+        }
+      }
     }
   });
   await scenario("native-ready-detail-composition", async () => {
@@ -1562,6 +1912,16 @@ export async function preparationScenarios({
     assert.equal(readyStatus.channel, "stable");
     assert.equal(readyStatus.active.channel, "stable");
     assert.ok(!readyStatus.last_update_check);
+    // This scenario continues the preliminary-source fixture above. Launchable
+    // bytes and successful preparation do not establish confirmed compatibility.
+    assert.notEqual(readyStatus.readiness?.source_assessment?.admission.mode, "exact_identity");
+    const artworkReply = await invoke("get_artwork", {
+      portId: port.id,
+      slot: "cover",
+      generation: (await read("desktop_bootstrap_status", "get_bootstrap_status")).generation,
+    });
+    assert.equal(artworkReply.ok, true);
+    const artwork = transportValue("artwork_state", artworkReply.value);
     const originalWindow = await browser.manage().window().getRect();
     try {
       for (const theme of ["dark", "light"]) {
@@ -1579,18 +1939,28 @@ export async function preparationScenarios({
           await executeBrowserScript(browser, () => document.documentElement.dataset.theme),
           theme,
         );
-        const play = await browser.wait(until.elementLocated(button("Play")), 15_000);
+        const play = await browser.wait(until.elementLocated(button("Try launch")), 15_000);
         assert.equal(await play.isEnabled(), true);
         assert.equal(await play.getAttribute("data-variant"), "primary");
         await browser.wait(
           () =>
             executeBrowserScript(
               browser,
-              () =>
-                document.querySelector(".detail-cover.artwork-image > span")?.textContent === "OJ",
+              (expected) => {
+                const frame = document.querySelector<HTMLElement>(".detail-cover.artwork-image");
+                const image = frame?.querySelector("img");
+                if (image) return image.complete && image.naturalWidth > 0;
+                return (
+                  frame?.dataset.artworkSource === "generated_fallback" &&
+                  Boolean(frame.querySelector(':scope > span > svg[aria-hidden="true"]')) &&
+                  (expected.availability !== "available" ||
+                    frame.textContent?.includes("Image unavailable"))
+                );
+              },
+              artwork,
             ),
           15_000,
-          "The owned port cover fallback did not settle before visual capture",
+          "The owned port cover image or identified fallback did not settle before visual capture",
         );
         for (const { width, height } of [
           { width: 960, height: 640 },
@@ -1610,6 +1980,10 @@ export async function preparationScenarios({
               const main = document.querySelector("main");
               return {
                 title: document.querySelector("#port-detail-title")?.textContent?.trim(),
+                portId: document
+                  .querySelector("[data-detail-port-id]")
+                  ?.getAttribute("data-detail-port-id"),
+                actionInHero: Boolean(action.closest(".detail-hero")),
                 state: document.querySelector(".detail-hero .hero-state")?.textContent?.trim(),
                 groups: [...document.querySelectorAll(".detail-body .detail-group > h2")].map(
                   (heading) => heading.textContent?.trim(),
@@ -1632,16 +2006,19 @@ export async function preparationScenarios({
             flag: "wx",
           });
           artifacts.push(screenshot);
-          assert.equal(hierarchy.title, port.name);
-          assert.match(required(hierarchy.state), /Ready to play/);
+          assert.equal(hierarchy.title, gameTitle(port));
+          assert.equal(hierarchy.portId, port.id);
+          assert.equal(hierarchy.actionInHero, true);
+          assert.match(required(hierarchy.state), /Compatibility unconfirmed/);
           assert.deepEqual(hierarchy.groups, [
-            "Status and actions",
-            "Updates",
-            "Requirements",
+            "About this port",
             "Installation and version",
+            "Requirements",
+            "Updates",
             "Saves and storage",
             "Compatibility and testing",
             "Project and release",
+            "Artwork",
           ]);
           assert.equal(hierarchy.horizontalOverflow, false);
           assert.ok(
@@ -1649,7 +2026,7 @@ export async function preparationScenarios({
               hierarchy.action.bottom <= hierarchy.viewport.height &&
               hierarchy.action.left >= 0 &&
               hierarchy.action.right <= hierarchy.viewport.width,
-            `Play must remain visible at ${actualWindow.width}x${actualWindow.height}: ${JSON.stringify(hierarchy)}`,
+            `Trial launch must remain visible at ${actualWindow.width}x${actualWindow.height}: ${JSON.stringify(hierarchy)}`,
           );
           const facts = await executeBrowserScript(browser, () => {
             const strip = document.querySelector(".installation-facts");
@@ -1666,7 +2043,7 @@ export async function preparationScenarios({
             ["Installed version", readyStatus.active.version],
             ["Selected channel", "Stable"],
             ["Installed channel", "Stable"],
-            ["Latest eligible release", "No current check"],
+            ["Latest available for your settings", "No current check"],
             ["Installed folder", readyStatus.active.path],
           ]);
           assert.equal(facts.horizontalOverflow, false);
@@ -1676,9 +2053,14 @@ export async function preparationScenarios({
             flag: "wx",
           });
           artifacts.push(factsScreenshot);
-          await executeBrowserScript(browser, () =>
-            document.querySelector("main")?.scrollTo({ top: 0 }),
-          );
+          await executeBrowserScript(browser, () => {
+            const workspace = document.querySelector('main[data-focus-region="workspace"]');
+            const owner =
+              workspace && getComputedStyle(workspace).overflowY === "visible"
+                ? (document.scrollingElement ?? document.documentElement)
+                : workspace;
+            owner?.scrollTo({ top: 0 });
+          });
         }
       }
     } finally {
@@ -1688,7 +2070,15 @@ export async function preparationScenarios({
   await scenario("native-game-return-continuity", async () => {
     const port = transportValue("port", command(["catalog", "show", "opengoal-jak1"]));
     const before = await status(port.id);
-    assert.equal(required(before.readiness).launchable, true);
+    const preimage = path.join(output, "game-return-continuity-before.json");
+    await writeFile(preimage, JSON.stringify(before, null, 2), { flag: "wx" });
+    artifacts.push(preimage);
+    assert.equal(
+      required(before.readiness).launchable,
+      true,
+      "Game return requires a launchable fixture",
+    );
+    assert.notEqual(before.readiness?.source_assessment?.admission.mode, "exact_identity");
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
@@ -1700,16 +2090,28 @@ export async function preparationScenarios({
     try {
       await browser.manage().window().setRect({ width: 720, height: 560 });
       const query = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
-      await query.sendKeys(port.name);
-      const ready = await browser.findElement(
-        By.xpath('//div[@aria-label="Library filters"]//button[normalize-space(.)="Ready"]'),
+      await query.sendKeys(
+        Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
+        Key.BACK_SPACE,
+        port.name,
       );
-      await ready.click();
+      const ready = await browser.findElement(
+        By.xpath(
+          '//div[@aria-label="Library filters"]//button[starts-with(normalize-space(.),"Ready (")]',
+        ),
+      );
+      await browser.wait(
+        async () => /^Ready \([1-9][0-9]*\)$/u.test(await ready.getText()),
+        15_000,
+        "Library readiness counts did not settle",
+      );
+      const readyLabel = await ready.getText();
+      await clickVisible(browser, ready);
       const card = await browser.wait(
         until.elementLocated(By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`)),
         15_000,
       );
-      const play = await card.findElement(By.xpath('.//button[normalize-space(.)="Play"]'));
+      const play = await card.findElement(By.xpath('.//button[normalize-space(.)="Try launch"]'));
       await executeBrowserScript(
         browser,
         (element) => element.scrollIntoView({ block: "center" }),
@@ -1718,10 +2120,28 @@ export async function preparationScenarios({
       const scrollBefore = await executeBrowserScript(browser, () => {
         const workspace = document.querySelector('main[data-focus-region="workspace"]');
         if (!workspace) throw new Error("Library workspace is missing");
-        return workspace.scrollTop;
+        const owner =
+          getComputedStyle(workspace).overflowY === "visible"
+            ? (document.scrollingElement ?? document.documentElement)
+            : workspace;
+        return owner.scrollTop;
       });
       assert.ok(scrollBefore > 0, "The compact Library fixture must exercise a real scroll");
+      const beforeClick = await executeBrowserScript(browser, launchContinuityPoint, play);
+      const beforeClickPath = path.join(output, "game-return-before-click.json");
+      await writeFile(beforeClickPath, JSON.stringify(beforeClick, null, 2), { flag: "wx" });
+      artifacts.push(beforeClickPath);
+      const beforeImage = path.join(output, "native-game-return-before-click.png");
+      await writeFile(beforeImage, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(beforeImage);
       await play.click();
+      const afterClick = await executeBrowserScript(browser, launchContinuityPoint, play);
+      const afterClickPath = path.join(output, "game-return-after-click.json");
+      await writeFile(afterClickPath, JSON.stringify(afterClick, null, 2), { flag: "wx" });
+      artifacts.push(afterClickPath);
       await browser.wait(
         async () => (await status(port.id)).successful_launches > before.successful_launches,
         15_000,
@@ -1730,19 +2150,26 @@ export async function preparationScenarios({
         () =>
           executeBrowserScript(
             browser,
-            (portName, launches) => {
+            (identity, launches) => {
               const recent = document.querySelector<HTMLElement>(".continue-card");
               return (
-                recent?.getAttribute("aria-label") === `Continue ${portName}` &&
+                recent?.getAttribute("aria-label") === `Continue ${identity}` &&
                 Number(recent.dataset.successfulLaunches ?? 0) > launches
               );
             },
-            port.name,
+            gameIdentityLabel(port),
             before.successful_launches,
           ),
         15_000,
         "Library did not render the completed launch after the game exited",
       );
+      await browser.wait(
+        async () =>
+          (await play.isEnabled()) && (await play.getAttribute("aria-disabled")) !== "true",
+        15_000,
+        "Launch origin remained excluded after game return and workspace readback",
+      );
+      const settled = await executeBrowserScript(browser, launchContinuityPoint, play);
       const returned = await executeBrowserScript(
         browser,
         (element) => {
@@ -1754,25 +2181,49 @@ export async function preparationScenarios({
           const card = element.closest("article.port-card");
           const bounds = card?.getBoundingClientRect();
           const workspaceBounds = workspace?.getBoundingClientRect();
+          const owner =
+            workspace && getComputedStyle(workspace).overflowY === "visible"
+              ? (document.scrollingElement ?? document.documentElement)
+              : workspace;
           return {
             query: search?.value,
             filter: ready?.textContent?.trim(),
-            scrollTop: workspace?.scrollTop,
+            scrollTop: owner?.scrollTop,
             playFocused: document.activeElement === element,
             playConnected: element.isConnected,
             cardVisible:
               bounds && workspaceBounds
-                ? bounds.bottom > workspaceBounds.top && bounds.top < workspaceBounds.bottom
+                ? bounds.bottom > Math.max(0, workspaceBounds.top) &&
+                  bounds.top < Math.min(innerHeight, workspaceBounds.bottom)
                 : false,
           };
         },
         play,
       );
+      const observation = path.join(output, "game-return-continuity-observation.json");
+      await writeFile(
+        observation,
+        JSON.stringify({ scrollBefore, beforeClick, afterClick, settled, returned }, null, 2),
+        {
+          flag: "wx",
+        },
+      );
+      artifacts.push(observation);
+      const settledImage = path.join(output, "native-game-return-settled-before-assert.png");
+      await writeFile(settledImage, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(settledImage);
       assert.equal(returned.query, port.name);
-      assert.equal(returned.filter, "Ready");
-      assert.equal(returned.playConnected, true);
-      assert.equal(returned.playFocused, true);
-      assert.equal(returned.cardVisible, true);
+      assert.equal(returned.filter, readyLabel);
+      assert.equal(returned.playConnected, true, "Original Play control disconnected after return");
+      assert.equal(returned.playFocused, true, "Play control lost focus after return");
+      assert.equal(
+        returned.cardVisible,
+        true,
+        "Launched card is outside the reading viewport after return",
+      );
       assert.ok(
         Math.abs(required(returned.scrollTop) - scrollBefore) <= 2,
         `Library scroll changed after game return: ${scrollBefore} -> ${returned.scrollTop}`,
@@ -1793,28 +2244,32 @@ export async function preparationScenarios({
     const updateControl = await browser.findElement(
       By.css('section[aria-label="Review game update"]'),
     );
-    await clickVisible(
-      browser,
-      await updateControl.findElement(By.css('[data-slot="select-trigger"]')),
+    assert.equal(
+      (await updateControl.findElements(By.css('[data-slot="select-trigger"]'))).length,
+      0,
     );
-    await clickVisible(
-      browser,
-      await browser.findElement(
-        By.xpath('//*[@role="option" and normalize-space(.)="Keep update for later"]'),
-      ),
-    );
-    assert.ok((await updateControl.getText()).includes("Keep update for later"));
     const before = await status(port.id);
     const activityBefore = (await invoke("get_activities")).value;
     const trigger = await browser.findElement(button("Review game update"));
     await clickVisible(browser, trigger);
-    const dialog = By.css('[aria-labelledby="game-update-review-title"]');
+    const dialog = By.css("[data-game-update-review]");
     const review = await browser.wait(until.elementLocated(dialog), 15_000);
     await browser.wait(
       async () => (await review.getText()).includes("Confirm the release"),
       5_000,
       "Game update review did not show its release confirmation",
     );
+    // A disposition is offered only after the current release has been reviewed.
+    const initialReviewText = await review.getText();
+    const keepForLater = await review.findElements(button("Review download for later"));
+    if (keepForLater.length) {
+      assert.ok(initialReviewText.includes("Confirm the release"));
+      await clickVisible(browser, keepForLater[0]!);
+      await browser.wait(
+        async () => (await review.getText()).includes("Your current version stays unchanged"),
+        5_000,
+      );
+    }
     const reviewText = await review.getText();
     const bootstrap = await read("desktop_bootstrap_status", "get_bootstrap_status");
     const candidate = await read("game_update_plan", "plan_game_update", {
@@ -1835,7 +2290,7 @@ export async function preparationScenarios({
         reviewText.includes("already active") ||
         reviewText.includes("unverified local copy"),
     );
-    await assertCompactReview(browser, '[aria-labelledby="game-update-review-title"]');
+    await assertCompactReview(browser, "[data-game-update-review]");
     const accessibility = path.join(output, "game-update-review-accessibility.json");
     await captureAccessibilityReport(browser, accessibility, artifacts);
     const screenshot = path.join(output, "native-game-update-review.png");
@@ -2332,6 +2787,15 @@ export async function preparationScenarios({
       observations.failed_activity = failed;
       const action = By.css('[data-detail-origin="error:preparation-review"]');
       await browser.wait(until.elementLocated(action), 15_000);
+      // The failure notice can render before the completed review's modal layer
+      // unmounts. Wait for actual dismissal before exercising ordinary navigation;
+      // never click through the overlay or dismiss it on the test's behalf.
+      await browser.wait(
+        async () =>
+          (await browser.findElements(By.css('[data-slot="dialog-overlay"]'))).length === 0,
+        15_000,
+        "The settled preparation review must release its modal overlay before navigation",
+      );
       await browser
         .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Activity"]]'))
         .click();
@@ -2353,7 +2817,7 @@ export async function preparationScenarios({
       await browser.wait(
         async () => {
           const titles = await browser.findElements(By.css("#port-detail-title"));
-          return titles.length === 1 && (await required(titles[0]).getText()) === port.name;
+          return titles.length === 1 && (await required(titles[0]).getText()) === gameTitle(port);
         },
         15_000,
         "The direct error action must open its actual affected game",
@@ -2756,8 +3220,8 @@ export async function preparationScenarios({
       );
       const bundle = await invoke("create_support_bundle");
       assert.equal(bundle.ok, true);
-      assert.ok(typeof bundle.value === "string");
-      artifacts.push(bundle.value);
+      const exported = transportValue("desktop_support_bundle_export", bundle.value);
+      artifacts.push(exported.path);
       const capture = path.join(output, "retained-preparation-log.json");
       await writeFile(capture, JSON.stringify(retained, null, 2), {
         flag: "wx",

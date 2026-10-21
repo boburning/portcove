@@ -3,10 +3,54 @@ import { performance } from "node:perf_hooks";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
+import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 
 const issuer = "https://token.actions.githubusercontent.com";
 const repository = "boburning/portcove";
 const repositoryId = 1354613114;
+/** Independently pinned github.com owner/repository IDs; no legacy-name fallback. */
+export const controllerOidcSubjectPrefix = "repo:boburning@43177418/portcove@1354613114";
+export type ControllerOidcEnvironment =
+  | "github-pages"
+  | "production-release-admission"
+  | "production-payload-signing"
+  | "production-release-coordinator"
+  | "production-release-publication"
+  | "production-release-classification"
+  | "production-release-protection-observer"
+  | "production-tuf-releases"
+  | "production-tuf-preview"
+  | "production-tuf-stable"
+  | "production-tuf-snapshot"
+  | "production-tuf-timestamp";
+export function controllerOidcSubject(ref: string, environment?: ControllerOidcEnvironment) {
+  if (!/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(ref))
+    throw new Error("controller OIDC subject requires the fixed protected tag family");
+  if (
+    environment !== undefined &&
+    ![
+      "github-pages",
+      "production-release-admission",
+      "production-payload-signing",
+      "production-release-coordinator",
+      "production-release-publication",
+      "production-release-classification",
+      "production-release-protection-observer",
+      "production-tuf-releases",
+      "production-tuf-preview",
+      "production-tuf-stable",
+      "production-tuf-snapshot",
+      "production-tuf-timestamp",
+    ].includes(environment)
+  )
+    throw new Error("controller OIDC environment is unsupported");
+  return `${controllerOidcSubjectPrefix}:${environment === undefined ? `ref:${ref}` : `environment:${environment}`}`;
+}
+type JobIdentityProfile = {
+  workflow: string;
+  job: string;
+  environment?: ControllerOidcEnvironment | undefined;
+};
 const assemblerProfile = {
   workflow: productionControllerWorkflow,
   job: "Trusted package assembly",
@@ -14,11 +58,13 @@ const assemblerProfile = {
 const classificationProfile = {
   workflow: ".github/workflows/release-reviewed-inputs.yml",
   job: "Persist independently reviewed classification",
-};
+  environment: "production-release-classification",
+} satisfies JobIdentityProfile;
 const protectionProfile = {
   workflow: ".github/workflows/release-reviewed-inputs.yml",
   job: "Observe release input protections",
-};
+  environment: "production-release-protection-observer",
+} satisfies JobIdentityProfile;
 type Spawn = NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]>;
 
 export interface AssemblerIdentityExpectation {
@@ -50,10 +96,10 @@ function decoded(value: string): Buffer {
   return result;
 }
 
-async function providerKeys(): Promise<unknown> {
+async function providerKeys(timeoutMs = 15_000): Promise<unknown> {
   const response = await fetch(`${issuer}/.well-known/jwks`, {
     redirect: "error",
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (response.status !== 200 || !response.body) throw new Error("OIDC provider keys unavailable");
   const parts: Buffer[] = [];
@@ -110,13 +156,26 @@ export function inspectAssemblerIdentityExpectation(value: unknown): AssemblerId
  * or returned. Injected readers explicitly produce fixture-scoped evidence.
  */
 async function verifyJobIdentity(
-  profile: { workflow: string; job: string },
+  profile: JobIdentityProfile,
   token: string,
   rawExpected: unknown,
-  options: { transport?: { cwd: string; spawn?: Spawn }; readKeys?: () => Promise<unknown> } = {},
+  options: {
+    transport?: { cwd: string; spawn?: Spawn; deadline?: number };
+    readKeys?: () => Promise<unknown>;
+  } = {},
 ) {
   const expected = inspectAssemblerIdentityExpectation(rawExpected);
+  if (expected.subject !== controllerOidcSubject(expected.controller_ref, profile.environment))
+    throw new Error("independently expected OIDC subject differs from the fixed role");
   if (!options.transport) throw new Error("assembler identity transport is unconfigured");
+  const remaining = () => {
+    if (options.transport?.deadline === undefined) return 15000;
+    const value = Math.ceil(options.transport.deadline - performance.now());
+    if (!Number.isFinite(options.transport.deadline) || value < 1 || value > 600000)
+      throw new Error("assembler identity total phase deadline exhausted");
+    return Math.min(15000, value);
+  };
+  remaining();
   if (typeof token !== "string" || Buffer.byteLength(token) > 16 * 1024)
     throw new Error("OIDC token exceeds its byte bound");
   const parts = token.split(".");
@@ -134,7 +193,8 @@ async function verifyJobIdentity(
   )
     throw new Error("OIDC header or key selection is unsupported");
   const started = performance.now();
-  const keys = await (options.readKeys ?? providerKeys)();
+  const keys = await (options.readKeys ?? (() => providerKeys(remaining())))();
+  remaining();
   if (!isRecord(keys) || !Array.isArray(keys.keys) || keys.keys.length < 1 || keys.keys.length > 16)
     throw new Error("OIDC provider key inventory is incomplete or oversized");
   const matches = keys.keys.filter((key: unknown) => isRecord(key) && key.kid === header.kid);
@@ -183,6 +243,8 @@ async function verifyJobIdentity(
     sub: expected.subject,
     repository,
     repository_id: String(repositoryId),
+    repository_owner: "boburning",
+    repository_owner_id: "43177418",
     actor_id: expected.actor_id,
     ref: expected.controller_ref,
     ref_type: "tag",
@@ -196,6 +258,9 @@ async function verifyJobIdentity(
   };
   if (
     Object.entries(required).some(([name, value]) => claims[name] !== value) ||
+    (profile.environment === undefined
+      ? Object.hasOwn(claims, "environment")
+      : claims.environment !== profile.environment) ||
     Object.hasOwn(claims, "job_workflow_ref") ||
     Object.hasOwn(claims, "job_workflow_sha") ||
     typeof claims.check_run_id !== "string" ||
@@ -204,19 +269,22 @@ async function verifyJobIdentity(
     throw new Error("signed OIDC claims differ from the expected direct controller job");
   const expires = claims.exp;
   const checkRunId = claims.check_run_id;
-  const runner = createGitHubRunner({
-    ...options.transport,
-    maxBuffer: 2 * 1024 * 1024,
-    timeoutMs: 15_000,
-  });
+  const transport = options.transport;
   const api = new GitHubApiClient((args, input) =>
-    runner([...args, "--hostname", "github.com"], input),
+    createGitHubRunner({
+      cwd: transport.cwd,
+      ...(transport.spawn ? { spawn: transport.spawn } : {}),
+      maxBuffer: 2 * 1024 * 1024,
+      timeoutMs: remaining(),
+    })([...args, "--hostname", "github.com"], input),
   );
   let requests = 0;
   const get = (suffix: string) => {
+    remaining();
     if (++requests > 20 || performance.now() - started > 120_000 || Date.now() / 1000 >= expires)
       throw new Error("assembler identity collection deadline exhausted");
     const reply = api.request("GET", `repos/${repository}${suffix}`);
+    remaining();
     if (
       reply.status !== 200 ||
       performance.now() - started > 120_000 ||
@@ -345,12 +413,119 @@ async function verifyJobIdentity(
 // Fixed profiles are deliberately private: callers cannot promote another job
 // by supplying a trusted-looking name or workflow path.
 type IdentityOptions = NonNullable<Parameters<typeof verifyJobIdentity>[3]>;
+const capacityExecutorProfiles = Object.freeze({
+  "aggregate-assembly": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("admission").reader_name,
+    environment: "production-release-admission" as const,
+  },
+  "payload-signing": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("payload").reader_name,
+    environment: "production-payload-signing" as const,
+  },
+  "tuf-releases": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("tuf-releases").reader_name,
+    environment: "production-tuf-releases" as const,
+  },
+  "tuf-preview": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("tuf-preview").reader_name,
+    environment: "production-tuf-preview" as const,
+  },
+  "tuf-stable": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("tuf-stable").reader_name,
+    environment: "production-tuf-stable" as const,
+  },
+  "tuf-snapshot": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("tuf-snapshot").reader_name,
+    environment: "production-tuf-snapshot" as const,
+  },
+  "tuf-timestamp": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("tuf-timestamp").reader_name,
+    environment: "production-tuf-timestamp" as const,
+  },
+  coordinator: {
+    workflow: productionControllerWorkflow,
+    job: "Coordinate application release",
+    environment: "production-release-coordinator" as const,
+  },
+  "release-publication": {
+    workflow: productionControllerWorkflow,
+    job: "Publish immutable application release",
+    environment: "production-release-publication" as const,
+  },
+  "site-publication": {
+    workflow: productionControllerWorkflow,
+    job: "Publish authenticated application site",
+    environment: "github-pages" as const,
+  },
+});
+export type CapacityExecutorRole = keyof typeof capacityExecutorProfiles;
+
+/** Fixed coordinator/publication profiles; names supplied by a caller cannot
+ * appoint another job. Identity verification alone grants no effect authority. */
+export async function verifyCapacityExecutorJobIdentity(
+  role: CapacityExecutorRole,
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  if (!Object.hasOwn(capacityExecutorProfiles, role))
+    throw new Error("capacity executor role is not a fixed controller profile");
+  const observed = await verifyJobIdentity(
+    capacityExecutorProfiles[role],
+    token,
+    expected,
+    options,
+  );
+  return { ...observed, role };
+}
+/** Fresh producer identity only; receivers authenticate the existing GitHub
+ * attestation instead of retaining or accepting an expired bearer token. */
+export function verifyControllerToolBootstrapJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  return verifyJobIdentity(
+    { workflow: productionControllerWorkflow, job: "Prepare trusted application controller tools" },
+    token,
+    expected,
+    options,
+  );
+}
 export function verifyAssemblerJobIdentity(
   token: string,
   expected: unknown,
   options: IdentityOptions = {},
 ) {
   return verifyJobIdentity(assemblerProfile, token, expected, options);
+}
+/** Complete pipeline's admitted assembler; the legacy plain-ref job remains
+ * a separate fixed profile and cannot stand in for this protected reader. */
+export function verifyAdmittedAssemblerJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  return verifyJobIdentity(
+    capacityExecutorProfiles["aggregate-assembly"],
+    token,
+    expected,
+    options,
+  );
+}
+export function verifyPayloadSignerJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  return verifyReleaseControlReaderJobIdentity("payload", token, expected, options);
 }
 export function verifyClassificationWriterJobIdentity(
   token: string,
@@ -366,12 +541,98 @@ export function verifyProtectionObserverJobIdentity(
 ) {
   return verifyJobIdentity(protectionProfile, token, expected, options);
 }
+/** Same selected D1 principals, bound to the complete immutable controller. */
+export function verifyProductionClassificationWriterJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  return verifyJobIdentity(
+    { ...classificationProfile, workflow: productionControllerWorkflow },
+    token,
+    expected,
+    options,
+  );
+}
+export function verifyProductionClassificationObserverJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  return verifyJobIdentity(
+    { ...protectionProfile, workflow: productionControllerWorkflow },
+    token,
+    expected,
+    options,
+  );
+}
+export function verifyProductionProtectionObserverJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+  phase: unknown = "admission",
+) {
+  const profile = releaseControlPhaseProfile(phase);
+  return verifyJobIdentity(
+    {
+      workflow: productionControllerWorkflow,
+      job: profile.observer_name,
+      environment: profile.observer_environment,
+    },
+    token,
+    expected,
+    options,
+  );
+}
+export function verifyReleaseInputReaderJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  // Original schema-1 read-only admission route. Complete-workflow admission
+  // uses the environment-bound phase verifier below before any journal access.
+  return verifyJobIdentity(
+    {
+      workflow: productionControllerWorkflow,
+      job: releaseControlPhaseProfile("admission").reader_name,
+    },
+    token,
+    expected,
+    options,
+  );
+}
+export function verifyReleaseControlReaderJobIdentity(
+  phase: unknown,
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  const profile = releaseControlPhaseProfile(phase);
+  return verifyJobIdentity(
+    {
+      workflow: productionControllerWorkflow,
+      job: profile.reader_name,
+      environment: profile.reader_environment,
+    },
+    token,
+    expected,
+    options,
+  );
+}
 
 export async function requestAssemblerToken(
   audience: string,
   environment: NodeJS.ProcessEnv = process.env,
   fetcher: typeof fetch = fetch,
+  deadline?: number,
 ) {
+  const remaining = () => {
+    const left = deadline === undefined ? 15000 : Math.floor(deadline - performance.now());
+    if (!Number.isFinite(left) || left < 1 || (deadline !== undefined && left > 600000))
+      throw new Error("runner OIDC phase deadline exhausted");
+    return Math.min(15000, left);
+  };
+  remaining();
   // These are runner-issued control variables, never dispatch/candidate values.
   const endpoint = new URL(environment.ACTIONS_ID_TOKEN_REQUEST_URL ?? "");
   const bearer = environment.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
@@ -389,16 +650,19 @@ export async function requestAssemblerToken(
   const response = await fetcher(endpoint, {
     headers: { Authorization: `Bearer ${bearer}` },
     redirect: "error",
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(remaining()),
   });
+  remaining();
   if (response.status !== 200 || !response.body) throw new Error("runner OIDC request refused");
   const chunks: Buffer[] = [];
   let length = 0;
   for await (const chunk of response.body as AsyncIterable<Uint8Array>) {
+    remaining();
     length += chunk.byteLength;
     if (length > 32 * 1024) throw new Error("runner OIDC response exceeds bound");
     chunks.push(Buffer.from(chunk));
   }
+  remaining();
   const result: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
   if (!isRecord(result) || typeof result.value !== "string" || result.value.length > 16384)
     throw new Error("runner OIDC response is invalid");

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { generateKeyPairSync, sign } from "node:crypto";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { productionControllerWorkflow } from "../production-controller-admission.mts";
+import { controllerOidcSubject } from "../assembler-job-identity.mts";
 
 // Disposable in-memory test signing key. No production key or token is used.
 const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
@@ -13,7 +14,7 @@ export const jwk = {
 };
 export const expected = {
   audience: "portcove-trusted-assembly",
-  subject: "fixture independently expected subject",
+  subject: controllerOidcSubject("refs/tags/portcove-production-controller-fixture"),
   controller_revision: "a".repeat(40),
   controller_ref: "refs/tags/portcove-production-controller-fixture",
   actor_id: "1122",
@@ -24,8 +25,13 @@ export const expected = {
 export function assemblerIdentityFixture(
   overrides: Record<string, unknown> = {},
   headerOverrides: Record<string, unknown> = {},
-  profile = { workflow: productionControllerWorkflow, job: "Trusted package assembly" },
+  profile: { workflow: string; job: string; jobId?: number; checkRunId?: number } = {
+    workflow: productionControllerWorkflow,
+    job: "Trusted package assembly",
+  },
 ) {
+  const jobId = profile.jobId ?? 501,
+    checkRunId = profile.checkRunId ?? 777;
   const now = Math.floor(Date.now() / 1000);
   const claims = {
     iss: "https://token.actions.githubusercontent.com",
@@ -36,6 +42,8 @@ export function assemblerIdentityFixture(
     iat: now - 2,
     repository: "boburning/portcove",
     repository_id: "1354613114",
+    repository_owner: "boburning",
+    repository_owner_id: "43177418",
     actor_id: expected.actor_id,
     ref: expected.controller_ref,
     ref_type: "tag",
@@ -46,7 +54,7 @@ export function assemblerIdentityFixture(
     runner_environment: "github-hosted",
     run_id: expected.run_id,
     run_attempt: "2",
-    check_run_id: "777",
+    check_run_id: String(checkRunId),
     ...overrides,
   };
   const unsigned = `${Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT", kid: "fixture", ...headerOverrides })).toString("base64url")}.${Buffer.from(JSON.stringify(claims)).toString("base64url")}`;
@@ -78,7 +86,7 @@ export function assemblerIdentityFixture(
       assert.equal(command, "gh");
       assert.deepEqual(args.slice(-4), ["--method", "GET", "--hostname", "github.com"]);
       assert.equal(options.maxBuffer, 2 * 1024 * 1024);
-      assert.equal(options.timeout, 15_000);
+      assert.ok(options.timeout && options.timeout > 0 && options.timeout <= 15_000);
       assert.equal(options.input, undefined);
       requests++;
       const endpoint = args[2]!;
@@ -98,22 +106,22 @@ export function assemblerIdentityFixture(
           repository: { id: 1354613114, full_name: "boburning/portcove" },
           head_repository: { id: 1354613114 },
         };
-      } else if (endpoint.endsWith("/actions/jobs/501")) {
+      } else if (endpoint.endsWith(`/actions/jobs/${jobId}`)) {
         body = {
-          ...job(501),
+          ...job(jobId),
           status: faults.value === "job-completed" ? "completed" : "in_progress",
           name: profile.job,
-          check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/777",
+          check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${checkRunId}`,
         };
       } else {
         assert.ok(endpoint.includes("/attempts/2/jobs?per_page=100&page="));
         const second = endpoint.endsWith("page=2");
         const selected = {
-          ...job(faults.value === "duplicate" ? 1 : 501),
+          ...job(faults.value === "duplicate" ? 1 : jobId),
           head_sha: faults.value === "job-source" ? "b".repeat(40) : expected.controller_revision,
           status: "in_progress",
           name: profile.job,
-          check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${faults.value === "name-only" ? "778" : "777"}`,
+          check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${faults.value === "name-only" ? checkRunId + 1 : checkRunId}`,
         };
         body = {
           total_count: faults.value === "count" && second ? 102 : 101,

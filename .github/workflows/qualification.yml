@@ -3,6 +3,11 @@ name: Qualification
 on:
   workflow_call:
     inputs:
+      release_profile:
+        description: Fixed application release qualification profile; full remains the default.
+        required: false
+        type: string
+        default: "full"
       qualification_caller:
         required: false
         type: string
@@ -50,6 +55,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
     with:
       force_qualification: true
+      release_profile: ${{ inputs.release_profile || 'full' }}
       qualification_caller: ${{ inputs.qualification_caller || github.event_name }}
       caller_workflow: ${{ inputs.caller_workflow || 'qualification.yml' }}
       provenance_scope: ${{ inputs.provenance_scope || 'qualification' }}

@@ -44,6 +44,7 @@ mod import_execution;
 mod import_journal;
 mod install;
 mod installed_contract;
+mod installed_mutability;
 mod launch;
 mod library;
 mod library_access;
@@ -90,6 +91,10 @@ mod source_inspection;
 mod source_report;
 mod source_zip;
 mod stfs;
+mod support_bundle;
+mod support_bundle_export;
+mod support_bundle_read;
+mod support_bundle_stage;
 #[cfg(test)]
 mod test_fixture;
 mod tool_process;
@@ -242,6 +247,13 @@ pub use source_report::{
     SourceApplicationInspection, SourceEvidenceLink, SourceInspectionProblem,
     SourceInspectionReport, SourceIntakeInspection, SourceLegacyCoverage,
     SourceQualificationCoverage, SourceReleaseApplicability,
+};
+pub use support_bundle::SupportBundleData;
+pub use support_bundle_export::{
+    SupportBundleExport, SupportBundleLimits, SupportBundleManifest, SupportBundleProvenance,
+    SupportBundleReason, SupportBundleRequest, SupportBundleScope, SupportBundleSection,
+    SupportBundleSectionKind, SupportBundleSectionStatus, export_support_bundle,
+    prepare_support_log_directory,
 };
 pub use types::*;
 

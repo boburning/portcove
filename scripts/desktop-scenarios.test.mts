@@ -1,5 +1,6 @@
 import "../apps/desktop/scripts/desktop-catalog-update.native.test.mts";
 import "../apps/desktop/scripts/desktop-design-compatibility.native.test.mts";
+import "../apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts";
 import type { FileIdentity } from "./development-evidence.mts";
 import type { FixtureSpawn } from "../apps/desktop/scripts/desktop-scenario-state.mts";
 function required<Value>(value: Value | null | undefined): Value {
@@ -2143,6 +2144,66 @@ void test("replacement identity failure cannot reuse the former host's exit rece
   assert.equal(session.requireQuiescence().exited.observed_processes, 4);
 });
 
+void test("native resource release requires current positive exit after any launch attempt", async () => {
+  for (const state of [
+    "pristine",
+    "no-identity",
+    "no-inventory",
+    "no-exit",
+    "positive",
+    "replacement",
+  ]) {
+    const session = new OwnedNativeSession();
+    const calls: string[] = [];
+    if (state !== "pristine") session.beginLaunch();
+    if (!["pristine", "no-identity"].includes(state))
+      session.driver = { pid: 2, path: "C:\\fixture\\driver.exe", started_filetime: "200" };
+    if (["no-exit", "positive", "replacement"].includes(state)) session.inventory = "current.json";
+    if (["positive", "replacement"].includes(state))
+      session.cleanup = {
+        stopped: { method: "observed-child-exit", exit_code: 0 },
+        exited: { observed_processes: 4, exited_at: "2026-10-20T00:00:00Z", wait_ms: 1 },
+        snapshot: "current.json",
+      };
+    if (state === "replacement") session.beginLaunch();
+    const release = session.releaseResources({
+      closeFixtures: async () => {
+        calls.push("close");
+      },
+      releaseLock: async () => {
+        calls.push("release");
+      },
+    });
+    if (state === "pristine" || state === "positive") {
+      await release;
+      assert.deepEqual(calls, ["close", "release"], state);
+    } else {
+      await assert.rejects(release, /Current owned|Positive current owned/);
+      assert.deepEqual(calls, [], state);
+    }
+  }
+});
+
+void test("native resource release waits for fixture teardown and preserves teardown failures", async () => {
+  const session = new OwnedNativeSession();
+  const calls: string[] = [];
+  const gate = Promise.withResolvers<void>();
+  const failure = new Error("fixture teardown failed");
+  const release = session.releaseResources({
+    closeFixtures: async () => {
+      calls.push("close");
+      await gate.promise;
+    },
+    releaseLock: async () => {
+      calls.push("release");
+    },
+  });
+  assert.deepEqual(calls, ["close"]);
+  gate.reject(failure);
+  await assert.rejects(release, (error) => error === failure);
+  assert.deepEqual(calls, ["close"]);
+});
+
 void test("focused lifecycle selection resolves setup without claiming it", () => {
   const selection = resolveDesktopSelection({
     scenarios: ["native-reviewed-installed-game-removal"],
@@ -2388,6 +2449,29 @@ void test("large lifecycle profiles receive a bounded profile-scale watchdog", (
   assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ profile: "full" })), 600_000);
 });
 
+void test("isolated reviewed backup chains retain the finite lifecycle allowance", () => {
+  for (const scenarios of [
+    ["native-reviewed-backup-restore-and-delete"],
+    ["native-game-return-continuity", "native-reviewed-backup-restore-and-delete"],
+    ["native-reviewed-installed-game-removal"],
+    [
+      "native-interrupted-preparation-recovery",
+      "native-reviewed-steam-entry-add-and-remove",
+      "native-reviewed-steam-batch-add",
+      "native-reviewed-installed-game-removal",
+      "native-reviewed-source-reference-removal",
+    ],
+  ]) {
+    assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ scenarios })), 600_000);
+  }
+  assert.equal(
+    desktopHarnessDeadlineMs(
+      resolveDesktopSelection({ scenarios: ["native-game-return-continuity"] }),
+    ),
+    180_000,
+  );
+});
+
 void test("backup success-focus acceptance is isolated and exact-selection-only", () => {
   const id = "native-backup-delete-focus";
   for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
@@ -2604,6 +2688,23 @@ void test("selected setup identities admit both replacements only in the opt-in 
   const ordinaryCatalog = json(await readFile(ordinary.catalogPath, "utf8"));
   assert.deepEqual(object(ordinaryCatalog).source_catalog, object(original).source_catalog);
 });
+void test("known native fixture conflicts refuse before launch, including transitive prerequisites", () => {
+  for (const scenarios of [
+    ["native-staged-update-composition", "native-preparation-review-and-play"],
+    ["native-staged-update-composition", "native-ready-detail-composition"],
+    ["native-library-layout", "native-preparation-cancellation"],
+    ["native-library-layout", "native-interrupted-preparation-recovery"],
+  ]) {
+    assert.throws(() => resolveDesktopSelection({ scenarios }), /separate fresh libraries/);
+  }
+  for (const scenario of ["native-staged-update-composition", "native-library-layout"]) {
+    assert.ok(
+      resolveDesktopSelection({ scenarios: [scenario] }).selected_scenarios.includes(scenario),
+    );
+  }
+  assert.ok(resolveDesktopSelection({ profile: "full" }).selected_scenarios.length > 0);
+});
+
 import "../apps/desktop/scripts/desktop-qualification-history.native.test.mts";
 import "../apps/desktop/scripts/desktop-harness.native.test.mts";
 import "../apps/desktop/scripts/desktop-native-observations.native.test.mts";
@@ -2611,6 +2712,8 @@ import "../apps/desktop/scripts/desktop-webview-boundary.native.test.mts";
 import "../apps/desktop/scripts/desktop-windows-update.native.test.mts";
 import "../apps/desktop/scripts/desktop-macos-installed-update.native.test.mts";
 import "../apps/desktop/scripts/desktop-appimage-update.native.test.mts";
+import "../apps/desktop/scripts/desktop-application-update-journey.native.test.mts";
+import "../apps/desktop/scripts/desktop-windows-public-update.native.test.mts";
 import "../apps/desktop/scripts/desktop-readiness.native.test.mts";
 
 import "../apps/desktop/scripts/desktop-default-cover.native.test.mts";
