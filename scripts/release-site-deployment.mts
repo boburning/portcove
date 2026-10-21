@@ -760,9 +760,9 @@ export async function prepareCatalogSiteHandoffFromActualRepository(
       capacityDigest(subject) ||
     operation.destination !== "github-pages:boburning/portcove:complete-site" ||
     operation.kind !== "upload" ||
-    operation.outcome !== "recovered" ||
-    !isRecord(operation.recovery) ||
-    operation.recovery.resolution !== "effect-completed"
+    !["succeeded", "recovered"].includes(String(operation.outcome)) ||
+    (operation.outcome === "recovered" &&
+      (!isRecord(operation.recovery) || operation.recovery.resolution !== "effect-completed"))
   )
     throw new Error("exact settled catalog Pages subject required for GET-only recovery");
   const expected = inspectCatalogSitePublicationExpectation(operation.catalog_site_expectation);

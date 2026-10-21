@@ -228,6 +228,8 @@ void test("Pages recovery advances the current catalog generation without rewrit
         "2027-01-01T00:00:00Z",
       ]),
     ),
+    source_commit: "1".repeat(40),
+    source_tree: "2".repeat(40),
     operation_id: "6".repeat(64),
     publication: {
       evidence_sha256: "5".repeat(64),
@@ -271,4 +273,28 @@ void test("Pages recovery advances the current catalog generation without rewrit
       }),
     /component|published/i,
   );
+});
+
+void test("already succeeded Pages effect can recover only its lost metadata handoff without inventing recovery", () => {
+  const { input, operation, descriptor } = fixture();
+  const succeeded = { ...operation, outcome: "succeeded", recovery: null };
+  const handoff = inspectSettledPagesMetadataHandoff({
+    ...input,
+    controller: { capacity_attempt: { operation: succeeded } },
+  });
+  assert.ok(handoff);
+  assert.equal(handoff.operation.outcome, "succeeded");
+  assert.equal(handoff.operation.recovery, null);
+  assert.equal(
+    publishedPagesMetadataFromCurrentFacts(descriptor, handoff).operation_id,
+    operation.id,
+  );
+  for (const outcome of ["pending", "ambiguous"])
+    assert.equal(
+      inspectSettledPagesMetadataHandoff({
+        ...input,
+        controller: { capacity_attempt: { operation: { ...succeeded, outcome } } },
+      }),
+      null,
+    );
 });

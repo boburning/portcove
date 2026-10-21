@@ -81,7 +81,7 @@ void test("injected recovery join verifies existing public bytes and original ro
       kind: "upload",
       destination: "github-pages:boburning/portcove:complete-site",
       outcome: "recovered",
-      recovery: { resolution: "effect-completed" },
+      recovery: { resolution: "effect-completed" } as { resolution: string } | null,
       completed_effects: [
         { remote_identity: "retained original effect", evidence_sha256: "b".repeat(64) },
       ],
@@ -203,8 +203,8 @@ void test("injected recovery join verifies existing public bytes and original ro
         remaining: () => {},
         withCoordinatorDeadline: (_deadline: number, fn: () => unknown) => fn(),
         signing: {
-          requireActualCatalogRepositoryForRecovery: async () => ({
-            ...actual,
+          requireActualCatalogRepositoryForRecovery: async (value: object) => ({
+            ...assemblies.get(value),
             descriptor,
             deadline: performance.now() + 30000,
           }),
@@ -271,6 +271,18 @@ void test("injected recovery join verifies existing public bytes and original ro
       { assemblies },
     ) as (receipt: object) => Promise<unknown>;
     await assert.rejects(ordinary(receipt), /actual keyless catalog assembly/);
+    operation.outcome = "succeeded";
+    operation.recovery = null;
+    const succeededReceipt = await invoke(
+      {},
+      {},
+      [{}, {}, {}, {}],
+      parent,
+      performance.now() + 30000,
+    );
+    assert.equal(assemblies.get(succeededReceipt)!.recovery_only, true);
+    operation.outcome = "recovered";
+    operation.recovery = { resolution: "effect-completed" };
     badClock = true;
     await assert.rejects(
       invoke({}, {}, [{}, {}, {}, {}], parent, performance.now() + 30000),

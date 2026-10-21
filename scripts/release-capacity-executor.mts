@@ -834,9 +834,9 @@ async function recoverOwnedPublishedMetadataWithinScope(
       !operation ||
       operation.destination !== "github-pages:boburning/portcove:complete-site" ||
       operation.kind !== "upload" ||
-      operation.outcome !== "recovered" ||
-      !isRecord(operation.recovery) ||
-      operation.recovery.resolution !== "effect-completed" ||
+      !["succeeded", "recovered"].includes(String(operation.outcome)) ||
+      (operation.outcome === "recovered" &&
+        (!isRecord(operation.recovery) || operation.recovery.resolution !== "effect-completed")) ||
       !Array.isArray(operation.completed_effects) ||
       operation.completed_effects.length !== 1
     )

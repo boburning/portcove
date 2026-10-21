@@ -681,8 +681,9 @@ async function verifyPublishedRepositoryForRecovery(
       !operation ||
       operation.kind !== "upload" ||
       operation.destination !== "github-pages:boburning/portcove:complete-site" ||
-      operation.outcome !== "recovered" ||
-      operation.recovery?.resolution !== "effect-completed" ||
+      !["succeeded", "recovered"].includes(operation.outcome) ||
+      (operation.outcome === "recovered" &&
+        operation.recovery?.resolution !== "effect-completed") ||
       operation.completed_effects.length !== 1 ||
       digest(operation.catalog_publication?.descriptor) !== digest(admitted.facts.descriptor) ||
       digest(state.input.catalog_publication) !== digest(admitted.facts.descriptor)
@@ -737,7 +738,7 @@ async function verifyPublishedRepositoryForRecovery(
       cwd: scratch,
       env,
       windowsHide: true,
-      timeout: Math.min(90000, active(deadline)),
+      timeout: Math.min(90000, Math.floor(deadline - performance.now())),
       maxBuffer: 4 * 1024 ** 2,
       encoding: "utf8",
     });

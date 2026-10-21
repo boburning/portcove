@@ -40,9 +40,9 @@ export function inspectSettledPagesMetadataHandoff(input: Record<string, unknown
   const operation = capacity ? inspectCapacityOperation(capacity.operation) : null;
   if (
     !operation?.site_expectation ||
-    operation.outcome !== "recovered" ||
-    !isRecord(operation.recovery) ||
-    operation.recovery.resolution !== "effect-completed" ||
+    !["succeeded", "recovered"].includes(operation.outcome) ||
+    (operation.outcome === "recovered" &&
+      (!isRecord(operation.recovery) || operation.recovery.resolution !== "effect-completed")) ||
     operation.receipt_limit !== 1 ||
     operation.executor_identity?.role !== "site-publication" ||
     operation.completed_effects.length !== 1
