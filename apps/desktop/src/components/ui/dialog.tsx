@@ -17,7 +17,7 @@ const popupClassName = cn(
 
 // Review surfaces share their scrolling and spacing; unusual compositions stay local.
 const reviewLayoutClassName =
-  "max-h-[calc(100dvh-var(--space-8))] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none";
+  "max-h-[calc(100dvh-var(--space-8))] max-w-none [scroll-padding-block:var(--space-4)] [overflow-wrap:anywhere] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none";
 const reviewWidths = {
   compact: "w-[min(500px,90vw)]",
   standard: "w-[min(680px,90vw)]",

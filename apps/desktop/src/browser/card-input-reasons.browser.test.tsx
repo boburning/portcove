@@ -164,7 +164,9 @@ it.each([
     flushSync(() => root.render(<Fixture view={view} />));
     for (const [name, label, , reason] of cases) {
       const card = page.getByRole(view === "library" ? "article" : "button", {
-        name: new RegExp(`^${name}\\. ${label}\\.`),
+        name: new RegExp(
+          view === "library" ? `^${name}\\. ${label}\\.` : `^${name}\\s+${label}\\b`,
+        ),
       });
       await expect.element(card).toMatchTextContent(reason);
       await expect.element(card).toHaveAccessibleDescription(new RegExp(reason));
@@ -190,13 +192,18 @@ it.each([
     await expect
       .element(
         page.getByRole(view === "library" ? "article" : "button", {
-          name: /^Unknown\. Readiness unavailable\./,
+          name:
+            view === "library"
+              ? /^Unknown\. Readiness unavailable\./
+              : /^Unknown\s+Readiness unavailable\b/,
         }),
       )
       .toBeInTheDocument();
     for (const name of ["Ready", "Staged ready"]) {
       const card = page.getByRole(view === "library" ? "article" : "button", {
-        name: new RegExp(`^${name}\\. Ready to play\\.`),
+        name: new RegExp(
+          view === "library" ? `^${name}\\. Ready to play\\.` : `^${name}\\s+Ready to play\\b`,
+        ),
       });
       await expect.element(card).not.toHaveAccessibleDescription();
       const play = card.getByRole("button", { name: "Play", exact: true });

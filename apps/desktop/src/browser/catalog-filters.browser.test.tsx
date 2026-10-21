@@ -265,7 +265,7 @@ it("keeps host, setup method and membership on one context through details and r
   await userEvent.click(roleButton("Original disc referenced at launch (1)"));
   await closeFilters();
   expect(document.querySelectorAll('[data-detail-origin^="catalog:card:"]')).toHaveLength(1);
-  await userEvent.click(page.getByRole("button", { name: /^Windows game\./ }));
+  await userEvent.click(page.getByRole("button", { name: /^Windows game\s/ }));
   const region = page.getByRole("region", { name: "Matching browsing contexts" });
   await expect.element(region).toBeInTheDocument();
   await expect
@@ -295,7 +295,7 @@ it.each(["dark", "light"])(
     await expect.element(roleButton("Filters (2)")).toHaveFocus();
     await expect.element(roleButton("Remove Windows filter")).toBeInTheDocument();
     await expect.element(roleButton("Remove Preview filter")).toBeInTheDocument();
-    await userEvent.click(page.getByRole("button", { name: /^Both game\./ }));
+    await userEvent.click(page.getByRole("button", { name: /^Both game\s/ }));
     await userEvent.click(roleButton("Back to catalog"));
     await expect.element(roleButton("Remove Windows filter")).toBeInTheDocument();
     flushSync(() => root.unmount());
@@ -360,7 +360,7 @@ it.each(["dark", "light"])(
     await expect.element(roleButton("Linux (0)")).toBeEnabled();
     await closeFilters();
     expect(document.querySelectorAll('[data-detail-origin^="catalog:card:"]')).toHaveLength(2);
-    await userEvent.click(page.getByRole("button", { name: /^Both game\./ }));
+    await userEvent.click(page.getByRole("button", { name: /^Both game\s/ }));
     await userEvent.click(roleButton("Back to catalog"));
     await expect.element(roleButton("Filters (2)")).toBeInTheDocument();
     flushSync(() => root.unmount());
@@ -407,7 +407,7 @@ it.each(["dark", "light"])(
     await userEvent.click(roleButton("Stable (2)"));
     await expect.element(roleButton("Finish setup (1)")).toHaveAttribute("aria-pressed", "true");
     await closeFilters();
-    await userEvent.click(page.getByRole("button", { name: /^Both game\./ }));
+    await userEvent.click(page.getByRole("button", { name: /^Both game\s/ }));
     await userEvent.click(roleButton("Back to catalog"));
     await expect.element(roleButton("Remove Missing BIOS filter")).toBeInTheDocument();
     flushSync(() => root.unmount());
@@ -451,7 +451,7 @@ it.each(["dark", "light"])(
     await userEvent.click(roleButton("Matching update staged (1)"));
     await expect.element(roleButton("Available at last check (0)")).toBeEnabled();
     await closeFilters();
-    await userEvent.click(page.getByRole("button", { name: /^Windows game\./ }));
+    await userEvent.click(page.getByRole("button", { name: /^Windows game\s/ }));
     await userEvent.click(roleButton("Back to catalog"));
     await expect.element(roleButton("Remove Matching update staged filter")).toBeInTheDocument();
     flushSync(() => root.unmount());

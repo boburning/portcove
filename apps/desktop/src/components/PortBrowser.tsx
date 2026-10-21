@@ -824,6 +824,8 @@ function ContinueCard({
           size="lg"
           data-detail-origin={launchable ? undefined : `library:continue-review:${port.id}`}
           disabled={launchable && Boolean(action.busy)}
+          focusableWhenDisabled={launchable && Boolean(action.busy)}
+          aria-busy={launchable && Boolean(action.busy)}
           title={action.assessment.reason}
           onClick={() =>
             launchable ? launch(port.id) : details(port.id, `library:continue-review:${port.id}`)
@@ -937,7 +939,6 @@ function PortCard({
       </Button>
     );
   const favoriteToggle = renderFavoriteToggle();
-  const accessibleLabel = `${gameIdentityLabel(port)}. ${state.label}. ${status?.staged ? "Update downloaded. " : ""}${state.action}.`;
   if (view === "library")
     return (
       <LibraryEntry
@@ -968,7 +969,6 @@ function PortCard({
           `${className} h-full w-full`,
           "active:[transform:translateY(1px)] active:bg-[var(--color-bg-hover)] active:shadow-[var(--shadow-pressed)]",
         )}
-        aria-label={accessibleLabel}
         aria-describedby={setup || input ? setupDescriptionId : undefined}
         onClick={() => onSelect(port.id, detailOrigin)}
         data-source-drop-port-id={dropEligible ? port.id : undefined}
@@ -1354,6 +1354,8 @@ function PortCardStatus({
               size="sm"
               className="flex-1"
               disabled={Boolean(action.busy)}
+              focusableWhenDisabled={Boolean(action.busy)}
+              aria-busy={Boolean(action.busy)}
               title={action.assessment.reason}
               onClick={() => onLaunch?.(port.id)}
             >

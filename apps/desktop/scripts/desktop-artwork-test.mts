@@ -52,11 +52,13 @@ export async function artworkScenario({
         ownedRelative && !ownedRelative.startsWith("..") && !path.isAbsolute(ownedRelative),
         "Artwork tests require the owned qualification library",
       );
-      const portId = "zelda64-recomp";
-      const port = transportValue(
-        "port",
-        command(["catalog", "show", portId], required(bootstrap.library_root)),
-      );
+      // This owned fixture deliberately has no catalog artwork mapping. Real
+      // ports can gain a default cover without changing fallback semantics.
+      const portId = "portcove-install-fixture";
+      // The qualification fixture belongs to the running application's catalog,
+      // not the standalone CLI's ordinary catalog.
+      const catalog = transportValue("catalog", success(await invoke("get_catalog")));
+      const port = required(catalog.ports.find((candidate) => candidate.id === portId));
       const source = path.join(output, "owned-local-artwork.png");
       const bytes = Buffer.from(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGOQCFgAAAGMAQm4OT/aAAAAAElFTkSuQmCC",
@@ -77,28 +79,45 @@ export async function artworkScenario({
         });
         return transportValue("artwork_state", success(result));
       };
-      const fallbackVisual = async (selector: string) =>
+      const fallbackVisual = async (selector: string, paletteIndex: number) =>
         executeBrowserScript(
           browser,
-          (selector) => {
+          (selector, paletteIndex) => {
             const frame = document.querySelector<HTMLElement>(selector);
             if (!frame) throw new Error("Artwork frame unavailable");
-            const palette = [...frame.classList].find((name: string) =>
-              name.startsWith("palette-"),
-            );
+            const roles = ["neutral", "yellow", "blue", "indigo", "green", "red"];
+            const role = roles[paletteIndex];
+            if (!role) throw new Error("Unknown generated artwork palette");
+            const token = `--color-art-${role}`;
+            const computed = getComputedStyle(frame);
+            const probe = document.createElement("span");
+            probe.style.display = "none";
+            probe.style.backgroundColor = `var(${token})`;
+            document.body.append(probe);
+            let expectedBackground: string;
+            try {
+              expectedBackground = getComputedStyle(probe).backgroundColor;
+            } finally {
+              probe.remove();
+            }
             return {
               source: frame.dataset.artworkSource,
               initials: frame.querySelector(":scope > span")?.textContent,
-              palette,
+              palette: computed.getPropertyValue("--art-color").trim(),
+              expectedPalette: getComputedStyle(document.documentElement)
+                .getPropertyValue(token)
+                .trim(),
+              background: computed.backgroundColor,
+              expectedBackground,
             };
           },
           selector,
+          paletteIndex,
         );
       const expectFallbackVisual = async (selector: string, fallback: GeneratedArtworkFallback) => {
         const expected = {
           source: "generated_fallback",
           initials: fallback.initials,
-          palette: `palette-${fallback.palette_index}`,
         };
         const frame = await browser.wait(until.elementLocated(By.css(selector)), 10_000);
         await executeBrowserScript(
@@ -107,14 +126,20 @@ export async function artworkScenario({
           frame,
         );
         await browser.wait(async () => {
-          const actual = await fallbackVisual(selector);
+          const actual = await fallbackVisual(selector, fallback.palette_index);
           return (
             actual.source === expected.source &&
             actual.initials === expected.initials &&
-            actual.palette === expected.palette
+            actual.palette.length > 0 &&
+            actual.palette === actual.expectedPalette &&
+            actual.background === actual.expectedBackground
           );
         }, 10_000);
-        assert.deepEqual(await fallbackVisual(selector), expected);
+        const actual = await fallbackVisual(selector, fallback.palette_index);
+        assert.deepEqual({ source: actual.source, initials: actual.initials }, expected);
+        assert.ok(actual.palette.length > 0);
+        assert.equal(actual.palette, actual.expectedPalette);
+        assert.equal(actual.background, actual.expectedBackground);
       };
       const open = async () => {
         await observations.capture("before-reload");
@@ -140,12 +165,20 @@ export async function artworkScenario({
           );
           await browser.wait(async () => (await browser.findElements(choice)).length === 0, 15_000);
         }
+        // Keep the reload above paired with observations.begin(); a second
+        // reload here would discard its request observers.
         await click(By.xpath('//nav//button[contains(., "Find games")]'));
+        const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
+        await search.sendKeys(
+          Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
+          Key.BACK_SPACE,
+        );
         await click(
           By.xpath(
-            `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
+            '//div[@aria-label="Release channel filters"]//button[normalize-space(.)="All"]',
           ),
         );
+        await click(By.css(`[data-detail-origin="catalog:card:${port.id}"]`));
         const summary = await browser.findElement(
           By.xpath('//summary[normalize-space(.)="Change artwork"]'),
         );
