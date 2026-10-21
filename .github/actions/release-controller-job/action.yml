@@ -1,0 +1,106 @@
+name: Run one fixed authenticated controller job
+description: Same-process trusted worker with bounded Actions transport and retained settlement
+inputs:
+  operation:
+    description: Fixed operation literal from the immutable workflow
+    required: true
+  phase:
+    description: Fixed control phase literal, admission for the building operation
+    required: true
+  role_key:
+    description: Sole signing-role key, passed only to the fixed socket client
+    default: ""
+  role_password:
+    description: Sole signing-role password
+    default: ""
+outputs:
+  mode:
+    description: Inert coordinator route
+    value: ${{ steps.output.outputs.mode }}
+  stage:
+    description: Existing candidate phase
+    value: ${{ steps.output.outputs.stage }}
+  descriptor:
+    description: Existing reservation-bound aggregate request
+    value: ${{ steps.output.outputs.descriptor }}
+  context_locator:
+    description: Immutable context and attestation locators
+    value: ${{ steps.output.outputs.context_locator }}
+  role_locator:
+    description: Immutable role output and attestation locators
+    value: ${{ steps.output.outputs.role_locator }}
+  publication_locator:
+    description: Immutable publication result and attestation locators
+    value: ${{ steps.output.outputs.publication_locator }}
+  decision:
+    description: Actual settled worker disposition
+    value: ${{ steps.output.outputs.decision }}
+runs:
+  using: composite
+  steps:
+    - name: Start only the fixed verified worker with no signing or observer key
+      shell: bash
+      env:
+        PORTCOVE_JOB_OPERATION: ${{ inputs.operation }}
+        PORTCOVE_JOB_PHASE: ${{ inputs.phase }}
+      run: |
+        node --input-type=module <<'NODE'
+        import { spawn } from 'node:child_process';
+        import { open, writeFile, readFile } from 'node:fs/promises';
+        import path from 'node:path';
+        import { inspectControllerKeyProcess } from './scripts/release-controller-transport.mts';
+        const operation=process.env.PORTCOVE_JOB_OPERATION, phase=process.env.PORTCOVE_JOB_PHASE;
+        const roles=['coordinator','building','payload','release-publication','site-publication','tuf-releases','tuf-preview','tuf-stable','tuf-snapshot','tuf-timestamp'];
+        if (!roles.includes(operation) || phase!==(operation==='building'?'admission':operation) || process.platform!=='linux' || !path.isAbsolute(process.env.RUNNER_TEMP??'')) throw Error('fixed Linux worker route required');
+        const root=process.env.RUNNER_TEMP;
+        const log=await open(path.join(root,`controller-${operation}.log`),'wx',0o600);
+        try {
+          const child=spawn(process.execPath,['scripts/release-controller-job-bootstrap.mts',operation],{cwd:process.cwd(),env:process.env,stdio:['ignore',log.fd,log.fd],windowsHide:true});
+          await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',()=>reject(Error('fixed worker launch refused')));});
+          if (!Number.isSafeInteger(child.pid)||child.pid<1) throw Error('fixed worker PID missing');
+          const stat=await readFile(`/proc/${child.pid}/stat`,'utf8');
+          if(Buffer.byteLength(stat)>8192) throw Error('fixed worker identity exceeds bound');
+          const identity=inspectControllerKeyProcess(stat);
+          await writeFile(path.join(root,`controller-worker-${phase}-started.json`),JSON.stringify({pid:child.pid,start_ticks:identity.start_ticks,operation,phase}),{flag:'wx',mode:0o600});
+          child.unref();
+        } finally { await log.close(); }
+        NODE
+    - name: Service only fixed bounded handoffs under the original job clock
+      uses: ./.github/actions/release-controller-transport
+      with:
+        phase: ${{ inputs.phase }}
+        role_key: ${{ inputs.role_key }}
+        role_password: ${{ inputs.role_password }}
+    - name: Confirm the original trusted worker has exited before output
+      shell: bash
+      env:
+        PORTCOVE_JOB_OPERATION: ${{ inputs.operation }}
+        PORTCOVE_JOB_PHASE: ${{ inputs.phase }}
+      run: |
+        node --input-type=module <<'NODE'
+        import path from 'node:path';
+        import { readFile } from 'node:fs/promises';
+        import { performance } from 'node:perf_hooks';
+        import { setTimeout as delay } from 'node:timers/promises';
+        import { readControllerToolFile } from './scripts/release-controller-tools.mts';
+        import { controllerTransportClock, inspectControllerKeyProcess } from './scripts/release-controller-transport.mts';
+        const root=process.env.RUNNER_TEMP, phase=process.env.PORTCOVE_JOB_PHASE, operation=process.env.PORTCOVE_JOB_OPERATION;
+        const clock=JSON.parse((await readControllerToolFile(path.join(root,`controller-transport-${phase}-clock.json`),16384)).toString('utf8'));
+        const deadline=controllerTransportClock(clock,phase);
+        const started=JSON.parse((await readControllerToolFile(path.join(root,`controller-worker-${phase}-started.json`),4096)).toString('utf8'));
+        if (Object.keys(started).sort().join(',')!=='operation,phase,pid,start_ticks' || started.phase!==phase || started.operation!==operation || !Number.isSafeInteger(started.pid)||started.pid<1||typeof started.start_ticks!=='string'||!/^[1-9][0-9]*$/.test(started.start_ticks)) throw Error('fixed worker identity changed');
+        for (;;) {
+          if(performance.now()>=deadline) throw Error('original worker settlement deadline exhausted');
+          let current=null;
+          try { const bytes=await readFile(`/proc/${started.pid}/stat`,'utf8'); if(Buffer.byteLength(bytes)>8192)throw Error('fixed proc bound');current=inspectControllerKeyProcess(bytes); }
+          catch(error) { if(error?.code!=='ENOENT')throw error; }
+          if(!current||current.start_ticks!==started.start_ticks||current.state==='Z')break;
+          await delay(Math.min(25,Math.max(1,deadline-performance.now())));
+        }
+        NODE
+    - id: output
+      name: Emit inert locators only after producer and transport settlement
+      shell: bash
+      env:
+        PORTCOVE_JOB_OPERATION: ${{ inputs.operation }}
+      run: node scripts/release-controller-job-output.mts "$PORTCOVE_JOB_OPERATION"

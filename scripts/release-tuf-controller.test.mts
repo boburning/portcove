@@ -356,6 +356,7 @@ void test("complete job bootstrap refuses inherited cross-role credentials befor
     "TAURI_SIGNING_PRIVATE_KEY_PASSWORD",
     "PORTCOVE_TUF_RELEASES_KEY",
     "PORTCOVE_PROTECTION_APP_KEY",
+    "PORTCOVE_DISPATCH_APP_PRIVATE_KEY",
   ])
     assert.throws(
       () => assertControllerBootstrapEnvironment({ [key]: "inert-fixture" }),

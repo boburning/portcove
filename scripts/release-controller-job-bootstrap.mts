@@ -42,7 +42,7 @@ export function assertControllerBootstrapEnvironment(environment: NodeJS.Process
           "TAURI_SIGNING_PRIVATE_KEY_PASSWORD",
         ].includes(key) ||
           /^PORTCOVE_TUF_[A-Z]+_KEY$/u.test(key) ||
-          /^PORTCOVE_[A-Z_]+_APP_KEY$/u.test(key)),
+          /^PORTCOVE_[A-Z_]+_APP_(?:PRIVATE_)?KEY$/u.test(key)),
     )
   )
     throw new Error(

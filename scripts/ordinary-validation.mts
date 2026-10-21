@@ -299,6 +299,20 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ...[
+    "release-controller-configuration",
+    "release-controller-job",
+    "release-controller-job-bootstrap",
+    "release-controller-job-output",
+    "release-coordinator-namespace",
+  ].map((name): [string, string[]] => [
+    `scripts/${name}.mts`,
+    ["scripts/release-tuf-controller.test.mts", "scripts/release-controller-tools.test.mts"],
+  ]),
+  [
+    ".github/actions/release-controller-job/action.yml",
+    ["scripts/release-controller-tools.test.mts"],
+  ],
   ...["release-tuf-controller", "release-tuf-launch", "release-signing-job-budget"].map(
     (name): [string, string[]] => [
       `scripts/${name}.mts`,

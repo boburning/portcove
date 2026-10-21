@@ -41,6 +41,50 @@ import { launchFixedPayloadController } from "./release-controller-tool-launch.m
 
 const sourceRoot = fileURLToPath(new URL("..", import.meta.url));
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+void test("complete job composite has fixed worker syntax, exclusive key transport and settled outputs", async () => {
+  const bytes = await readFile(
+      path.join(sourceRoot, ".github/actions/release-controller-job/action.yml"),
+      "utf8",
+    ),
+    parsed = parseDocument(bytes);
+  assert.deepEqual(parsed.errors, []);
+  const action: unknown = parsed.toJS();
+  assert.ok(isRecord(action) && isRecord(action.runs));
+  assert.equal(action.runs.using, "composite");
+  const steps = action.runs.steps;
+  assert.ok(Array.isArray(steps));
+  assert.equal(steps.length, 4);
+  const pump = steps[1];
+  assert.ok(isRecord(pump) && isRecord(pump.with));
+  assert.equal(pump.uses, "./.github/actions/release-controller-transport");
+  assert.equal(pump.with.role_key, "${{ inputs.role_key }}");
+  for (const step of [steps[0], steps[2]]) {
+    assert.ok(isRecord(step) && typeof step.run === "string");
+    const source = step.run.match(/<<'NODE'\r?\n([\s\S]*?)\r?\nNODE\s*$/u)?.[1];
+    assert.ok(source, "actual fixed parent launch/settlement module must be present");
+    const checked = spawnSync(process.execPath, ["--check", "--input-type=module"], {
+      input: source,
+      encoding: "utf8",
+      timeout: 5000,
+      env: { SystemRoot: process.env.SystemRoot },
+    });
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.ok(isRecord(step.env));
+    assert.deepEqual(Object.keys(step.env).sort(), [
+      "PORTCOVE_JOB_OPERATION",
+      "PORTCOVE_JOB_PHASE",
+    ]);
+  }
+  assert.ok(isRecord(steps[3]));
+  assert.equal(
+    steps[3].run,
+    'node scripts/release-controller-job-output.mts "$PORTCOVE_JOB_OPERATION"',
+  );
+  assert.doesNotMatch(
+    bytes,
+    /sudo|\.vhd|create-github-app-token|PORTCOVE_CONTROL_APP_TOKEN|continue-on-error/u,
+  );
+});
 void test("fixed source launcher loads without node_modules and rejects arbitrary entries or imported custody before acquisition", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tool-launch-"));
   t.after(() => rm(root, { recursive: true, force: true }));
