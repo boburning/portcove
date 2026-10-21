@@ -57,7 +57,7 @@ void test("native installed descriptor binds fixed scheduler/platform and refuse
   }
 });
 
-void test("imported setup cannot acquire private custody; wrong actual file identity refuses before scheduler or native launch", async (t) => {
+void test("imported setup cannot acquire private custody; wrong file or unavailable ordinary host refuses before native launch", async (t) => {
   await assert.rejects(
     requireActualLinuxNativeScheduler({ kind: "actual-linux-native-scheduler" }),
     /actual Linux/,
@@ -77,11 +77,17 @@ void test("imported setup cannot acquire private custody; wrong actual file iden
   t.after(() => rm(root, { recursive: true, force: true }));
   const file = path.join(root, "setup.json");
   await writeFile(file, JSON.stringify(fixture()), { mode: 0o600 });
-  // Linux may refuse the shared temporary ancestor first; neither route can
-  // supply task/unit custody or release credentials from this inert fixture.
+  // A hosted/root Linux process is deliberately refused before file access.
+  // An ordinary local process may instead refuse the shared temporary ancestor
+  // or exact bytes. None supplies task/unit custody from this inert fixture.
+  const unavailableLocalHost =
+    process.platform === "linux" &&
+    (process.env.GITHUB_ACTIONS === "true" || process.getuid?.() === 0);
   await assert.rejects(
     readPinnedLocalNativeSetup(file, "f".repeat(64)),
-    /bytes changed|ownership or ancestry/,
+    unavailableLocalHost
+      ? /ordinary local Linux parent required/
+      : /bytes changed|ownership or ancestry/,
   );
 });
 
