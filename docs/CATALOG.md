@@ -655,6 +655,11 @@ preparation through generation, compilation and pre-publication packaging;
 individual commands do not renew it. Other cartridge recipes retain their
 20-minute allowance.
 Cancellation and the separate process-tree closure deadline are unchanged.
+Both captured private SDK inventories must exactly match the compiled profile
+before execution. Existing post-execution checks still rehash every captured
+input and compare its full path, size and hash inventory. The immediately
+following SDK manifest comparison uses that same verified inventory instead of
+rehashing those bytes twice; it is not a new filesystem observation.
 Each invocation preflights at most eight
 pure compiler targets, or two compiler targets when helpers are present, with
 at most eight helpers. RmlUi uses those same bounds after its compiler-options

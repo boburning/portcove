@@ -420,6 +420,7 @@ pub(super) fn prepare_install(
     compiler_options::apply(&project)?;
     let pristine = inventory(&project, &checkpoint)?;
     let inputs = BuildInputs::capture(work, super::RECIPE, &checkpoint)?;
+    local_profile::verify_captured(&inputs, &local, &checkpoint)?;
     let session = BuildSession {
         inputs: &inputs,
         work,
@@ -531,6 +532,7 @@ pub(super) fn prepare_install(
     let mut commands = executor.commands.into_inner();
     let sequence = executor.sequence.get();
     let inputs = BuildInputs::capture(work, super::RECIPE, &checkpoint)?;
+    local_profile::verify_captured(&inputs, &local, &checkpoint)?;
     let session = BuildSession {
         inputs: &inputs,
         work,
@@ -625,7 +627,8 @@ pub(super) fn prepare_install(
         ));
     }
     inputs.verify(&preparation.source, &checkpoint)?;
-    local_profile::verify_private(&local, &checkpoint)?;
+    // The preceding full rehash equals this manifest-bound capture.
+    local_profile::verify_captured(&inputs, &local, &checkpoint)?;
     let package = work.join("package");
     fs::create_dir(&package)?;
     for (from, name) in [

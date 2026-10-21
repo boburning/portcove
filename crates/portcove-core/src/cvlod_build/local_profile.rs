@@ -1,6 +1,6 @@
 //! The one reviewed installed VC/Windows SDK profile for this recipe.
 //! Host files are inputs only; every build uses authenticated private copies.
-use super::super::{FileIdentity, digest, inventory};
+use super::super::{BuildInputs, FileIdentity, digest, inventory};
 use crate::{PortcoveError, Result};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -263,6 +263,53 @@ fn copy_failure(error: impl std::fmt::Display) -> PortcoveError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cvlod_captured_sdk_requires_the_entire_fixed_manifest_and_unique_root() {
+        let root = PathBuf::from("fixture/local-toolchain");
+        let fixed = private_inventory(&|| Ok(())).unwrap();
+        assert_eq!(fixed.len(), 5621);
+        let mut inputs = BuildInputs {
+            recipe: super::super::RECIPE,
+            roots: vec![root.clone()],
+            identities: vec![fixed.clone()],
+        };
+        verify_captured(&inputs, &root, &|| Ok(())).unwrap();
+        for field in 0..3 {
+            let file = &mut inputs.identities[0][0];
+            match field {
+                0 => file.path.push_str(".changed"),
+                1 => file.size += 1,
+                _ => file.sha256 = "0".repeat(64),
+            }
+            assert!(verify_captured(&inputs, &root, &|| Ok(())).is_err());
+            inputs.identities[0] = fixed.clone();
+        }
+        inputs.identities[0].pop();
+        assert!(verify_captured(&inputs, &root, &|| Ok(())).is_err());
+        inputs.identities[0] = fixed.clone();
+        let mut extra = fixed[0].clone();
+        extra.path = "unexpected-root-file".into();
+        inputs.identities[0].push(extra);
+        assert!(verify_captured(&inputs, &root, &|| Ok(())).is_err());
+        inputs.identities[0] = fixed.clone();
+        inputs.roots[0] = PathBuf::from("fixture/wrong-root");
+        assert!(verify_captured(&inputs, &root, &|| Ok(())).is_err());
+        inputs.roots = vec![root.clone(), root.clone()];
+        inputs.identities.push(fixed.clone());
+        assert!(verify_captured(&inputs, &root, &|| Ok(())).is_err());
+        inputs.roots.pop();
+        assert!(verify_captured(&inputs, &root, &|| Ok(())).is_err());
+        inputs.identities.pop();
+        assert!(
+            verify_captured(&inputs, &root, &|| Err(PortcoveError::new(
+                crate::ErrorCode::Cancelled,
+                "fixture"
+            )))
+            .is_err()
+        );
+    }
+
     #[test]
     fn cvlod_local_copy_requires_exact_single_link_bytes_and_never_replaces_outputs() {
         let temp = tempfile::tempdir().unwrap();
@@ -294,13 +341,51 @@ mod tests {
     }
 }
 
-pub(super) fn verify_private(root: &Path, checkpoint: &dyn Fn() -> Result<()>) -> Result<()> {
-    for group in manifest()?.groups {
-        if inventory(&root.join(group.id), checkpoint)? != group.files {
-            return Err(PortcoveError::verification(
-                "private local toolchain changed",
-            ));
-        }
+/// Bind a freshly captured inventory to the compiled profile. This is not a
+/// filesystem observation: BuildInputs::verify still rehashes every captured root
+/// after execution. Together, those comparisons retain exact manifest identity
+/// without immediately hashing the same private SDK a second time.
+pub(super) fn verify_captured(
+    inputs: &BuildInputs,
+    root: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    checkpoint()?;
+    if inputs.recipe != super::RECIPE || inputs.roots.len() != inputs.identities.len() {
+        return Err(PortcoveError::verification(
+            "CVLoD captured toolchain binding differs",
+        ));
+    }
+    let matches: Vec<_> = inputs
+        .roots
+        .iter()
+        .zip(&inputs.identities)
+        .filter_map(|(candidate, files)| (candidate == root).then_some(files))
+        .collect();
+    let [observed] = matches.as_slice() else {
+        return Err(PortcoveError::verification(
+            "CVLoD captured toolchain root is not unique",
+        ));
+    };
+    if **observed != private_inventory(checkpoint)? {
+        return Err(PortcoveError::verification(
+            "private local toolchain changed",
+        ));
     }
     checkpoint()
+}
+
+fn private_inventory(checkpoint: &dyn Fn() -> Result<()>) -> Result<Vec<FileIdentity>> {
+    let mut files = Vec::new();
+    for group in manifest()?.groups {
+        checkpoint()?;
+        for mut file in group.files {
+            checkpoint()?;
+            file.path = format!("{}/{}", group.id, file.path);
+            crate::archive::validate_relative_path(&file.path, false)?;
+            files.push(file);
+        }
+    }
+    files.sort_by(|a, b| a.path.cmp(&b.path));
+    Ok(files)
 }
