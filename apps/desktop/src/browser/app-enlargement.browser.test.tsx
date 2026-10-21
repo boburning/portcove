@@ -43,19 +43,23 @@ it.for(["dark", "light"] as const)(
       expect(box.left).toBeGreaterThanOrEqual(workspace.left);
       expect(box.right).toBeLessThanOrEqual(workspace.right);
     }
-    const about = page
-      .getByRole("button", { name: "About Portcove", exact: true })
+    const settings = page
+      .getByRole("button", { name: "Settings", exact: true })
       .element() as HTMLElement;
-    about.scrollIntoView({ block: "nearest" });
+    settings.scrollIntoView({ block: "nearest" });
     expect(
-      about.getBoundingClientRect().bottom,
-      "sidebar footer must remain reachable",
+      settings.getBoundingClientRect().bottom,
+      "Settings must remain reachable",
     ).toBeLessThanOrEqual(innerHeight + 1);
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(960);
     await page.screenshot({
       path: `../../../../outputs/uiux-game-titles/enlarged-shell-${theme}-960.png`,
     });
-    await userEvent.click(page.getByRole("button", { name: "About Portcove", exact: true }));
+    await userEvent.click(page.getByRole("button", { name: "Settings", exact: true }));
+    await page
+      .getByRole("navigation", { name: "Settings categories" })
+      .getByRole("button", { name: "About", exact: true })
+      .click();
     await expect
       .element(page.getByRole("heading", { name: "About Portcove", exact: true }).first())
       .toBeVisible();
@@ -105,5 +109,21 @@ it.for(["dark", "light"] as const)(
     await page.screenshot({
       path: `../../../../outputs/uiux-game-titles/enlarged-preparation-${theme}-960.png`,
     });
+    await page.getByRole("button", { name: "Prepare game data", exact: true }).click();
+    const leave = page.getByRole("button", { name: "Continue browsing", exact: true });
+    await expect.element(leave).toBeVisible();
+    await expect
+      .element(page.getByRole("heading", { name: "Prepare game data", exact: true }))
+      .toHaveFocus();
+    await userEvent.keyboard("{Tab}{Tab}{Tab}");
+    await expect.element(leave).toHaveFocus();
+    const leaveBox = leave.element().getBoundingClientRect();
+    expect(leaveBox.top).toBeGreaterThanOrEqual(0);
+    expect(leaveBox.bottom).toBeLessThanOrEqual(innerHeight);
+    await page.screenshot({
+      path: `../../../../outputs/uiux-game-titles/enlarged-preparation-running-${theme}-960.png`,
+    });
+    await userEvent.keyboard("{Enter}");
+    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
   },
 );

@@ -260,8 +260,8 @@ it("reviews without executing and binds explicit confirmation to the returned pl
   expect(reviewedFacts?.textContent).toContain(plan.inputs.source.path);
   expect(document.body.textContent).toContain("of free space before the game generates output");
   expect(document.body.textContent).toContain("previous version remains available for rollback");
-  expect(document.body.textContent).toContain("unfinished setup files kept for review");
-  expect(document.body.textContent).toContain("Do not launch the game from that window");
+  expect(document.body.textContent).toContain("working files for review in Activity");
+  expect(document.body.textContent).toContain("close it without launching the game");
   expect(document.activeElement?.textContent).toBe("Prepare game data");
   expect(document.activeElement?.id).toBe("preparation-review-title");
   await pressEscape();
@@ -361,4 +361,37 @@ it("does not carry a late review across a library or port switch", async () => {
   await act(async () => complete(plan));
   expect(document.body.textContent).not.toContain("E:/owned.iso");
   expect(run).not.toHaveBeenCalled();
+});
+
+it("can leave running preparation without cancellation or completion stealing focus", async () => {
+  vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(plan);
+  const cancel = vi.spyOn(desktopApi, "cancelOperation");
+  const onPrepared = vi.fn();
+  let finish!: (value: PreparationPlan["inputs"]["install"]) => void;
+  const run: RunPreparation = () =>
+    new Promise((resolve) => {
+      finish = resolve;
+    });
+  await root.rerender(
+    <PreparationControl
+      portId="sample"
+      generation={7}
+      disabled={false}
+      run={run}
+      onPrepared={onPrepared}
+    />,
+  );
+  await click("Review game preparation");
+  await click("Prepare game data");
+  await click("Continue browsing");
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  expect(document.activeElement).toBe(container.querySelector(".preparation-control"));
+  expect(cancel).not.toHaveBeenCalled();
+  const other = document.createElement("button");
+  other.textContent = "Other workspace action";
+  container.append(other);
+  other.focus();
+  await act(async () => finish(plan.inputs.install));
+  expect(onPrepared).not.toHaveBeenCalled();
+  expect(document.activeElement).toBe(other);
 });

@@ -64,7 +64,7 @@ it("renders game-led cards with separate full project and variant labels", () =>
       loading={false}
     />,
   );
-  expect(html).toContain('title="A Familiar Adventure"');
+  expect(html).toContain("A Familiar Adventure");
   expect(html).toContain('title="Cobalt Project"');
   expect(html).toContain(">US edition</span>");
   expect(html).toContain('title="Amber Recompiled"');

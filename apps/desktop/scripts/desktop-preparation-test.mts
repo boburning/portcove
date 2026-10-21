@@ -137,6 +137,7 @@ import {
   assertPrimaryReviewAction,
   captureAccessibilityReport,
   clickVisible,
+  chooseGameUpdateDisposition,
 } from "./desktop-review-controls.mts";
 import { readinessScenario } from "./desktop-readiness-test.mts";
 import { steamEntryScenario } from "./desktop-steam-entry-test.mts";
@@ -685,6 +686,7 @@ async function assertReviewedUpdateOutcomes({
       });
       let scenarioError;
       try {
+        await chooseGameUpdateDisposition(browser, "download");
         await clickVisible(browser, await browser.findElement(button("Review game update")));
         const review = await browser.wait(until.elementLocated(dialog), 15_000);
         await browser.wait(async () => (await review.getText()).includes(explanation), 5_000);
@@ -753,6 +755,7 @@ async function assertReviewedUpdateOutcomes({
       });
       let scenarioError;
       try {
+        await chooseGameUpdateDisposition(browser, "download");
         await clickVisible(browser, await browser.findElement(button("Review game update")));
         const review = await browser.wait(until.elementLocated(dialog), 15_000);
         const applyAction = await waitForReviewedUpdateAction(
@@ -768,7 +771,13 @@ async function assertReviewedUpdateOutcomes({
 
         await clickVisible(browser, applyAction);
         const outcome = await browser.wait(
-          until.elementLocated(By.css("[data-game-update-outcome]")),
+          until.elementLocated(
+            cancelled
+              ? By.css("[data-game-update-outcome]")
+              : By.xpath(
+                  '(//*[@data-invocation-id][starts-with(@aria-label,"Update game")]//*[@role="alert"])[last()]',
+                ),
+          ),
           5_000,
         );
         await browser.wait(
@@ -783,6 +792,11 @@ async function assertReviewedUpdateOutcomes({
               ? "couldn't confirm whether anything changed"
               : "No files were changed";
         assert.ok((await outcome.getText()).includes(consequence));
+        await browser.wait(
+          async () => (await browser.findElements(dialog)).length === 0,
+          5_000,
+          "Settled update outcome did not close its observation review",
+        );
         assert.equal((await browser.findElements(dialog)).length, 0);
         assert.ok(
           !(
@@ -808,6 +822,7 @@ async function assertReviewedUpdateOutcomes({
           path.join(output, `reviewed-update-outcome-${mutation}-accessibility.json`),
           artifacts,
         );
+        await chooseGameUpdateDisposition(browser, "download");
         await clickVisible(browser, await browser.findElement(button("Review game update")));
         await browser.wait(until.elementLocated(dialog), 5_000);
         await clickVisible(browser, await browser.findElement(button("Cancel review")));
@@ -841,6 +856,7 @@ async function assertReviewedUpdateOutcomes({
       assert.equal(observation.channels, 1);
       assert.equal(observation.restored, true);
     }
+    await chooseGameUpdateDisposition(browser, "download");
     await clickVisible(browser, await browser.findElement(button("Review game update")));
     await browser.wait(until.elementLocated(dialog), 5_000);
     await clickVisible(browser, await browser.findElement(button("Cancel review")));
@@ -1121,10 +1137,20 @@ export async function preparationScenarios({
       "Selected game files",
       "of free space before the game generates output",
       "previous version remains available for rollback",
-      "unfinished setup files kept for review",
-      "Do not launch the game from that window",
+      "can leave working files for review in Activity",
+      "Starting again keeps earlier unfinished work",
     ])
       assert.ok(preparationText.includes(expected), `preparation review omitted ${expected}`);
+    const windowGuidance = await browser.findElement(
+      By.xpath('//summary[normalize-space(.)="If setup opens another window"]'),
+    );
+    await windowGuidance.click();
+    assert.ok(
+      (await browser.findElement(preparationDialog).getText()).includes(
+        "close it without launching the game",
+      ),
+    );
+    await windowGuidance.click();
     const preparationLayout = await executeBrowserScript(browser, () => {
       const plan = document.querySelector(
         '[aria-labelledby="preparation-review-title"] .preparation-plan',
@@ -1296,7 +1322,10 @@ export async function preparationScenarios({
         return current &&
           (await current.isDisplayed()) &&
           (await current.getText()) === "Try launch" &&
-          (await current.isEnabled())
+          (await current.isEnabled()) &&
+          (await current.getAttribute("aria-disabled")) !== "true" &&
+          (await current.getAttribute("aria-busy")) !== "true" &&
+          (await executeBrowserScript(browser, (element) => element.isConnected, current))
           ? current
           : false;
       },
@@ -1339,7 +1368,7 @@ export async function preparationScenarios({
       throw error;
     }
 
-    await trial.click();
+    await clickVisible(browser, trial);
     await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
     await browser.findElement(By.css(".detail-back")).click();
@@ -1384,7 +1413,12 @@ export async function preparationScenarios({
         const launch = await current.findElements(
           By.xpath('.//button[normalize-space(.)="Try launch"]'),
         );
-        return launch.length === 1 && (await launch[0]!.isEnabled());
+        return (
+          launch.length === 1 &&
+          (await launch[0]!.isEnabled()) &&
+          (await launch[0]!.getAttribute("aria-disabled")) !== "true" &&
+          (await launch[0]!.getAttribute("aria-busy")) !== "true"
+        );
       },
       15_000,
       "Library launch must settle before the card composition check",
@@ -2011,11 +2045,11 @@ export async function preparationScenarios({
           assert.equal(hierarchy.actionInHero, true);
           assert.match(required(hierarchy.state), /Compatibility unconfirmed/);
           assert.deepEqual(hierarchy.groups, [
-            "About this port",
             "Installation and version",
             "Requirements",
             "Updates",
             "Saves and storage",
+            "About this port",
             "Compatibility and testing",
             "Project and release",
             "Artwork",
@@ -2095,18 +2129,29 @@ export async function preparationScenarios({
         Key.BACK_SPACE,
         port.name,
       );
-      const ready = await browser.findElement(
-        By.xpath(
-          '//div[@aria-label="Library filters"]//button[starts-with(normalize-space(.),"Ready (")]',
+      const readiness = await browser.findElement(
+        By.css('.collection-readiness-compact [role="combobox"]'),
+      );
+      await clickVisible(browser, readiness);
+      const ready = await browser.wait(
+        until.elementLocated(
+          By.xpath('//*[@role="option"][starts-with(normalize-space(.),"Ready (")]'),
         ),
+        5_000,
       );
       await browser.wait(
         async () => /^Ready \([1-9][0-9]*\)$/u.test(await ready.getText()),
         15_000,
         "Library readiness counts did not settle",
       );
-      const readyLabel = await ready.getText();
       await clickVisible(browser, ready);
+      const selectedReadiness = await readiness.findElement(By.css('[data-slot="select-value"]'));
+      await browser.wait(
+        async () => /^Ready \([1-9][0-9]*\)$/u.test(await selectedReadiness.getText()),
+        5_000,
+        "Library Ready choice did not commit",
+      );
+      const readyLabel = await selectedReadiness.getText();
       const card = await browser.wait(
         until.elementLocated(By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`)),
         15_000,
@@ -2176,7 +2221,7 @@ export async function preparationScenarios({
           const workspace = document.querySelector('main[data-focus-region="workspace"]');
           const search = document.querySelector<HTMLInputElement>("#port-search");
           const ready = document.querySelector(
-            '[aria-label="Library filters"] button[aria-pressed="true"]',
+            '.collection-readiness-compact [role="combobox"] [data-slot="select-value"]',
           );
           const card = element.closest("article.port-card");
           const bounds = card?.getBoundingClientRect();
@@ -2241,12 +2286,14 @@ export async function preparationScenarios({
   await scenario("native-game-update-review", async () => {
     const { port } = await seed("opengoal-jak1", "success");
     await open(port, false);
-    const updateControl = await browser.findElement(
-      By.css('section[aria-label="Review game update"]'),
+    await clickVisible(browser, await browser.findElement(button("Check for updates")));
+    const updateControl = await browser.wait(
+      until.elementLocated(By.css('section[aria-label="Review game update"]')),
+      15_000,
     );
     assert.equal(
       (await updateControl.findElements(By.css('[data-slot="select-trigger"]'))).length,
-      0,
+      1,
     );
     const before = await status(port.id);
     const activityBefore = (await invoke("get_activities")).value;
@@ -2259,7 +2306,7 @@ export async function preparationScenarios({
       5_000,
       "Game update review did not show its release confirmation",
     );
-    // A disposition is offered only after the current release has been reviewed.
+    // The immediate disposition is explicit; changing it requests a new bound plan.
     const initialReviewText = await review.getText();
     const keepForLater = await review.findElements(button("Review download for later"));
     if (keepForLater.length) {
@@ -3127,9 +3174,7 @@ export async function preparationScenarios({
         .click();
       const cancelledRow = await browser.wait(
         until.elementLocated(
-          By.xpath(
-            '//div[contains(@class, "activity-row") and contains(@class, "cancelled")][.//strong[normalize-space(.)="Game-data setup"]]',
-          ),
+          By.css(`.activity-row.cancelled[data-activity-id="${required(activity).id}"]`),
         ),
         15_000,
         "Cancelled preparation must remain discoverable after navigating away",

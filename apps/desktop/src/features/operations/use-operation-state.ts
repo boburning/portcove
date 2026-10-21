@@ -30,7 +30,7 @@ export type ReportError = (value: unknown, context?: InvocationContext) => void;
 
 export type Perform = <T>(
   name: string,
-  task: () => Promise<T>,
+  task: (reportEvent?: (event: OperationEvent) => void) => Promise<T>,
   options?: PerformOptions,
 ) => Promise<T | undefined>;
 
@@ -169,7 +169,7 @@ export function useOperationState(configuration: {
   const perform = useCallback(
     async <T>(
       name: string,
-      task: () => Promise<T>,
+      task: (reportEvent?: (event: OperationEvent) => void) => Promise<T>,
       options: PerformOptions = {},
     ): Promise<T | undefined> => {
       const context = options.context ?? defaultContext(name);
@@ -179,7 +179,7 @@ export function useOperationState(configuration: {
         active.current && (context.exclusionScope === "application" || isCurrent());
       if (!isCurrent()) return undefined;
       const pendingId = nextId();
-      const record: InvocationRecord = { id: pendingId, name, context, phase: "pending" };
+      let record: InvocationRecord = { id: pendingId, name, context, phase: "pending" };
       const conflict = pendingInvocationConflict(currentInvocations.current, context);
       if (conflict) {
         updateInvocations((current) =>
@@ -199,8 +199,34 @@ export function useOperationState(configuration: {
       let failure: unknown;
       let refreshFailure: unknown;
       let result: T | undefined;
+      let acceptingEvents = true;
       try {
-        result = await task();
+        result = await task((event) => {
+          if (!acceptingEvents || !isOwned()) return;
+          // This callback belongs to this invocation's API channel. Global events
+          // cannot assign identity, and a nested operation cannot replace its root.
+          if (
+            event.type === "started" &&
+            event.parent_operation_id === null &&
+            !record.context.activityId
+          ) {
+            record = { ...record, context: { ...record.context, activityId: event.operation_id } };
+            updateInvocations((current) => new Map(current).set(pendingId, record));
+          }
+          if (
+            retiredOperations.current.has(event.operation_id) ||
+            currentActivities.current.some(
+              (activity) => activity.id === event.operation_id && activityIsTerminal(activity),
+            )
+          ) {
+            retiredOperations.current.add(event.operation_id);
+            return;
+          }
+          setOperationEvents((current) => applyOperationEvent(current, event));
+          void refreshActivities(
+            event.type === "started" || event.type === "finished" ? "prompt" : "progress",
+          );
+        });
       } catch (value) {
         const mutation = failurePresentation(value)?.mutation_state;
         const quietCancellation =
@@ -209,6 +235,7 @@ export function useOperationState(configuration: {
         if (!quietCancellation)
           failure = value ?? new Error("The task failed without diagnostic details.");
       } finally {
+        acceptingEvents = false;
         if (isOwned()) {
           // Report an early task failure immediately, even if its independent
           // snapshot refresh is slow. Local exclusion lasts through readback.

@@ -549,11 +549,6 @@ function DetailBody({
           />,
         )}
       </div>
-      <DetailGroup title="About this port">
-        <p className="m-0 max-w-[72ch] leading-[var(--leading-relaxed)] text-pc-muted-foreground">
-          {port.summary}
-        </p>
-      </DetailGroup>
       {status?.active && (
         <DetailGroup title="Installation and version">
           <InstallationVersionSummary status={status} selectedChannel={selectedChannel} />
@@ -583,9 +578,7 @@ function DetailBody({
         busy={busy}
       />
       <details className="my-4">
-        <summary className="cursor-pointer py-2 text-sm font-medium">
-          File and filter details
-        </summary>
+        <summary className="cursor-pointer py-2 text-sm font-medium">File matching details</summary>
         {observations}
       </details>
       {!external && (
@@ -630,6 +623,11 @@ function DetailBody({
           actions={actions}
         />
       )}
+      <DetailGroup title="About this port">
+        <p className="m-0 max-w-[72ch] leading-[var(--leading-relaxed)] text-pc-muted-foreground">
+          {port.summary}
+        </p>
+      </DetailGroup>
       <DetailGroup title="Compatibility and testing">
         <CompatibilitySummary port={port} />
         <details>
@@ -972,16 +970,19 @@ function UpdatesGroup({
               : "There is no saved update check for this installation and channel. Review identifies the release before asking what to do."}
           </p>
           {!knownCandidate && <UpdateCheckAction busy={busy} check={actions.check} primary />}
-          <GameUpdateControl
-            key={`${port.id}:${libraryGeneration}:${status?.active?.id}:${status?.staged?.id}:${selectedChannel}:${policy}`}
-            portId={port.id}
-            generation={libraryGeneration}
-            policy={policy}
-            gameName={gameIdentityLabel(port)}
-            busy={Boolean(busy)}
-            perform={perform}
-            primary={knownCandidate}
-          />
+          {knownCandidate && (
+            <GameUpdateControl
+              key={`${port.id}:${libraryGeneration}:${status?.active?.id}:${status?.staged?.id}:${selectedChannel}:${policy}`}
+              portId={port.id}
+              generation={libraryGeneration}
+              policy={policy}
+              gameName={gameIdentityLabel(port)}
+              currentVersion={status?.active?.version}
+              busy={Boolean(busy)}
+              perform={perform}
+              primary={knownCandidate}
+            />
+          )}
           {knownCandidate && <UpdateCheckAction busy={busy} check={actions.check} />}
         </>
       )}
@@ -2022,6 +2023,7 @@ export function InstallAction({
 }) {
   const reviewButton = useRef<HTMLButtonElement>(null);
   const chooseButton = useRef<HTMLButtonElement>(null);
+  const actionRegion = useRef<HTMLDivElement>(null);
   const restoreFocus = useRef(false);
   const [choosing, setChoosing] = useState(false);
   useEffect(() => {
@@ -2061,7 +2063,7 @@ export function InstallAction({
   }
   const action = plan ? installPlanActionLabel(plan.action) : undefined;
   return (
-    <>
+    <div ref={actionRegion} tabIndex={-1} role="group" aria-label="Installation actions">
       <div
         className={cn(
           plan ? "hidden" : "actions primary-actions mt-[16px] flex flex-wrap gap-[8px]",
@@ -2092,7 +2094,7 @@ export function InstallAction({
         >
           <DialogContent
             showCloseButton={false}
-            finalFocus={reviewButton}
+            finalFocus={() => (busy === "install" ? actionRegion.current : reviewButton.current)}
             portaled={portaled}
             reviewSize="standard"
             aria-describedby="install-review-description"
@@ -2128,6 +2130,11 @@ export function InstallAction({
               </p>
             )}
             <DialogFooter className="mt-4">
+              {busy === "install" && (
+                <Button data-focusable variant="outline" onClick={dismiss}>
+                  Continue browsing
+                </Button>
+              )}
               {openLibraryStorage && usesLibraryOutput(plan) && installSpaceBlocked(plan) && (
                 <Button
                   data-focusable
@@ -2167,7 +2174,7 @@ export function InstallAction({
           </DialogContent>
         </Dialog>
       )}
-    </>
+    </div>
   );
 }
 
@@ -2229,7 +2236,7 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
       ? "Local copy needs checking"
       : "Local release already checked";
   return (
-    <div className="install-plan mt-[16px] grid grid-cols-1 [align-items:end] gap-[18px] rounded-pc-lg border border-[var(--color-interactive-border)] bg-[var(--color-interactive-subtle)] p-[14px] @min-[30rem]/detail:grid-cols-[1fr_auto]">
+    <div className="install-plan mt-[16px] grid grid-cols-1 [align-items:end] gap-[18px] rounded-pc-lg border border-pc-border bg-pc-surface p-[14px] @min-[30rem]/detail:grid-cols-[1fr_auto]">
       <div>
         <p className="eyebrow mb-[5px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
           INSTALL PLAN

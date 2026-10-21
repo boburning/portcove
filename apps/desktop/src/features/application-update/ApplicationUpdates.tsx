@@ -755,7 +755,9 @@ function ApplicationUpdateCheckPanel({
         )}
       </div>
       <div role="group" aria-label="One-time update channel" className="flex flex-wrap gap-2">
-        <span className="self-center text-sm text-pc-muted-foreground">Channel for this check</span>
+        <span className="self-center text-sm text-pc-muted-foreground">
+          Channel for this check only
+        </span>
         {(["stable", "preview"] as const).map((channel) => (
           <Button
             key={channel}
@@ -1112,6 +1114,12 @@ export function ApplicationUpdateSettings(
         <h3 id="application-preferences-title" tabIndex={-1}>
           Future update behavior
         </h3>
+        {preferences.choice && (
+          <p className="m-0 text-sm text-pc-muted-foreground">
+            Saved default: {preferences.choice.channel === "preview" ? "Preview" : "Stable"}.
+            Changes below apply after saving; they do not change the check above.
+          </p>
+        )}
         {!preferences.choice && (
           <p className="application-update-consent rounded-pc-md border border-[var(--color-warning-border)] bg-pc-warning-subtle p-3 text-pc-warning-foreground">
             No application update choice is saved. Automatic checks remain off until you save one.
@@ -1120,7 +1128,7 @@ export function ApplicationUpdateSettings(
 
         <section className={updateChoiceClass} aria-labelledby="application-channel-label">
           <h3 id="application-channel-label" className="text-sm">
-            Channel
+            Default channel
           </h3>
           <div
             className="segmented grid [grid-auto-columns:1fr] [grid-auto-flow:column] rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-[3px]"

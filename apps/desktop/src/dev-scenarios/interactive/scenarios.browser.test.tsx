@@ -137,9 +137,13 @@ it("keeps unsaved update choices while switching Settings categories", async () 
   expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
 });
 
-it("opens About directly and keeps custom catalog trust under Advanced", async () => {
+it("opens About through Settings and keeps custom catalog trust under Advanced", async () => {
   await mount("library");
-  await page.getByRole("button", { name: "About Portcove", exact: true }).click();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Settings categories" })
+    .getByRole("button", { name: "About", exact: true })
+    .click();
   await expect
     .element(
       page
@@ -310,7 +314,7 @@ it("reviews preparation, preserves progress until cancellation, and shows contro
 
 it("shows recovery choices, accepts the platform-default choice, and resets to the original recovery state", async () => {
   await mount("recovery");
-  expect(document.body.textContent).toContain("Resume move");
+  expect(document.body.textContent).toContain("Continue location change");
   expect(document.body.textContent).toContain("Keep using original library");
   await click("Use platform default");
   expect(document.querySelector("#port-search")).not.toBeNull();

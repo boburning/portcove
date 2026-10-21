@@ -144,7 +144,7 @@ it("keeps the dialog open while a reviewed import is running", async () => {
 
 it("explains retained originals and space before reviewing a library move", async () => {
   await root.rerender(<LibraryMoveButton disabled={false} />);
-  await click("Move library");
+  await click("Change library location");
   expect(document.querySelector("#library-destination")?.getAttribute("data-slot")).toBe("input");
   expect(document.body.textContent).toContain(
     "The old folder is kept, so this does not free space on its drive.",
@@ -217,7 +217,7 @@ it.each([240, 320])(
         ],
       });
       await root.rerender(<LibraryMoveButton disabled={false} />);
-      await click("Move library");
+      await click("Change library location");
       const input = document.querySelector<HTMLInputElement>("#library-destination")!;
       await act(async () => {
         Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
@@ -226,7 +226,7 @@ it.each([240, 320])(
         );
         input.dispatchEvent(new Event("input", { bubbles: true }));
       });
-      await click("Review move");
+      await click("Review location change");
       await act(async () => {
         for (const details of document.querySelectorAll("[role=dialog] details")) {
           (details as HTMLDetailsElement).open = true;
@@ -268,7 +268,7 @@ it.each(["move", "import"] as const)(
         message: "Disk disconnected after copying",
       });
       await root.rerender(<LibraryMoveButton disabled={false} />);
-      await click("Move library");
+      await click("Change library location");
       const input = document.querySelector<HTMLInputElement>("#library-destination")!;
       await act(async () => {
         Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
@@ -277,8 +277,8 @@ it.each(["move", "import"] as const)(
         );
         input.dispatchEvent(new Event("input", { bubbles: true }));
       });
-      await click("Review move");
-      await click("Move to this folder");
+      await click("Review location change");
+      await click("Copy and switch");
     } else {
       await click("Restore from a library copy");
       await click("Choose file");
@@ -307,7 +307,7 @@ it("offers both move recovery outcomes only before activation", async () => {
   });
   await root.rerender(<LibraryMoveRecovery source="D:/Original" canKeepOriginal={true} />);
   expect(document.body.textContent).toContain(
-    "Resume the move to check the new copy and finish switching libraries.",
+    "Continue to check the new copy and finish switching libraries.",
   );
   expect(document.body.textContent).toContain(
     "Keep using the original library before the new copy is activated.",
@@ -324,10 +324,10 @@ it("fails closed after activation and offers resume only", async () => {
   } as Awaited<ReturnType<typeof desktopApi.recoverLibraryMove>>);
   await root.rerender(<LibraryMoveRecovery source="D:/Original" canKeepOriginal={false} />);
   expect(document.body.textContent).toContain(
-    "The new copy is already activated, so recovery can only resume the move.",
+    "The new copy is already active. Continue to finish the location change.",
   );
   expect(document.body.textContent).not.toContain("Keep using original library");
-  await click("Resume move");
+  await click("Continue location change");
   expect(recover).toHaveBeenCalledWith("D:/Original", false);
 });
 
@@ -357,14 +357,14 @@ it("prioritizes interrupted-transfer recovery and excludes generic reload until 
     />,
   );
   const buttons = [...document.querySelectorAll("button")];
-  expect(buttons.indexOf(button("Resume move"))).toBeLessThan(
+  expect(buttons.indexOf(button("Continue location change"))).toBeLessThan(
     buttons.indexOf(button("Retry startup")),
   );
   expect(document.body.textContent).toContain("Original library: D:/Original");
-  await click("Resume move");
+  await click("Continue location change");
   expect(recover).toHaveBeenCalledWith("D:/Original", false);
   for (const label of [
-    "Resume move",
+    "Continue location change",
     "Keep using original library",
     "Retry startup",
     "Choose library",
@@ -374,7 +374,7 @@ it("prioritizes interrupted-transfer recovery and excludes generic reload until 
   await click("Choose library");
   expect(choose).not.toHaveBeenCalled();
   await act(async () => fail({ message: "Original disk disconnected" }));
-  expect(button("Resume move").disabled).toBe(false);
+  expect(button("Continue location change").disabled).toBe(false);
   expect(button("Retry startup").disabled).toBe(false);
   expect(document.body.textContent).toContain("Original disk disconnected");
 });

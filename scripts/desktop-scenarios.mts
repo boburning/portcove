@@ -853,11 +853,16 @@ export function desktopHarnessDeadlineMs(
   // manual-content restore and its preparation/adoption prerequisites.
   const executed = selection.selected_scenarios.length + selection.setup_scenarios.length;
   const ordinary = Math.max(
-    executed > 8 ||
-      selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete") ||
-      selection.setup_scenarios.includes("native-reviewed-backup-restore-and-delete")
-      ? 10 * 60_000
-      : 3 * 60_000,
+    // The integrated full suite has 35 journeys plus two-theme capture matrices.
+    // Its previous ten-minute watchdog expired during still-progressing native
+    // file handling. Keep individual waits and cleanup unchanged.
+    executed > 24
+      ? 20 * 60_000
+      : executed > 8 ||
+          selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete") ||
+          selection.setup_scenarios.includes("native-reviewed-backup-restore-and-delete")
+        ? 10 * 60_000
+        : 3 * 60_000,
     selection.selected_scenarios.includes("native-library-move-invalidates-prior-reviews")
       ? 300_000
       : 0,

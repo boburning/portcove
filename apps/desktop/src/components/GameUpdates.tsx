@@ -8,6 +8,7 @@ import {
   errorText,
   failurePresentation,
   formatBytes,
+  isCancellation,
   releaseChannelPresentation,
 } from "../view-model";
 import { FailureDetails } from "./FailureDetails";
@@ -84,7 +85,6 @@ export function UpdatePolicyControl({
 function useGameUpdateControl({
   portId,
   generation,
-  policy,
   busy,
   perform,
   compact = false,
@@ -99,9 +99,10 @@ function useGameUpdateControl({
   compact?: boolean;
   primary?: boolean;
   gameName?: string;
+  currentVersion?: string | undefined;
   reviewScope?: { active: boolean; claim: () => void; current: () => boolean };
 }) {
-  const [activate, setActivate] = useState(compact || policy === "automatic");
+  const [activate, setActivate] = useState(true);
   const [reviewedPlan, setPlan] = useState<GameUpdatePlan>();
   const plan = reviewScope?.active === false ? undefined : reviewedPlan;
   const [pendingState, setPending] = useState(false);
@@ -113,6 +114,9 @@ function useGameUpdateControl({
   const [operation, setOperation] = useState<string>();
   const requests = useRef(new LatestRequestGeneration());
   const pendingRequest = useRef(false);
+  // A row's execution outlives its review scope. Another row taking the review
+  // must retire old review responses without preventing this execution settling.
+  const executionRequest = useRef<symbol | undefined>(undefined);
   const reviewButton = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const descriptionId = useId();
@@ -124,12 +128,13 @@ function useGameUpdateControl({
   useEffect(
     () => () => {
       requests.current.begin();
+      executionRequest.current = undefined;
     },
     [],
   );
   const dismissReview = () => setPlan(undefined);
   const review = async (useNow = activate) => {
-    if (pendingRequest.current || busy) return;
+    if (pendingRequest.current || executionRequest.current || busy) return;
     if (reviewScope && !reviewScope.current()) setPlan(undefined);
     reviewScope?.claim();
     pendingRequest.current = true;
@@ -157,6 +162,7 @@ function useGameUpdateControl({
   const apply = async () => {
     if (
       pendingRequest.current ||
+      executionRequest.current ||
       !(reviewScope?.current() ?? true) ||
       !plan ||
       !perform ||
@@ -165,6 +171,8 @@ function useGameUpdateControl({
       return;
     pendingRequest.current = true;
     const current = requests.current.begin();
+    const execution = Symbol();
+    executionRequest.current = execution;
     setPending(true);
     setApplying(true);
     setError(undefined);
@@ -174,7 +182,7 @@ function useGameUpdateControl({
     try {
       const result = await perform(
         "run reviewed game update",
-        async () => {
+        async (reportEvent) => {
           try {
             return await desktopApi.applyGameUpdate(
               portId,
@@ -182,6 +190,7 @@ function useGameUpdateControl({
               plan.plan_sha256,
               generation,
               (event) => {
+                reportEvent?.(event);
                 if (!acceptingEvents || !requests.current.isCurrent(current)) return;
                 if (event.type === "started") setOperation(event.operation_id);
                 if (event.type === "message") setMessage(event.message);
@@ -190,10 +199,15 @@ function useGameUpdateControl({
           } catch (value) {
             failed = true;
             if (requests.current.isCurrent(current)) {
-              setFailure({ value });
               setMessage(undefined);
+              const mutation = failurePresentation(value)?.mutation_state;
+              if (
+                isCancellation(value) &&
+                (mutation === "not_started" || mutation === "no_changes")
+              )
+                setFailure({ value });
             }
-            // The shared operation owner still handles refresh and the global error.
+            // The shared operation owner presents execution failures once.
             throw value;
           } finally {
             acceptingEvents = false;
@@ -222,7 +236,8 @@ function useGameUpdateControl({
         setMessage(undefined);
       }
     } finally {
-      if (requests.current.isCurrent(current)) {
+      if (executionRequest.current === execution) {
+        executionRequest.current = undefined;
         pendingRequest.current = false;
         setPending(false);
         setApplying(false);
@@ -232,6 +247,8 @@ function useGameUpdateControl({
     }
   };
   return {
+    activate,
+    setActivate,
     compact,
     gameName,
     reviewScope,
@@ -254,7 +271,10 @@ function useGameUpdateControl({
 }
 
 export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>[0]) {
+  const actionRegion = useRef<HTMLElement>(null);
   const {
+    activate,
+    setActivate,
     compact,
     gameName,
     reviewScope,
@@ -276,6 +296,11 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
   } = useGameUpdateControl(props);
   const renderReviewActions = (plan: GameUpdatePlan) => (
     <DialogFooter className="mt-4">
+      {applying && (
+        <Button data-focusable variant="outline" onClick={dismissReview}>
+          Continue browsing
+        </Button>
+      )}
       {installPlanActionLabel(plan.plan.action) ? (
         gameUpdateActionLabel(plan) ? (
           <Button
@@ -306,7 +331,11 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
         disabled={busy || pending}
         onClick={() => void review(!plan.activate)}
       >
-        {plan.activate ? "Review download for later" : "Review install now"}
+        {plan.activate
+          ? plan.plan.action === "download"
+            ? "Review download for later"
+            : "Review keeping for later"
+          : "Review install now"}
       </Button>
       <Button data-focusable variant="outline" disabled={busy || pending} onClick={dismissReview}>
         Cancel review
@@ -323,8 +352,14 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
         }}
       >
         <DialogContent
+          className="@container/update-review"
           showCloseButton={false}
-          finalFocus={reviewButton}
+          finalFocus={() => {
+            if (applying && actionRegion.current?.isConnected) return actionRegion.current;
+            if (reviewButton.current?.isConnected && !reviewButton.current.disabled)
+              return reviewButton.current;
+            return false;
+          }}
           reviewSize="standard"
           data-game-update-review
           aria-describedby={descriptionId}
@@ -335,7 +370,7 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
           <DialogDescription id={descriptionId} className="mb-4 leading-relaxed">
             Confirm the release and what happens to your active version before updating.
           </DialogDescription>
-          <GameUpdateReview plan={plan} />
+          <GameUpdateReview plan={plan} currentVersion={props.currentVersion} />
           {operation && (
             <OperationCancellation
               key={operation}
@@ -351,8 +386,20 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
     );
 
   return (
-    <section aria-label="Review game update">
+    <section ref={actionRegion} tabIndex={-1} aria-label="Review game update">
       {!compact && <h3>Game update</h3>}
+      {!plan && (
+        <ChoiceSelect
+          label="What would you like to do?"
+          value={activate ? "install" : "download"}
+          disabled={busy || pending}
+          onChange={(value) => setActivate(value === "install")}
+          options={[
+            { value: "install", label: "Install update" },
+            { value: "download", label: "Download for later" },
+          ]}
+        />
+      )}
       <Button
         ref={reviewButton}
         data-focusable
@@ -409,11 +456,17 @@ function gameUpdateActionLabel(plan: GameUpdatePlan) {
   return Object.hasOwn(labels, plan.plan.action) ? labels[plan.plan.action] : undefined;
 }
 
-function GameUpdateReview({ plan }: { plan: GameUpdatePlan }) {
+function GameUpdateReview({
+  plan,
+  currentVersion,
+}: {
+  plan: GameUpdatePlan;
+  currentVersion?: string | undefined;
+}) {
   const label = gameUpdateActionLabel(plan);
   if (!installPlanActionLabel(plan.plan.action))
     return (
-      <div className="install-plan mt-[16px] grid grid-cols-[1fr_auto] [align-items:end] gap-[18px] rounded-pc-lg border border-[var(--color-interactive-border)] bg-[var(--color-interactive-subtle)] p-[14px]">
+      <div className="install-plan mt-[16px] grid grid-cols-1 [align-items:end] gap-[18px] rounded-pc-lg border border-pc-border bg-pc-surface p-[14px] @min-[32rem]/update-review:grid-cols-2">
         <p className="mb-[5px]" role="alert">
           This version of Portcove cannot display this update plan. Review it again, or update
           Portcove if this continues.
@@ -421,9 +474,15 @@ function GameUpdateReview({ plan }: { plan: GameUpdatePlan }) {
       </div>
     );
   return (
-    <div className="install-plan mt-[16px] grid grid-cols-[1fr_auto] [align-items:end] gap-[18px] rounded-pc-lg border border-[var(--color-interactive-border)] bg-[var(--color-interactive-subtle)] p-[14px]">
+    <div className="install-plan mt-[16px] grid grid-cols-1 [align-items:end] gap-[18px] rounded-pc-lg border border-pc-border bg-pc-surface p-[14px] @min-[32rem]/update-review:grid-cols-2">
       <p className="mb-[5px]">
-        <strong className="block text-[length:var(--text-sm)]">{plan.plan.release.version}</strong>{" "}
+        <span className="mb-2 block text-pc-muted-foreground">
+          Current version: {currentVersion ?? "Unavailable"}
+        </span>
+        <span className="block text-pc-muted-foreground">Update candidate</span>
+        <strong className="block text-[length:var(--text-sm)]">
+          {plan.plan.release.version}
+        </strong>{" "}
         · {releaseChannelPresentation(plan.plan.channel).label}
       </p>
       <p className="mb-[5px]">
@@ -434,7 +493,7 @@ function GameUpdateReview({ plan }: { plan: GameUpdatePlan }) {
             : "No download; use the verified local release."}
       </p>
       {label && (
-        <p className="mb-[5px]">
+        <p className="col-span-full mb-[5px]">
           {plan.activate
             ? "The verified update becomes active and the current version remains available for rollback."
             : "This keeps the verified update for later. Your current version stays unchanged."}{" "}
@@ -451,6 +510,19 @@ function GameUpdateReview({ plan }: { plan: GameUpdatePlan }) {
           {notice}
         </p>
       ))}
+      {label && plan.activate && (
+        <div className="col-span-full border-t border-pc-border pt-3 [overflow-wrap:anywhere]">
+          <span className="block text-pc-muted-foreground">Saves and settings folder</span>
+          <bdi dir="ltr" className="block">
+            {plan.plan.output_location.user_data_root}
+          </bdi>
+          <p className="mt-2 mb-0">
+            Keeping the previous game version is separate from backing up saved data. Save
+            compatibility between versions is not checked here. Review backup options in Saves and
+            storage.
+          </p>
+        </div>
+      )}
       {plan.plan.shared_preferences && (
         <p className="col-span-full text-[length:var(--text-sm)]">
           This update requires acceptance of ReGaiden's shared Windows preferences at{" "}

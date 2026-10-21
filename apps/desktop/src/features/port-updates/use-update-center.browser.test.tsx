@@ -200,13 +200,13 @@ describe("port update read owner", () => {
     await act(async () => root.render(<CenterFixture statuses={[alpha, beta]} />));
     expect(state.outcomes).toEqual([]);
     expect(host.textContent).toContain("Update available at last check");
-    expect(host.textContent).toContain("Update results cover 2 of 2 installed games");
+    expect(host.textContent).toContain("Update results cover 2 of 2 installed ports");
 
     await act(async () => state.checkAll());
     expect(state.outcomes).toEqual([outcome(alpha), failed]);
     expect(host.textContent).toContain("Check failed");
-    expect(host.textContent).toContain("Update results cover 1 of 2 installed games");
-    expect(host.textContent).not.toContain("Update results cover 2 of 2 installed games");
+    expect(host.textContent).toContain("Update results cover 1 of 2 installed ports");
+    expect(host.textContent).not.toContain("Update results cover 2 of 2 installed ports");
   });
 
   it("keeps the newest result when overlapping checks complete out of order", async () => {
@@ -455,12 +455,12 @@ describe("port update read owner", () => {
     await act(async () => state.checkAll());
     expect(state.batchRead).toMatchObject({ status: "current", hasResults: true });
     expect(host.textContent).toContain("Check failed");
-    expect(host.textContent).toContain("Update results cover 1 of 2 installed games");
+    expect(host.textContent).toContain("Update results cover 1 of 2 installed ports");
     await act(async () => state.checkAll());
     expect(state.outcomes).toEqual(previous);
     expect(state.batchRead).toMatchObject({ status: "failed", hasResults: true });
     expect(host.textContent).toContain("Earlier check failed");
-    expect(host.textContent).toContain("Earlier update results cover 1 of 2 installed games");
+    expect(host.textContent).toContain("Earlier update results cover 1 of 2 installed ports");
     expect(host.textContent).toContain("Failed at last check");
   });
 

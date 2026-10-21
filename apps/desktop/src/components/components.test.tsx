@@ -326,8 +326,8 @@ describe("desktop components", () => {
       const check = html.indexOf("Check for updates</button>");
       const review = html.indexOf("Review game update</button>");
       expect(check).toBeGreaterThan(-1);
-      expect(review).toBeGreaterThan(-1);
-      expect(check < review).toBe(state !== "available");
+      expect(review >= 0).toBe(state === "available");
+      expect(review < check).toBe(true);
       const expected =
         state === "available"
           ? "was available at the saved check"
@@ -335,7 +335,7 @@ describe("desktop components", () => {
             ? "No update was found at the saved check"
             : "There is no saved update check for this installation and channel";
       expect(html).toContain(expected);
-      expect(html.indexOf(expected)).toBeLessThan(Math.min(check, review));
+      expect(html.indexOf(expected)).toBeLessThan(state === "available" ? review : check);
       expect(html).not.toContain(">This update<");
       expect(html.indexOf("Future update preferences")).toBeGreaterThan(Math.max(check, review));
     },
@@ -468,7 +468,7 @@ describe("desktop components", () => {
           onOpenSettings={vi.fn()}
         />,
       );
-      expect(html).toMatch(/<strong[^>]*>Activity<\/strong>/u);
+      expect(html).toMatch(/<span[^>]*>Activity<\/span>/u);
       expect(html).toContain("Unknown channel");
       expect(html).toContain("Update policy unavailable");
       expect(html).not.toContain("· Notify");
@@ -1283,7 +1283,6 @@ describe("desktop components", () => {
           installedCount={2}
           updateCount={1}
           activities={[]}
-          onAdopt={vi.fn()}
         />,
       ),
       renderToStaticMarkup(<PageHeader view="catalog" query="sample" setQuery={vi.fn()} />),
@@ -1309,17 +1308,14 @@ describe("desktop components", () => {
       ),
       renderToStaticMarkup(<SettingsView libraryRoot="C:/Portcove" />),
     ].join(" ");
-    expect(html).toContain("Copy existing installation");
+    expect(html).not.toContain("Copy existing installation");
     expect(html).toMatch(
       /<button[^>]*data-variant="selected"[^>]*aria-current="page"[^>]*>[^]*?Library[^]*?<\/button>/u,
-    );
-    expect(html).toMatch(
-      /<button[^>]*data-variant="outline"[^>]*class="[^"]*whitespace-normal[^"]*"[^>]*>[^]*?Copy existing installation[^]*?<\/button>/u,
     );
     expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*class="[^"]*bg-transparent/u);
     expect(html).toMatch(
       new RegExp(
-        `<button[^>]*data-variant="outline"[^>]*aria-label="Commands ${commandShortcut("K")}: open command palette"`,
+        `<button[^>]*data-variant="ghost"[^>]*aria-label="Commands ${commandShortcut("K")}: open command palette"`,
         "u",
       ),
     );
@@ -1449,7 +1445,6 @@ describe("desktop components", () => {
         installedCount={1}
         updateCount={2}
         activities={[...completed, current]}
-        onAdopt={vi.fn()}
       />,
     );
     expect(running).toContain('aria-label="Activity in progress, 2 updates available"');
@@ -1479,7 +1474,6 @@ describe("desktop components", () => {
         installedCount={1}
         updateCount={0}
         activities={[activity({ started_at: now - 24 * 60 * 60 })]}
-        onAdopt={vi.fn()}
       />,
     );
     expect(abandoned).toContain('aria-label="Activity needs attention"');
@@ -1497,7 +1491,6 @@ describe("desktop components", () => {
             failure: failureReport(),
           }),
         ]}
-        onAdopt={vi.fn()}
       />,
     );
     expect(failed).toContain('aria-label="Activity needs attention"');
@@ -1526,7 +1519,6 @@ describe("desktop components", () => {
           { ...base, id: "succeeded", status: "succeeded", started_at: 3, finished_at: 4 },
           base,
         ]}
-        onAdopt={vi.fn()}
       />,
     );
     expect(html).not.toContain("Activity needs attention");
@@ -1545,7 +1537,7 @@ describe("desktop components", () => {
     expect(html).toContain("Saved library");
     expect(html).toContain("Opening another library does not move your files");
     expect(html).toContain("The library you open uses its own game install folder settings");
-    expect(html).toContain("STORAGE LOCATIONS");
+    expect(html).toContain("Library and storage");
     expect(html).toContain("WHOLE PORTCOVE LIBRARY");
     expect(html).toContain("Use default library");
     expect(html).toContain("Each game’s install folder is reviewed separately");
@@ -2296,7 +2288,8 @@ describe("desktop components", () => {
       "No ports in your library yet. File requirements will appear here after you add a port.",
     );
     expect(noInstalledPorts).not.toMatch(/class="[^"]*source-requirements[^"]*\bcomplete\b/u);
-    expect(complete).toContain("Required file locations are saved");
+    expect(complete).toContain("No missing game-file requirements are recorded");
+    expect(complete).not.toContain("Required file locations are saved");
     expect(complete).toMatch(/class="[^"]*source-requirements[^"]*\bcomplete\b/u);
     expect(complete).toContain("No game files or BIOS files have been added yet");
     expect(singular).toContain("1 game-file requirement needs attention");
@@ -2551,7 +2544,7 @@ describe("desktop components", () => {
     expect(uninstalled.indexOf("Choose game files")).toBeLessThan(
       uninstalled.indexOf(port.summary),
     );
-    expect(uninstalled.indexOf(port.summary)).toBeLessThan(uninstalled.indexOf("Requirements"));
+    expect(uninstalled.indexOf("Requirements")).toBeLessThan(uninstalled.indexOf(port.summary));
     expect(uninstalled).not.toContain("Installation and version");
     expect(uninstalled).toContain("Add all required game files before installing");
     expect(uninstalled).toContain("Choose the required game file");
@@ -3245,11 +3238,11 @@ describe("desktop components", () => {
     );
     const headings = [
       'aria-label="Game actions"',
-      "About this port",
       "Installation and version",
       "Requirements",
       "Updates",
       "Saves and storage",
+      "About this port",
       "Compatibility and testing",
       "Project and release",
       "Technical details",
@@ -3261,7 +3254,7 @@ describe("desktop components", () => {
       previous = current;
     }
     expect(html).toContain("Installed version");
-    expect(html.indexOf(port.summary)).toBeLessThan(html.indexOf("Installation and version"));
+    expect(html.indexOf("Installation and version")).toBeLessThan(html.indexOf(port.summary));
     expect(html).toContain("Installed folder");
     expect(html).toContain(install.path);
     expect(html).toContain("Latest available for your settings");
@@ -3841,7 +3834,7 @@ describe("desktop components", () => {
     expect(html).toContain("Update available");
     expect(html).toContain("Stable · Notify me");
     expect(html).toContain("Check installed ports for updates");
-    expect(html).toContain("Recent activity");
+    expect(html).toContain("Task records");
     expect(html).toContain(`data-detail-origin="updates:installed:${port.id}"`);
     expect(html).toContain(`data-detail-origin="updates:activity:activity-1:target"`);
     expect(html).toContain("Game update");

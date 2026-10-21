@@ -111,38 +111,42 @@ export function NavigationHints({
   className?: string;
 }) {
   return (
-    <div
+    <details
       className={cn(
-        "controller-hint mt-4 flex flex-wrap justify-center gap-3 text-[length:var(--text-xs)] text-[var(--color-text-muted)]",
+        "controller-hint mt-4 text-[length:var(--text-xs)] text-[var(--color-text-muted)]",
         className,
       )}
-      role="group"
-      aria-label="Navigation help"
+      open={controller ? true : undefined}
     >
-      {controller && <strong>{controller}</strong>}
-      <span className="keyboard-navigation-hint in-data-[input-mode=controller]:hidden">
-        Arrow keys: Move
-      </span>
-      <span className="keyboard-navigation-hint in-data-[input-mode=controller]:hidden">
-        Enter: Select
-      </span>
-      <span className="keyboard-navigation-hint in-data-[input-mode=controller]:hidden">
-        {workspace ? "Esc: Menu" : "Esc: Back"}
-      </span>
-      <span className="gamepad-navigation-hint hidden in-data-[input-mode=controller]:inline">
-        D-pad or stick: Move
-      </span>
-      <span className="gamepad-navigation-hint hidden in-data-[input-mode=controller]:inline">
-        Confirm button: Select
-      </span>
-      <span className="gamepad-navigation-hint hidden in-data-[input-mode=controller]:inline">
-        {workspace ? "Back button: Menu" : "Back button: Back"}
-      </span>
-      {workspace && (
-        <span className="gamepad-navigation-hint hidden in-data-[input-mode=controller]:inline">
-          Shoulder buttons: Switch section
+      <summary data-focusable className="cursor-pointer py-2">
+        Navigation help
+      </summary>
+      <div role="group" aria-label="Navigation shortcuts" className="flex flex-wrap gap-3 py-2">
+        {controller && <strong>{controller}</strong>}
+        <span className="keyboard-navigation-hint in-data-[input-mode=controller]:hidden">
+          Arrow keys: Move
         </span>
-      )}
-    </div>
+        <span className="keyboard-navigation-hint in-data-[input-mode=controller]:hidden">
+          Enter: Select
+        </span>
+        <span className="keyboard-navigation-hint in-data-[input-mode=controller]:hidden">
+          {workspace ? "Esc: Menu" : "Esc: Back"}
+        </span>
+        <span className="gamepad-navigation-hint hidden in-data-[input-mode=controller]:inline">
+          D-pad or stick: Move
+        </span>
+        <span className="gamepad-navigation-hint hidden in-data-[input-mode=controller]:inline">
+          Confirm button: Select
+        </span>
+        <span className="gamepad-navigation-hint hidden in-data-[input-mode=controller]:inline">
+          {workspace ? "Back button: Menu" : "Back button: Back"}
+        </span>
+        {workspace && (
+          <span className="gamepad-navigation-hint hidden in-data-[input-mode=controller]:inline">
+            Shoulder buttons: Switch section
+          </span>
+        )}
+      </div>
+    </details>
   );
 }

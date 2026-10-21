@@ -1,5 +1,7 @@
 # Portcove frontend design system
 
+The current whole-product composition and coverage contract is [Integrated UI design](INTEGRATED-UI-DESIGN.md). Reuse the existing control, token, preference and domain-projection owners throughout; task-specific layouts do not introduce a second authority.
+
 ## Saved-location impact
 
 Saved-location removal uses an inline impact region within Game files. Its
@@ -16,6 +18,9 @@ selector. The heading counts entries, including separate ports of one original
 game. Search, readiness, Favorites and declared filters share the retrieval area;
 Favorites is independent of readiness. View and Add games sit alongside them.
 Filtered results state the visible and total entry counts with one reset action.
+Below 46em of collection width, a named Readiness choice replaces the wide
+readiness button group; Favorites remains independent. The hidden presentation
+does not add duplicate keyboard stops. Both presentations use the same query owner.
 First-use Library omits retrieval controls. Last played is a disclosure; Collection
 commands states that Steam selection includes entries hidden by filters.
 
@@ -26,7 +31,7 @@ stage. Artwork caps at 260px ordinarily, 180px below 820px window height and
 Unclassified and user artwork retain intrinsic padding and proportions; no logo
 crop classification is inferred. Missing artwork uses a quiet icon. Failed/stale
 feedback remains outside the identity button. Cover titles show two lines and
-port labels one at ordinary widths, expanding on keyboard focus. At an effective
+port labels wrap in full at ordinary widths. Titles expand on keyboard focus. At an effective
 collection width below 40em, identity wraps in full. Details and rows always expose
 the full distinguishing identity. Artwork geometry does not depend on title height.
 
@@ -179,7 +184,7 @@ build targets, operating-system minima or publication qualification.
 - `html[data-theme]` is the runtime theme marker and activates Tailwind `dark:` variants. `html[lang]`, `html[dir]`, and Base UI's `DirectionProvider` are now driven together by the [desktop localization owner](LOCALIZATION.md), including for portaled controls. New layout rules use logical properties and mixed-direction technical values keep an explicit direction.
 - Shared Button intent is explicit: neutral `default`, signature-red `primary` for the dominant Play/Install/Apply action, blue `selected`, and danger-semantic `destructive`. All retain the shared gold focus signal and 36px compact and 40px ordinary/large minimum heights. Dialog owns the semantic scrim without backdrop blur; Dialog and Select use logical positioning and spacing where direction matters.
 - Graphite and warm controller-gray surfaces carry most of the interface. Blue means selected or interactive, yellow means keyboard/controller focus or rare emphasis, green means healthy or complete, and red is reserved for Portcove's signature and dangerous or critical action.
-- Selected state and focus are deliberately different: blue and an inset double-line marker communicate state; a gold outline communicates the current keyboard or controller target. The marker remains present in both themes and forced colors without changing the control's dimensions.
+- Selected state and focus are deliberately different: blue and a bottom-line marker communicate state; a gold outline communicates the current keyboard or controller target. The marker remains present in both themes and forced colors without changing the control's dimensions.
 - Depth comes from borders, tonal steps, restrained inset treatment, and small shadows. Portcove does not use gradients, glass, blur, neon glow, scanlines, or pixel-interface typography.
 - The bundled Geist variable font is the intended default interface typeface, with an intentional monospace stack for technical content and offline system/script fallbacks coordinated with #203. The desktop must not make a network request to render its interface.
 - A second token interchange format is unnecessary while CSS has one runtime consumer. If a demonstrated second consumer later needs exchange, evaluate the then-current Design Tokens Community Group format without treating a community-group specification as a W3C Recommendation or manually maintaining competing CSS and JSON authorities.
@@ -450,8 +455,8 @@ the available width requires it. Library covers retain their existing bounded
 tracks and short-window sizing. Text-heavy workspaces retain a readable inner
 content width; that content limit must not constrain the scrolling viewport or
 leave an inactive scrolling area at the right of a wide window.
-Title space reserves three lines;
-the recognizable original-game title leads. A separate one-line project row
+Catalog identity wraps without title clipping;
+the recognizable original-game title leads. A separate wrapping project row
 follows it and precedes status. Relevant variants remain visible as wrapping
 labels in the state area, with the full identity in the accessible card name
 and details. Named collection-container queries expand text when its available
@@ -709,9 +714,10 @@ reset and filtering controls; hiding first-use tools must not clear preferences.
 
 Library's contextual Add games action and empty-state primary action open the
 same in-flow workspace. Keep source choice, current port identity and the next
-review action together. The initial stage list is orientation, not a claim that
-later checks passed. Files are checked against an explicitly selected port;
-folder search supplies multi-game recognition. Retain ambiguous/unsupported and
+review action together. Start with three intentions: choose a game or port,
+find games in a folder, or use an existing installation. Show only the selected
+route's actual inputs and requirements. Files are checked against an explicitly
+selected port; folder search supplies bounded recognition. Retain ambiguous/unsupported and
 unknown evidence in existing review treatments. Detail/setup completion uses the
 shared primary/recovery and focus contracts. Save drafts during normal navigation;
 opening another destination must not imply cancellation or task completion.
@@ -763,6 +769,48 @@ to its own operation, generation and accepted preview fingerprint.
 The details control contains the game title and Port: project label with an explicit text boundary. Its accessible name includes both visible labels. Missing Library artwork uses a non-text game symbol; artwork availability/staleness messages sit outside the button in entry feedback. Decorative monograms and changing artwork notices must not become omitted or unstable words in a control's visible label. Other artwork consumers retain their existing presentation. ArtworkFrame owns fitting/fallback rendering; the collection retains the same visibility-gated artwork request and one cache subscription.
 
 Restore review inventories the supplied content and destination; an existing empty folder can be planned. Review does not verify a complete recovery copy. Execution verifies recorded installed payloads before publication; manual copying and unrecorded external content remain independently unverified.
+
+## Task composition and navigation
+
+The four persistent destinations are Library, Find games, Activity and Settings.
+Add games owns the game/port, folder-search and existing-installation intentions;
+copy is an explicit action inside the last route. About remains a Settings
+category. Commands and its shortcut remain a quiet secondary control. Navigation
+help is a disclosure, expanded for a connected controller. Category panels stay
+mounted to preserve drafts; tighter shared Settings rows reduce repeated hierarchy.
+
+Detail starts with compact identity, state and its current action, followed by
+the installation and requirements. Current update decisions and saves/storage
+precede project background and diagnostics. Catalog identity wraps in full and
+installation version labels explicitly say Installed or External installation.
+
+Preparation groups Files used, What changes and During setup. Running preparation,
+managed installation and game-update observation can be left with Continue browsing;
+this is distinct from task cancellation. Focus returns to a connected contextual
+action region when the review trigger is disabled. The application invocation
+owner survives navigation. Only its owned API channel may bind an operation ID;
+global events cannot assign that identity. Exact terminal Activity readback retires
+late progress, even when it precedes the first channel event.
+
+Game update review starts with an explicit Install update / Download for later
+choice. Compact mode and future update policy do not choose the current action.
+Changing disposition re-plans before confirmation; a downloaded update remains
+separate from the current playable installation. Without an observed candidate,
+Check for updates is the entry point. Shared invocation feedback owns execution
+failures; a quiet, unchanged cancellation can remain local without duplicating an
+error banner.
+
+Activity groups authoritative attention IDs, running records and recent outcomes.
+Target identity leads each row. Unfinished setup opens a read-only file account;
+Review cleanup opens a separate, freshly loaded operation/generation-bound plan.
+Only that review offers deletion or record removal and its native final approval.
+Full locations, exclusions and interruption consequences remain readable.
+
+Change library location means copy, verify and switch, with the old copy retained.
+Its confirmation is Copy and switch. Save backups, metadata export, manual recovery
+copy and checked restore remain distinct. The full manual-copy and credential
+instructions stay available. Startup recovery has its own viewport scroll owner,
+including at enlargement, because the ordinary application shell may be unavailable.
 
 ## Read-only diagnostics
 

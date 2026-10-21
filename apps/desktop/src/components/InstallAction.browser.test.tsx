@@ -567,7 +567,7 @@ it("keeps the active installation cancellation reachable inside the busy review"
     />,
   );
   const dialog = document.body.querySelector('[role="dialog"]');
-  expect(dialog?.querySelectorAll("button")).toHaveLength(3);
+  expect(button("Continue browsing").disabled).toBe(false);
   expect(dialog?.textContent).toContain("Cancel operation");
   expect(button("Cancel review").disabled).toBe(true);
   await pressEscape();

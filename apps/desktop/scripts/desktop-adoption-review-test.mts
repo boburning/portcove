@@ -91,7 +91,9 @@ export async function adoptionReviewScenario({
     await browser.navigate().refresh();
     const { button, click } = reviewControls(browser);
     const dialog = By.css('[aria-labelledby="adopt-title"]');
-    const trigger = button("Copy existing installation");
+    await click(button("Add games"));
+    await click(By.css('button[aria-label="Use an existing installation"]'));
+    const trigger = button("Copy an existing installation");
     await click(trigger);
     await browser.wait(until.elementLocated(dialog), 15_000);
     await browser.actions().sendKeys(Key.ESCAPE).perform();

@@ -356,7 +356,10 @@ export async function interruptedPreparationScenario({
       ),
       10_000,
     );
-    assert.equal(await navigationStatus.getAttribute("aria-label"), "Activity needs attention");
+    assert.match(
+      (await navigationStatus.getAttribute("aria-label")) ?? "",
+      /^Activity needs attention(?:,|$)/u,
+    );
     await updatesNavigation.click();
     await browser.wait(
       findInterruptedRow,
@@ -401,9 +404,9 @@ export async function interruptedPreparationScenario({
       ),
       10_000,
     );
-    assert.equal(
-      await restartedNavigationStatus.getAttribute("aria-label"),
-      "Activity needs attention",
+    assert.match(
+      (await restartedNavigationStatus.getAttribute("aria-label")) ?? "",
+      /^Activity needs attention(?:,|$)/u,
     );
     await browser.findElement(By.xpath('//nav//button[contains(., "Activity")]')).click();
     const rows = await browser.wait(async () => {
@@ -503,6 +506,28 @@ export async function interruptedPreparationScenario({
     artifacts.push(recoveryImage);
     await clickVisible(browser, cleanupReview);
     const cleanupDialog = By.css('[aria-labelledby="preparation-cleanup-title"]');
+    const reviewRetainedCleanup = async (expectedPath: string) => {
+      const account = await browser.findElement(cleanupDialog);
+      assert.match(await account.getText(), /Files left by unfinished setup/);
+      assert.ok((await account.getText()).includes(expectedPath));
+      assert.equal(
+        (await account.findElements(controls.button("Delete setup working files"))).length,
+        0,
+      );
+      await controls.click(controls.button("Review cleanup…"));
+      await browser.wait(
+        async () => {
+          const actions = await account.findElements(
+            By.xpath(
+              './/button[normalize-space(.)="Delete setup working files" or normalize-space(.)="Clear unfinished setup record"]',
+            ),
+          );
+          return actions.length === 1 && (await required(actions[0]).isEnabled());
+        },
+        15_000,
+        "Cleanup requires a freshly loaded, actionable plan",
+      );
+    };
     await browser.wait(until.elementLocated(cleanupDialog), 15_000);
     await browser.wait(
       async () =>
@@ -543,7 +568,7 @@ export async function interruptedPreparationScenario({
             .findElements(By.css('[data-slot="dialog-footer"] button'))
         ).map((button) => button.getText()),
       ),
-      ["Keep files", "Review again"],
+      ["Close", "Review again"],
     );
     await access(required(privatePath));
     assert.ok(command(["doctor"]).repair.items.some((item) => item.operation_id === activity.id));
@@ -600,6 +625,7 @@ export async function interruptedPreparationScenario({
         (await browser.findElement(cleanupDialog).getText()).includes(required(privatePath)),
       15_000,
     );
+    await reviewRetainedCleanup(required(privatePath));
     const cleanupActionStyles = await assertDestructiveReviewAction(
       browser,
       await browser.findElement(controls.button("Delete setup working files")),
@@ -633,6 +659,8 @@ export async function interruptedPreparationScenario({
 
     await clickVisible(browser, cleanupReview);
     await browser.wait(until.elementLocated(cleanupDialog), 15_000);
+    await browser.wait(until.elementLocated(controls.button("Review cleanup…")), 15_000);
+    await reviewRetainedCleanup(required(privatePath));
     await browser.wait(until.elementLocated(controls.button("Delete setup working files")), 15_000);
     await writeFile(
       path.join(required(privatePath), "changed-after-review.bin"),
@@ -705,6 +733,8 @@ export async function interruptedPreparationScenario({
       ),
     );
     await browser.wait(until.elementLocated(cleanupDialog), 15_000);
+    await browser.wait(until.elementLocated(controls.button("Review cleanup…")), 15_000);
+    await reviewRetainedCleanup(required(privatePath));
     await browser.wait(
       async () =>
         (await browser.findElement(cleanupDialog).getText()).includes(required(privatePath)),
@@ -824,6 +854,7 @@ export async function interruptedPreparationScenario({
         (await browser.findElement(cleanupDialog).getText()).includes(required(journalOnlyPath)),
       15_000,
     );
+    await reviewRetainedCleanup(required(journalOnlyPath));
     const journalOnlyText = await browser.findElement(cleanupDialog).getText();
     assert.ok(journalOnlyText.includes("Clear unfinished setup record?"));
     assert.ok(journalOnlyText.includes("Recorded setup path to clear"));

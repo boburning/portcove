@@ -31,7 +31,7 @@ async function mount(journey: "library" | "collection" = "library") {
 }
 it("retains the selected game and search through details, navigation and closing the workspace", async () => {
   await mount();
-  await page.getByRole("button", { name: "Choose game files", exact: true }).click();
+  await page.getByRole("button", { name: "Choose a game or port", exact: true }).click();
   await page.getByRole("textbox", { name: "Find a game or port" }).fill("Harbor");
   await page.getByRole("combobox", { name: "Game and port" }).selectOptions("sample");
   await page.getByRole("button", { name: "Review setup for Harbor Adventure" }).click();
@@ -69,7 +69,7 @@ it("uses the selected profile's existing inspection, preserves failures and rest
     .spyOn(desktopApi, "inspectSourceIntake")
     .mockRejectedValue(new Error("Unsupported owned input"));
   await mount();
-  await page.getByRole("button", { name: "Choose game files", exact: true }).click();
+  await page.getByRole("button", { name: "Choose a game or port", exact: true }).click();
   await page.getByRole("combobox", { name: "Game and port" }).selectOptions("sample");
   await page.getByRole("button", { name: "Choose files to check…" }).click();
   await page.getByRole("button", { name: "Choose game files to check", exact: true }).click();
@@ -85,7 +85,7 @@ it.each(["dark", "light"])(
     document.documentElement.dataset.theme = theme;
     await page.viewport(240, 800);
     await mount();
-    await page.getByRole("button", { name: "Choose game files", exact: true }).click();
+    await page.getByRole("button", { name: "Choose a game or port", exact: true }).click();
     expect(document.querySelectorAll("#port-search")).toHaveLength(1);
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(241);
     await page.getByRole("textbox", { name: "Find a game or port" }).fill("not a catalog entry");

@@ -4,7 +4,8 @@ import { cleanup, render } from "vitest-browser-react";
 import App from "../App";
 import { desktopApi } from "../api";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
-import { preparation, workspace } from "../dev-scenarios/interactive/scenarios";
+import { activities, preparation, workspace } from "../dev-scenarios/interactive/scenarios";
+import type { ActivityRecord } from "../types";
 import { initializeLocalization, LocalizationProvider } from "../localization";
 import { fixtureValue } from "../test-fixtures";
 import "../styles/index.css";
@@ -122,3 +123,105 @@ it.each(["orchard", "summit"])(
     expect(document.body.textContent).not.toContain("You can now play");
   },
 );
+
+it("leaves preparation, visits another entry, and revisits the original task without completion taking focus", async () => {
+  await page.viewport(1366, 768);
+  transport = installInteractiveTransport("setup", (message) => {
+    throw Error(message);
+  });
+  let started = false;
+  let settled = false;
+  const record = (): ActivityRecord => ({
+    id: "owned-harbor-preparation",
+    operation: "prepare",
+    target_kind: "port",
+    target_id: "sample",
+    started_at: Math.floor(Date.now() / 1000),
+    finished_at: settled ? Math.floor(Date.now() / 1000) : null,
+    status: settled ? "succeeded" : "running",
+    cancellation: null,
+    failure: null,
+    message: null,
+  });
+  vi.spyOn(desktopApi, "activities").mockImplementation(async () => ({
+    ...activities,
+    records: started ? [record()] : [],
+    current_activity_ids: started && !settled ? [record().id] : [],
+  }));
+  vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(preparation);
+  vi.spyOn(desktopApi, "activityDiagnostic").mockResolvedValue([]);
+  const cancel = vi.spyOn(desktopApi, "cancelOperation");
+  let finish!: () => void;
+  vi.spyOn(desktopApi, "prepare").mockImplementation(async (_id, _plan, _generation, onEvent) => {
+    started = true;
+    onEvent({
+      schema_version: 2,
+      type: "started",
+      operation: "prepare",
+      operation_id: record().id,
+      parent_operation_id: null,
+      target: null,
+      sequence: 1,
+      timestamp_ms: Date.now(),
+    });
+    return new Promise((resolve) => {
+      finish = () => {
+        settled = true;
+        resolve(preparation.inputs.install);
+      };
+    });
+  });
+  const root = document.createElement("div");
+  root.id = "root";
+  document.body.append(root);
+  initializeLocalization(["en"]);
+  await render(
+    <LocalizationProvider api={desktopApi}>
+      <App />
+    </LocalizationProvider>,
+    { container: root },
+  );
+  await page
+    .getByRole("button", {
+      name: "View details for Harbor Adventure Port: Harbor Adventure",
+      exact: true,
+    })
+    .click();
+  await page.getByRole("button", { name: "Review game preparation", exact: true }).click();
+  await page.getByRole("button", { name: "Prepare game data", exact: true }).click();
+  await page.getByRole("button", { name: "Continue browsing", exact: true }).click();
+  await expect.poll(() => document.querySelector('[role="dialog"]')).toBeNull();
+  expect(cancel).not.toHaveBeenCalled();
+  await page.getByRole("button", { name: /^Library/ }).click();
+  await page
+    .getByRole("button", {
+      name: "View details for Orchard Quest Port: Orchard Quest",
+      exact: true,
+    })
+    .click();
+  const invocation = page.getByRole("group", {
+    name: "Prepare game data · Harbor Adventure",
+    exact: true,
+  });
+  await expect.element(invocation).toBeVisible();
+  await invocation.getByRole("button", { name: "View task in Activity", exact: true }).click();
+  await expect
+    .poll(
+      () => document.querySelector('[data-activity-id="owned-harbor-preparation"]')?.textContent,
+    )
+    .toContain("Harbor Adventure");
+  const task = document.querySelector<HTMLElement>(
+    '[data-activity-id="owned-harbor-preparation"]',
+  )!;
+  expect(task?.textContent).not.toContain("Orchard Quest");
+  const settings = page.getByRole("button", { name: "Settings", exact: true });
+  await settings.click();
+  const focus = document.activeElement;
+  finish();
+  await expect
+    .poll(() => document.querySelector("[data-invocation-id]")?.textContent)
+    .toContain("finished");
+  expect(document.activeElement).toBe(focus);
+  expect(document.body.textContent).toContain("Appearance");
+  expect(cancel).not.toHaveBeenCalled();
+});

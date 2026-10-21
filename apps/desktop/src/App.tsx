@@ -235,10 +235,7 @@ export function BootstrapRecovery({
   const importRoot = transferRecoveryRoot(error, "import_destination");
   const pending = recoveryPending || transferPending;
   return (
-    <main className="bootstrap-state bootstrap-error m-[0_auto] flex min-h-[100vh] w-[min(42rem,_calc(100%_-_2_*_var(--space-8)))] flex-col justify-center gap-4">
-      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)] [&:not(.eyebrow)]:text-[var(--color-text-muted)]">
-        Portcove could not start
-      </p>
+    <main className="bootstrap-state bootstrap-error m-[0_auto] flex h-dvh w-[min(42rem,_calc(100%_-_2_*_var(--space-4)))] min-w-0 flex-col [justify-content:safe_center] gap-4 overflow-y-auto py-6 wrap-anywhere">
       <h1>Portcove couldn’t start</h1>
       <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]" role="alert">
         {errorText(error)}
@@ -788,16 +785,6 @@ function Workspace({
               ).length
             }
             activities={data.activities}
-            onAdopt={() => ui.setAdoptOpen(true)}
-            onAbout={() => {
-              ui.setSettingsCategory("about");
-              setPrimaryView("settings");
-              window.requestAnimationFrame(() => {
-                const heading = document.getElementById("settings-about-heading");
-                heading?.scrollIntoView({ block: "start" });
-                heading?.focus({ preventScroll: true });
-              });
-            }}
           />
           <main
             className="min-h-0 w-full min-w-0 overflow-auto px-10 pt-8 pb-12 max-[75rem]:px-6 max-[75rem]:pt-7 max-[75rem]:pb-10 max-[65rem]:px-5"
@@ -1417,7 +1404,11 @@ function SelectedPortPanel({
       prepare={(expectedPlan, onEvent) =>
         operations.perform(
           "prepare game data",
-          () => desktopApi.prepare(model.port.id, expectedPlan, libraryGeneration, onEvent),
+          (reportEvent) =>
+            desktopApi.prepare(model.port.id, expectedPlan, libraryGeneration, (event) => {
+              reportEvent?.(event);
+              onEvent(event);
+            }),
           {
             context: {
               action: "Prepare game data",

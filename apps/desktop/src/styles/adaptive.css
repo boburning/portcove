@@ -1,4 +1,16 @@
 @layer utilities {
+  @container update-entry (max-width: 48em) {
+    .update-entry > .update-row {
+      grid-template-columns: 42px minmax(0, 1fr);
+      align-items: start;
+    }
+    .update-entry > .update-row > :nth-child(n + 3) {
+      grid-column: 2;
+    }
+    .update-entry .update-versions {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
   @media (height <= 680px) {
     [data-library-header] {
       margin-block-end: 12px;
@@ -47,7 +59,7 @@
     }
     .sidebar .nav-item {
       width: auto;
-      flex: 1 1 10rem;
+      flex: 1 1 8rem;
     }
     .sidebar-footer {
       margin-top: var(--space-3);

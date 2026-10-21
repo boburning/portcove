@@ -358,11 +358,11 @@ export async function hostPublicationScenario(context: Context) {
     const move = await arm("library_move_published");
     move.result.settings_diagnostics_before_transfer = settingsDiagnostics;
     await reviewControls(browser).click(button("Library and storage"));
-    await browser.findElement(button("Move library")).click();
+    await browser.findElement(button("Change library location")).click();
     await browser.wait(until.elementLocated(By.id("library-destination")), 15_000);
     await browser.findElement(By.id("library-destination")).sendKeys(destination);
-    await browser.findElement(button("Review move")).click();
-    const publish = await browser.wait(until.elementLocated(button("Move to this folder")), 15_000);
+    await browser.findElement(button("Review location change")).click();
+    const publish = await browser.wait(until.elementLocated(button("Copy and switch")), 15_000);
     await browser.wait(until.elementIsEnabled(publish), 15_000);
     await capture("library-move-reviewed-before-host-loss");
     await publish.click();
@@ -405,11 +405,11 @@ export async function hostPublicationScenario(context: Context) {
       success(await invoke("get_bootstrap_status")),
     );
     assert.equal(bootstrap.ready, false);
-    await browser.wait(until.elementLocated(button("Resume move")), 15_000);
+    await browser.wait(until.elementLocated(button("Continue location change")), 15_000);
     assert.equal((await browser.findElements(button("Keep using original library"))).length, 0);
     move.result.fresh_start_gate = bootstrap;
     await capture("library-move-fresh-start-recovery-gate");
-    await browser.findElement(button("Resume move")).click();
+    await browser.findElement(button("Continue location change")).click();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
       30_000,

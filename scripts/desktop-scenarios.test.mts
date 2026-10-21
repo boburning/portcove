@@ -2446,7 +2446,7 @@ void test("large lifecycle profiles receive a bounded profile-scale watchdog", (
     ),
     300_000,
   );
-  assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ profile: "full" })), 600_000);
+  assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ profile: "full" })), 1_200_000);
 });
 
 void test("isolated reviewed backup chains retain the finite lifecycle allowance", () => {
