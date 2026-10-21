@@ -70,6 +70,7 @@ export interface StoragePaths {
   temporary_directory: string;
   output_root: string;
   target_directory?: string;
+  rust_support_cache?: string;
   tauri_generated?: string;
   pnpm_store?: string;
   browser_cache?: string;
@@ -190,6 +191,7 @@ export function getPaths(
         `Cargo workspace ${metadataRoot} does not match script workspace ${projectRoot}. Run this checkout's storage tool with its own Cargo workspace.`,
       );
     paths.target_directory = path.resolve(metadata.target_directory);
+    paths.rust_support_cache = `${paths.target_directory}.portcove-rust-support`;
   }
   if (["all", "frontend"].includes(scope))
     Object.assign(paths, {
@@ -292,7 +294,14 @@ export function preflight<P extends object>(
   const physicalPaths: { [K in keyof P]: string } = { ...paths };
   for (const [label, candidate] of Object.entries(paths)) {
     if (typeof candidate !== "string") throw new TypeError("Storage paths must be strings");
-    Object.assign(physicalPaths, { [label]: resolvePhysicalPath(candidate) });
+    // Support preparation appends its suffix to the physical target exported to children.
+    const selected =
+      label === "rust_support_cache" &&
+      "target_directory" in paths &&
+      typeof paths.target_directory === "string"
+        ? `${resolvePhysicalPath(paths.target_directory)}.portcove-rust-support`
+        : candidate;
+    Object.assign(physicalPaths, { [label]: resolvePhysicalPath(selected) });
   }
   for (const [label, candidate] of Object.entries(physicalPaths)) {
     if (typeof candidate !== "string") throw new TypeError("Storage paths must be strings");
@@ -351,6 +360,7 @@ function printPaths(
   }
   console.log(`Portcove workspace: ${report.workspace}`);
   if (report.target_directory) console.log(`Cargo target:       ${report.target_directory}`);
+  if (report.rust_support_cache) console.log(`Rust support cache: ${report.rust_support_cache}`);
   console.log(`Temporary data:     ${report.temporary_directory}`);
   console.log(`Packaging output:   ${report.output_root}`);
   if (report.pnpm_store) console.log(`pnpm store:         ${report.pnpm_store}`);
@@ -540,7 +550,17 @@ function cleanCargoTarget(paths: StoragePaths) {
     windowsHide: true,
   });
   if (result.error) throw result.error;
-  return result.status ?? 1;
+  const status = result.status ?? 1;
+  if (status !== 0) {
+    console.error(
+      `Cargo cleanup did not complete for ${target}. No fallback deletion was attempted. ` +
+        "Preserve and review the remaining contents. If Cargo reports a missing or invalid " +
+        "ownership marker, do not create or replace CACHEDIR.TAG to adopt the directory. " +
+        "Continue in a fresh owned checkout on a volume that passes storage preflight, " +
+        "keeping the old target for separate ownership review. See docs/DEVELOPMENT-STORAGE.md.",
+    );
+  }
+  return status;
 }
 
 export function validateIncrementalCache(

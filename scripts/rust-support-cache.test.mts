@@ -14,8 +14,15 @@ function lastArg(args: readonly string[]): string {
   return value;
 }
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
-import { mkdtemp, readFile, rm, symlink, utimes, writeFile } from "node:fs/promises";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  realpathSync,
+  writeFileSync,
+} from "node:fs";
+import { mkdtemp, readFile, rename, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -37,7 +44,9 @@ const compiler = (
 });
 
 async function fixture() {
-  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-support-"));
+  // Normalize OS temporary-directory aliases (such as macOS /tmp) at the owned
+  // fixture boundary; configured cache paths still reject linked ancestors.
+  const root = realpathSync.native(await mkdtemp(path.join(os.tmpdir(), "portcove-rust-support-")));
   const source = path.join(root, "support.rs.txt");
   const target = path.join(root, "target");
   await writeFile(source, "fn main() {}\n");
@@ -79,7 +88,7 @@ function prepare(
   });
 }
 
-void test("cold build publishes once and warm hits copy verified bytes into fresh fixtures", async (t) => {
+void test("support-first cold and warm preparation leave Cargo's target absent and copy verified bytes", async (t) => {
   const state = await fixture();
   t.after(() => rm(state.root, { recursive: true, force: true }));
   const events: string[][] = [];
@@ -87,14 +96,133 @@ void test("cold build publishes once and warm hits copy verified bytes into fres
   assert.equal(first.outcome, "built");
   assert.equal(first.reason, "missing-cache-entry");
   assert.equal(events.length, 1);
+  assert.equal(existsSync(state.target), false);
+  assert.equal(existsSync(`${state.target}.portcove-rust-support`), true);
 
   writeFileSync(path.join(state.root, "first.exe"), "mutated fresh fixture\n");
   const second = prepare(state, { runSync: compilerRun(events), outputName: "second.exe" });
   assert.equal(second.outcome, "hit");
   assert.equal(second.fingerprint, first.fingerprint);
   assert.equal(events.length, 1);
+  assert.equal(existsSync(state.target), false);
   assert.match(String(await readFile(path.join(state.root, "second.exe"))), /^compiled:/u);
   assert.doesNotMatch(String(await readFile(path.join(state.root, "second.exe"))), /mutated/u);
+});
+
+void test("Cargo-first preparation preserves the existing target, marker, and unrelated contents", async (t) => {
+  const state = await fixture();
+  t.after(() => rm(state.root, { recursive: true, force: true }));
+  mkdirSync(path.join(state.target, "debug"), { recursive: true });
+  // This is only a preservation canary. The real Cargo smoke establishes that
+  // Cargo creates its own valid marker; preparation must never create one.
+  const marker = "Cargo-first marker preservation fixture\n";
+  await writeFile(path.join(state.target, "CACHEDIR.TAG"), marker);
+  await writeFile(path.join(state.target, "debug", "keep.txt"), "unrelated target output\n");
+  const events: string[][] = [];
+  const first = prepare(state, { runSync: compilerRun(events) });
+  const second = prepare(state, { runSync: compilerRun(events), outputName: "second.exe" });
+
+  assert.equal(first.outcome, "built");
+  assert.equal(second.outcome, "hit");
+  assert.equal(events.length, 1);
+  assert.deepEqual(readdirSync(state.target).sort(), ["CACHEDIR.TAG", "debug"]);
+  assert.deepEqual(readdirSync(path.join(state.target, "debug")), ["keep.txt"]);
+  assert.equal(await readFile(path.join(state.target, "CACHEDIR.TAG"), "utf8"), marker);
+  assert.equal(
+    await readFile(path.join(state.target, "debug", "keep.txt"), "utf8"),
+    "unrelated target output\n",
+  );
+});
+
+void test("default, relative, and absolute Cargo targets use independent adjacent support caches", async (t) => {
+  const state = await fixture();
+  t.after(() => rm(state.root, { recursive: true, force: true }));
+  const externalRoot = realpathSync.native(
+    await mkdtemp(path.join(os.tmpdir(), "portcove-rust-support-selected-")),
+  );
+  t.after(() => rm(externalRoot, { recursive: true, force: true }));
+  const selections = [
+    { name: "default", configured: undefined, target: state.target },
+    {
+      name: "relative",
+      configured: path.join("build caches", "selected target"),
+      target: path.join(state.root, "build caches", "selected target"),
+    },
+    {
+      name: "absolute",
+      configured: path.join(externalRoot, "selected target"),
+      target: path.join(externalRoot, "selected target"),
+    },
+  ];
+  const events: string[][] = [];
+  const fingerprints = new Set<string>();
+  for (const selection of selections) {
+    const environment = { PATH: "fixture-path", CARGO_TARGET_DIR: selection.configured };
+    const built = prepare(state, {
+      environment,
+      runSync: compilerRun(events),
+      outputName: `${selection.name}.exe`,
+    });
+    assert.equal(built.outcome, "built");
+    fingerprints.add(built.fingerprint);
+    assert.equal(existsSync(selection.target), false);
+    assert.equal(
+      existsSync(
+        path.join(
+          `${selection.target}.portcove-rust-support`,
+          "v1",
+          "host-tool-probe",
+          built.fingerprint,
+          "artifact",
+        ),
+      ),
+      true,
+    );
+    assert.equal(
+      prepare(state, {
+        environment,
+        runSync: compilerRun(events),
+        outputName: `${selection.name}-warm.exe`,
+      }).outcome,
+      "hit",
+    );
+    assert.equal(existsSync(selection.target), false);
+  }
+  assert.equal(events.length, selections.length);
+  assert.equal(fingerprints.size, 1);
+});
+
+void test("valid legacy caches remain untouched and unused inside an untagged Cargo target", async (t) => {
+  const state = await fixture();
+  t.after(() => rm(state.root, { recursive: true, force: true }));
+  const events: string[][] = [];
+  const initial = prepare(state, { runSync: compilerRun(events, "legacy") });
+  mkdirSync(state.target);
+  const legacyRoot = path.join(state.target, "portcove-rust-support");
+  // Seed a valid old-format cache using only this test's disposable artifacts.
+  await rename(`${state.target}.portcove-rust-support`, legacyRoot);
+  const legacyEntry = path.join(legacyRoot, "v1", "host-tool-probe", initial.fingerprint);
+  const legacyArtifact = await readFile(path.join(legacyEntry, "artifact"));
+  const legacyManifest = await readFile(path.join(legacyEntry, "manifest.json"));
+  await writeFile(path.join(state.target, "keep.txt"), "unknown target sentinel\n");
+
+  const rebuilt = prepare(state, {
+    runSync: compilerRun(events, "fresh"),
+    outputName: "fresh.exe",
+  });
+  assert.equal(rebuilt.outcome, "built");
+  assert.equal(rebuilt.reason, "missing-cache-entry");
+  assert.equal(rebuilt.fingerprint, initial.fingerprint);
+  assert.equal(events.length, 2);
+  assert.match(await readFile(path.join(state.root, "fresh.exe"), "utf8"), /^fresh:/u);
+  assert.deepEqual(await readFile(path.join(legacyEntry, "artifact")), legacyArtifact);
+  assert.deepEqual(await readFile(path.join(legacyEntry, "manifest.json")), legacyManifest);
+  assert.deepEqual(readdirSync(state.target).sort(), ["keep.txt", "portcove-rust-support"]);
+  assert.equal(
+    await readFile(path.join(state.target, "keep.txt"), "utf8"),
+    "unknown target sentinel\n",
+  );
+  assert.equal(existsSync(path.join(state.target, "CACHEDIR.TAG")), false);
 });
 
 void test("a concurrent valid publisher wins without reusing or retaining the losing candidate", async (t) => {
@@ -119,7 +247,7 @@ void test("a concurrent valid publisher wins without reusing or retaining the lo
   assert.equal(result.outcome, "built");
   assert.equal(winnerEvents.length, 1);
   assert.match(String(await readFile(path.join(state.root, "outer.exe"))), /^winner:/u);
-  const productRoot = path.join(state.target, "portcove-rust-support", "v1", "host-tool-probe");
+  const productRoot = path.join(`${state.target}.portcove-rust-support`, "v1", "host-tool-probe");
   assert.deepEqual(readdirSync(productRoot), [result.fingerprint]);
 });
 
@@ -173,8 +301,7 @@ void test("corrupt cached output is quarantined, rebuilt, and never copied", asy
   const runSync = compilerRun(events);
   const first = prepare(state, { runSync });
   const entry = path.join(
-    state.target,
-    "portcove-rust-support",
+    `${state.target}.portcove-rust-support`,
     "v1",
     "host-tool-probe",
     first.fingerprint,
@@ -194,8 +321,7 @@ void test("tampered manifest identity is rejected and rebuilt", async (t) => {
   const runSync = compilerRun(events);
   const first = prepare(state, { runSync });
   const manifestPath = path.join(
-    state.target,
-    "portcove-rust-support",
+    `${state.target}.portcove-rust-support`,
     "v1",
     "host-tool-probe",
     first.fingerprint,
@@ -211,35 +337,65 @@ void test("tampered manifest identity is rejected and rebuilt", async (t) => {
   assert.equal(events.length, 2);
 });
 
-void test("linked cache ownership paths fail closed before compilation", async (t) => {
-  const state = await fixture();
-  t.after(() => rm(state.root, { recursive: true, force: true }));
-  const outside = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-support-outside-"));
-  t.after(() => rm(outside, { recursive: true, force: true }));
-  mkdirSync(state.target, { recursive: true });
-  await symlink(
-    outside,
-    path.join(state.target, "portcove-rust-support"),
-    process.platform === "win32" ? "junction" : "dir",
-  );
-  let compiled = false;
-  assert.throws(
-    () =>
-      prepare(state, {
-        runSync: () => {
-          compiled = true;
-          return { status: 0 };
-        },
-      }),
-    /not an owned directory/u,
-  );
-  assert.equal(compiled, false);
+void test("linked and non-directory cache paths fail before mkdir or compilation", async (t) => {
+  for (const kind of ["link", "file"] as const) {
+    for (const level of ["ancestor", "cache", "version", "product"] as const) {
+      await t.test(`${kind} at ${level}`, async (t) => {
+        const state = await fixture();
+        t.after(() => rm(state.root, { recursive: true, force: true }));
+        const outside = path.join(state.root, "outside");
+        mkdirSync(outside);
+        await writeFile(path.join(outside, "keep.txt"), "outside sentinel\n");
+        const target =
+          level === "ancestor"
+            ? path.join(state.root, "ancestor", "missing", "target")
+            : state.target;
+        const unsafePath =
+          level === "ancestor"
+            ? path.join(state.root, "ancestor")
+            : path.join(
+                `${target}.portcove-rust-support`,
+                ...(level === "cache" ? [] : ["v1"]),
+                ...(level === "product" ? ["host-tool-probe"] : []),
+              );
+        mkdirSync(path.dirname(unsafePath), { recursive: true });
+        if (kind === "link")
+          await symlink(outside, unsafePath, process.platform === "win32" ? "junction" : "dir");
+        else await writeFile(unsafePath, "not a directory\n");
+        let compiled = false;
+        assert.throws(
+          () =>
+            prepare(state, {
+              environment: { ...state.environment, CARGO_TARGET_DIR: target },
+              runSync: () => {
+                compiled = true;
+                return { status: 0 };
+              },
+            }),
+          (error: unknown) => {
+            assert.ok(error instanceof Error);
+            assert.equal(
+              error.message,
+              `Rust support cache path is not an owned directory: ${unsafePath}`,
+            );
+            return true;
+          },
+        );
+        assert.equal(compiled, false);
+        assert.equal(existsSync(target), false);
+        assert.deepEqual(readdirSync(outside), ["keep.txt"]);
+        assert.equal(await readFile(path.join(outside, "keep.txt"), "utf8"), "outside sentinel\n");
+        if (kind === "link") assert.equal(lstatSync(unsafePath).isSymbolicLink(), true);
+        else assert.equal(await readFile(unsafePath, "utf8"), "not a directory\n");
+      });
+    }
+  }
 });
 
 void test("interrupted candidates are never reused and stale candidates are removed after publication", async (t) => {
   const state = await fixture();
   t.after(() => rm(state.root, { recursive: true, force: true }));
-  const productRoot = path.join(state.target, "portcove-rust-support", "v1", "host-tool-probe");
+  const productRoot = path.join(`${state.target}.portcove-rust-support`, "v1", "host-tool-probe");
   const interrupted = path.join(productRoot, `${"f".repeat(64)}.candidate-deadbeef`);
   mkdirSync(interrupted, { recursive: true });
   writeFileSync(path.join(interrupted, "artifact"), "untrusted interrupted bytes\n");
@@ -260,7 +416,7 @@ void test("failed compilation publishes no reusable entry", async (t) => {
     () => prepare(state, { runSync: () => ({ status: 1 }) }),
     /support product compilation failed/u,
   );
-  const productRoot = path.join(state.target, "portcove-rust-support", "v1", "host-tool-probe");
+  const productRoot = path.join(`${state.target}.portcove-rust-support`, "v1", "host-tool-probe");
   assert.deepEqual(readdirSync(productRoot), []);
 });
 
@@ -272,7 +428,7 @@ void test("retention keeps only the newest bounded set of immutable identities",
     await writeFile(state.source, `fn main() { println!("${index}"); }\n`);
     prepare(state, { runSync: compilerRun(events), outputName: `probe-${index}.exe` });
   }
-  const productRoot = path.join(state.target, "portcove-rust-support", "v1", "host-tool-probe");
+  const productRoot = path.join(`${state.target}.portcove-rust-support`, "v1", "host-tool-probe");
   assert.equal(
     readdirSync(productRoot).filter((name) => /^[a-f0-9]{64}$/u.test(name)).length,
     rustSupportCacheContract.retainedEntriesPerProduct,
@@ -389,8 +545,7 @@ void test("existing cache entries with missing manifest or artifact are quaranti
     const runSync = compilerRun(events);
     const initial = prepare(state, { runSync });
     const entry = path.join(
-      state.target,
-      "portcove-rust-support",
+      `${state.target}.portcove-rust-support`,
       "v1",
       "host-tool-probe",
       initial.fingerprint,
