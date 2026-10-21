@@ -100,6 +100,8 @@ function rethrowFailure(error: unknown): never {
   throw error;
 }
 import { executeBrowserScript } from "./browser-script.mts";
+import { observeVisibleTarget } from "./browser-readiness.mts";
+import { captureSettledVisual } from "../../../scripts/native-readiness.mts";
 import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 // Optional owned-fixture scenarios; all state stays under desktop-test's new output directory.
 import assert from "node:assert/strict";
@@ -1609,7 +1611,11 @@ export async function preparationScenarios({
             const state = await measure();
             assert.ok(state.entries >= 2 && state.query === "Jak", JSON.stringify(state));
             assert.ok(state.scrollWidth <= state.contentWidth + 1, JSON.stringify(state));
-            observations.push({ window: { width, height }, ...state });
+            observations.push({
+              requestedWindow: { width, height },
+              window: await browser.manage().window().getRect(),
+              ...state,
+            });
             const file = path.join(
               output,
               `library-${theme}-${layout === "Covers" ? "covers" : "rows"}-${width}.png`,
@@ -1624,6 +1630,79 @@ export async function preparationScenarios({
           for (const size of [125, 150, 175, 200, 250, 300, 400]) {
             await shortcut("+");
             await browser.wait(async () => (await measure()).zoom === String(size), 10_000);
+            if (size === 200) {
+              await browser.manage().window().setRect({ width: 1366, height: 768 });
+              const target = '.collection-entry button[aria-label^="More actions for "]';
+              const more = await browser.findElement(By.css(target));
+              await clickVisible(browser, more);
+              await browser.wait(until.elementLocated(By.css('[role="menu"]')), 5000);
+              await browser.actions().sendKeys(Key.ESCAPE).perform();
+              await browser.wait(
+                () =>
+                  executeBrowserScript(
+                    browser,
+                    (element) => document.activeElement === element,
+                    more,
+                  ),
+                5000,
+                "Closing the enlarged Library menu must restore its exact trigger",
+              );
+              for (const requestedWindow of [
+                { width: 1366, height: 768 },
+                { width: 1920, height: 1080 },
+                { width: 960, height: 640 },
+                { width: 1366, height: 768 },
+              ]) {
+                await browser.manage().window().setRect(requestedWindow);
+                const state = await measure();
+                const continuity = await executeBrowserScript(browser, launchContinuityPoint, more);
+                observations.push({
+                  phase: "focused-resize-200",
+                  requestedWindow,
+                  window: await browser.manage().window().getRect(),
+                  ...state,
+                  continuity,
+                });
+                assert.equal(state.zoom, "200");
+                assert.equal(state.query, "Jak");
+                assert.equal(state.layout, layout === "Covers" ? "covers" : "rows");
+                assert.equal(state.entries, 2);
+                assert.ok(state.scrollWidth <= state.contentWidth + 1, JSON.stringify(state));
+                assert.ok(
+                  continuity.originFocused && continuity.originConnected,
+                  JSON.stringify(continuity),
+                );
+                assert.ok(continuity.documentFocused, JSON.stringify(continuity));
+              }
+              // One scoped target avoids claiming that the whole scrollable collection
+              // fits above the fold. The screenshot still retains the native viewport.
+              const exactTarget = await more.getAttribute("data-detail-origin");
+              assert.ok(exactTarget, "The focused menu must have a stable Library return identity");
+              const selector = `button[data-detail-origin=${JSON.stringify(exactTarget)}]`;
+              const capture = await captureSettledVisual({
+                browser,
+                output,
+                name: `library-${theme}-${layout === "Covers" ? "covers" : "rows"}-200`,
+                scenario: "native-library-layout",
+                target: selector,
+                observeTarget: () =>
+                  executeBrowserScript(browser, observeVisibleTarget, selector, "visual" as const),
+                readiness: () =>
+                  executeBrowserScript(
+                    browser,
+                    (element) => ({
+                      ready:
+                        document.fonts.status === "loaded" &&
+                        Array.from(document.images).every((image) => image.complete) &&
+                        document.activeElement === element &&
+                        localStorage.getItem("portcove.appearance.interface-size") === "200",
+                    }),
+                    more,
+                  ),
+              });
+              artifacts.push(capture.image.path, capture.receipt);
+              await browser.manage().window().setRect({ width: 960, height: 640 });
+            }
           }
           await browser.wait(async () => (await measure()).zoom === "400", 10_000);
           const enlarged = await measure();
