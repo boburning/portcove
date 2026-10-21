@@ -121,10 +121,11 @@ void test("catalog availability policy identity needs no managed launch and stay
   const parsed = inspectCatalogSemanticOpportunity(opportunity);
   assert.equal(parsed.classification.definitions[0]?.policy_schema, 1);
   const report = prepareSemanticReviewHandoff(opportunity, review(opportunity));
-  assert.equal(
-    JSON.parse(report.proposed_request.body.output.summary).purpose,
-    "catalog-publication",
-  );
+  const summary = JSON.parse(report.proposed_request.body.output.summary) as Record<
+    string,
+    unknown
+  >;
+  assert.equal(summary.purpose, "catalog-publication");
   const wrongLaunch = structuredClone(opportunity);
   Object.assign(wrongLaunch.classification.definitions[0]!, {
     launch_target: "policy/official/post-client-catalog.launch.json",
