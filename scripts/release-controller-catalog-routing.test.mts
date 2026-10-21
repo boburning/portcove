@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdtemp, mkdir, writeFile, lstat, rm, rename, symlink } from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
+import { stripTypeScriptTypes } from "node:module";
+import { runInNewContext } from "node:vm";
 import { createHash } from "node:crypto";
 import { parseDocument } from "yaml";
 import { isRecord } from "./runtime-values.mts";
@@ -350,7 +354,7 @@ void test("installed two-purpose workflow remains mutually exclusive under uncha
     assert.equal(job["timeout-minutes"], 2);
     assert.equal(job.environment, `production-catalog-${role}`);
     assert.ok(Array.isArray(job.steps));
-    const step = job.steps.find((value) => isRecord(value) && value.id === "job");
+    const step: unknown = job.steps.find((value: unknown) => isRecord(value) && value.id === "job");
     assert.ok(isRecord(step) && isRecord(step.with));
     assert.equal(step.with.operation, `catalog-${role}`);
     assert.equal(
@@ -476,11 +480,8 @@ void test("actual workflow secret expressions never fall back to the other purpo
         .replace(/(?:needs\.admission|steps\.prepare)\.outputs\.publication_purpose/gu, "purpose")
         .replace(/secrets\.PORTCOVE_CATALOG_[A-Z_]+/gu, "catalog")
         .replace(/secrets\.PORTCOVE_[A-Z_]+/gu, "app");
-      const evaluate = new Function("purpose", "catalog", "app", `return (${selected});`) as (
-        purpose: string,
-        catalog: string,
-        app: string,
-      ) => unknown;
+      const evaluate = (purpose: string, catalog: string, app: string): unknown =>
+        runInNewContext(selected, { purpose, catalog, app }, { timeout: 1000 });
       assert.equal(Boolean(evaluate("catalog-publication", "", "APP")), false);
       assert.equal(Boolean(evaluate("application", "CATALOG", "")), false);
       assert.equal(evaluate("catalog-publication", "CATALOG", "APP"), "CATALOG");
@@ -488,5 +489,89 @@ void test("actual workflow secret expressions never fall back to the other purpo
       count++;
     }
     assert.ok(count > 0);
+  }
+});
+
+void test("actual fixed coordinator entry creates one fresh private work parent for BOTH named purposes before their factory", async () => {
+  const source = await readFile(new URL("./release-controller-job.mts", import.meta.url), "utf8"),
+    start = source.indexOf("export async function runFixedControllerJob("),
+    end = source.indexOf("/** This is a projection", start);
+  assert.ok(start >= 0 && end > start);
+  const body = source
+    .slice(start, end)
+    .replace("export ", "")
+    .replace('await import("./release-catalog-coordinator.mts")', "catalog")
+    .replace('await import("./release-coordinator-driver.mts")', "driverModule");
+  const parent = await mkdtemp(path.join(os.tmpdir(), "fixed-coordinator-work-"));
+  try {
+    for (const purpose of ["application", "catalog-publication"]) {
+      const root = path.join(parent, purpose),
+        privateRoot = path.join(parent, `${purpose}-private`);
+      await mkdir(root, { mode: 0o700 });
+      await mkdir(privateRoot, { mode: 0o700 });
+      const filename = path.join(privateRoot, "controller-coordinator.json"),
+        configuration = {
+          remote_configuration: { schema_version: 1, namespace: "portcove-fixture" },
+          tools: { artifact: "inert", bundle: "inert" },
+        };
+      await writeFile(filename, JSON.stringify(configuration), { flag: "wx", mode: 0o600 });
+      let calls = 0;
+      const factory = async (raw: unknown, work: string, deadline: number) => {
+        calls++;
+        assert.deepEqual(JSON.parse(JSON.stringify(raw)), configuration);
+        assert.equal(work, path.join(root, "work"));
+        assert.equal(deadline, 12345);
+        const stat = await lstat(work);
+        assert.equal(stat.isDirectory(), true);
+        assert.equal(stat.isSymbolicLink(), false);
+        if (process.platform !== "win32") assert.equal(stat.mode & 0o777, 0o700);
+        return { decision: "held", authority: "none" };
+      };
+      const refuse = () => {
+        throw new Error("wrong named purpose factory");
+      };
+      const entry = runInNewContext(stripTypeScriptTypes(body) + "\nrunFixedControllerJob", {
+        path,
+        performance,
+        process: { env: { PORTCOVE_EXECUTION_PURPOSE: purpose } },
+        root,
+        isRecord,
+        mkdir,
+        writeFile,
+        operation: (role: unknown) => {
+          assert.equal(role, "coordinator");
+          return role;
+        },
+        authority: async () => ({}),
+        temporary: () => privateRoot,
+        configPath: () => filename,
+        readControllerToolFile: (file: string) => readFile(file),
+        inspectControllerExecutionPurpose,
+        catalog: {
+          runFixedCatalogCoordinatorConfiguration:
+            purpose === "catalog-publication" ? factory : refuse,
+        },
+        driverModule: {
+          runFixedCoordinatorConfiguration: purpose === "application" ? factory : refuse,
+        },
+      }) as (role: string, deadline: number) => Promise<unknown>;
+      await entry("coordinator", 12345);
+      assert.equal(calls, 1);
+      await assert.rejects(entry("coordinator", 12345), { code: "EEXIST" });
+      assert.equal(calls, 1, "existing work is not adopted or passed to either factory again");
+      const original = path.join(root, "original-work");
+      await rename(path.join(root, "work"), original);
+      await symlink(
+        original,
+        path.join(root, "work"),
+        process.platform === "win32" ? "junction" : "dir",
+      );
+      await assert.rejects(entry("coordinator", 12345), { code: "EEXIST" });
+      assert.equal(calls, 1, "existing work symlink is refused before either named factory");
+      assert.equal((await lstat(path.join(root, "work"))).isSymbolicLink(), true);
+      assert.equal((await lstat(original)).isDirectory(), true);
+    }
+  } finally {
+    await rm(parent, { recursive: true, force: true });
   }
 });

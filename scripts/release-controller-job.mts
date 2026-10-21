@@ -162,34 +162,34 @@ export async function runFixedControllerJob(rawRole: unknown, phaseDeadline?: nu
     result = await (
       await import("./release-publication-controller.mts")
     ).runFixedPublicationEntry(filename, phaseDeadline);
-  else if (
-    inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) ===
-    "catalog-publication"
-  ) {
-    result = await (
-      await import("./release-catalog-coordinator.mts")
-    ).runFixedCatalogCoordinatorConfiguration(
-      configuration,
-      path.join(root, "work"),
-      phaseDeadline,
-    );
-  } else {
+  else {
     if (!isRecord(configuration)) throw new Error("fixed coordinator configuration unavailable");
     const work = path.join(root, "work");
+    // Both named factories require an existing private parent. Create it only
+    // once inside the verified fresh tool root; EEXIST also refuses links.
     await mkdir(work, { mode: 0o700 });
-    const driver = await import("./release-coordinator-driver.mts");
-    // The fixed same-bundle factory is supplied by the genuine bootstrap join.
-    const entry: unknown = driver;
-    if (!isRecord(entry) || typeof entry.runFixedCoordinatorConfiguration !== "function")
-      throw new Error("same-bundle coordinator factory unavailable");
-    const worker = entry as {
-      runFixedCoordinatorConfiguration(
-        raw: unknown,
-        parent: string,
-        deadline?: number,
-      ): Promise<unknown>;
-    };
-    result = await worker.runFixedCoordinatorConfiguration(configuration, work, phaseDeadline);
+    if (
+      inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) ===
+      "catalog-publication"
+    ) {
+      result = await (
+        await import("./release-catalog-coordinator.mts")
+      ).runFixedCatalogCoordinatorConfiguration(configuration, work, phaseDeadline);
+    } else {
+      const driver = await import("./release-coordinator-driver.mts");
+      // The fixed same-bundle factory is supplied by the genuine bootstrap join.
+      const entry: unknown = driver;
+      if (!isRecord(entry) || typeof entry.runFixedCoordinatorConfiguration !== "function")
+        throw new Error("same-bundle coordinator factory unavailable");
+      const worker = entry as {
+        runFixedCoordinatorConfiguration(
+          raw: unknown,
+          parent: string,
+          deadline?: number,
+        ): Promise<unknown>;
+      };
+      result = await worker.runFixedCoordinatorConfiguration(configuration, work, phaseDeadline);
+    }
   }
 
   if (!isRecord(result) || typeof result.decision !== "string")
