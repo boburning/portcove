@@ -67,6 +67,18 @@ export function inspectLinuxPublicRuntime(
   };
 }
 
+export function assertLinuxPublicUserStatePreserved(
+  before: PublicUserState,
+  after: PublicUserState,
+) {
+  assert.ok(
+    path.posix.isAbsolute(before.app_local_data) && path.posix.isAbsolute(before.library_root),
+  );
+  assert.equal(after.app_local_data, before.app_local_data, "Ordinary WebKit data path changed");
+  assert.equal(after.library_root, before.library_root, "Ordinary library path changed");
+  assertPublicUserStateChoicesPreserved(before, after);
+}
+
 async function seedInitialImage(
   binding: ReturnType<typeof inspectPublicNativeLinuxBinding>,
   deadline: number,
@@ -282,7 +294,7 @@ export async function runLinuxPublicUpdateJourney(
     report.staging = await driveInstalledUpdateToRestart(current, actions, versions.candidate);
     beforeState = await readState();
     assert.ok(beforeState.favorites.includes(String(report.favorite_port)));
-    assertPublicUserStateChoicesPreserved(beforeState, beforeState);
+    assertLinuxPublicUserStatePreserved(beforeState, beforeState);
     assert.equal(
       (await readPublicUpdateFile(`${binding.state}/staging/candidate-installer.exe`)).sha256,
       binding.candidate.sha256,
@@ -303,7 +315,7 @@ export async function runLinuxPublicUpdateJourney(
         (await readPublicUpdateFile(binding.active_application)).sha256,
         binding.session.application.sha256,
       );
-      assertPublicUserStateChoicesPreserved(beforeState, await readState());
+      assertLinuxPublicUserStatePreserved(beforeState, await readState());
       report.local_payload_custody_refusal = {
         original,
         fault,
@@ -315,7 +327,7 @@ export async function runLinuxPublicUpdateJourney(
         (await readPublicUpdateFile(`${binding.state}/staging/candidate-installer.exe`)).sha256,
         binding.candidate.sha256,
       );
-      assertPublicUserStateChoicesPreserved(beforeState, await readState());
+      assertLinuxPublicUserStatePreserved(beforeState, await readState());
       const prior = await observe(binding.session.application);
       report.before_restart_runtime = prior;
       // One ordinary click. A lost response is retained; no repeat or harness replacement.
@@ -332,7 +344,7 @@ export async function runLinuxPublicUpdateJourney(
       actions.push("automatic-v1-observed-before-normal-ui-reopen");
       current = await connect(versions.candidate);
       const after = await readState();
-      assertPublicUserStateChoicesPreserved(beforeState, after);
+      assertLinuxPublicUserStatePreserved(beforeState, after);
       report.user_state = {
         before: beforeState,
         after,
@@ -354,7 +366,7 @@ export async function runLinuxPublicUpdateJourney(
         current = await connect(versions.candidate);
         const result = await driveInstalledUpdateRecovery(current, actions, area);
         const retained = await readState();
-        assertPublicUserStateChoicesPreserved(beforeState, retained);
+        assertLinuxPublicUserStatePreserved(beforeState, retained);
         assert.equal(
           (await readPublicUpdateFile(binding.active_application)).sha256,
           binding.candidate.sha256,

@@ -6,7 +6,10 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, readFile, rm, chmod, link } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { inspectLinuxPublicRuntime } from "./desktop-linux-public-update.mts";
+import {
+  inspectLinuxPublicRuntime,
+  assertLinuxPublicUserStatePreserved,
+} from "./desktop-linux-public-update.mts";
 import {
   createNativePublicJourneyBudget,
   nativePublicRelayLimiter,
@@ -351,5 +354,38 @@ void test("Linux raw metadata accounting enforces the actual five shipping parse
       store,
       performance.now() + 10000,
     ),
+  );
+});
+
+void test("Linux semantic choices cannot conceal a moved WebKit or library profile", () => {
+  const before = {
+    application_origin: "null",
+    application_url: "tauri://localhost/",
+    app_local_data: "/native/profile/client-a/.local/share/portcove",
+    application_version: "1.0.0-beta.1",
+    library_root: "/native/profile/client-a/library",
+    favorites: ["gen2-port"],
+    theme_preference: "light",
+    rendered_theme: "light",
+    update_preferences: { schema_version: 1, choice: { channel: "preview", mode: "manual" } },
+  };
+  assert.doesNotThrow(() =>
+    assertLinuxPublicUserStatePreserved(before, { ...before, application_version: "1.0.0-beta.2" }),
+  );
+  assert.throws(
+    () =>
+      assertLinuxPublicUserStatePreserved(before, {
+        ...before,
+        app_local_data: "/native/profile/client-a/other",
+      }),
+    /WebKit data path/u,
+  );
+  assert.throws(
+    () =>
+      assertLinuxPublicUserStatePreserved(before, {
+        ...before,
+        library_root: "/native/profile/client-b/library",
+      }),
+    /library path/u,
   );
 });
