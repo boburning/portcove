@@ -106,6 +106,7 @@ export function inspectLocalNativeTransport(
       "schema_version",
       "source_read_token",
       ...(isRecord(raw) && Object.hasOwn(raw, "windows_tools") ? ["windows_tools"] : []),
+      ...(isRecord(raw) && Object.hasOwn(raw, "post_sign_verifier") ? ["post_sign_verifier"] : []),
     ]
       .sort()
       .join(","),
@@ -121,6 +122,22 @@ export function inspectLocalNativeTransport(
   const windows = parentKind === "windows-task";
   const source = canonical(raw.source_read_token, windows),
     key = canonical(raw.native_issuer.private_key, windows);
+  let postSignVerifier: { path: string; sha256: string } | undefined;
+  if (Object.hasOwn(raw, "post_sign_verifier")) {
+    exact(raw.post_sign_verifier, "path,sha256");
+    postSignVerifier = {
+      path: canonical(raw.post_sign_verifier.path, windows),
+      sha256: digest(raw.post_sign_verifier.sha256),
+    };
+    if (
+      [source, key, canonical(raw.github_cli.path, windows)].some((value) =>
+        windows
+          ? value.toLowerCase() === postSignVerifier!.path.toLowerCase()
+          : value === postSignVerifier!.path,
+      )
+    )
+      throw new Error("native post-sign verifier overlaps credentials or source tool");
+  }
   if ((windows ? source.toLowerCase() : source) === (windows ? key.toLowerCase() : key))
     throw new Error("native source reader and issuer custody are conflated");
   let tools:
@@ -162,6 +179,8 @@ export function inspectLocalNativeTransport(
     ].map((value) => value.toLowerCase());
     if (new Set(paths).size !== paths.length)
       throw new Error("native tool and credential paths overlap");
+    if (postSignVerifier && paths.includes(postSignVerifier.path.toLowerCase()))
+      throw new Error("native keyless verifier overlaps an independently pinned desktop tool");
   }
   return {
     schema_version: 1 as const,
@@ -175,6 +194,7 @@ export function inspectLocalNativeTransport(
       public_key_sha256: digest(raw.native_issuer.public_key_sha256),
     },
     ...(tools ? { windows_tools: tools } : {}),
+    ...(postSignVerifier ? { post_sign_verifier: postSignVerifier } : {}),
   };
 }
 
@@ -262,6 +282,7 @@ async function readPinnedLocalNativeSetupBytes(configurationPath: string, expect
     await linuxOwnerPath(transport.source_read_token);
     await linuxOwnerPath(transport.native_issuer.private_key);
     await linuxOwnerPath(transport.github_cli.path);
+    if (transport.post_sign_verifier) await linuxOwnerPath(transport.post_sign_verifier.path);
   }
   const authority = inspectReleaseAuthorityConfiguration(
     JSON.parse(
@@ -302,6 +323,7 @@ async function readPinnedLocalNativeSetupBytes(configurationPath: string, expect
   ];
   const tools = [
     transport.github_cli.path,
+    ...(transport.post_sign_verifier ? [transport.post_sign_verifier.path] : []),
     ...(transport.windows_tools
       ? [
           transport.windows_tools.powershell.path,
@@ -310,6 +332,14 @@ async function readPinnedLocalNativeSetupBytes(configurationPath: string, expect
         ]
       : []),
   ];
+  if (transport.post_sign_verifier) {
+    const relative = parser.relative(
+      normalize(checkout),
+      normalize(transport.post_sign_verifier.path),
+    );
+    if (!relative || relative.startsWith("..") || parser.isAbsolute(relative))
+      throw new Error("native keyless verifier must remain in protected controller staging");
+  }
   if (
     tools.some(
       (tool) =>

@@ -82,6 +82,37 @@ void test("explicit WSL package setup retains Windows parent custody without inv
   );
 });
 
+void test("keyless native post-sign verifier is an exact protected installation tool pin, never a credential or candidate locator", () => {
+  const input = {
+    schema_version: 1,
+    source_read_token: "C:\\Credentials\\source.txt",
+    native_issuer: {
+      private_key: "C:\\Credentials\\native.pem",
+      public_key_sha256: "a".repeat(64),
+    },
+    github_cli: { path: "C:\\Tools\\gh.exe", sha256: "b".repeat(64) },
+    post_sign_verifier: {
+      path: "C:\\Owned\\tools\\portcove-release-tools.exe",
+      sha256: "c".repeat(64),
+    },
+  };
+  const actual = inspectLocalNativeTransport(input, "windows-x86_64");
+  assert.deepEqual(actual.post_sign_verifier, input.post_sign_verifier);
+  for (const verifier of [
+    { ...input.post_sign_verifier, path: input.source_read_token },
+    { ...input.post_sign_verifier, path: input.native_issuer.private_key },
+    { ...input.post_sign_verifier, path: input.github_cli.path.toUpperCase() },
+    { ...input.post_sign_verifier, path: "../candidate.exe" },
+    { ...input.post_sign_verifier, sha256: "unobserved" },
+    { ...input.post_sign_verifier, accepted: true },
+  ])
+    assert.throws(() =>
+      inspectLocalNativeTransport({ ...input, post_sign_verifier: verifier }, "windows-x86_64"),
+    );
+  input.post_sign_verifier.sha256 = "d".repeat(64);
+  assert.equal(actual.post_sign_verifier?.sha256, "c".repeat(64));
+});
+
 void test("native installed descriptor binds fixed scheduler/platform and refuses supplied authority, aliases and foreign routes", () => {
   for (const windows of [true, false]) {
     const raw = fixture(windows);

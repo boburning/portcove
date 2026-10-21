@@ -19,6 +19,8 @@ import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { isRecord } from "./runtime-values.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+import { productionControllerWorkflow } from "./production-controller-admission.mts";
+import { releasePathContains } from "./release-path-safety.mts";
 import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
 import {
   inspectCapacityOperation,
@@ -196,6 +198,78 @@ export function inspectNativeSourceCommand(args: readonly string[], input?: unkn
   return { scope: "read-only-route-integrity", authority: "none" } as const;
 }
 
+/** Only the existing fixed GitHub/Sigstore verifier over retained public files.
+ * This command validation cannot authenticate a statement or native result. */
+export function inspectNativeControllerVerificationCommand(
+  args: readonly string[],
+  directory: string,
+  controller: { controller_revision: string; controller_ref: string },
+) {
+  const filename = args[2],
+    bundle = args[4],
+    predicate = args[19];
+  if (
+    !path.isAbsolute(directory) ||
+    typeof filename !== "string" ||
+    typeof bundle !== "string" ||
+    !path.isAbsolute(filename) ||
+    !path.isAbsolute(bundle) ||
+    path.resolve(filename) !== filename ||
+    path.resolve(bundle) !== bundle ||
+    !releasePathContains(directory, filename) ||
+    !releasePathContains(directory, bundle) ||
+    path.dirname(filename) !== path.dirname(bundle) ||
+    !/^[a-f0-9]{40}$/u.test(controller.controller_revision) ||
+    !/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(
+      controller.controller_ref,
+    )
+  )
+    throw new Error("native controller verifier requires exact retained public files/source");
+  const kind =
+    path.basename(filename) === "signing-context-manifest.json"
+      ? {
+          bundle: "attestation.json",
+          predicate: "https://portcove.dev/attestations/release-signing-context/v1",
+        }
+      : path.basename(filename) === "signing-output-manifest.json"
+        ? {
+            bundle: "role-attestation.json",
+            predicate: "https://portcove.dev/attestations/tuf-role-output/v1",
+          }
+        : null;
+  if (
+    !kind ||
+    path.basename(bundle) !== kind.bundle ||
+    predicate !== kind.predicate ||
+    JSON.stringify(args) !==
+      JSON.stringify([
+        "attestation",
+        "verify",
+        filename,
+        "--bundle",
+        bundle,
+        "--repo",
+        "boburning/portcove",
+        "--signer-workflow",
+        `boburning/portcove/${productionControllerWorkflow}`,
+        "--signer-digest",
+        controller.controller_revision,
+        "--source-digest",
+        controller.controller_revision,
+        "--source-ref",
+        controller.controller_ref,
+        "--cert-oidc-issuer",
+        "https://token.actions.githubusercontent.com",
+        "--deny-self-hosted-runners",
+        "--predicate-type",
+        kind.predicate,
+        "--format",
+        "json",
+      ])
+  )
+    throw new Error("native controller verifier flags or predicate differ");
+}
+
 async function sourceTransport(parent: Parent, directory: string) {
   await parent.recheck();
   const fixed = parent.transport_configuration;
@@ -280,7 +354,23 @@ async function sourceTransport(parent: Parent, directory: string) {
     checkToolIdentity();
     toolBytes(fixed.github_cli.path, fixed.github_cli.sha256);
   };
-  return { api, download, recover, recheck };
+  const verifier = (controller: { controller_revision: string; controller_ref: string }) => {
+    const expected = Object.freeze({ ...controller });
+    const spawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]> = (
+      command,
+      args,
+      options,
+    ) => {
+      if (command !== "gh") throw new Error("native verifier executable selection refused");
+      inspectNativeControllerVerificationCommand(args, directory, expected);
+      checkToolIdentity();
+      const result = spawnSync(fixed.github_cli.path, args, { ...options, env });
+      checkToolIdentity();
+      return result;
+    };
+    return spawn;
+  };
+  return { api, download, recover, recheck, verifier };
 }
 
 const selections = new WeakMap<

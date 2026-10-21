@@ -10,11 +10,74 @@ import {
   inspectNativePostSignController,
   readActualNativePostSignController,
   requireActualNativePostSignController,
+  inspectNativeControllerVerificationCommand,
 } from "./release-native-candidate.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { prepareNativeStageRequest } from "./release-native-stage-capture.mts";
 import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority-configuration-fixture.mts";
 import { nativeQualificationFixture } from "./fixtures/native-qualification-fixture.mts";
+import path from "node:path";
+
+void test("parent-owned controller verifier admits only fixed local-bundle verification with complete source/certificate flags", () => {
+  const root = path.resolve("inert-native-verifier"),
+    directory = path.join(root, "context-123"),
+    filename = path.join(directory, "signing-context-manifest.json"),
+    bundle = path.join(directory, "attestation.json");
+  const controller = {
+    controller_revision: "a".repeat(40),
+    controller_ref: "refs/tags/portcove-production-controller-fixture",
+  };
+  const args = [
+    "attestation",
+    "verify",
+    filename,
+    "--bundle",
+    bundle,
+    "--repo",
+    "boburning/portcove",
+    "--signer-workflow",
+    "boburning/portcove/.github/workflows/application-update-production.yml",
+    "--signer-digest",
+    controller.controller_revision,
+    "--source-digest",
+    controller.controller_revision,
+    "--source-ref",
+    controller.controller_ref,
+    "--cert-oidc-issuer",
+    "https://token.actions.githubusercontent.com",
+    "--deny-self-hosted-runners",
+    "--predicate-type",
+    "https://portcove.dev/attestations/release-signing-context/v1",
+    "--format",
+    "json",
+  ];
+  inspectNativeControllerVerificationCommand(args, root, controller);
+  const role = [...args];
+  role[2] = path.join(directory, "signing-output-manifest.json");
+  role[4] = path.join(directory, "role-attestation.json");
+  role[19] = "https://portcove.dev/attestations/tuf-role-output/v1";
+  inspectNativeControllerVerificationCommand(role, root, controller);
+  for (const index of [
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+  ]) {
+    const changed = [...args];
+    changed[index] = "foreign";
+    assert.throws(() => inspectNativeControllerVerificationCommand(changed, root, controller));
+  }
+  assert.throws(() =>
+    inspectNativeControllerVerificationCommand(
+      [...args, "--insecure-ignore-tlog"],
+      root,
+      controller,
+    ),
+  );
+  const outside = [...args];
+  outside[2] = path.resolve("foreign/signing-context-manifest.json");
+  assert.throws(() => inspectNativeControllerVerificationCommand(outside, root, controller));
+  assert.throws(() =>
+    inspectNativeControllerVerificationCommand(args, directory + "-sibling", controller),
+  );
+});
 
 void test("post-sign source run comes from exact completed timestamp candidate operation, not compiler or maintenance identity", async () => {
   const candidate = {
