@@ -70,7 +70,18 @@ function signedPublic(bytes: Buffer) {
     typeof value.signed.expires !== "string"
   )
     throw new Error("offline public metadata shape differs");
-  return { version: value.signed.version, expires: value.signed.expires };
+  // Signed RFC3339 bytes may retain nanosecond trailing zeroes. Only the
+  // declared time projection is canonicalized; signed bytes stay untouched.
+  const expires = value.signed.expires.replace(/\.([0-9]*?)0+Z$/u, (_all, fraction: string) =>
+    fraction ? `.${fraction}Z` : "Z",
+  );
+  metadataInstant(expires);
+  return { version: value.signed.version, expires };
+}
+function instantText(value: bigint) {
+  const seconds = value / 1_000_000_000n;
+  const fraction = (value % 1_000_000_000n).toString().padStart(9, "0").replace(/0+$/u, "");
+  return `${new Date(Number(seconds) * 1000).toISOString().slice(0, 19)}${fraction ? `.${fraction}` : ""}Z`;
 }
 /** Declared context only. The later fixed Rust preflight must verify all public
  * signatures and descriptor constraints before any actual receipt is minted. */
@@ -97,9 +108,7 @@ export function deriveMetadataBootstrapDescriptor(
     roles.map((role) => {
       if (role === "targets") return [role, top.expires];
       const days = role === "timestamp" ? 2 : role === "releases" ? 90 : 7;
-      const next = new Date(Number(generated / 1000000n) + days * 86400000)
-        .toISOString()
-        .replace(".000Z", "Z");
+      const next = instantText(generated + BigInt(days) * 86_400_000_000_000n);
       const expiry = [next, top.expires, root.expires].sort((a, b) =>
         metadataInstant(a) < metadataInstant(b) ? -1 : 1,
       )[0]!;

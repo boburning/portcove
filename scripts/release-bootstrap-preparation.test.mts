@@ -94,6 +94,39 @@ void test("declared bootstrap context preserves exact u64 version and has no man
   );
 });
 
+void test("signed timestamp projection trims only trailing zeroes and preserves role-ceiling nanoseconds", () => {
+  const files = new Map([
+    ["root", Buffer.from('{"signed":{"version":1,"expires":"2027-01-01T00:00:00.123456700Z"}}')],
+    [
+      "offline_targets",
+      Buffer.from('{"signed":{"version":1,"expires":"2026-12-01T00:00:00.380381600Z"}}'),
+    ],
+    ["payload_key_registry", Buffer.from("public registry")],
+  ]);
+  const original = [...files].map(([name, bytes]) => [name, sha(bytes)]);
+  const value = publication();
+  for (const name of ["root", "offline_targets", "payload_key_registry"] as const) {
+    const bytes = files.get(name)!;
+    value.public_source[name] = {
+      ...value.public_source[name],
+      bytes: bytes.length,
+      sha256: sha(bytes),
+    };
+  }
+  const descriptor = deriveMetadataBootstrapDescriptor(
+    value,
+    files,
+    "2026-10-20T00:00:00.3803816Z",
+  );
+  assert.equal(descriptor.expires.targets, "2026-12-01T00:00:00.3803816Z");
+  assert.equal(descriptor.expires.timestamp, "2026-10-22T00:00:00.3803816Z");
+  assert.equal(descriptor.expires.preview, "2026-10-27T00:00:00.3803816Z");
+  assert.deepEqual(
+    [...files].map(([name, bytes]) => [name, sha(bytes)]),
+    original,
+  );
+});
+
 const actualTool = process.env.PORTCOVE_TUF_BOOTSTRAP_VERIFIER;
 const actualFixture = process.env.PORTCOVE_TUF_INITIAL_PUBLIC_FIXTURE;
 void test(
