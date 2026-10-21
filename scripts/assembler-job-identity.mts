@@ -414,6 +414,11 @@ async function verifyJobIdentity(
 // by supplying a trusted-looking name or workflow path.
 type IdentityOptions = NonNullable<Parameters<typeof verifyJobIdentity>[3]>;
 const capacityExecutorProfiles = Object.freeze({
+  "aggregate-assembly": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("admission").reader_name,
+    environment: "production-release-admission" as const,
+  },
   "payload-signing": {
     workflow: productionControllerWorkflow,
     job: releaseControlPhaseProfile("payload").reader_name,
@@ -500,6 +505,20 @@ export function verifyAssemblerJobIdentity(
   options: IdentityOptions = {},
 ) {
   return verifyJobIdentity(assemblerProfile, token, expected, options);
+}
+/** Complete pipeline's admitted assembler; the legacy plain-ref job remains
+ * a separate fixed profile and cannot stand in for this protected reader. */
+export function verifyAdmittedAssemblerJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  return verifyJobIdentity(
+    capacityExecutorProfiles["aggregate-assembly"],
+    token,
+    expected,
+    options,
+  );
 }
 export function verifyPayloadSignerJobIdentity(
   token: string,

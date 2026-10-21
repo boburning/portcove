@@ -8,6 +8,7 @@ import type { GitHubRestReader } from "./github-api.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import type { CoordinatorGitObject } from "./release-coordinator-state.mts";
 import { isRecord } from "./runtime-values.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import {
   withCoordinatorDeadline,
   coordinatorCommandTimeout,
@@ -518,7 +519,9 @@ async function recoverRemoteCoordinatorWithinScope(
   let phase = "initialize-bare";
   try {
     const env = Object.fromEntries(
-      Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")),
+      Object.entries(readOnlyReleaseChildEnvironment() ?? process.env).filter(
+        ([key]) => !key.startsWith("GIT_"),
+      ),
     );
     execFileSync(
       "git",

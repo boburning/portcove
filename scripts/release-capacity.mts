@@ -1,3 +1,7 @@
+import {
+  inspectAggregateUploadExpectation,
+  assertAggregateUploadCandidate,
+} from "./release-aggregate-contract.mts";
 import { releaseCanonicalDigest as capacityDigest } from "./release-canonical.mts";
 export { capacityDigest };
 import { isRecord } from "./runtime-values.mts";
@@ -82,6 +86,7 @@ export function inspectCapacityExecutorIdentity(raw: unknown) {
       "release-publication",
       "site-publication",
       "payload-signing",
+      "aggregate-assembly",
       "tuf-releases",
       "tuf-preview",
       "tuf-stable",
@@ -145,6 +150,7 @@ export interface ParsedCapacityOperation {
   executor_nonce?: string;
   executor_identity?: ReturnType<typeof inspectCapacityExecutorIdentity>;
   receipt_limit?: number;
+  aggregate_expectation?: ReturnType<typeof inspectAggregateUploadExpectation>;
   site_expectation?: ReturnType<typeof inspectSitePublicationExpectation>;
   destination: string;
   kind: string;
@@ -209,6 +215,7 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
   const metadata = isRecord(raw) && Object.hasOwn(raw, "metadata_renewal");
   const bootstrap = isRecord(raw) && Object.hasOwn(raw, "metadata_bootstrap");
   const receiptLimit = isRecord(raw) && Object.hasOwn(raw, "receipt_limit");
+  const hasAggregate = isRecord(raw) && Object.hasOwn(raw, "aggregate_expectation");
   const hasSite = isRecord(raw) && Object.hasOwn(raw, "site_expectation");
   exact(
     raw,
@@ -221,6 +228,7 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
       ...(hasIdentity ? ["executor_identity"] : []),
       ...(receiptLimit ? ["receipt_limit"] : []),
       ...(hasSite ? ["site_expectation"] : []),
+      ...(hasAggregate ? ["aggregate_expectation"] : []),
       "failure_evidence",
       "id",
       "kind",
@@ -258,6 +266,21 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
       `github-actions:boburning/portcove:${String(raw.candidate.version)}:immutable-release-result`
   )
     assertPublicationResultDestination(raw.destination, raw.candidate);
+  const aggregate = hasAggregate
+    ? inspectAggregateUploadExpectation(raw.aggregate_expectation)
+    : null;
+  if (executorIdentity?.role === "aggregate-assembly" && !aggregate)
+    throw new Error("admitted assembler must retain exact aggregate upload preimage");
+  if (
+    aggregate &&
+    (hasSite ||
+      metadata ||
+      bootstrap ||
+      raw.kind !== "upload" ||
+      raw.destination !== "github-actions:boburning/portcove:admitted-aggregate" ||
+      executorIdentity?.role !== "aggregate-assembly")
+  )
+    throw new Error("aggregate expectation belongs only to the fixed admitted assembler");
   const site = hasSite ? inspectSitePublicationExpectation(raw.site_expectation) : null;
   if (
     site &&
@@ -409,6 +432,7 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
     ...subject,
     destination: raw.destination,
     ...(site ? { site_expectation: site } : {}),
+    ...(aggregate ? { aggregate_expectation: aggregate } : {}),
     ...(hasExecutor ? { executor_nonce: String(raw.executor_nonce) } : {}),
     ...(executorIdentity ? { executor_identity: executorIdentity } : {}),
     ...(receiptLimit ? { receipt_limit: Number(raw.receipt_limit) } : {}),
@@ -740,6 +764,8 @@ function validateCapacityV2(
     after = inspectCapacityOperation(capacity.operation);
   const newIntent = after && (!before || before.id !== after.id);
   if (newIntent) assertPublicationResultDestination(after.destination, after.candidate);
+  if (newIntent && after.aggregate_expectation)
+    assertAggregateUploadCandidate(next.active_candidate);
   const previousBootstrap =
     previous.metadata_bootstrap == null
       ? null
@@ -961,6 +987,8 @@ export function validateCapacityTransition(
       : [];
   const newIntent = after && (!before || before.id !== after.id);
   if (newIntent) assertPublicationResultDestination(after.destination, after.candidate);
+  if (newIntent && after.aggregate_expectation)
+    assertAggregateUploadCandidate(next.active_candidate);
   const expectedPrior = newIntent
     ? [...prior, ...(before ? [before] : [])].filter(
         (op) =>

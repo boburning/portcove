@@ -1,3 +1,4 @@
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { errorCode, errorMessage, isRecord } from "./runtime-values.mts";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { spawnSync } from "node:child_process";
@@ -213,6 +214,9 @@ export function createGitHubRunner({
   return (args, input) => {
     const result = spawn(command, args, {
       cwd,
+      ...(readOnlyReleaseChildEnvironment() === undefined
+        ? {}
+        : { env: readOnlyReleaseChildEnvironment() }),
       encoding: "utf8",
       input,
       maxBuffer,

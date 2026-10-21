@@ -31,6 +31,7 @@ export async function assembleReleaseArtifacts(
   options: {
     evidence?: ReleaseEvidenceOptions;
     download?: typeof readGitHubArtifactArchive;
+    deadline?: number;
   } = {},
 ) {
   // Freeze caller-owned expectations before any async filesystem/policy read.
@@ -38,8 +39,9 @@ export async function assembleReleaseArtifacts(
   rawArchives = structuredClone(rawArchives);
   evidenceRequest = structuredClone(evidenceRequest);
   const started = performance.now();
+  const deadline = Math.min(started + 15 * 60 * 1000, options.deadline ?? Infinity);
   const active = () => {
-    if (performance.now() - started >= 15 * 60 * 1000)
+    if (!Number.isFinite(deadline) || performance.now() >= deadline)
       throw new Error("artifact assembly deadline exhausted");
   };
   const { accepted, labels } = await inspectTrustedAssemblyInput(rawAssembly);
@@ -135,10 +137,7 @@ export async function assembleReleaseArtifacts(
         {
           cwd: directory,
           maxBytes: archive.bytes,
-          timeoutMs: Math.min(
-            120000,
-            Math.max(1, Math.floor(15 * 60 * 1000 - (performance.now() - started))),
-          ),
+          timeoutMs: Math.min(120000, Math.max(1, Math.floor(deadline - performance.now()))),
         },
       );
       active();
@@ -168,7 +167,7 @@ export async function assembleReleaseArtifacts(
     )
       throw new Error("selected artifact or run changed during collection");
     active();
-    const aggregate = await assembleTrustedRelease(directory, inputs, accepted);
+    const aggregate = await assembleTrustedRelease(directory, inputs, accepted, { deadline });
     active();
     return {
       schema_version: 1,

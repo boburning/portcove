@@ -26,7 +26,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 1
     - id: upload1
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route1.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route1.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route1.outputs.name }}
@@ -80,7 +80,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 2
     - id: upload2
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route2.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route2.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route2.outputs.name }}
@@ -134,7 +134,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 3
     - id: upload3
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route3.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route3.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route3.outputs.name }}
@@ -188,7 +188,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 4
     - id: upload4
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route4.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route4.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route4.outputs.name }}
@@ -242,7 +242,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 5
     - id: upload5
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route5.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route5.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route5.outputs.name }}
@@ -296,7 +296,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 6
     - id: upload6
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route6.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route6.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route6.outputs.name }}
@@ -350,7 +350,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 7
     - id: upload7
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route7.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route7.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route7.outputs.name }}
@@ -404,7 +404,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 8
     - id: upload8
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route8.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route8.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route8.outputs.name }}
@@ -458,7 +458,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 9
     - id: upload9
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route9.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route9.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route9.outputs.name }}
@@ -512,7 +512,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 10
     - id: upload10
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route10.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route10.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route10.outputs.name }}
@@ -566,7 +566,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 11
     - id: upload11
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route11.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route11.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route11.outputs.name }}
@@ -620,7 +620,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 12
     - id: upload12
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route12.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route12.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route12.outputs.name }}
@@ -674,7 +674,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 13
     - id: upload13
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route13.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route13.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route13.outputs.name }}
@@ -728,7 +728,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 14
     - id: upload14
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route14.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route14.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route14.outputs.name }}
@@ -782,7 +782,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 15
     - id: upload15
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route15.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route15.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route15.outputs.name }}
@@ -836,7 +836,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 16
     - id: upload16
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route16.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route16.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route16.outputs.name }}
@@ -890,7 +890,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 17
     - id: upload17
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route17.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route17.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route17.outputs.name }}
@@ -944,7 +944,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 18
     - id: upload18
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route18.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route18.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route18.outputs.name }}
@@ -998,7 +998,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 19
     - id: upload19
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route19.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route19.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route19.outputs.name }}
@@ -1052,7 +1052,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 20
     - id: upload20
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route20.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route20.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route20.outputs.name }}
@@ -1106,7 +1106,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 21
     - id: upload21
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route21.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route21.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route21.outputs.name }}
@@ -1160,7 +1160,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 22
     - id: upload22
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route22.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route22.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route22.outputs.name }}
@@ -1214,7 +1214,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 23
     - id: upload23
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route23.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route23.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route23.outputs.name }}
@@ -1268,7 +1268,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 24
     - id: upload24
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route24.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route24.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route24.outputs.name }}
@@ -1322,7 +1322,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 25
     - id: upload25
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route25.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route25.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route25.outputs.name }}
@@ -1376,7 +1376,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 26
     - id: upload26
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route26.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route26.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route26.outputs.name }}
@@ -1430,7 +1430,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 27
     - id: upload27
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route27.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route27.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route27.outputs.name }}
@@ -1484,7 +1484,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 28
     - id: upload28
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route28.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route28.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route28.outputs.name }}
@@ -1538,7 +1538,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 29
     - id: upload29
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route29.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route29.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route29.outputs.name }}
@@ -1592,7 +1592,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 30
     - id: upload30
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route30.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route30.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route30.outputs.name }}
@@ -1646,7 +1646,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 31
     - id: upload31
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route31.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route31.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route31.outputs.name }}
@@ -1700,7 +1700,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 32
     - id: upload32
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route32.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route32.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route32.outputs.name }}
@@ -1754,7 +1754,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 33
     - id: upload33
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route33.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route33.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route33.outputs.name }}
@@ -1808,7 +1808,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 34
     - id: upload34
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route34.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route34.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route34.outputs.name }}
@@ -1862,7 +1862,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 35
     - id: upload35
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route35.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route35.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route35.outputs.name }}
@@ -1916,7 +1916,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 36
     - id: upload36
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route36.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route36.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route36.outputs.name }}
@@ -1970,7 +1970,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 37
     - id: upload37
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route37.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route37.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route37.outputs.name }}
@@ -2024,7 +2024,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 38
     - id: upload38
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route38.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route38.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route38.outputs.name }}
@@ -2078,7 +2078,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 39
     - id: upload39
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route39.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route39.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route39.outputs.name }}
@@ -2132,7 +2132,7 @@ runs:
         PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
       run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 40
     - id: upload40
-      if: ${{ contains(fromJSON('["control","signature","context","result","site"]'), steps.route40.outputs.kind) }}
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route40.outputs.kind) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ steps.route40.outputs.name }}

@@ -1,3 +1,4 @@
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { spawnSync } from "node:child_process";
 import {
   coordinatorCommandTimeout,
@@ -54,6 +55,9 @@ function readOpaqueGitHubBytes(
     ],
     {
       cwd,
+      ...(readOnlyReleaseChildEnvironment() === undefined
+        ? {}
+        : { env: readOnlyReleaseChildEnvironment() }),
       encoding: null,
       timeout: coordinatorCommandTimeout(timeoutMs),
       maxBuffer: maxBytes,

@@ -304,6 +304,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "release-controller-job",
     "release-controller-job-bootstrap",
     "release-controller-job-output",
+    "release-aggregate-locator",
     "release-coordinator-namespace",
   ].map((name): [string, string[]] => [
     `scripts/${name}.mts`,
@@ -360,6 +361,23 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-review-request.mts", ["scripts/release-review-request.test.mts"]],
   ["scripts/release-candidate-dispatch.mts", ["scripts/release-candidate-dispatch.test.mts"]],
   ["scripts/release-candidate-progress.mts", ["scripts/release-candidate-progress.test.mts"]],
+  [
+    "scripts/release-admitted-aggregate-controller.mts",
+    ["scripts/release-admitted-aggregate-controller.test.mts"],
+  ],
+  [
+    "scripts/release-aggregate-contract.mts",
+    ["scripts/release-admitted-aggregate-controller.test.mts"],
+  ],
+  [
+    "scripts/release-aggregate-upload.mts",
+    ["scripts/release-admitted-aggregate-controller.test.mts"],
+  ],
+  [
+    "scripts/release-readonly-child-environment.mts",
+    ["scripts/release-admitted-aggregate-controller.test.mts"],
+  ],
+
   [
     "scripts/release-candidate-progress-contract.mts",
     ["scripts/release-candidate-progress-contract.test.mts"],
