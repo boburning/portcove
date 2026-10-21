@@ -413,16 +413,44 @@ void test("held controller uses a parallel tiny-artifact handshake and isolates 
   assert.ok(isRecord(installed) && isRecord(installed.jobs));
   const jobs = Object.entries(installed.jobs);
   const observers = jobs.filter(([name]) => name.endsWith("protection_observation"));
-  assert.equal(observers.length, 7);
+  assert.deepEqual(
+    observers.map(([name]) => name).sort(),
+    [
+      "classification_protection_observation",
+      "coordinator_protection_observation",
+      "protection_observation",
+      "payload_protection_observation",
+      "metadata_protection_observation",
+      "release_protection_observation",
+      "site_protection_observation",
+      "catalog_metadata_protection_observation",
+    ].sort(),
+  );
   for (const [name, job] of jobs) {
     assert.ok(isRecord(job));
     if (name.endsWith("protection_observation")) {
       assert.equal(job.environment, "production-release-protection-observer");
-      assert.match(JSON.stringify(job), /PORTCOVE_PROTECTION_APP_PRIVATE_KEY/);
+      if (name === "catalog_metadata_protection_observation") {
+        assert.match(JSON.stringify(job), /PORTCOVE_CATALOG_PROTECTION_APP_PRIVATE_KEY/);
+        assert.doesNotMatch(JSON.stringify(job), /secrets\.PORTCOVE_PROTECTION_APP_PRIVATE_KEY/);
+      } else {
+        assert.match(JSON.stringify(job), /PORTCOVE_PROTECTION_APP_PRIVATE_KEY/);
+        if (["coordinator_protection_observation", "site_protection_observation"].includes(name)) {
+          assert.match(
+            JSON.stringify(job),
+            /publication_purpose == 'catalog-publication'.*PORTCOVE_CATALOG_PROTECTION_APP_PRIVATE_KEY/su,
+          );
+          assert.match(
+            JSON.stringify(job),
+            /publication_purpose == 'application'.*secrets\.PORTCOVE_PROTECTION_APP_PRIVATE_KEY/su,
+          );
+        } else
+          assert.doesNotMatch(JSON.stringify(job), /PORTCOVE_CATALOG_PROTECTION_APP_PRIVATE_KEY/);
+      }
     } else {
       assert.doesNotMatch(
         JSON.stringify(job),
-        /permission-administration|PORTCOVE_PROTECTION_APP_PRIVATE_KEY/,
+        /permission-administration|PORTCOVE_(?:CATALOG_)?PROTECTION_APP_PRIVATE_KEY/,
       );
     }
   }

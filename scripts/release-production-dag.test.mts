@@ -69,17 +69,17 @@ void test("held automatic wake uses only the bound dispatch App and its actual i
     await readFile(new URL(".github/workflows/application-update-wake.yml", root), "utf8"),
   ) as Workflow;
   const job = wake.jobs.wake!;
-  assert.equal(job.if, "${{ vars.PORTCOVE_CONTROLLER_WAKE != '' }}");
+  assert.equal(
+    job.if,
+    "${{ vars.PORTCOVE_CONTROLLER_WAKE != '' || vars.PORTCOVE_CATALOG_CONTROLLER_WAKE != '' }}",
+  );
   assert.equal(job["timeout-minutes"], slice4CapacityResources.wake_job_minutes[0]);
   assert.equal(wake.concurrency.group, slice4CapacityResources.wake_concurrency);
   const app = job.steps.findIndex((step) =>
     step.uses?.startsWith("actions/create-github-app-token@"),
   );
   assert.ok(app > 0);
-  assert.equal(
-    job.steps[app]!.with?.["app-id"],
-    "${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.dispatch.app_id }}",
-  );
+  assert.equal(job.steps[app]!.with?.["app-id"], "${{ steps.prepare.outputs.dispatch_app_id }}");
   assert.equal(job.steps[app]!.with?.["permission-actions"], "write");
   assert.equal(
     job.steps[app + 1]?.env?.PORTCOVE_OBSERVED_INSTALLATION_ID,
@@ -87,7 +87,23 @@ void test("held automatic wake uses only the bound dispatch App and its actual i
   );
   assert.equal(
     job.steps[app + 1]?.env?.PORTCOVE_EXPECTED_INSTALLATION_ID,
-    "${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.dispatch.installation_id }}",
+    "${{ steps.prepare.outputs.dispatch_installation_id }}",
+  );
+  assert.match(
+    job.steps[app]!.with?.["private-key"] ?? "",
+    /\(steps\.prepare\.outputs\.publication_purpose == 'catalog-publication' && secrets\.PORTCOVE_CATALOG_DISPATCH_APP_PRIVATE_KEY\) \|\| \(steps\.prepare\.outputs\.publication_purpose == 'application' && secrets\.PORTCOVE_DISPATCH_APP_PRIVATE_KEY\)/u,
+  );
+  const prepare = job.steps.findIndex(
+    (step) => step.run === "node scripts/release-controller-wake.mts --prepare",
+  );
+  assert.ok(prepare >= 0 && prepare < app);
+  assert.equal(
+    job.steps[prepare]!.env?.PORTCOVE_CONTROLLER_WAKE,
+    "${{ vars.PORTCOVE_CONTROLLER_WAKE }}",
+  );
+  assert.equal(
+    job.steps[prepare]!.env?.PORTCOVE_CATALOG_CONTROLLER_WAKE,
+    "${{ vars.PORTCOVE_CATALOG_CONTROLLER_WAKE }}",
   );
   assert.ok(!JSON.stringify(wake).includes("SIGNING_PRIVATE_KEY"));
 });
@@ -114,6 +130,7 @@ void test("actual held job conditions route retained custody without repeating s
     reused: boolean,
     failed?: string,
     published = false,
+    purpose = "application",
   ) => {
     const needs = Object.fromEntries(
       Object.keys(workflow.jobs).map((name) => [
@@ -140,7 +157,9 @@ void test("actual held job conditions route retained custody without repeating s
                   signing_custody: reused ? "reused" : "",
                   publication_custody: published ? "reused" : "",
                 }
-              : {},
+              : name === "admission"
+                ? { publication_purpose: purpose }
+                : {},
         },
       ]),
     );
@@ -201,6 +220,92 @@ void test("actual held job conditions route retained custody without repeating s
     assert.equal(permitted(name, "metadata", false, "tool_attest"), false);
     assert.equal(permitted(name, "metadata", false, "admission"), false);
   }
+  const catalogJobs = [
+    "catalog_definitions",
+    "catalog_policy",
+    "catalog_snapshot",
+    "catalog_timestamp",
+    "catalog_metadata_protection_observation",
+  ];
+  for (const name of catalogJobs) {
+    assert.equal(
+      permitted(name, "catalog", false, undefined, false, "catalog-publication"),
+      true,
+      name,
+    );
+    assert.equal(
+      permitted(name, "held", false, undefined, false, "catalog-publication"),
+      false,
+      name,
+    );
+    assert.equal(permitted(name, "catalog", false), false, name);
+    assert.equal(
+      permitted(name, "catalog", false, "tool_attest", false, "catalog-publication"),
+      false,
+      name,
+    );
+  }
+  for (const name of [
+    "classification_writer",
+    "classification_protection_observation",
+    "independent_admission",
+    "protection_observation",
+    "attest",
+    "payload_signing",
+    "payload_protection_observation",
+    "tuf_releases",
+    "tuf_preview",
+    "tuf_stable",
+    "tuf_snapshot",
+    "tuf_timestamp",
+    "metadata_protection_observation",
+    "release_publication",
+    "release_protection_observation",
+  ])
+    assert.equal(
+      permitted(name, "release", false, undefined, false, "catalog-publication"),
+      false,
+      name,
+    );
+  assert.equal(
+    permitted(
+      "catalog_policy",
+      "catalog",
+      false,
+      "catalog_definitions",
+      false,
+      "catalog-publication",
+    ),
+    false,
+  );
+  assert.equal(
+    permitted("catalog_snapshot", "catalog", false, "catalog_policy", false, "catalog-publication"),
+    false,
+  );
+  assert.equal(
+    permitted(
+      "catalog_timestamp",
+      "catalog",
+      false,
+      "catalog_snapshot",
+      false,
+      "catalog-publication",
+    ),
+    false,
+  );
+  for (const name of ["site_publication", "site_protection_observation"]) {
+    assert.equal(
+      permitted(name, "catalog", false, undefined, false, "catalog-publication"),
+      true,
+      name,
+    );
+    assert.equal(
+      permitted(name, "catalog", false, "catalog_timestamp", false, "catalog-publication"),
+      false,
+      name,
+    );
+    assert.equal(permitted(name, "catalog", false, undefined, false, "unknown"), false, name);
+  }
 });
 void test("complete held DAG keeps bounded resource and credential ownership across actual callables", async () => {
   const source = await readFile(
@@ -212,6 +317,13 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
   assert.deepEqual(workflow.on, {
     workflow_dispatch: {
       inputs: {
+        publication_purpose: {
+          description: "Inert purpose selector; named protected admission remains mandatory",
+          required: true,
+          type: "choice",
+          default: "application",
+          options: ["application", "catalog-publication"],
+        },
         wake_run_id: {
           description: "Inert automatic wake correlation; grants no admission authority",
           required: true,
@@ -223,18 +335,21 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
   assert.equal(workflow.concurrency.queue, undefined);
   const jobs = workflow.jobs;
-  assert.equal(workflow["run-name"], "Portcove application release wake ${{ inputs.wake_run_id }}");
+  assert.equal(
+    workflow["run-name"],
+    "Portcove ${{ inputs.publication_purpose == 'catalog-publication' && 'catalog publication' || 'application release' }} wake ${{ inputs.wake_run_id }}",
+  );
   const inputs = (name: string) =>
     name.includes("protection_observation") || name === "classification_writer";
   assert.deepEqual(
     Object.entries(jobs)
-      .filter(([name]) => inputs(name))
+      .filter(([name]) => !name.startsWith("catalog_") && inputs(name))
       .map(([, job]) => job["timeout-minutes"]),
     slice4CapacityResources.input_job_minutes,
   );
   assert.deepEqual(
     Object.entries(jobs)
-      .filter(([name]) => !inputs(name))
+      .filter(([name]) => !name.startsWith("catalog_") && !inputs(name))
       .map(([, job]) => job["timeout-minutes"]),
     slice4CapacityResources.aggregate_job_minutes,
   );
@@ -244,9 +359,50 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
     return selected;
   };
   assert.equal(
-    Object.values(jobs).reduce((total: number, job: Job) => total + job["timeout-minutes"], 1),
+    Object.entries(jobs)
+      .filter(([name]) => !name.startsWith("catalog_"))
+      .reduce((total, [, job]) => total + job["timeout-minutes"], 1),
+    slice4CapacityResources.declared_job_minutes,
+  );
+  const catalogReaders = [
+      "admission",
+      "tool_bootstrap",
+      "tool_attest",
+      "coordinator",
+      "catalog_definitions",
+      "catalog_policy",
+      "catalog_snapshot",
+      "catalog_timestamp",
+      "site_publication",
+    ],
+    catalogObservers = [
+      "coordinator_protection_observation",
+      "catalog_metadata_protection_observation",
+      "site_protection_observation",
+    ];
+  assert.deepEqual(
+    catalogReaders.map((name) => requiredJob(name)["timeout-minutes"]),
+    slice4CapacityResources.catalog_job_minutes,
+  );
+  assert.deepEqual(
+    catalogObservers.map((name) => requiredJob(name)["timeout-minutes"]),
+    slice4CapacityResources.catalog_observer_job_minutes,
+  );
+  assert.equal(
+    [...catalogReaders, ...catalogObservers].reduce(
+      (total, name) => total + requiredJob(name)["timeout-minutes"],
+      1,
+    ),
+    slice4CapacityResources.catalog_declared_job_minutes,
+  );
+  assert.equal(
+    Math.max(
+      slice4CapacityResources.declared_job_minutes,
+      slice4CapacityResources.catalog_declared_job_minutes,
+    ),
     99,
   );
+  assert.equal(slice4CapacityResources.total_job_minutes, 100);
   assert.equal(requiredJob("independent_admission")["timeout-minutes"], 9);
   assert.equal(requiredJob("protection_observation")["timeout-minutes"], 10);
   assert.equal(requiredJob("attest")["timeout-minutes"], 2);
@@ -273,10 +429,21 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
     for (let index = 0; index < job.steps.length; index++) {
       const step = job.steps[index]!;
       if (step.uses?.startsWith("actions/create-github-app-token@")) {
-        assert.match(
-          step.with?.["app-id"] ?? "",
-          /^\$\{\{ fromJSON\(vars\.PORTCOVE_RELEASE_AUTHORITIES\)\.apps\.[a-z_]+\.app_id \}\}$/u,
-        );
+        const appId = step.with?.["app-id"] ?? "";
+        if (appId.includes("publication_purpose")) {
+          assert.match(
+            appId,
+            /needs\.admission\.outputs\.publication_purpose == 'catalog-publication' && fromJSON\(vars\.PORTCOVE_CATALOG_AUTHORITIES\)\.apps\.([a-z_]+)\.app_id \|\| fromJSON\(vars\.PORTCOVE_RELEASE_AUTHORITIES\)\.apps\.\1\.app_id/u,
+          );
+          assert.match(
+            step.with?.["private-key"] ?? "",
+            /\(needs\.admission\.outputs\.publication_purpose == 'catalog-publication' && secrets\.PORTCOVE_CATALOG_[A-Z_]+\) \|\| \(needs\.admission\.outputs\.publication_purpose == 'application' && secrets\.PORTCOVE_[A-Z_]+\)/u,
+          );
+        } else
+          assert.match(
+            appId,
+            /^\$\{\{ fromJSON\(vars\.PORTCOVE_(?:RELEASE|CATALOG)_AUTHORITIES\)\.apps\.[a-z_]+\.app_id \}\}$/u,
+          );
         const installation = job.steps[index + 1];
         assert.equal(
           installation?.env?.PORTCOVE_OBSERVED_INSTALLATION_ID,
@@ -290,7 +457,16 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
     for (const step of job.steps) {
       if (step.uses && !step.uses.startsWith("./")) assert.match(step.uses, /@[a-f0-9]{40}$/u);
       if (step.with?.["role_key"] && step.with.role_key !== "")
-        assert.ok(name === "payload_signing" || name.startsWith("tuf_"));
+        assert.ok(
+          name === "payload_signing" ||
+            name.startsWith("tuf_") ||
+            [
+              "catalog_definitions",
+              "catalog_policy",
+              "catalog_snapshot",
+              "catalog_timestamp",
+            ].includes(name),
+        );
       if (step.with?.["permission-administration"])
         assert.ok(name.includes("protection_observation"));
       if (step.env?.PORTCOVE_COORDINATOR_JOURNAL_TOKEN)
@@ -320,6 +496,18 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
         job.needs!.includes(`tuf_${["releases", "preview", "stable", "snapshot"][index - 1]}`),
       );
   }
+  for (const [index, role] of ["definitions", "policy", "snapshot", "timestamp"].entries()) {
+    const job = requiredJob(`catalog_${role}`);
+    assert.equal(job.environment, `production-catalog-${role}`);
+    assert.equal(job["timeout-minutes"], 2);
+    assert.equal(
+      job.steps.at(-1)?.with?.role_key,
+      `\${{ secrets.PORTCOVE_CATALOG_${role.toUpperCase()}_KEY }}`,
+    );
+    assert.ok(!JSON.stringify(job).includes("secrets.PORTCOVE_TUF_"));
+    if (index > 0)
+      assert.ok(job.needs!.includes(`catalog_${["definitions", "policy", "snapshot"][index - 1]}`));
+  }
   // Match the actual reader ABIs: TUF/site begin at ordinal one; aggregate,
   // coordinator and payload have an initial ordinal-zero admission handshake.
   const observerCalls = (name: string) =>
@@ -343,6 +531,18 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       step.with?.rounds,
     ]),
     Array.from({ length: 5 }, () => ["false", "3"]),
+  );
+  assert.deepEqual(
+    observerCalls("catalog_metadata_protection_observation").map((step) => [
+      step.with?.phase,
+      step.with?.initial,
+      step.with?.rounds,
+    ]),
+    ["definitions", "policy", "snapshot", "timestamp"].map((role) => [
+      `catalog-${role}`,
+      "false",
+      "3",
+    ]),
   );
   assert.equal(observerCalls("site_protection_observation")[0]?.with?.initial, "false");
   assert.equal(observerCalls("site_protection_observation")[0]?.with?.rounds, "5");
