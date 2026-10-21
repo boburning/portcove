@@ -1,43 +1,72 @@
+# Named parameter sets disable automatic positions. Preserve the pre-help argument
+# order explicitly; future options must not renumber these existing positions.
 [CmdletBinding(DefaultParameterSetName = "Run")]
 param(
-    [Parameter(Mandatory = $true, ParameterSetName = "Run")]
+    [Parameter(Mandatory = $true, ParameterSetName = "Run", Position = 0)]
     [string]$InstallerPath,
+    [Parameter(Position = 1)]
     [string]$UpgradeFromInstallerPath,
+    [Parameter(Position = 2)]
     [string]$ExpectedExecutablePath,
+    [Parameter(Position = 3)]
     [string]$TestBase,
+    [Parameter(Position = 4)]
     [string]$RetainedLibraryRoot,
+    [Parameter(Position = 5)]
     [string]$RetainExecutablePath,
+    [Parameter(Position = 6)]
     [string]$EvidencePath,
+    [Parameter(Position = 7)]
     [string]$NormalPackageManifestPath,
+    [Parameter(Position = 8)]
     [string]$NormalPackageAdmissionPath,
+    [Parameter(Position = 9)]
     [string]$NativeAccountBindingPath,
+    [Parameter(Position = 10)]
     [string]$NativeAccountBindingSha256,
     [switch]$NativeParentOwnsFinish,
+    [Parameter(Position = 11)]
     [string]$OrdinaryPublicUpdateInputsPath,
+    [Parameter(Position = 12)]
     [string]$OrdinaryPublicUpdateInputsSha256,
     [ValidateRange(0, 1750000)]
+    [Parameter(Position = 13)]
     [int]$OrdinaryPublicUpdateRemainingMilliseconds = 0,
     [ValidateSet("Silent", "Passive")]
+    [Parameter(Position = 14)]
     [string]$InstallMode = "Silent",
+    [Parameter(Position = 15)]
     [string]$ExpectedVersion,
     [switch]$QualifyPackageRollback,
+    [Parameter(Position = 16)]
     [string]$ExpectedPredecessorVersion,
     [ValidateRange(1, 600)]
+    [Parameter(Position = 17)]
     [int]$ProcessTimeoutSeconds = 120,
     [ValidateRange(1, 60)]
+    [Parameter(Position = 18)]
     [int]$CleanupTimeoutSeconds = 15,
+    [Parameter(Position = 19)]
     [string]$PayloadPrivateKeyPath,
+    [Parameter(Position = 20)]
     [string]$TufPrivateRootPath,
     [switch]$RequireSigningAuthorityAbsent,
+    [Parameter(Position = 21)]
     [string]$InstalledUpdateTrustedRootPath,
+    [Parameter(Position = 22)]
     [string]$InstalledUpdateMetadataPath,
+    [Parameter(Position = 23)]
     [string]$InstalledUpdateTargetsPath,
+    [Parameter(Position = 24)]
     [string]$InstalledUpdateCandidatePath,
+    [Parameter(Position = 25)]
     [string]$InstalledUpdatePredecessorVersion,
     [switch]$RendererUpdate,
     [ValidateSet('official', 'embedded')]
+    [Parameter(Position = 26)]
     [string]$RendererTransport = 'official',
     [ValidateSet("", "post-spawn-verification")]
+    [Parameter(Position = 27)]
     [string]$TestFault = "",
     [Parameter(Mandatory = $true, ParameterSetName = "Help")]
     [Alias("h", "-help")][switch]$Help

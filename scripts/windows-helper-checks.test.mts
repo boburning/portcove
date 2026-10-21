@@ -61,7 +61,10 @@ void test(
       },
     );
     assert.notEqual(falseHelp.status, 0);
-    assert.match(falseHelp.stderr, /Provide -InstallerPath to run the test/u);
+    // ConciseView can wrap the same error with a leading pipe at console width.
+    const falseHelpMessage = falseHelp.stderr.replace(/\r?\n\s*\|\s*/gu, " ");
+    assert.match(falseHelpMessage, /Provide -InstallerPath to run the test/u);
+    const bindingProbe = path.join(root, "scripts/installer-binding-probe.ps1");
     const bindingScript = `
 $ErrorActionPreference = 'Stop'
 $tokens = $null; $errors = $null
@@ -70,10 +73,18 @@ if ($errors.Count) { throw 'Installer parameters did not parse' }
 # ParamBlock.Extent starts at param, excluding its CmdletBinding attributes.
 # Keep the real header so DefaultParameterSetName and every prior binding survive.
 $header = [IO.File]::ReadAllText('${installer.replaceAll("'", "''")}').Substring(0, $ast.ParamBlock.Extent.EndOffset)
-$probe = [scriptblock]::Create($header + [Environment]::NewLine + '@{installer=$InstallerPath; predecessor=$UpgradeFromInstallerPath; parameter_set=$PSCmdlet.ParameterSetName} | ConvertTo-Json -Compress')
-& $probe 'candidate.exe' 'predecessor.exe'
+$body = @'
+$parameters = [ordered]@{}
+foreach ($entry in $PSBoundParameters.GetEnumerator()) {
+    $value = $entry.Value
+    if ($value -is [Management.Automation.SwitchParameter]) { $value = [bool]$value }
+    $parameters[$entry.Key] = $value
+}
+@{parameters=$parameters; parameter_set=$PSCmdlet.ParameterSetName} | ConvertTo-Json -Depth 4 -Compress
+'@
+[IO.File]::WriteAllText('${bindingProbe.replaceAll("'", "''")}', $header + [Environment]::NewLine + $body)
 `;
-    const binding = spawnSync(
+    const prepared = spawnSync(
       "pwsh",
       [
         "-NoProfile",
@@ -88,12 +99,70 @@ $probe = [scriptblock]::Create($header + [Environment]::NewLine + '@{installer=$
         timeout: 10000,
       },
     );
-    assert.equal(binding.status, 0, binding.stderr);
-    assert.deepEqual(JSON.parse(binding.stdout), {
-      installer: "candidate.exe",
-      predecessor: "predecessor.exe",
-      parameter_set: "Run",
-    });
+    assert.equal(prepared.status, 0, prepared.stderr);
+    // Before help added named parameter sets, PowerShell assigned these 28
+    // positions in declaration order, excluding switches. Exercise all of them
+    // through the actual -File surface with an inert body, including late fields.
+    const positional = {
+      InstallerPath: "candidate.exe",
+      UpgradeFromInstallerPath: "predecessor.exe",
+      ExpectedExecutablePath: "expected.exe",
+      TestBase: "test-base",
+      RetainedLibraryRoot: "retained-library",
+      RetainExecutablePath: "retained.exe",
+      EvidencePath: "evidence.json",
+      NormalPackageManifestPath: "package-manifest.json",
+      NormalPackageAdmissionPath: "package-admission.json",
+      NativeAccountBindingPath: "account-binding.json",
+      NativeAccountBindingSha256: "account-sha256",
+      OrdinaryPublicUpdateInputsPath: "public-inputs.json",
+      OrdinaryPublicUpdateInputsSha256: "public-sha256",
+      OrdinaryPublicUpdateRemainingMilliseconds: 1000,
+      InstallMode: "Passive",
+      ExpectedVersion: "0.2.0",
+      ExpectedPredecessorVersion: "0.1.0",
+      ProcessTimeoutSeconds: 121,
+      CleanupTimeoutSeconds: 16,
+      PayloadPrivateKeyPath: "payload-key",
+      TufPrivateRootPath: "tuf-root",
+      InstalledUpdateTrustedRootPath: "trusted-root.json",
+      InstalledUpdateMetadataPath: "metadata",
+      InstalledUpdateTargetsPath: "targets",
+      InstalledUpdateCandidatePath: "update-candidate.exe",
+      InstalledUpdatePredecessorVersion: "0.0.9",
+      RendererTransport: "embedded",
+      TestFault: "post-spawn-verification",
+    };
+    const switches = {
+      NativeParentOwnsFinish: true,
+      QualifyPackageRollback: true,
+      RequireSigningAuthorityAbsent: true,
+      RendererUpdate: true,
+    };
+    const cases: [string[], Record<string, string | number | boolean>][] = [
+      [Object.values(positional).map(String), positional],
+      [
+        [
+          ...Object.entries(positional).flatMap(([name, value]) => [`-${name}`, String(value)]),
+          ...Object.keys(switches).map((name) => `-${name}`),
+        ],
+        { ...positional, ...switches },
+      ],
+    ];
+    for (const [args, expected] of cases) {
+      const binding = spawnSync(
+        "pwsh",
+        ["-NoProfile", "-NonInteractive", "-File", bindingProbe, ...args],
+        {
+          cwd: root,
+          encoding: "utf8",
+          windowsHide: true,
+          timeout: 10000,
+        },
+      );
+      assert.equal(binding.status, 0, binding.stderr);
+      assert.deepEqual(JSON.parse(binding.stdout), { parameters: expected, parameter_set: "Run" });
+    }
     assert.deepEqual(await readdir(root), ["scripts"]);
   },
 );
