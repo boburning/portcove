@@ -245,6 +245,61 @@ mod tests {
         assert_eq!(inspect(&plain).unwrap().objects, fixed["game"]);
         let selected = inspect(&shortened).unwrap();
         assert_eq!(selected.objects.len(), 851);
+        // Actual A14 stopped at the first raw shader prerequisite. Its retained
+        // dry-run is an independent generator observation, not execution proof.
+        let actual = selected
+            .actions(include_str!("fixtures/a14-shader-prerequisites.txt"), true)
+            .unwrap();
+        assert_eq!(actual.objects.len(), 8);
+        assert_eq!(actual.helpers.len(), 225);
+        assert!(!actual.bounded());
+        assert_eq!(actual.object_limit(), 2);
+        assert_eq!(actual.split_objects().unwrap().len(), 2);
+        // A missing raw output still invalidates the sealed graph, even if its
+        // corresponding generated-C output remains present.
+        assert!(
+            inspect(&shortened.replace("build src/shaders/RenderParams.hlsli.rw: phony\n", ""))
+                .is_err()
+        );
+        let raw_helpers = selected
+            .helpers
+            .iter()
+            .filter(|helper| {
+                helper.target.ends_with(".dxil")
+                    || helper.target.ends_with(".spv")
+                    || helper.target.ends_with(".rw")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(raw_helpers.len(), 112);
+        let raw_actions = |count: usize| {
+            raw_helpers[..count]
+                .iter()
+                .enumerate()
+                .map(|(index, helper)| format!("[{}/{count}] {}\n", index + 1, helper.description))
+                .collect::<String>()
+        };
+        let eight = selected.actions(&raw_actions(8), true).unwrap();
+        assert!(eight.bounded());
+        assert!(eight.require_observed(&eight).is_ok());
+        assert!(!selected.actions(&raw_actions(9), true).unwrap().bounded());
+        let description = &raw_helpers[0].description;
+        for unknown in [
+            description.replace("RenderParams", "UnknownParams"),
+            description.replace("../src/", "../outside/"),
+            format!("{description}.extra"),
+            format!("{description} && unreviewed-command"),
+        ] {
+            assert!(
+                selected
+                    .actions(&format!("[1/1] {unknown}\n"), true)
+                    .is_err()
+            );
+        }
+        assert!(
+            selected
+                .actions(&format!("[1/2] {description}\n[2/2] {description}\n"), true)
+                .is_err()
+        );
         for (canonical, alias) in &aliases {
             assert!(selected.objects.contains(alias));
             assert!(!selected.objects.contains(canonical));

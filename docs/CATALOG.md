@@ -659,8 +659,12 @@ Each invocation preflights at most eight
 pure compiler targets, or two compiler targets when helpers are present, with
 at most eight helpers. Ninja still runs only two jobs. Dependency expansion is
 split before execution; complete observed action identities must match the
-reviewed dry-run, and the sealed graph is rechecked around every invocation. Raw-file
-cancellation also drains queued writes before private cleanup; ambiguous drain
+reviewed dry-run, and the sealed graph is rechecked around every invocation.
+Shader prerequisites are literal fixed outputs: 55 DXIL files, 56 SPIR-V files
+and one preprocessed header. They are bound to the pinned RT64 and project CMake
+calls and precede the already fixed generated-C outputs. They add no shader-name
+pattern, tool acquisition or larger execution closure. Raw-file cancellation
+also drains queued writes before private cleanup; ambiguous drain
 retains staging and its journal. Original-dependent output stays local. This
 capability establishes neither catalog admission nor actual operation acceptance
 or redistribution permission.
