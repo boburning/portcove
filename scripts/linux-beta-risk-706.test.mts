@@ -3,7 +3,7 @@ import test from "node:test";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { prepareReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
 import { inspectRiskVersionPreparation706 } from "./linux-beta-risk-706-preparation.mts";
 import { pathToFileURL } from "node:url";
@@ -48,6 +48,30 @@ void test("ordinary risk readers do not load optional release-policy dependencie
       timeout: 15000,
     },
   );
+});
+
+void test("new controller bundle imports cannot execute scanner or risk CLIs", (t) => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "portcove-risk-cli-guard-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  for (const [index, name] of ["linux-beta-risk-706.mts", "dependency-security.mts"].entries()) {
+    const original = new URL(`./${name}`, import.meta.url);
+    // The installed bundler folds import.meta.url to its entry. Preserve the
+    // whole actual module and imports, changing only its physical entry name.
+    const copied = readFileSync(original, "utf8").replace(
+      /from "([.][^"]+)"/gu,
+      (_whole: string, relative: string) => `from "${new URL(relative, original).href}"`,
+    );
+    const entry = path.join(dir, `fixed-controller-${index}.mts`);
+    writeFileSync(entry, copied);
+    const result = spawnSync(process.execPath, [entry], {
+      cwd: dir,
+      encoding: "utf8",
+      timeout: 15000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, "");
+    assert.equal(result.stderr, "");
+  }
 });
 
 void test("only the complete deterministic version transform projects native review to its actual source", async (t) => {

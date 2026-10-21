@@ -520,8 +520,26 @@ export async function captureReleaseCompiler(root: string, options: CompilerCapt
           performance.now() + 120000,
           async () => {
             const candidate = await candidate706(root);
-            const { scan } = scanDependencies(root);
-            report.linux_risk_assessment = { candidate, scan, assessment: null };
+            const { scan } = scanDependencies(root, undefined, (raw) => {
+              const serialized = Buffer.from(
+                JSON.stringify({ candidate, scan: raw, assessment: null }),
+              );
+              if (serialized.length > 128 * 1024) {
+                report.linux_risk_assessment = {
+                  assessment: null,
+                  overflow: {
+                    bytes: serialized.length,
+                    sha256: createHash("sha256").update(serialized).digest("hex"),
+                    scope:
+                      "oversized raw receipt remains in producing job logs; this digest is not complete scanner data",
+                  },
+                };
+                throw new Error("compiler scanner diagnostic exceeds existing 128KiB tuple bound");
+              }
+              // Executed after raw file/stdout/stderr retention but before any
+              // post-scan drift refusal can unwind this producing process.
+              report.linux_risk_assessment = { candidate, scan: raw, assessment: null };
+            });
             const assessment = assessDispatchedBuild706({
               candidate,
               scan,

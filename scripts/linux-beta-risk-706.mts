@@ -636,7 +636,12 @@ export async function authorizeLinuxRelease(
 }
 
 async function settleDirectCli() {
-  if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
+  if (
+    /^linux-beta-risk-706(?:[.]mts|(?:[.]bundle)?[.]mjs)$/u.test(
+      path.basename(process.argv[1] ?? ""),
+    ) &&
+    path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)
+  ) {
     try {
       const [mode] = process.argv.slice(2);
       if (mode === "candidate") console.log(JSON.stringify(await candidate706(), null, 2));

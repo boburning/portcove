@@ -42,7 +42,7 @@ export async function compareVerifiedReleaseCompilerSource(
     throw new Error("compiler closure belongs to a different fixed controller source/tree");
   const directory = path.dirname(tools.compiler_source_closure);
   if (readToken !== undefined && (!readToken || readToken.length > 16384 || /\s/u.test(readToken)))
-    throw new Error("fixed compiler source read token malformed");
+    throw new Error("fixed compiler source job-reader token malformed");
   const readEnvironment: NodeJS.ProcessEnv = {};
   for (const key of [
     "PATH",

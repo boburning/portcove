@@ -108,7 +108,7 @@ refuses. There is no new journal, App, cleanup credential, generic approval inpu
 or automatic retry loop.
 
 The payload/Release/site jobs add only `issues: read` for the owner-comment GET
-and explicitly project their existing GITHUB_TOKEN into a fixed read-token
+and explicitly project their existing GITHUB_TOKEN into a fixed job-reader-token
 variable. Publisher App credentials are not widened or used for this reader.
 The actual/held workflow source hashes are reconciled in the existing resource
 contract; old ratification digests remain invalid for the changed source.
@@ -143,7 +143,7 @@ before rechecking original HEAD, lock, policy and scanner version; the compiler
 rechecks all tools/public inputs and tracked prepared source after the scan. A
 controlled actual CLI mutation changes the lock during the scanner subprocess,
 retains the raw receipt and refuses to write a decision. The site source replay
-uses an explicit scrubbed read-token environment; it does not require the
+uses an explicit scrubbed GET-only job-token environment; it does not require the
 building-job-only AsyncLocalStorage wrapper or inherit the publisher App token.
 
 Local verification (source preparation only): 87 connected cases passed with
@@ -156,3 +156,19 @@ eight; overlapping counts are not cumulative. Focused changed-module typed lint
 passed. Actual indexed inventory contains 244 required/local registered tests.
 The new actual hosted scanner capture, private positive gate and provider/native
 execution remain unobserved; ordinary final exact-head CI is still pending.
+
+Post-freeze causal follow-on: imported scanner/risk modules now use literal own
+entry basenames as well as their URL comparison, so protected controller bundles
+do not execute their standalone CLIs. A child-process regression loads each whole
+actual module under a controller entry name with preserved source imports.
+The compiler subscribes to the already-retained raw scan before its drift guard:
+a fitting failed scan remains inert in the existing result JSON even if source
+changes, while an oversized tuple retains only its byte count/digest with explicit
+incomplete-data scope and fails. Full original streams were already emitted to
+the producing job logs. No report/archive limit or success authority is widened.
+
+The projected GITHUB_TOKEN is not a provider-enforced read-only credential: its
+job retains the existing attestation/Pages and OIDC permissions. These child
+call sites perform only the fixed GET readers using that existing job token,
+with the added issues:read permission. They do not inherit or substitute the
+separately appointed Contents-write publisher App token.

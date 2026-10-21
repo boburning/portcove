@@ -30,7 +30,11 @@ function scanCommand(name: string, args: string[], cwd: string) {
 
 const groups = ["advisories", "bans", "licenses", "sources"] as const;
 
-export function scanDependencies(cwd = root, filename = process.env.PORTCOVE_706_SCAN_RECEIPT) {
+export function scanDependencies(
+  cwd = root,
+  filename = process.env.PORTCOVE_706_SCAN_RECEIPT,
+  observeRetained?: (raw: unknown) => void,
+) {
   const output = filename ?? path.join(cwd, "work", "linux-beta-risk-706", `${randomUUID()}.json`);
   mkdirSync(path.dirname(output), { recursive: true });
   const head = scanCommand("git", ["rev-parse", "HEAD"], cwd);
@@ -85,6 +89,7 @@ export function scanDependencies(cwd = root, filename = process.env.PORTCOVE_706
   process.stdout.write(scan.stdout);
   process.stderr.write(scan.stderr);
   console.log(`[dependency-policy] original cargo-deny exit ${scan.exitCode}; evidence ${output}`);
+  observeRetained?.(scan);
   checkCoordinatorDeadline();
   if (
     scanCommand("git", ["rev-parse", "HEAD"], cwd) !== head ||
@@ -245,7 +250,12 @@ export function describeDevelopmentSecurity(
 }
 
 async function settleDirectCli() {
-  if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
+  if (
+    /^dependency-security(?:[.]mts|(?:[.]bundle)?[.]mjs)$/u.test(
+      path.basename(process.argv[1] ?? ""),
+    ) &&
+    path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)
+  ) {
     try {
       if (process.argv[2] === "--help") {
         console.log(

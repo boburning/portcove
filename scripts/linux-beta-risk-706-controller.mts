@@ -244,8 +244,7 @@ export async function authorizeActualSiteLinuxRisk706(
   const { compareVerifiedReleaseCompilerSource, requireVerifiedReleaseCompilerSource } =
     await import("./release-compiler-source-admission.mts");
   const readToken = process.env.PORTCOVE_RELEASE_READ_TOKEN;
-  if (!readToken)
-    throw new Error("fixed read-only workflow token required for site compiler source");
+  if (!readToken) throw new Error("fixed job reader token required for site compiler source");
   const sourceProof = await compareVerifiedReleaseCompilerSource(
     tuf.tools_receipt,
     preparation,
@@ -302,9 +301,7 @@ async function authorizeRiskSubject706(
   const directory = context.private_parent;
   const readToken = process.env.PORTCOVE_RELEASE_READ_TOKEN;
   if (!readToken || readToken.length > 16384 || /\s/u.test(readToken))
-    throw new Error(
-      "fixed read-only workflow token required; publisher credential cannot substitute",
-    );
+    throw new Error("fixed job reader token required; publisher credential cannot substitute");
   const readHome = await mkdtemp(path.join(directory, "risk-readonly-"));
   const readEnvironment: NodeJS.ProcessEnv = {};
   for (const key of [
