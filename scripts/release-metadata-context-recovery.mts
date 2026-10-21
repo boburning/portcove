@@ -11,7 +11,11 @@ import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { inspectCapacityOperation, inspectCompactCapacityOperations } from "./release-capacity.mts";
 import { readRetainedCapacityOperation } from "./release-coordinator-state.mts";
-import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
+import {
+  readRemoteCoordinatorSnapshot,
+  hydrateRetainedCoordinatorOperation,
+} from "./release-coordinator-recovery.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import {
   requireCoordinatorSigningContext,
   readCoordinatorSigningContextFiles,
@@ -88,7 +92,7 @@ export function inspectMetadataContextRetryOperation(raw: unknown, descriptor: u
   return operation;
 }
 
-function priorOperation(context: Context, raw: unknown) {
+async function priorOperation(context: Context, raw: unknown) {
   if (!isRecord(raw) || !isRecord(raw.controller) || !isRecord(raw.controller.capacity_attempt))
     throw new Error("metadata context journal capacity unavailable");
   const capacity = raw.controller.capacity_attempt;
@@ -108,14 +112,27 @@ function priorOperation(context: Context, raw: unknown) {
     )
       continue;
     for (const proof of group.attempts) {
-      const operation = inspectMetadataContextRetryOperation(
-        readRetainedCapacityOperation(context.coordinator_repository, proof),
-        context.descriptor,
+      // Recovery imports only the current and one previous checkpoint. An old
+      // compact receipt needs its independently pinned three-object closure.
+      const rawOperation = await readMetadataContextRetryReceipt(
+        context.coordinator_repository,
+        proof,
       );
+      const operation = inspectMetadataContextRetryOperation(rawOperation, context.descriptor);
       operations.set(operation.id, operation);
     }
   }
   return [...operations.values()].sort((a, b) => b.sequence - a.sequence)[0];
+}
+
+/** Raw receipt custody only. Hydration verifies the named commit/tree/blob and
+ * operation digest; it creates no refs, execution grant or acceptance brand. */
+export async function readMetadataContextRetryReceipt(repository: string, proof: unknown) {
+  try {
+    return readRetainedCapacityOperation(repository, proof);
+  } catch {
+    return hydrateRetainedCoordinatorOperation(repository, proof);
+  }
 }
 
 /** Complete terminal provider inventory only. A 404, partial list, active run
@@ -250,15 +267,20 @@ export function inspectMetadataContextRetryProvider(
 }
 
 export async function reconcileCoordinatorSigningContext(actualContext: object, parent: string) {
-  const context = await requireCoordinatorSigningContext(actualContext),
-    deadline = context.deadline;
+  const context = await requireCoordinatorSigningContext(actualContext);
+  return withCoordinatorDeadline(context.deadline, () =>
+    reconcileAt(actualContext, context, parent),
+  );
+}
+async function reconcileAt(actualContext: object, context: Context, parent: string) {
+  const deadline = context.deadline;
   const state = await readRemoteCoordinatorSnapshot(
     parent,
     { schema_version: 1, namespace: context.namespace },
     { transport: { cwd: parent, deadline } },
   );
   if (state.checkpoint !== context.checkpoint) throw new Error("metadata retry checkpoint changed");
-  const operation = priorOperation(context, state.input);
+  const operation = await priorOperation(context, state.input);
   if (!operation) return { decision: "new" as const };
   const directory = await mkdtemp(path.join(parent, "metadata-context-recovery-")),
     home = path.join(directory, "reader-home");

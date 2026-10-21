@@ -1,16 +1,133 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm, mkdir, readFile } from "node:fs/promises";
+import childProcess, { execFileSync } from "node:child_process";
+import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
 import os from "node:os";
 import { capacityDigest as digest } from "./release-capacity.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
+  checkpointReleaseOpportunity,
+  readRetainedCapacityOperation,
+} from "./release-coordinator-state.mts";
+import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
+import { isRecord } from "./runtime-values.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import {
   inspectMetadataContextRetryOperation,
   inspectMetadataContextRetryProvider,
   inspectRecoveredMetadataContextBinding,
   reconcileCoordinatorSigningContext,
+  readMetadataContextRetryReceipt,
 } from "./release-metadata-context-recovery.mts";
+
+void test(
+  "sparse recovery hydrates exactly the old metadata receipt's three Git objects without refs",
+  { timeout: 60000 },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "metadata-retry-sparse-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const source = path.join(root, "source.git"),
+      sparse = path.join(root, "sparse.git");
+    for (const repository of [source, sparse]) {
+      await mkdir(repository);
+      execFileSync("git", ["init", "--bare", "--quiet", repository], { windowsHide: true });
+    }
+    const retained: unknown = JSON.parse(
+      await readFile(
+        new URL("./fixtures/release-coordinator-legacy.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    assert.ok(isRecord(retained) && Array.isArray(retained.rows));
+    const row: unknown = retained.rows[0];
+    assert.ok(isRecord(row) && isRecord(row.input) && isRecord(row.input.controller));
+    const f = fixture();
+    row.input.schema_version = 2;
+    row.input.controller = {
+      workflow: productionControllerWorkflow,
+      revision: f.controller.controller_revision,
+      publication_paused: false,
+      capacity_attempt: { ...capacityFixture(), schema_version: 2, operation: f.raw },
+    };
+    const saved = await checkpointReleaseOpportunity(source, null, row.input);
+    const git = (...args: string[]) =>
+      execFileSync("git", ["-C", source, ...args], { windowsHide: true });
+    const tree = git("rev-parse", `${saved.checkpoint}^{tree}`).toString().trim(),
+      blob = git("rev-parse", `${saved.checkpoint}:state.json`).toString().trim();
+    const commitBytes = git("cat-file", "commit", saved.checkpoint).toString("utf8"),
+      stateBytes = git("cat-file", "blob", blob);
+    const proof = { checkpoint: saved.checkpoint, id: f.raw.id, operation_sha256: digest(f.raw) };
+    assert.throws(() => readRetainedCapacityOperation(sparse, proof));
+    const original = childProcess.spawnSync,
+      requests: string[] = [];
+    const mock = t.mock.method(
+      childProcess,
+      "spawnSync",
+      (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
+        if (command !== "gh") return original(command, args, options);
+        assert.equal(args[args.indexOf("--method") + 1], "GET");
+        assert.equal(args[args.indexOf("--hostname") + 1], "github.com");
+        const endpoint = args.find((arg) => arg.startsWith("repos/"));
+        assert.ok(endpoint);
+        requests.push(endpoint);
+        let body: unknown;
+        if (endpoint === `repos/boburning/portcove/git/commits/${saved.checkpoint}`) {
+          const person = {
+            name: "Portcove release coordinator",
+            email: "coordinator@portcove.invalid",
+            date: "2000-01-01T00:00:00Z",
+          };
+          body = {
+            sha: saved.checkpoint,
+            tree: { sha: tree },
+            parents: [],
+            author: person,
+            committer: person,
+            message: commitBytes.slice(commitBytes.indexOf("\n\n") + 2),
+            verification: { signature: null },
+          };
+        } else if (endpoint === `repos/boburning/portcove/git/trees/${tree}`)
+          body = {
+            sha: tree,
+            truncated: false,
+            tree: [{ path: "state.json", mode: "100644", type: "blob", sha: blob }],
+          };
+        else if (endpoint === `repos/boburning/portcove/git/blobs/${blob}`)
+          body = {
+            sha: blob,
+            encoding: "base64",
+            size: stateBytes.length,
+            content: stateBytes.toString("base64"),
+          };
+        else throw new Error("unexpected fixture GET");
+        return {
+          status: 0,
+          stdout: `HTTP/2.0 200 Fixture\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(body)}`,
+          stderr: "",
+        };
+      },
+    );
+    syncBuiltinESMExports();
+    t.after(() => {
+      mock.mock.restore();
+      syncBuiltinESMExports();
+    });
+    const actual = await withCoordinatorDeadline(performance.now() + 15000, () =>
+      readMetadataContextRetryReceipt(sparse, proof),
+    );
+    assert.equal(digest(actual), digest(f.raw));
+    assert.equal(requests.length, 3);
+    assert.equal(
+      execFileSync("git", ["-C", sparse, "for-each-ref"], { encoding: "utf8", windowsHide: true }),
+      "",
+    );
+    assert.equal(digest(await readMetadataContextRetryReceipt(sparse, proof)), digest(f.raw));
+    assert.equal(requests.length, 3, "already verified local custody needs no repeat hydration");
+  },
+);
 
 void test("reused context preserves its original checkpoint and all current descriptor/setup/prior/byte identities", () => {
   const facts = {
