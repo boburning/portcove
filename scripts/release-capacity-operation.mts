@@ -1,4 +1,8 @@
 import {
+  inspectReleaseEffectExpectation,
+  assertReleaseEffectBinding,
+} from "./release-effect-contract.mts";
+import {
   inspectAggregateUploadExpectation,
   assertAggregateUploadCandidate,
 } from "./release-aggregate-contract.mts";
@@ -58,6 +62,7 @@ type Request = {
   kind: "dispatch" | "upload" | "retention";
   destination: string;
   site_expectation?: unknown;
+  release_expectation?: unknown;
   aggregate_expectation?: unknown;
 };
 export interface CapacityOperationOptions {
@@ -137,6 +142,7 @@ async function runOperation(
     [
       "destination",
       "kind",
+      ...(request.release_expectation === undefined ? [] : ["release_expectation"]),
       ...(request.site_expectation === undefined ? [] : ["site_expectation"]),
       ...(request.aggregate_expectation === undefined ? [] : ["aggregate_expectation"]),
     ]
@@ -144,6 +150,10 @@ async function runOperation(
       .join(",")
   )
     throw new Error("capacity operation request contains unsupported fields");
+  const releaseExpectation =
+    request.release_expectation === undefined
+      ? null
+      : inspectReleaseEffectExpectation(request.release_expectation);
   const aggregate =
     request.aggregate_expectation === undefined
       ? null
@@ -269,6 +279,24 @@ async function runOperation(
     } else if (metadataRecovery !== undefined)
       throw new Error("metadata new effect cannot manufacture a recovery increment");
   }
+  if (releaseExpectation) {
+    assertReleaseEffectBinding(releaseExpectation, expected, candidate, request.destination);
+    if (
+      aggregate ||
+      site ||
+      maintenance ||
+      executor?.role !== "release-publication" ||
+      request.kind !== "upload" ||
+      maximumReceipts !== 1
+    )
+      throw new Error("Release intent scope differs");
+  }
+  if (
+    executor?.role === "release-publication" &&
+    request.destination.startsWith("github-release:") &&
+    !releaseExpectation
+  )
+    throw new Error("Release preimage required before effect");
   const identity = {
     before_checkpoint: expected,
     ...(bootstrap
@@ -300,6 +328,7 @@ async function runOperation(
             },
           }),
     destination: request.destination,
+    ...(releaseExpectation ? { release_expectation: releaseExpectation } : {}),
     ...(site ? { site_expectation: site } : {}),
     ...(aggregate ? { aggregate_expectation: aggregate } : {}),
     // An invocation-generated claim makes independent executors' pending bytes

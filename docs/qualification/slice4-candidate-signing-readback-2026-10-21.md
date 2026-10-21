@@ -29,3 +29,32 @@ provider, signing, native, publication, resource-capacity or setup acceptance.
 Focused inert provider/refusal checks and real local Git receipt discovery are
 separate from actual hosted authority. No signing key, protected provider write,
 publication or native invocation was used for local verification.
+
+The next fixed continuation can read through only an exact same-candidate pending
+Release create, asset-upload or publish intent when all seven original signing
+outputs are already positively settled. It authenticates those original receipts
+and keyless Tough output before any recovery settlement. Current protected
+coordinator controls, the original terminal publisher and the exact unchanged
+pending operation bracket complete draft-inclusive Release/tag/assets GETs.
+Only positive desired-effect readback enters the existing coordinator executor's
+readback transition; there is no Release POST or absence-to-no-effect inference.
+
+Package/signature/checksum identities derive from the genuine received context.
+Its SBOM hash remains independent of the initially unknown length: only a present
+fixed asset with bounded actual bytes matching that hash supplies the length.
+The raw metadata reader shares the maintained traversal and returns no authority.
+Missing targets, partial publish, byte/source/identity drift, missing original
+signing custody and unrelated pending effects (including result upload) remain
+held. Promoting admission remains read-only; this does not create a publisher
+identity or bypass existing Release/native/site completion checks.
+
+Release effects now retain `release_expectation` in the same immutable capacity
+intent: original checkpoint, canonical effect/request digest, final asset byte
+inventory, and prior Release/asset IDs. The fixed publisher derives it from its
+private prepared session before pending publication, then repeats the provider
+preimage read immediately before the mutation. This is a fresh read, not a
+provider-side atomic compare-and-swap. Upload/publish recovery requires the exact
+original Release ID and every prior asset identity even when no receipt was
+returned. Historical records remain readable; missing preimages remain held.
+Only the six selected packages, two signatures, public SBOM and final checksum
+belong to the initial-beta public asset set; compiler metadata remains provenance.

@@ -48,6 +48,43 @@ import { resolveUiSelection } from "./ui-test-selection.mts";
 
 const allFilesExist = () => true;
 
+void test("pending Release modules select complete test paths and serialize actual CI outputs", async (t) => {
+  const files = [
+    "scripts/release-pending-release-recovery.mts",
+    "scripts/release-effect-contract.mts",
+  ];
+  for (const file of files) {
+    const selection = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
+    assert.ok(selection.nodeTests.has("scripts/release-pending-release-recovery.test.mts"));
+    assert.ok(!selection.unknown.has(file));
+    assert.ok(
+      [...selection.nodeTests].every(
+        (name) => name.startsWith("scripts/") && name.endsWith(".test.mts"),
+      ),
+    );
+  }
+  const root = mkdtempSync(path.join(tmpdir(), "portcove-pending-release-plan-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const plan = buildValidationPlan({
+    changes: files.map((file) => ({
+      status: "M",
+      oldPath: file,
+      newPath: file,
+      oldMode: "100644",
+      newMode: "100644",
+    })),
+    eventName: "pull_request",
+    checkout: "a".repeat(40),
+    head: "a".repeat(40),
+    base: "b".repeat(40),
+    mergeBase: "b".repeat(40),
+  });
+  const { writeGithubOutputs } = await import("./select-ci-plan.mts");
+  const output = path.join(root, "github-output.txt");
+  await writeGithubOutputs(output, plan);
+  assert.match(readFileSync(output, "utf8"), /^plan_gzip_base64=.+$/mu);
+});
+
 void test("hook implementation-only edits select the real Git hook contract", () => {
   for (const file of ["scripts/hooks-install.mts", "scripts/precommit.mts"]) {
     const selection = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
