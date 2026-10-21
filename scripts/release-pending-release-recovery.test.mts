@@ -1,7 +1,17 @@
+import { releaseEffectFixture } from "./fixtures/release-effect-fixture.mts";
+import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
+import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
+import { artifactName } from "./release-package-policy.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import { capacityDigest as digest, inspectCapacityOperation } from "./release-capacity.mts";
+import {
+  capacityDigest as digest,
+  inspectCapacityOperation,
+  validateCapacityTransition,
+} from "./release-capacity.mts";
+import { assertCapacityExecutorEffectScope } from "./release-capacity-executor.mts";
+import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import { pagesRecoveryOperationFixture } from "./fixtures/release-pages-recovery-fixture.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
@@ -10,6 +20,7 @@ import {
   inspectPendingCandidateReleaseOperation,
   inspectPendingReleaseProducer,
   derivePendingReleaseAssets,
+  planPendingReleaseAssets,
   observePendingCandidateRelease,
 } from "./release-pending-release-recovery.mts";
 import type { GitHubRestReader } from "./github-api.mts";
@@ -27,7 +38,20 @@ const candidate = {
 function operation(suffix: string, changes: Record<string, unknown> = {}) {
   const { site_expectation: discarded, ...original } = pagesRecoveryOperationFixture();
   assert.ok(discarded);
+  const f = fixture();
+  const release_expectation = releaseEffectFixture(
+    original.before_checkpoint,
+    {
+      ...f.expected,
+      assets: [
+        ...f.expected.assets,
+        { filename: "Portcove-SBOM.spdx.json", bytes: f.sbom.length, sha256: hash(f.sbom) },
+      ],
+    },
+    suffix === "other" ? "publish" : suffix,
+  );
   const value = {
+    release_expectation,
     ...original,
     destination: `github-release:boburning/portcove:v${candidate.version}:${suffix}`,
     executor_identity: {
@@ -249,11 +273,158 @@ void test("absent SBOM length stays unknown for draft custody and cannot complet
   const publish = inspectPendingCandidateReleaseOperation(operation("publish"), candidate);
   await assert.rejects(
     observePendingCandidateRelease(f.api, publish, f.expected, unavailable),
-    /missing mandatory/,
+    /missing mandatory|prior asset identity changed/,
   );
 });
+void test("genuine six-package assembly excludes compiler-only provenance and matches maintained final publisher bytes", async (t) => {
+  const f = await trustedAssemblyFixture(t, "initial-beta-win-linux");
+  const { accepted, policy } = await inspectTrustedAssemblyInput(f.request);
+  assert.equal(accepted.files.length, 10);
+  assert.equal(policy.packages.length, 6);
+  const signatures = policy.packages
+    .filter((p) => p.interface === "desktop" && ["nsis", "appimage"].includes(p.format))
+    .map((p) => ({
+      filename: `${artifactName(p, accepted.version)}.sig`,
+      bytes: Buffer.from(`original signature ${p.id}\n`),
+    }));
+  assert.equal(signatures.length, 2);
+  const sbom = Buffer.from("public SPDX fixture\n");
+  const planned = planPendingReleaseAssets(accepted, policy, signatures, hash(sbom));
+  assert.equal(planned.assets.length, 9);
+  assert.ok(planned.assets.every((a) => !/^release-producer-|^SHA256SUMS-/u.test(a.filename)));
+  const packages = policy.packages.map((p) => {
+    const filename = artifactName(p, accepted.version);
+    const item = accepted.files.find((a) => a.filename === filename)!;
+    return { filename, bytes: item.bytes, sha256: item.sha256 };
+  });
+  // Execute the exact maintained publisher byte-finalization block, with inert
+  // input/output adapters. No private session or publication authority is minted.
+  const { readFile } = await import("node:fs/promises");
+  const { stripTypeScriptTypes } = await import("node:module");
+  const { runInNewContext } = await import("node:vm");
+  const source = await readFile(
+    new URL("./release-immutable-publication.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("    const files = [...packages];");
+  const end = source.indexOf('    phase = "reservation-after";', start);
+  assert.ok(start > 0 && end > start);
+  const output = new Map<string, Buffer>();
+  const finalize = runInNewContext(
+    stripTypeScriptTypes(`(async()=>{${source.slice(start, end)}return files;})`),
+    {
+      packages,
+      signatures,
+      Buffer,
+      path: await import("node:path"),
+      assetsRoot: "/inert/assets",
+      request: { sbom: "/inert/sbom" },
+      policy,
+      releaseSbomName: "Portcove-SBOM.spdx.json",
+      sha: hash,
+      parseReleaseChecksumManifest: () => {},
+      boundedBytes: async () => sbom,
+      writeFile: async (name: string, bytes: Buffer) => {
+        output.set(name, Buffer.from(bytes));
+      },
+    },
+  ) as () => Promise<{ filename: string; bytes: number; sha256: string }[]>;
+  const actual = await finalize();
+  assert.equal(
+    digest(
+      actual
+        .filter((a) => a.filename !== "Portcove-SBOM.spdx.json")
+        .sort((a, b) => a.filename.localeCompare(b.filename)),
+    ),
+    digest([...planned.assets].sort((a, b) => a.filename.localeCompare(b.filename))),
+  );
+  assert.equal(actual.length, 10);
+  const checksum = [...output.entries()].find(([name]) => name.endsWith("SHA256SUMS.txt"))![1];
+  assert.equal(hash(checksum), planned.assets.find((a) => a.filename === "SHA256SUMS.txt")!.sha256);
+});
+
+void test("journal pins exact original provider object/preimage, and legacy missing expectations remain held", async () => {
+  const f = fixture();
+  const op = inspectPendingCandidateReleaseOperation(operation("upload:Portcove.exe"), candidate);
+  assert.equal(op.completed_effects.length, 0);
+  // A recreated Release with identical bytes is a different provider object.
+  f.release.id = 322;
+  f.release.url = `https://api.github.com/${base}/releases/322`;
+  f.release.upload_url = `https://uploads.github.com/${base}/releases/322/assets{?name,label}`;
+  const remapped: GitHubRestReader = {
+    request(method, endpoint) {
+      return f.api.request(method, endpoint.replace("/releases/322", "/releases/321"));
+    },
+  };
+  await assert.rejects(
+    observePendingCandidateRelease(remapped, op, f.expected, () => f.sbom),
+    /provider ID changed/,
+  );
+  const legacy = operation("upload:Portcove.exe");
+  const { release_expectation: _ignored, id: _id, ...rest } = legacy;
+  const { outcome, completed_effects, failure_evidence, recovery, ...identity } = rest;
+  const old = {
+    ...identity,
+    id: digest(identity),
+    outcome,
+    completed_effects,
+    failure_evidence,
+    recovery,
+  };
+  assert.ok(inspectCapacityOperation(old));
+  assert.throws(() => inspectPendingCandidateReleaseOperation(old, candidate));
+  const capacity = capacityFixture();
+  const input = {
+    schema_version: 2,
+    active_candidate: candidate,
+    controller: { capacity_attempt: { ...capacity, operation: old, prior_operations: [] } },
+  };
+  assert.doesNotThrow(() =>
+    validateCapacityTransition(input, structuredClone(input), "a".repeat(40)),
+  );
+  const before = {
+    ...input,
+    controller: { capacity_attempt: { ...capacity, operation: null, prior_operations: [] } },
+  };
+  assert.throws(
+    () => validateCapacityTransition(before, input, "a".repeat(40)),
+    /exact provider preimage/,
+  );
+  const request = {
+    kind: "upload" as const,
+    destination: op.destination,
+    release_expectation: op.release_expectation,
+  };
+  assert.doesNotThrow(() => assertCapacityExecutorEffectScope("release-publication", request));
+  assert.throws(() => assertCapacityExecutorEffectScope("coordinator", request));
+  assert.throws(() =>
+    assertCapacityExecutorEffectScope("release-publication", {
+      kind: "upload",
+      destination: op.destination,
+    }),
+  );
+  assert.throws(() =>
+    assertCapacityExecutorEffectScope("release-publication", {
+      ...request,
+      destination: op.destination.replace("Portcove.exe", "different.exe"),
+    }),
+  );
+  for (const change of [
+    { ...op.release_expectation, before_checkpoint: "f".repeat(40) },
+    { ...op.release_expectation, effect_request_sha256: "f".repeat(64) },
+    { ...op.release_expectation, prior: { ...op.release_expectation!.prior, release_id: 322 } },
+  ])
+    assert.throws(() => inspectCapacityOperation({ ...op, release_expectation: change }));
+});
 void test("missing, partial, wrong bytes and changed tag never become no-effect or a repeated POST", async () => {
-  const cases = ["absent", "missing-target", "partial-publish", "wrong-digest", "wrong-sbom-bytes"];
+  const cases = [
+    "absent",
+    "missing-target",
+    "partial-publish",
+    "wrong-digest",
+    "wrong-sbom-bytes",
+    "wrong-tag",
+  ];
   for (const selected of cases) {
     const f = fixture(),
       suffix = selected === "partial-publish" ? "publish" : "upload:Portcove.exe";

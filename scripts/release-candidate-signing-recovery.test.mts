@@ -1,3 +1,4 @@
+import { releaseEffectFixture } from "./fixtures/release-effect-fixture.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtemp, rm, readFile } from "node:fs/promises";
@@ -65,9 +66,19 @@ function operation(output: Output, sequence = 1, changes: Record<string, unknown
     ratification_sha256: digest(capacity.ratification),
     ...changes,
   };
+  const releaseExpectation = identity.destination.startsWith("github-release:")
+    ? {
+        release_expectation: releaseEffectFixture(identity.before_checkpoint, {
+          version: String(identity.candidate.version),
+          source_commit: String(identity.candidate.prepared_commit),
+          assets: [{ filename: "package.exe", bytes: 1, sha256: "a".repeat(64) }],
+        }),
+      }
+    : {};
+  const boundIdentity = { ...identity, ...releaseExpectation };
   return {
-    ...identity,
-    id: digest(identity),
+    ...boundIdentity,
+    id: digest(boundIdentity),
     outcome: "succeeded",
     completed_effects: [
       {

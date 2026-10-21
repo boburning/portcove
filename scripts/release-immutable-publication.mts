@@ -1,3 +1,4 @@
+import { inspectReleaseEffectExpectation } from "./release-effect-contract.mts";
 import { requireActualCandidatePhaseAdvance } from "./release-candidate-progress.mts";
 import { materializePublicationUpdaterRoots } from "./release-publication-inputs.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
@@ -1095,7 +1096,10 @@ export async function advanceImmutableReleasePublication(
     // operation allowance and exclusive write/readback ownership. A document saying
     // enabled:true is not an authenticated immutability-setting observation.
     effect: (
-      effect: ImmutableReleaseEffect & { effect_request_sha256: string },
+      effect: ImmutableReleaseEffect & {
+        effect_request_sha256: string;
+        release_expectation: ReturnType<typeof inspectReleaseEffectExpectation>;
+      },
       operation: () => Promise<{ remote_identity: string; evidence_sha256: string }>,
     ) => Promise<{ checkpoint: string; operation_id: string; evidence_sha256: string }>;
     api?: GitHubRestReader;
@@ -1137,8 +1141,25 @@ export async function advanceImmutableReleasePublication(
         ...next,
         evidence_scope: options.api || options.fetch ? "injected-provider" : "github.com",
       };
+    const releaseExpectation = inspectReleaseEffectExpectation({
+      before_checkpoint: state.checkpoint,
+      effect_request_sha256: capacityDigest({ checkpoint: state.checkpoint, effect: next.effect }),
+      effect: next.effect,
+      identity: session.identity,
+      prior: {
+        release_id: before.release === null ? null : Number(before.release.id),
+        assets: assets(
+          before.assets,
+          session.identity.assets,
+          before.release === null ? 1 : Number(before.release.id),
+          session.identity.version,
+          before.release?.draft === true,
+        ).map(({ id, filename, bytes, sha256 }) => ({ id, filename, bytes, sha256 })),
+      },
+    });
     const effect = {
       ...structuredClone(next.effect),
+      release_expectation: releaseExpectation,
       effect_request_sha256: capacityDigest({ checkpoint: state.checkpoint, effect: next.effect }),
     };
     if (effect.kind === "upload-asset") Object.freeze(effect.asset);
@@ -1160,6 +1181,36 @@ export async function advanceImmutableReleasePublication(
       let observed: ReturnType<typeof readImmutableReleaseState> | null = null;
       const settlement = await options.effect(effect, async () => {
         if (started) throw new Error("a release effect may execute only once");
+        publicationRemaining(options.deadline);
+        const immediate = readImmutableReleaseState(api, session.identity);
+        const immediateNext = proposeImmutableReleaseTransition(
+          session.identity,
+          immediate.release,
+          immediate.assets,
+        );
+        if (
+          immediateNext.decision !== "effect" ||
+          capacityDigest(immediateNext.effect) !== capacityDigest(next.effect) ||
+          capacityDigest(
+            assets(
+              immediate.assets,
+              session.identity.assets,
+              immediate.release === null ? 1 : Number(immediate.release.id),
+              session.identity.version,
+              immediate.release?.draft === true,
+            ),
+          ) !==
+            capacityDigest(
+              assets(
+                before.assets,
+                session.identity.assets,
+                before.release === null ? 1 : Number(before.release.id),
+                session.identity.version,
+                before.release?.draft === true,
+              ),
+            )
+        )
+          throw new Error("Release preimage changed before provider mutation");
         publicationRemaining(options.deadline);
         started = true;
         await performImmutableReleaseEffect(
@@ -1391,7 +1442,11 @@ export async function advanceOwnedImmutableReleasePublication(
           repository: input.repository,
           checkpoint: state.checkpoint,
           remote_configuration: input.remote_configuration,
-          request: { kind: "upload", destination: effect.destination },
+          request: {
+            kind: "upload",
+            destination: effect.destination,
+            release_expectation: effect.release_expectation,
+          },
         },
         readBoundary,
         async () => {

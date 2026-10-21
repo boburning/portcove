@@ -1,3 +1,4 @@
+import { inspectReleaseEffectExpectation } from "./release-effect-contract.mts";
 import { inspectAggregateUploadExpectation } from "./release-aggregate-contract.mts";
 import { performance } from "node:perf_hooks";
 import {
@@ -133,6 +134,7 @@ interface OwnedEffectRequest {
   kind: "dispatch" | "upload" | "retention";
   destination: string;
   site_expectation?: unknown;
+  release_expectation?: unknown;
   aggregate_expectation?: unknown;
 }
 
@@ -147,6 +149,7 @@ export function assertCapacityExecutorEffectScope(
     [
       "destination",
       "kind",
+      ...(request.release_expectation === undefined ? [] : ["release_expectation"]),
       ...(request.site_expectation === undefined ? [] : ["site_expectation"]),
       ...(request.aggregate_expectation === undefined ? [] : ["aggregate_expectation"]),
     ]
@@ -154,6 +157,23 @@ export function assertCapacityExecutorEffectScope(
       .join(",")
   )
     throw new Error("executor effect request contains unsupported fields");
+  if (request.release_expectation !== undefined) {
+    const expected = inspectReleaseEffectExpectation(request.release_expectation);
+    if (
+      role !== "release-publication" ||
+      request.kind !== "upload" ||
+      expected.effect.destination !== request.destination ||
+      request.aggregate_expectation !== undefined ||
+      request.site_expectation !== undefined
+    )
+      throw new Error("Release expectation outside fixed publisher scope");
+  }
+  if (
+    role === "release-publication" &&
+    request.destination.startsWith("github-release:") &&
+    request.release_expectation === undefined
+  )
+    throw new Error("Release preimage required");
   if (request.aggregate_expectation !== undefined) {
     inspectAggregateUploadExpectation(request.aggregate_expectation);
     if (

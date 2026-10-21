@@ -47,3 +47,14 @@ Missing targets, partial publish, byte/source/identity drift, missing original
 signing custody and unrelated pending effects (including result upload) remain
 held. Promoting admission remains read-only; this does not create a publisher
 identity or bypass existing Release/native/site completion checks.
+
+Release effects now retain `release_expectation` in the same immutable capacity
+intent: original checkpoint, canonical effect/request digest, final asset byte
+inventory, and prior Release/asset IDs. The fixed publisher derives it from its
+private prepared session before pending publication, then repeats the provider
+preimage read immediately before the mutation. This is a fresh read, not a
+provider-side atomic compare-and-swap. Upload/publish recovery requires the exact
+original Release ID and every prior asset identity even when no receipt was
+returned. Historical records remain readable; missing preimages remain held.
+Only the six selected packages, two signatures, public SBOM and final checksum
+belong to the initial-beta public asset set; compiler metadata remains provenance.

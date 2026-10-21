@@ -396,6 +396,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-metadata-context-recovery.mts",
   "scripts/release-candidate-signing-recovery.mts",
   "scripts/release-pending-release-recovery.mts",
+  "scripts/release-effect-contract.mts",
   "scripts/release-run-artifact-inventory.mts",
   "scripts/release-metadata-site-controller.mts",
   "scripts/release-signing-context.mts",

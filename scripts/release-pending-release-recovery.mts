@@ -1,3 +1,4 @@
+import { artifactName, type ReleasePackagePolicy } from "./release-package-policy.mts";
 /** Positive readback of one original Release intent. Data inspections below
  * grant no authority; the caller owns actual receipts, controls and executor. */
 import assert from "node:assert/strict";
@@ -45,6 +46,7 @@ export function inspectPendingCandidateReleaseOperation(raw: unknown, candidate:
       ["pending", "ambiguous", "capacity-refused"].includes(operation.outcome) &&
       operation.kind === "upload" &&
       operation.receipt_limit === 1 &&
+      operation.release_expectation !== undefined &&
       operation.executor_identity?.role === "release-publication" &&
       operation.executor_identity.workflow === productionControllerWorkflow &&
       operation.executor_identity.run_attempt === 1 &&
@@ -145,8 +147,24 @@ export async function derivePendingReleaseAssets(
   assert.equal(manifest.facts.sbom_evidence.document_sha256, sbom);
   const files = await readBoundedReleaseContextFiles(path.dirname(context.context));
   const signatures = await reconstructPublicationSignatures(manifest, manifest.facts, files);
+  return planPendingReleaseAssets(accepted, policy, signatures, sbom);
+}
+
+/** Byte planning only, matching the maintained publisher package selection. */
+export function planPendingReleaseAssets(
+  accepted: Awaited<ReturnType<typeof inspectTrustedAssemblyInput>>["accepted"],
+  policy: ReleasePackagePolicy,
+  signatures: { filename: string; bytes: Buffer }[],
+  sbom: string,
+): PendingReleaseAssets {
   const assets = [
-    ...accepted.files.map(({ filename, bytes, sha256 }) => ({ filename, bytes, sha256 })),
+    ...policy.packages.map((definition) => {
+      const filename = artifactName(definition, accepted.version);
+      const matches = accepted.files.filter((file) => file.filename === filename);
+      assert.equal(matches.length, 1, "exact selected package identity required");
+      const { bytes, sha256 } = matches[0]!;
+      return { filename, bytes, sha256 };
+    }),
     ...signatures.map(({ filename, bytes }) => ({
       filename,
       bytes: bytes.length,
@@ -185,6 +203,18 @@ export async function observePendingCandidateRelease(
   expected: PendingReleaseAssets,
   readSbom: (id: number, maximum: number) => Promise<Buffer> | Buffer,
 ) {
+  const intent = operation.release_expectation;
+  assert.ok(intent, "original Release preimage is unavailable");
+  assert.equal(intent.identity.version, expected.version);
+  assert.equal(intent.identity.source_commit, expected.source_commit);
+  for (const item of expected.assets)
+    assert.ok(
+      intent.identity.assets.some((a) => digest(a) === digest(item)),
+      "original final inventory differs",
+    );
+  const intendedSbom = intent.identity.assets.find((a) => a.filename === releaseSbomName);
+  assert.ok(intendedSbom && intendedSbom.sha256 === expected.sbom_sha256);
+  assert.equal(intent.identity.assets.length, expected.assets.length + 1);
   const names = [...expected.assets.map((entry) => entry.filename), releaseSbomName];
   const actual = readImmutableReleaseCustodyState(api, {
     version: expected.version,
@@ -192,6 +222,12 @@ export async function observePendingCandidateRelease(
     asset_names: names,
   });
   assert.ok(isRecord(actual.release), "original Release effect has no positive readback");
+  if (intent.prior.release_id !== null)
+    assert.equal(
+      actual.release.id,
+      intent.prior.release_id,
+      "original Release provider ID changed",
+    );
   const known = expected.assets.map((entry) => ({ ...entry }));
   const sboms = actual.assets.filter((entry) => isRecord(entry) && entry.name === releaseSbomName);
   assert.ok(sboms.length <= 1, "SBOM asset identity conflicts");
@@ -209,6 +245,7 @@ export async function observePendingCandidateRelease(
     );
     const bytes = await readSbom(Number(sbom.id), Number(sbom.size));
     assert.equal(bytes.length, sbom.size);
+    assert.equal(bytes.length, intendedSbom.bytes, "original SBOM length differs");
     assert.equal(hash(bytes), expected.sbom_sha256, "original SBOM bytes differ");
     known.push({ filename: releaseSbomName, bytes: bytes.length, sha256: expected.sbom_sha256 });
   }
@@ -233,6 +270,17 @@ export async function observePendingCandidateRelease(
       };
     })
     .sort((a, b) => a.filename.localeCompare(b.filename));
+  for (const old of intent.prior.assets)
+    assert.ok(
+      normalized.some(
+        (a) =>
+          a.id === old.id &&
+          a.filename === old.filename &&
+          a.bytes === old.bytes &&
+          a.sha256 === old.sha256,
+      ),
+      "original prior asset identity changed",
+    );
   const prefix = `github-release:${repository}:v${expected.version}:`;
   assert.ok(operation.destination.startsWith(prefix));
   const suffix = operation.destination.slice(prefix.length);

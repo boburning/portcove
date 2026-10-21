@@ -1,4 +1,8 @@
 import {
+  inspectReleaseEffectExpectation,
+  assertReleaseEffectBinding,
+} from "./release-effect-contract.mts";
+import {
   inspectAggregateUploadExpectation,
   assertAggregateUploadCandidate,
 } from "./release-aggregate-contract.mts";
@@ -164,6 +168,7 @@ export interface ParsedCapacityOperation {
   executor_nonce?: string;
   executor_identity?: ReturnType<typeof inspectCapacityExecutorIdentity>;
   receipt_limit?: number;
+  release_expectation?: ReturnType<typeof inspectReleaseEffectExpectation>;
   aggregate_expectation?: ReturnType<typeof inspectAggregateUploadExpectation>;
   site_expectation?: ReturnType<typeof inspectSitePublicationExpectation>;
   destination: string;
@@ -230,6 +235,7 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
   const bootstrap = isRecord(raw) && Object.hasOwn(raw, "metadata_bootstrap");
   const receiptLimit = isRecord(raw) && Object.hasOwn(raw, "receipt_limit");
   const hasAggregate = isRecord(raw) && Object.hasOwn(raw, "aggregate_expectation");
+  const hasRelease = isRecord(raw) && Object.hasOwn(raw, "release_expectation");
   const hasSite = isRecord(raw) && Object.hasOwn(raw, "site_expectation");
   exact(
     raw,
@@ -241,6 +247,7 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
       ...(hasExecutor ? ["executor_nonce"] : []),
       ...(hasIdentity ? ["executor_identity"] : []),
       ...(receiptLimit ? ["receipt_limit"] : []),
+      ...(hasRelease ? ["release_expectation"] : []),
       ...(hasSite ? ["site_expectation"] : []),
       ...(hasAggregate ? ["aggregate_expectation"] : []),
       "failure_evidence",
@@ -295,6 +302,25 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
       executorIdentity?.role !== "aggregate-assembly")
   )
     throw new Error("aggregate expectation belongs only to the fixed admitted assembler");
+  const releaseExpectation = hasRelease
+    ? assertReleaseEffectBinding(
+        raw.release_expectation,
+        String(raw.before_checkpoint),
+        raw.candidate,
+        String(raw.destination),
+      )
+    : null;
+  if (
+    releaseExpectation &&
+    (hasSite ||
+      hasAggregate ||
+      metadata ||
+      bootstrap ||
+      raw.kind !== "upload" ||
+      executorIdentity?.role !== "release-publication" ||
+      raw.receipt_limit !== 1)
+  )
+    throw new Error("Release expectation is outside fixed publisher scope");
   const site = hasSite ? inspectSitePublicationExpectation(raw.site_expectation) : null;
   if (
     site &&
@@ -445,6 +471,7 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
     before_checkpoint: raw.before_checkpoint,
     ...subject,
     destination: raw.destination,
+    ...(releaseExpectation ? { release_expectation: releaseExpectation } : {}),
     ...(site ? { site_expectation: site } : {}),
     ...(aggregate ? { aggregate_expectation: aggregate } : {}),
     ...(hasExecutor ? { executor_nonce: String(raw.executor_nonce) } : {}),
@@ -778,6 +805,13 @@ function validateCapacityV2(
     after = inspectCapacityOperation(capacity.operation);
   const newIntent = after && (!before || before.id !== after.id);
   if (newIntent) assertPublicationResultDestination(after.destination, after.candidate);
+  if (
+    newIntent &&
+    after.executor_identity?.role === "release-publication" &&
+    after.destination.startsWith("github-release:") &&
+    !after.release_expectation
+  )
+    throw new Error("new Release intent requires exact provider preimage");
   if (newIntent && after.aggregate_expectation)
     assertAggregateUploadCandidate(next.active_candidate);
   const previousBootstrap =
@@ -1001,6 +1035,13 @@ export function validateCapacityTransition(
       : [];
   const newIntent = after && (!before || before.id !== after.id);
   if (newIntent) assertPublicationResultDestination(after.destination, after.candidate);
+  if (
+    newIntent &&
+    after.executor_identity?.role === "release-publication" &&
+    after.destination.startsWith("github-release:") &&
+    !after.release_expectation
+  )
+    throw new Error("new Release intent requires exact provider preimage");
   if (newIntent && after.aggregate_expectation)
     assertAggregateUploadCandidate(next.active_candidate);
   const expectedPrior = newIntent
