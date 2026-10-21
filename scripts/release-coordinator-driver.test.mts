@@ -12,6 +12,7 @@ import {
   coordinatorContinuationDeadline,
   coordinatorOriginalJobDeadline,
   selectCoordinatorPendingPagesRecovery,
+  selectCoordinatorCandidateSigningRecovery,
   materializeCoordinatorPublishedSite,
   selectCoordinatorMetadataBootstrap,
   requireActualCoordinatorBootstrapPreparation,
@@ -654,4 +655,161 @@ void test("coordinator inherited phase caps the original-job lookup and refuses 
   const current = clock(250);
   assert.equal(current.monotonicDeadline, 250);
   assert.deepEqual(timeouts, [5, 50]);
+});
+
+void test("candidate signing wake routing selects only publishing and promoting without changing state", () => {
+  for (const phase of [
+    "prepared",
+    "qualifying",
+    "building",
+    "publishing",
+    "promoting",
+    "completed",
+  ]) {
+    const input = { active_candidate: { phase, transient_retries: 2, substantive_repairs: 3 } };
+    const before = structuredClone(input);
+    assert.equal(
+      selectCoordinatorCandidateSigningRecovery(input),
+      ["publishing", "promoting"].includes(phase) ? phase : null,
+    );
+    assert.deepEqual(input, before);
+  }
+  assert.equal(selectCoordinatorCandidateSigningRecovery({}), null);
+});
+
+void test("actual coordinator signing callgraph preserves initial0, original deadline and GET-only receipt join", async () => {
+  const source = await readFile(
+    new URL("./release-coordinator-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function recoverTrustedCoordinatorCandidateSigning("),
+    end = source.indexOf("/** A durable expected Pages generation", start);
+  assert.ok(start > 0 && end > start);
+  const calls: string[] = [];
+  let now = 10,
+    drift = false;
+  const deadline = 170000;
+  const identity = {
+    controller_revision: "a",
+    controller_ref: "refs/tags/fixed",
+    run_id: "7",
+    run_attempt: 1,
+  };
+  const reader = {
+    admitted: {
+      revision: "a",
+      execution_ref: "refs/tags/fixed",
+      run_id: 7,
+      run_attempt: 1,
+      actor_id: "8",
+    },
+    identity: { job_id: 9, check_run_id: "10" },
+  };
+  const controls = {
+    evidence_scope: "github.com",
+    readMaintenance: () => ({ reader: reader.identity, stable: drift ? 2 : 1 }),
+  };
+  const context = {
+    selectCoordinatorCandidateSigningRecovery,
+    requireControllerReleaseAuthorities: async () => ({ namespace: "fixed" }),
+    inspectCoordinatorRemoteNamespace: () => "fixed",
+    receiveControllerTools: async (...args: unknown[]) => {
+      calls.push("tools");
+      assert.equal((args[3] as { deadline: number }).deadline, deadline);
+      return {};
+    },
+    verifiedControllerToolPaths: async () => ({ identity }),
+    readProductionControllerWorkflowBytes: async () => Buffer.from("fixed"),
+    authenticateControlReaderJob: async () => reader,
+    capacityDigest: JSON.stringify,
+    coordinatorApi: () => ({}),
+    authenticateCoordinatorInitialControls: async () => {
+      calls.push("initial0");
+      return controls;
+    },
+    coordinatorMaintenanceIdentity: (value: unknown) => JSON.stringify(value),
+    authenticateReleaseControlRound: async (...args: unknown[]) => {
+      calls.push(`round${String(args[3])}`);
+      assert.equal((args[4] as { deadline: number }).deadline, deadline);
+      return controls;
+    },
+    authenticateCapacityExecutor: async () => {
+      calls.push("executor");
+      return {};
+    },
+    controllerOidcSubject: () => "fixed",
+    recoverCandidateSigningCustody: async (...args: unknown[]) => {
+      calls.push("actual-receivers-and-Tough");
+      assert.equal(args[4], deadline);
+      const guard = args[5] as () => Promise<void>;
+      await guard();
+      now = 40020;
+      await guard();
+      return {
+        decision: "candidate-signing-custody-reused",
+        candidate_phase: "publishing",
+        checkpoint: "settled",
+        context_locator: { original: true },
+        role_locators: [1, 2, 3, 4, 5],
+      };
+    },
+    performance: { now: () => now },
+    process: { env: {} },
+    path,
+    Object,
+    String,
+    Error,
+  };
+  const run = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end)) + "\nrecoverTrustedCoordinatorCandidateSigning",
+    context,
+  ) as (...args: unknown[]) => Promise<Record<string, unknown>>;
+  const recovered = {
+    repository: "bare",
+    checkpoint: "old",
+    input: { active_candidate: { phase: "publishing" } },
+  };
+  const budget = { monotonicDeadline: deadline, check: () => assert.ok(now < deadline) };
+  const held = await run("private", {}, recovered, budget);
+  assert.equal(held.decision, "held-candidate-signing-tools");
+  assert.deepEqual(calls, []);
+  const result = await run("private", {}, recovered, budget, { artifact: {}, bundle: {} });
+  assert.equal(result.checkpoint, "settled");
+  assert.equal(result.automatic_retry, false);
+  assert.deepEqual(calls, [
+    "tools",
+    "initial0",
+    "executor",
+    "actual-receivers-and-Tough",
+    "round1",
+  ]);
+  drift = true;
+  // A changed maintenance observation during the same acquired source cannot be substituted.
+  now = 10;
+  context.recoverCandidateSigningCustody = async (...args: unknown[]) => {
+    drift = false;
+    await (args[5] as () => Promise<void>)();
+    throw new Error("original bundle unavailable");
+  };
+  await assert.rejects(
+    run("private", {}, recovered, budget, { artifact: {}, bundle: {} }),
+    /maintenance changed/,
+  );
+  drift = false;
+  context.recoverCandidateSigningCustody = async () => {
+    throw new Error("original bundle unavailable");
+  };
+  await assert.rejects(
+    run("private", {}, recovered, budget, { artifact: {}, bundle: {} }),
+    /original bundle unavailable/,
+  );
+  const wake = source.slice(source.indexOf("async function requestTrustedSemanticReviewAt("));
+  assert.ok(
+    wake.indexOf("selectCoordinatorMetadataRenewal(") <
+      wake.indexOf("selectCoordinatorCandidateSigningRecovery("),
+  );
+  assert.ok(
+    wake.indexOf("selectCoordinatorCandidateSigningRecovery(") <
+      wake.indexOf("const outstanding ="),
+  );
 });
