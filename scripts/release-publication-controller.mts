@@ -207,7 +207,7 @@ function currentPublicationJobDeadline(
   return Math.min(started + 350000, publicationOriginalJobDeadline(response.body, identity));
 }
 
-async function runFixedPublicationEntry(filename: string) {
+export async function runFixedPublicationEntry(filename: string, phaseDeadline?: number) {
   const raw: unknown = JSON.parse((await readControllerToolFile(filename, 65536)).toString("utf8"));
   if (
     !isRecord(raw) ||
@@ -230,7 +230,10 @@ async function runFixedPublicationEntry(filename: string) {
     throw new Error("publication invocation is not the original fixed job");
   const root = process.env.RUNNER_TEMP;
   if (!root || !path.isAbsolute(root)) throw new Error("fixed private runner root required");
-  const deadline = currentPublicationJobDeadline(root, identity);
+  const deadline = Math.min(
+    currentPublicationJobDeadline(root, identity),
+    phaseDeadline ?? Infinity,
+  );
   const toolsInput = raw.tools;
   return withCoordinatorDeadline(deadline, async () => {
     const directory = await mkdtemp(path.join(root, "publication-controller-bootstrap-"));
@@ -271,6 +274,7 @@ async function runFixedPublicationEntry(filename: string) {
     console.log(JSON.stringify(result));
     if (!isRecord(result) || result.decision !== "immutable-release-and-result-prepared")
       process.exitCode = 2;
+    return result;
   });
 }
 /** Exact successful logical effects are different operations, never retries.

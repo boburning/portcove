@@ -401,6 +401,15 @@ export async function handoffSigningContextArtifact(
     }),
     { flag: "wx", mode: 0o600 },
   );
+  if (process.env.RUNNER_TEMP && process.env.PORTCOVE_JOB_OPERATION) {
+    const { retainControllerUpload } = await import("./release-controller-transport.mts");
+    await retainControllerUpload(
+      process.env.RUNNER_TEMP,
+      owned.kind === "release-signing-context" ? "payload" : "coordinator",
+      "context",
+      owned.directory,
+    );
+  }
   let phase = "await-fixed-context-upload";
   try {
     let uploaded: unknown;

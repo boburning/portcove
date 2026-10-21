@@ -35,3 +35,28 @@ pending. No role, credential or workflow is activated by this change. Capacity
 remains bounded-attempt eligibility with Unknown availability/headroom and no
 capacity reservation; #254 remains Done, #315/#534/#246 acceptance remains pending,
 Chameleon protected acceptance stays unset and slice 5 is excluded.
+
+## Building admission continuation
+
+The fixed `acquire-release-admission --building` entry now receives the actual
+attested tools, invokes the existing qualifying collector for its genuine native,
+compiler/SPDX, independent control and source proofs, and passes that same-process
+receipt to the existing durable candidate-building phase writer. Only after phase
+and remote reservation readback does it emit the aggregate descriptor. A copied
+zero-hold object cannot enter that path; the legacy read-only CLI stays held.
+
+The original seven-minute provider job budget includes tool acquisition and
+retains a fifteen-second cleanup reserve. Its deadline is passed through the
+existing acquisition handshake and phase writer. Thirty connected admission and
+role-clock tests pass with no skips, including wrong-source, imported-proof,
+expired-clock and unrelated-hold preservation cases. These are engineering
+validation; no actual provider candidate was admitted. Final workflow joins remain
+under construction and protected execution remains held.
+
+The building-to-assembly handoff additionally projects the collected API
+observation into the existing exact `ReleaseEvidenceRequest` wire schema. A
+cross-contract regression collects the fixture through the actual API collector,
+shows that its full observation is rejected as an assembly request, and confirms
+the projected run/source/tree/workflow tuple passes the maintained consumer.
+Malformed run IDs, tree/workflow digests and imported report kinds refuse. The
+full API observation remains retained separately; projection grants no authority.

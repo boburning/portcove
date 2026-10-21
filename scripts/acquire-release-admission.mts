@@ -1326,6 +1326,7 @@ export async function acquireActualCandidateBuildingEligibility(
   rawConfiguration: unknown,
   controllerTools: object,
   rawNativeLocators: unknown,
+  deadline?: number,
 ) {
   const capturedConfiguration: unknown = structuredClone(rawConfiguration),
     nativeLocators: unknown = structuredClone(rawNativeLocators);
@@ -1375,6 +1376,7 @@ export async function acquireActualCandidateBuildingEligibility(
         proof = actual;
       },
     },
+    deadline,
   );
   return (
     proof ??
@@ -1407,6 +1409,110 @@ export async function requireActualCandidateBuildingEligibility(receipt: object)
     ...actual,
     candidate: freezePreparedFacts(structuredClone(actual.candidate)),
   });
+}
+
+/** Complete fixed admission caller. Actual tools, native pair, independent
+ * controls and the same-process phase writer precede any aggregate locator. */
+export async function runFixedBuildingConfiguration(raw: unknown, root: string, deadline: number) {
+  const { withCoordinatorDeadline } = await import("./release-coordinator-deadline.mts");
+  return withCoordinatorDeadline(deadline, async () => {
+    if (
+      !isRecord(raw) ||
+      Object.keys(raw).sort().join(",") !== "configuration,native_locators,tools" ||
+      !isRecord(raw.tools) ||
+      Object.keys(raw.tools).sort().join(",") !== "artifact,bundle" ||
+      !isRecord(raw.tools.artifact) ||
+      !isRecord(raw.tools.bundle) ||
+      !path.isAbsolute(root)
+    )
+      throw new Error("fixed building admission caller fields differ");
+    await requireControllerReleaseAuthorities("admission");
+    const { receiveControllerTools } = await import("./release-controller-tool-admission.mts");
+    const tools = await receiveControllerTools(
+      root,
+      raw.tools.artifact as unknown as Parameters<typeof receiveControllerTools>[1],
+      raw.tools.bundle as unknown as Parameters<typeof receiveControllerTools>[2],
+      { deadline },
+    );
+    const eligibility = await acquireActualCandidateBuildingEligibility(
+      root,
+      raw.configuration,
+      tools,
+      raw.native_locators,
+      deadline,
+    );
+    const admitted = await requireActualCandidateBuildingEligibility(eligibility);
+    const { advanceActualCandidateToBuilding, requireActualCandidatePhaseAdvance } =
+      await import("./release-candidate-progress.mts");
+    const advanced = await advanceActualCandidateToBuilding(eligibility, { deadline });
+    const actual = await requireActualCandidatePhaseAdvance(advanced, "building");
+    const { aggregateEvidenceRequestFromObservation } =
+      await import("./production-aggregate-steps.mts");
+    const descriptor = {
+      schema_version: 1,
+      checkpoint: actual.checkpoint,
+      coordinator: { schema_version: 1, namespace: actual.namespace },
+      assembly: admitted.facts.assembly,
+      archives: admitted.facts.archives,
+      evidence: aggregateEvidenceRequestFromObservation(admitted.facts.evidence),
+    };
+    const encoded = JSON.stringify(descriptor);
+    const { requireReservedAggregate } = await import("./production-aggregate-steps.mts");
+    const { readRemoteCoordinatorSnapshot } = await import("./release-coordinator-recovery.mts");
+    await requireReservedAggregate(
+      encoded,
+      await readRemoteCoordinatorSnapshot(root, descriptor.coordinator, {
+        transport: { cwd: root, deadline },
+      }),
+    );
+    if (Buffer.byteLength(encoded) > 65536)
+      throw new Error("actual building descriptor exceeds output bound");
+    await requireActualCandidatePhaseAdvance(advanced, "building");
+    return Object.freeze({
+      decision: "candidate-building-admitted",
+      descriptor,
+      authority: "none",
+    });
+  });
+}
+async function runBuildingCli() {
+  if (
+    process.argv.length !== 3 ||
+    process.argv[2] !== "--building" ||
+    !process.env.RUNNER_TEMP ||
+    !process.env.GITHUB_OUTPUT
+  )
+    throw new Error("fixed building caller channels required");
+  const authorities = await requireControllerReleaseAuthorities("admission");
+  const raw = process.env.PORTCOVE_FIXED_BUILDING_CONFIGURATION;
+  if (!raw || Buffer.byteLength(raw) > 65536)
+    throw new Error("bounded fixed building configuration required");
+  const { currentBuildingJobDeadline } = await import("./release-signing-job-budget.mts");
+  const deadline = currentBuildingJobDeadline(
+    {
+      run_id: process.env.GITHUB_RUN_ID ?? "",
+      run_attempt: 1,
+      controller_revision: process.env.PORTCOVE_CONTROLLER_REVISION ?? "",
+      controller_ref: process.env.PORTCOVE_CONTROLLER_REF ?? "",
+    },
+    process.cwd(),
+    performance.now() + 405000,
+  );
+  const selected: unknown = JSON.parse(raw);
+  if (
+    !isRecord(selected) ||
+    !isRecord(selected.configuration) ||
+    selected.configuration.namespace !== authorities.namespace
+  )
+    throw new Error("fixed building namespace differs from ratified authority");
+  const result = await runFixedBuildingConfiguration(selected, process.env.RUNNER_TEMP, deadline);
+  const { appendFile } = await import("node:fs/promises");
+  await appendFile(process.env.GITHUB_OUTPUT, `descriptor=${JSON.stringify(result.descriptor)}\n`);
+  await writeFile(
+    path.join(process.env.RUNNER_TEMP, "building-admission-result.json"),
+    JSON.stringify(result),
+    { flag: "wx", mode: 0o600 },
+  );
 }
 
 async function main() {
@@ -1469,13 +1575,13 @@ async function main() {
 }
 async function settleDirectCli() {
   if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-    await main().catch(() => {
+    await (process.argv[2] === "--building" ? runBuildingCli() : main()).catch(() => {
       console.error(
         "independent release admission refused; retain owned acquisition evidence; no descriptor or mutation emitted",
       );
       process.exitCode = 2;
     });
-    if (process.argv[2] === "--handshake" && process.env.RUNNER_TEMP)
+    if (["--handshake", "--building"].includes(process.argv[2] ?? "") && process.env.RUNNER_TEMP)
       await writeFile(
         path.join(process.env.RUNNER_TEMP, "release-admission-process-ended.json"),
         JSON.stringify({ exit_code: process.exitCode ?? 0, authority: "none" }),

@@ -446,6 +446,15 @@ export async function runSitePublicationController(
             directory,
             authority: "none",
           });
+          if (process.env.RUNNER_TEMP && process.env.PORTCOVE_JOB_OPERATION) {
+            const { retainControllerUpload } = await import("./release-controller-transport.mts");
+            await retainControllerUpload(
+              process.env.RUNNER_TEMP,
+              "site-publication",
+              "site",
+              directory,
+            );
+          }
           let locator: unknown;
           for (;;) {
             remaining(deadline);

@@ -41,6 +41,50 @@ import { launchFixedPayloadController } from "./release-controller-tool-launch.m
 
 const sourceRoot = fileURLToPath(new URL("..", import.meta.url));
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+void test("complete job composite has fixed worker syntax, exclusive key transport and settled outputs", async () => {
+  const bytes = await readFile(
+      path.join(sourceRoot, ".github/actions/release-controller-job/action.yml"),
+      "utf8",
+    ),
+    parsed = parseDocument(bytes);
+  assert.deepEqual(parsed.errors, []);
+  const action: unknown = parsed.toJS();
+  assert.ok(isRecord(action) && isRecord(action.runs));
+  assert.equal(action.runs.using, "composite");
+  assert.ok(Array.isArray(action.runs.steps));
+  const steps: unknown[] = action.runs.steps;
+  assert.equal(steps.length, 4);
+  const pump = steps[1];
+  assert.ok(isRecord(pump) && isRecord(pump.with));
+  assert.equal(pump.uses, "./.github/actions/release-controller-transport");
+  assert.equal(pump.with.role_key, "${{ inputs.role_key }}");
+  for (const step of [steps[0], steps[2]]) {
+    assert.ok(isRecord(step) && typeof step.run === "string");
+    const source = step.run.match(/<<'NODE'\r?\n([\s\S]*?)\r?\nNODE\s*$/u)?.[1];
+    assert.ok(source, "actual fixed parent launch/settlement module must be present");
+    const checked = spawnSync(process.execPath, ["--check", "--input-type=module"], {
+      input: source,
+      encoding: "utf8",
+      timeout: 5000,
+      env: { SystemRoot: process.env.SystemRoot },
+    });
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.ok(isRecord(step.env));
+    assert.deepEqual(Object.keys(step.env).sort(), [
+      "PORTCOVE_JOB_OPERATION",
+      "PORTCOVE_JOB_PHASE",
+    ]);
+  }
+  assert.ok(isRecord(steps[3]));
+  assert.equal(
+    steps[3].run,
+    'node scripts/release-controller-job-output.mts "$PORTCOVE_JOB_OPERATION"',
+  );
+  assert.doesNotMatch(
+    bytes,
+    /sudo|\.vhd|create-github-app-token|PORTCOVE_CONTROL_APP_TOKEN|continue-on-error/u,
+  );
+});
 void test("fixed source launcher loads without node_modules and rejects arbitrary entries or imported custody before acquisition", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tool-launch-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -60,6 +104,8 @@ void test("fixed source launcher loads without node_modules and rejects arbitrar
     }
   };
   await copy("scripts/release-controller-tool-launch.mts");
+  await copy("scripts/release-controller-job-bootstrap.mts");
+  await copy("scripts/release-controller-job-output.mts");
   const child = spawnSync(
     process.execPath,
     [path.join(root, "scripts/release-controller-tool-launch.mts")],
@@ -68,6 +114,14 @@ void test("fixed source launcher loads without node_modules and rejects arbitrar
   assert.equal(child.status, 2);
   assert.match(child.stderr, /fixed verified-tool payload launcher refused/);
   assert.doesNotMatch(child.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+  const fixedJob = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-controller-job-bootstrap.mts"), "root"],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(fixedJob.status, 1, fixedJob.stderr);
+  assert.match(fixedJob.stderr, /fixed complete controller job refused/);
+  assert.doesNotMatch(fixedJob.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
   for (const raw of [{}, { entry: "arbitrary.mjs", tools: { artifact: {}, bundle: {} } }])
     await assert.rejects(launchFixedPayloadController(raw, root), /fields differ/);
   await assert.rejects(
@@ -91,6 +145,15 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
     await mkdir(path.dirname(path.join(root, name)), { recursive: true });
     await copyFile(path.join(sourceRoot, name), path.join(root, name));
   }
+  const { requiredContextsFromConfigs } = await import("./pr-delivery.mts");
+  assert.deepEqual(
+    requiredContextsFromConfigs(
+      JSON.parse(await readFile(path.join(root, ".github/repository-ruleset.json"), "utf8")),
+      JSON.parse(await readFile(path.join(root, ".github/qualification-coverage.json"), "utf8")),
+    ).sort(),
+    ["catalog", "dependency-review", "frontend", "rust", "rust-quality"].sort(),
+    "actual isolated controller tool root must contain the policies consumed by admission",
+  );
   await writeFile(
     path.join(root, ".github/workflows/release-reviewed-inputs.yml"),
     "fixture workflow bytes; no active reviewed-input workflow claimed",
@@ -232,6 +295,33 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
   assert.equal(tuf.status, 1, tuf.stderr);
   assert.match(tuf.stderr, /fixed TUF role controller refused/);
   assert.doesNotMatch(tuf.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+  const job = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-controller-job.bundle.mjs")],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(job.status, 1, job.stderr);
+  assert.match(job.stderr, /fixed controller job refused/);
+  assert.doesNotMatch(job.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+  const keyChannel = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-role-key-channel.bundle.mjs")],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(keyChannel.status, 1, keyChannel.stderr);
+  assert.match(keyChannel.stderr, /isolated role key handoff refused/);
+  assert.doesNotMatch(keyChannel.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+  const jobAbi = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `const m=await import(${JSON.stringify(pathToFileURL(path.join(root, "scripts/release-controller-job.bundle.mjs")).href)}); if(typeof m.runConfiguredFixedControllerJob!== 'function') throw Error('fixed job ABI missing'); await m.runConfiguredFixedControllerJob('root',1).then(()=>{throw Error('arbitrary role accepted')},e=>{if(!/fixed complete-controller job/.test(e.message))throw e}); process.stdout.write('fixed-job-ABI');`,
+    ],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(jobAbi.status, 0, jobAbi.stderr);
+  assert.equal(jobAbi.stdout, "fixed-job-ABI");
   assert.deepEqual(controllerToolEntries, [
     "production-controller-admission",
     "release-control-ready",
@@ -243,6 +333,7 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
     "release-publication-controller",
     "release-site-controller",
     "release-tuf-controller",
+    "release-controller-job",
   ]);
 });
 void test("bootstrap environment excludes ambient credentials, wrappers, npm hooks and caches", () => {

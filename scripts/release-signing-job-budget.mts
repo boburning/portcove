@@ -7,7 +7,14 @@ import type { TufSigningRole } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
 
 type SigningRole = "payload" | TufSigningRole;
-type ClockRole = SigningRole | "classification-writer" | "classification-observer";
+type ClockRole =
+  | SigningRole
+  | "classification-writer"
+  | "classification-observer"
+  | "candidate-building"
+  | "coordinator"
+  | "release-publication"
+  | "site-publication";
 type JobIdentity = {
   run_id: string;
   run_attempt: number;
@@ -38,11 +45,26 @@ function signingOriginalJobDeadline(
       "timestamp",
       "classification-writer",
       "classification-observer",
+      "candidate-building",
+      "coordinator",
+      "release-publication",
+      "site-publication",
     ].includes(String(rawRole))
   )
     throw new Error("fixed online signing role required");
   const role = rawRole as ClockRole;
-  const maximum = role === "payload" ? 570000 : 115000;
+  const maximum =
+    role === "payload"
+      ? 570000
+      : role === "candidate-building"
+        ? 405000
+        : role === "coordinator"
+          ? 170000
+          : role === "release-publication"
+            ? 350000
+            : role === "site-publication"
+              ? 290000
+              : 115000;
   if (
     !isRecord(raw) ||
     !Array.isArray(raw.jobs) ||
@@ -65,11 +87,16 @@ function signingOriginalJobDeadline(
     ids.add(job.id);
   }
   const name =
-    role === "classification-writer"
-      ? "Persist independently reviewed classification"
-      : role === "classification-observer"
-        ? "Observe release input protections"
-        : releaseControlPhaseProfile(role === "payload" ? "payload" : `tuf-${role}`).reader_name;
+    role === "coordinator" || role === "release-publication" || role === "site-publication"
+      ? releaseControlPhaseProfile(role).reader_name
+      : role === "candidate-building"
+        ? "Authenticate release control inputs"
+        : role === "classification-writer"
+          ? "Persist independently reviewed classification"
+          : role === "classification-observer"
+            ? "Observe release input protections"
+            : releaseControlPhaseProfile(role === "payload" ? "payload" : `tuf-${role}`)
+                .reader_name;
   const matches = raw.jobs.filter((job: unknown) => isRecord(job) && job.name === name);
   const job: unknown = matches[0];
   if (
@@ -163,4 +190,28 @@ export function currentClassificationJobDeadline(role: unknown, ...args: Current
   if (role !== "writer" && role !== "observer")
     throw new Error("fixed classification clock role required");
   return currentSigningJobDeadline(`classification-${role}`, ...args);
+}
+
+/** Admission clock only; this does not create an executor or signing role. */
+export function buildingOriginalJobDeadline(...args: BudgetArguments) {
+  return signingOriginalJobDeadline("candidate-building", ...args);
+}
+export function currentBuildingJobDeadline(...args: CurrentArguments) {
+  return currentSigningJobDeadline("candidate-building", ...args);
+}
+
+/** Resource clock for the closed job bootstrap only, never role authority. */
+export function currentControllerJobDeadline(operation: unknown, ...args: CurrentArguments) {
+  const role = operation === "building" ? "candidate-building" : operation;
+  if (
+    role === "payload" ||
+    role === "candidate-building" ||
+    role === "coordinator" ||
+    role === "release-publication" ||
+    role === "site-publication"
+  )
+    return currentSigningJobDeadline(role, ...args);
+  if (typeof role === "string" && role.startsWith("tuf-"))
+    return currentTufJobDeadline(role.slice(4), ...args);
+  throw new Error("fixed controller job clock required");
 }
