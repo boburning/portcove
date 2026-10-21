@@ -636,7 +636,7 @@ void test("ordinary Linux tool build fixture uses actual source and fresh public
     /runResourceCommand\(\s*"rust",\s*"cargo",\s*(\[[\s\S]*?\])/u,
   )?.[1];
   assert.ok(argumentsSource);
-  assert.deepEqual(JSON.parse(argumentsSource), [
+  assert.deepEqual(JSON.parse(argumentsSource.replace(/,(\s*\])$/u, "$1")), [
     "build",
     "--locked",
     "--profile",
