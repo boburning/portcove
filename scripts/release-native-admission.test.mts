@@ -513,6 +513,30 @@ void test("shared data-only journey derivation binds exact prior inventory and r
   assert.equal(journeys.length, 2);
   assert.equal((journeys[0] as { kind: string }).kind, "initial-empty-feed");
   assert.equal(reads, 0);
+  const locatorPins = {
+    ...pins,
+    public_source: {
+      ...pins.public_source,
+      initial_site_preimage: {
+        path: "release-public/initial-site.json",
+        bytes: 123,
+        sha256: pins.initial_site_preimage_sha256,
+      },
+    },
+  };
+  const schema2 = inspectPublicationAuthorities(locatorPins, 2);
+  assert.deepEqual(
+    deriveNativePublicationJourneys({
+      ...input,
+      authority_schema_version: 2,
+      public_pins: schema2,
+    }),
+    journeys,
+  );
+  assert.throws(
+    () => deriveNativePublicationJourneys({ ...input, public_pins: schema2 }),
+    /schema2/,
+  );
   assert.throws(() =>
     deriveNativePublicationJourneys({
       ...input,

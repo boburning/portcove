@@ -712,7 +712,10 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
   const authorities = inspectNativePrepublicationAuthorities(
     selected.parent.authority_configuration,
   );
-  const publicPins = inspectPublicationAuthorities(authorities.publication);
+  const publicPins = inspectPublicationAuthorities(
+    authorities.publication,
+    authorities.schema_version,
+  );
   const deadline = performance.now() + remainingNativeParentBudget(300000);
   const active = () => {
     if (performance.now() >= deadline)
@@ -1013,7 +1016,8 @@ export async function readActualNativePostSignJourney(controllerReceipt: object)
     namespace: authorities.namespace,
     signed_context_sha256: verified.publication.repository_sha256,
     platform_labels: [selected.parent.descriptor.platform_label],
-    public_pins: inspectPublicationAuthorities(authorities.publication),
+    public_pins: inspectPublicationAuthorities(authorities.publication, authorities.schema_version),
+    authority_schema_version: authorities.schema_version,
     api: original.source.api,
   });
   const journey = journeys[0];
