@@ -12,7 +12,14 @@ import {
 } from "./release-semantic-disposition-reader.mts";
 import type { runSemanticRuntime } from "./release-semantic-runtime.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
-import { readIndependentSemanticReview } from "./release-control-inputs.mts";
+import {
+  readIndependentSemanticReview,
+  readIndependentCatalogSemanticReview,
+} from "./release-control-inputs.mts";
+import {
+  isCatalogSemanticPurpose,
+  inspectCatalogSemanticOpportunity,
+} from "./release-catalog-semantic.mts";
 
 type Capture = Awaited<ReturnType<typeof runSemanticRuntime>>;
 export interface SemanticIssuer {
@@ -41,6 +48,50 @@ async function verifyCapture(capture: Capture) {
   if (persisted !== JSON.stringify(expected.handoff))
     throw new Error("captured report identity changed");
   return expected;
+}
+
+/** Same-process catalog join only. The caller supplies its authenticated fixed
+ * issuer client and independently ratified grant; these arguments never grant
+ * either. Copied Checks/JSON cannot replace the actual settled runtime capture. */
+export async function requireActualCatalogSemanticReview(
+  capture: Capture,
+  rawOpportunity: unknown,
+  rawIssuer: SemanticIssuer,
+  api: CoordinatorRemoteApi,
+  checkId: number,
+) {
+  const issuer = issuerConfiguration(rawIssuer);
+  const opportunity = inspectCatalogSemanticOpportunity(rawOpportunity);
+  const actual = await verifyCapture(capture);
+  if (capacityDigest(actual.handoff.evidence.opportunity) !== capacityDigest(opportunity))
+    throw new Error("actual catalog semantic capture accepted different exact inputs");
+  const producer = {
+    schema_version: 1,
+    review_app_id: issuer.app_id,
+    writer_app_id: issuer.writer_app_id,
+    review_check_name: actual.handoff.proposed_request.body.name,
+  };
+  const proof = readIndependentCatalogSemanticReview(api, producer, opportunity, checkId);
+  const verified: unknown = JSON.parse(proof);
+  if (
+    !isRecord(verified) ||
+    capacityDigest(verified.report) !==
+      capacityDigest(JSON.parse(actual.handoff.proposed_request.body.output.summary))
+  )
+    throw new Error("actual catalog semantic provider result differs from direct runtime capture");
+  if (capacityDigest(await verifyCapture(capture)) !== capacityDigest(actual))
+    throw new Error("actual catalog semantic capture changed across provider readback");
+  return {
+    authority: "none" as const,
+    capture,
+    opportunity,
+    check_id: checkId,
+    issuer,
+    proof,
+    proof_sha256: capacityDigest(proof),
+    invocation: actual.invocation,
+    report: actual.handoff.evidence,
+  };
 }
 function requireIssuer(
   api: CoordinatorRemoteApi,
@@ -143,7 +194,11 @@ export async function publishSemanticCapture(
     )
       throw new Error("CheckRun POST outcome requires provider readback");
     const id = Number(response.body.id);
-    const proof = readIndependentSemanticReview(
+    const proof = (
+      isCatalogSemanticPurpose(frozen.handoff.evidence.opportunity)
+        ? readIndependentCatalogSemanticReview
+        : readIndependentSemanticReview
+    )(
       clients.installation,
       {
         schema_version: 1,
@@ -204,7 +259,11 @@ export function readbackSemanticCheck(
   )
     throw new Error("semantic POST remains ambiguous; preserve original attempt, no retry");
   const id = Number(matches[0]!.id);
-  const proof = readIndependentSemanticReview(api, producer, opportunity, id);
+  const proof = (
+    isCatalogSemanticPurpose(opportunity)
+      ? readIndependentCatalogSemanticReview
+      : readIndependentSemanticReview
+  )(api, producer, opportunity, id);
   const verified: unknown = JSON.parse(proof);
   if (
     !isRecord(verified) ||

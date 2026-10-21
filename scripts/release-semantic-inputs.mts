@@ -9,6 +9,8 @@ import { isRecord } from "./runtime-values.mts";
 import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
 import { inspectReleaseReviewRequest } from "./release-review-request.mts";
 import { inspectPublishedApplicationSource } from "./release-published-source.mts";
+import { inspectCatalogSemanticOpportunity } from "./release-catalog-semantic.mts";
+import { inspectCatalogCoreReport } from "./release-catalog-inspection.mts";
 import {
   assertPreviewWithdrawalClassification,
   readPreviewWithdrawalSource,
@@ -296,6 +298,135 @@ export function prepareFrozenSemanticInputs(
   return bundle;
 }
 
+/** Uses the same full Git-object collector and reader custody. Baseline and Core
+ * facts are explicit inert inputs; their actual custody belongs to the caller. */
+export function prepareFrozenCatalogSemanticInputs(
+  api: GitHubRestReader,
+  root: string,
+  rawOpportunity: unknown,
+  input: {
+    inspection: Buffer;
+    files: ReadonlyMap<string, Buffer>;
+    prior_repository: ReadonlyMap<string, Buffer> | null;
+  },
+) {
+  const opportunity = inspectCatalogSemanticOpportunity(structuredClone(rawOpportunity));
+  if (
+    !Buffer.isBuffer(input.inspection) ||
+    !input.inspection.length ||
+    input.inspection.length > 4 * 1024 ** 2 ||
+    createHash("sha256").update(input.inspection).digest("hex") !==
+      opportunity.core_inspection_sha256 ||
+    !Buffer.from(input.inspection.toString("utf8")).equals(input.inspection)
+  )
+    throw new Error("catalog frozen Core inspection bytes differ");
+  const files = new Map([...input.files].map(([target, bytes]) => [target, Buffer.from(bytes)]));
+  const inventory = (values: ReadonlyMap<string, Buffer>, key: "target" | "path") =>
+    [...values]
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([target, bytes]) => ({
+        [key]: target,
+        bytes: bytes.length,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+      }));
+  const report = inspectCatalogCoreReport(JSON.parse(input.inspection.toString("utf8")), files);
+  if (
+    capacityDigest(inventory(files, "target")) !== opportunity.bundle_sha256 ||
+    report.index_sha256 !== opportunity.classification.index_sha256 ||
+    capacityDigest(report.definitions) !== capacityDigest(opportunity.classification.definitions) ||
+    (input.prior_repository === null) !== (opportunity.baseline.catalog_repository_sha256 === null)
+  )
+    throw new Error("catalog frozen inspection/classification/prior differs");
+  const prior =
+    input.prior_repository === null
+      ? null
+      : new Map([...input.prior_repository].map(([target, bytes]) => [target, Buffer.from(bytes)]));
+  if (
+    prior &&
+    capacityDigest(inventory(prior, "path")) !== opportunity.baseline.catalog_repository_sha256
+  )
+    throw new Error("catalog frozen prior repository bytes differ");
+  const bundle = freezeSemanticSnapshots(
+    api,
+    root,
+    opportunity,
+    null,
+    { classification: opportunity.classification, compatibility: opportunity.compatibility },
+    undefined,
+    opportunity.baseline,
+  );
+  const append = (
+    snapshot: "catalog" | "catalog_prior",
+    values: ReadonlyMap<string, Buffer>,
+    totalMax: number,
+  ) => {
+    if (values.size > (snapshot === "catalog" ? 16385 : 20000))
+      throw new Error("catalog semantic snapshot file count exceeds reader bound");
+    let total = 0;
+    const rows = [...values]
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([target, bytes]) => {
+        const allowed =
+          snapshot === "catalog"
+            ? target === "definitions/index.json" ||
+              /^sha256\/[a-f0-9]{64}\.json$/u.test(target) ||
+              /^policy\/official\/[a-z0-9][a-z0-9-]*(?:\.launch)?\.json$/u.test(target)
+            : /^(?:metadata\/[a-zA-Z0-9.-]+\.json|targets\/(?:[a-z0-9_.-]+\/)*[a-zA-Z0-9_.-]+)$/u.test(
+                target,
+              );
+        const maximum =
+          snapshot === "catalog"
+            ? target.startsWith("policy/")
+              ? 65536
+              : 4 * 1024 ** 2
+            : 8 * 1024 ** 2;
+        if (
+          !allowed ||
+          target.split("/").some((part) => part === "." || part === "..") ||
+          !bytes.length ||
+          bytes.length > maximum ||
+          (total += bytes.length) > totalMax
+        )
+          throw new Error("catalog semantic snapshot path/byte bound differs");
+        const oid = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+        const name = `objects/${oid}.data`;
+        if (!bundle.files.some((file) => file.name === name))
+          bundle.files.push({
+            name,
+            bytes: Buffer.from(bytes),
+            sha256: createHash("sha256").update(bytes).digest("hex"),
+          });
+        return { path: target, oid, mode: "100644" };
+      });
+    bundle.manifest.snapshots[snapshot] = rows;
+  };
+  append("catalog", files, 32 * 1024 ** 2);
+  if (prior) append("catalog_prior", prior, 128 * 1024 ** 2);
+  bundle.manifest.evidence = {
+    ...bundle.manifest.evidence,
+    core_inspection: {
+      raw_utf8: input.inspection.toString("utf8"),
+      sha256: opportunity.core_inspection_sha256,
+    },
+  };
+  bundle.files.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  if (
+    bundle.files.length > 20000 ||
+    bundle.files.reduce((sum, file) => sum + file.bytes.length, 0) > 192 * 1024 ** 2
+  )
+    throw new Error("catalog review combined objects exceed existing reader bound");
+  bundle.manifest.objects = bundle.files.map(({ name, sha256, bytes }) => ({
+    name,
+    sha256,
+    bytes: bytes.length,
+  }));
+  if (Buffer.byteLength(JSON.stringify(bundle.manifest)) > 16 * 1024 ** 2)
+    throw new Error("catalog review manifest exceeds existing bound");
+  bundle.bundle_sha256 = capacityDigest(bundle.manifest);
+  prepared.set(bundle, bundle.bundle_sha256);
+  return bundle;
+}
+
 /** Neutral proposal input for the same selected independent runtime. The
  * request supplies exact source/baseline identities only. It cannot claim a
  * classification, compatibility, acceptance or a publishable review capture. */
@@ -334,15 +465,31 @@ function freezeSemanticSnapshots<T extends SemanticSourceIdentity>(
   api: GitHubRestReader,
   root: string,
   opportunity: T,
-  baseVersion: string,
-  evidence: { classification: unknown; compatibility: unknown },
+  baseVersion: string | null,
+  evidence: { classification: unknown; compatibility: unknown; core_inspection?: unknown },
   namespaceConfiguration?: { schema_version: 1; namespace: string },
+  catalogBaseline?: ReturnType<typeof inspectCatalogSemanticOpportunity>["baseline"],
 ) {
-  const baseline = readSemanticPublicationBaseline(api, root, baseVersion, namespaceConfiguration);
+  const baseline = catalogBaseline
+    ? {
+        kind: "catalog-publication-baseline" as const,
+        ...catalogBaseline,
+        source_baseline: {
+          commit: catalogBaseline.source_commit,
+          tree: catalogBaseline.source_tree,
+        },
+        tree: catalogBaseline.source_tree,
+        published_source: undefined,
+      }
+    : readSemanticPublicationBaseline(api, root, baseVersion!, namespaceConfiguration);
   if (baseline.source_baseline.commit !== opportunity.base_commit)
     throw new Error("opportunity omits accumulated publication delta");
   const source = readSemanticSourceChanges(api, root, opportunity);
-  if (source.change_set_sha256 !== opportunity.change_set_sha256)
+  if (
+    source.change_set_sha256 !== opportunity.change_set_sha256 ||
+    source.source_tree !== opportunity.source_tree ||
+    (catalogBaseline && source.base_tree !== catalogBaseline.source_tree)
+  )
     throw new Error("review opportunity change set differs");
   for (const [commit, tree] of [
     [opportunity.base_commit, source.base_tree],
@@ -370,6 +517,8 @@ function freezeSemanticSnapshots<T extends SemanticSourceIdentity>(
     baseline: ReturnType<typeof snapshot>;
     source: ReturnType<typeof snapshot>;
     published?: ReturnType<typeof snapshot>;
+    catalog?: ReturnType<typeof snapshot>;
+    catalog_prior?: ReturnType<typeof snapshot>;
   } = {
     baseline: snapshot(source.base_tree),
     source: snapshot(source.source_tree),
@@ -449,11 +598,12 @@ const proposalPrepared = new WeakMap<object, string>();
 export type FrozenSemanticSnapshot = ReturnType<
   typeof freezeSemanticSnapshots<SemanticSourceIdentity>
 >;
+export type FrozenSemanticAcceptanceBundle =
+  | ReturnType<typeof prepareFrozenSemanticInputs>
+  | ReturnType<typeof prepareFrozenCatalogSemanticInputs>;
 /** Only builder-produced inputs may enter direct capture. Copy before any await;
  * callers cannot mutate the expected evidence during a review. */
-export function requireFrozenSemanticInputs(
-  bundle: ReturnType<typeof prepareFrozenSemanticInputs>,
-) {
+export function requireFrozenSemanticInputs<T extends FrozenSemanticAcceptanceBundle>(bundle: T) {
   return requireFrozenSnapshot(bundle, prepared);
 }
 
@@ -466,7 +616,7 @@ export function requireFrozenSemanticProposalInputs(
 function requireFrozenSnapshot<T extends FrozenSemanticSnapshot>(
   bundle: T,
   originals: WeakMap<object, string>,
-) {
+): T {
   if (
     originals.get(bundle) !== bundle.bundle_sha256 ||
     capacityDigest(bundle.manifest) !== bundle.bundle_sha256
@@ -497,8 +647,8 @@ function requireFrozenSnapshot<T extends FrozenSemanticSnapshot>(
     if (!seen.has(`objects/${entry.oid}.data`)) throw new Error("review snapshot object missing");
   return {
     authority: bundle.authority,
-    manifest: structuredClone(bundle.manifest) as T["manifest"],
+    manifest: structuredClone(bundle.manifest),
     bundle_sha256: bundle.bundle_sha256,
     files,
-  };
+  } as T;
 }
