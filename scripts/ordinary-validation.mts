@@ -557,7 +557,19 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ["scripts/release-native-candidate.test.mts", "scripts/release-native-attempt.test.mts"],
   ],
   ["scripts/release-native-keyless-assembly.mts", ["scripts/release-native-candidate.test.mts"]],
-  ["scripts/release-native-attempt.mts", ["scripts/release-native-attempt.test.mts"]],
+  [
+    "scripts/release-native-attempt.mts",
+    [
+      "scripts/release-native-attempt.test.mts",
+      "scripts/release-native-public-attempt-contract.test.mts",
+    ],
+  ],
+  ...["pair", "compiler", "signature", "attempt-contract"].map(
+    (name): [string, readonly string[]] => [
+      `scripts/release-native-public-${name}.mts`,
+      [`scripts/release-native-public-${name}.test.mts`],
+    ],
+  ),
   [
     "scripts/release-native-source-contract.mts",
     ["scripts/release-native-source-contract.test.mts"],
@@ -567,10 +579,20 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ["scripts/release-native-pre-sign-report.test.mts"],
   ],
   ["scripts/release-native-check-broker.mts", ["scripts/release-native-check-broker.test.mts"]],
-  ["scripts/release-native-worker.mts", ["scripts/release-native-windows-driver.test.mts"]],
+  [
+    "scripts/release-native-worker.mts",
+    [
+      "scripts/release-native-windows-driver.test.mts",
+      "scripts/release-native-public-attempt-contract.test.mts",
+    ],
+  ],
   [
     "scripts/release-native-windows-capture.mts",
-    ["scripts/release-native-windows-driver.test.mts"],
+    [
+      "scripts/release-native-windows-driver.test.mts",
+      "scripts/release-native-public-attempt-contract.test.mts",
+      "scripts/release-native-public-signature.test.mts",
+    ],
   ],
   ["scripts/release-native-windows-driver.ps1", ["scripts/release-native-windows-driver.test.mts"]],
   [
@@ -969,6 +991,10 @@ const workflowTests = new Map([
 ]);
 
 const releaseContractTests = Object.freeze([
+  "scripts/release-native-public-pair.test.mts",
+  "scripts/release-native-public-compiler.test.mts",
+  "scripts/release-native-public-signature.test.mts",
+  "scripts/release-native-public-attempt-contract.test.mts",
   "scripts/production-controller-admission.test.mts",
   "scripts/controller-canary.test.mts",
   "scripts/check-release-metadata.test.mts",
