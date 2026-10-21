@@ -44,9 +44,10 @@ existing account harness to initial-install or package-update/rollback report-2
 capture and native Check handoff. Its actual disposable fixed-Node/Rust/Tough
 qualification and retained failures are recorded in the same native receipt.
 Completion readback preserves the original native lineage across the metadata
-handoff while ordinary signing retains current-seed checks. The Linux
-separate-account backend and automatic native Check discovery remain independent
-engineering work. No native or ordinary public journey acceptance is inferred.
+handoff while ordinary signing retains current-seed checks. Automatic native Check discovery is connected to the existing actual collectors
+through an explicit null marker; its inert locators cannot replace actual report
+authentication. The Linux separate-account backend remains independent engineering
+work. No native or ordinary public journey acceptance is inferred.
 The
 report-2 temporal/initial-empty-feed profile requires explicit selection in the
 consolidated conditional setup grant and keeps ordinary public update acceptance

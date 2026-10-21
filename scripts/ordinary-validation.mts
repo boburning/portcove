@@ -421,7 +421,17 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ["scripts/release-pages-metadata-recovery.test.mts"],
   ],
   ["scripts/release-capacity-executor.mts", ["scripts/release-capacity-executor.test.mts"]],
-  ["scripts/release-native-admission.mts", ["scripts/release-native-admission.test.mts"]],
+  [
+    "scripts/release-native-admission.mts",
+    [
+      "scripts/release-native-admission.test.mts",
+      "scripts/release-native-check-discovery.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-native-check-discovery.mts",
+    ["scripts/release-native-check-discovery.test.mts"],
+  ],
   ["scripts/release-native-stage-capture.mts", ["scripts/release-native-stage-capture.test.mts"]],
   ["scripts/release-native-scheduler.mts", ["scripts/release-native-scheduler.test.mts"]],
   ["scripts/release-local-native-setup.mts", ["scripts/release-local-native-setup.test.mts"]],
@@ -823,6 +833,7 @@ const releaseContractTests = Object.freeze([
   "scripts/release-local-native-setup.test.mts",
   "scripts/release-native-acceptance.test.mts",
   "scripts/release-native-admission.test.mts",
+  "scripts/release-native-check-discovery.test.mts",
   "scripts/release-bootstrap-preparation.test.mts",
   "scripts/release-role-key-channel.test.mts",
   "scripts/release-control-handshake.test.mts",
