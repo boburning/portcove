@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { stripTypeScriptTypes } from "node:module";
+import { runInNewContext } from "node:vm";
 import {
   deriveCoordinatorPublication,
   inspectPreparedReceiptInventoryAdvance,
@@ -105,12 +107,99 @@ void test("default wake selects only unresolved exact Pages expectations without
     }),
   );
 });
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import os from "node:os";
 import { capacityDigest } from "./release-capacity.mts";
 import { requirePublishedCompleteSite } from "./release-site-readback.mts";
+
+void test("actual fixed initial helper awaits ordinal0 observation before authenticating continuation source (inert dependencies)", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "coordinator-initial0-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const source = await readFile(
+    new URL("./release-coordinator-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function authenticateCoordinatorInitialControls(");
+  const end = source.indexOf("export function selectCoordinatorMetadataBootstrap", start);
+  assert(start >= 0 && end > start);
+  const helper = stripTypeScriptTypes(source.slice(start, end), { mode: "strip" }).replace(
+    'await import("./release-control-step-bridge.mts")',
+    "bridge",
+  );
+  const events: string[] = [];
+  let allowObservation!: () => void, entered!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    allowObservation = resolve;
+  });
+  const waiting = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const artifact = { scope: "inert-observer0" };
+  const run = runInNewContext(`${helper}; authenticateCoordinatorInitialControls;`, {
+    path,
+    writeFile,
+    prepareControlReadiness: (_reader: unknown, _facts: string, phase: string) => {
+      assert.equal(phase, "coordinator");
+      events.push("prepare0");
+      return { scope: "inert-ready0" };
+    },
+    bridge: {
+      async retainControlStepLocator(file: string, phase: string, ordinal: number) {
+        assert.equal(phase, "coordinator");
+        assert.equal(ordinal, 0);
+        assert.deepEqual(JSON.parse(await readFile(file, "utf8")), { scope: "inert-ready0" });
+        events.push("locator0");
+      },
+    },
+    waitForControlArtifact: async (_directory: string, kind: string, expected: unknown) => {
+      assert.equal(kind, "observation");
+      assert(expected);
+      events.push("wait0");
+      entered();
+      await pending;
+      return artifact;
+    },
+    authenticateReleaseControlSource: async (
+      _env: unknown,
+      _workflow: Buffer,
+      options: { phase: string; observedArtifact: unknown },
+    ) => {
+      assert.equal(options.phase, "coordinator");
+      assert.equal(options.observedArtifact, artifact);
+      events.push("authenticate0");
+      return { scope: "inert-authenticated-source" };
+    },
+    process: { env: {} },
+  }) as (
+    directory: string,
+    facts: string,
+    reader: unknown,
+    workflow: Buffer,
+    budget: unknown,
+  ) => Promise<unknown>;
+  const result = run(
+    directory,
+    "a".repeat(64),
+    {
+      identity: { scope: "inert-reader" },
+      admitted: {
+        revision: "b".repeat(40),
+        execution_ref: "refs/tags/controller",
+        run_id: "123",
+        run_attempt: 1,
+      },
+    },
+    Buffer.from("inert workflow"),
+    { deadline: Date.now() + 10000, monotonicDeadline: performance.now() + 10000, check() {} },
+  );
+  await waiting;
+  assert.deepEqual(events, ["prepare0", "locator0", "wait0"]);
+  allowObservation();
+  assert.deepEqual(await result, { scope: "inert-authenticated-source" });
+  assert.deepEqual(events, ["prepare0", "locator0", "wait0", "authenticate0"]);
+});
 
 void test("coordinator keeps the real whole-site receipt through its default materialization seam", async (t) => {
   const parent = await mkdtemp(path.join(os.tmpdir(), "coordinator-public-site-"));

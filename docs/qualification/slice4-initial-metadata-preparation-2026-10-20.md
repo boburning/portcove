@@ -42,6 +42,9 @@ refuses unresolved effects, and published metadata permanently closes initial
 bootstrap. The frozen descriptor is recorded through the existing checkpoint CAS;
 the private getter retains its original 170-second budget and one finite control
 round allocator. Public JSON and hashes cannot construct that private session.
+Bootstrap and Pages recovery first publish and consume the fixed ordinal0
+readiness/observation, matching the existing ordinary and renewal paths. Later
+control rounds begin at one; no path skips the composite's initial wait.
 
 The signing-context consumer must join this separate bootstrap session to the
 existing journaled context upload and five isolated role jobs. That join is

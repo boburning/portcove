@@ -1415,6 +1415,42 @@ function coordinatorHasUnresolvedEffect(input: Record<string, unknown>) {
   return operation !== null && !["succeeded", "recovered"].includes(operation.outcome);
 }
 
+async function authenticateCoordinatorInitialControls(
+  directory: string,
+  factsSha: string,
+  reader: Awaited<ReturnType<typeof authenticateControlReaderJob>>,
+  workflow: Buffer,
+  budget: ReturnType<typeof coordinatorDeadline>,
+) {
+  budget.check();
+  const ready = prepareControlReadiness(reader.identity, factsSha, "coordinator");
+  await writeFile(path.join(directory, "ready-coordinator.json"), `${JSON.stringify(ready)}\n`, {
+    flag: "wx",
+    mode: 0o600,
+  });
+  await (
+    await import("./release-control-step-bridge.mts")
+  ).retainControlStepLocator(path.join(directory, "ready-coordinator.json"), "coordinator", 0);
+  const artifact = await waitForControlArtifact(
+    directory,
+    "observation",
+    {
+      phase: "coordinator",
+      controller_revision: reader.admitted.revision,
+      controller_ref: reader.admitted.execution_ref,
+      run_id: String(reader.admitted.run_id),
+      run_attempt: reader.admitted.run_attempt,
+    },
+    { deadline: budget.deadline, phaseDeadline: budget.monotonicDeadline },
+  );
+  const controls = await authenticateReleaseControlSource(process.env, workflow, {
+    phase: "coordinator",
+    deadline: budget.monotonicDeadline,
+    observedArtifact: artifact,
+  });
+  budget.check();
+  return controls;
+}
 export function selectCoordinatorMetadataBootstrap(input: Record<string, unknown>, now: unknown) {
   if (inspectPublishedMetadata(input.published_metadata)) return "closed";
   if (coordinatorHasUnresolvedEffect(input)) return "held-unresolved-effect";
@@ -1497,6 +1533,20 @@ async function prepareTrustedCoordinatorBootstrapAt(
   const generatedAt =
     oldDescriptor?.generated_at ?? new Date().toISOString().replace(/\.\d{3}Z$/u, "Z");
   const api = coordinatorApi(directory, budget, 16 * 1024 * 1024);
+  const initialSource = await authenticateCoordinatorInitialControls(
+    directory,
+    capacityDigest({ checkpoint: recovered.checkpoint, initial_setup: authorities.publication }),
+    reader,
+    workflow,
+    budget,
+  );
+  const initialFacts = initialSource.readMaintenance(api);
+  if (
+    initialFacts.reader.job_id !== reader.identity.job_id ||
+    initialFacts.reader.check_run_id !== reader.identity.check_run_id
+  )
+    throw new Error("same actual initial bootstrap reader required");
+  const initialIdentity = coordinatorMaintenanceIdentity(initialFacts);
   const source = readBootstrapPublicSource(
     api,
     authorities.publication,
@@ -1532,7 +1582,7 @@ async function prepareTrustedCoordinatorBootstrapAt(
   );
   let round = 0;
   let controlCheckpoint = recovered.checkpoint;
-  let identity: string | undefined;
+  let identity: string | undefined = initialIdentity;
   let refreshing = false,
     refused = false;
   let owned: BootstrapPreparation | undefined;
@@ -1828,7 +1878,20 @@ async function recoverTrustedCoordinatorPages(
   });
   const api = coordinatorApi(directory, budget, 256 * 1024);
   let round = 0;
-  let initialIdentity: string | undefined;
+  const initialSource = await authenticateCoordinatorInitialControls(
+    directory,
+    factsSha,
+    reader,
+    workflow,
+    budget,
+  );
+  const initialFacts = initialSource.readMaintenance(api);
+  if (
+    initialFacts.reader.job_id !== reader.identity.job_id ||
+    initialFacts.reader.check_run_id !== reader.identity.check_run_id
+  )
+    throw new Error("same actual initial Pages recovery reader required");
+  let initialIdentity: string | undefined = coordinatorMaintenanceIdentity(initialFacts);
   const freshBoundary = async () => {
     budget.check();
     if (++round > 4) throw new Error("Pages readback coordinator rounds exhausted");
