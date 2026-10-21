@@ -234,3 +234,32 @@ void test(
     }
   },
 );
+
+void test(
+  "actual atomic private root excludes inherited foreign access and refuses existing directory unchanged",
+  { skip: process.platform !== "win32" },
+  async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "pc-atomic-root-"));
+    try {
+      powershell(`${ast}
+      $assignment=$tree.Find({param($n)$n -is [Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -ceq '$interop'},$true);
+      Invoke-Expression $assignment.Extent.Text;Add-Type -TypeDefinition $interop;
+      $parent=${quote(directory)};$broker=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value;$foreign='S-1-5-21-1-2-3-1009';
+      $acl=[Security.AccessControl.DirectorySecurity]::new();$acl.SetOwner([Security.Principal.SecurityIdentifier]::new($broker));$acl.SetAccessRuleProtection($true,$false);
+      foreach($sid in @($broker,'S-1-5-18',$foreign)){$acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new($sid),'FullControl','ContainerInherit,ObjectInherit','None','Allow'))};
+      Set-Acl -LiteralPath $parent -AclObject $acl;
+      $ordinary=Join-Path $parent 'inherited';[IO.Directory]::CreateDirectory($ordinary)|Out-Null;
+      if(-not @((Get-Acl -LiteralPath $ordinary).GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])|Where-Object {$_.IdentityReference.Value -ceq $foreign -and $_.IsInherited}).Count){throw 'Fixture did not inherit foreign writable ACE'};
+      $private=Join-Path $parent 'private';$expected=[PortcoveAccountSetup]::CreatePrivateDirectory($private,$broker);$observed=Get-Acl -LiteralPath $private;
+      if(-not $observed.AreAccessRulesProtected -or $observed.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]'Owner,Access') -cne $expected){throw 'Actual atomic descriptor differs'};
+      $rules=@($observed.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]));
+      if($rules.Count -ne 2 -or @($rules|Where-Object {$_.IdentityReference.Value -notin @($broker,'S-1-5-18') -or $_.IsInherited -or $_.AccessControlType -ne 'Allow' -or $_.FileSystemRights -ne [Security.AccessControl.FileSystemRights]::FullControl}).Count){throw 'Foreign access entered private root'};
+      $marker=Join-Path $ordinary 'retained.txt';[IO.File]::WriteAllText($marker,'original');$before=(Get-Acl -LiteralPath $ordinary).Sddl;
+      $refused=$false;try{[PortcoveAccountSetup]::CreatePrivateDirectory($ordinary,$broker)|Out-Null}catch{if($_.Exception.InnerException -is [ComponentModel.Win32Exception] -and $_.Exception.InnerException.NativeErrorCode -eq 183){$refused=$true}else{throw}};
+      if(-not $refused -or (Get-Acl -LiteralPath $ordinary).Sddl -cne $before -or [IO.File]::ReadAllText($marker) -cne 'original'){throw 'Existing directory adopted or changed'};
+      'atomic-root-cases-complete';`);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
