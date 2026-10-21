@@ -479,3 +479,16 @@ loop variable replaced the root-owner stub; restoring that stub before the
 shared baseline fixed the fixture. All six scheduler checks then passed with no
 skips, and its TypeScript test passed typed lint. No actual account ACL query or
 mutation was performed.
+
+The Windows V2 continuation reader now recovers only the original positively
+settled B account binding, installer and public journey report through the actual
+current private continuation claim. It rehashes those original settlement files,
+checks the newly appointed public SID/profile/controller/helper, and derives only
+the original exact invocation work child, installer run/install/library paths,
+ordinary runtime and HKU registration leaf. Foreign account, sibling/aliased
+work, relocated application/runtime and changed parked identity refuse. This is
+an inert path/custody prerequisite; it does not launch, restore, install or grant
+an account capability. Three controlled path/private-import-refusal tests and
+two-file typed lint passed. Initial lint feedback on control-character regex and
+boundary-record narrowing was repaired without expanding accepted paths. Actual
+PS/Node continuation execution remains under engineering and is not enabled.
