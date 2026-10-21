@@ -512,6 +512,7 @@ jobs:
       - tool_bootstrap
       - tool_attest
       - independent_admission
+      - coordinator
     runs-on: ubuntu-22.04
     timeout-minutes: 2
     permissions:

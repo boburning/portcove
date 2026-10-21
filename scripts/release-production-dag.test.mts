@@ -45,6 +45,11 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
   assert.equal(requiredJob("attest")["timeout-minutes"], 2);
   for (const [name, job] of Object.entries(jobs)) {
     assert.equal(job["runs-on"], "ubuntu-22.04", name);
+    for (const match of JSON.stringify(job).matchAll(/needs\.([a-z_][a-z_0-9]*)/gu))
+      assert.ok(
+        job.needs?.includes(match[1]!),
+        `${name} references undeclared producer ${match[1]}`,
+      );
     assert.ok(Number.isSafeInteger(job["timeout-minutes"]) && job["timeout-minutes"] > 0);
     if (name !== "tool_bootstrap")
       assert.ok(!job.steps.some((step) => /(?:npm|pnpm) (?:install|ci)/u.test(step.run ?? "")));
