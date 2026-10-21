@@ -282,7 +282,7 @@ async function launchFixedLinuxNativeSession(
   assert.equal(process.platform, "linux");
   const publicBudget = publicBinding ? claimPublicBudget(publicBinding) : undefined;
   const binding = inspectIsolatedNativeLinuxBinding(raw);
-  const home = publicBinding?.state ?? binding.home;
+  const home = publicBinding?.profile_home ?? binding.home;
   assert.equal(process.getuid?.(), binding.account.uid);
   assert.equal(process.getgid?.(), binding.account.gid);
   assert.equal(program, binding.tools.driver?.path);
@@ -385,7 +385,8 @@ async function launchFixedLinuxNativeSession(
   };
   await recheck();
   const nonce = randomUUID(),
-    configurationPath = `${binding.capture_root}/namespace-${nonce}.json`;
+    configurationPath = `${binding.capture_root}/namespace-${nonce}.json`,
+    policyPrefix = configurationPath.slice(0, -5);
   const allowed = [
     "XDG_CONFIG_HOME",
     "XDG_CACHE_HOME",
@@ -427,7 +428,7 @@ async function launchFixedLinuxNativeSession(
     const policyPins: Record<string, string> = {};
     for (const [name, value] of Object.entries(policies)) {
       const bytes = Buffer.from(JSON.stringify(value));
-      const filename = `${binding.capture_root}/public-${name}.json`;
+      const filename = `${policyPrefix}.${name}.json`;
       await writeFile(filename, bytes, { flag: "wx", mode: 0o600 });
       policyPins[`${name}_policy_sha256`] = createHash("sha256").update(bytes).digest("hex");
       if (name === "network") {
@@ -443,13 +444,14 @@ async function launchFixedLinuxNativeSession(
           .sort(([left], [right]) => left.localeCompare(right))
           .flatMap(([host, addresses]) => addresses.map((address) => `${address} ${host}`)),
       ].join("\n") + "\n";
-    await writeFile(`${binding.capture_root}/public-hosts`, hosts, { flag: "wx", mode: 0o600 });
-    await writeFile(`${binding.capture_root}/public-nsswitch`, "hosts: files\n", {
+    await writeFile(`${policyPrefix}.hosts`, hosts, { flag: "wx", mode: 0o600 });
+    await writeFile(`${policyPrefix}.nsswitch`, "hosts: files\n", {
       flag: "wx",
       mode: 0o600,
     });
     publicConfiguration = {
       invocation_id: binding.invocation_id,
+      profile_id: publicBinding.profile_id,
       deadline_utc: binding.deadline_utc,
       ...publicBinding.source,
       ...policyPins,
@@ -463,7 +465,9 @@ async function launchFixedLinuxNativeSession(
       qualification_uid: binding.account.uid,
       qualification_gid: binding.account.gid,
       port,
-      application_original: publicBinding?.active_application ?? binding.application.path,
+      application_original: publicBinding
+        ? "/native/installation/Portcove.AppImage"
+        : binding.application.path,
       application_sha256: binding.application.sha256,
       home,
       environment: selected,

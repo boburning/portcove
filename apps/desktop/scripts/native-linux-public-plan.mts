@@ -28,8 +28,9 @@ function freeze<T>(value: T): Readonly<T> {
 
 export function inspectPublicNativeLinuxBinding(raw: unknown) {
   const value: unknown = structuredClone(raw);
-  exact(value, "candidate,network,retained_state_bytes,schema_version,session,source");
+  exact(value, "candidate,network,profile_id,retained_state_bytes,schema_version,session,source");
   assert.equal(value.schema_version, 1);
+  assert.ok(value.profile_id === "client-a" || value.profile_id === "client-b");
   const session = inspectIsolatedNativeLinuxBinding(value.session);
   const attempt = `${session.linux_root}/invocations/${session.invocation_id}`;
   exact(value.candidate, "bytes,path,sha256");
@@ -90,6 +91,8 @@ export function inspectPublicNativeLinuxBinding(raw: unknown) {
     source,
     retained_state_bytes: retainedStateBytes,
     required_writable_bytes: requiredBytes,
+    profile_id: value.profile_id,
+    profile_home: `/native/profile/${value.profile_id}`,
     state: `${session.home}/state`,
     installation: `${session.home}/installation`,
     active_application: `${session.home}/installation/Portcove.AppImage`,
@@ -128,10 +131,10 @@ export function planPublicNativeLinuxCommand(raw: unknown, configurationPath: st
   );
   replace(
     ["--bind", binding.session.home, binding.session.home],
-    ["--bind", binding.state, binding.state],
+    ["--bind", binding.state, binding.profile_home],
   );
-  replace(["--chdir", binding.session.home], ["--chdir", binding.state]);
-  const prefix = binding.session.capture_root;
+  replace(["--chdir", binding.session.home], ["--chdir", binding.profile_home]);
+  const prefix = configurationPath.slice(0, -5);
   replace(
     ["--ro-bind", configurationPath, "/native/config.json"],
     [
@@ -148,16 +151,16 @@ export function planPublicNativeLinuxCommand(raw: unknown, configurationPath: st
       `${binding.session.controller.root}/apps/desktop/scripts/native-linux-public-services.py`,
       "/native/public-services.py",
       "--ro-bind",
-      `${prefix}/public-fuse.json`,
+      `${prefix}.fuse.json`,
       "/native/fuse.json",
       "--ro-bind",
-      `${prefix}/public-network.json`,
+      `${prefix}.network.json`,
       "/native/public-network.json",
       "--ro-bind",
-      `${prefix}/public-hosts`,
+      `${prefix}.hosts`,
       "/etc/hosts",
       "--ro-bind",
-      `${prefix}/public-nsswitch`,
+      `${prefix}.nsswitch`,
       "/etc/nsswitch.conf",
     ],
   );

@@ -119,7 +119,7 @@ def inspect_binding(raw):
         require(
             isinstance(raw[key], str)
             and len(raw[key]) <= 2048
-            and raw[key].startswith("/home/")
+            and (raw[key].startswith("/home/") if not public else raw[key].startswith("/native/"))
             and all(32 <= ord(value) < 127 for value in raw[key])
             and str(PurePosixPath(raw[key])) == raw[key]
             and ".." not in PurePosixPath(raw[key]).parts,
@@ -173,6 +173,7 @@ def inspect_binding(raw):
             and set(selected)
             == {
                 "invocation_id",
+                "profile_id",
                 "deadline_utc",
                 "services_sha256",
                 "fuse_sha256",
@@ -186,13 +187,14 @@ def inspect_binding(raw):
             all(
                 isinstance(selected[key], str) and SHA.fullmatch(selected[key])
                 for key in selected
-                if key != "deadline_utc"
+                if key not in ("deadline_utc", "profile_id")
             ),
             "ordinary public namespace pins differ",
         )
         require(
-            raw["home"].endswith(f"/portcove-native/invocations/{selected['invocation_id']}/work/home/state")
-            and raw["application_original"] == raw["home"][: -len("state")] + "installation/Portcove.AppImage",
+            selected["profile_id"] in ("client-a", "client-b")
+            and raw["home"] == "/native/profile/" + selected["profile_id"]
+            and raw["application_original"] == "/native/installation/Portcove.AppImage",
             "ordinary public state/installation escaped shared bounded home",
         )
         require(isinstance(selected["deadline_utc"], str), "ordinary public deadline unavailable")

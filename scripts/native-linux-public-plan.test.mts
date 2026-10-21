@@ -16,6 +16,7 @@ function fixture() {
   const attempt = `${root}/invocations/${invocation}`;
   return {
     schema_version: 1,
+    profile_id: "client-a",
     session: {
       schema_version: 1,
       invocation_id: invocation,
@@ -87,7 +88,7 @@ void test("ordinary updater plan exposes only bounded state/install and fixed pu
   );
   assert.deepEqual(binds, [
     ["--bind", binding.installation, "/native/installation"],
-    ["--bind", binding.state, binding.state],
+    ["--bind", binding.state, binding.profile_home],
   ]);
   assert.ok(!plan.arguments.includes("/native/application.AppImage"));
   assert.ok(!plan.arguments.includes("/dev/fuse"));
@@ -140,6 +141,7 @@ void test("fixed guest dispatch requires explicit public schema and cannot reint
     stage_request_sha256: "5".repeat(64),
     public_journey: {
       candidate: input.candidate,
+      profile_id: input.profile_id,
       source: input.source,
       network: input.network,
       retained_state_bytes: input.retained_state_bytes,
@@ -174,4 +176,35 @@ void test("fixed guest dispatch requires explicit public schema and cannot reint
     assert.throws(() => inspectNativeLinuxPublicStagePlan(changed));
   raw.public_journey.candidate.sha256 = "6".repeat(64);
   assert.equal(parsed.binding.candidate.sha256, "1".repeat(64));
+});
+
+void test("reopened namespaces keep stable profile meaning with distinct immutable policy leaves", () => {
+  const input = fixture();
+  const left = planPublicNativeLinuxCommand(
+    input,
+    `${input.session.capture_root}/namespace-12345678-1234-1234-1234-123456789abc.json`,
+  );
+  const right = planPublicNativeLinuxCommand(
+    input,
+    `${input.session.capture_root}/namespace-22345678-1234-1234-1234-123456789abc.json`,
+  );
+  const sources = (args: string[]) =>
+    args.flatMap((part, index) =>
+      part === "--ro-bind" &&
+      /\.(?:fuse\.json|network\.json|hosts|nsswitch)$/u.test(args[index + 1]!)
+        ? [args[index + 1]!]
+        : [],
+    );
+  assert.equal(sources(left.arguments).length, 4);
+  assert.equal(sources(right.arguments).length, 4);
+  assert.equal(new Set([...sources(left.arguments), ...sources(right.arguments)]).size, 8);
+  const next = fixture();
+  next.session.invocation_id = "7".repeat(64);
+  const text = JSON.stringify(next).replaceAll("a".repeat(64), "7".repeat(64));
+  const restored = inspectPublicNativeLinuxBinding(JSON.parse(text));
+  const initial = inspectPublicNativeLinuxBinding(input);
+  assert.notEqual(initial.state, restored.state);
+  assert.equal(initial.profile_home, restored.profile_home);
+  assert.equal(initial.profile_home, "/native/profile/client-a");
+  assert.throws(() => inspectPublicNativeLinuxBinding({ ...input, profile_id: "/caller/root" }));
 });

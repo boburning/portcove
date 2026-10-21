@@ -160,11 +160,11 @@ export async function runLinuxPublicUpdateJourney(
     actions,
   };
   const environment = {
-    PORTCOVE_LIBRARY: `${binding.state}/library`,
-    PORTCOVE_PREFERENCES: `${binding.state}/preferences.json`,
-    PORTCOVE_APPLICATION_UPDATE_PREFERENCES: `${binding.state}/update-preferences.json`,
-    PORTCOVE_APPLICATION_UPDATE_SCHEDULE: `${binding.state}/update-schedule.json`,
-    PORTCOVE_APPLICATION_UPDATE_STAGING: `${binding.state}/staging`,
+    PORTCOVE_LIBRARY: `${binding.profile_home}/library`,
+    PORTCOVE_PREFERENCES: `${binding.profile_home}/preferences.json`,
+    PORTCOVE_APPLICATION_UPDATE_PREFERENCES: `${binding.profile_home}/update-preferences.json`,
+    PORTCOVE_APPLICATION_UPDATE_SCHEDULE: `${binding.profile_home}/update-schedule.json`,
+    PORTCOVE_APPLICATION_UPDATE_STAGING: `${binding.profile_home}/staging`,
   };
   let launched: Awaited<ReturnType<typeof launchPublicLinuxNativeSession>> | undefined;
   let browser: WebDriver | undefined;
@@ -190,7 +190,7 @@ export async function runLinuxPublicUpdateJourney(
     assert.equal(state.library_root, environment.PORTCOVE_LIBRARY);
     assert.ok(
       path.posix.isAbsolute(state.app_local_data) &&
-        state.app_local_data.startsWith(binding.state + "/"),
+        state.app_local_data.startsWith(binding.profile_home + "/"),
     );
     return state;
   };
@@ -213,7 +213,7 @@ export async function runLinuxPublicUpdateJourney(
       .usingHttpAgent(launched.privateAgent)
       .withCapabilities({
         browserName: "wry",
-        "tauri:options": { application: binding.active_application },
+        "tauri:options": { application: "/native/installation/Portcove.AppImage" },
       })
       .build();
     await browser.manage().setTimeouts({

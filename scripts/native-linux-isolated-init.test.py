@@ -100,15 +100,15 @@ class InertNativeInit(unittest.TestCase):
     def test_ordinary_public_binding_keeps_fixed_paths_source_pins_and_normal_launch_alias(self):
         value = binding()
         invocation = "a" * 64
-        root = f"/home/native/portcove-native/invocations/{invocation}/work/home"
         value.update(
             {
                 "schema_version": 2,
-                "home": root + "/state",
-                "application_original": root + "/installation/Portcove.AppImage",
-                "environment": {"XDG_CONFIG_HOME": root + "/state/config"},
+                "home": "/native/profile/client-a",
+                "application_original": "/native/installation/Portcove.AppImage",
+                "environment": {"XDG_CONFIG_HOME": "/native/profile/client-a/config"},
                 "public": {
                     "invocation_id": invocation,
+                    "profile_id": "client-a",
                     "deadline_utc": "2026-11-01T00:00:00.000Z",
                     **{
                         key: "b" * 64
@@ -137,6 +137,8 @@ class InertNativeInit(unittest.TestCase):
         for alter in (
             lambda item: item.update({"schema_version": 1}),
             lambda item: item["public"].pop("services_sha256"),
+            lambda item: item["public"].update({"profile_id": "caller-selected"}),
+            lambda item: item.update({"home": "/native/profile/client-b"}),
             lambda item: item.update({"application_original": "/tmp/unbounded.AppImage"}),
             lambda item: item["public"].update({"deadline_utc": "2026-11-01T00:00:00Z"}),
             lambda item: item["environment"].update({"APPIMAGE_EXTRACT_AND_RUN": "1"}),
