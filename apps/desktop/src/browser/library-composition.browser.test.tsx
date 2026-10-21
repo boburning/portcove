@@ -215,3 +215,42 @@ it("keeps an unknown external record distinct from managed readiness and reviews
   expect(record.path).toBe("C:\\Player\\External");
   expect(launch).not.toHaveBeenCalled();
 });
+
+for (const theme of ["dark", "light"]) {
+  it(`keeps enlarged ${theme} catalog artwork bounded with visible distinguishing identity`, async () => {
+    await page.viewport(1366, 768);
+    await mount(theme);
+    await page.getByRole("button", { name: "Find games", exact: true }).click();
+    await expect.poll(() => document.querySelectorAll(".card-art").length).toBe(12);
+    const artwork = document.querySelector<HTMLElement>(".card-art")!;
+    const ordinary = artwork.getBoundingClientRect();
+    document.documentElement.style.fontSize = "32px";
+    await expect
+      .poll(() => artwork.getBoundingClientRect().width)
+      .toBeLessThanOrEqual(ordinary.width);
+    const enlarged = artwork.getBoundingClientRect();
+    expect(enlarged.height / enlarged.width).toBeCloseTo(1.5);
+    const card = artwork.closest<HTMLButtonElement>(".port-card")!;
+    const title = card.querySelector("h2")!;
+    expect(title.getBoundingClientRect().top).toBeLessThan(innerHeight);
+    expect(card.textContent).toContain("Super Mario 64");
+    expect(card.textContent).toContain("sm64-port");
+    expect(card.querySelectorAll("button")).toHaveLength(0);
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth);
+    const otherPort = [...document.querySelectorAll<HTMLButtonElement>("button.port-card")].find(
+      (button) => button.textContent?.includes("Mario modern port"),
+    )!;
+    otherPort.focus();
+    await userEvent.keyboard("{Enter}");
+    await expect
+      .poll(() =>
+        document.querySelector("[data-detail-port-id]")?.getAttribute("data-detail-port-id"),
+      )
+      .toBe("collection-1");
+    await page.getByRole("button", { name: "Back", exact: true }).click();
+    await expect.poll(() => document.activeElement?.textContent).toContain("Mario modern port");
+    expect(document.activeElement?.getAttribute("data-detail-origin")).toBe(
+      "catalog:card:collection-1",
+    );
+  });
+}

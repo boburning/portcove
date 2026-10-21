@@ -707,6 +707,17 @@ unknown evidence in existing review treatments. Detail/setup completion uses the
 shared primary/recovery and focus contracts. Save drafts during normal navigation;
 opening another destination must not imply cancellation or task completion.
 
+### Find games artwork and identity
+
+Catalog cards retain their own browsing filters, sort and route semantics. Whole
+cover images use centered 2:3 frames capped at 160 CSS pixels wide; when the
+collection has at most 60rem of effective reading width, the cap becomes 120 CSS
+pixels. These caps are independent of text size. Missing artwork uses the same
+quiet game symbol as Library and Detail. Do not infer crop bounds or replace
+provider/user-selected artwork. Titles and project/variant identity follow the
+frame without reserving three empty title lines. The existing card activation
+and keyboard return still target the exact port, not its shared original title.
+
 ### Game-data preparation review
 
 The preparation review names the selected game/port and presents the installed
