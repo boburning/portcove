@@ -313,12 +313,17 @@ impl InstallQualification {
 
     #[cfg(test)]
     pub(crate) fn test(executable: &str) -> Self {
+        Self::test_for_port("sample", executable)
+    }
+
+    #[cfg(test)]
+    fn test_for_port(port_id: &str, executable: &str) -> Self {
         let mut port = crate::Catalog::embedded()
             .unwrap()
             .port("zelda64-recomp")
             .unwrap()
             .clone();
-        port.id = "sample".into();
+        port.id = port_id.into();
         port.source_profile = None;
         port.presentation = None;
         port.source_environment = None;
@@ -5967,10 +5972,30 @@ mod tests {
             writer.finish().unwrap();
             let archive_bytes = fs::read(&archive_path).unwrap();
             let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            listener.set_nonblocking(true).unwrap();
             let address = listener.local_addr().unwrap();
             let response = archive_bytes.clone();
+            let stopped = Arc::new(AtomicBool::new(false));
+            let server_stop = Arc::clone(&stopped);
             let server = thread::spawn(move || {
-                let (mut stream, _) = listener.accept().unwrap();
+                let (mut stream, _) = loop {
+                    if server_stop.load(Ordering::Acquire) {
+                        return false;
+                    }
+                    match listener.accept() {
+                        Ok(connection) => break connection,
+                        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                            thread::sleep(Duration::from_millis(5));
+                        }
+                        Err(error) => panic!("legacy fixture accept failed: {error}"),
+                    }
+                };
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(2)))
+                    .unwrap();
+                stream
+                    .set_write_timeout(Some(Duration::from_secs(2)))
+                    .unwrap();
                 let mut request = [0u8; 1024];
                 let _ = stream.read(&mut request);
                 write!(
@@ -5980,6 +6005,7 @@ mod tests {
                 )
                 .unwrap();
                 stream.write_all(&response).unwrap();
+                true
             });
             let library = Library::open(temporary.path().join("library")).unwrap();
             let installer = if interrupted {
@@ -6010,12 +6036,19 @@ mod tests {
                 },
                 activate: true,
                 managed: None,
-                qualification: InstallQualification::test("sample-game.exe"),
+                qualification: InstallQualification::test_for_port(
+                    "cvlod-recomp",
+                    "sample-game.exe",
+                ),
             };
             let result = installer
                 .install(request, &OperationCoordinator::new("install", None), |_| {})
                 .await;
-            server.join().unwrap();
+            stopped.store(true, Ordering::Release);
+            assert!(
+                server.join().unwrap(),
+                "legacy request was not served: {result:?}"
+            );
             let store = OperationStore::new(library.clone());
             if interrupted {
                 assert!(
