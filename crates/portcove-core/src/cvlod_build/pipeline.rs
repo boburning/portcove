@@ -4,7 +4,7 @@ use super::super::{
     FileIdentity, RECEIPT, TOOLCHAIN, cmake_path, copy_verified, digest, inventory, write_new,
 };
 use super::{
-    archive_facts, local_profile,
+    archive_facts, compiler_options, local_profile,
     plan::{OBJECT_BATCH_LIMIT, Plan, Stage},
     sources,
 };
@@ -417,6 +417,7 @@ pub(super) fn prepare_install(
     )?;
     let project = sources::assemble(work, &archives, &checkpoint)?;
     patch(&project)?;
+    compiler_options::apply(&project)?;
     let pristine = inventory(&project, &checkpoint)?;
     let inputs = BuildInputs::capture(work, super::RECIPE, &checkpoint)?;
     let session = BuildSession {
@@ -709,8 +710,8 @@ pub(super) fn prepare_install(
             "original_sha256":super::ORIGINAL,"original_size":super::ORIGINAL_SIZE,"stored_original_sha256":preparation.source.storage_sha256,
             "auxiliary_archives":archives,"source_manifest_sha256":sources::identity(),"local_toolchain_profile":local_profile::ID,
             "local_toolchain_manifest_sha256":local_profile::identity(),"input_tree_sha256":inputs.identities.iter().map(|v|serde_json::to_vec(v).map(|b|digest(&b))).collect::<std::result::Result<Vec<_>,_>>()?,
-            "lifetime_patch":{"before_sha256":PATCH_BEFORE,"after_sha256":PATCH_AFTER},"generation":generation,"commands":commands,"compilation":plans,
-            "objects_per_invocation":OBJECT_BATCH_LIMIT,"mixed_objects_per_invocation":2,"helpers_per_invocation":8,"dry_run_before_execution":true,"execution_deadline_seconds":super::RECIPE.execution_budget().as_secs(),
+            "lifetime_patch":{"before_sha256":PATCH_BEFORE,"after_sha256":PATCH_AFTER},"rmlui_compiler_options_patch":{"before_sha256":compiler_options::BEFORE,"after_sha256":compiler_options::AFTER},"generation":generation,"commands":commands,"compilation":plans,
+            "objects_per_invocation":OBJECT_BATCH_LIMIT,"mixed_objects_per_invocation":2,"rmlui_objects_per_invocation":1,"helpers_per_invocation":8,"dry_run_before_execution":true,"execution_deadline_seconds":super::RECIPE.execution_budget().as_secs(),
             "elapsed_ms":deadline.elapsed().as_millis(),"recompiler_imports":recompiler_imports,"imports":imports,"runtime_files":output,"builder_quiesced":true,"game_executed_by_builder":false
         }))?,
     )?;

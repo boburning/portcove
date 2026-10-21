@@ -6,6 +6,8 @@ use std::{collections::BTreeMap, path::Path};
 
 #[path = "cvlod_build/archives.rs"]
 mod archive_facts;
+#[path = "cvlod_build/compiler_options.rs"]
+mod compiler_options;
 #[path = "cvlod_build/local_profile.rs"]
 mod local_profile;
 #[path = "cvlod_build/pipeline.rs"]
@@ -231,6 +233,7 @@ pub(super) fn storage_identity(primary_sha256: &str, source: &SourceRecord) -> R
         pipeline::identity(),
         pipeline::PATCH_BEFORE,
         pipeline::PATCH_AFTER,
+        (compiler_options::BEFORE, compiler_options::AFTER),
         RECIPE.original_filename(),
         "RelWithDebInfo/MD/clang-cl22/MSVC14.44/SDK19041/DirectX614/SDL2.30.3/fonts+SVG/upstream-defaults",
         ["rom.z64", "--save-dir", "saves"],
