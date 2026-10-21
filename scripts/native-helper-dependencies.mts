@@ -88,6 +88,7 @@ export const nativeHelperSharedSources = Object.freeze([
   helper("native-linux-public-fuse.py"),
   "scripts/native-qualification-account-client.ps1",
   "scripts/native-qualification-account.cs.txt",
+  "scripts/native-qualification-account-registry.ps1",
   // Launcher and admission code is already loaded when prelaunch capture begins.
   // These are trusted verifier/reproduction observations, never proof that a
   // retained copy was the immutable module consumed by the target process.

@@ -137,9 +137,80 @@ function Get-PortcoveNativeRegistryRoot {
     if ($null -eq $Session.keeper) { throw 'Native loaded-profile lifetime is not established' }
     $observed=Invoke-PortcoveNativeAccountCommand $Session observe 'profile-keeper'
     if ($observed.exited -isnot [bool] -or $observed.exited) { throw 'Native profile keeper exited; HKCU cannot be inferred' }
-    $root='Registry::HKEY_USERS\' + $Session.binding.account_sid
-    if (-not (Test-Path -LiteralPath $root)) { throw 'Actual qualification-account hive is unavailable' }
-    return $root
+    $null=Read-PortcoveNativeOwnRegistry $Session
+    return 'Registry::HKEY_CURRENT_USER'
+}
+
+function Read-PortcoveNativeOwnRegistry {
+    param([Parameter(Mandatory)]$Session)
+    if ($null -eq $Session.keeper) { throw 'Native loaded-profile lifetime is not established' }
+    if (-not $Session.PSObject.Properties['registry_sequence']) { $Session | Add-Member NoteProperty registry_sequence 0 }
+    # Lifetime roots remain inside the existing 64-root bound, including keeper,
+    # installer, application, driver and cleanup roots. No retry launch on failure.
+    if ($Session.registry_sequence -ge 16) { throw 'Fixed registry observation budget exhausted' }
+    $Session.registry_sequence++
+    $id='registry-' + $Session.registry_sequence.ToString('000')
+    $exe=Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $reader=Join-Path $PSScriptRoot 'native-qualification-account-registry.ps1'
+    $root=Start-PortcoveNativeAccountRoot $Session $id $exe @('-NoLogo','-NoProfile','-NonInteractive','-File',$reader,'-Invocation',$Session.binding.invocation_id) $Session.keeper_directory
+    $done=Invoke-PortcoveNativeAccountCommand $Session readback $id
+    if ($done.root_pid -ne $root.pid -or $done.root_created_filetime -cne $root.started_filetime -or
+        $done.root_exited -isnot [bool] -or -not $done.root_exited -or $done.job_empty -isnot [bool] -or -not $done.job_empty -or @($done.remaining_pids).Count -ne 0 -or
+        ($done.exit_code -isnot [int] -and $done.exit_code -isnot [long]) -or $done.exit_code -ne 0) { throw 'Fixed registry reader lacks successful exact-root settlement' }
+    $streams=@{}
+    foreach ($stream in @('stdout','stderr')) {
+        $file=Join-Path $Session.binding.capture_root ($id+'.'+$stream+'.bin')
+        $streams[$stream]=Read-PortcoveNativeRegistryCapture $file
+    }
+    if ($streams.stderr.Length -ne 0) { throw 'Fixed registry reader retained stderr' }
+    $value=$streams.stdout | ConvertFrom-Json
+    $expected=@('schema_version','invocation','pid','account_sid','profile','hive_present','provenance','authority','uninstall','webview')
+    if ((@($value.PSObject.Properties.Name | Sort-Object) -join '|') -cne (($expected|Sort-Object)-join '|') -or
+        $value.schema_version -ne 1 -or $value.invocation -cne $Session.binding.invocation_id -or $value.pid -ne $root.pid -or
+        $value.account_sid -cne $Session.binding.account_sid -or $value.hive_present -isnot [bool] -or -not $value.hive_present -or
+        $value.provenance -cne 'target-account-HKCU' -or $value.authority -cne 'none' -or
+        -not [string]::Equals([IO.Path]::GetFullPath($value.profile),[IO.Path]::GetFullPath($Session.binding.profile_root),[StringComparison]::OrdinalIgnoreCase)) { throw 'Fixed target-account registry identity differs' }
+    foreach ($kind in @('uninstall','webview')) {
+        $tail=if($kind -eq 'uninstall'){'Software\Microsoft\Windows\CurrentVersion\Uninstall\'}else{'Software\Microsoft\EdgeUpdate\Clients\'}
+        $fields=if($kind -eq 'uninstall'){@('PSPath','account_sid','DisplayName','DisplayVersion','InstallLocation','UninstallString','QuietUninstallString')}else{@('PSPath','account_sid','name','pv')}
+        if ($value.$kind -isnot [array] -or $value.$kind.Count -gt 128) { throw 'Fixed registry records exceed bounds' }
+        foreach ($record in $value.$kind) {
+            if ((@($record.PSObject.Properties.Name|Sort-Object)-join '|') -cne (($fields|Sort-Object)-join '|') -or
+                $record.account_sid -cne $Session.binding.account_sid -or
+                -not $record.PSPath.StartsWith('Microsoft.PowerShell.Core\Registry::HKEY_CURRENT_USER\'+$tail,[StringComparison]::OrdinalIgnoreCase)) { throw 'Fixed own-HKCU record provenance differs' }
+            foreach($field in $fields) { if($record.$field -isnot [string] -or $record.$field.Length -gt 8192){throw 'Fixed registry record value exceeds bounds'} }
+        }
+    }
+    return $value
+}
+
+function Read-PortcoveNativeRegistryCapture {
+    param([Parameter(Mandatory)][string]$Path)
+    $before=Get-Item -LiteralPath $Path -Force
+    if ($before.PSIsContainer -or $before.Length -gt 65536 -or ($before.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Fixed registry capture exceeds bounds' }
+    # Read sharing denies concurrent write/delete/replacement for the entire
+    # held lifetime, including the final path/handle metadata comparison.
+    $file=[IO.FileStream]::new($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+    try {
+        $handle=$file.SafeFileHandle
+        $created=[IO.File]::GetCreationTimeUtc($handle)
+        $written=[IO.File]::GetLastWriteTimeUtc($handle)
+        $attributes=[IO.File]::GetAttributes($handle)
+        if ($file.Length -ne $before.Length -or $created -ne $before.CreationTimeUtc -or $written -ne $before.LastWriteTimeUtc -or
+            ($attributes -band ([IO.FileAttributes]::ReparsePoint -bor [IO.FileAttributes]::Directory))) { throw 'Fixed registry capture changed before held read' }
+        $buffer=[byte[]]::new(65537);$count=0
+        do {
+            $read=$file.Read($buffer,$count,$buffer.Length-$count)
+            $count+=$read
+            if ($count -gt 65536) { throw 'Fixed registry capture overflow during held read' }
+        } while ($read -gt 0)
+        $after=Get-Item -LiteralPath $Path -Force
+        if ($after.PSIsContainer -or ($after.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+            $count -ne $before.Length -or $file.Length -ne $count -or $after.Length -ne $count -or
+            $after.CreationTimeUtc -ne $created -or $after.LastWriteTimeUtc -ne $written -or
+            [IO.File]::GetCreationTimeUtc($handle) -ne $created -or [IO.File]::GetLastWriteTimeUtc($handle) -ne $written) { throw 'Fixed registry capture identity changed during held read' }
+        return [Text.UTF8Encoding]::new($false,$true).GetString($buffer,0,$count)
+    } finally { $file.Dispose() }
 }
 
 function Update-PortcoveNativeProcessProxy {
@@ -211,4 +282,4 @@ function New-PortcoveNativeProcessProxy {
     return $process
 }
 
-Export-ModuleMember -Function Open-PortcoveNativeAccountSession,Invoke-PortcoveNativeAccountCommand,Get-PortcoveNativeAccountEnvironment,Start-PortcoveNativeAccountRoot,Start-PortcoveNativeProfileKeeper,Get-PortcoveNativeRegistryRoot,New-PortcoveNativeProcessProxy,Update-PortcoveNativeProcessProxy
+Export-ModuleMember -Function Open-PortcoveNativeAccountSession,Invoke-PortcoveNativeAccountCommand,Get-PortcoveNativeAccountEnvironment,Start-PortcoveNativeAccountRoot,Start-PortcoveNativeProfileKeeper,Get-PortcoveNativeRegistryRoot,Read-PortcoveNativeOwnRegistry,New-PortcoveNativeProcessProxy,Update-PortcoveNativeProcessProxy

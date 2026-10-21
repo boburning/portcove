@@ -199,6 +199,10 @@ try {
             'readback' {
                 if ($null -ne $request.launch -or -not $roots.ContainsKey($request.id)) { throw 'Unknown native root' }
                 $value=Convert-Teardown ($roots[$request.id].ReadTeardown(5000))
+                if ($value.root_exited -and $value.job_empty) {
+                    if (-not [Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($roots[$request.id].Output,$roots[$request.id].ErrorOutput),5000)) { throw 'Native readback capture did not reach EOF' }
+                    $roots[$request.id].RefuseFaultedCapture()
+                }
             }
             'finish' {
                 if ($null -ne $request.launch) { throw 'Finish cannot import launch data' }

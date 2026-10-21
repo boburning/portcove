@@ -79,6 +79,12 @@ void test("continuation derives only the original exact B work/install/runtime a
   assert.equal(result.registration_path, f.installer.details.registration_path);
   f.binding.profile_root = f.binding.profile_root.toLowerCase();
   assert.deepEqual(inspect(f), result);
+  Object.assign(f.installer.details, { registration_account_sid: f.boundary.account_sid });
+  f.installer.details.registration_path =
+    "Microsoft.PowerShell.Core\\Registry::HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Portcove";
+  assert.equal(inspect(f).registration_path, f.installer.details.registration_path);
+  Object.assign(f.installer.details, { registration_account_sid: "S-1-5-21-1-2-3-9999" });
+  assert.throws(() => inspect(f));
 });
 void test("continuation refuses other accounts, invocations and shifted runtime/install paths", () => {
   const mutations: ((f: ReturnType<typeof fixture>) => void)[] = [

@@ -75,9 +75,14 @@ export function inspectWindowsPublicContinuationPaths(
   assert.equal(details.installed_executable_sha256, priorExecutableSha256);
   same(details.application, application);
   assert.ok(typeof details.registration_path === "string");
-  const registryPrefix = `Microsoft.PowerShell.Core\\Registry::HKEY_USERS\\${boundary.account_sid}\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\`;
-  // PowerShell's provider-qualified PSPath is retained unchanged; no HKCU/HKLM
-  // or another user's registration may be substituted.
+  if (Object.hasOwn(details, "registration_account_sid"))
+    assert.equal(details.registration_account_sid, boundary.account_sid);
+  const registryPrefix =
+    details.registration_account_sid === boundary.account_sid
+      ? "Microsoft.PowerShell.Core\\Registry::HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\"
+      : `Microsoft.PowerShell.Core\\Registry::HKEY_USERS\\${boundary.account_sid}\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\`;
+  // Preserve actual HKCU provenance plus kernel-selected SID. Legacy retained
+  // reports use their original exact HKEY_USERS path; never relabel either.
   assert.ok(details.registration_path.startsWith(registryPrefix));
   const registryLeaf = details.registration_path.slice(registryPrefix.length);
   assert.match(registryLeaf, /^[^\\/]{1,160}$/u);

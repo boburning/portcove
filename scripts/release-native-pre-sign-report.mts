@@ -116,6 +116,16 @@ function reconstructNativeWindowsStageReport(
   const registration = text(details.registration_path).toLowerCase();
   const sid = text(expectedAccount.qualification);
   if (
+    Object.hasOwn(details, "registration_account_sid") &&
+    details.registration_account_sid !== sid
+  )
+    throw new Error("native observed registration SID differs");
+  if (
+    !(
+      registration.startsWith(
+        "microsoft.powershell.core\\registry::hkey_current_user\\software\\microsoft\\windows\\currentversion\\uninstall\\",
+      ) && details.registration_account_sid === sid
+    ) &&
     !registration.startsWith(
       `microsoft.powershell.core\\registry::hkey_users\\${sid.toLowerCase()}\\software\\microsoft\\windows\\currentversion\\uninstall\\`,
     )
@@ -434,6 +444,18 @@ export function reconstructNativePostSignReport(
     );
     const sid = text(record(request.expected.host.account).qualification).toLowerCase();
     if (
+      Object.hasOwn(rollback, "registration_account_sid") &&
+      text(rollback.registration_account_sid).toLowerCase() !== sid
+    )
+      throw new Error("native rollback observed registration SID differs");
+    if (
+      !(
+        text(rollback.registration_path)
+          .toLowerCase()
+          .startsWith(
+            "microsoft.powershell.core\\registry::hkey_current_user\\software\\microsoft\\windows\\currentversion\\uninstall\\",
+          ) && text(rollback.registration_account_sid).toLowerCase() === sid
+      ) &&
       !text(rollback.registration_path)
         .toLowerCase()
         .startsWith(
