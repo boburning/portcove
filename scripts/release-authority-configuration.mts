@@ -481,12 +481,28 @@ export function inspectCatalogAuthorityConfiguration(raw: unknown) {
   )
     throw new Error("catalog issuer/writer/observer/journal/dispatch identities conflated");
   exact(value.catalog, "public_source,publisher_scope,setup_plan_sha256");
-  exact(value.catalog.public_source, "commit,offline_targets,root");
+  const initialSite =
+    isRecord(value.catalog.public_source) &&
+    Object.hasOwn(value.catalog.public_source, "initial_site_preimage");
+  exact(
+    value.catalog.public_source,
+    initialSite
+      ? "commit,initial_site_preimage,offline_targets,root"
+      : "commit,offline_targets,root",
+  );
   const source = value.catalog.public_source;
   const root = catalogFilePin(source.root),
     targets = catalogFilePin(source.offline_targets);
   if (root.path === targets.path || root.sha256 === targets.sha256)
     throw new Error("catalog public anchors conflated");
+  const preimage = initialSite ? catalogFilePin(source.initial_site_preimage) : undefined;
+  if (
+    preimage &&
+    (preimage.bytes > 128 * 1024 ||
+      [root.path, targets.path].includes(preimage.path) ||
+      [root.sha256, targets.sha256].includes(preimage.sha256))
+  )
+    throw new Error("catalog initial site preimage differs from separate bounded setup pin");
   if (
     !Array.isArray(value.catalog.publisher_scope) ||
     value.catalog.publisher_scope.length < 1 ||
@@ -545,7 +561,12 @@ export function inspectCatalogAuthorityConfiguration(raw: unknown) {
     repository_id: 1354613114 as const,
     apps,
     catalog: {
-      public_source: { commit: hex(source.commit, 40), root, offline_targets: targets },
+      public_source: {
+        commit: hex(source.commit, 40),
+        root,
+        offline_targets: targets,
+        ...(preimage ? { initial_site_preimage: preimage } : {}),
+      },
       setup_plan_sha256: hex(value.catalog.setup_plan_sha256, 64),
       publisher_scope,
     },

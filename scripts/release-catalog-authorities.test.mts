@@ -92,6 +92,37 @@ void test("catalog configuration appoints only distinct minimal roles and never 
   const config = configuration();
   const parsed = inspectCatalogAuthorityConfiguration(config);
   assert.equal(parsed.kind, "catalog-publication-authorities");
+  const bootstrap = structuredClone(config) as typeof config & {
+    catalog: {
+      public_source: { initial_site_preimage?: { path: string; bytes: number; sha256: string } };
+    };
+  };
+  bootstrap.catalog.public_source.initial_site_preimage = {
+    path: "public/catalog-initial-site.json",
+    bytes: 123,
+    sha256: "e".repeat(64),
+  };
+  assert.notEqual(digest(inspectCatalogAuthorityConfiguration(bootstrap)), digest(parsed));
+  for (const changed of [
+    { ...bootstrap.catalog.public_source.initial_site_preimage, bytes: 128 * 1024 + 1 },
+    {
+      ...bootstrap.catalog.public_source.initial_site_preimage,
+      path: config.catalog.public_source.root.path,
+    },
+    {
+      ...bootstrap.catalog.public_source.initial_site_preimage,
+      sha256: config.catalog.public_source.root.sha256,
+    },
+  ])
+    assert.throws(() =>
+      inspectCatalogAuthorityConfiguration({
+        ...bootstrap,
+        catalog: {
+          ...bootstrap.catalog,
+          public_source: { ...bootstrap.catalog.public_source, initial_site_preimage: changed },
+        },
+      }),
+    );
   assert.throws(() => inspectReleaseAuthorityConfiguration(config));
   for (const changed of [
     { ...config, native: {} },

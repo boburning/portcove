@@ -4,7 +4,11 @@
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import type { GitHubRestReader } from "./github-api.mts";
-import { inspectPublicationAuthorities } from "./release-authority-configuration.mts";
+import {
+  inspectPublicationAuthorities,
+  inspectCatalogAuthorityConfiguration,
+  requireControllerCatalogPublicationAuthorities,
+} from "./release-authority-configuration.mts";
 import {
   inspectRemoteCommitObject,
   inspectRemoteGitObject,
@@ -12,6 +16,7 @@ import {
 import { inspectReleaseSourceTree } from "./release-source-changes.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
 const base = "repos/boburning/portcove";
 const origin = "https://boburning.github.io/portcove/";
@@ -85,27 +90,76 @@ export function readBootstrapPublicSource(
   const pins = publication.public_source;
   if (!pins.initial_site_preimage)
     throw new Error("explicit schema2 historical setup locator required");
+  const result = readPinnedBootstrapSource(
+    api,
+    pins.commit,
+    {
+      root: pins.root,
+      offline_targets: pins.offline_targets,
+      payload_key_registry: pins.payload_key_registry,
+      initial_site_preimage: pins.initial_site_preimage,
+    },
+    generatedAt,
+    deadline,
+  );
+  return { publication, ...result };
+}
+
+/** Catalog bootstrap has its own explicit setup pin and never requires an
+ * application Root, payload registry or application authority appointment. */
+export function readCatalogBootstrapPublicSource(
+  api: GitHubRestReader,
+  rawAuthorities: unknown,
+  generatedAt: string,
+  deadline: number,
+) {
+  const authorities = inspectCatalogAuthorityConfiguration(rawAuthorities);
+  const pins = authorities.catalog.public_source;
+  if (!pins.initial_site_preimage)
+    throw new Error("explicit catalog historical whole-site preimage locator required");
+  return {
+    authorities,
+    ...readPinnedBootstrapSource(
+      api,
+      pins.commit,
+      {
+        root: pins.root,
+        offline_targets: pins.offline_targets,
+        initial_site_preimage: pins.initial_site_preimage,
+      },
+      generatedAt,
+      deadline,
+    ),
+  };
+}
+
+function readPinnedBootstrapSource(
+  api: GitHubRestReader,
+  sourceCommit: string,
+  pins: Record<string, { path: string; bytes: number; sha256: string }>,
+  generatedAt: string,
+  deadline: number,
+) {
   let reads = 0;
   const get = (endpoint: string) => {
     check(deadline);
-    if (++reads > 6) throw new Error("bootstrap public source read bound exhausted");
+    if (++reads > Object.keys(pins).length + 2)
+      throw new Error("bootstrap public source read bound exhausted");
     const response = api.request("GET", endpoint);
     check(deadline);
     if (response.status !== 200) throw new Error("bootstrap public source unavailable");
     return response.body;
   };
-  const commit = inspectRemoteCommitObject(get(`${base}/git/commits/${pins.commit}`), pins.commit);
+  const commit = inspectRemoteCommitObject(
+    get(`${base}/git/commits/${sourceCommit}`),
+    sourceCommit,
+  );
   const tree = inspectReleaseSourceTree(
     get(`${base}/git/trees/${commit.tree}?recursive=1`),
     commit.tree,
   );
   const files = new Map<string, Buffer>();
-  for (const name of [
-    "root",
-    "offline_targets",
-    "payload_key_registry",
-    "initial_site_preimage",
-  ] as const) {
+  for (const name of Object.keys(pins)) {
     const pin = pins[name]!;
     const entry = tree.entries.get(pin.path);
     if (!entry || entry.type !== "blob" || entry.mode !== "100644" || pin.bytes > 128 * 1024)
@@ -136,11 +190,39 @@ export function readBootstrapPublicSource(
     generatedAt,
   );
   return {
-    publication,
     files,
     historical,
     source_tree: commit.tree,
     api_reads: reads,
+    authority: "none" as const,
+  };
+}
+
+/** Actual protected catalog configuration selects the historical preimage;
+ * fresh provider and exact public-route absence are independently re-observed.
+ * This is retained input evidence only, never a publication capability. Call
+ * again immediately before the sole Pages effect; absence is not reusable. */
+export async function readConfiguredCatalogBootstrapSite(
+  api: GitHubRestReader,
+  generatedAt: string,
+  phaseDeadline: number,
+) {
+  check(phaseDeadline);
+  const authorities = await withCoordinatorDeadline(phaseDeadline, () =>
+    requireControllerCatalogPublicationAuthorities("site-publication"),
+  );
+  check(phaseDeadline);
+  const { configuration_sha256, ...configuration } = authorities;
+  const source = readCatalogBootstrapPublicSource(api, configuration, generatedAt, phaseDeadline);
+  const current = await readConfiguredBootstrapSite(api, phaseDeadline);
+  check(phaseDeadline);
+  return {
+    configuration_sha256,
+    setup_plan_sha256: authorities.catalog.setup_plan_sha256,
+    root_sha256: authorities.catalog.public_source.root.sha256,
+    historical_preimage_sha256: authorities.catalog.public_source.initial_site_preimage!.sha256,
+    source,
+    current,
     authority: "none" as const,
   };
 }

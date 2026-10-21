@@ -16,6 +16,7 @@ import {
   inspectHistoricalBootstrapPreimage,
   readBootstrapPublicSource,
   readConfiguredBootstrapSite,
+  readCatalogBootstrapPublicSource,
 } from "./release-bootstrap-public-inputs.mts";
 
 function publication() {
@@ -282,10 +283,74 @@ void test("bootstrap paths are bound to reconstructed Git trees, exact raw blobs
   );
   assert.equal(result.api_reads, 6);
   assert.deepEqual(result.files.get("initial_site_preimage"), data.get("preimage.json"));
-  for (fault of ["mode", "truncated", "blob"])
+  const catalog = {
+    schema_version: 1,
+    kind: "catalog-publication-authorities",
+    repository_id: 1354613114,
+    namespace: "portcove-catalog",
+    apps: {
+      semantic: { app_id: 101, installation_id: 1001 },
+      classification: { app_id: 202, installation_id: 1002 },
+      protection_observer: { app_id: 303, installation_id: 1003 },
+      coordinator_journal: { app_id: 404, installation_id: 1004 },
+      dispatch: { app_id: 505, installation_id: 1005, actor_id: "123456" },
+    },
+    catalog: {
+      public_source: {
+        commit: commit.sha,
+        root: pin("root.json"),
+        offline_targets: pin("targets.json"),
+        initial_site_preimage: pin("preimage.json"),
+      },
+      setup_plan_sha256: value.setup_plan_sha256,
+      publisher_scope: [
+        {
+          namespace: "official",
+          stable_id: "fixture",
+          template: "portable",
+          repository_id: null,
+          artifact_hosts: [],
+          max_redirects: 0,
+          operations: [],
+          policy_schemas: [1],
+        },
+      ],
+    },
+  };
+  const catalogResult = readCatalogBootstrapPublicSource(
+    api,
+    catalog,
+    "2026-10-20T00:00:00Z",
+    performance.now() + 10000,
+  );
+  assert.equal(catalogResult.api_reads, 5);
+  assert.equal(catalogResult.files.has("payload_key_registry"), false);
+  assert.equal(catalogResult.authority, "none");
+  assert.deepEqual(catalogResult.files.get("initial_site_preimage"), data.get("preimage.json"));
+  const { initial_site_preimage: _catalogPreimage, ...noPreimage } = catalog.catalog.public_source;
+  assert.throws(
+    () =>
+      readCatalogBootstrapPublicSource(
+        api,
+        { ...catalog, catalog: { ...catalog.catalog, public_source: noPreimage } },
+        "2026-10-20T00:00:00Z",
+        performance.now() + 10000,
+      ),
+    /explicit catalog/,
+  );
+  for (fault of ["mode", "truncated", "blob"]) {
+    assert.throws(() =>
+      readCatalogBootstrapPublicSource(
+        api,
+        catalog,
+        "2026-10-20T00:00:00Z",
+        performance.now() + 10000,
+      ),
+    );
     assert.throws(() =>
       readBootstrapPublicSource(api, value, "2026-10-20T00:00:00Z", performance.now() + 10000),
     );
+  }
   assert.throws(
     () =>
       inspectHistoricalBootstrapPreimage(
