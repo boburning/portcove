@@ -51,3 +51,12 @@ existing journaled context upload and five isolated role jobs. That join is
 separate from the existing renewal session and must not fabricate a prior feed.
 Local raw-Git/provider simulations, pure binding tests and disposable-key Rust
 tests do not establish a genuine configured coordinator or production acceptance.
+
+Local qualification retained four focused Rust bootstrap passes and an actual
+Node preparation run with six passes and no skips. That run copied the maintained
+verifier, checked disposable signed offline anchors, and rejected changed retained
+context bytes. The preceding actual adapter failure exposed trailing-zero RFC3339
+fractions; the repair canonicalizes only projected timestamps, preserves signed
+bytes and hashes, and adds role-ceiling days with exact nanosecond arithmetic.
+The failed run remains retained alongside the passing rerun. No configured-host,
+signing-context upload, role-job or public bootstrap execution was performed.
