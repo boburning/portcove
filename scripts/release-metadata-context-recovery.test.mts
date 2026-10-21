@@ -309,6 +309,13 @@ void test("complete old provider inventory separates a reusable pair from termin
   const complete = inspect([f.artifact(false), f.artifact(true)]);
   assert.equal(complete.artifact?.id, 99);
   assert.equal(complete.bundle?.id, 100);
+  const full = inspect([
+    ...Array.from({ length: 398 }, (_, i) => ({ id: 1000 + i, name: `diagnostic-${i}` })),
+    f.artifact(false),
+    f.artifact(true),
+  ]);
+  assert.equal(full.artifact?.id, 99);
+  assert.equal(full.bundle?.id, 100);
   assert.equal(complete.authority, "none");
   assert.equal(complete.producer.run_id, "12345");
   assert.notEqual(
