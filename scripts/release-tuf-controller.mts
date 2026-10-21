@@ -401,8 +401,9 @@ export async function runTufRoleController(
       pending_obligations: [
         "actual-role-output-attestation",
         "five-role-keyless-Tough-assembly",
-        "post-sign-native-qualification",
-        "publication-admission",
+        ...(metadata
+          ? ["metadata-publication", "public-readback"]
+          : ["post-sign-native-qualification", "publication-admission"]),
       ],
       authority: "none",
     });
