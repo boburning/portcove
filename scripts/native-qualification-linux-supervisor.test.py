@@ -23,7 +23,7 @@ class NativeLifetime(unittest.TestCase):
         selected = patch.object(supervisor.os, "getuid", return_value=1002, create=True)
         selected.start()
         self.addCleanup(selected.stop)
-        for name in ("O_NOFOLLOW", "O_DIRECTORY"):
+        for name in ("O_NOFOLLOW", "O_DIRECTORY", "O_NONBLOCK"):
             if not hasattr(supervisor.os, name):
                 selected_flag = patch.object(supervisor.os, name, 0, create=True)
                 selected_flag.start()
@@ -33,6 +33,31 @@ class NativeLifetime(unittest.TestCase):
         for raw in (b'{"x":1,"x":2}', b'{"x":NaN}', b"\xff"):
             with self.subTest(raw=raw), self.assertRaises((ValueError, supervisor.Refusal)):
                 supervisor.decode(raw)
+
+    def test_original_unit_root_creation_is_bounded_and_generation_bracketed(self):
+        def packet(pid=123, ticks="456"):
+            return f"{pid} (fixed unit ) name) S {'0 ' * 18}{ticks} 0 0\n".encode()
+
+        self.assertEqual(supervisor.inspect_root_creation(packet(), 123), {"pid": 123, "creation_ticks": "456"})
+        for raw in (packet(124), packet(ticks="0"), packet(ticks="-1"), b"x" * 16385, b"123 no-comm"):
+            with self.assertRaises(supervisor.Refusal):
+                supervisor.inspect_root_creation(raw, 123)
+        info = SimpleNamespace(st_mode=stat.S_IFREG | 0o444, st_uid=1002, st_dev=1, st_ino=2)
+        for second, changed in ((packet(), False), (packet(ticks="457"), True)):
+            with (
+                patch.object(Path, "lstat", return_value=info),
+                patch.object(supervisor.os, "open", return_value=42),
+                patch.object(supervisor.os, "fstat", return_value=info),
+                patch.object(supervisor.os, "read", side_effect=[packet(), second]),
+                patch.object(supervisor.os, "lseek"),
+                patch.object(supervisor.os, "close") as close,
+            ):
+                if changed:
+                    with self.assertRaises(supervisor.Refusal):
+                        supervisor.observe_root_creation(123)
+                else:
+                    self.assertEqual(supervisor.observe_root_creation(123)["creation_ticks"], "456")
+                close.assert_called_once_with(42)
 
     def test_scrubbed_control_environment_has_no_inherited_windows_or_secrets(self):
         with patch.dict(supervisor.os.environ, {"WSL_INTEROP": "inert", "GH_TOKEN": "inert", "NODE_OPTIONS": "inert"}):

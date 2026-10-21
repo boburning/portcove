@@ -109,6 +109,38 @@ def inspect_unit_properties(properties):
     )
 
 
+def inspect_root_creation(raw, expected_pid):
+    require(type(expected_pid) is int and expected_pid > 0, "native unit root PID differs")
+    require(isinstance(raw, bytes) and 0 < len(raw) <= 16384, "native root stat exceeds bound")
+    text = raw.decode("ascii")
+    prefix, separator, suffix = text.rpartition(") ")
+    require(separator and prefix.startswith(str(expected_pid) + " ("), "native root stat PID differs")
+    fields = suffix.split()
+    require(len(fields) >= 20 and re.fullmatch(r"[1-9][0-9]{0,19}", fields[19]), "native root creation differs")
+    return {"pid": expected_pid, "creation_ticks": fields[19]}
+
+
+def observe_root_creation(pid):
+    filename = Path(f"/proc/{pid}/stat")
+    before = filename.lstat()
+    require(stat.S_ISREG(before.st_mode) and before.st_uid == os.getuid(), "native root proc custody differs")
+    descriptor = os.open(filename, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    try:
+        held = os.fstat(descriptor)
+        require((held.st_dev, held.st_ino) == (before.st_dev, before.st_ino), "native root proc generation differs")
+        first = inspect_root_creation(os.read(descriptor, 16385), pid)
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        require(inspect_root_creation(os.read(descriptor, 16385), pid) == first, "native root proc creation changed")
+        after = filename.lstat()
+        require(
+            (after.st_dev, after.st_ino, after.st_uid) == (held.st_dev, held.st_ino, held.st_uid),
+            "native root proc path changed",
+        )
+        return first
+    finally:
+        os.close(descriptor)
+
+
 class HeldCgroup:
     def __init__(self, unit, peer_pid):
         properties = unit_properties(unit)
@@ -741,6 +773,7 @@ def supervise(root, invocation, request_sha):
         "unit": unit,
         "unit_invocation_id": None,
         "cgroup_identity": None,
+        "root_identity": None,
         "capture_complete": False,
         "capture_bytes": None,
         "capture_sha256": None,
@@ -827,6 +860,7 @@ def supervise(root, invocation, request_sha):
                     "inode": group.identity[1],
                     "path": str(group.path),
                 }
+                result["root_identity"] = observe_root_creation(int(properties["MainPID"]))
             try:
                 peer, _ = listener.accept()
             except BlockingIOError:
@@ -855,6 +889,7 @@ def supervise(root, invocation, request_sha):
             )
             inspect_unit_identity(properties, unit, result["unit_invocation_id"])
             require(str(pid) in group.read("cgroup.procs").splitlines(), "native peer left held cgroup")
+            require(observe_root_creation(pid) == result["root_identity"], "native readiness root generation differs")
             binding = {
                 "schema_version": 1,
                 "kind": "native-driver-admitted",
