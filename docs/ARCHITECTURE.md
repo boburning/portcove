@@ -2345,7 +2345,42 @@ workspace remount clears it, and the core activity ledger and recovery state
 remain authoritative for completed, interrupted and failed operations. Evicting
 an event never removes durable history or declares recovery successful.
 
-Tauri writes structured JSONL diagnostics under `logs/`, rotates at a bounded size, retains five generations, and appends across restarts. Sensitive structured field names and common inline credential forms are redacted before persistence. Operation events are logged with their core operation and parent IDs. A user-requested support ZIP re-redacts the retained logs and adds only readiness summaries and recent activity metadata; it does not include source payloads, credential storage, cached response bodies, or the SQLite database.
+Tauri writes structured JSONL diagnostics under `logs/`, rotates at a bounded size, retains five generations, and appends across restarts. Sensitive structured field names and common inline credential forms are redacted before persistence. Operation events are logged with their core operation and parent IDs.
+
+### Support-bundle export classification
+
+Core's `SupportBundleData` owns the privacy projection for user-requested support
+ZIPs. Its value is private and cannot be constructed from arbitrary JSON by an
+adapter. The desktop archive writer serializes only these classified summary,
+activity-capture and runtime-log projections. The summary uses schema version 2;
+this export format does not change the CLI/domain schema or persisted records.
+
+Every participating source DTO is matched exhaustively, including nested failure
+presentations, recovery targets, cancellation states and capture streams. There
+are no rest patterns that silently admit new fields. A source field or public
+enum variant added to an exported class must receive an explicit decision before
+the projection compiles. Whole classes intentionally excluded from export remain
+excluded when their internal representation grows.
+
+| Data class                        | Export policy                                                                                                                                                                                                                                                                                                                                                                                        |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Doctor/storage summary            | Platform, counts and volume sizes are public facts. Library root and catalog provenance are omitted. Repair-plan generation time is omitted.                                                                                                                                                                                                                                                         |
+| Host-tool status                  | ID, state, source, configuration-variable name and purpose are included; text is re-redacted. Display name, executable path and official URL are omitted.                                                                                                                                                                                                                                            |
+| Repair items                      | Kind and operation/port identities are included; messages and proposed actions are re-redacted diagnostic text. Structured paths are omitted.                                                                                                                                                                                                                                                        |
+| Activity records                  | Operation, target kind, status, times and cancellation facts are included. IDs and messages are re-redacted. Source/library target IDs are omitted because they can be filesystem locations; port IDs remain available.                                                                                                                                                                              |
+| Failure reports and presentations | Closed codes, tones, mutation states, recovery actions and preparation-target identity are projected explicitly. Approved presentation/message/phase text is re-redacted. Arbitrary details and technical-context maps are omitted, including their keys; only omission counts remain.                                                                                                               |
+| Activity captures                 | Phase/identity and actual completeness, observed-byte, truncation, timestamp and stream-limit facts remain intact. Captured text is re-redacted. Existing Core readers and independent capture retention remain authoritative.                                                                                                                                                                       |
+| Runtime envelope                  | Timestamp, recognized level and re-redacted tracing-module target are projected. Unknown envelope members are omitted and counted.                                                                                                                                                                                                                                                                   |
+| Runtime fields                    | Explicit scalar operation/activity/port identities, numeric measurements, booleans, closed auth labels/codes and re-redacted messages are included. Opaque Debug events/targets/errors, parent-option Debug strings, frontend stacks, spans, paths, URLs, environments and every unclassified field are omitted, including their names. Objects/arrays cannot enter through an approved scalar name. |
+| Legacy runtime text               | Plain legacy lines are explicitly classified as re-redacted diagnostic text. Malformed JSON-shaped records and non-object JSON are represented by a fixed omission reason instead of being exported as raw text.                                                                                                                                                                                     |
+| Archive inputs and names          | Only the active runtime log and its five canonical rotation names are eligible. Summary and capture member names are fixed; stored activity IDs cannot form archive paths. Arbitrary prefix-matching files, source inventories/payloads, credential stores, cached responses and the database are excluded.                                                                                          |
+
+Classification prevents newly introduced structured data from inheriting export
+permission from generic serialization. Existing credential-pattern redaction
+still protects approved free text at export. That text can retain paths and
+other personal context: a redacted bundle is not anonymous. Export and sharing
+remain explicit user actions. Projection does not rewrite retained diagnostics,
+declare an incomplete capture complete, or grant recovery authority.
 
 Disk-heavy desktop commands run on Tauri's blocking worker pool. Entire mixed async/core operations such as planning, update checks, install, update, and reconciliation enter a worker before constructing the service, then drive their network future from that worker; source hashing, manifest verification, managed-tree copies or removal, adoption, backup review, rollback, activation, folder integration, and launch preparation never occupy the IPC event loop. Cancelling an IPC waiter does not asynchronously kill an in-flight blocking mutation: the worker finishes under the core lifecycle journal and lock, while the durable activity/result remains available after refresh. Their command names, structured errors, and core-service safety boundaries are unchanged.
 
@@ -2748,6 +2783,36 @@ Install qualifications identify exact core-generated source/portable metadata pa
 Post-exit collection compares canonical install and versions-directory paths after refusing symlink ancestors. This preserves the managed-directory boundary across relative library paths and Windows extended paths introduced by a verified move. Persistent files are reused only when both size and complete SHA-256 match; equal timestamps never establish equal content.
 
 Persistent-data synchronization skips a redundant file copy only when lengths and complete SHA-256 content match. Timestamps alone never authorize reuse, and a same-size changed save still replaces its collected copy. Existing ancestor checks, port locking, and deletion propagation remain in force.
+
+The official Shipwright 9.3.1 portable Windows x64 artifact
+(`SoH-Dewey-Bravo-Win64.zip`, SHA-256
+`429292a0bfbdfcda283b33c1538ecdc49163b9ed53e8702cac80b2489d9fe26c`,
+72,980,600 bytes) ignores `SHIP_HOME` and writes `Save` beneath its working
+directory. Core's installation persistence contract interprets only that exact
+version/artifact route as synchronized persistence; other Libultraship versions,
+ports and platforms keep their existing behavior. An explicit dynamic user-data
+environment remains authoritative. A runtime-only `Save` interpretation uses the
+existing checked additive-mutability rules. Frozen current/retained catalog
+contracts and manifests remain unchanged, including during checked import.
+`installed_mutability` owns this checked interpretation for both service actions
+and transfer destination verification. Transfer supplies the retained definition
+as both baselines, so current catalog changes cannot expand imported authority;
+immutable overlap and unexpected files still refuse verification.
+The same exact artifact has a persistent `SoHTimeSplitData.json` leaf for
+player split lists/bests and a runtime-only `logs/Ship of Harkinian.log` leaf.
+Their checked interpretation requires absent or single-link regular files,
+refuses linked ancestors and filesystem errors, and checks the canonical
+time-split destination as well as the working tree. A directory with either
+filename cannot gain prefix mutability for its descendants. Diagnostic logs
+are not collected into player backups. Rotated log names and interrupted
+time-split temporary files are not inferred or granted by this interpretation;
+their release-specific qualification remains separate.
+Backup assessment reads the same contract without collecting data;
+backup creation, launch preparation, activation, rollback and removal collect
+launched working data before replacing or removing it. An existing non-directory
+`Save` root on either side holds the operation without overwriting it. Ordinary
+changed regular save bytes retain normal synchronization and safety-backup rules.
+This bounded compatibility repair does not qualify another release or platform.
 
 ZIP readers decode raw entry names as UTF-8 when valid, otherwise CP437, including archives whose producer omitted the UTF-8 flag. Source inspection retains that decoded member name alongside independently verified content and outer-container identities; multiple matching members remain ambiguous. Installer extraction still rejects every non-ASCII path before writes.
 

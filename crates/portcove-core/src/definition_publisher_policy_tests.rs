@@ -1784,6 +1784,7 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
         time::Duration,
     };
     let clock = std::time::Instant::now();
+    println!("curated cache setup begin: {:?}", clock.elapsed());
     let cache_hit = matches!(
         intervention,
         CacheIntervention::CancelRestore
@@ -1835,8 +1836,10 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     port.release.curated.insert(platform, record.clone());
     baseline.ports.push(port);
     let authored = Catalog::from_json(&serde_json::to_string(&baseline).unwrap()).unwrap();
+    println!("curated cache catalog ready: {:?}", clock.elapsed());
     let (_fixture, _key, _root, _directory, library, catalog, mut scope) =
         managed_fixture_for_policy(authored, true).await;
+    println!("curated cache managed fixture ready: {:?}", clock.elapsed());
     let withdrawal = if let Some(status) = artifact_status {
         let transitions = serde_json::json!({"future_acceptance_lost":false,"artifacts":[{"asset_id":record.asset_id,"sha256":record.sha256,"status":status}]});
         let (candidate, admission) =
@@ -1852,6 +1855,7 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     } else {
         None
     };
+    println!("curated cache transition ready: {:?}", clock.elapsed());
     let server = AcquisitionHttp::new();
     scope.fixture_origin = Some(server.origin.clone());
     let provider = crate::GithubReleaseProvider::with_api_root(server.origin.clone()).unwrap();
@@ -1879,6 +1883,7 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
         )
         .await
         .unwrap();
+    println!("curated cache resolution ready: {:?}", clock.elapsed());
     server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
     server.json(release);
     server.json(tag);
@@ -1944,6 +1949,10 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
             .unwrap(),
     };
     println!(
+        "curated cache activity request ready: {:?}",
+        clock.elapsed()
+    );
+    println!(
         "curated cache installer start: {:?}; requests={}",
         clock.elapsed(),
         server.requests.lock().unwrap().len()
@@ -1993,13 +2002,17 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     // Windows CI 39450594334/a1: CancelRetain entered download about 4.24s
     // after installer start and missed the 5s setup latch before any copy.
     // Give this fixture the same finite 15s headroom; preserve the real
-    // partial-copy barrier, cancellation/drain checks and 30s outer safeguard.
+    // partial-copy barrier, cancellation/drain checks and finite outer safeguard.
+    // Windows focused run 5233faf8: ArtifactRevocationRetain first copied
+    // 5.784s after installer start, beyond its 5s latch. Keep the same 15s
+    // setup headroom and drain/refusal checks under the finite outer safeguard.
     let latch_timeout = if cfg!(target_os = "windows")
         && matches!(
             intervention,
             CacheIntervention::ArtifactWithdrawalRetain
                 | CacheIntervention::PolicyLoss
                 | CacheIntervention::CancelRetain
+                | CacheIntervention::ArtifactRevocationRetain
         ) {
         Duration::from_secs(15)
     } else if cfg!(all(target_os = "macos", target_arch = "x86_64"))

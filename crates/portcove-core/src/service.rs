@@ -7,6 +7,7 @@ use std::{
     sync::Arc,
 };
 
+use crate::installed_mutability::shipwright_windows_cwd_persistence;
 use futures_util::{StreamExt, stream};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -46,6 +47,8 @@ mod ghostship_persistence_tests;
 mod ghostship_recovery;
 mod ghostship_recovery_execution;
 mod ghostship_safety;
+#[cfg(test)]
+mod shipwright_persistence_tests;
 pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
 #[cfg(any(test, feature = "qualification-fixtures"))]
 mod forbidden_memories_qualification;
@@ -5020,52 +5023,21 @@ impl PortcoveService {
             .clone())
     }
 
-    /// Admit only additive exact mutable paths from the current catalog for an
-    /// older install. Its retained definition still owns source and launch
-    /// behavior, and its manifest still owns every recorded immutable byte.
+    /// Admit only checked additive mutable paths from current catalog facts or
+    /// a closed runtime compatibility interpretation. Retained source/launch
+    /// authority and every recorded immutable byte remain unchanged.
     fn installed_mutability_port(&self, install: &InstallRecord) -> Result<PortDefinition> {
         let retained = self.installed_port(install)?;
         let Ok(current) = self.catalog.port(&install.port_id) else {
             return Ok(retained);
         };
-        let mut retained_baseline = retained.clone();
-        let mut current_baseline = current.clone();
-        retained_baseline.persistent_paths.clear();
-        retained_baseline.runtime_mutable_paths.clear();
-        current_baseline.persistent_paths.clear();
-        current_baseline.runtime_mutable_paths.clear();
-        if serde_json::to_value(&retained_baseline)? != serde_json::to_value(&current_baseline)? {
-            return Ok(retained);
-        }
-        if !retained
-            .persistent_paths
-            .iter()
-            .all(|path| current.persistent_paths.contains(path))
-            || !retained
-                .runtime_mutable_paths
-                .iter()
-                .all(|path| current.runtime_mutable_paths.contains(path))
-        {
-            return Ok(retained);
-        }
-        let original = InstallQualification::from_port(&retained, Platform::current()?)?;
-        let mut candidate = retained.clone();
-        candidate
-            .persistent_paths
-            .clone_from(&current.persistent_paths);
-        candidate
-            .runtime_mutable_paths
-            .clone_from(&current.runtime_mutable_paths);
-        let candidate_qualification =
-            InstallQualification::from_port(&candidate, Platform::current()?)?;
-        if !Installer::new(self.library.clone())?.permits_additive_mutability(
+        crate::installed_mutability::checked_port(
+            &Installer::new(self.library.clone())?,
             install,
-            &original,
-            &candidate_qualification,
-        )? {
-            return Ok(retained);
-        }
-        Ok(candidate)
+            &retained,
+            current,
+            Platform::current()?,
+        )
     }
 
     pub(crate) fn installed_mutability_qualification(
@@ -5107,6 +5079,29 @@ impl PortcoveService {
             // This interpretation is retained separately from catalog facts.
             // The pinned Windows runtime ignores SHIP_HOME and uses its CWD.
             crate::preparation::legacy_execution_contract(&port, install, Platform::current()?)?;
+            false
+        } else if shipwright_windows_cwd_persistence(&port, install, Platform::current()?) {
+            // The verified portable Windows payload ignores SHIP_HOME. Keep
+            // this closed compatibility interpretation outside catalog facts.
+            // Assessment and mutation share the same non-writing shape check.
+            for root in [
+                self.persistence_root(&port, &install.path)?,
+                self.library.user_dir(&port.id),
+            ] {
+                let saves = root.join("Save");
+                refuse_symlink_ancestors(&saves)?;
+                match fs::symlink_metadata(&saves) {
+                    Ok(metadata) if !metadata.is_dir() => {
+                        return Err(PortcoveError::conflict(format!(
+                            "Shipwright Save root is not a directory; preserve it and review the conflict: {}",
+                            saves.display()
+                        )));
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(error) => return Err(error.into()),
+                    Ok(_) => {}
+                }
+            }
             false
         } else {
             writes_directly_to_user_root(&port)
@@ -7677,7 +7672,7 @@ mod tests {
         }
     }
 
-    fn create_adoption_test_symlink(target: &Path, link: &Path, directory: bool) {
+    pub(super) fn create_adoption_test_symlink(target: &Path, link: &Path, directory: bool) {
         #[cfg(unix)]
         {
             let _ = directory;
@@ -7698,7 +7693,7 @@ mod tests {
     }
 
     #[cfg(windows)]
-    fn create_adoption_test_junction(target: &Path, link: &Path) {
+    pub(super) fn create_adoption_test_junction(target: &Path, link: &Path) {
         let target = target.to_str().unwrap();
         let link = link.to_str().unwrap();
         for path in [target, link] {

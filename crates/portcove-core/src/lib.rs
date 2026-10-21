@@ -44,6 +44,7 @@ mod import_execution;
 mod import_journal;
 mod install;
 mod installed_contract;
+mod installed_mutability;
 mod launch;
 mod library;
 mod library_access;
@@ -90,6 +91,7 @@ mod source_inspection;
 mod source_report;
 mod source_zip;
 mod stfs;
+mod support_bundle;
 #[cfg(test)]
 mod test_fixture;
 mod tool_process;
@@ -243,6 +245,7 @@ pub use source_report::{
     SourceInspectionReport, SourceIntakeInspection, SourceLegacyCoverage,
     SourceQualificationCoverage, SourceReleaseApplicability,
 };
+pub use support_bundle::SupportBundleData;
 pub use types::*;
 
 // Private parked 58/59/64 contracts remain unclaimed. Public 65 adds game-file queries.
