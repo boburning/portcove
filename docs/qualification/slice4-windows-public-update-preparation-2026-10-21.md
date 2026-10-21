@@ -244,3 +244,18 @@ and six affected typed modules passed. These are source/refusal checks, not an
 actual provider or native continuation. Historical compiler provenance, the
 new execution claim, the Windows registration rendezvous and V2 capture remain
 required before this path can execute.
+
+Original Windows compiler acquisition now writes a bounded fixed retained-input
+manifest containing the already verified executable/package/source/run identity
+and exact original proof-file inventory. Its raw SHA is part of the identity
+whose digest the protected attempt marker already binds. The historical path
+requires the actual private continuation pair and completed B receipt, checks
+that original admitted digest before rehashing every retained proof, and compares
+the source/run/package again to current Tough history. It never redownloads old
+compiler artifacts or admits a manifest on its own. Missing, changed or legacy
+unmanifested inputs hold. This source preparation precedes any public attempt;
+no existing actual public claim was migrated. Fifteen focused data/refusal cases
+passed with zero skips and five affected modules passed typed lint. The first
+typed draft exposed unknown-valued parser fields; explicit validated return
+values fixed that diagnostic without a cast. Actual positive historical-provider
+and native execution remain unobserved.

@@ -5,9 +5,13 @@ import { inspectNativeReleaseVerificationCommand } from "./release-native-candid
 import {
   collectActualPublicWindowsCompilerIdentity,
   requireActualPublicWindowsCompilerIdentity,
+  inspectPublicCompilerRetainedInput,
+  recoverActualPublicWindowsCompilerIdentity,
 } from "./release-native-public-compiler.mts";
 import { readReleaseCompilerReportArchive } from "./release-compiler-report-archive.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
+import { projectWindowsNsisExecutable } from "./release-compiler-desktop.mts";
+import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 
 void test("public compiler verifier fixes retained file/workflow/ref/predicate without native or source mutation flags", () => {
   const directory = path.resolve("work/inert-public-compiler"),
@@ -109,5 +113,62 @@ void test("raw hosted/local compiler summaries cannot appoint the actual parent-
       kind: "actual-local-public-compiler-input",
     }),
     /actual local parent compiler input custody/,
+  );
+  await assert.rejects(
+    recoverActualPublicWindowsCompilerIdentity(raw, "prior"),
+    /actual parent\/public Tough pair/,
+  );
+});
+
+void test("retained compiler inventory binds exact original admitted bytes without accepting paths or authority fields", () => {
+  const raw = {
+    schema_version: 1,
+    identity: {
+      executable: projectWindowsNsisExecutable(
+        Buffer.from("prefix__TAURI_BUNDLE_TYPE_VAR_UNKsuffix"),
+      ),
+      package: { filename: "Portcove_1.0.0_x64-setup.exe", bytes: 100, sha256: "a".repeat(64) },
+      source_commit: "b".repeat(40),
+      source_tree: "c".repeat(40),
+      run_id: "123",
+      run_attempt: 1,
+      producer_job_id: 456,
+      report_sha256: "d".repeat(64),
+    },
+    files: [{ path: "public-inputs/windows-x86_64.zip", bytes: 42, sha256: "e".repeat(64) }],
+  };
+  const parsed = inspectPublicCompilerRetainedInput(raw);
+  assert.deepEqual(parsed.identity, raw.identity);
+  const admitted = { ...parsed.identity, retained_input_sha256: digest(raw) };
+  const changed = structuredClone(raw);
+  changed.files[0]!.sha256 = "f".repeat(64);
+  assert.notEqual(
+    digest(admitted),
+    digest({ ...parsed.identity, retained_input_sha256: digest(changed) }),
+  );
+  for (const name of [
+    "../outside",
+    "public-inputs/../outside",
+    "/absolute",
+    "C:/absolute",
+    "x\\outside",
+    ".",
+    "..",
+  ])
+    assert.throws(() =>
+      inspectPublicCompilerRetainedInput({ ...raw, files: [{ ...raw.files[0], path: name }] }),
+    );
+  assert.throws(() => inspectPublicCompilerRetainedInput({ ...raw, authority: "accepted" }));
+  assert.throws(() =>
+    inspectPublicCompilerRetainedInput({
+      ...raw,
+      files: [...raw.files, { ...raw.files[0], path: "PUBLIC-INPUTS/windows-x86_64.zip" }],
+    }),
+  );
+  assert.throws(() =>
+    inspectPublicCompilerRetainedInput({
+      ...raw,
+      identity: { ...raw.identity, source_commit: "wrong" },
+    }),
   );
 });
