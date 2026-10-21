@@ -3474,8 +3474,17 @@ try {
           const label = button.querySelector("span:not(.icon)");
           if (!(button instanceof HTMLElement) || !(label instanceof HTMLElement))
             throw new Error("Primary navigation label is missing");
+          const labelStyle = getComputedStyle(label);
+          const icon = button.querySelector(".icon");
+          const iconRect = icon?.getBoundingClientRect();
           return {
             text: label.textContent,
+            compactLabel:
+              labelStyle.position === "absolute" &&
+              labelStyle.clipPath === "inset(50%)" &&
+              label.clientWidth === 1 &&
+              label.clientHeight === 1,
+            iconVisible: Boolean(iconRect && iconRect.width > 0 && iconRect.height > 0),
             widthFits: label.scrollWidth <= label.clientWidth + 1,
             heightFits: label.scrollHeight <= label.clientHeight + 1,
             buttonFits: button.scrollHeight <= button.clientHeight + 1,
@@ -3486,7 +3495,14 @@ try {
         labels.map((label) => label.text),
         ["Library", "Find games", "Activity", "Settings"],
       );
-      assert.ok(labels.every((label) => label.widthFits && label.heightFits && label.buttonFits));
+      assert.ok(
+        labels.every(
+          (label) =>
+            label.buttonFits &&
+            (label.compactLabel ? label.iconVisible : label.widthFits && label.heightFits),
+        ),
+        JSON.stringify(labels),
+      );
     };
     await browser.manage().window().setRect({ width: 1280, height: 800 });
     await verifySidebarLabels();
