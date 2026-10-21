@@ -54,8 +54,16 @@ const project = fileURLToPath(new URL("..", import.meta.url));
 // A fixed payload job starts a fresh process before receiving trusted tools.
 // The receiver must not silently add time outside the role's total deadline.
 const payloadPhaseStarted = performance.now();
+let payloadPhaseDeadline = payloadPhaseStarted + 570000;
 export function payloadSigningPhaseDeadline() {
-  return payloadPhaseStarted + 570000;
+  return payloadPhaseDeadline;
+}
+/** The dependency-free launcher may only preserve/tighten the original budget,
+ * including its first verified tool acquisition before this bundle loads. */
+export function tightenPayloadSigningPhaseDeadline(deadline: number) {
+  if (!Number.isFinite(deadline) || deadline <= performance.now())
+    throw new Error("payload role total phase deadline exhausted");
+  payloadPhaseDeadline = Math.min(payloadPhaseDeadline, deadline);
 }
 type AggregateExpected = Omit<
   Parameters<typeof verifyUploadedAggregate>[1],
@@ -70,24 +78,10 @@ interface PreparationConfig {
   public_key_sha256: string;
 }
 
-export function inspectPayloadPreparationConfiguration(raw: unknown): PreparationConfig {
-  const value: unknown = structuredClone(raw);
+export function inspectControllerAggregateLocator(raw: unknown) {
+  const aggregate = structuredClone(raw);
   if (
-    !isRecord(value) ||
-    Object.keys(value).sort().join(",") !==
-      "admission_configuration,aggregate,output,projectRoot,publicKey,public_key_sha256" ||
-    typeof value.projectRoot !== "string" ||
-    typeof value.output !== "string" ||
-    typeof value.publicKey !== "string" ||
-    typeof value.public_key_sha256 !== "string" ||
-    !sha256.test(value.public_key_sha256) ||
-    !isRecord(value.admission_configuration) ||
-    typeof value.admission_configuration.namespace !== "string" ||
-    !isRecord(value.aggregate)
-  )
-    throw new Error("fixed controller payload preparation configuration is incomplete");
-  const aggregate = value.aggregate;
-  if (
+    !isRecord(aggregate) ||
     Object.keys(aggregate).sort().join(",") !==
       "artifact_id,bundle_artifact_id,bundle_sha256,controller_ref,controller_revision,run_attempt,run_id,sha256" ||
     typeof aggregate.controller_revision !== "string" ||
@@ -113,6 +107,35 @@ export function inspectPayloadPreparationConfiguration(raw: unknown): Preparatio
     aggregate.run_attempt < 1
   )
     throw new Error("fixed payload aggregate identity is incomplete");
+  return {
+    controller_revision: aggregate.controller_revision,
+    controller_ref: aggregate.controller_ref,
+    run_id: aggregate.run_id,
+    run_attempt: aggregate.run_attempt,
+    artifact_id: aggregate.artifact_id,
+    sha256: aggregate.sha256,
+    bundle_artifact_id: aggregate.bundle_artifact_id,
+    bundle_sha256: aggregate.bundle_sha256,
+  };
+}
+
+export function inspectPayloadPreparationConfiguration(raw: unknown): PreparationConfig {
+  const value: unknown = structuredClone(raw);
+  if (
+    !isRecord(value) ||
+    Object.keys(value).sort().join(",") !==
+      "admission_configuration,aggregate,output,projectRoot,publicKey,public_key_sha256" ||
+    typeof value.projectRoot !== "string" ||
+    typeof value.output !== "string" ||
+    typeof value.publicKey !== "string" ||
+    typeof value.public_key_sha256 !== "string" ||
+    !sha256.test(value.public_key_sha256) ||
+    !isRecord(value.admission_configuration) ||
+    typeof value.admission_configuration.namespace !== "string" ||
+    !isRecord(value.aggregate)
+  )
+    throw new Error("fixed controller payload preparation configuration is incomplete");
+  const aggregate = inspectControllerAggregateLocator(value.aggregate);
   return {
     projectRoot: value.projectRoot,
     output: value.output,
@@ -580,7 +603,7 @@ export async function runPayloadSigningController(
   const capturedNativeLocators: unknown = structuredClone(nativeLocators);
   // Includes acquisition, controls, signing and immutable output handoff, with
   // thirty seconds reserved for key-channel/process and runner cleanup.
-  const deadline = payloadPhaseStarted + 570000;
+  const deadline = payloadSigningPhaseDeadline();
   const withinBudget = () => {
     if (performance.now() >= deadline)
       throw new Error("payload role total phase deadline exhausted");

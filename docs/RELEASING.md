@@ -1614,6 +1614,16 @@ replace that session. `inspectPreparedMetadataRenewal` rechecks retained output
 and tool identities before role-job or journal use. Failures retain private work;
 the adapter neither discovers keys nor grants provisioning or execution.
 
+The automatic coordinator retains its actual renewal session, controller-tool
+receipt, full public-site custody and current maintenance-reader controls in a
+same-process continuation. `requireActualCoordinatorMetadataPreparation` checks
+those original receipts, the unchanged published seed and descriptor, exact
+local/remote checkpoint, public generation marker and fresh controls before a
+fixed context producer may consume them. Its mode is explicitly `renewal`; an
+initial empty feed requires the separate bootstrap route. The original 170-second
+role deadline continues through this handoff. Serialized CLI output cannot
+recreate the private session or reset that budget.
+
 `acquireActualCandidateBuildingEligibility` collects genuine compiler, SPDX,
 whole-opportunity control and pre-sign native evidence while the exact candidate
 is still qualifying. Its private same-process proof is exclusively for the
@@ -1726,6 +1736,17 @@ consumers. The sixth tool bundle has local isolated refusal smoke evidence;
 its new complete hosted artifact and consolidated job wiring remain pending.
 Secret jobs must launch the authenticated bundle rather than install checkout
 dependencies or execute the unbundled entry. No role settings are activated.
+
+The dependency-free `release-controller-tool-launch.mts` implements that initial
+payload entry. It authenticates the tool artifact with the existing receiver,
+requires the running Node bytes to match the authenticated executable and imports
+only the fixed manifest-owned signing-controller bundle. That bundle performs
+its own actual receiver check to establish its module-private custody; no brand
+or acceptance flag is serialized across the boundary. Both acquisitions and the
+entire continuation share the original launcher deadline, which the bundle can
+only tighten. Local isolated tests load the launcher without `node_modules`,
+exercise the real six-entry pack and prove the deadline cannot be extended.
+These observations do not qualify protected hosted signing or role execution.
 
 The context artifact preparation additionally requires actual complete public-site
 custody matched to that Tough prior. Its fixed two-file ZIP contains a bounded

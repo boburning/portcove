@@ -85,6 +85,7 @@ const base = `repos/${repository}`;
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 // A caller-supplied option/JSON field cannot activate qualifying acquisition.
 const qualifyingCollections = new WeakSet<object>();
+const publicationCompletionCollections = new WeakSet<object>();
 const acquiredCandidates = new WeakMap<object, Readonly<Record<string, unknown>>>();
 export interface ActualCandidateBuildingEligibility {
   stage: "candidate-building";
@@ -157,6 +158,31 @@ const actualAdmissionContexts = new WeakMap<
   object,
   { context: Readonly<ActualReleaseAdmissionContext>; phase: ReleaseControlPhase }
 >();
+const actualPublicationCompletionContexts = new WeakMap<
+  object,
+  Readonly<ActualReleaseAdmissionContext>
+>();
+/** The fixed publisher may reconstruct settled output after a promoting phase
+ * crash. This separate brand never enters the ordinary effect admission map. */
+export function requireActualPublicationControllerContext(raw: object) {
+  const completion = actualPublicationCompletionContexts.get(raw);
+  if (!completion)
+    return {
+      mode: "publication" as const,
+      context: requireActualReleaseAdmissionContext(raw, "release-publication"),
+    };
+  if (
+    completion.stage !== "release-publication" ||
+    completion.admission.decision !== "admitted" ||
+    completion.admission.holds.length ||
+    completion.admission.evidence_scope !== "github.com" ||
+    completion.controls.evidence_scope !== "github.com" ||
+    completion.facts.checkpoint !== completion.checkpoint
+  )
+    throw new Error("actual promoting readback context required");
+  requireAuthenticatedReleaseControlSource(completion.controls, "release-publication");
+  return { mode: "completion-only" as const, context: completion };
+}
 const acquiredSbomReceipts = new WeakMap<object, object>();
 const acquiredNativeReceipts = new WeakMap<object, readonly object[]>();
 const acquiredCoordinatorRepositories = new WeakMap<object, string>();
@@ -271,6 +297,7 @@ export async function acquireReleaseAdmission(
   } = {},
 ) {
   const qualifyingOnly = qualifyingCollections.has(rawOptions);
+  const allowPublicationCompletion = publicationCompletionCollections.has(rawOptions);
   // Preserve actual/injected transport provenance and capability references
   // throughout asynchronous acquisition. A caller cannot clear an injected
   // option after collection to obtain a production context.
@@ -419,7 +446,11 @@ export async function acquireReleaseAdmission(
     if (
       qualifyingOnly
         ? candidate.phase !== "qualifying"
-        : !["building", "publishing"].includes(String(candidate.phase))
+        : ![
+            "building",
+            "publishing",
+            ...(allowPublicationCompletion ? ["promoting"] : []),
+          ].includes(String(candidate.phase))
     )
       throw new Error("admission cannot revive an inactive or failed candidate");
     for (const key of ["source_commit", "source_tree", "prepared_commit", "prepared_tree"])
@@ -1065,11 +1096,16 @@ async function performAdmissionHandshake(
   compiler?: ReleaseCompilerAdmissionPrerequisite,
   establishNative?: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]>["establishNative"],
   building?: { tools: object; namespace: string; receive: (proof: object) => Promise<void> },
+  deadline?: number,
+  publicationCompletion = false,
 ) {
   const phase = inspectReleaseControlPhase(rawPhase);
   const env = { ...process.env };
   const workflow = await readProductionControllerWorkflowBytes();
-  const reader = await authenticateControlReaderJob(env, workflow, { phase });
+  const reader = await authenticateControlReaderJob(env, workflow, {
+    phase,
+    ...(deadline === undefined ? {} : { deadline }),
+  });
   if (building) {
     const tools = await verifiedControllerToolPaths(building.tools);
     if (
@@ -1098,16 +1134,22 @@ async function performAdmissionHandshake(
         JSON.stringify(prepareControlReadiness(reader.identity, readyDigest, phase)),
         { flag: "wx", mode: 0o600 },
       );
-      const observedArtifact = await waitForControlArtifact(root, "observation", {
-        phase,
-        controller_revision: reader.admitted.revision,
-        controller_ref: reader.admitted.execution_ref,
-        run_id: String(reader.admitted.run_id),
-        run_attempt: reader.admitted.run_attempt,
-      });
+      const observedArtifact = await waitForControlArtifact(
+        root,
+        "observation",
+        {
+          phase,
+          controller_revision: reader.admitted.revision,
+          controller_ref: reader.admitted.execution_ref,
+          run_id: String(reader.admitted.run_id),
+          run_attempt: reader.admitted.run_attempt,
+        },
+        deadline === undefined ? {} : { phaseDeadline: deadline },
+      );
       retained.controls = await authenticateReleaseControlSource(env, workflow, {
         phase,
         observedArtifact,
+        ...(deadline === undefined ? {} : { deadline }),
       });
       return retained.controls;
     },
@@ -1116,6 +1158,11 @@ async function performAdmissionHandshake(
     if (phase !== "admission" || onAdmitted)
       throw new Error("building eligibility is separate from payload/publication admission");
     qualifyingCollections.add(collection);
+  }
+  if (publicationCompletion) {
+    if (phase !== "release-publication" || building || !onAdmitted || !compiler || !establishNative)
+      throw new Error("fixed publication completion prerequisites unavailable");
+    publicationCompletionCollections.add(collection);
   }
   const admission = await acquireReleaseAdmission(root, configuration, collection);
   // Native stage qualification is necessary but cannot clear unrelated holds.
@@ -1209,7 +1256,10 @@ async function performAdmissionHandshake(
       public_build_inputs_receipt: publicInputs,
       pending_obligations: Object.freeze([...admission.pending_obligations]),
     });
-    actualAdmissionContexts.set(context, { context, phase });
+    const candidate = acquiredCandidates.get(admission);
+    if (publicationCompletion && candidate?.phase === "promoting")
+      actualPublicationCompletionContexts.set(context, context);
+    else actualAdmissionContexts.set(context, { context, phase });
     await onAdmitted!(context);
   }
   return admission;
@@ -1227,6 +1277,7 @@ export function acquireReleaseAdmissionWithControlHandshake(
   onAdmitted?: (context: Readonly<ActualReleaseAdmissionContext>) => Promise<void>,
   compiler?: ReleaseCompilerAdmissionPrerequisite,
   establishNative?: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]>["establishNative"],
+  deadline?: number,
 ) {
   return performAdmissionHandshake(
     root,
@@ -1236,6 +1287,32 @@ export function acquireReleaseAdmissionWithControlHandshake(
     onAdmitted,
     compiler,
     establishNative,
+    undefined,
+    deadline,
+  );
+}
+
+/** Fixed Release caller only. Promoting acquisition yields the distinct
+ * readback-only brand above, never a publication/signing/aggregate capability. */
+export function acquirePublicationControllerAdmission(
+  root: string,
+  configuration: unknown,
+  onAdmitted: NonNullable<Parameters<typeof acquireReleaseAdmissionWithControlHandshake>[4]>,
+  compiler: ReleaseCompilerAdmissionPrerequisite,
+  establishNative: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]>["establishNative"],
+  deadline: number,
+) {
+  return performAdmissionHandshake(
+    root,
+    configuration,
+    "release-publication",
+    undefined,
+    onAdmitted,
+    compiler,
+    establishNative,
+    undefined,
+    deadline,
+    true,
   );
 }
 

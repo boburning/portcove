@@ -66,3 +66,17 @@ outside these online roles. Exact native/compatibility record reconstruction,
 signed immutable output custody, final role wrappers and the complete one-hundred
 minute hosted graph remain separate implementation work. No stronger completion
 or protected execution claim follows from this checkpoint.
+
+## Online TUF and unchanged-feed continuation
+
+The fixed payload and five online TUF role entry points count setup and tool acquisition against the actual provider job start. Their existing 570-second and 115-second execution ceilings reserve cleanup time inside the selected ten-minute and two-minute jobs. Provider timing metadata grants no role authority; signed OIDC, fixed environments, current controls and the existing durable pending/effect/readback protocol remain required.
+
+The coordinator's actual unchanged-feed renewal preparation now remains private in the same Node process through context upload. It retains the original 170-second deadline, shares the coordinator's fresh control-round allocator, and binds its actual executor to the existing metadata renewal upload. The public context uses the existing bounded two-member archive, custom artifact attestation and independent provider/producer verification. Renewal consumers use maintenance controls and the exact published seed/descriptor; they do not invent a release candidate, native proof or semantic review. All five signing jobs remain serialized because the journal permits one unresolved operation. Keyless Tough assembly checks the exact descriptor's unchanged records, versions, expirations and offline anchors.
+
+The promoting native continuation only reads existing authenticated native Checks after actual TUF/context custody and the exact retained publication-stage association. It cannot admit an aggregate or mint a completion/effect capability. Ordinary aggregate and signing paths retain their existing phases.
+
+Five affected test files passed all 38 cases, including context, metadata, role, coordinator and tool contracts. The actual repository-pinned Pack bundled this branch's eight entries, including the TUF controller; the two focused bundle/launcher cases also passed separately without runtime `node_modules`. This is local credential-free code/bundle evidence. It does not qualify the final combined Release/TUF/site tool inventory, protected job execution, a real native pair or signing authority.
+
+Initial metadata bootstrap still needs its genuine setup/preimage/private coordinator preparation. The final held DAG, dynamic observer routing and full selected job-minute budget require composition and ordinary hosted qualification. Eight shared observer minutes are not established as a worst-case cover for five serialized two-minute role ceilings. No keys, accounts, environments, publication settings or production workflow were activated by this preparation.
+
+Composition with main `0584c7a884923583c22d833513abc0f6bbcd1637` retains the Release entry before TUF, making nine entries. All 62 cases in eight affected files passed, including actual nine-entry Pack and isolated CLI smoke. The first composition attempt refused a duplicate native-profile import introduced by automatic merge; its failed log is retained. The import was deduplicated without changing either native contract. The final site entry and complete hosted workflow remain outside this local fixture's scope.

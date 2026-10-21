@@ -2,6 +2,10 @@ import { errorMessage, isRecord } from "./runtime-values.mts";
 // One owner-approved disposition, not a general advisory exception mechanism.
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import {
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,13 +37,15 @@ import {
 
 type Execute706 = (commandName: string, args: string[], cwd: string) => string;
 function command(commandName: string, args: string[], cwd: string) {
-  return execFileSync(commandName, args, {
+  const result = execFileSync(commandName, args, {
     cwd,
     encoding: "utf8",
-    timeout: 120_000,
+    timeout: coordinatorCommandTimeout(120_000),
     maxBuffer: 32 * 1024 * 1024,
     windowsHide: true,
   }).trim();
+  checkCoordinatorDeadline();
+  return result;
 }
 
 interface CargoPackage706 {

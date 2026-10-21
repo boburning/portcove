@@ -786,83 +786,95 @@ function Workspace({
             }}
           />
           <main
-            className="w-full max-w-(--layout-content-max) overflow-auto px-10 pt-8 pb-12 max-[75rem]:px-6 max-[75rem]:pt-7 max-[75rem]:pb-10 max-[65rem]:px-5"
+            className="min-h-0 w-full min-w-0 overflow-auto px-10 pt-8 pb-12 max-[75rem]:px-6 max-[75rem]:pt-7 max-[75rem]:pb-10 max-[65rem]:px-5"
             ref={workspace}
             data-focus-region="workspace"
             tabIndex={-1}
           >
-            {renderPageHeader()}
-            <StatusLayer
-              invocations={operations.invocations}
-              operationEvents={operations.operationEvents}
-              dismissInvocation={operations.dismissInvocation}
-              openActivity={(id) => {
-                ui.setReviewedActivityId(id);
-                setPrimaryView("updates");
-              }}
-              error={operations.error}
-              clearError={() => operations.setError(undefined)}
-              reviewCurrentState={data.retryRefresh}
-              preparationRecovery={(record) => {
-                const id = preparationRecoveryPort(
-                  record.failure,
-                  data.catalog?.ports ?? [],
-                  data.statuses,
-                );
-                return id ? () => openPortDetails(id, "error:preparation-review") : undefined;
-              }}
-              operation={operations.operation}
-              busy={operations.busy}
-              featureNotices={
-                <ApplicationUpdateNotices
-                  updateNotice={applicationUpdate.notice}
-                  updateChoiceRequired={applicationUpdateChoice.choiceRequired}
-                  productionTransitionRequired={applicationUpdateProductionTransition.offerRequired}
-                  productionTransitionBusy={applicationUpdateProductionTransition.busy}
-                  reviewUpdate={reviewApplicationUpdate}
-                  dismissUpdate={applicationUpdate.dismiss}
-                  dismissUpdateChoice={dismissApplicationUpdateChoice}
-                  useStable={() => void completeApplicationUpdateProductionTransition("use-stable")}
-                  keepPreview={() =>
-                    void completeApplicationUpdateProductionTransition("keep-preview")
-                  }
-                  dismissProductionTransition={dismissApplicationUpdateProductionTransition}
-                />
+            <div
+              className={
+                !model.port && (ui.view === "catalog" || (ui.view === "library" && !addGamesOpen))
+                  ? "w-full min-w-0"
+                  : "w-full max-w-(--layout-content-max) min-w-0"
               }
-            />
-            <WorkspaceRefreshNotice
-              failure={data.refreshFailure}
-              recoveryFailure={data.recoveryFailure}
-              hasSnapshot={Boolean(data.catalog)}
-              refreshing={data.refreshing}
-              retry={data.retryRefresh}
-              retryRecovery={data.retryRecovery}
-              subscriptionFailure={
-                data.subscriptionFailure?.error ?? operations.subscriptionFailure
-              }
-            />
-            {renderPreferenceFailure()}
-            {renderWorkspaceView()}
-            {addGamesStarted && (
-              <AddGames
-                key={bootstrap.generation}
-                active={addGamesOpen && ui.view === "library" && !model.port}
-                generation={bootstrap.generation}
-                ports={data.catalog?.ports ?? []}
-                profiles={data.catalog?.source_profiles ?? []}
-                statuses={model.statusMap}
-                sources={data.sources}
-                refreshFailed={Boolean(data.refreshFailure)}
-                onAdded={data.refreshAfterMutation}
-                onOpenPort={openPortDetails}
-                onCheckFiles={openSourceIntake}
-                onBrowseCatalog={() => setPrimaryView("catalog")}
-                onCopyInstallation={() => ui.setAdoptOpen(true)}
-                setupSource={setupSource}
-                setSetupSource={setSetupSource}
-                close={closeAddGames}
+            >
+              {renderPageHeader()}
+              <StatusLayer
+                invocations={operations.invocations}
+                operationEvents={operations.operationEvents}
+                dismissInvocation={operations.dismissInvocation}
+                openActivity={(id) => {
+                  ui.setReviewedActivityId(id);
+                  setPrimaryView("updates");
+                }}
+                error={operations.error}
+                clearError={() => operations.setError(undefined)}
+                reviewCurrentState={data.retryRefresh}
+                preparationRecovery={(record) => {
+                  const id = preparationRecoveryPort(
+                    record.failure,
+                    data.catalog?.ports ?? [],
+                    data.statuses,
+                  );
+                  return id ? () => openPortDetails(id, "error:preparation-review") : undefined;
+                }}
+                operation={operations.operation}
+                busy={operations.busy}
+                featureNotices={
+                  <ApplicationUpdateNotices
+                    updateNotice={applicationUpdate.notice}
+                    updateChoiceRequired={applicationUpdateChoice.choiceRequired}
+                    productionTransitionRequired={
+                      applicationUpdateProductionTransition.offerRequired
+                    }
+                    productionTransitionBusy={applicationUpdateProductionTransition.busy}
+                    reviewUpdate={reviewApplicationUpdate}
+                    dismissUpdate={applicationUpdate.dismiss}
+                    dismissUpdateChoice={dismissApplicationUpdateChoice}
+                    useStable={() =>
+                      void completeApplicationUpdateProductionTransition("use-stable")
+                    }
+                    keepPreview={() =>
+                      void completeApplicationUpdateProductionTransition("keep-preview")
+                    }
+                    dismissProductionTransition={dismissApplicationUpdateProductionTransition}
+                  />
+                }
               />
-            )}
+              <WorkspaceRefreshNotice
+                failure={data.refreshFailure}
+                recoveryFailure={data.recoveryFailure}
+                hasSnapshot={Boolean(data.catalog)}
+                refreshing={data.refreshing}
+                retry={data.retryRefresh}
+                retryRecovery={data.retryRecovery}
+                subscriptionFailure={
+                  data.subscriptionFailure?.error ?? operations.subscriptionFailure
+                }
+              />
+              {renderPreferenceFailure()}
+              {renderWorkspaceView()}
+              {addGamesStarted && (
+                <AddGames
+                  key={bootstrap.generation}
+                  active={addGamesOpen && ui.view === "library" && !model.port}
+                  generation={bootstrap.generation}
+                  ports={data.catalog?.ports ?? []}
+                  profiles={data.catalog?.source_profiles ?? []}
+                  statuses={model.statusMap}
+                  sources={data.sources}
+                  refreshFailed={Boolean(data.refreshFailure)}
+                  onAdded={data.refreshAfterMutation}
+                  onOpenPort={openPortDetails}
+                  onCheckFiles={openSourceIntake}
+                  onBrowseCatalog={() => setPrimaryView("catalog")}
+                  onCopyInstallation={() => ui.setAdoptOpen(true)}
+                  setupSource={setupSource}
+                  setSetupSource={setSetupSource}
+                  close={closeAddGames}
+                />
+              )}
+            </div>
           </main>
           <AdoptionOverlay
             ui={ui}

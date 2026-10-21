@@ -15,6 +15,11 @@ import {
   readReleaseSigningContextFiles,
   readBoundedReleaseContextFiles,
 } from "./release-signing-context.mts";
+import {
+  requireCoordinatorSigningContext,
+  readCoordinatorSigningContextFiles,
+} from "./release-metadata-signing-context.mts";
+import { inspectMetadataSigningBinding } from "./release-metadata-signing-contract.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
@@ -24,6 +29,7 @@ import {
   inspectAssemblerIdentityExpectation,
   requestAssemblerToken,
   verifyPayloadSignerJobIdentity,
+  verifyCapacityExecutorJobIdentity,
 } from "./assembler-job-identity.mts";
 import { verifyControllerArtifactStatement } from "./github-controller-attestation.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
@@ -39,6 +45,21 @@ export const signingContextArchiveLimits = Object.freeze({
   nameBytes: 64,
 });
 type Files = Map<string, Buffer>;
+type ContextKind = "release-signing-context" | "metadata-signing-context";
+const contextRoute = (kind: ContextKind) =>
+  kind === "release-signing-context"
+    ? {
+        prefix: "trusted-payload-signing-context",
+        stage: "payload-signing",
+        job: "Sign admitted updater payloads",
+        audience: "portcove-payload-signing",
+      }
+    : {
+        prefix: "trusted-coordinator-signing-context",
+        stage: "coordinator",
+        job: "Coordinate application release",
+        audience: "portcove-capacity-executor",
+      };
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const identities = (files: Files) =>
   [...files]
@@ -59,8 +80,9 @@ function safe(name: string) {
     name.split("/").every((part) => /^[A-Za-z0-9][A-Za-z0-9._+-]*$/u.test(part))
   );
 }
-function publicContextPath(name: string) {
+function publicContextPath(name: string, kind: ContextKind) {
   return (
+    (kind === "metadata-signing-context" && name === "renewal.json") ||
     [
       "context.json",
       "trusted-root.json",
@@ -114,7 +136,7 @@ export function inspectSigningContextArchive(raw: Buffer) {
   for (const value of Object.values(manifest.previous_site_pins)) sha(value);
   if (
     manifest.schema_version !== 1 ||
-    manifest.kind !== "release-signing-context" ||
+    !["release-signing-context", "metadata-signing-context"].includes(String(manifest.kind)) ||
     manifest.authority !== "none" ||
     !Array.isArray(manifest.files) ||
     manifest.files.length < 1 ||
@@ -139,12 +161,18 @@ export function inspectSigningContextArchive(raw: Buffer) {
     manifest.controller.run_attempt !== 1
   )
     throw new Error("signing context controller identity differs");
-  exact(
-    manifest.binding,
-    "aggregate_sha256,native_checks,pending_obligations,records_sha256,run_attempt,run_id,sbom_sha256,signatures_sha256,source_commit,source_tree,version",
-  );
-  for (const name of ["aggregate_sha256", "records_sha256", "sbom_sha256", "signatures_sha256"])
-    sha(manifest.binding[name]);
+  const kind = manifest.kind as ContextKind;
+  if (kind === "metadata-signing-context")
+    inspectMetadataSigningBinding(manifest.facts, manifest.binding, manifest.previous_site_pins);
+  else {
+    exact(
+      manifest.binding,
+      "aggregate_sha256,native_checks,pending_obligations,records_sha256,run_attempt,run_id,sbom_sha256,signatures_sha256,source_commit,source_tree,version",
+    );
+    for (const name of ["aggregate_sha256", "records_sha256", "sbom_sha256", "signatures_sha256"])
+      sha(manifest.binding[name]);
+  }
+  if (!isRecord(manifest.binding)) throw new Error("context binding absent");
   if (files.size !== 2) throw new Error("signing context complete opaque inventory differs");
   const packed = files.get("signing-context-bytes.bin");
   if (!packed) throw new Error("signing context bytes missing");
@@ -156,7 +184,7 @@ export function inspectSigningContextArchive(raw: Buffer) {
     if (
       typeof item.path !== "string" ||
       !safe(item.path) ||
-      !publicContextPath(item.path) ||
+      !publicContextPath(item.path, kind) ||
       item.path <= previous ||
       typeof item.bytes !== "number" ||
       !Number.isSafeInteger(item.bytes) ||
@@ -185,6 +213,15 @@ export function inspectSigningContextArchive(raw: Buffer) {
     !contextFiles.has("prior/repository-manifest.json")
   )
     throw new Error("signing context mandatory public inputs missing");
+  if (kind === "metadata-signing-context") {
+    const declaration = contextFiles.get("renewal.json");
+    if (
+      !declaration ||
+      !isRecord(manifest.facts) ||
+      digest(JSON.parse(declaration.toString("utf8"))) !== digest(manifest.facts.descriptor)
+    )
+      throw new Error("metadata signing descriptor bytes differ");
+  }
   const records: Files = new Map(
     [...contextFiles]
       .filter(
@@ -206,6 +243,7 @@ export function inspectSigningContextArchive(raw: Buffer) {
 const prepared = new WeakMap<
   object,
   {
+    kind: ContextKind;
     context: object;
     directory: string;
     manifest: Record<string, unknown>;
@@ -216,14 +254,29 @@ const prepared = new WeakMap<
 
 /** Only actual private factory receipts can populate this reviewed upload tree. */
 export async function prepareSigningContextArtifact(contextReceipt: object, parent: string) {
-  const context = await requireReleaseSigningContext(contextReceipt);
+  return prepareContextArtifact("release-signing-context", contextReceipt, parent);
+}
+export async function prepareMetadataSigningContextArtifact(
+  contextReceipt: object,
+  parent: string,
+) {
+  return prepareContextArtifact("metadata-signing-context", contextReceipt, parent);
+}
+const requireProducerContext = (kind: ContextKind, receipt: object) =>
+  kind === "release-signing-context"
+    ? requireReleaseSigningContext(receipt)
+    : requireCoordinatorSigningContext(receipt);
+async function prepareContextArtifact(kind: ContextKind, contextReceipt: object, parent: string) {
+  const context = await requireProducerContext(kind, contextReceipt);
   if (!context.previous_site)
     throw new Error("actual complete published site custody required for context handoff");
-  const files = await readReleaseSigningContextFiles(contextReceipt);
+  const files = await (kind === "release-signing-context"
+    ? readReleaseSigningContextFiles(contextReceipt)
+    : readCoordinatorSigningContextFiles(contextReceipt));
   const tools = context.tools.identity;
   const manifest = {
     schema_version: 1,
-    kind: "release-signing-context",
+    kind,
     controller: {
       controller_revision: tools.controller_revision,
       source_tree: tools.source_tree,
@@ -258,15 +311,16 @@ export async function prepareSigningContextArtifact(contextReceipt: object, pare
       flag: "wx",
       mode: 0o600,
     });
-    await requireReleaseSigningContext(contextReceipt);
+    await requireProducerContext(kind, contextReceipt);
     const receipt = Object.freeze({
       kind: "actual-signing-context-upload",
-      name: `trusted-payload-signing-context-${tools.run_id}-${tools.run_attempt}`,
+      name: `${contextRoute(kind).prefix}-${tools.run_id}-${tools.run_attempt}`,
       directory,
       manifest_sha256: hash(manifestBytes),
       authority: "none",
     });
     prepared.set(receipt, {
+      kind,
       context: contextReceipt,
       directory,
       manifest,
@@ -303,8 +357,8 @@ export async function handoffSigningContextArtifact(
   if (!/^[a-f0-9]{40}$/u.test(pending.checkpoint))
     throw new Error("context pending checkpoint differs");
   sha(pending.operation_id);
-  const actual = await requireReleaseSigningContext(owned.context);
-  const name = `trusted-payload-signing-context-${actual.tools.identity.run_id}-${actual.tools.identity.run_attempt}`;
+  const actual = await requireProducerContext(owned.kind, owned.context);
+  const name = `${contextRoute(owned.kind).prefix}-${actual.tools.identity.run_id}-${actual.tools.identity.run_attempt}`;
   await writeFile(
     path.join(owned.directory, "context-ready.json"),
     JSON.stringify({
@@ -390,10 +444,10 @@ export async function prepareSigningContextPredicate(
   sha(uploaded.sha256);
   if (!Number.isSafeInteger(uploaded.artifact_id) || uploaded.artifact_id < 1)
     throw new Error("exact numeric uploaded context artifact required");
-  const actual = await requireReleaseSigningContext(owned.context),
+  const actual = await requireProducerContext(owned.kind, owned.context),
     controller = actual.tools.identity;
   if (
-    expectedIdentity.audience !== "portcove-payload-signing" ||
+    expectedIdentity.audience !== contextRoute(owned.kind).audience ||
     expectedIdentity.controller_revision !== controller.controller_revision ||
     expectedIdentity.controller_ref !== controller.controller_ref ||
     expectedIdentity.run_id !== controller.run_id ||
@@ -420,7 +474,7 @@ export async function prepareSigningContextPredicate(
       !isRecord(raw) ||
       raw.id !== uploaded.artifact_id ||
       raw.name !==
-        `trusted-payload-signing-context-${controller.run_id}-${controller.run_attempt}` ||
+        `${contextRoute(owned.kind).prefix}-${controller.run_id}-${controller.run_attempt}` ||
       raw.digest !== `sha256:${uploaded.sha256}` ||
       raw.expired !== false ||
       typeof raw.size_in_bytes !== "number" ||
@@ -464,11 +518,15 @@ export async function prepareSigningContextPredicate(
         signal: AbortSignal.timeout(signingContextRemaining(deadline, 15000)),
       }),
   );
-  const identity = await verifyPayloadSignerJobIdentity(token, expectedIdentity, {
-    transport: { cwd: owned.directory, deadline },
-  });
+  const identity = await (owned.kind === "release-signing-context"
+    ? verifyPayloadSignerJobIdentity(token, expectedIdentity, {
+        transport: { cwd: owned.directory, deadline },
+      })
+    : verifyCapacityExecutorJobIdentity("coordinator", token, expectedIdentity, {
+        transport: { cwd: owned.directory, deadline },
+      }));
   signingContextRemaining(deadline, 15000);
-  await requireReleaseSigningContext(owned.context);
+  await requireProducerContext(owned.kind, owned.context);
   if (
     identity.evidence_scope !== "github.com" ||
     Date.now() >= Date.parse(identity.expires_at) ||
@@ -477,7 +535,7 @@ export async function prepareSigningContextPredicate(
     throw new Error("context producer or uploaded custody changed");
   const predicate = {
     schema_version: 1,
-    role: "release-signing-context",
+    role: owned.kind,
     controller: inspected.manifest.controller,
     producer: {
       run_id: controller.run_id,
@@ -489,7 +547,7 @@ export async function prepareSigningContextPredicate(
     manifest_sha256: owned.manifest_sha256,
     binding: inspected.manifest.binding,
     facts_sha256: inspected.manifest.facts_sha256,
-    stage: "payload-signing",
+    stage: contextRoute(owned.kind).stage,
     publication_admission: "not-established",
     authority: "none",
   };
@@ -566,15 +624,33 @@ const received = new WeakMap<object, Received>();
 
 /** Actual fixed-controller attestation + complete byte custody. This transfers
  * pre-sign context provenance only, never an imported release-admitted brand. */
-export async function receiveSigningContextArtifact(
+type ContextReceiverOptions = {
+  api?: GitHubRestReader;
+  download?: typeof readGitHubArtifactArchive;
+  spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
+};
+export function receiveSigningContextArtifact(
+  parent: string,
+  expected: SigningContextArtifactExpected,
+  deadline: number,
+  options: ContextReceiverOptions = {},
+) {
+  return receiveContextArtifact("release-signing-context", parent, expected, deadline, options);
+}
+export function receiveMetadataSigningContextArtifact(
+  parent: string,
+  expected: SigningContextArtifactExpected,
+  deadline: number,
+  options: ContextReceiverOptions = {},
+) {
+  return receiveContextArtifact("metadata-signing-context", parent, expected, deadline, options);
+}
+async function receiveContextArtifact(
+  kind: ContextKind,
   parent: string,
   rawExpected: SigningContextArtifactExpected,
   deadline: number,
-  options: {
-    api?: GitHubRestReader;
-    download?: typeof readGitHubArtifactArchive;
-    spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
-  } = {},
+  options: ContextReceiverOptions,
 ) {
   const expected = expectedInput(rawExpected);
   signingContextRemaining(deadline, 15000);
@@ -613,7 +689,10 @@ export async function receiveSigningContextArtifact(
       );
     const get = (suffix: string) => {
       signingContextRemaining(deadline, 15000);
-      if (++requests > 48) throw new Error("context complete provider readback budget exceeded");
+      // One original phase only: initial12 + at most62 six-GET refreshes. The
+      // fixed five-role/assembly/native/Release graph requires more than48;
+      // neither later getters nor retained-proof reads reset this counter.
+      if (++requests > 384) throw new Error("context complete provider readback budget exceeded");
       const response = api.request("GET", `repos/boburning/portcove/${suffix}`);
       signingContextRemaining(deadline, 15000);
       if (response.status !== 200) throw new Error("context provider response unavailable");
@@ -663,7 +742,7 @@ export async function receiveSigningContextArtifact(
         !isRecord(raw) ||
         raw.id !== item.id ||
         raw.name !==
-          `trusted-payload-signing-context${bundle ? "-attestation" : ""}-${expected.run_id}-${expected.run_attempt}` ||
+          `${contextRoute(kind).prefix}${bundle ? "-attestation" : ""}-${expected.run_id}-${expected.run_attempt}` ||
         raw.expired !== false ||
         raw.digest !== `sha256:${item.sha256}` ||
         typeof raw.size_in_bytes !== "number" ||
@@ -722,6 +801,7 @@ export async function receiveSigningContextArtifact(
     await writeFile(path.join(directory, "bundle.zip"), bundleArchive, { flag: "wx", mode: 0o600 });
     const inspected = inspectSigningContextArchive(archive);
     if (
+      inspected.manifest.kind !== kind ||
       inspected.manifest_sha256 !== expected.manifest_sha256 ||
       digest(inspected.manifest.binding) !== expected.binding_sha256 ||
       inspected.manifest.facts_sha256 !== expected.facts_sha256 ||
@@ -764,7 +844,7 @@ export async function receiveSigningContextArtifact(
       digest(statement.subject) !==
         digest([
           {
-            name: "release-signing-context-manifest",
+            name: `${kind}-manifest`,
             digest: { sha256: inspected.manifest_sha256 },
           },
         ]) ||
@@ -783,7 +863,7 @@ export async function receiveSigningContextArtifact(
       throw new Error("context signed numeric producer identity differs");
     const wanted = {
       schema_version: 1,
-      role: "release-signing-context",
+      role: kind,
       controller,
       producer: {
         run_id: expected.run_id,
@@ -795,7 +875,7 @@ export async function receiveSigningContextArtifact(
       manifest_sha256: inspected.manifest_sha256,
       binding: inspected.manifest.binding,
       facts_sha256: expected.facts_sha256,
-      stage: "payload-signing",
+      stage: contextRoute(kind).stage,
       publication_admission: "not-established",
       authority: "none",
     };
@@ -809,7 +889,7 @@ export async function receiveSigningContextArtifact(
         String(job.run_id) !== expected.run_id ||
         job.run_attempt !== expected.run_attempt ||
         job.head_sha !== expected.controller_revision ||
-        job.name !== "Sign admitted updater payloads" ||
+        job.name !== contextRoute(kind).job ||
         job.status !== "completed" ||
         job.conclusion !== "success" ||
         job.check_run_url !==
@@ -861,7 +941,10 @@ export async function receiveSigningContextArtifact(
     }
     signingContextRemaining(deadline, 15000);
     const receipt = Object.freeze({
-      kind: "attested-pre-sign-release-context",
+      kind:
+        kind === "release-signing-context"
+          ? "attested-pre-sign-release-context"
+          : "attested-metadata-signing-context",
       directory,
       manifest_sha256: inspected.manifest_sha256,
       evidence_scope: injected ? "injected-provider" : "github.com",

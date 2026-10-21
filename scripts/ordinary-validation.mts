@@ -299,6 +299,21 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ...["release-tuf-controller", "release-tuf-launch", "release-signing-job-budget"].map(
+    (name): [string, string[]] => [
+      `scripts/${name}.mts`,
+      ["scripts/release-tuf-controller.test.mts"],
+    ],
+  ),
+  ...[
+    "release-metadata-signing-contract",
+    "release-metadata-signing-context",
+    "release-metadata-signing-controller",
+  ].map((name): [string, string[]] => [
+    `scripts/${name}.mts`,
+    ["scripts/release-metadata-signing-context.test.mts"],
+  ]),
+  ["scripts/release-coordinator-deadline.mts", ["scripts/release-coordinator-deadline.test.mts"]],
   ...["worker", "worker-recovery", "request-pipeline"].map((name): [string, string[]] => [
     `scripts/release-semantic-${name}.mts`,
     ["scripts/release-semantic-worker.test.mts"],
@@ -416,8 +431,20 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/fixtures/tuf-worker-fixture.mts", ["scripts/release-tuf-signing.test.mts"]],
   ["scripts/release-tuf-signing.mts", ["scripts/release-tuf-signing.test.mts"]],
   ["scripts/release-signing-context.mts", ["scripts/release-signing-context.test.mts"]],
-  ["scripts/release-publication-result.mts", ["scripts/release-publication-result.test.mts"]],
+  [
+    "scripts/release-publication-controller.mts",
+    ["scripts/release-publication-controller.test.mts"],
+  ],
+  ["scripts/release-publication-handoff.mts", ["scripts/release-publication-controller.test.mts"]],
+  ["scripts/release-publication-inputs.mts", ["scripts/release-publication-inputs.test.mts"]],
+  ["scripts/release-publication-source.mts", ["scripts/release-publication-source.test.mts"]],
+  ["scripts/release-tuf-publication.mts", ["scripts/release-tuf-signing.test.mts"]],
+  [
+    "scripts/release-native-publication-admission.mts",
+    ["scripts/release-native-admission.test.mts"],
+  ],
   ["scripts/release-controller-wake.mts", ["scripts/release-controller-wake.test.mts"]],
+  ["scripts/release-publication-result.mts", ["scripts/release-publication-result.test.mts"]],
   [
     "scripts/release-publication-result-artifact.mts",
     ["scripts/release-publication-result-artifact.test.mts"],
@@ -782,6 +809,11 @@ const releaseContractTests = Object.freeze([
   "scripts/release-publication-result.test.mts",
   "scripts/release-publication-result-artifact.test.mts",
   "scripts/release-controller-wake.test.mts",
+  "scripts/release-tuf-controller.test.mts",
+  "scripts/release-metadata-signing-context.test.mts",
+  "scripts/release-publication-controller.test.mts",
+  "scripts/release-publication-inputs.test.mts",
+  "scripts/release-publication-source.test.mts",
   "scripts/reconcile-release-assets.test.mts",
   "scripts/release-candidate-qualification.test.mts",
   "scripts/release-immutable-publication.test.mts",
