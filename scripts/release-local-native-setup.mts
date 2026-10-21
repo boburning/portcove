@@ -50,18 +50,27 @@ export function inspectLocalNativeSetup(raw: unknown) {
     !["windows-x86_64", "linux-x86_64"].includes(String(value.platform_label))
   )
     throw new Error("fixed native setup identity differs");
-  const windows = value.platform_label === "windows-x86_64";
+  exact(value.scheduler_identity, "kind,name");
+  // The parent host and the qualified package are different identities. A
+  // Windows task may own the explicitly selected WSL Linux route; it does not
+  // thereby become an executing Linux broker or establish guest containment.
+  const windows = value.scheduler_identity.kind === "windows-task";
+  const expectedScheduler =
+    value.platform_label === "windows-x86_64"
+      ? "\\Portcove\\NativeQualification"
+      : windows
+        ? "\\Portcove\\NativeQualificationLinux"
+        : "portcove-native-worker.service";
+  if (
+    !["windows-task", "systemd-user-unit"].includes(String(value.scheduler_identity.kind)) ||
+    (value.platform_label === "windows-x86_64" && !windows) ||
+    value.scheduler_identity.name !== expectedScheduler
+  )
+    throw new Error("native setup scheduler differs from fixed local route");
   const reference = (input: unknown) => {
     exact(input, "path,sha256");
     return { path: canonical(input.path, windows), sha256: digest(input.sha256) };
   };
-  exact(value.scheduler_identity, "kind,name");
-  if (
-    value.scheduler_identity.kind !== (windows ? "windows-task" : "systemd-user-unit") ||
-    value.scheduler_identity.name !==
-      (windows ? "\\Portcove\\NativeQualification" : "portcove-native-worker.service")
-  )
-    throw new Error("native setup scheduler differs from fixed local route");
   return {
     schema_version: 1 as const,
     kind: "fixed-native-parent" as const,
@@ -85,6 +94,9 @@ export function inspectLocalNativeSetup(raw: unknown) {
 export function inspectLocalNativeTransport(
   raw: unknown,
   platform: "windows-x86_64" | "linux-x86_64",
+  parentKind: "windows-task" | "systemd-user-unit" = platform === "windows-x86_64"
+    ? "windows-task"
+    : "systemd-user-unit",
 ) {
   exact(
     raw,
@@ -101,7 +113,12 @@ export function inspectLocalNativeTransport(
   if (raw.schema_version !== 1) throw new Error("native transport schema differs");
   exact(raw.native_issuer, "private_key,public_key_sha256");
   exact(raw.github_cli, "path,sha256");
-  const windows = platform === "windows-x86_64";
+  if (
+    !["windows-task", "systemd-user-unit"].includes(parentKind) ||
+    (platform === "windows-x86_64" && parentKind !== "windows-task")
+  )
+    throw new Error("native transport parent platform differs");
+  const windows = parentKind === "windows-task";
   const source = canonical(raw.source_read_token, windows),
     key = canonical(raw.native_issuer.private_key, windows);
   if ((windows ? source.toLowerCase() : source) === (windows ? key.toLowerCase() : key))
@@ -118,7 +135,8 @@ export function inspectLocalNativeTransport(
       }
     | undefined;
   if (Object.hasOwn(raw, "windows_tools")) {
-    if (!windows) throw new Error("Windows native tools cannot qualify a Linux parent");
+    if (platform !== "windows-x86_64")
+      throw new Error("Windows desktop tools cannot qualify a Linux package");
     exact(raw.windows_tools, "desktop_tools,git,powershell");
     exact(raw.windows_tools.desktop_tools, "node,tauri_driver,webview_driver");
     const tool = (value: unknown) => {
@@ -222,9 +240,15 @@ async function readPinnedLocalNativeSetupBytes(configurationPath: string, expect
     !isRecord(installation.scheduler)
   )
     throw new Error("actual local installation does not bind this setup descriptor");
-  if (process.platform !== (descriptor.platform_label === "windows-x86_64" ? "win32" : "linux"))
+  if (
+    process.platform !== (descriptor.scheduler_identity.kind === "windows-task" ? "win32" : "linux")
+  )
     throw new Error("local native setup platform differs");
-  const transport = inspectLocalNativeTransport(installation.transport, descriptor.platform_label);
+  const transport = inspectLocalNativeTransport(
+    installation.transport,
+    descriptor.platform_label,
+    descriptor.scheduler_identity.kind as "windows-task" | "systemd-user-unit",
+  );
   if (process.platform === "linux") {
     // Source hashes do not prevent a separate account from replacing a later
     // imported helper. The installed controller is private owner staging too.
