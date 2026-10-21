@@ -3,6 +3,7 @@ import { OperationProgress } from "./OperationProgress";
 import { cn } from "cn";
 import { Notice, SettingsRow } from "./ui/patterns";
 import { SourceRemovalControl } from "./SourceRemoval";
+import { SupportBundleExport } from "./SupportBundleExport";
 import { desktopApi } from "../api";
 import {
   useLayoutEffect,
@@ -37,6 +38,7 @@ import type {
   ActivityRecord,
   PortDefinition,
   PortStatus,
+  DesktopSupportBundleExport,
   DoctorReport,
   GithubAuthStatus,
   GithubDeviceLogin,
@@ -1349,18 +1351,13 @@ function DiagnosticsCard({
   hasSnapshot,
 }: {
   busy?: string | undefined;
-  createSupportBundle?: (() => Promise<string | undefined>) | undefined;
+  createSupportBundle?: (() => Promise<DesktopSupportBundleExport | undefined>) | undefined;
   refreshing?: boolean | undefined;
   stale?: boolean | undefined;
   failure?: unknown;
   refresh?: (() => Promise<unknown>) | undefined;
   hasSnapshot?: boolean | undefined;
 }) {
-  const [bundlePath, setBundlePath] = useState<string>();
-  const create = async () => {
-    const path = await createSupportBundle?.();
-    if (path) setBundlePath(path);
-  };
   return (
     <SettingsRow className="diagnostics-card" data-focus-group>
       <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
@@ -1370,20 +1367,6 @@ function DiagnosticsCard({
         <Icon glyph={ShieldCheck} />
         Create support bundle
       </h2>
-      <p>
-        Create a support bundle with recent logs, operation history, and system details. Game-file
-        contents and saved credentials are excluded, but paths, file names, and other metadata may
-        remain. Review the bundle before sharing it.
-      </p>
-      <details>
-        <summary className="[scroll-margin-block:var(--space-2)]">
-          Examples of details that may remain
-        </summary>
-        <p>
-          Port and tool identifiers, timestamps, and other system details can remain after sensitive
-          values are redacted.
-        </p>
-      </details>
       <p role="status">
         {refreshing
           ? "Checking current host and library diagnostics…"
@@ -1405,22 +1388,7 @@ function DiagnosticsCard({
       >
         {failure ? "Retry diagnostics" : "Refresh diagnostics"}
       </Button>
-      <Button
-        data-focusable
-        variant="outline"
-        size="sm"
-        disabled={Boolean(busy) || !createSupportBundle}
-        onClick={() => {
-          void create();
-        }}
-      >
-        Create support bundle
-      </Button>
-      {bundlePath && (
-        <p role="status">
-          Saved to <code className="[overflow-wrap:anywhere]">{bundlePath}</code>
-        </p>
-      )}
+      <SupportBundleExport disabled={Boolean(busy)} createSupportBundle={createSupportBundle} />
     </SettingsRow>
   );
 }
@@ -1519,7 +1487,7 @@ export function SettingsView({
   openSourceEvidence?: (evidenceId: string) => void;
   addSource?: (profile: SourceProfile, archive: boolean) => void;
   appearance?: ThemeState | undefined;
-  createSupportBundle?: (() => Promise<string | undefined>) | undefined;
+  createSupportBundle?: (() => Promise<DesktopSupportBundleExport | undefined>) | undefined;
   exportMetadata?: (() => Promise<LibraryMetadataFile | undefined>) | undefined;
   sourceProfiles?: SourceProfile[];
   onSourceAdded?: () => Promise<unknown>;

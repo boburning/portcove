@@ -92,6 +92,9 @@ mod source_report;
 mod source_zip;
 mod stfs;
 mod support_bundle;
+mod support_bundle_export;
+mod support_bundle_read;
+mod support_bundle_stage;
 #[cfg(test)]
 mod test_fixture;
 mod tool_process;
@@ -246,6 +249,12 @@ pub use source_report::{
     SourceQualificationCoverage, SourceReleaseApplicability,
 };
 pub use support_bundle::SupportBundleData;
+pub use support_bundle_export::{
+    SupportBundleExport, SupportBundleLimits, SupportBundleManifest, SupportBundleProvenance,
+    SupportBundleReason, SupportBundleRequest, SupportBundleScope, SupportBundleSection,
+    SupportBundleSectionKind, SupportBundleSectionStatus, export_support_bundle,
+    prepare_support_log_directory,
+};
 pub use types::*;
 
 // Private parked 58/59/64 contracts remain unclaimed. Public 65 adds game-file queries.

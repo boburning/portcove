@@ -2121,12 +2121,34 @@ fn validate_external_url(catalog: &CatalogDocument, url: &str) -> DesktopResult<
 }
 
 #[tauri::command]
-async fn create_support_bundle(state: tauri::State<'_, DesktopState>) -> DesktopResult<PathBuf> {
+async fn create_support_bundle(
+    state: tauri::State<'_, DesktopState>,
+    diagnostics: tauri::State<'_, diagnostics::HostDiagnostics>,
+) -> DesktopResult<portcove_core::SupportBundleExport> {
     let state = state.inner().clone();
-    blocking_service(state, |service| {
-        diagnostics::create_support_bundle(&service).map_err(Into::into)
+    let directory = diagnostics.directory.clone();
+    // Export is available even when service construction fails. Use the same
+    // worker/restart guard as other blocking host work, without requiring ready().
+    blocking_worker(move || {
+        let directory = directory?;
+        support_bundle_for_state(&state, &directory)
     })
     .await
+}
+
+fn support_bundle_for_state(
+    state: &DesktopState,
+    directory: &Path,
+) -> DesktopResult<portcove_core::SupportBundleExport> {
+    // Snapshot existing initialization only. Constructing a new service would
+    // load catalogs and could recreate a disappeared database before collection.
+    let (initialization, _) = initialization_snapshot(state);
+    diagnostics::create_support_bundle(
+        initialization.as_ref().ok().map(|ready| &ready.library),
+        initialization.as_ref().err(),
+        directory,
+    )
+    .map_err(Into::into)
 }
 
 #[tauri::command]
@@ -2500,29 +2522,40 @@ pub fn run() -> std::process::ExitCode {
     let configured_root = std::env::var_os("PORTCOVE_LIBRARY")
         .filter(|path| !path.is_empty())
         .map(PathBuf::from);
+    let host_diagnostics = diagnostics::HostDiagnostics::new(&preferences);
+    // Logging is best effort and cannot turn successful library initialization
+    // into a failure. Its host location is ready before the library is opened.
+    if let Ok(directory) = &host_diagnostics.directory {
+        let _ = diagnostics::initialize(directory);
+    }
+    tracing::info!(
+        operation_id = "desktop-startup",
+        phase = "start",
+        "desktop initialization"
+    );
     let initialization_result = preferences
         .as_ref()
         .map_err(Clone::clone)
         .and_then(|store| initialize_desktop_with(store, configured_root));
-    let initialization = std::sync::Arc::new(std::sync::Mutex::new(
-        initialization_result.and_then(|state| {
-            diagnostics::initialize(&state.library.logs_dir()).map_err(DesktopError::from)?;
-            #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-            report_application_update_qualification_stage("desktop initialization");
-            tracing::info!(
-                operation_id = "desktop-startup",
-                library_root = %state.library.root().display(),
-                "desktop diagnostics initialized"
-            );
-            Ok(state)
-        }),
-    ));
+    tracing::info!(
+        operation_id = "desktop-startup",
+        phase = "complete",
+        success = initialization_result.is_ok(),
+        code = ?initialization_result.as_ref().err().map(|error| error.code),
+        "desktop initialization"
+    );
+    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
+    if initialization_result.is_ok() {
+        report_application_update_qualification_stage("desktop initialization");
+    }
+    let initialization = std::sync::Arc::new(std::sync::Mutex::new(initialization_result));
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(webview_boundary::init());
     #[cfg(feature = "native-compatibility-qualification")]
     let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
     builder
+        .manage(host_diagnostics)
         .manage(application_update_commands::configured_state())
         .manage(application_update_preferences::configured_state())
         .manage(application_update_status::configured_state())
@@ -3506,10 +3539,73 @@ mod tests {
         assert_eq!(status.error.unwrap().message, error.message);
         assert!(status.library_root.is_none());
         assert!(service(&state).is_err());
+        let exported =
+            support_bundle_for_state(&state, &temporary.path().join("diagnostics")).unwrap();
+        assert!(!exported.manifest.library_available);
+        assert!(exported.path.is_file());
+        assert_eq!(bootstrap_status(&state).error, Some(error));
         assert_eq!(
             fs::read(blocked).unwrap(),
             b"file blocks the configured library directory"
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn support_export_does_not_construct_service_or_recreate_a_missing_database() {
+        let temporary = tempfile::tempdir().unwrap();
+        let ready = initialize_desktop_at(Some(temporary.path().join("library"))).unwrap();
+        let database = ready.library.root().join("portcove.sqlite3");
+        let state = DesktopState {
+            initialization: std::sync::Arc::new(std::sync::Mutex::new(Ok(ready))),
+            preferences: HostPreferenceStore::new(temporary.path().join("preferences.json"))
+                .map_err(DesktopError::from),
+            generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
+            launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
+        fs::remove_file(&database).unwrap();
+        let exported =
+            support_bundle_for_state(&state, &temporary.path().join("diagnostics")).unwrap();
+        assert!(!database.exists());
+        assert!(exported.path.is_file());
+        assert!(exported.manifest.sections.iter().any(|section| {
+            section.kind == portcove_core::SupportBundleSectionKind::Activities
+                && section.status == portcove_core::SupportBundleSectionStatus::Omitted
+        }));
+        assert_eq!(state_generation(&state), 1);
+    }
+
+    #[test]
+    fn support_export_keeps_activity_reads_when_catalog_service_construction_fails() {
+        let temporary = tempfile::tempdir().unwrap();
+        let ready = initialize_desktop_at(Some(temporary.path().join("library"))).unwrap();
+        let database = ready.library.root().join("portcove.sqlite3");
+        let connection = rusqlite::Connection::open(&database).unwrap();
+        connection.execute("DROP TABLE catalog_state", []).unwrap();
+        drop(connection);
+        let state = DesktopState {
+            initialization: std::sync::Arc::new(std::sync::Mutex::new(Ok(ready))),
+            preferences: HostPreferenceStore::new(temporary.path().join("preferences.json"))
+                .map_err(DesktopError::from),
+            generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
+            launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
+        assert!(service(&state).is_err());
+        let exported =
+            support_bundle_for_state(&state, &temporary.path().join("diagnostics")).unwrap();
+        assert!(exported.manifest.sections.iter().any(|section| {
+            section.kind == portcove_core::SupportBundleSectionKind::Activities
+                && section.entry.as_deref() == Some("activities.json")
+        }));
+        let connection = rusqlite::Connection::open(database).unwrap();
+        let count: i64 = connection
+            .query_row(
+                "SELECT count(*) FROM sqlite_master WHERE name='catalog_state'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 0);
     }
 
     #[tokio::test(flavor = "current_thread")]

@@ -1098,6 +1098,10 @@ function invoke(
   args?: object | null,
 ): Promise<IpcReply<TransportOutputs["activity"]>>;
 function invoke(
+  command: "create_support_bundle",
+  args?: object | null,
+): Promise<IpcReply<TransportOutputs["desktop_support_bundle_export"]>>;
+function invoke(
   command: "get_application_update_preferences",
   args?: object | null,
 ): Promise<IpcReply<TransportOutputs["desktop_application_update_preferences"]>>;
@@ -1149,6 +1153,12 @@ async function invoke(command: string, args: object | null = {}): Promise<IpcRep
       };
     case "get_activities":
       return { ...reply, ok: true, value: transportValue("activity", reply.value) };
+    case "create_support_bundle":
+      return {
+        ...reply,
+        ok: true,
+        value: transportValue("desktop_support_bundle_export", reply.value),
+      };
     case "get_application_update_preferences":
       return {
         ...reply,
@@ -2763,6 +2773,7 @@ try {
       browser,
       invoke,
       library,
+      preferencesPath: path.join(runtimeRoot, "preferences.json"),
       output,
       artifacts,
       packageEvidence: required(packageEvidence),
@@ -2775,6 +2786,7 @@ try {
       browser,
       invoke,
       library,
+      preferencesPath: path.join(runtimeRoot, "preferences.json"),
       output,
       artifacts,
       packageEvidence: required(packageEvidence),

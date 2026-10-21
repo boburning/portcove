@@ -644,6 +644,11 @@ pub(crate) fn open_identity_handle(path: &Path) -> Result<fs::File> {
     Ok(options.open(path)?)
 }
 
+/// Compare held objects using the same OS identity policy as stable reads.
+pub(crate) fn same_file(left: &fs::File, right: &fs::File) -> Result<bool> {
+    Ok(object_identity(left)? == object_identity(right)?)
+}
+
 fn file_snapshot(file: &fs::File) -> Result<FileSnapshot> {
     let metadata = file.metadata()?;
     if !metadata.is_file() {

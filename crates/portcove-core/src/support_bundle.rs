@@ -24,6 +24,47 @@ use crate::{
 pub struct SupportBundleData(Value);
 
 impl SupportBundleData {
+    /// Startup can be collected without a library. Only closed facts from the
+    /// failure are admitted; startup errors can contain arbitrary path/context
+    /// payloads and are not required to be bounded by a database reader.
+    pub(crate) fn startup(available: bool, failure: Option<&FailureReport>) -> Self {
+        Self(json!({
+            "schema_version": 1,
+            "library_available": available,
+            "failure_code": failure.map(|report| error_code(&report.code)),
+            "mutation_state": failure.map(|report| mutation_state(&report.presentation.mutation_state)),
+            "failure_text_omitted": failure.is_some(),
+        }))
+    }
+
+    /// These existing reads do not enumerate installs, sources, repair items,
+    /// or executable contents. Unknown doctor facts are deliberately null.
+    pub(crate) fn doctor_snapshot(library: &crate::Library) -> crate::Result<Self> {
+        let StorageSummary {
+            library_root: _,
+            volume_total_bytes,
+            volume_available_bytes,
+        } = library.storage_summary()?;
+        Ok(Self(json!({
+            "schema_version": 1,
+            "platform": platform_value(&Platform::current()?),
+            "catalog_port_count": null,
+            "volume_total_bytes": volume_total_bytes,
+            "volume_available_bytes": volume_available_bytes,
+            "installed_port_count": null,
+            "registered_source_count": null,
+            "repair_items": null,
+            "host_tools": null,
+        })))
+    }
+
+    pub(crate) fn activities(activities: &[ActivityRecord]) -> Self {
+        Self(json!({
+            "schema_version": 1,
+            "activities": activities.iter().map(activity).collect::<Vec<_>>(),
+        }))
+    }
+
     pub fn summary(
         doctor: &DoctorReport,
         activities: &[ActivityRecord],
