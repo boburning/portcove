@@ -111,6 +111,8 @@ import {
   recoverPublishedPagesMetadata,
 } from "./release-pages-metadata-recovery.mts";
 
+import { recoverCandidateSigningCustody } from "./release-candidate-signing-recovery.mts";
+
 type Reader = ReturnType<typeof createReleasePublicationReader>;
 const metadataPreparations = new WeakMap<
   object,
@@ -1834,6 +1836,124 @@ export async function requireActualCoordinatorBootstrapPreparation(
   });
 }
 
+/** Routing data only. The fixed continuation authenticates the complete original
+ * signing custody; phase or locator JSON never grants publication eligibility. */
+export function selectCoordinatorCandidateSigningRecovery(input: Record<string, unknown>) {
+  const active = input.active_candidate;
+  return isRecord(active) && ["publishing", "promoting"].includes(String(active.phase))
+    ? (active.phase as "publishing" | "promoting")
+    : null;
+}
+
+async function recoverTrustedCoordinatorCandidateSigning(
+  directory: string,
+  configuration: unknown,
+  recovered: Awaited<ReturnType<typeof recoverRemoteCoordinator>>,
+  budget: ReturnType<typeof coordinatorDeadline>,
+  locators?: Parameters<typeof prepareTrustedCoordinatorRenewal>[1]["tools"],
+) {
+  if (!selectCoordinatorCandidateSigningRecovery(recovered.input))
+    throw new Error("publishing or promoting candidate required for signing readback");
+  if (!locators)
+    return {
+      decision: "held-candidate-signing-tools",
+      directory,
+      checkpoint: recovered.checkpoint,
+      authority: "none",
+    };
+  const authorities = await requireControllerReleaseAuthorities("coordinator");
+  if (authorities.namespace !== inspectCoordinatorRemoteNamespace(configuration))
+    throw new Error("candidate signing recovery namespace differs");
+  const receipt = await receiveControllerTools(directory, locators.artifact, locators.bundle, {
+    deadline: budget.monotonicDeadline,
+  });
+  const tools = await verifiedControllerToolPaths(receipt),
+    workflow = await readProductionControllerWorkflowBytes(),
+    reader = await authenticateControlReaderJob(process.env, workflow, {
+      phase: "coordinator",
+      deadline: budget.monotonicDeadline,
+    });
+  if (
+    tools.identity.controller_revision !== reader.admitted.revision ||
+    tools.identity.controller_ref !== reader.admitted.execution_ref ||
+    tools.identity.run_id !== String(reader.admitted.run_id) ||
+    tools.identity.run_attempt !== reader.admitted.run_attempt
+  )
+    throw new Error("candidate signing recovery tools differ from current coordinator");
+  const factsSha = capacityDigest({
+    checkpoint: recovered.checkpoint,
+    candidate: recovered.input.active_candidate,
+    purpose: "original-signing-custody-readback",
+  });
+  const api = coordinatorApi(directory, budget, 2 * 1024 ** 2);
+  let controls = await authenticateCoordinatorInitialControls(
+      directory,
+      factsSha,
+      reader,
+      workflow,
+      budget,
+    ),
+    ordinal = 0,
+    observed = performance.now();
+  const initial = coordinatorMaintenanceIdentity(controls.readMaintenance(api));
+  const freshBoundary = async () => {
+    budget.check();
+    if (performance.now() - observed >= 40000) {
+      if (++ordinal > 4) throw new Error("candidate signing recovery control rounds exhausted");
+      controls = await authenticateReleaseControlRound(
+        path.join(directory, `candidate-signing-control-${ordinal}`),
+        factsSha,
+        "coordinator",
+        ordinal,
+        { deadline: budget.monotonicDeadline },
+      );
+      observed = performance.now();
+    }
+    const current = controls.readMaintenance(api);
+    if (
+      controls.evidence_scope !== "github.com" ||
+      current.reader.job_id !== reader.identity.job_id ||
+      current.reader.check_run_id !== reader.identity.check_run_id ||
+      coordinatorMaintenanceIdentity(current) !== initial
+    )
+      throw new Error("candidate signing recovery maintenance changed");
+    budget.check();
+  };
+  await freshBoundary();
+  const executor = await authenticateCapacityExecutor(
+    "coordinator",
+    {
+      audience: "portcove-capacity-executor",
+      subject: controllerOidcSubject(
+        reader.admitted.execution_ref,
+        "production-release-coordinator",
+      ),
+      controller_revision: reader.admitted.revision,
+      controller_ref: reader.admitted.execution_ref,
+      actor_id: reader.admitted.actor_id,
+      run_id: reader.admitted.run_id,
+      run_attempt: reader.admitted.run_attempt,
+    },
+    directory,
+    budget.monotonicDeadline,
+  );
+  const result = await recoverCandidateSigningCustody(
+    {
+      repository: recovered.repository,
+      checkpoint: recovered.checkpoint,
+      remote_configuration: configuration,
+    },
+    receipt,
+    executor,
+    directory,
+    budget.monotonicDeadline,
+    freshBoundary,
+  );
+  await freshBoundary();
+  budget.check();
+  return Object.freeze({ ...result, directory, automatic_retry: false });
+}
+
 /** A durable expected Pages generation routes GET-only recovery before waiting
  * on semantic/native work. Absence of an expectation cannot invent one. */
 export function selectCoordinatorPendingPagesRecovery(input: Record<string, unknown>) {
@@ -2385,6 +2505,16 @@ async function requestTrustedSemanticReviewAt(
         directory,
         { remote_configuration: selected.remote_configuration, tools: selected.tools },
         { directory, budget, recovered },
+      );
+    }
+    if (selectCoordinatorCandidateSigningRecovery(recovered.input)) {
+      phase = "actual-original-candidate-signing-readback";
+      return recoverTrustedCoordinatorCandidateSigning(
+        directory,
+        selected.remote_configuration,
+        recovered,
+        budget,
+        selected.tools,
       );
     }
     const outstanding = inspectReleaseReviewRequest(recovered.input.review_request);
