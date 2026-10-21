@@ -13,6 +13,7 @@ import { catalogPublicationFixture } from "./fixtures/release-catalog-publicatio
 import { catalogSigningRoles } from "./release-catalog-signing-contract.mts";
 import { inspectCatalogTufPublicationReport } from "./release-catalog-metadata-contract.mts";
 import { assertCatalogSitePublicationBinding } from "./release-catalog-publication-contract.mts";
+import { signingContextRemaining } from "./release-signing-context-artifact.mts";
 import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const inventory = (files: ReadonlyMap<string, Buffer>) =>
@@ -76,7 +77,8 @@ void test("injected recovery join verifies existing public bytes and original ro
     let remoteReads = 0,
       changedIntent = false,
       commandCount = 0,
-      badClock = false;
+      badClock = false,
+      exhaustedBeforeLaunch = false;
     const operation = {
       kind: "upload",
       destination: "github-pages:boburning/portcove:complete-site",
@@ -152,13 +154,16 @@ void test("injected recovery join verifies existing public bytes and original ro
         readBoundedReleaseContextFiles,
         payloadSigningEnvironment: () => ({}),
         active: () => 15000,
+        signingContextRemaining: (deadline: number, max: number) =>
+          signingContextRemaining(exhaustedBeforeLaunch ? performance.now() - 1 : deadline, max),
         fixedApi: () => ({}),
         recheckCatalogSemanticProof: () => {},
         assemblies,
         requireActualCatalogRepositoryForRecovery: async (receipt: object) => {
           assert.equal(assemblies.get(receipt)!.recovery_only, true);
         },
-        run: async (_tool: string, args: string[]) => {
+        run: async (_tool: string, args: string[], options: { timeout: number }) => {
+          assert.ok(options.timeout > 0 && options.timeout <= 30000);
           commandCount++;
           assert.equal(args[0], "verify-definition-repository");
           const config: unknown = JSON.parse(await readFile(args[1]!, "utf8"));
@@ -282,6 +287,18 @@ void test("injected recovery join verifies existing public bytes and original ro
     assert.equal(assemblies.get(succeededReceipt)!.recovery_only, true);
     operation.outcome = "recovered";
     operation.recovery = { resolution: "effect-completed" };
+    const beforeExhausted = commandCount;
+    exhaustedBeforeLaunch = true;
+    await assert.rejects(
+      invoke({}, {}, [{}, {}, {}, {}], parent, performance.now() + 30000),
+      /catalog public recovery verification refused/,
+    );
+    assert.equal(
+      commandCount,
+      beforeExhausted,
+      "expired original budget refuses before child launch rather than timeout zero",
+    );
+    exhaustedBeforeLaunch = false;
     badClock = true;
     await assert.rejects(
       invoke({}, {}, [{}, {}, {}, {}], parent, performance.now() + 30000),

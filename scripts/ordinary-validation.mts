@@ -308,11 +308,39 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "release-coordinator-namespace",
   ].map((name): [string, string[]] => [
     `scripts/${name}.mts`,
-    ["scripts/release-tuf-controller.test.mts", "scripts/release-controller-tools.test.mts"],
+    [
+      "scripts/release-tuf-controller.test.mts",
+      "scripts/release-controller-tools.test.mts",
+      "scripts/release-controller-catalog-routing.test.mts",
+    ],
   ]),
   [
     ".github/actions/release-controller-job/action.yml",
-    ["scripts/release-controller-tools.test.mts"],
+    [
+      "scripts/release-controller-tools.test.mts",
+      "scripts/release-controller-catalog-routing.test.mts",
+    ],
+  ],
+  ...[
+    "release-control-phases",
+    "release-input-protections",
+    "release-control-ready",
+    "release-reviewed-inputs",
+    "release-controller-tool-bootstrap",
+  ].map((name): [string, string[]] => [
+    `scripts/${name}.mts`,
+    [
+      "scripts/release-control-inputs.test.mts",
+      "scripts/release-controller-catalog-routing.test.mts",
+    ],
+  ]),
+  [
+    "scripts/production-controller-admission.mts",
+    [
+      "scripts/production-controller-admission.test.mts",
+      "scripts/release-catalog-authorities.test.mts",
+      "scripts/release-controller-catalog-routing.test.mts",
+    ],
   ],
   ["scripts/read-native-wsl-host.ps1", ["scripts/release-native-wsl-boundary.test.mts"]],
   [
@@ -1110,11 +1138,19 @@ const workflowTests = new Map([
   ["controller-tool-build-fixture.yml", ["scripts/release-controller-tools.test.mts"]],
   [
     "application-update-production.yml",
-    ["scripts/production-controller-admission.test.mts", "scripts/release-production-dag.test.mts"],
+    [
+      "scripts/production-controller-admission.test.mts",
+      "scripts/release-production-dag.test.mts",
+      "scripts/release-controller-catalog-routing.test.mts",
+    ],
   ],
   [
     "application-update-wake.yml",
-    ["scripts/release-controller-wake.test.mts", "scripts/release-production-dag.test.mts"],
+    [
+      "scripts/release-controller-wake.test.mts",
+      "scripts/release-production-dag.test.mts",
+      "scripts/release-controller-catalog-routing.test.mts",
+    ],
   ],
   ["release.yml", ["scripts/release-workflow.test.mts"]],
   ["qualification.yml", ["scripts/qualification-coverage.test.mts"]],

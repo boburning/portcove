@@ -738,7 +738,7 @@ async function verifyPublishedRepositoryForRecovery(
       cwd: scratch,
       env,
       windowsHide: true,
-      timeout: Math.min(90000, Math.floor(deadline - performance.now())),
+      timeout: signingContextRemaining(deadline, 90000),
       maxBuffer: 4 * 1024 ** 2,
       encoding: "utf8",
     });
@@ -902,7 +902,7 @@ async function assembleRepository(
       cwd: scratch,
       env,
       windowsHide: true,
-      timeout: Math.min(90000, Math.floor(deadline - performance.now())),
+      timeout: signingContextRemaining(deadline, 90000),
       maxBuffer: 4 * 1024 ** 2,
       encoding: "utf8",
     });
