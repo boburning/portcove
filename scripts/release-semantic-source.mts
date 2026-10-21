@@ -30,10 +30,10 @@ type FetchRequest = Readonly<{
 export function semanticSourceResourceEnvironment(
   home: string,
   source: NodeJS.ProcessEnv = process.env,
-) {
+): NodeJS.ProcessEnv {
   return {
     ...semanticSupervisorEnvironment(source),
-    HOME: home,
+    HOME: source.HOME ?? home,
     ...(source.GITHUB_ACTIONS === "true" ? { GITHUB_ACTIONS: "true" } : {}),
   };
 }

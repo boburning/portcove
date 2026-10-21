@@ -9,6 +9,10 @@ on:
       - scripts/release-source-changes.mts
       - scripts/resource-*.mts
       - scripts/run-rust-tests.mts
+      - scripts/rust-support-cache.mts
+      - scripts/fixtures/linux-process-tree-reaper.rs.txt
+      - .github/actions/setup-rust/**
+      - rust-toolchain.toml
       - package.json
       - pnpm-lock.yaml
   push:
@@ -18,6 +22,10 @@ on:
       - scripts/release-semantic-source*
       - scripts/semantic-source-git*
       - scripts/qualify-semantic-source.mts
+      - scripts/rust-support-cache.mts
+      - scripts/fixtures/linux-process-tree-reaper.rs.txt
+      - .github/actions/setup-rust/**
+      - rust-toolchain.toml
 permissions:
   contents: read
 jobs:
@@ -38,6 +46,8 @@ jobs:
           package-manager-cache: false
       - name: Install locked public dependencies without hooks or shared cache
         run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --store-dir "$RUNNER_TEMP/source-fixture-pnpm"
+      - name: Prepare repository-pinned compiler for the maintained containment reaper
+        uses: ./.github/actions/setup-rust
       - name: Acquire public raw Git objects without credentials, checkout or runtime
         run: node scripts/qualify-semantic-source.mts
       - name: Retain bounded public source-only result

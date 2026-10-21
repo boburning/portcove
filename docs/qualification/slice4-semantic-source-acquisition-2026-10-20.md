@@ -67,3 +67,19 @@ late reservation before payload launch. Defaults remain unchanged. Local checks
 cover credential exclusion, exhausted admission, and an actually occupied
 isolated capacity domain. No source/runtime success follows from that failure;
 the repaired actual anonymous fixture remains required.
+
+Run `39541568172` then refused before Git because the existing resource
+supervisor could not find `rustc` in the scrubbed parent PATH. Its separate log
+and public failure artifact are retained. Resource bootstrap now preserves the
+actual trusted parent PATH for the repository-maintained Rust process-tree
+reaper, and its parent HOME remains available for that installed toolchain;
+source/compiler fingerprints and disabled automatic tool installation
+remain unchanged. No candidate Cargo project, hook or dependency is compiled.
+The fixed Python Git and semantic service/reviewer environments still choose
+their own literal PATH and exclude parent credentials. This repair permits the
+existing containment bootstrap; it establishes no runtime or source success.
+The ordinary fixture explicitly prepares the repository-pinned Rust compiler
+before acquisition, using the maintained setup action. Dedicated worker setup
+must likewise prepare that existing containment prerequisite before credentials
+are used. Git still receives only its fresh private HOME from the fixed Python
+request, independently of the resource parent's HOME.
