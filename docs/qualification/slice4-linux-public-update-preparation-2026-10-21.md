@@ -81,7 +81,7 @@ inside the existing 2 GiB envelope. It does not enlarge the candidate tmpfs or
 reserve disk capacity. Original-clock checks cover queue admission, raw reads,
 capture hashing and the final private receipt recheck.
 
-## Qualification scope and remaining connection
+## Qualification scope and automatic connection
 
 The source through `89de21c` received separate non-writing review. Focused local
 Node and inert Python checks passed; the actual Linux filesystem restoration
@@ -92,9 +92,16 @@ account, scheduler, engine, authentication or public updater run occurred here.
 
 The normal shipping helper-environment repair from #2325 must be present in V0.
 The reviewed #2330 forward-repair product/UI dependency must be delivered before
-the ordinary B continuation is qualified. The private shared settlement
-recorder and automatic worker dispatch must consume this actual capture getter;
-a capture-only helper is not the complete automatic route.
+the ordinary B continuation is qualified. The separately reviewed `608401a` and
+`300ecb7` connection now uses the existing automatic worker: complete protected
+history selects the initial pair or genuine V2 continuation, then exact package
+receipts feed the actual claim, Linux capture and private settlement recorder.
+Completed history performs no new launch; contradictory history refuses. The
+recorder retains the original wire separately, preserves exported profile paths,
+and advances technical progress only for a zero-status observed or parked
+capture with positive original guest closure. It does not mint native or public
+acceptance. A controlled actual-worker import test covers ordering only; no
+installed Task, guest or application was invoked.
 
 Installed WSL metadata was observed separately to report kernel
 `6.18.33.2-2`; that is not an observation of the running qualification guest.
