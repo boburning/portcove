@@ -499,13 +499,19 @@ export async function verifyReleaseArtifactBytes(
 }
 
 const scriptPath = fileURLToPath(import.meta.url);
-if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
-  if (![3, 5].includes(process.argv.length))
-    throw new Error("usage: release-run-evidence.mts REQUEST.json [ARTIFACT_ID RETAINED_FILE]");
-  const request = await readReleaseEvidenceRequest(process.argv[2] ?? "");
-  const evidence =
-    process.argv.length === 3
-      ? collectReleaseRunEvidence(request)
-      : await verifyReleaseArtifactBytes(request, Number(process.argv[3]), process.argv[4] ?? "");
-  console.log(JSON.stringify(evidence, null, 2));
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+    if (![3, 5].includes(process.argv.length))
+      throw new Error("usage: release-run-evidence.mts REQUEST.json [ARTIFACT_ID RETAINED_FILE]");
+    const request = await readReleaseEvidenceRequest(process.argv[2] ?? "");
+    const evidence =
+      process.argv.length === 3
+        ? collectReleaseRunEvidence(request)
+        : await verifyReleaseArtifactBytes(request, Number(process.argv[3]), process.argv[4] ?? "");
+    console.log(JSON.stringify(evidence, null, 2));
+  }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

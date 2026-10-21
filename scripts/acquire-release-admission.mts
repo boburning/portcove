@@ -1134,6 +1134,9 @@ async function performAdmissionHandshake(
         JSON.stringify(prepareControlReadiness(reader.identity, readyDigest, phase)),
         { flag: "wx", mode: 0o600 },
       );
+      await (
+        await import("./release-control-step-bridge.mts")
+      ).retainControlStepLocator(path.join(root, `ready-${phase}.json`), phase, 0);
       const observedArtifact = await waitForControlArtifact(
         root,
         "observation",
@@ -1464,19 +1467,25 @@ async function main() {
   );
   process.exitCode = 2;
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  await main().catch(() => {
-    console.error(
-      "independent release admission refused; retain owned acquisition evidence; no descriptor or mutation emitted",
-    );
-    process.exitCode = 2;
-  });
-  if (process.argv[2] === "--handshake" && process.env.RUNNER_TEMP)
-    await writeFile(
-      path.join(process.env.RUNNER_TEMP, "release-admission-process-ended.json"),
-      JSON.stringify({ exit_code: process.exitCode ?? 0, authority: "none" }),
-      { flag: "wx", mode: 0o600 },
-    ).catch(() => {
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+    await main().catch(() => {
+      console.error(
+        "independent release admission refused; retain owned acquisition evidence; no descriptor or mutation emitted",
+      );
       process.exitCode = 2;
     });
+    if (process.argv[2] === "--handshake" && process.env.RUNNER_TEMP)
+      await writeFile(
+        path.join(process.env.RUNNER_TEMP, "release-admission-process-ended.json"),
+        JSON.stringify({ exit_code: process.exitCode ?? 0, authority: "none" }),
+        { flag: "wx", mode: 0o600 },
+      ).catch(() => {
+        process.exitCode = 2;
+      });
+  }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

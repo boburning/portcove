@@ -11,6 +11,17 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The reviewed [whole-site continuation and fixed readiness bridge](slice4-complete-site-controller-2026-10-20.md)
+connect actual tools/context/five-role/immutable-Release custody to durable archive
+upload, existing Pages intent, complete public readback, metadata handoff and
+candidate-clear CAS/readback. The site tool is now in the fixed attested tool
+inventory. These are implementation results awaiting exact delivery identities;
+they do not establish public deployment or ordinary-client acceptance. Exact
+ambiguous Pages recovery, metadata/bootstrap continuation, final held DAG and
+eligible cleanup remain engineering work. No new VHD experiment or recurring
+administrator command is part of this path. Historical one-attempt VHD grants
+below remain retained, consumed history rather than current instructions.
+
 The October 20 [native account and pre-sign producer connection](slice4-native-account-preparation-2026-10-20.md)
 now implements private fixed-Task/source custody, exact reserved package
 selection, bounded separate-account Windows capture, six concrete pre-sign
