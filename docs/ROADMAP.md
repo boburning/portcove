@@ -245,7 +245,13 @@ semantic errors, truthful committed/unknown/recovery outcomes and its finite
 remaining acceptance. These new diagnostics enhancements do not defer that
 acceptance or silently add beta requirements. Live Project fields own scheduling.
 
-### Planned policy and boundaries
+The desktop bounded writer, independent health readback and finite exit flush
+are implemented in the [runtime diagnostics contract](ARCHITECTURE.md#runtime-diagnostic-writer).
+Shared CLI policy, isolated sessions and approved typed span enrichment retain
+their separate owners below. Runtime writing and activity-capture durability
+remain distinct.
+
+### Policy and planned coverage
 
 - Retain tracing/tracing-subscriber. Executables initialize subscribers; Core
   emits instrumentation. Share only useful host policy/formatting/redaction,
@@ -289,12 +295,13 @@ acceptance or silently add beta requirements. Live Project fields own scheduling
   Existing activity captures use separate 2 MiB per-stream/64 MiB retained-library
   bounds at the inspected revision; runtime settings must not redefine them.
 
-Candidate defaults to evaluate are application INFO/noisy dependency WARN,
-temporary DEBUG that resets at session end, 4 MiB runtime segments, 32 MiB aggregate
-runtime bytes and seven-day age retention. Desktop currently uses 4 MiB plus five
-rotated generations; CLI defaults WARN with explicit verbosity. These proposals
-are not implemented defaults: each owner records measured capacities, active-file
-retention/failure behavior, DEBUG reset/expiry and CLI compatibility before changes.
+Candidate defaults for shared host/session policy remain application INFO/noisy
+dependency WARN, temporary DEBUG that resets at session end, and a 32 MiB
+aggregate session budget. The desktop writer retains 4 MiB segments and five
+rotated generations (24 MiB) with seven-day expiry of exact owned names. CLI
+still defaults WARN with explicit verbosity. Each remaining owner records
+measured capacities, active-session retention/failure behavior, DEBUG reset/expiry
+and CLI compatibility before changes.
 No unrelated CI-policy, dependency, remote telemetry, hosted logging, account,
 query service, comprehensive viewer or universal game-capture project is implied.
 

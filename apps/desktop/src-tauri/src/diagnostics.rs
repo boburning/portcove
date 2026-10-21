@@ -1,30 +1,20 @@
 use std::{
-    collections::BTreeMap,
-    fs::{self, OpenOptions},
-    io::Write,
+    io,
     path::{Path, PathBuf},
-    sync::{
-        Arc, Mutex,
-        atomic::{AtomicU64, Ordering},
-    },
-    time::{SystemTime, UNIX_EPOCH},
+    sync::atomic::{AtomicU64, Ordering},
+    time::Duration,
 };
 
 use portcove_core::{
-    FailureReport, HostPreferenceStore, Library, PortcoveError, Result, SupportBundleExport,
-    SupportBundleRequest, export_support_bundle, redact_diagnostic_text as redact_text,
-    redact_diagnostic_value, sensitive_diagnostic_field as is_sensitive_field,
+    ErrorCode, FailureReport, HostPreferenceStore, Library, PortcoveError, Result,
+    SupportBundleExport, SupportBundleRequest, export_support_bundle,
 };
-use serde_json::{Value, json};
-use tracing::{
-    Event, Subscriber,
-    field::{Field, Visit},
-};
-use tracing_subscriber::{Layer, layer::SubscriberExt};
+use tracing_subscriber::layer::SubscriberExt;
 
-const LOG_FILE_NAME: &str = "portcove-desktop.jsonl";
-const MAX_LOG_BYTES: u64 = 4 * 1024 * 1024;
-const RETAINED_LOG_FILES: usize = 5;
+use crate::diagnostics_events::DiagnosticLayer;
+use crate::diagnostics_writer::{Guard, LOG_FILE_NAME, Limits, Producer, RuntimeWriter};
+
+const SHUTDOWN_FLUSH: Duration = Duration::from_secs(2);
 
 static NEXT_GITHUB_AUTH_OBSERVATION: AtomicU64 = AtomicU64::new(1);
 
@@ -37,7 +27,7 @@ impl GithubAuthObservation {
             command = "get_github_auth_status",
             request_id = observation.0,
             phase = "start",
-            "GitHub auth status observation"
+            message = "GitHub auth status observation"
         );
         observation
     }
@@ -49,47 +39,22 @@ impl GithubAuthObservation {
             request_id = self.0,
             phase = "complete",
             success = result.is_ok(),
-            code = ?result.as_ref().err().map(|error| error.code),
-            "GitHub auth status observation"
+            code = error_code_label(result.as_ref().err().map(|error| error.code)),
+            message = "GitHub auth status observation"
         );
         result
     }
 }
 
-#[derive(Clone)]
-struct DiagnosticLog {
-    inner: Arc<DiagnosticLogInner>,
-}
-
-struct DiagnosticLogInner {
-    path: PathBuf,
-    max_bytes: u64,
-    retained_files: usize,
-    lock: Mutex<()>,
-}
-
-struct DiagnosticLayer {
-    log: DiagnosticLog,
-}
-
-#[derive(Default)]
-struct FieldVisitor {
-    fields: BTreeMap<String, Value>,
-}
-
-pub fn initialize(logs_dir: &Path) -> Result<()> {
+fn initialize(logs_dir: &Path) -> Result<(Producer, Guard)> {
     let logs_dir = portcove_core::prepare_support_log_directory(logs_dir)?;
-    let log = DiagnosticLog::new(
-        logs_dir.join(LOG_FILE_NAME),
-        MAX_LOG_BYTES,
-        RETAINED_LOG_FILES,
-    );
-    let subscriber = tracing_subscriber::registry().with(DiagnosticLayer { log });
+    let (producer, guard) = RuntimeWriter::start(logs_dir.join(LOG_FILE_NAME), Limits::default())?;
+    let subscriber = tracing_subscriber::registry().with(DiagnosticLayer::new(producer.clone()));
     tracing::subscriber::set_global_default(subscriber).map_err(|error| {
         PortcoveError::state("could not initialize desktop diagnostics")
             .detail("cause", error.to_string())
     })?;
-    Ok(())
+    Ok((producer, guard))
 }
 
 /// This host-owned location survives library initialization/replacement. It
@@ -97,6 +62,7 @@ pub fn initialize(logs_dir: &Path) -> Result<()> {
 #[derive(Clone)]
 pub(crate) struct HostDiagnostics {
     pub(crate) directory: crate::DesktopResult<PathBuf>,
+    producer: Producer,
 }
 
 impl HostDiagnostics {
@@ -106,7 +72,96 @@ impl HostDiagnostics {
                 .as_ref()
                 .map(HostPreferenceStore::diagnostics_directory)
                 .map_err(Clone::clone),
+            producer: Producer::disabled(io::ErrorKind::NotConnected),
         }
+    }
+
+    pub(crate) fn start(&mut self) -> Option<Guard> {
+        let directory = self.directory.as_ref().ok()?;
+        match initialize(directory) {
+            Ok((producer, guard)) => {
+                self.producer = producer;
+                Some(guard)
+            }
+            Err(_) => {
+                // No raw OS/path/error details, and no attempt to report a
+                // logger failure through tracing. Library startup still runs.
+                self.producer = Producer::disabled(io::ErrorKind::Other);
+                None
+            }
+        }
+    }
+
+    pub(crate) fn health(&self) -> String {
+        let health = self.producer.health();
+        // Live independent readback: fixed copy and numeric/closed values only.
+        // This command does not open a library, read a log, or emit an event.
+        format!(
+            "Runtime diagnostics: {:?}\n\
+             admitted={} written={} dropped={} queue={}/{} peak={}\n\
+             full={} closed={} formatting={} oversized={} truncated_fields={} opaque_fields={}\n\
+             open_errors={} write_errors={} rotation_errors={} retention_errors={} lease_errors={}\n\
+             permission_errors={} disk_full_errors={} flush_errors={}\n\
+             record_limit={} field_limit={} value_budget={} producer_limit={}\n\
+             field_count_limit={} field_name_limit={} target_limit={}\n\
+             segment_limit={} retained_generations={} max_age_days=7 shutdown_deadline_ms=2000\n\
+             Best effort; abrupt exit can lose queued or unsynchronized records.",
+            health.flush_state,
+            health.admitted,
+            health.written,
+            health.dropped,
+            health.queue_depth,
+            Limits::default().queue_capacity,
+            health.queue_high_water,
+            health.dropped_full,
+            health.dropped_closed,
+            health.dropped_formatting,
+            health.dropped_oversized,
+            health.truncated_fields,
+            health.opaque_fields,
+            health.open_errors,
+            health.write_errors,
+            health.rotation_errors,
+            health.retention_errors,
+            health.lease_errors,
+            health.permission_errors,
+            health.disk_full_errors,
+            health.flush_errors,
+            Limits::default().max_record_bytes,
+            crate::diagnostics_events::MAX_FIELD_BYTES,
+            crate::diagnostics_events::MAX_VALUE_BYTES,
+            crate::diagnostics_events::MAX_FORMATTING_PRODUCERS,
+            crate::diagnostics_events::MAX_FIELDS,
+            crate::diagnostics_events::MAX_FIELD_NAME_BYTES,
+            crate::diagnostics_events::MAX_TARGET_BYTES,
+            Limits::default().max_file_bytes,
+            Limits::default().retained_files,
+        )
+    }
+}
+
+pub(crate) fn shutdown(guard: &mut Option<Guard>) {
+    if let Some(mut guard) = guard.take() {
+        let _ = guard.shutdown(SHUTDOWN_FLUSH);
+    }
+}
+
+// The closed domain enum has bounded fixed labels. Never format a whole error
+// or call an arbitrary Debug implementation to recover this useful field.
+pub(crate) fn error_code_label(code: Option<ErrorCode>) -> &'static str {
+    match code {
+        None => "None",
+        Some(ErrorCode::Usage) => "Some(Usage)",
+        Some(ErrorCode::Unsupported) => "Some(Unsupported)",
+        Some(ErrorCode::NotFound) => "Some(NotFound)",
+        Some(ErrorCode::SourceInvalid) => "Some(SourceInvalid)",
+        Some(ErrorCode::Network) => "Some(Network)",
+        Some(ErrorCode::Verification) => "Some(Verification)",
+        Some(ErrorCode::Install) => "Some(Install)",
+        Some(ErrorCode::State) => "Some(State)",
+        Some(ErrorCode::Launch) => "Some(Launch)",
+        Some(ErrorCode::Conflict) => "Some(Conflict)",
+        Some(ErrorCode::Cancelled) => "Some(Cancelled)",
     }
 }
 
@@ -123,126 +178,26 @@ pub fn create_support_bundle(
     })
 }
 
-impl DiagnosticLog {
-    fn new(path: PathBuf, max_bytes: u64, retained_files: usize) -> Self {
-        Self {
-            inner: Arc::new(DiagnosticLogInner {
-                path,
-                max_bytes,
-                retained_files,
-                lock: Mutex::new(()),
-            }),
-        }
-    }
-
-    fn append(&self, event: &Value) -> Result<()> {
-        let _guard = self
-            .inner
-            .lock
-            .lock()
-            .map_err(|_| PortcoveError::state("diagnostic log lock is unavailable"))?;
-        let mut event = event.clone();
-        redact_diagnostic_value(&mut event);
-        let mut line = serde_json::to_string(&event)?;
-        line.push('\n');
-        if self.inner.path.metadata().is_ok_and(|metadata| {
-            metadata.len().saturating_add(line.len() as u64) > self.inner.max_bytes
-        }) {
-            rotate_logs(&self.inner.path, self.inner.retained_files)?;
-        }
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&self.inner.path)?;
-        file.write_all(line.as_bytes())?;
-        file.sync_data()?;
-        Ok(())
-    }
-}
-
-impl<S> Layer<S> for DiagnosticLayer
-where
-    S: Subscriber,
-{
-    fn on_event(&self, event: &Event<'_>, _context: tracing_subscriber::layer::Context<'_, S>) {
-        let mut visitor = FieldVisitor::default();
-        event.record(&mut visitor);
-        let metadata = event.metadata();
-        let entry = json!({
-            "timestamp_ms": unix_timestamp_millis(),
-            "level": metadata.level().to_string(),
-            "target": metadata.target(),
-            "fields": visitor.fields,
-        });
-        let _ = self.log.append(&entry);
-    }
-}
-
-impl Visit for FieldVisitor {
-    fn record_str(&mut self, field: &Field, value: &str) {
-        self.record(field, value.to_owned());
-    }
-
-    fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
-        self.record(field, format!("{value:?}"));
-    }
-}
-
-impl FieldVisitor {
-    fn record(&mut self, field: &Field, value: String) {
-        let value = if is_sensitive_field(field.name()) {
-            "[REDACTED]".to_owned()
-        } else {
-            redact_text(&value)
-        };
-        self.fields
-            .insert(field.name().to_owned(), Value::String(value));
-    }
-}
-
-fn rotate_logs(path: &Path, retained_files: usize) -> Result<()> {
-    if retained_files == 0 {
-        if path.exists() {
-            fs::remove_file(path)?;
-        }
-        return Ok(());
-    }
-    for index in (1..retained_files).rev() {
-        let source = rotated_path(path, index);
-        let destination = rotated_path(path, index + 1);
-        if source.exists() {
-            if destination.exists() {
-                fs::remove_file(&destination)?;
-            }
-            fs::rename(source, destination)?;
-        }
-    }
-    if path.exists() {
-        let first = rotated_path(path, 1);
-        if first.exists() {
-            fs::remove_file(&first)?;
-        }
-        fs::rename(path, first)?;
-    }
-    Ok(())
-}
-
-fn rotated_path(path: &Path, index: usize) -> PathBuf {
-    PathBuf::from(format!("{}.{index}", path.display()))
-}
-
-fn unix_timestamp_millis() -> u128 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use portcove_core::PortcoveService;
-    use std::{fs::File, io::Read};
+    use crate::diagnostics_writer::{EnqueueOutcome, FlushState};
+    use portcove_core::{
+        PortcoveService, redact_diagnostic_text as redact_text, redact_diagnostic_value,
+        sensitive_diagnostic_field as is_sensitive_field,
+    };
+    use serde_json::{Value, json};
+    use std::{
+        fs::{self, File},
+        io::Read,
+    };
+
+    fn append_fixture(producer: &Producer, mut value: Value) {
+        redact_diagnostic_value(&mut value);
+        let mut record = serde_json::to_vec(&value).unwrap();
+        record.push(b'\n');
+        assert_eq!(producer.try_record(record), EnqueueOutcome::Accepted);
+    }
 
     #[test]
     fn support_export_uses_host_location_without_a_ready_library() {
@@ -253,13 +208,16 @@ mod tests {
         let directory = host.directory.unwrap();
         assert_eq!(directory, temporary.path().join("diagnostics"));
         fs::create_dir(&directory).unwrap();
-        DiagnosticLog::new(
-            directory.join(LOG_FILE_NAME),
-            MAX_LOG_BYTES,
-            RETAINED_LOG_FILES,
-        )
-        .append(&json!({"fields": {"message": "startup host log remains available"}}))
-        .unwrap();
+        let (producer, mut guard) =
+            RuntimeWriter::start(directory.join(LOG_FILE_NAME), Limits::default()).unwrap();
+        append_fixture(
+            &producer,
+            json!({"fields": {"message": "startup host log remains available"}}),
+        );
+        assert_eq!(
+            guard.shutdown(Duration::from_secs(2)).flush_state,
+            FlushState::Complete
+        );
         let failure = PortcoveError::state("unavailable library token=startup-canary").report();
         let original = failure.clone();
         let exported = create_support_bundle(None, Some(&failure), &directory).unwrap();
@@ -281,9 +239,8 @@ mod tests {
     fn auth_observation_preserves_results_and_records_only_fixed_safe_fields() {
         let temporary = tempfile::tempdir().unwrap();
         let path = temporary.path().join(LOG_FILE_NAME);
-        let subscriber = tracing_subscriber::registry().with(DiagnosticLayer {
-            log: DiagnosticLog::new(path.clone(), MAX_LOG_BYTES, RETAINED_LOG_FILES),
-        });
+        let (producer, mut guard) = RuntimeWriter::start(path.clone(), Limits::default()).unwrap();
+        let subscriber = tracing_subscriber::registry().with(DiagnosticLayer::new(producer));
         let value = Box::new("github_pat_success_payload".to_owned());
         let value_address = std::ptr::from_ref(value.as_ref());
         let failure = crate::DesktopError::from(
@@ -299,6 +256,10 @@ mod tests {
                 .unwrap_err();
             assert_eq!(forwarded, failure);
         });
+        assert_eq!(
+            guard.shutdown(Duration::from_secs(2)).flush_state,
+            FlushState::Complete
+        );
         let text = fs::read_to_string(path).unwrap();
         for secret in [
             "github_pat_success_payload",
@@ -384,22 +345,62 @@ mod tests {
     fn log_rotation_retains_prior_output_and_restart_appends() {
         let temporary = tempfile::tempdir().unwrap();
         let path = temporary.path().join(LOG_FILE_NAME);
-        let first = DiagnosticLog::new(path.clone(), 80, 2);
-        first
-            .append(&json!({ "message": "first event with enough content to rotate shortly" }))
-            .unwrap();
-        first
-            .append(&json!({ "message": "second event with enough content to rotate now" }))
-            .unwrap();
-        assert!(rotated_path(&path, 1).is_file());
+        let limits = Limits {
+            max_record_bytes: 80,
+            max_file_bytes: 80,
+            retained_files: 2,
+            ..Limits::default()
+        };
+        let (first, mut guard) = RuntimeWriter::start(path.clone(), limits).unwrap();
+        append_fixture(
+            &first,
+            json!({ "message": "first event with enough content to rotate shortly" }),
+        );
+        append_fixture(
+            &first,
+            json!({ "message": "second event with enough content to rotate now" }),
+        );
+        assert_eq!(
+            guard.shutdown(Duration::from_secs(2)).flush_state,
+            FlushState::Complete
+        );
+        assert!(
+            temporary
+                .path()
+                .join(format!("{LOG_FILE_NAME}.1"))
+                .is_file()
+        );
 
-        let restarted = DiagnosticLog::new(path.clone(), 1_000, 2);
-        restarted
-            .append(&json!({ "message": "after restart" }))
-            .unwrap();
+        let limits = Limits {
+            max_record_bytes: 1_000,
+            max_file_bytes: 1_000,
+            retained_files: 2,
+            ..Limits::default()
+        };
+        let (restarted, mut guard) = RuntimeWriter::start(path.clone(), limits).unwrap();
+        append_fixture(&restarted, json!({ "message": "after restart" }));
+        assert_eq!(
+            guard.shutdown(Duration::from_secs(2)).flush_state,
+            FlushState::Complete
+        );
         let active = fs::read_to_string(path).unwrap();
         assert!(active.contains("second event"));
         assert!(active.contains("after restart"));
+    }
+
+    #[test]
+    fn live_health_is_independent_of_logs_and_a_ready_library() {
+        let host = HostDiagnostics::new(&Err(PortcoveError::state(
+            "private-path token=health-canary",
+        )
+        .report()));
+        let first = host.health();
+        assert_eq!(first, host.health());
+        assert!(first.contains("Unavailable"));
+        assert!(first.contains("record_limit=32768"));
+        assert!(!first.contains("private-path"));
+        assert!(!first.contains("health-canary"));
+        assert_eq!(host.producer.health().admitted, 0);
     }
 
     #[test]

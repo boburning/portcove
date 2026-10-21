@@ -2391,16 +2391,66 @@ workspace remount clears it, and the core activity ledger and recovery state
 remain authoritative for completed, interrupted and failed operations. Evicting
 an event never removes durable history or declares recovery successful.
 
+### Runtime diagnostic writer
+
 Tauri writes structured JSONL diagnostics in the `diagnostics` directory beside
-the configured host-preference file, rotates at a bounded size, retains five
-generations, and appends across restarts. This host location is available before
-library initialization and remains stable across library replacement. Failure
-to initialize logging does not change the library initialization outcome.
-Earlier library-local logs are not migrated or searched. Sensitive structured
-field names and common inline credential forms are redacted before persistence.
-Operation events are logged with their core operation and parent IDs. Early
-failures before host preferences or the runtime lease remain owned by their
-existing subprocess diagnostics.
+the configured host-preference file. A dedicated best-effort worker owns file
+opening, writing, synchronization and rotation. Producers never perform file I/O
+or wait for queue capacity. At most eight producers format concurrently; a
+contended admission or full 256-record queue drops the new event. Records are
+capped at 32 KiB, for at most 8 MiB of queued payload plus one worker record and
+bounded formatting scratch. Limits apply to logger-owned buffers, not the
+caller's already-created values or total process memory.
+
+Each event admits at most 16 fields, 64 bytes per field name, 1 KiB per string
+value, 4 KiB of aggregate values and a 256-byte target. Oversized values are
+omitted whole before scanning or copying, preventing partial credential markers
+at clipping boundaries. Redaction runs before enqueue; its expansion and final
+JSON escaping are bounded too. Encoded oversize records are dropped whole, so
+UTF-8 and JSON are never cut into invalid prefixes. Arbitrary Debug, Display and
+error implementations, including tracing's formatted-message arguments, are not
+called. Their fields contain a fixed omission marker and increment independent
+counters. Borrowed strings, primitive fields, essential host messages and the
+existing Core operation/parent IDs remain available. Span values are not
+collected; approved typed span enrichment remains separately scoped. Logs are
+redacted, not anonymous.
+
+The active file and five exact rotation names each have a 4 MiB limit, for a
+24 MiB runtime-file budget below the evaluated 32 MiB ceiling. Seven-day expiry
+is checked at startup and at most once per minute during subsequent writes for
+those exact names; arbitrary directory entries are never swept. Idle files can
+remain until the next retention check. The
+writer takes a nonblocking namespace lease, validates regular single-link files
+and safe ancestors, and refuses a second participating writer. Its lock file is
+never removed. File, permission, rotation or retention failures remain visible
+in health and may leave existing bytes retained; they do not promise impossible
+cleanup or authorize deletion of unknown files. This lease does not introduce
+isolated session files or coordinate older versions that lack the lease.
+
+The read-only `get_runtime_diagnostic_health` desktop command (frontend adapter
+`desktopApi.runtimeDiagnosticHealth`) returns fixed text built from independent
+atomic counters and closed states. It works without a healthy library and does
+not read the log or report through tracing. It names admission/drop reasons,
+truncated and opaque fields, open/write/rotation/retention/lease errors,
+permission/disk-full failures, queue occupancy and flush state. Counters are
+separately sampled observations, not an atomic activity ledger.
+
+The worker synchronizes during idle intervals and at normal shutdown. Tauri's
+actual `RunEvent::Exit` callback closes admission and waits at most two seconds;
+the preventable `ExitRequested` event does not stop logging. A stalled OS call
+cannot be cancelled, so expiry detaches the worker and retains a timed-out
+status instead of waiting on a join. Abrupt process/machine exit can lose queued
+or unsynchronized records. This changes runtime-log durability only: Core
+activity capture, persistent operation outcomes and recovery remain unchanged.
+
+The host location is available before library initialization and remains stable
+across library replacement. Failure to initialize logging does not change the
+library initialization outcome. Earlier library-local logs are not migrated or
+searched. CLI subscriber policy and raw/machine output remain independent;
+shared host policy and session isolation are separately owned. Early failures
+before host preferences or the runtime lease remain owned by their existing
+subprocess diagnostics. The owned fixture and measurement method is described
+in [runtime diagnostic qualification](reference/runtime-diagnostic-qualification.md).
 
 ### Support-bundle export classification
 

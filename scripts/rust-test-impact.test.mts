@@ -78,6 +78,99 @@ void test("workspace impact preserves package qualification and broad fallback b
   const artwork = selectWorkspaceRustImpact(workspacePlan(["crates/portcove-core/src/artwork.rs"]));
   assert.ok(artwork.some((g) => g.packageName === "portcove-cli"));
 });
+void test("runtime diagnostics preserve the exact CLI fixture across Desktop and fixture changes", () => {
+  const fixture = "crates/portcove-cli/tests/runtime_diagnostics.rs";
+  const expected = "package(=portcove-cli) & (test(/^runtime_diagnostics_/))";
+  for (const file of [
+    "apps/desktop/src-tauri/src/diagnostics.rs",
+    "apps/desktop/src-tauri/src/diagnostics_writer.rs",
+    "apps/desktop/src-tauri/src/diagnostics_writer_tests.rs",
+    "apps/desktop/src-tauri/src/diagnostics_events.rs",
+    "apps/desktop/src-tauri/src/diagnostics_events_tests.rs",
+    fixture,
+  ]) {
+    const groups = selectWorkspaceRustImpact(workspacePlan([file]));
+    assert.equal(groups.filter((group) => group.packageName === "portcove-cli").length, 1, file);
+    assert.ok(
+      groups.some((group) => group.filter === expected),
+      file,
+    );
+    assert.equal(
+      groups.some((group) => group.packageName === "portcove-desktop"),
+      file !== fixture,
+    );
+  }
+  const combined = selectWorkspaceRustImpact(
+    workspacePlan([
+      "apps/desktop/src-tauri/src/diagnostics_writer.rs",
+      "crates/portcove-cli/tests/machine_contract/artwork.rs",
+    ]),
+  );
+  assert.ok(combined.some((group) => group.filter === expected));
+  assert.ok(combined.some((group) => group.id === "portcove-cli:artwork-fixtures"));
+  const alreadyCovered = selectWorkspaceRustImpact(
+    workspacePlan(["apps/desktop/src-tauri/src/diagnostics_writer.rs", fixture]),
+  );
+  assert.equal(alreadyCovered.filter((group) => group.packageName === "portcove-cli").length, 1);
+  assert.ok(
+    !selectWorkspaceRustImpact(workspacePlan(["apps/desktop/src-tauri/src/unrelated.rs"])).some(
+      (group) => group.packageName === "portcove-cli",
+    ),
+  );
+});
+
+void test("runtime diagnostics use complete CLI fallback for uncertain cross-package changes", () => {
+  const writer = "apps/desktop/src-tauri/src/diagnostics_writer.rs";
+  const plan = workspacePlan([writer]);
+  const absentGroup = structuredClone(map);
+  requiredFixture(absentGroup.packages["portcove-cli"]).groups = requiredFixture(
+    absentGroup.packages["portcove-cli"],
+  ).groups.filter((group) => group.id !== "runtime-diagnostics");
+  for (const incomplete of [null, absentGroup]) {
+    assert.equal(
+      selectWorkspaceRustImpact(plan, incomplete).find(
+        (group) => group.packageName === "portcove-cli",
+      )?.filter,
+      "package(=portcove-cli)",
+    );
+  }
+  for (const change of [
+    { status: "D", oldMode: "100644", newMode: "000000", oldPath: writer, newPath: writer },
+    {
+      status: "R100",
+      oldMode: "100644",
+      newMode: "100644",
+      oldPath: writer,
+      newPath: "apps/desktop/src-tauri/src/moved_writer.rs",
+    },
+    {
+      status: "R100",
+      oldMode: "100644",
+      newMode: "100644",
+      oldPath: "apps/desktop/src-tauri/src/former_writer.rs",
+      newPath: writer,
+    },
+  ]) {
+    const changed = buildValidationPlan({
+      changes: [change],
+      eventName: "pull_request",
+      base: "a".repeat(40),
+      mergeBase: "a".repeat(40),
+      head: "b".repeat(40),
+      checkout: "b".repeat(40),
+    });
+    assert.equal(
+      selectWorkspaceRustImpact(changed).find((group) => group.packageName === "portcove-cli")
+        ?.filter,
+      "package(=portcove-cli)",
+    );
+  }
+  const broad = selectWorkspaceRustImpact(
+    workspacePlan([writer, "crates/portcove-cli/src/main.rs"]),
+  ).filter((group) => group.packageName === "portcove-cli");
+  assert.equal(broad.length, 1);
+  assert.equal(broad[0]?.filter, "package(=portcove-cli)");
+});
 void test("workspace inventory permits multiple packages but rejects incomplete identity/count records", () => {
   const complete = inventory(["core"]);
   complete["rust-suites"]["portcove-cli"] = {

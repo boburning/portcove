@@ -117,6 +117,12 @@
           "reason": "the public artwork consumer fixture preserves catalog defaults, local choices, reset and explicit cleanup",
           "paths": ["crates/portcove-cli/tests/machine_contract/artwork.rs"],
           "filter": "test(/^artwork_contract::/)"
+        },
+        {
+          "id": "runtime-diagnostics",
+          "reason": "the exact Desktop runtime writer and event layer preserve committed Core outcomes and public CLI machine readback under injected failures",
+          "paths": ["crates/portcove-cli/tests/runtime_diagnostics.rs"],
+          "filter": "test(/^runtime_diagnostics_/)"
         }
       ]
     }

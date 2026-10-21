@@ -680,6 +680,53 @@ const fastDependencyReview = jobSection("fast_dependency_review", "dependency_re
 const dependencyReview = jobSection("dependency_review_full", "dependency-review");
 const dependencyReviewGate = jobSection("dependency-review");
 
+void test("runtime diagnostics retain Windows outcome fixtures and standalone Linux writer evidence", () => {
+  assert.match(fastRust, /runs-on: windows-latest/u);
+  assert.match(
+    fastRust,
+    /PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR: .*\/work\/runtime-diagnostics\/windows/u,
+  );
+  assert.match(fastRust, /rust-test-impact\.mts --workspace-run/u);
+  assert.match(fastRust, /PORTCOVE_DIAGNOSTICS_SOURCE_REVISION=.*GITHUB_ENV/u);
+  assert.match(
+    fastRust,
+    /- name: Retain runtime diagnostics acceptance and latency evidence\n\s+if: always\(\)/u,
+  );
+  const linuxFixture = requiredFixture(
+    requiredFixture(
+      fastRustQuality.split("      - name: Test bounded runtime diagnostics writer on Linux")[1],
+    ).split("      - name: Retain Linux runtime diagnostics writer evidence")[0],
+  );
+  assert.match(
+    linuxFixture,
+    /if: contains\(fromJSON\(needs\.classify\.outputs\.groups_json\), 'rust'\)/u,
+  );
+  assert.match(linuxFixture, /shell: bash/u); // Bash's pipefail preserves a failed test before tee.
+  assert.match(
+    linuxFixture,
+    /rustc --edition 2024 --test apps\/desktop\/src-tauri\/src\/diagnostics_writer\.rs/u,
+  );
+  assert.match(linuxFixture, /--test-threads=1 --nocapture 2>&1 \| tee/u);
+  assert.doesNotMatch(linuxFixture, /cargo (?:build|test)|tauri build|continue-on-error/u);
+  for (const lane of [fastRust, fastRustQuality]) {
+    assert.match(lane, /checked-git\.mts rev-parse HEAD/u);
+    assert.match(lane, /rustc --version --verbose/u);
+    assert.match(lane, /source_sha256:hashes/u);
+    for (const source of [
+      "apps/desktop/src-tauri/src/diagnostics_writer.rs",
+      "apps/desktop/src-tauri/src/diagnostics_events.rs",
+      "crates/portcove-cli/tests/runtime_diagnostics.rs",
+    ])
+      assert.ok(lane.includes(source), source);
+    assert.match(lane, /name: runtime-diagnostics-(?:windows|linux)-/u);
+    assert.match(lane, /path: work\/runtime-diagnostics\/(?:windows|linux)\//u);
+  }
+  assert.match(
+    fastRustQuality,
+    /- name: Retain Linux runtime diagnostics writer evidence\n\s+if: always\(\) && contains/u,
+  );
+});
+
 void test("Windows diagnostics serialize file workers without changing coverage or deadlines", () => {
   const command = requiredFixture(
     windowsStorage.match(

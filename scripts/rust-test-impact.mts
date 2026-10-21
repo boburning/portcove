@@ -389,6 +389,41 @@ export function selectWorkspaceRustImpact(
       reason: "public CLI artwork consumer",
     });
   }
+  // The CLI fixture compiles these exact Desktop modules without a Tauri host.
+  // Preserve that real Core/machine-output consumer when its implementation changes.
+  const diagnosticsInputs = new Set([
+    "apps/desktop/src-tauri/src/diagnostics.rs",
+    "apps/desktop/src-tauri/src/diagnostics_writer.rs",
+    "apps/desktop/src-tauri/src/diagnostics_writer_tests.rs",
+    "apps/desktop/src-tauri/src/diagnostics_events.rs",
+    "apps/desktop/src-tauri/src/diagnostics_events_tests.rs",
+  ]);
+  if (
+    plan.changes.some((change) =>
+      [change.oldPath, change.newPath].some((file) => diagnosticsInputs.has(file)),
+    ) &&
+    !selected.some(
+      (group) =>
+        group.packageName === "portcove-cli" &&
+        (group.filter === "package(=portcove-cli)" ||
+          group.id === "portcove-cli:runtime-diagnostics"),
+    )
+  ) {
+    const group = map?.packages?.["portcove-cli"]?.groups.find(
+      (entry) => entry.id === "runtime-diagnostics",
+    );
+    const certain =
+      group &&
+      plan.changes.every(
+        (change) => change.oldPath === change.newPath && ["A", "M"].includes(change.status),
+      );
+    selected.push({
+      id: "portcove-cli:runtime-diagnostics-consumer",
+      packageName: "portcove-cli",
+      filter: certain ? `package(=portcove-cli) & (${group.filter})` : "package(=portcove-cli)",
+      reason: "exact Desktop runtime writer and committed Core/CLI outcome fixture",
+    });
+  }
   return selected;
 }
 

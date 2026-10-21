@@ -201,6 +201,7 @@ jobs:
     runs-on: windows-latest
     env:
       PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
+      PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR: ${{ github.workspace }}/work/runtime-diagnostics/windows
       PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -236,10 +237,29 @@ jobs:
         run: node scripts/ci-metrics.mts cache rust-workspace "$env:PORTCOVE_CACHE_HIT"
       - name: Exercise relevant bootstrap regressions on Windows
         run: node scripts/ci-baseline.mts bootstrap
+      - name: Record runtime diagnostics fixture source and compiler
+        shell: pwsh
+        run: |
+          $revision = node scripts/checked-git.mts rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:PORTCOVE_DIAGNOSTICS_SOURCE_REVISION = $revision.Trim()
+          "PORTCOVE_DIAGNOSTICS_SOURCE_REVISION=$env:PORTCOVE_DIAGNOSTICS_SOURCE_REVISION" >> $env:GITHUB_ENV
+          node --input-type=module -e "import fs from 'node:fs'; import crypto from 'node:crypto'; const files = ['apps/desktop/src-tauri/src/diagnostics_writer.rs', 'apps/desktop/src-tauri/src/diagnostics_events.rs', 'crates/portcove-cli/tests/runtime_diagnostics.rs']; const hashes = Object.fromEntries(files.map(file => [file, crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')])); fs.mkdirSync(process.env.PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR, {recursive:true}); fs.writeFileSync(process.env.PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR + '/source.json', JSON.stringify({format_version:1, source_revision:process.env.PORTCOVE_DIAGNOSTICS_SOURCE_REVISION, runner_os:process.env.RUNNER_OS, runner_arch:process.env.RUNNER_ARCH, run_id:process.env.GITHUB_RUN_ID, run_attempt:process.env.GITHUB_RUN_ATTEMPT, source_sha256:hashes}, null, 2) + '\n');"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustc --version --verbose > "$env:PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/compiler.txt"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Compile workspace targets and test affected families
         env:
           PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
         run: node scripts/run-rust-tests.mts --guard-command node scripts/rust-test-impact.mts --workspace-run
+      - name: Retain runtime diagnostics acceptance and latency evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: runtime-diagnostics-windows-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/runtime-diagnostics/windows/
+          if-no-files-found: warn
+          retention-days: 7
       - name: Summarize diagnostic timings
         if: always()
         continue-on-error: true
@@ -264,6 +284,7 @@ jobs:
     env:
       PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
       PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
+      PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR: ${{ github.workspace }}/work/runtime-diagnostics/linux
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
@@ -288,6 +309,24 @@ jobs:
         run: |
           rustc --edition 2024 --test apps/desktop/src-tauri/src/application_update_process_environment.rs -o "$RUNNER_TEMP/portcove-update-environment-tests"
           "$RUNNER_TEMP/portcove-update-environment-tests"
+      - name: Test bounded runtime diagnostics writer on Linux
+        if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
+        shell: bash
+        run: |
+          PORTCOVE_DIAGNOSTICS_SOURCE_REVISION="$(node scripts/checked-git.mts rev-parse HEAD)"
+          export PORTCOVE_DIAGNOSTICS_SOURCE_REVISION
+          node --input-type=module -e "import fs from 'node:fs'; import crypto from 'node:crypto'; const files = ['apps/desktop/src-tauri/src/diagnostics_writer.rs', 'apps/desktop/src-tauri/src/diagnostics_events.rs', 'crates/portcove-cli/tests/runtime_diagnostics.rs']; const hashes = Object.fromEntries(files.map(file => [file, crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')])); fs.mkdirSync(process.env.PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR, {recursive:true}); fs.writeFileSync(process.env.PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR + '/source.json', JSON.stringify({format_version:1, source_revision:process.env.PORTCOVE_DIAGNOSTICS_SOURCE_REVISION, runner_os:process.env.RUNNER_OS, runner_arch:process.env.RUNNER_ARCH, run_id:process.env.GITHUB_RUN_ID, run_attempt:process.env.GITHUB_RUN_ATTEMPT, source_sha256:hashes}, null, 2) + '\n');"
+          rustc --version --verbose > "$PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/compiler.txt"
+          rustc --edition 2024 --test apps/desktop/src-tauri/src/diagnostics_writer.rs -o "$RUNNER_TEMP/portcove-diagnostics-writer-tests"
+          "$RUNNER_TEMP/portcove-diagnostics-writer-tests" --test-threads=1 --nocapture 2>&1 | tee "$PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/writer-tests.txt"
+      - name: Retain Linux runtime diagnostics writer evidence
+        if: always() && contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: runtime-diagnostics-linux-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/runtime-diagnostics/linux/
+          if-no-files-found: warn
+          retention-days: 7
       - name: Read pinned script tool manager
         if: needs.classify.outputs.script_tools == 'true'
         id: aqua-version
