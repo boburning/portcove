@@ -43,7 +43,7 @@ it("uses a named compact readiness choice at narrow and enlarged widths without 
   await expect
     .element(page.getByRole("button", { name: "Ready (1)", exact: true }))
     .toHaveAttribute("aria-pressed", "true");
-  await expect.element(readiness).not.toBeVisible();
+  await expect.element(readiness).not.toBeInTheDocument();
   await page.viewport(1366, 768);
   document.documentElement.style.fontSize = "200%";
   await expect.element(readiness).toBeVisible();
