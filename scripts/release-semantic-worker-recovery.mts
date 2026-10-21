@@ -1,3 +1,10 @@
+import { inspectCatalogReviewRequest } from "./release-catalog-review-request.mts";
+import {
+  readbackSemanticCheck,
+  readbackSemanticDispositionCheck,
+} from "./release-semantic-broker.mts";
+import type { SemanticIssuer } from "./release-semantic-broker.mts";
+import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { execFileSync } from "node:child_process";
 import { lstat, mkdir, open, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
@@ -48,8 +55,13 @@ async function json(root: string, name: string) {
 }
 
 /** Fixed GET-only OS readback. It never starts, stops, kills or resets a unit. */
-async function settleRetainedInvocation(root: string, expected: string, systemctlSha256: string) {
-  if (!(await absent(path.join(root, "capture/check-attempt.jsonl"))))
+async function settleRetainedInvocation(
+  root: string,
+  expected: string,
+  systemctlSha256: string,
+  reconciledOriginalPost = false,
+) {
+  if (!reconciledOriginalPost && !(await absent(path.join(root, "capture/check-attempt.jsonl"))))
     throw new Error("retained broker attempt requires GET-only reconciliation");
   const invocation = await json(root, "capture/invocation.json");
   if (
@@ -111,12 +123,168 @@ async function settleRetainedInvocation(root: string, expected: string, systemct
   return inspectSemanticTechnicalRecovery(isolation, properties);
 }
 
+/** Local claim inventory only; absence of both original directory and anchor
+ * has the same meaning as the existing initial-attempt path. */
+async function technicalClaims(requestDirectory: string) {
+  const anchor = path.join(
+    path.dirname(requestDirectory),
+    `${path.basename(requestDirectory)}.attempts.jsonl`,
+  );
+  const exists = !(await absent(requestDirectory)),
+    anchoredExists = !(await absent(anchor));
+  if (!exists && !anchoredExists) return [];
+  if (!exists) throw new Error("semantic attempt directory missing with retained anchor");
+  const directoryIdentity = await lstat(requestDirectory);
+  if (!directoryIdentity.isDirectory() || directoryIdentity.isSymbolicLink())
+    throw new Error("semantic attempt custody is not an ordinary directory");
+  const entries = await readdir(requestDirectory),
+    runs = entries.filter((name) => /^technical-[0-2]$/u.test(name)).sort();
+  const anchored = anchoredExists
+    ? (await readBoundedPublicBuildInputFile(path.dirname(anchor), path.basename(anchor), 4096))
+        .toString("utf8")
+        .trim()
+        .split("\n")
+    : [];
+  if (
+    JSON.stringify(anchored) !== JSON.stringify(runs) ||
+    runs.some((name, index) => name !== `technical-${index}`)
+  )
+    throw new Error("semantic attempt custody missing or contradictory; no counter reset");
+  return runs;
+}
+/** Fixed old-scope GET reconciliation and original technical settlement only.
+ * No result can become acceptance for the new request. Caller derives every
+ * predecessor from the authenticated immutable journal before invoking this. */
+export async function reconcileCatalogSemanticTechnicalPredecessors(
+  requestDirectory: string,
+  predecessors: readonly { request: unknown; directory: string }[],
+  systemctlSha256: string,
+  api: CoordinatorRemoteApi,
+  issuer: SemanticIssuer,
+) {
+  if (predecessors.length > 5) throw new Error("catalog technical lineage bound exceeded");
+  const seen = new Set<string>();
+  let claims = 0;
+  for (const predecessor of predecessors) {
+    const request = inspectCatalogReviewRequest(predecessor.request);
+    if (
+      !request ||
+      path.dirname(predecessor.directory) !== path.dirname(requestDirectory) ||
+      path.basename(predecessor.directory) !== `request-${request.request_id}` ||
+      predecessor.directory === requestDirectory ||
+      seen.has(predecessor.directory)
+    )
+      throw new Error("catalog technical predecessor path/identity differs");
+    seen.add(predecessor.directory);
+    const runs = await technicalClaims(predecessor.directory);
+    claims += runs.length;
+    if (claims > 3)
+      throw new Error("catalog semantic technical lineage exceeds initial+two budget");
+    for (const name of runs) {
+      const root = path.join(predecessor.directory, name),
+        hasPost = !(await absent(path.join(root, "expected-check.json")));
+      let invocations: unknown[];
+      if (hasPost) {
+        const retained = await json(root, "expected-check.json");
+        if (
+          !isRecord(retained) ||
+          !isRecord(retained.proposed_request) ||
+          !isRecord(retained.proposed_request.body) ||
+          !isRecord(retained.proposed_request.body.output) ||
+          typeof retained.proposed_request.body.external_id !== "string" ||
+          typeof retained.proposed_request.body.output.summary !== "string" ||
+          retained.proposed_request.body.head_sha !== request.opportunity.source_commit
+        )
+          throw new Error("old catalog POST locator differs from original request");
+        const body = retained.proposed_request.body,
+          output = body.output;
+        if (
+          !isRecord(output) ||
+          typeof output.summary !== "string" ||
+          typeof body.external_id !== "string"
+        )
+          throw new Error("old catalog POST output differs");
+        const expected = {
+          head: request.opportunity.source_commit,
+          external_id: body.external_id,
+          summary: output.summary,
+        };
+        if (body.conclusion === "success")
+          readbackSemanticCheck(api, issuer, request.opportunity, expected);
+        else if (body.conclusion === "failure")
+          readbackSemanticDispositionCheck(api, issuer, request, expected);
+        else throw new Error("old catalog POST conclusion unknown");
+        const log = (
+          await readBoundedPublicBuildInputFile(root, "worker-attempt.jsonl", 128 * 1024)
+        ).toString("utf8");
+        const rows: unknown[] = log
+          .trim()
+          .split("\n")
+          .map((line) => JSON.parse(line) as unknown);
+        invocations = rows
+          .filter((row) => isRecord(row) && row.phase === "runtime-prepared-no-process-yet")
+          .map((row) => {
+            if (!isRecord(row) || row.request_id !== request.request_id)
+              throw new Error("old catalog runtime request differs");
+            return row.evidence;
+          });
+        if (
+          !invocations.length ||
+          !invocations.some((value) => isRecord(value) && value.root === retained.root)
+        )
+          throw new Error("old catalog POST lacks original runtime custody");
+      } else {
+        const stopped = await json(root, "technical-stop.json");
+        if (
+          !isRecord(stopped) ||
+          stopped.outcome !== "technical-failure" ||
+          !Array.isArray(stopped.invocations)
+        )
+          throw new Error("old catalog attempt is live/incomplete");
+        invocations = stopped.invocations;
+      }
+      if (invocations.length > 2) throw new Error("old catalog invocation bound exceeded");
+      for (const value of invocations) {
+        if (
+          !isRecord(value) ||
+          typeof value.root !== "string" ||
+          path.dirname(value.root) !== root ||
+          !/^r-[A-Za-z0-9_-]+$/u.test(path.basename(value.root)) ||
+          typeof value.invocation_sha256 !== "string"
+        )
+          throw new Error("old catalog invocation identity differs");
+        await settleRetainedInvocation(
+          value.root,
+          value.invocation_sha256,
+          systemctlSha256,
+          hasPost,
+        );
+      }
+    }
+  }
+  return { claims, authority: "none" as const };
+}
+
 /** The sole installed worker retains initial+two technical invocations. State
  * loss, incomplete evidence and possible POST effects refuse automatic replay. */
 export async function claimSemanticTechnicalAttempt(
   requestDirectory: string,
   systemctlSha256: string,
+  predecessorDirectories: readonly string[] = [],
 ) {
+  if (
+    predecessorDirectories.length > 5 ||
+    new Set(predecessorDirectories).size !== predecessorDirectories.length ||
+    predecessorDirectories.some(
+      (prior) =>
+        path.dirname(prior) !== path.dirname(requestDirectory) ||
+        prior === requestDirectory ||
+        !/^request-[a-f0-9]{64}$/u.test(path.basename(prior)),
+    )
+  )
+    throw new Error("semantic predecessor directories differ");
+  let priorClaims = 0;
+  for (const prior of predecessorDirectories) priorClaims += (await technicalClaims(prior)).length;
   const entries = await readdir(requestDirectory);
   const runs = entries.filter((name) => /^technical-[0-2]$/u.test(name)).sort();
   const anchor = path.join(
@@ -134,7 +302,8 @@ export async function claimSemanticTechnicalAttempt(
   }
   if (JSON.stringify(anchored) !== JSON.stringify(runs))
     throw new Error("semantic attempt custody missing or contradictory; no counter reset");
-  if (runs.length >= 3) throw new Error("semantic technical retry budget exhausted");
+  if (runs.length + priorClaims >= 3)
+    throw new Error("semantic technical retry budget exhausted across maintenance lineage");
   if (runs.some((name, index) => name !== `technical-${index}`))
     throw new Error("semantic technical attempt custody has a gap");
   for (const name of runs) {

@@ -1,9 +1,14 @@
+import {
+  inspectPublishedMetadata,
+  validatePublishedMetadataTransition,
+} from "./release-metadata-contract.mts";
 /** Neutral data in the existing journal, never a positive review or grant. */
 import { createHash } from "node:crypto";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { inspectCatalogSemanticOpportunity } from "./release-catalog-semantic.mts";
 import {
   currentPublishedSite,
+  validatePublishedSiteTransition,
   inspectPublishedCatalogMetadata,
 } from "./release-catalog-metadata-contract.mts";
 import { inspectCatalogInitialization } from "./release-catalog-publication-contract.mts";
@@ -117,6 +122,81 @@ export function assertCatalogReviewRequestBaseline(
   return request;
 }
 
+/** Inert deterministic refreeze, usable only with the exact already-settled App
+ * metadata-only readback. The old complete request remains at checkpoint. */
+export function refreezeCatalogReviewAfterApplicationMetadata(
+  previous: Record<string, unknown>,
+  next: Record<string, unknown>,
+  checkpoint: string,
+) {
+  const request = inspectCatalogReviewRequest(previous.catalog_review_request);
+  if (!request) return null;
+  assertCatalogReviewRequestBaseline(request, previous);
+  const before = inspectPublishedMetadata(previous.published_metadata),
+    after = inspectPublishedMetadata(next.published_metadata);
+  const controller = previous.controller;
+  const op =
+    isRecord(controller) && isRecord(controller.capacity_attempt)
+      ? controller.capacity_attempt.operation
+      : null;
+  if (
+    !after ||
+    !isRecord(op) ||
+    (before
+      ? !isRecord(op.metadata_renewal) || op.metadata_bootstrap != null
+      : !isRecord(op.metadata_bootstrap) || op.metadata_renewal != null) ||
+    op.catalog_publication != null ||
+    previous.catalog_publication != null ||
+    next.catalog_publication != null ||
+    previous.active_candidate != null ||
+    next.active_candidate != null ||
+    (before &&
+      (before.records_sha256 !== after.records_sha256 ||
+        before.repository_sha256 === after.repository_sha256)) ||
+    digest(previous.catalog_review_disposition ?? null) !==
+      digest(next.catalog_review_disposition ?? null) ||
+    digest(previous.published_catalog_metadata ?? null) !==
+      digest(next.published_catalog_metadata ?? null)
+  )
+    throw new Error(
+      "unconsumed catalog request cannot be replaced or retimed without exact settled App metadata-only maintenance",
+    );
+  const clean = (input: Record<string, unknown>) => {
+    const { now, catalog_review_request, published_metadata, published_site, controller, ...rest } =
+      input;
+    void now;
+    void catalog_review_request;
+    void published_metadata;
+    void published_site;
+    if (!isRecord(controller) || !isRecord(controller.capacity_attempt))
+      throw new Error("catalog refreeze controller absent");
+    const { prior_operations, ...capacity } = controller.capacity_attempt;
+    void prior_operations;
+    return { ...rest, controller: { ...controller, capacity_attempt: capacity } };
+  };
+  if (digest(clean(previous)) !== digest(clean(next)))
+    throw new Error("catalog maintenance refreeze rewrites unrelated state/counters");
+  validatePublishedMetadataTransition(previous, next, op);
+  validatePublishedSiteTransition(previous, next, op);
+  const site = currentPublishedSite(next);
+  if (!site?.components.application)
+    throw new Error("catalog refreeze current application cursor absent");
+  return createCatalogReviewRequest({
+    before_checkpoint: checkpoint,
+    requested_at: String(next.now),
+    core_inspection: request.core_inspection,
+    opportunity: {
+      ...request.opportunity,
+      baseline: {
+        ...request.opportunity.baseline,
+        application_root_sha256: site.components.application.root_sha256,
+        application_repository_sha256: site.components.application.repository_sha256,
+        site_generation_sha256: site.generation_sha256,
+      },
+    },
+  });
+}
+
 /** A positive request can retire only into the same exact catalog descriptor.
  * Negative retirement is separately authenticated; absence never means success. */
 export function validateCatalogReviewRequestTransition(
@@ -147,8 +227,14 @@ export function validateCatalogReviewRequestTransition(
       throw new Error("catalog review needs exact idle checkpoint and frozen clock");
     return;
   }
-  if (before && after)
-    throw new Error("unconsumed catalog review request cannot be replaced or retimed");
+  if (before && after) {
+    if (
+      digest(refreezeCatalogReviewAfterApplicationMetadata(previous, next, checkpoint)) !==
+      digest(after)
+    )
+      throw new Error("unconsumed catalog review request cannot be replaced or retimed");
+    return;
+  }
   if (!before || next.catalog_publication == null)
     throw new Error("catalog review retirement requires exact authenticated result");
   const descriptor = inspectCatalogPublicationDescriptor(next.catalog_publication);

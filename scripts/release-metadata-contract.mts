@@ -392,3 +392,28 @@ export function validatePublishedMetadataTransition(
       throw new Error("metadata readback differs from frozen renewal");
   }
 }
+
+/** Scheduling only, with the existing descriptor/seed parsers. No key/readback
+ * authority is conveyed; actual workers still authenticate their own purpose. */
+export function applicationMetadataMaintenancePriority(
+  input: Record<string, unknown>,
+  now: string,
+) {
+  // Coordinator/wake clocks use ISO milliseconds; TUF metadata itself keeps
+  // its stricter fractional canonicalization in the existing seed parser.
+  if (!Number.isFinite(Date.parse(now))) throw new Error("maintenance clock invalid");
+  if (input.catalog_publication != null) return null;
+  const seed = inspectPublishedMetadata(input.published_metadata);
+  if (!seed)
+    return input.metadata_bootstrap == null
+      ? null
+      : (inspectMetadataBootstrapDescriptor(input.metadata_bootstrap), "bootstrap" as const);
+  const renewal =
+    input.metadata_renewal == null
+      ? null
+      : inspectMetadataRenewalDescriptor(input.metadata_renewal);
+  if (renewal?.prior_repository_sha256 === seed.repository_sha256) return "renewal" as const;
+  return Date.parse(seed.expires.timestamp) <= Date.parse(now) + 24 * 60 * 60 * 1000
+    ? ("renewal" as const)
+    : null;
+}

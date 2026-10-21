@@ -16,6 +16,7 @@ import {
 import { assessBoundedCapacity, capacityDigest } from "./release-capacity.mts";
 import {
   inspectPublishedMetadata,
+  applicationMetadataMaintenancePriority,
   inspectMetadataRenewalDescriptor,
   inspectMetadataBootstrapDescriptor,
 } from "./release-metadata-contract.mts";
@@ -609,6 +610,32 @@ export function planReleaseOpportunity(input: unknown) {
       "explicit catalog subject ready for independently authenticated catalog admission",
       authority,
       { catalog_publication: catalogPublication, admission: "required" as const },
+    );
+  }
+  if (
+    (catalogReviewRequest || catalogReviewDisposition) &&
+    applicationMetadataMaintenancePriority(input, String(input.now))
+  ) {
+    if (catalogReviewRequest) assertCatalogReviewRequestBaseline(catalogReviewRequest, input);
+    if (input.opportunity !== null) validateOpportunity(input.opportunity);
+    return plan(
+      controller.publication_paused || controller.capacity?.eligibility !== "eligible"
+        ? "pause"
+        : "skip",
+      "accepted application metadata maintenance precedes neutral catalog review; request/history retained",
+      {
+        ...siteAuthority,
+        controller_workflow: controller.workflow,
+        controller_revision: controller.revision,
+        publication_observed_at: publication.observed_at,
+        publication_sha256: capacityDigest(input.publication),
+        published_metadata_sha256: capacityDigest(publishedMetadata),
+        metadata_renewal_sha256: capacityDigest(metadataRenewal),
+        metadata_bootstrap_sha256: capacityDigest(metadataBootstrap),
+        catalog_review_request_sha256: capacityDigest(catalogReviewRequest),
+        catalog_review_disposition_sha256: capacityDigest(catalogReviewDisposition),
+        ...(controller.capacity ? { capacity_attempt: controller.capacity } : {}),
+      },
     );
   }
   if (catalogReviewRequest) {

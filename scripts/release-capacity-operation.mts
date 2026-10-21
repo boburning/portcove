@@ -1,3 +1,4 @@
+import { refreezeCatalogReviewAfterApplicationMetadata } from "./release-catalog-review-request.mts";
 import { assertReportRepairDispatch } from "./release-report-repair-contract.mts";
 import {
   inspectPublishedCatalogMetadata,
@@ -767,6 +768,17 @@ async function recordPublishedComponent(
     input.catalog_publication = null;
   } else input.published_metadata = structuredClone(published);
   if (cursor) input.published_site = cursor;
+  if (
+    component === "application" &&
+    recovered.input.catalog_review_request != null &&
+    isRecord(capacity.operation) &&
+    (capacity.operation.metadata_renewal != null || capacity.operation.metadata_bootstrap != null)
+  )
+    input.catalog_review_request = refreezeCatalogReviewAfterApplicationMetadata(
+      recovered.input,
+      input,
+      expected,
+    );
   capacity.prior_operations = expectedCompactCapacityOperations(recovered.input, input, expected);
   const result = await checkpointReleaseOpportunity(repository, expected, input);
   if (remote) {

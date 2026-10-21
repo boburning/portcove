@@ -45,7 +45,11 @@ import type { SemanticIssuerCustody } from "./release-semantic-issuer.mts";
 import { reviewFrozenCoordinatorRequest } from "./release-semantic-request-pipeline.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
-import { claimSemanticTechnicalAttempt } from "./release-semantic-worker-recovery.mts";
+import { hydrateCatalogReviewMaintenanceLineage } from "./release-coordinator-state.mts";
+import {
+  reconcileCatalogSemanticTechnicalPredecessors,
+  claimSemanticTechnicalAttempt,
+} from "./release-semantic-worker-recovery.mts";
 
 /** Inert routing only; simultaneous requests or malformed history cannot select a fallback. */
 export function inspectSemanticWorkerRequest(input: unknown) {
@@ -683,6 +687,46 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
   // An original POST locator selects GET-only reconciliation even when the
   // provider has not yet exposed a matching Check. Never infer no remote effect.
   if (existingLocators.length) throw new Error("original Check POST requires readback; no repeat");
+  const catalogRecovered =
+    selected.purpose === "catalog"
+      ? await recoverRemoteCoordinator(directory, namespace, { transport })
+      : null;
+  let predecessorDirectories: string[] = [];
+  if (catalogRecovered) {
+    if (
+      catalogRecovered.checkpoint !== snapshot.checkpoint ||
+      capacityDigest(inspectSemanticWorkerRequest(catalogRecovered.input)) !==
+        capacityDigest(selected)
+    )
+      throw new Error("catalog request changed before lineage recovery");
+    const lineage = await hydrateCatalogReviewMaintenanceLineage(
+      catalogRecovered.repository,
+      request,
+      catalogRecovered.input,
+      api,
+      performance.now() + 15000,
+    );
+    const predecessors = lineage.slice(1).map((previous) => ({
+      request: previous,
+      directory: path.join(config.output_parent, `request-${previous.request_id}`),
+    }));
+    predecessorDirectories = predecessors.map((value) => value.directory);
+    for (const previous of predecessors) {
+      try {
+        await lstat(previous.directory);
+        await requirePrivateOwnerPath(previous.directory, false);
+      } catch (error) {
+        if (!isRecord(error) || error.code !== "ENOENT") throw error;
+      }
+    }
+    await reconcileCatalogSemanticTechnicalPredecessors(
+      requestDirectory,
+      predecessors,
+      config.runtime.tools_sha256.systemctl,
+      api,
+      config.issuer.issuer,
+    );
+  }
   try {
     await mkdir(requestDirectory, { mode: 0o700 });
   } catch (error) {
@@ -692,6 +736,7 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
   const attempt = await claimSemanticTechnicalAttempt(
     requestDirectory,
     config.runtime.tools_sha256.systemctl,
+    predecessorDirectories,
   );
   const invocations: { root: string; invocation_sha256: string }[] = [];
   const record = await open(path.join(attempt, "worker-attempt.jsonl"), "wx", 0o600);
@@ -721,9 +766,11 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
   };
   try {
     await retain("started-no-runtime-no-post", request);
-    const recovered = await recoverRemoteCoordinator(attempt, namespace, {
-      transport,
-    });
+    const recovered =
+      catalogRecovered ??
+      (await recoverRemoteCoordinator(attempt, namespace, {
+        transport,
+      }));
     if (capacityDigest(inspectSemanticWorkerRequest(recovered.input)) !== capacityDigest(selected))
       throw new Error("journal changed during full request recovery");
     await guard();

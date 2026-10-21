@@ -1,3 +1,4 @@
+import { applicationMetadataMaintenancePriority } from "./release-metadata-contract.mts";
 import { constants } from "node:fs";
 import { createHash } from "node:crypto";
 import { open, writeFile, appendFile } from "node:fs/promises";
@@ -781,8 +782,9 @@ export function readWakePurposePriority(api: Api, namespace: string) {
     throw new Error("wake routing outcome unknown");
   if (operation && !["succeeded", "recovered"].includes(String(operation.outcome)))
     return operation.catalog_publication != null ? "catalog-publication" : "application";
-  if (input.catalog_publication != null || input.catalog_review_request != null)
-    return "catalog-publication";
+  if (input.catalog_publication != null) return "catalog-publication";
+  if (applicationMetadataMaintenancePriority(input, new Date().toISOString())) return "application";
+  if (input.catalog_review_request != null) return "catalog-publication";
   return null;
 }
 async function main() {
