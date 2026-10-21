@@ -516,6 +516,7 @@ async function runFixedWindowsCapture(
       {
         cwd: parent.controller_root,
         environment,
+        queueDeadline: Math.floor(performance.now() + remainingNativeParentBudget()),
         exclusive: [`native-account:${account.qualification}`],
         supervise: async (args, options) =>
           runRustTests(args, {
