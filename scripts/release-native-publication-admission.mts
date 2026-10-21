@@ -114,11 +114,21 @@ export function inspectNativeInitialPublicationJourney(raw: {
   signed_context_sha256: string;
   signatures_sha256: string;
   prior_records_sha256: string;
+  authority_schema_version?: unknown;
 }) {
-  const selected = structuredClone(raw),
-    bootstrap = inspectMetadataBootstrapDescriptor(selected.bootstrap),
+  const selected = structuredClone(raw);
+  if (
+    selected.authority_schema_version !== undefined &&
+    selected.authority_schema_version !== 1 &&
+    selected.authority_schema_version !== 2
+  )
+    throw new Error("native publication authority schema differs");
+  const bootstrap = inspectMetadataBootstrapDescriptor(selected.bootstrap),
     published = inspectPublishedMetadata(selected.published),
-    pins = inspectPublicationAuthorities(selected.public_pins),
+    pins = inspectPublicationAuthorities(
+      selected.public_pins,
+      selected.authority_schema_version ?? 1,
+    ),
     groups = inspectCompactCapacityOperations(selected.capacity_groups),
     bootstrapSha = digest(bootstrap);
   if (
@@ -206,7 +216,7 @@ async function collectNativePublicationPair(
   const context = await requireReceivedSigningContext(receivedContext, deadline),
     manifest = context.manifest,
     authorities = await requireControllerNativePrepublicationAuthorities(),
-    publicPins = inspectPublicationAuthorities(authorities.publication);
+    publicPins = inspectPublicationAuthorities(authorities.publication, authorities.schema_version);
   if (
     !isRecord(manifest.facts) ||
     !isRecord(manifest.facts.configuration) ||
@@ -359,6 +369,7 @@ async function collectNativePublicationPair(
         published,
         capacity_groups: controller.capacity_attempt.prior_operations,
         public_pins: publicPins,
+        authority_schema_version: authorities.schema_version,
         payload_sha256: hash(required("payload.json")),
         signed_context_sha256: signedContext,
         signatures_sha256: binding.signatures_sha256,
