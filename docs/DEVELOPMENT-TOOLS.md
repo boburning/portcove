@@ -1129,7 +1129,7 @@ just desktop-verify --profile presentation
 `native-library-layout` uses two owned inert installations to check both Library
 views and themes through ordinary window sizes and native interface sizing. At
 startup it imports the existing red/blue diagnostic JPEGs into the disposable
-Library and waits for their decoded images, isolating resize behavior from
+Library and waits for their loaded images, isolating resize behavior from
 catalog-network arrival and failure notices. These are geometry fixtures, not
 game-artwork references. At
 200%, it retains settled screenshots and an ordinary/wider/compact/ordinary
