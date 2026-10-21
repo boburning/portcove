@@ -7,12 +7,14 @@ import {
   acquireActualPublicJourneyPair,
   requireActualPublicJourneyPair,
   requireActualPublicJourneyPackage,
+  inspectPublicJourneyContinuation,
 } from "./release-native-public-pair.mts";
+import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 const sha = (b: Buffer) => createHash("sha256").update(b).digest("hex");
-function fixture() {
+function fixture(count = 2) {
   const files = new Map<string, Buffer>(),
     entries: Record<string, unknown>[] = [];
-  const allocations = [0, 1].map((i) => ({
+  const allocations = Array.from({ length: count }, (_, i) => i).map((i) => ({
     version: `0.1.${i}`,
     source_commit: String(i + 1).repeat(40),
     source_tree: "9".repeat(40),
@@ -84,6 +86,86 @@ function fixture() {
   );
   return { files, allocations, entries };
 }
+
+function withdraw(f: ReturnType<typeof fixture>) {
+  const name = "records/channels/preview/windows-x86_64/nsis/0.1.1.json";
+  const value = JSON.parse(f.files.get(name)!.toString("utf8")) as Record<string, unknown>;
+  value.eligible = false;
+  value.withdrawn = true;
+  const bytes = Buffer.from(JSON.stringify(value));
+  f.files.set(name, bytes);
+  const entry = f.entries.find((entry) => `records/${String(entry.path)}` === name)!;
+  entry.sha256 = sha(bytes);
+  entry.bytes = bytes.length;
+  f.files.set(
+    "records/reconstruction-manifest.json",
+    Buffer.from(JSON.stringify({ schema_version: 1, records: f.entries })),
+  );
+}
+void test("current immutable history reconstructs the exact retained V0/V1 graph after withdrawal and binds actual next V2", () => {
+  const original = fixture(),
+    initial = inspectInitialPublicJourneyCohort(
+      original.allocations,
+      original.files,
+      "windows-x86_64",
+    ),
+    current = fixture(3);
+  withdraw(current);
+  const result = inspectPublicJourneyContinuation(
+    current.allocations,
+    current.files,
+    "windows-x86_64",
+    digest(initial),
+  );
+  assert.deepEqual(result.initial, initial);
+  assert.equal(result.parked.version, "0.1.1");
+  assert.equal(result.candidate.version, "0.1.2");
+  assert.equal(result.authority, "none");
+  const reselected = inspectInitialPublicJourneyCohort(
+    current.allocations,
+    current.files,
+    "windows-x86_64",
+  );
+  assert.equal(reselected.candidate.version, "0.1.2");
+  assert.notEqual(digest(reselected), digest(initial));
+});
+void test("continuation refuses an unwithdrawn V1, replaced historical identity, missing V2 or current Preview drift", () => {
+  const old = fixture(),
+    pin = digest(inspectInitialPublicJourneyCohort(old.allocations, old.files, "windows-x86_64"));
+  const unwithdrawn = fixture(3);
+  assert.throws(() =>
+    inspectPublicJourneyContinuation(
+      unwithdrawn.allocations,
+      unwithdrawn.files,
+      "windows-x86_64",
+      pin,
+    ),
+  );
+  const absent = fixture();
+  withdraw(absent);
+  assert.throws(() =>
+    inspectPublicJourneyContinuation(absent.allocations, absent.files, "windows-x86_64", pin),
+  );
+  const current = fixture(3);
+  withdraw(current);
+  assert.throws(() =>
+    inspectPublicJourneyContinuation(
+      current.allocations,
+      current.files,
+      "windows-x86_64",
+      "0".repeat(64),
+    ),
+  );
+  current.allocations[0]!.prepared_tree = "c".repeat(40);
+  assert.throws(() =>
+    inspectPublicJourneyContinuation(current.allocations, current.files, "windows-x86_64", pin),
+  );
+  const drift = fixture(4);
+  withdraw(drift);
+  assert.throws(() =>
+    inspectPublicJourneyContinuation(drift.allocations, drift.files, "windows-x86_64", pin),
+  );
+});
 void test("initial public pair associates first allocations with exact retained records/current Preview, without appointing native authority", () => {
   const f = fixture(),
     pair = inspectInitialPublicJourneyCohort(f.allocations, f.files, "windows-x86_64");

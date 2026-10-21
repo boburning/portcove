@@ -278,3 +278,15 @@ account/product registration and could alter B's parked V0 before V2 publication
 Positive process settlement does not isolate that durable registration. This
 source increment does not appoint another account, relax native gates or claim
 that scheduling conflict resolved.
+
+The current-record association helper now shares the original immutable-release
+parser with the initial selector. It can reconstruct the precise original pair
+under a retained cohort digest after V1's promotion is withdrawn, require the
+actual V1 withdrawal, and identify only the first genuinely published eligible
+newer V2 while refusing later Preview drift or a required bridge. This helper is
+data-only and does not supply the still-required actual protected historical
+claim, compiler/package retention or parent/capture continuation. Six focused
+pair cases and typed checks passed. The first new test wrongly expected the
+initial selector to refuse V0/V2 reselection; its corrected assertion explicitly
+proves that reselection changes the retained pair digest, which is why the
+continuation requires the original protected marker.
