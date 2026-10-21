@@ -1,6 +1,6 @@
 import { constants } from "node:fs";
 import { createHash } from "node:crypto";
-import { open, readFile, writeFile, appendFile } from "node:fs/promises";
+import { open, writeFile, appendFile } from "node:fs/promises";
 import { crc32, inflateRawSync } from "node:zlib";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -345,7 +345,9 @@ export async function reconcilePreviousWakes(
         {
           artifact: { id: matches[0].id, sha256: matches[0].digest.slice(7) },
           directory: options.directory ?? process.cwd(),
-          approved_configurations: options.approved_configurations,
+          ...(options.approved_configurations === undefined
+            ? {}
+            : { approved_configurations: options.approved_configurations }),
           ...(options.download ? { download: options.download } : {}),
           ...(options.deadline === undefined ? {} : { deadline: options.deadline }),
         },
@@ -605,9 +607,10 @@ export async function wakeRatifiedController(
   await record("dispatch-intent", intent);
   if (options.mode === "prepare")
     return { authority: "none", decision: "intent-prepared-only" as const, intent };
+  const { approved_configurations, ...currentIntentOptions } = options;
+  void approved_configurations; // The current upload must match ONLY its selected intent.
   await verifyWakeIntentUpload(api, environment, intent, {
-    ...options,
-    approved_configurations: undefined,
+    ...currentIntentOptions,
     deadline,
   });
   await reconcilePreviousWakes(config, environment, api, record, { ...options, deadline });
@@ -858,7 +861,7 @@ async function main() {
       if (!process.env.GITHUB_OUTPUT) throw new Error("wake selection output unavailable");
       await appendFile(
         process.env.GITHUB_OUTPUT,
-        `dispatch_app_id=${authority.apps.dispatch.app_id}\ndispatch_installation_id=${authority.apps.dispatch.installation_id}\npublication_purpose=${selected.publication_purpose ?? "application"}\n`,
+        `dispatch_app_id=${String(authority.apps.dispatch.app_id)}\ndispatch_installation_id=${String(authority.apps.dispatch.installation_id)}\npublication_purpose=${selected.publication_purpose ?? "application"}\n`,
       );
     } else {
       const handle = await open(

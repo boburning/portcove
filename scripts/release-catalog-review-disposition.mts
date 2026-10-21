@@ -131,7 +131,9 @@ export function inspectCatalogReviewDisposition(raw: unknown) {
     typeof raw.session_ref !== "string" ||
     !raw.session_ref ||
     Buffer.byteLength(raw.session_ref) > 512 ||
-    /[\x00-\x1f\x7f]/u.test(raw.session_ref) ||
+    Array.from(raw.session_ref).some(
+      (character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+    ) ||
     raw.review_app_id === 15368
   )
     throw new Error("catalog disposition completion/producer absent");

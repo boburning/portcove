@@ -141,6 +141,9 @@ void test("compact negative is data-only, exact and bounded; raw objects cannot 
     { stage: "classification-proposal" },
     { review_app_id: 15368 },
     { session_ref: "x".repeat(513) },
+    { session_ref: "bad\u0000" },
+    { session_ref: "bad\u001f" },
+    { session_ref: "bad\u007f" },
     { completed_at: "2026-02-30T00:00:00Z" },
     { transient_retries: 3 },
     { substantive_repairs: 4 },
@@ -176,7 +179,7 @@ void test("compact negative is data-only, exact and bounded; raw objects cannot 
 void test("negative retirement preserves unrelated holds/counters and only a fresh unchanged publication inventory may refresh", () => {
   const f = fixture(),
     request = f.request(),
-    before = { ...f.input, catalog_review_request: request },
+    before: Record<string, unknown> = { ...f.input, catalog_review_request: request },
     receipt = negative(request, "d".repeat(40));
   const after = {
     ...before,

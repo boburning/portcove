@@ -43,8 +43,8 @@ export const slice4CapacityResources = Object.freeze({
   wake_workflow_sha256: "55785021aefd968316c719dd67cc5f9ee00c4b15f8fd1f737f405ff00fc35988",
   wake_job_minutes: Object.freeze([1]),
   declared_job_minutes: 99,
-  catalog_job_minutes: Object.freeze([1,4,2,3,2,2,2,2,5]),
-  catalog_observer_job_minutes: Object.freeze([3,8,5]),
+  catalog_job_minutes: Object.freeze([1, 4, 2, 3, 2, 2, 2, 2, 5]),
+  catalog_observer_job_minutes: Object.freeze([3, 8, 5]),
   catalog_declared_job_minutes: 40,
   purpose_accounting: "mutually-exclusive-max-application99-catalog40",
   // Separate candidate-workflow repair jobs; never enlarge the controller DAG.
