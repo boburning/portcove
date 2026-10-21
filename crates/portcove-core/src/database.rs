@@ -2,7 +2,7 @@ use std::{
     fs::{File, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use fs2::FileExt;
@@ -462,31 +462,118 @@ struct MigrationLock {
     file: File,
 }
 
+const MIGRATION_LOCK_WAIT: Duration = Duration::from_secs(10);
+const MIGRATION_LOCK_POLL: Duration = Duration::from_millis(50);
+const MIGRATION_OWNER_LIMIT: u64 = 1024;
+
+#[derive(serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+struct MigrationLockOwner {
+    operation: String,
+    pid: u32,
+}
+
 impl MigrationLock {
     fn acquire(root: &Path) -> Result<Self> {
+        Self::acquire_with_timeout(root, MIGRATION_LOCK_WAIT)
+    }
+
+    fn acquire_with_timeout(root: &Path, timeout: Duration) -> Result<Self> {
         let path = root.join("locks").join("migration.lock");
+        let owner_path = root.join("locks").join("migration.owner.json");
         let mut file = OpenOptions::new()
             .create(true)
             .truncate(false)
             .read(true)
             .write(true)
             .open(&path)?;
-        file.lock_exclusive().map_err(|error| {
-            PortcoveError::state("could not acquire the library migration lock")
-                .detail("lock_path", path.display().to_string())
-                .detail("cause", error.to_string())
-        })?;
+        let started = Instant::now();
+        let mut first_attempt = true;
+        loop {
+            if !first_attempt && started.elapsed() >= timeout {
+                return Err(Self::timeout_error(&owner_path, timeout));
+            }
+            first_attempt = false;
+            match FileExt::try_lock_exclusive(&file) {
+                Ok(()) => break,
+                Err(error)
+                    if Self::is_contention(&error)
+                        || error.kind() == std::io::ErrorKind::Interrupted =>
+                {
+                    let remaining = timeout.saturating_sub(started.elapsed());
+                    if remaining.is_zero() {
+                        return Err(Self::timeout_error(&owner_path, timeout));
+                    }
+                    std::thread::sleep(MIGRATION_LOCK_POLL.min(remaining));
+                }
+                Err(error) => {
+                    return Err(PortcoveError::state(
+                        "could not acquire the library migration lock",
+                    )
+                    .detail("lock_path", path.display().to_string())
+                    .detail("cause", error.to_string()));
+                }
+            }
+        }
+
+        let owner = MigrationLockOwner {
+            operation: "database_migration".into(),
+            pid: std::process::id(),
+        };
         file.set_len(0)?;
-        serde_json::to_writer(
-            &mut file,
-            &serde_json::json!({
-                "operation": "database_migration",
-                "pid": std::process::id(),
-            }),
-        )?;
+        serde_json::to_writer(&mut file, &owner)?;
         file.write_all(b"\n")?;
         file.sync_data()?;
+
+        // Windows prevents other processes from reading the exclusively locked
+        // file. This separate observation is advisory: publication failure or
+        // stale metadata must never become migration or lock-recovery authority.
+        let _ = Self::publish_owner(&owner_path, &owner);
         Ok(Self { file })
+    }
+
+    fn is_contention(error: &std::io::Error) -> bool {
+        error
+            .raw_os_error()
+            .is_some_and(|code| Some(code) == fs2::lock_contended_error().raw_os_error())
+    }
+
+    fn publish_owner(path: &Path, owner: &MigrationLockOwner) -> Result<()> {
+        crate::path::refuse_symlink_ancestors(path)?;
+        match std::fs::symlink_metadata(path) {
+            Ok(metadata) if !metadata.is_file() => {
+                return Err(PortcoveError::state(
+                    "migration owner diagnostics require a regular file",
+                ));
+            }
+            Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
+                return Err(error.into());
+            }
+            _ => {}
+        }
+        crate::durability::write_json_atomically(path, owner, true)
+    }
+
+    fn observed_owner(path: &Path) -> Option<MigrationLockOwner> {
+        let bytes =
+            crate::external_runtime::read_stable_metadata(path, MIGRATION_OWNER_LIMIT).ok()?;
+        let owner: MigrationLockOwner = serde_json::from_slice(&bytes).ok()?;
+        (owner.operation == "database_migration" && owner.pid != 0).then_some(owner)
+    }
+
+    fn timeout_error(owner_path: &Path, timeout: Duration) -> PortcoveError {
+        let error = PortcoveError::conflict(
+            "timed out waiting for the library migration lock; wait for the other operation to finish, then retry",
+        )
+        .with_known_cause(crate::failure::KnownFailureCause::Busy)
+        .detail("wait_timeout_ms", timeout.as_millis().to_string());
+        match Self::observed_owner(owner_path) {
+            Some(owner) => error
+                .detail("owner_metadata", "last observed; may be stale")
+                .detail("observed_operation", owner.operation)
+                .detail("observed_pid", owner.pid.to_string()),
+            None => error.detail("owner_metadata", "unavailable"),
+        }
     }
 }
 
@@ -1484,6 +1571,354 @@ mod tests {
 
     fn prepare_root(root: &Path) {
         fs::create_dir_all(root.join("locks")).unwrap();
+    }
+
+    struct MigrationHolder {
+        child: std::process::Child,
+        root: PathBuf,
+        log: PathBuf,
+    }
+
+    impl MigrationHolder {
+        fn start(root: &Path) -> Self {
+            let log = root.join("migration-holder.log");
+            let output = File::create(&log).unwrap();
+            let mut command = crate::ChildProcessPolicy::native_command(
+                crate::ChildProcessClass::HostTool,
+                std::env::current_exe().unwrap(),
+            )
+            .unwrap();
+            command
+                .args([
+                    "--exact",
+                    "database::tests::migration_lock_holder_child",
+                    "--ignored",
+                    "--nocapture",
+                ])
+                .env("PORTCOVE_MIGRATION_LOCK_TEST_ROOT", root)
+                .stdin(std::process::Stdio::null())
+                .stdout(output.try_clone().unwrap())
+                .stderr(output);
+            let mut holder = Self {
+                child: command.spawn().unwrap(),
+                root: root.to_owned(),
+                log,
+            };
+            let started = Instant::now();
+            while !root.join("migration-holder-ready").exists() {
+                assert!(
+                    holder.child.try_wait().unwrap().is_none()
+                        && started.elapsed() < Duration::from_secs(5),
+                    "migration holder did not become ready: {}",
+                    fs::read_to_string(&holder.log).unwrap_or_default()
+                );
+                thread::sleep(Duration::from_millis(10));
+            }
+            holder
+        }
+
+        fn release(mut self) {
+            fs::write(self.root.join("migration-holder-release"), b"release").unwrap();
+            let started = Instant::now();
+            loop {
+                if let Some(status) = self.child.try_wait().unwrap() {
+                    assert!(
+                        status.success(),
+                        "migration holder failed: {}",
+                        fs::read_to_string(&self.log).unwrap_or_default()
+                    );
+                    break;
+                }
+                assert!(
+                    started.elapsed() < Duration::from_secs(5),
+                    "migration holder did not release its lock"
+                );
+                thread::sleep(Duration::from_millis(10));
+            }
+        }
+
+        fn interrupt(mut self) {
+            self.child.kill().unwrap();
+            self.child.wait().unwrap();
+        }
+    }
+
+    impl Drop for MigrationHolder {
+        fn drop(&mut self) {
+            // Reap only this fixture's owned child, including assertion failures.
+            let _ = self.child.kill();
+            let _ = self.child.wait();
+        }
+    }
+
+    #[test]
+    #[ignore = "invoked explicitly by migration-lock subprocess tests"]
+    fn migration_lock_holder_child() {
+        let root = PathBuf::from(std::env::var_os("PORTCOVE_MIGRATION_LOCK_TEST_ROOT").unwrap());
+        let _lock = MigrationLock::acquire(&root).unwrap();
+        fs::write(root.join("migration-holder-ready"), b"ready").unwrap();
+        let started = Instant::now();
+        while !root.join("migration-holder-release").exists() {
+            assert!(
+                started.elapsed() < Duration::from_secs(15),
+                "migration holder exceeded its fixture lifetime"
+            );
+            thread::sleep(Duration::from_millis(10));
+        }
+    }
+
+    fn assert_migration_recovers(root: &Path) {
+        migrate(root).unwrap();
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap(),
+            (1..=CURRENT_SCHEMA_VERSION).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn migration_lock_times_out_with_observed_owner_and_recovers_after_release() {
+        let temporary = tempdir().unwrap();
+        let root = fs::canonicalize(temporary.path())
+            .unwrap()
+            .join("library with spaces");
+        prepare_root(&root);
+        let holder = MigrationHolder::start(&root);
+        let owner_path = root.join("locks/migration.owner.json");
+        let owner_before = fs::read(&owner_path).unwrap();
+        let wait = Duration::from_millis(150);
+        let started = Instant::now();
+        let error = MigrationLock::acquire_with_timeout(&root, wait)
+            .err()
+            .expect("the other process still owns the migration lock");
+        assert!(started.elapsed() >= wait);
+        assert!(started.elapsed() < Duration::from_secs(5));
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(error.details["wait_timeout_ms"], "150");
+        assert_eq!(error.details["observed_operation"], "database_migration");
+        assert_eq!(error.details["observed_pid"], holder.child.id().to_string());
+        assert_eq!(
+            error.details["owner_metadata"],
+            "last observed; may be stale"
+        );
+        assert!(!database_path(&root).exists());
+        assert_eq!(fs::read(&owner_path).unwrap(), owner_before);
+        holder.release();
+        assert_migration_recovers(&root);
+    }
+
+    #[test]
+    fn migration_lock_waits_for_release_within_its_deadline() {
+        let temporary = tempdir().unwrap();
+        let canonical_root = fs::canonicalize(temporary.path()).unwrap();
+        let root = canonical_root.as_path();
+        prepare_root(root);
+        let holder = MigrationHolder::start(root);
+        let (started_send, started_receive) = std::sync::mpsc::channel();
+        let (acquired_send, acquired_receive) = std::sync::mpsc::channel();
+        thread::scope(|scope| {
+            let waiter = scope.spawn(|| {
+                started_send.send(()).unwrap();
+                let _lock = MigrationLock::acquire_with_timeout(root, Duration::from_secs(3))
+                    .expect("the holder is released before the acquisition deadline");
+                acquired_send.send(()).unwrap();
+            });
+            started_receive
+                .recv_timeout(Duration::from_secs(1))
+                .unwrap();
+            assert_eq!(
+                acquired_receive.recv_timeout(Duration::from_millis(150)),
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+            );
+            holder.release();
+            acquired_receive
+                .recv_timeout(Duration::from_secs(3))
+                .unwrap();
+            waiter.join().unwrap();
+        });
+        assert_migration_recovers(root);
+    }
+
+    #[test]
+    fn migration_lock_recovers_after_holder_interruption_and_stale_owner_metadata() {
+        let temporary = tempdir().unwrap();
+        let canonical_root = fs::canonicalize(temporary.path()).unwrap();
+        let root = canonical_root.as_path();
+        prepare_root(root);
+        let holder = MigrationHolder::start(root);
+        let owner_path = root.join("locks/migration.owner.json");
+        let stale_owner = fs::read(&owner_path).unwrap();
+        holder.interrupt();
+        assert_eq!(fs::read(&owner_path).unwrap(), stale_owner);
+        let lock = MigrationLock::acquire_with_timeout(root, Duration::from_millis(150)).unwrap();
+        assert_eq!(
+            MigrationLock::observed_owner(&owner_path).unwrap().pid,
+            std::process::id()
+        );
+        drop(lock);
+        assert_migration_recovers(root);
+    }
+
+    #[test]
+    fn migration_lock_rejects_untrusted_owner_metadata_without_leaking_it() {
+        let temporary = tempdir().unwrap();
+        let canonical_root = fs::canonicalize(temporary.path()).unwrap();
+        let root = canonical_root.as_path();
+        prepare_root(root);
+        let holder = MigrationHolder::start(root);
+        let owner_path = root.join("locks/migration.owner.json");
+        let mut boundary = fs::read(&owner_path).unwrap();
+        boundary.resize(MIGRATION_OWNER_LIMIT as usize, b' ');
+        fs::write(&owner_path, &boundary).unwrap();
+        let error = MigrationLock::acquire_with_timeout(root, Duration::ZERO)
+            .err()
+            .expect("valid owner metadata cannot release the OS lock");
+        assert_eq!(error.details["observed_operation"], "database_migration");
+        assert_eq!(error.details["observed_pid"], holder.child.id().to_string());
+        assert_eq!(fs::read(&owner_path).unwrap(), boundary);
+        boundary.push(b' ');
+        let mut invalid = vec![
+            b"".to_vec(),
+            br#"{"operation":"database_migration","pid":"private-canary"}"#.to_vec(),
+            br#"{"operation":"private-canary","pid":42}"#.to_vec(),
+            br#"{"operation":"database_migration","pid":42,"secret":"private-canary"}"#.to_vec(),
+            br#"{"operation":"database_migration","pid":42,"pid":43}"#.to_vec(),
+            br#"{"operation":"database_migration","pid":0}"#.to_vec(),
+            br#"{"operation":"database_migration","pid":-1}"#.to_vec(),
+            br#"{"operation":"database_migration","pid":1.5}"#.to_vec(),
+            br#"{"operation":"database_migration","pid":4294967296}"#.to_vec(),
+            br#"{"operation":"database_migration"}"#.to_vec(),
+            br#"{"pid":42}"#.to_vec(),
+            br#"{"operation":"database_migration","pid":"#.to_vec(),
+            br#"["private-canary"]"#.to_vec(),
+        ];
+        invalid.push(boundary);
+        for record in invalid {
+            fs::write(&owner_path, &record).unwrap();
+            let error = MigrationLock::acquire_with_timeout(root, Duration::ZERO)
+                .err()
+                .expect("metadata cannot grant access to a held OS lock");
+            assert_eq!(error.code, crate::ErrorCode::Conflict);
+            assert_eq!(error.details["owner_metadata"], "unavailable");
+            assert_eq!(error.details.len(), 2);
+            assert!(!format!("{error:?}").contains("private-canary"));
+            assert_eq!(fs::read(&owner_path).unwrap(), record);
+        }
+        fs::remove_file(&owner_path).unwrap();
+        let error = MigrationLock::acquire_with_timeout(root, Duration::ZERO)
+            .err()
+            .expect("missing metadata cannot release the OS lock");
+        assert_eq!(error.details["owner_metadata"], "unavailable");
+        holder.release();
+        assert_migration_recovers(root);
+    }
+
+    #[test]
+    fn migration_lock_owner_publication_failure_does_not_prevent_migration() {
+        let temporary = tempdir().unwrap();
+        let canonical_root = fs::canonicalize(temporary.path()).unwrap();
+        let root = canonical_root.as_path();
+        prepare_root(root);
+        let owner_path = root.join("locks/migration.owner.json");
+        fs::create_dir(&owner_path).unwrap();
+        let holder = MigrationHolder::start(root);
+        let error = MigrationLock::acquire_with_timeout(root, Duration::ZERO)
+            .err()
+            .expect("diagnostic publication failure cannot weaken the OS lock");
+        assert_eq!(error.details["owner_metadata"], "unavailable");
+        holder.release();
+        assert_migration_recovers(root);
+        assert!(owner_path.is_dir());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn migration_lock_owner_symlink_is_not_read_or_overwritten() {
+        let temporary = tempdir().unwrap();
+        let canonical_root = fs::canonicalize(temporary.path()).unwrap();
+        let root = canonical_root.as_path();
+        prepare_root(root);
+        let target = root.join("private-owner-canary");
+        let contents = br#"{"operation":"database_migration","pid":42}"#;
+        fs::write(&target, contents).unwrap();
+        let owner_path = root.join("locks/migration.owner.json");
+        std::os::unix::fs::symlink(&target, &owner_path).unwrap();
+        let holder = MigrationHolder::start(root);
+        let error = MigrationLock::acquire_with_timeout(root, Duration::ZERO)
+            .err()
+            .expect("linked metadata is not lock authority");
+        assert_eq!(error.details["owner_metadata"], "unavailable");
+        holder.release();
+        assert_migration_recovers(root);
+        assert_eq!(fs::read(&target).unwrap(), contents);
+        assert!(
+            fs::symlink_metadata(&owner_path)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn migration_lock_owner_fifo_does_not_block_timeout_or_migration() {
+        use std::os::unix::{ffi::OsStrExt, fs::FileTypeExt};
+        let temporary = tempdir().unwrap();
+        let canonical_root = fs::canonicalize(temporary.path()).unwrap();
+        let root = canonical_root.as_path();
+        prepare_root(root);
+        let owner_path = root.join("locks/migration.owner.json");
+        let name = std::ffi::CString::new(owner_path.as_os_str().as_bytes()).unwrap();
+        assert_eq!(unsafe { libc::mkfifo(name.as_ptr(), 0o600) }, 0);
+        let holder = MigrationHolder::start(root);
+        let started = Instant::now();
+        let error = MigrationLock::acquire_with_timeout(root, Duration::ZERO)
+            .err()
+            .expect("a FIFO cannot provide owner metadata or release the OS lock");
+        assert!(started.elapsed() < Duration::from_secs(5));
+        assert_eq!(error.details["owner_metadata"], "unavailable");
+        holder.release();
+        assert_migration_recovers(root);
+        assert!(
+            fs::symlink_metadata(&owner_path)
+                .unwrap()
+                .file_type()
+                .is_fifo()
+        );
+    }
+
+    #[test]
+    fn migration_lock_classifies_only_the_os_contention_code() {
+        let contention = fs2::lock_contended_error();
+        assert!(MigrationLock::is_contention(&contention));
+        assert!(!MigrationLock::is_contention(&std::io::Error::new(
+            contention.kind(),
+            "same kind without the contention OS code",
+        )));
+        #[cfg(windows)]
+        for code in [6, 50] {
+            // Invalid-handle and unsupported-lock errors share the contention
+            // error's broad kind on Windows, but must retain their real cause.
+            let other = std::io::Error::from_raw_os_error(code);
+            assert_eq!(other.kind(), contention.kind());
+            assert!(!MigrationLock::is_contention(&other));
+        }
+    }
+
+    #[test]
+    fn migration_lock_non_contention_failure_returns_without_waiting() {
+        let temporary = tempdir().unwrap();
+        let canonical_root = fs::canonicalize(temporary.path()).unwrap();
+        let root = canonical_root.as_path();
+        prepare_root(root);
+        fs::create_dir(root.join("locks/migration.lock")).unwrap();
+        let started = Instant::now();
+        let error = MigrationLock::acquire(root)
+            .err()
+            .expect("a directory cannot be the migration lock file");
+        assert!(started.elapsed() < Duration::from_secs(5));
+        assert_eq!(error.code, crate::ErrorCode::State);
+        assert!(!error.details.contains_key("wait_timeout_ms"));
+        assert!(!database_path(root).exists());
     }
 
     #[test]
