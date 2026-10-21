@@ -200,3 +200,62 @@ prepared build/companion identity, followed by actual consent, startup/ordinary
 close/restart/readback and registration-only removal acceptance. Any necessary
 engineering revealed there remains assigned. Optional gameplay is not used as a
 substitute gate, and no managed update/rollback/backup operation is offered here.
+
+## Selected x64 legacy-codec boundary
+
+The source treatment now prevents the selected Windows x64 build from loading
+`binkw32.dll` through the ambient DLL search path. Its legacy module handle,
+load and unload branches remain available to 32-bit Windows. The calling
+convention and existing unavailable-codec wrapper results are unchanged.
+On x64, codec initialization explicitly reports unavailable.
+
+This addresses one executable-companion lookup. It does not establish the
+complete dynamic module closure of SDL or its audio/video backends. An absolute
+path alone would not authenticate a replacement codec; a future enabled codec
+needs an authenticated, ABI-compatible artifact and a lawful acquisition path.
+
+The proposed x64 route consequently has no Bink movie playback. Source callers
+tolerate the existing unavailable-codec result, but useful stock-game behavior
+and acceptance of this limitation remain pending with the other #828 route
+acceptance. No game or movie playback is inferred from the fixture.
+
+The [codec fixture](patches/slice6-arcanum-x64-codec-test.c) includes the real
+selected implementation and replaces the loader with a local counter returning
+no module. Its required positive observation is unavailable initialization,
+zero load attempts and unchanged wrapper fallbacks. An unchanged-source control
+must fail by observing a load attempt. These are narrow native fixture results,
+not a game startup, owned-data or complete executable-companion qualification.
+
+The static CRT build and PE evidence above belong to the preceding source patch
+`acfcfa4907b5951683cae0c574c27fff786c993df50412f22094a4f33a254a01`
+and its exact retained manifest. They remain historical component evidence and
+do not qualify this new codec-boundary source.
+
+The final combined source patch is SHA256
+`8ce8711f6c457af255167207c22af434ba169b7094c66be10720d7557f528241`.
+Exact 437-file replay passed with ordinary `git apply --check` and `git apply`,
+with `core.autocrlf=false` preserving the authenticated LF source bytes. Its
+manifest is SHA256
+`caf06add7b050395c807330bf41a51aab5a27324fd807fc09024a9bed2d6da71`,
+retained at `evidence/arcanum-x64-codec-replay-a3/verification.json` under the
+same private evidence root. All other source files match the preceding replay.
+
+The actual Windows x64 fixture and unchanged-source control passed in
+`evidence/arcanum-x64-codec-fixture-a5/result.json`. Both compile with `/W4 /WX`.
+The old control naturally exits 1 after its intercepted load attempt; the new
+implementation exits 0 with unavailable initialization, zero load attempts and
+unchanged wrapper fallbacks. The interceptor loads no DLL. Earlier failed
+attempts remain retained, including A4's C4702 unreachable shared return. The
+final patch repairs the preprocessor branch rather than suppressing that warning.
+
+The matching offline static-CRT Release x64 build passed with 12 warnings and
+zero errors, producing 4,876,800 bytes, SHA256
+`2292768a17c80b03d1c2042748292b227b03a4134f868ae68c6cead33ef9cc4e`.
+Receipt: `evidence/arcanum-x64-codec-build-a2/result.json`. The executable was
+not run. Exact source/dependency and complete 5,621-file SDK checks bracket
+the build. Inert PE inspection of this exact artifact reports the same eleven
+direct Windows imports listed above and no direct VC runtime DLL or CRT API-set
+imports; receipt: `evidence/arcanum-x64-codec-pe-inspection-a1/result.json`.
+These observations validate this narrow source component. They do not resolve
+movie limitation acceptance, complete dynamic loading, owned-data identity,
+derived-cache isolation or actual prepared-route operations for open #828.
