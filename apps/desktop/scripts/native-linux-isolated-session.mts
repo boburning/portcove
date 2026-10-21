@@ -6,7 +6,7 @@ import { randomUUID, createHash } from "node:crypto";
 import { open, lstat, realpath, writeFile, readFile, statfs } from "node:fs/promises";
 import path from "node:path";
 import { constants, openSync, writeSync, closeSync, fstatSync } from "node:fs";
-import { Duplex, Writable, type Readable } from "node:stream";
+import { Duplex, Writable, Transform, type Readable } from "node:stream";
 import { get } from "node:http";
 import { TextDecoder } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -76,6 +76,49 @@ export function createNativePublicJourneyBudget() {
     },
     snapshot,
   };
+}
+/** Charge before forwarding any bytes; a refused frame never reaches the outer
+ * process/network or candidate. Each partial upload frame remains bounded. */
+export function nativePublicRelayLimiter(
+  direction: "upload" | "download",
+  budget: ReturnType<typeof createNativePublicJourneyBudget>,
+) {
+  let frames = Buffer.alloc(0);
+  return new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      try {
+        let opens = 0;
+        if (direction === "upload") {
+          frames = Buffer.concat([frames, chunk]);
+          for (let end = frames.indexOf(10); end >= 0; end = frames.indexOf(10)) {
+            assert.ok(end <= 100000);
+            const frame: unknown = JSON.parse(
+              new TextDecoder("utf-8", { fatal: true }).decode(frames.subarray(0, end)),
+            );
+            assert.ok(isRecord(frame));
+            if (frame.kind === "open") opens++;
+            frames = frames.subarray(end + 1);
+          }
+          assert.ok(frames.length <= 100000);
+        }
+        budget.charge(direction, chunk.length, opens);
+        callback(null, chunk);
+      } catch (error) {
+        callback(
+          error instanceof Error
+            ? error
+            : new Error("Public relay bound refused", { cause: error }),
+        );
+      }
+    },
+    flush(callback) {
+      callback(
+        frames.length
+          ? new Error("Public relay ended with an incomplete original frame")
+          : undefined,
+      );
+    },
+  });
 }
 const publicBudgets = new Map<
   string,
@@ -640,36 +683,13 @@ async function launchFixedLinuxNativeSession(
       control.end(Buffer.from([0]));
     };
     control.on("error", refuse);
-    let uploadFrames = Buffer.alloc(0);
-    output.on("data", (chunk: Buffer) => {
-      try {
-        assert.ok(publicBudget);
-        uploadFrames = Buffer.concat([uploadFrames, chunk]);
-        let opens = 0;
-        for (let end = uploadFrames.indexOf(10); end >= 0; end = uploadFrames.indexOf(10)) {
-          assert.ok(end <= 100000);
-          const frame: unknown = JSON.parse(
-            new TextDecoder("utf-8", { fatal: true }).decode(uploadFrames.subarray(0, end)),
-          );
-          assert.ok(isRecord(frame));
-          if (frame.kind === "open") opens++;
-          uploadFrames = uploadFrames.subarray(end + 1);
-        }
-        assert.ok(uploadFrames.length <= 100000);
-        publicBudget.charge("upload", chunk.length, opens);
-      } catch (error) {
-        refuse(error);
-      }
-    });
-    relay.stdout.on("data", (chunk: Buffer) => {
-      try {
-        publicBudget!.charge("download", chunk.length);
-      } catch (error) {
-        refuse(error);
-      }
-    });
-    output.pipe(relay.stdin);
-    relay.stdout.pipe(input);
+    assert.ok(publicBudget);
+    const uploadLimiter = nativePublicRelayLimiter("upload", publicBudget);
+    const downloadLimiter = nativePublicRelayLimiter("download", publicBudget);
+    uploadLimiter.on("error", refuse);
+    downloadLimiter.on("error", refuse);
+    output.pipe(uploadLimiter).pipe(relay.stdin);
+    relay.stdout.pipe(downloadLimiter).pipe(input);
     for (const stream of [output, input, relay.stdin, relay.stdout]) stream.on("error", refuse);
     relay.on("error", refuse);
     relayJoined = new Promise<void>((resolve) =>

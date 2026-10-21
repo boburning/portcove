@@ -4,7 +4,10 @@ import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { inspectLinuxPublicRuntime } from "./desktop-linux-public-update.mts";
-import { createNativePublicJourneyBudget } from "./native-linux-isolated-session.mts";
+import {
+  createNativePublicJourneyBudget,
+  nativePublicRelayLimiter,
+} from "./native-linux-isolated-session.mts";
 import {
   createPublicUpdatePreimageStore,
   retainDeduplicatedPublicUpdatePreimages,
@@ -193,4 +196,31 @@ void test("one-byte payload corruption retains reconstructable lossless chunks w
     );
     assert.ok(reconstructed.equals(expected));
   }
+});
+
+void test("actual relay stream refuses an over-budget write before any downstream bytes are forwarded", async () => {
+  const budget = createNativePublicJourneyBudget();
+  budget.start();
+  budget.charge("download", 1024 * 1024 * 1024 - 2);
+  const limiter = nativePublicRelayLimiter("download", budget);
+  let forwarded = 0;
+  limiter.on("data", (chunk: Buffer) => {
+    forwarded += chunk.length;
+  });
+  const error = new Promise<Error>((resolve) => limiter.once("error", resolve));
+  limiter.end(Buffer.alloc(3));
+  assert.match((await error).message, /budget exhausted/u);
+  assert.equal(forwarded, 0);
+  const opens = createNativePublicJourneyBudget();
+  opens.start();
+  opens.charge("upload", 0, 64);
+  const upload = nativePublicRelayLimiter("upload", opens);
+  let uploadForwarded = 0;
+  upload.on("data", (chunk: Buffer) => {
+    uploadForwarded += chunk.length;
+  });
+  const refused = new Promise<Error>((resolve) => upload.once("error", resolve));
+  upload.end(Buffer.from('{"kind":"open"}\n'));
+  assert.match((await refused).message, /budget exhausted/u);
+  assert.equal(uploadForwarded, 0);
 });
