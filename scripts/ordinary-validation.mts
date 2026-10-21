@@ -511,7 +511,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/read-native-scheduler.ps1", ["scripts/release-native-scheduler.test.mts"]],
   ["scripts/release-signing-handoff.mts", ["scripts/release-signing-handoff.test.mts"]],
   ["scripts/release-tuf-role-artifact.mts", ["scripts/release-tuf-role-artifact.test.mts"]],
-  ["scripts/fixtures/tuf-worker-fixture.mts", ["scripts/release-tuf-signing.test.mts"]],
+  [
+    "scripts/fixtures/tuf-worker-fixture.mts",
+    ["scripts/release-tuf-signing.test.mts", "scripts/release-connected-fixture.test.mts"],
+  ],
   ["scripts/release-tuf-signing.mts", ["scripts/release-tuf-signing.test.mts"]],
   ["scripts/release-signing-context.mts", ["scripts/release-signing-context.test.mts"]],
   [
@@ -892,6 +895,7 @@ const releaseContractTests = Object.freeze([
   "scripts/release-signing-handoff.test.mts",
   "scripts/release-tuf-role-artifact.test.mts",
   "scripts/release-tuf-signing.test.mts",
+  "scripts/release-connected-fixture.test.mts",
   "scripts/release-tuf-controller.test.mts",
   "scripts/release-metadata-signing-context.test.mts",
   "scripts/release-metadata-context-recovery.test.mts",
