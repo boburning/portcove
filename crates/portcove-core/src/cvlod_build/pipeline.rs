@@ -15,7 +15,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
     path::{Path, PathBuf},
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 pub(super) const DXC: BuildArchive = BuildArchive {
@@ -384,12 +384,11 @@ pub(super) fn prepare_install(
     let deadline = Instant::now();
     let checkpoint = || {
         operation.checkpoint()?;
-        if deadline.elapsed() > Duration::from_secs(20 * 60) {
-            return Err(PortcoveError::install(
-                "CVLoD build exceeded its finite execution deadline",
-            ));
-        }
-        Ok(())
+        super::RECIPE
+            .check_execution_deadline(deadline.elapsed())
+            .map_err(|_| {
+                PortcoveError::install("CVLoD build exceeded its finite execution deadline")
+            })
     };
     super::verify_original(&preparation.source, &checkpoint)?;
     super::require_runtime_environment()?;
@@ -711,7 +710,7 @@ pub(super) fn prepare_install(
             "auxiliary_archives":archives,"source_manifest_sha256":sources::identity(),"local_toolchain_profile":local_profile::ID,
             "local_toolchain_manifest_sha256":local_profile::identity(),"input_tree_sha256":inputs.identities.iter().map(|v|serde_json::to_vec(v).map(|b|digest(&b))).collect::<std::result::Result<Vec<_>,_>>()?,
             "lifetime_patch":{"before_sha256":PATCH_BEFORE,"after_sha256":PATCH_AFTER},"generation":generation,"commands":commands,"compilation":plans,
-            "objects_per_invocation":OBJECT_BATCH_LIMIT,"mixed_objects_per_invocation":2,"helpers_per_invocation":8,"dry_run_before_execution":true,"execution_deadline_seconds":1200,
+            "objects_per_invocation":OBJECT_BATCH_LIMIT,"mixed_objects_per_invocation":2,"helpers_per_invocation":8,"dry_run_before_execution":true,"execution_deadline_seconds":super::RECIPE.execution_budget().as_secs(),
             "elapsed_ms":deadline.elapsed().as_millis(),"recompiler_imports":recompiler_imports,"imports":imports,"runtime_files":output,"builder_quiesced":true,"game_executed_by_builder":false
         }))?,
     )?;

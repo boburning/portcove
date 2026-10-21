@@ -649,8 +649,13 @@ as a raw `.z64`, `.n64` or `.v64` file. It retains an immutable canonical proof 
 `.portcove-cvlod-build-original.z64`; working `rom.z64` remains persistent and
 is checked/rematerialized through the existing exact runtime-source hash. The
 UI-context lifetime repair is exact-preimage bound. The fixed generated-byte
-oracle, sealed build graphs, process-tree drain and finite 20-minute build
-deadline precede atomic publication. Each invocation preflights at most eight
+oracle, sealed build graphs, process-tree drain and finite 40-minute build
+deadline precede atomic publication. CVLoD uses one clock from private SDK
+preparation through generation, compilation and pre-publication packaging;
+individual commands do not renew it. Other cartridge recipes retain their
+20-minute allowance.
+Cancellation and the separate process-tree closure deadline are unchanged.
+Each invocation preflights at most eight
 pure compiler targets, or two compiler targets when helpers are present, with
 at most eight helpers. Ninja still runs only two jobs. Dependency expansion is
 split before execution; complete observed action identities must match the

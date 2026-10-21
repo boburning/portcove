@@ -279,6 +279,25 @@ impl CartridgeBuildRecipe {
         primary_bytes.saturating_add(STAGING_CAPACITY_BYTES)
     }
 
+    fn execution_budget(self) -> Duration {
+        // CVLoD includes the private SDK copy, recompiler generation and the
+        // fixed 851-object game graph and private packaging in one clock. Other
+        // recipes retain their existing allowance; no invocation can renew it.
+        Duration::from_secs(match self {
+            Self::CvlodSourceV1 => 40 * 60,
+            _ => 20 * 60,
+        })
+    }
+
+    fn check_execution_deadline(self, elapsed: Duration) -> Result<()> {
+        if elapsed > self.execution_budget() {
+            return Err(PortcoveError::launch(
+                "cartridge build exceeded its finite execution deadline",
+            ));
+        }
+        Ok(())
+    }
+
     pub(crate) fn minimum_template_version(self) -> u32 {
         match self {
             Self::YoshisCookieNesCycle110 => 6,
@@ -854,12 +873,7 @@ impl BuildSession<'_> {
         } = self;
         let checkpoint = || {
             operation.checkpoint()?;
-            if deadline.elapsed() > Duration::from_secs(20 * 60) {
-                return Err(PortcoveError::launch(
-                    "cartridge build exceeded its finite execution deadline",
-                ));
-            }
-            Ok(())
+            inputs.recipe.check_execution_deadline(deadline.elapsed())
         };
         checkpoint()?;
         let mut command = crate::ChildProcessPolicy::native_tool_spec(
