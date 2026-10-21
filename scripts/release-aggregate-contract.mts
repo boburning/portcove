@@ -1,5 +1,5 @@
 import { isRecord } from "./runtime-values.mts";
-import { productionControllerWorkflow } from "./production-controller-admission.mts";
+export { inspectAggregateOriginalUpload } from "./release-aggregate-locator.mts";
 import { inspectCandidateStageEvidence } from "./release-candidate-progress-contract.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 
@@ -21,56 +21,6 @@ export function assertAggregateUploadCandidate(candidate: unknown) {
     )
   )
     throw new Error("aggregate upload requires retained exact building/run/counter evidence");
-}
-
-/** Immutable original producer locators, authenticated independently by each
- * current custodian. These public fields cannot grant recovery authority. */
-export function inspectAggregateOriginalUpload(raw: unknown) {
-  if (
-    !isRecord(raw) ||
-    Object.keys(raw).sort().join(",") !==
-      "actor_id,before_checkpoint,check_run_id,controller_revision,execution_ref,expectation_sha256,job_id,operation_id,run_attempt,run_id,workflow" ||
-    raw.workflow !== productionControllerWorkflow ||
-    typeof raw.execution_ref !== "string" ||
-    !/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(
-      raw.execution_ref,
-    )
-  )
-    throw new Error("exact original admitted aggregate upload required");
-  for (const key of ["actor_id", "check_run_id", "run_id"] as const)
-    if (typeof raw[key] !== "string" || !/^[1-9][0-9]{0,19}$/u.test(raw[key]))
-      throw new Error("original aggregate provider locator invalid");
-  for (const key of ["job_id", "run_attempt"] as const)
-    if (typeof raw[key] !== "number" || !Number.isSafeInteger(raw[key]) || raw[key] < 1)
-      throw new Error("original aggregate provider sequence invalid");
-  for (const key of [
-    "before_checkpoint",
-    "controller_revision",
-    "expectation_sha256",
-    "operation_id",
-  ] as const)
-    if (
-      typeof raw[key] !== "string" ||
-      !(
-        key === "before_checkpoint" || key === "controller_revision"
-          ? /^[a-f0-9]{40}$/u
-          : /^[a-f0-9]{64}$/u
-      ).test(raw[key])
-    )
-      throw new Error("original aggregate journal locator invalid");
-  return {
-    actor_id: raw.actor_id as string,
-    before_checkpoint: raw.before_checkpoint as string,
-    check_run_id: raw.check_run_id as string,
-    controller_revision: raw.controller_revision as string,
-    execution_ref: raw.execution_ref,
-    expectation_sha256: raw.expectation_sha256 as string,
-    job_id: raw.job_id as number,
-    operation_id: raw.operation_id as string,
-    run_attempt: raw.run_attempt as number,
-    run_id: raw.run_id as string,
-    workflow: raw.workflow,
-  };
 }
 
 /** Public exact upload preimage in the existing journal, never admission. */
