@@ -83,6 +83,63 @@ function fixture(platform_label = "windows-x86_64") {
   return { marker, inspected, settlement };
 }
 
+void test("continuation marker separately binds parked V1 and its exact original B invocation", () => {
+  for (const platform of ["windows-x86_64", "linux-x86_64"]) {
+    const { marker } = fixture(platform);
+    const request = {
+      ...marker.request,
+      phase: "continue-with-v2",
+      client: "client-b",
+      proof_inputs: {
+        ...marker.request.proof_inputs,
+        parked_package_sha256: "8".repeat(64),
+        parked_compiler_sha256: platform === "windows-x86_64" ? "9".repeat(64) : null,
+        previous_parked_invocation_id: "7".repeat(64),
+      },
+    };
+    const identity = {
+      kind: marker.kind,
+      setup_grant_sha256: marker.setup_grant_sha256,
+      descriptor_sha256: marker.descriptor_sha256,
+      request,
+    };
+    const continuation = {
+      ...marker,
+      request,
+      request_sha256: digest(request),
+      invocation_id: digest(identity),
+    };
+    const inspected = inspectPublicJourneyAttemptMarker(continuation, continuation);
+    assert.equal(inspected.phase, "continue-with-v2");
+    for (const field of [
+      "parked_package_sha256",
+      "parked_compiler_sha256",
+      "previous_parked_invocation_id",
+    ] as const) {
+      const proof: Record<string, unknown> = { ...request.proof_inputs };
+      delete proof[field];
+      assert.throws(() =>
+        inspectPublicJourneyAttemptMarker(
+          { ...continuation, request: { ...request, proof_inputs: proof } },
+          continuation,
+        ),
+      );
+    }
+    assert.throws(() =>
+      inspectPublicJourneyAttemptMarker(
+        { ...continuation, request: { ...request, client: "client-a" } },
+        continuation,
+      ),
+    );
+    assert.throws(() =>
+      inspectPublicJourneyAttemptMarker(
+        { ...marker, request: { ...marker.request, proof_inputs: request.proof_inputs } },
+        marker,
+      ),
+    );
+  }
+});
+
 void test("public attempt binds protected grant, descriptor, phase, platform, source and retained input identities", () => {
   const { marker } = fixture();
   for (const modify of [

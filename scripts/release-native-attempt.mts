@@ -520,15 +520,14 @@ export async function readActualRetainedPublicCohort(parentReceipt: object) {
   if (parent.descriptor.public_journey?.profile !== "ordinary-public-initial-cohort-v1")
     throw new Error("actual protected initial public profile required");
   const { current, history } = await readParentPublicHistory(parent);
-  if (history.length !== 2)
+  if (history.length !== 2 && history.length !== 3)
     throw new Error("exact original completed A and parked B captures required");
   const cohort = history[0]!.settled.cohort_sha256;
-  if (
-    inspectPublicJourneyProgress(
-      history.map((item) => item.settled),
-      cohort,
-    ) !== "await-published-v2"
-  )
+  const phase = inspectPublicJourneyProgress(
+    history.map((item) => item.settled),
+    cohort,
+  );
+  if (phase !== "await-published-v2" && phase !== "completed")
     throw new Error("retained public phase is not awaiting V2");
   await parent.recheck();
   const receipt = Object.freeze({
@@ -537,7 +536,12 @@ export async function readActualRetainedPublicCohort(parentReceipt: object) {
   });
   retainedPublicCohorts.set(receipt, {
     parent: parentReceipt,
-    originalPrefix: Object.freeze([...current.invocations]),
+    originalPrefix: Object.freeze(
+      current.invocations.slice(
+        0,
+        current.invocations.indexOf(history[1]!.marker.invocation_id) + 1,
+      ),
+    ),
     cohort,
     parked_id: history[1]!.marker.invocation_id,
   });
@@ -577,7 +581,7 @@ const publicProgress = new WeakMap<
     parent: object;
     inventory: string;
     history: PublicHistory[];
-    phase: ReturnType<typeof inspectPublicJourneyProgress>;
+    phase: ReturnType<typeof inspectPublicJourneyProgress> | "continue-with-v2";
     cohort: string;
   }
 >();
@@ -591,11 +595,18 @@ export async function readActualPublicJourneyProgress(pairReceipt: object) {
   if (journal.input.active_candidate !== null)
     throw new Error("active native candidate must settle before public proof");
   const { current, history } = await readParentPublicHistory(parent);
-  const cohort = digest(selected.pair);
-  const phase = inspectPublicJourneyProgress(
+  const historical = selected.historical_cohort_receipt
+    ? await requireActualRetainedPublicCohort(selected.historical_cohort_receipt)
+    : undefined;
+  if (historical && historical.parent_receipt !== selected.parent_receipt)
+    throw new Error("public continuation historical parent differs");
+  const cohort = historical ? historical.cohort_sha256 : digest(selected.pair);
+  const observedPhase = inspectPublicJourneyProgress(
     history.map((item) => item.settled),
     cohort,
   );
+  const phase =
+    observedPhase === "await-published-v2" && historical ? "continue-with-v2" : observedPhase;
   await parent.recheck();
   const receipt = Object.freeze({
     kind: "actual-public-journey-progress",
@@ -619,7 +630,8 @@ const publicClaims = new WeakMap<
     parent: object;
     prior_package: object;
     candidate_package: object;
-    compiler?: { prior: object; candidate: object };
+    parked_package?: object;
+    compiler?: { prior: object; candidate: object; parked?: object };
     directory: string;
     marker: Parameters<typeof inspectPublicJourneyAttemptMarker>[1];
     previous: PublicHistory | undefined;
@@ -633,18 +645,32 @@ export async function claimActualPublicJourneyInvocation(
     pair: object;
     prior_package: object;
     candidate_package: object;
-    compiler?: { prior: object; candidate: object };
+    parked_package?: object;
+    compiler?: { prior: object; candidate: object; parked?: object };
   },
 ) {
   inputs = { ...inputs, ...(inputs.compiler ? { compiler: { ...inputs.compiler } } : {}) };
   const progress = publicProgress.get(progressReceipt);
   if (!progress) throw new Error("actual public progress custody required");
-  if (progress.phase !== "initial-v0-v1" && progress.phase !== "park-v0-with-v1")
+  if (
+    progress.phase !== "initial-v0-v1" &&
+    progress.phase !== "park-v0-with-v1" &&
+    progress.phase !== "continue-with-v2"
+  )
     throw new Error(
       "public cohort requires authenticated continuation or is already complete; no replay",
     );
   const selected = await requireActualPublicJourneySource(inputs.pair);
-  if (selected.parent_receipt !== progress.parent || digest(selected.pair) !== progress.cohort)
+  const continuation = progress.phase === "continue-with-v2";
+  const historical =
+    continuation && selected.historical_cohort_receipt
+      ? await requireActualRetainedPublicCohort(selected.historical_cohort_receipt)
+      : undefined;
+  if (
+    continuation !== Boolean(historical) ||
+    selected.parent_receipt !== progress.parent ||
+    (historical ? historical.cohort_sha256 : digest(selected.pair)) !== progress.cohort
+  )
     throw new Error("public pair parent/cohort differs");
   const root = selected.parent.descriptor.capture_root;
   if (claimingRoots.has(root)) throw new Error("native capture-root claim is already in progress");
@@ -664,6 +690,15 @@ export async function claimActualPublicJourneyInvocation(
       candidate.slot !== "candidate"
     )
       throw new Error("actual public package slots differ");
+    const parked = inputs.parked_package
+      ? await requireActualPublicJourneyPackage(inputs.parked_package)
+      : undefined;
+    if (
+      continuation
+        ? !parked || parked.pair_receipt !== inputs.pair || parked.slot !== "parked"
+        : Boolean(parked)
+    )
+      throw new Error("actual parked V1 package custody differs");
     let compiler;
     if (selected.parent.descriptor.platform_label === "windows-x86_64") {
       if (!inputs.compiler) throw new Error("actual Windows compiler inputs required");
@@ -676,7 +711,20 @@ export async function claimActualPublicJourneyInvocation(
         after.slot !== "candidate"
       )
         throw new Error("public compiler slots differ");
-      compiler = { prior: digest(before.identity), candidate: digest(after.identity) };
+      const old = inputs.compiler.parked
+        ? await requireActualPublicWindowsCompilerIdentity(inputs.compiler.parked)
+        : undefined;
+      if (
+        continuation
+          ? !old || old.pair_receipt !== inputs.pair || old.slot !== "parked"
+          : Boolean(old)
+      )
+        throw new Error("actual parked V1 compiler custody differs");
+      compiler = {
+        prior: digest(before.identity),
+        candidate: digest(after.identity),
+        ...(old ? { parked: digest(old.identity) } : {}),
+      };
     } else if (inputs.compiler) throw new Error("Windows compiler inputs cannot qualify Linux");
     const journal = await selected.source.recover();
     if (journal.input.active_candidate !== null)
@@ -700,6 +748,13 @@ export async function claimActualPublicJourneyInvocation(
         prior_package_sha256: prior.identity.package.sha256,
         pair_sha256: digest(selected.pair),
         source_directory: path.basename(selected.directory),
+        ...(continuation
+          ? {
+              parked_package_sha256: parked!.identity.package.sha256,
+              parked_compiler_sha256: compiler?.parked ?? null,
+              previous_parked_invocation_id: historical!.parked.marker.invocation_id,
+            }
+          : {}),
       },
     };
     const marker = {
@@ -766,6 +821,7 @@ export async function claimActualPublicJourneyInvocation(
       parent: progress.parent,
       prior_package: inputs.prior_package,
       candidate_package: inputs.candidate_package,
+      ...(inputs.parked_package ? { parked_package: inputs.parked_package } : {}),
       ...(inputs.compiler ? { compiler: { ...inputs.compiler } } : {}),
       directory,
       marker,
@@ -799,6 +855,17 @@ export async function requireActualPublicJourneyInvocation(receipt: object) {
     throw new Error("public claim anchor missing");
   const prior = await requireActualPublicJourneyPackage(retained.prior_package),
     candidate = await requireActualPublicJourneyPackage(retained.candidate_package);
+  const parked = retained.parked_package
+    ? await requireActualPublicJourneyPackage(retained.parked_package)
+    : undefined;
+  if (
+    parked &&
+    (parked.pair_receipt !== retained.pair ||
+      parked.slot !== "parked" ||
+      !isRecord(marker.request.proof_inputs) ||
+      parked.identity.package.sha256 !== marker.request.proof_inputs.parked_package_sha256)
+  )
+    throw new Error("parked V1 package changed");
   if (retained.compiler)
     for (const slot of ["prior", "candidate"] as const) {
       const compiler = await requireActualPublicWindowsCompilerIdentity(retained.compiler[slot]);
@@ -806,6 +873,16 @@ export async function requireActualPublicJourneyInvocation(receipt: object) {
       if (!isRecord(proof) || digest(compiler.identity) !== proof[`${slot}_compiler_sha256`])
         throw new Error("public compiler identity changed");
     }
+  if (retained.compiler?.parked) {
+    const compiler = await requireActualPublicWindowsCompilerIdentity(retained.compiler.parked);
+    if (
+      compiler.pair_receipt !== retained.pair ||
+      compiler.slot !== "parked" ||
+      !isRecord(marker.request.proof_inputs) ||
+      digest(compiler.identity) !== marker.request.proof_inputs.parked_compiler_sha256
+    )
+      throw new Error("parked V1 compiler identity changed");
+  }
   const previous = retained.previous
     ? await readPublicSettlement(
         parent,
@@ -813,6 +890,14 @@ export async function requireActualPublicJourneyInvocation(receipt: object) {
         retained.previous.marker.invocation_id,
       )
     : undefined;
+  if (
+    marker.phase === "continue-with-v2" &&
+    (!previous ||
+      !isRecord(marker.request.proof_inputs) ||
+      previous.marker.phase !== "park-v0-with-v1" ||
+      previous.marker.invocation_id !== marker.request.proof_inputs.previous_parked_invocation_id)
+  )
+    throw new Error("original parked B capture differs");
   remainingNativeParentBudget();
   return {
     parent,
@@ -823,6 +908,7 @@ export async function requireActualPublicJourneyInvocation(receipt: object) {
     candidate_package: candidate,
     prior_package_receipt: retained.prior_package,
     candidate_package_receipt: retained.candidate_package,
+    ...(parked ? { parked_package: parked, parked_package_receipt: retained.parked_package } : {}),
     ...(retained.compiler ? { compiler_receipts: { ...retained.compiler } } : {}),
     invocation_id: marker.invocation_id,
     request_sha256: marker.request_sha256,

@@ -86,13 +86,21 @@ export function inspectPublicJourneyAttemptMarker(
   hex(lineage.capacity_sha256);
   const proof = object(
     request.proof_inputs,
-    "candidate_compiler_sha256,candidate_package_sha256,pair_sha256,prior_compiler_sha256,prior_package_sha256,source_directory",
+    request.phase === "continue-with-v2"
+      ? "candidate_compiler_sha256,candidate_package_sha256,pair_sha256,parked_compiler_sha256,parked_package_sha256,previous_parked_invocation_id,prior_compiler_sha256,prior_package_sha256,source_directory"
+      : "candidate_compiler_sha256,candidate_package_sha256,pair_sha256,prior_compiler_sha256,prior_package_sha256,source_directory",
   );
   for (const key of ["pair_sha256", "prior_package_sha256", "candidate_package_sha256"])
     hex(proof[key]);
   for (const key of ["prior_compiler_sha256", "candidate_compiler_sha256"])
     if (request.platform_label === "windows-x86_64") hex(proof[key]);
     else assert.equal(proof[key], null);
+  if (request.phase === "continue-with-v2") {
+    hex(proof.parked_package_sha256);
+    hex(proof.previous_parked_invocation_id);
+    if (request.platform_label === "windows-x86_64") hex(proof.parked_compiler_sha256);
+    else assert.equal(proof.parked_compiler_sha256, null);
+  }
   assert.ok(
     typeof proof.source_directory === "string" &&
       /^native-public-source-[A-Za-z0-9]{6}$/u.test(proof.source_directory),
