@@ -58,6 +58,12 @@ function launchContinuityPoint(element: Element) {
       ? workspace
       : document.scrollingElement;
   const active = document.activeElement;
+  const rectangle = (item: Element | null) => {
+    const bounds = item?.getBoundingClientRect();
+    return bounds
+      ? { top: bounds.top, bottom: bounds.bottom, width: bounds.width, height: bounds.height }
+      : null;
+  };
   return {
     observedAt: new Date().toISOString(),
     documentFocused: document.hasFocus(),
@@ -70,6 +76,23 @@ function launchContinuityPoint(element: Element) {
     ariaDisabled: element.getAttribute("aria-disabled"),
     ariaBusy: element.getAttribute("aria-busy"),
     scrollTop: owner?.scrollTop,
+    scrollHeight: owner?.scrollHeight,
+    clientHeight: owner?.clientHeight,
+    maximumScroll: owner ? owner.scrollHeight - owner.clientHeight : null,
+    viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
+    fontStatus: document.fonts.status,
+    workspaceOverflowY: workspace ? getComputedStyle(workspace).overflowY : null,
+    originRectangle: rectangle(element),
+    cardRectangle: rectangle(element.closest("article")),
+    continueRectangle: rectangle(document.querySelector(".continue-card")),
+    workspaceRectangle: rectangle(workspace),
+    workspaceChildren: workspace
+      ? Array.from(workspace.children).map((item) => ({
+          tag: item.tagName,
+          className: item.className,
+          rectangle: rectangle(item),
+        }))
+      : [],
   };
 }
 
@@ -1859,6 +1882,12 @@ export async function preparationScenarios({
       const beforeClickPath = path.join(output, "game-return-before-click.json");
       await writeFile(beforeClickPath, JSON.stringify(beforeClick, null, 2), { flag: "wx" });
       artifacts.push(beforeClickPath);
+      const beforeImage = path.join(output, "native-game-return-before-click.png");
+      await writeFile(beforeImage, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(beforeImage);
       await play.click();
       const afterClick = await executeBrowserScript(browser, launchContinuityPoint, play);
       const afterClickPath = path.join(output, "game-return-after-click.json");
@@ -1931,6 +1960,12 @@ export async function preparationScenarios({
         },
       );
       artifacts.push(observation);
+      const settledImage = path.join(output, "native-game-return-settled-before-assert.png");
+      await writeFile(settledImage, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(settledImage);
       assert.equal(returned.query, port.name);
       assert.equal(returned.filter, readyLabel);
       assert.equal(returned.playConnected, true, "Original Play control disconnected after return");
