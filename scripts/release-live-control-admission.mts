@@ -2,6 +2,7 @@ import { capacityDigest, slice4CapacityResources } from "./release-capacity.mts"
 import { isRecord } from "./runtime-values.mts";
 import {
   admitProductionInputReader,
+  admitProductionCatalogInputReader,
   productionControllerWorkflow,
   readProductionControllerWorkflowBytes,
 } from "./production-controller-admission.mts";
@@ -42,12 +43,19 @@ import {
   isMaintenanceReleaseControlPhase,
 } from "./release-control-phases.mts";
 import type { ReleaseControlPhase } from "./release-control-phases.mts";
+import { inspectBoundCatalogControllerAuthorities } from "./release-authority-configuration.mts";
 import {
   discoverIndependentSemanticDisposition,
   readIndependentSemanticCheckInventory,
   inspectSemanticRequestCheckMatches,
 } from "./release-semantic-disposition-reader.mts";
 const establishedSources = new WeakSet<object>();
+const catalogSources = new WeakSet<object>();
+export function requireAuthenticatedCatalogControlSource(value: unknown, rawPhase: unknown) {
+  const phase = inspectReleaseControlPhase(rawPhase);
+  if (!isRecord(value) || !catalogSources.has(value) || value.phase !== phase)
+    throw new Error("catalog control source must be established by fixed runtime verifier");
+}
 export function requireAuthenticatedReleaseControlSource(
   value: unknown,
   rawPhase: unknown = "admission",
@@ -79,11 +87,35 @@ export async function authenticateControlReaderJob(
   workflowBytes: Uint8Array,
   options: ReaderOptions = {},
 ) {
+  return authenticateControlReaderJobForPurpose("application", environment, workflowBytes, options);
+}
+export async function authenticateCatalogControlReaderJob(
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+  options: ReaderOptions = {},
+) {
+  return authenticateControlReaderJobForPurpose(
+    "catalog-publication",
+    environment,
+    workflowBytes,
+    options,
+  );
+}
+async function authenticateControlReaderJobForPurpose(
+  purpose: "application" | "catalog-publication",
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+  options: ReaderOptions,
+) {
   const env = { ...environment };
   const phase = inspectReleaseControlPhase(options.phase);
   const profile = releaseControlPhaseProfile(phase);
-  const admitted = admitProductionInputReader(
-    env.PORTCOVE_CONTROLLER_ADMISSION,
+  const admitted = (
+    purpose === "application" ? admitProductionInputReader : admitProductionCatalogInputReader
+  )(
+    purpose === "application"
+      ? env.PORTCOVE_CONTROLLER_ADMISSION
+      : env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION,
     env,
     workflowBytes,
     phase,
@@ -129,7 +161,8 @@ export async function authenticateControlReaderJob(
  * A live observer is permitted only after runtime immutable artifact collection.
  * The observer's Administration-write credential never enters this process.
  */
-export async function authenticateReleaseControlSource(
+async function authenticateControlSource(
+  purpose: "application" | "catalog-publication",
   environment: NodeJS.ProcessEnv,
   workflowBytes: Uint8Array,
   options: {
@@ -156,8 +189,27 @@ export async function authenticateReleaseControlSource(
   const env = { ...environment };
   const phase = inspectReleaseControlPhase(options.phase);
   const profile = releaseControlPhaseProfile(phase);
-  const { admitted, identity } = await authenticateControlReaderJob(env, workflowBytes, options);
-  const config = inspectReviewProducerConfiguration(json(env.PORTCOVE_REVIEW_PRODUCER, 4096));
+  const { admitted, identity } = await authenticateControlReaderJobForPurpose(
+    purpose,
+    env,
+    workflowBytes,
+    options,
+  );
+  const catalog =
+    purpose === "catalog-publication"
+      ? inspectBoundCatalogControllerAuthorities(
+          json(env.PORTCOVE_CATALOG_AUTHORITIES, 32 * 1024),
+          admitted,
+        )
+      : null;
+  const config = catalog
+    ? inspectReviewProducerConfiguration({
+        schema_version: 1,
+        review_app_id: catalog.apps.semantic.app_id,
+        writer_app_id: catalog.apps.classification.app_id,
+        review_check_name: "Portcove independent release semantic review",
+      })
+    : inspectReviewProducerConfiguration(json(env.PORTCOVE_REVIEW_PRODUCER, 4096));
   if (options.round && !options.observedArtifact)
     throw new Error("control rounds require actual collected observer artifact");
   if (options.observedArtifact)
@@ -309,7 +361,7 @@ export async function authenticateReleaseControlSource(
         ? "injected-provider"
         : "github.com",
     readMaintenance(api: CoordinatorRemoteApi) {
-      if (!isMaintenanceReleaseControlPhase(phase))
+      if (!(purpose === "catalog-publication" || isMaintenanceReleaseControlPhase(phase)))
         throw new Error("metadata controls require a fixed maintenance signing/publication phase");
       const protection = guard();
       const pause = readPublicationPause(api);
@@ -324,11 +376,17 @@ export async function authenticateReleaseControlSource(
       const facts = {
         phase,
         purpose:
-          phase === "site-publication"
-            ? "metadata-renewal"
-            : phase === "coordinator"
-              ? "metadata-coordinator-controls"
-              : "metadata-signing-controls",
+          purpose === "catalog-publication"
+            ? phase === "coordinator"
+              ? "catalog-coordinator-controls"
+              : phase === "site-publication"
+                ? "catalog-site-publication-controls"
+                : "catalog-signing-controls"
+            : phase === "site-publication"
+              ? "metadata-renewal"
+              : phase === "coordinator"
+                ? "metadata-coordinator-controls"
+                : "metadata-signing-controls",
         reader: readerFacts,
         pause: { commit: pause.commit, publication_paused: pause.publication_paused },
         capacity: { commit: capacity.commit, document_sha256: capacity.document_sha256 },
@@ -344,6 +402,8 @@ export async function authenticateReleaseControlSource(
       };
     },
     readDisposition(api: CoordinatorRemoteApi, request: unknown) {
+      if (purpose !== "application")
+        throw new Error("catalog controls cannot persist application disposition");
       if (phase !== "coordinator")
         throw new Error("semantic retirement requires the fixed coordinator controls");
       const maintenance = source.readMaintenance(api);
@@ -361,6 +421,8 @@ export async function authenticateReleaseControlSource(
       };
     },
     readRequest(api: CoordinatorRemoteApi, request: unknown) {
+      if (purpose !== "application")
+        throw new Error("catalog controls cannot classify application request");
       if (phase !== "coordinator")
         throw new Error("request classification requires fixed coordinator controls");
       const maintenance = source.readMaintenance(api);
@@ -404,6 +466,8 @@ export async function authenticateReleaseControlSource(
       };
     },
     read(api: CoordinatorRemoteApi, opportunity: unknown) {
+      if (purpose !== "application")
+        throw new Error("catalog controls cannot read application classification");
       const protection = guard();
       const classification = readReviewedClassification(api, config, opportunity);
       const pause = readPublicationPause(api);
@@ -439,8 +503,22 @@ export async function authenticateReleaseControlSource(
       };
     },
   });
-  establishedSources.add(source);
+  (purpose === "application" ? establishedSources : catalogSources).add(source);
   return source;
+}
+export function authenticateReleaseControlSource(
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+  options: Parameters<typeof authenticateControlSource>[3] = {},
+) {
+  return authenticateControlSource("application", environment, workflowBytes, options);
+}
+export function authenticateCatalogReleaseControlSource(
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+  options: Parameters<typeof authenticateControlSource>[3] = {},
+) {
+  return authenticateControlSource("catalog-publication", environment, workflowBytes, options);
 }
 export type AuthenticatedReleaseControlSource = Awaited<
   ReturnType<typeof authenticateReleaseControlSource>
@@ -450,7 +528,8 @@ export type AuthenticatedReleaseControlSource = Awaited<
  * its reviewed workflow uploads only this ready file while this process waits.
  * Every later protected operation needs a new ordinal/nonce, never an overwrite
  * or a relaxed protection freshness window. No credential enters this helper. */
-export async function authenticateReleaseControlRound(
+async function authenticateControlRoundForPurpose(
+  purpose: "application" | "catalog-publication",
   directory: string,
   factsSha256: string,
   rawPhase: unknown,
@@ -465,7 +544,7 @@ export async function authenticateReleaseControlRound(
   const env = { ...process.env };
   const deadlineOption = options.deadline === undefined ? {} : { deadline: options.deadline };
   const workflow = await readProductionControllerWorkflowBytes();
-  const reader = await authenticateControlReaderJob(env, workflow, {
+  const reader = await authenticateControlReaderJobForPurpose(purpose, env, workflow, {
     phase,
     ...deadlineOption,
   });
@@ -492,10 +571,42 @@ export async function authenticateReleaseControlRound(
     },
     options.deadline === undefined ? {} : { phaseDeadline: options.deadline },
   );
-  return authenticateReleaseControlSource(env, workflow, {
+  return authenticateControlSource(purpose, env, workflow, {
     phase,
     round,
     observedArtifact,
     ...deadlineOption,
   });
+}
+export function authenticateReleaseControlRound(
+  directory: string,
+  factsSha256: string,
+  rawPhase: unknown,
+  index: number,
+  options: { deadline?: number } = {},
+) {
+  return authenticateControlRoundForPurpose(
+    "application",
+    directory,
+    factsSha256,
+    rawPhase,
+    index,
+    options,
+  );
+}
+export function authenticateCatalogReleaseControlRound(
+  directory: string,
+  factsSha256: string,
+  rawPhase: unknown,
+  index: number,
+  options: { deadline?: number } = {},
+) {
+  return authenticateControlRoundForPurpose(
+    "catalog-publication",
+    directory,
+    factsSha256,
+    rawPhase,
+    index,
+    options,
+  );
 }

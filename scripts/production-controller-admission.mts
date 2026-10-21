@@ -24,6 +24,7 @@ function admitController(
   environment: NodeJS.ProcessEnv,
   workflowBytes: Uint8Array,
   job = "admission",
+  purpose: "application" | "catalog-publication" = "application",
 ) {
   if (!rawPolicy || Buffer.byteLength(rawPolicy) > 4096) refuse("missing or oversized policy");
   let policy: unknown;
@@ -40,7 +41,8 @@ function admitController(
       "actor_id,execution_ref,mode,revision,schema_version,workflow_sha256";
   const bounded =
     policy.schema_version === 2 &&
-    policy.mode === "bounded-application-release" &&
+    policy.mode ===
+      (purpose === "application" ? "bounded-application-release" : "bounded-catalog-publication") &&
     Object.keys(policy).sort().join(",") ===
       "actor_id,authority_configuration_sha256,execution_ref,grant_sha256,mode,revision,schema_version,workflow_sha256" &&
     typeof policy.authority_configuration_sha256 === "string" &&
@@ -48,7 +50,7 @@ function admitController(
     typeof policy.grant_sha256 === "string" &&
     /^[a-f0-9]{64}$/u.test(policy.grant_sha256);
   if (
-    (!legacy && !bounded) ||
+    ((!legacy || purpose !== "application") && !bounded) ||
     typeof policy.execution_ref !== "string" ||
     !/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(
       policy.execution_ref,
@@ -134,6 +136,8 @@ export function admitProductionInputReader(
   workflowBytes: Uint8Array,
   phase: unknown = "admission",
 ) {
+  if (typeof phase === "string" && phase.startsWith("catalog-"))
+    refuse("application control phase");
   return admitController(
     productionControllerWorkflow,
     rawPolicy,
@@ -142,18 +146,76 @@ export function admitProductionInputReader(
     releaseControlPhaseProfile(phase).reader_job,
   );
 }
+
+/** Separate owner grant and purpose. Shared coordinator/Pages jobs may consume
+ * catalog controls, but application admission and signing jobs cannot. */
+export function admitProductionCatalogInputReader(
+  rawPolicy: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+  phase: unknown,
+) {
+  if (
+    ![
+      "coordinator",
+      "site-publication",
+      "catalog-definitions",
+      "catalog-policy",
+      "catalog-snapshot",
+      "catalog-timestamp",
+    ].includes(String(phase))
+  )
+    refuse("catalog control phase");
+  return admitController(
+    productionControllerWorkflow,
+    rawPolicy,
+    environment,
+    workflowBytes,
+    releaseControlPhaseProfile(phase).reader_job,
+    "catalog-publication",
+  );
+}
 export function admitProductionProtectionObserver(
   rawPolicy: string | undefined,
   environment: NodeJS.ProcessEnv,
   workflowBytes: Uint8Array,
   phase: unknown = "admission",
 ) {
+  if (typeof phase === "string" && phase.startsWith("catalog-"))
+    refuse("application protection phase");
   return admitController(
     productionControllerWorkflow,
     rawPolicy,
     environment,
     workflowBytes,
     releaseControlPhaseProfile(phase).observer_job,
+  );
+}
+
+export function admitProductionCatalogProtectionObserver(
+  rawPolicy: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+  phase: unknown,
+) {
+  if (
+    ![
+      "coordinator",
+      "site-publication",
+      "catalog-definitions",
+      "catalog-policy",
+      "catalog-snapshot",
+      "catalog-timestamp",
+    ].includes(String(phase))
+  )
+    refuse("catalog protection phase");
+  return admitController(
+    productionControllerWorkflow,
+    rawPolicy,
+    environment,
+    workflowBytes,
+    releaseControlPhaseProfile(phase).observer_job,
+    "catalog-publication",
   );
 }
 /** Dedicated D1 jobs in the complete fixed controller. These named profiles do
