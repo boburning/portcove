@@ -8,6 +8,8 @@ import {
   requireNativeReleaseQualificationPair,
   collectNativeReleaseQualificationPair,
   deriveNativeQualificationExpectations,
+  deriveNativeQualificationTemplates,
+  bindNativeQualificationLocators,
 } from "./release-native-admission.mts";
 import {
   inspectPublicationAuthorities,
@@ -296,6 +298,13 @@ void test("fixed authority supplies native issuer and host while locators cannot
     archives,
     "payload-signing",
   );
+  const templates = await deriveNativeQualificationTemplates(authorities, f.request, archives);
+  assert.ok(
+    templates.every(
+      (item) => !Object.hasOwn(item, "check_id") && !Object.hasOwn(item.producer, "invocation_id"),
+    ),
+  );
+  assert.deepEqual(bindNativeQualificationLocators(locators, templates), expected);
   assert.equal(expected[0]!.native_app_id, 102);
   assert.equal(expected[0]!.candidate.artifact_id, 901);
   assert.equal(expected[0]!.candidate.source_commit, f.request.source_commit);

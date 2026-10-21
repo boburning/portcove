@@ -31,10 +31,12 @@ import {
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { inspectCompactCapacityOperations } from "./release-capacity.mts";
 import {
-  deriveNativeQualificationExpectations,
+  deriveNativeQualificationTemplates,
+  bindNativeQualificationLocators,
   collectNativeReleaseQualificationPair,
 } from "./release-native-admission.mts";
-import { inspectNativeQualificationExpectation } from "./release-native-acceptance.mts";
+import { discoverNativeQualificationLocators } from "./release-native-check-discovery.mts";
+import { inspectNativeQualificationTemplate } from "./release-native-acceptance.mts";
 import {
   inspectNativeReleaseQualification,
   inspectNativeQualificationCandidate,
@@ -474,13 +476,7 @@ async function collectNativePublicationPair(
   const signedContext = tuf.publication.repository_sha256;
   if (typeof signedContext !== "string")
     throw new Error("actual signed repository identity missing");
-  const expectedBefore = await deriveNativeQualificationExpectations(
-    authorities,
-    locators,
-    assembly,
-    archives,
-    "payload-signing",
-  );
+  const expectedBefore = await deriveNativeQualificationTemplates(authorities, assembly, archives);
   const files = await readBoundedReleaseContextFiles(path.dirname(context.context));
   const required = (name: string) => {
     const bytes = files.get(name);
@@ -638,8 +634,8 @@ async function collectNativePublicationPair(
       authority_schema_version: authorities.schema_version,
       api,
     });
-    const expected = expectedBefore.map((item, index) =>
-      inspectNativeQualificationExpectation({
+    const templates = expectedBefore.map((item, index) =>
+      inspectNativeQualificationTemplate({
         ...item,
         schema_version: 2,
         native_prepublication_profile: nativePrepublicationProfile,
@@ -647,6 +643,9 @@ async function collectNativePublicationPair(
         journey: journeys[index],
       }),
     );
+    const selectedLocators =
+      locators === null ? discoverNativeQualificationLocators(templates, deadline) : locators;
+    const expected = bindNativeQualificationLocators(selectedLocators, templates);
     await writeFile(path.join(directory, "expected.json"), JSON.stringify(expected), {
       flag: "wx",
       mode: 0o600,

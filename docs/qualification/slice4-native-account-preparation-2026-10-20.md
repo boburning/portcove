@@ -487,3 +487,35 @@ to `f090186`). Five routing/inventory cases passed, all 210 indexed test files a
 registered, and changed `.mts` files passed type-aware lint. Current main's
 whole-site, metadata recovery, tool-bundle and controller changes were retained;
 these checks do not add Task/account, hosted native or public journey evidence.
+
+## Automatic native Check lookup preparation
+
+Configured native collectors now interpret the explicit `native_locators: null`
+marker as automatic GET-only discovery for pre-sign, post-sign and completion
+readback. Legacy exact locators still undergo the same actual consumer checks;
+undefined or omitted data cannot select automatic discovery. Fixed templates
+come from the existing ratified authority, exact assembly/archive inputs, and
+actual signed-context/journey factories. They contain no invented Check or
+invocation identity. The discovery result supplies only inert platform/Check/
+invocation locators and cannot mint native or admission acceptance.
+
+The reader pins GitHub.com, the configured native App, repository and exact
+source, walks the complete named-Check inventory under at most 16 suites and
+below the provider's 1000-run deletion ceiling, and brackets it with a second
+complete snapshot. Each snapshot binds the exact candidate, stage, producer,
+host, compatibility and signed journey. Missing, changed, false, duplicated or
+wrong-issuer evidence refuses. A unique Windows/Linux pair then passes through
+the unchanged actual native consumer, which authenticates and retains the full
+Check/suite/source/harness proof before any private receipt. The reader allows
+at most 40 GETs, 32 MiB total JSON and the caller's finite deadline; it adds no
+job, credential, authority or retry loop. Its default child strips ambient hooks,
+proxy and authentication configuration and preserves the fixed provider route.
+Component checks remain synthetic and do not establish an observed App, Task,
+native runtime or ordinary public updater journey.
+
+The automatic-lookup component passed six focused discovery cases and 26 existing
+native consumer/association/contract cases, plus five routing/inventory cases.
+Type-aware lint passed for the eight changed TypeScript modules/tests, and all
+213 indexed tests are registered. The discovery checks include real default
+transport argument/environment construction with an inert injected child, not
+an actual provider or native acceptance observation.
