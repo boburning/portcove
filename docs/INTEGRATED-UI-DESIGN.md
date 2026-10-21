@@ -5,7 +5,7 @@ This contract supersedes the earlier staged UI delivery proposal. The owner requ
 ## Product decisions
 
 - Keep four destinations: Library, Find games, Activity and Settings. Add games is a contextual task. Keep Commands and its shortcut discoverable with quiet secondary treatment; place installation copy with Add games and About/help with Settings rather than competing permanent sidebar actions. Preserve shortcuts, navigation regions and valid return focus.
-- Identity and the current next action lead. Separate games, stable port IDs and variants. Keep red Play, green readiness, blue selection and gold keyboard focus. Keep graphite/warm-light tokens, bundled Geist, Lucide controls and the approved crab assets.
+- Identity and the current next action lead. Separate games, stable port IDs and variants. Keep red Play, quiet checked readiness, blue selection and gold keyboard focus. Keep graphite/warm-light tokens, bundled Geist, Lucide controls and the approved crab assets.
 - Keep whole-image 2:3 collection frames, metadata outside artwork, compact wrapping rows and bounded detail/task artwork. Do not infer ownership, readiness, image crops or eligibility from appearance. Unclassified artwork retains its complete source image.
 - Use the existing workspace scroll owner and native sizing preference. Constrain reading/forms within the available workspace; never constrain its scrollbar to a stale width. Reflow navigation and task actions with no lost functionality at enlargement.
 - Add games offers intentions: choose a game/port, find games in a folder, or use an existing installation. Requirements determine the route; there is no universal six-step wizard. Preserve checked inputs and drafts across navigation.

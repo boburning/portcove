@@ -67,7 +67,7 @@ export function AddGames({
       </p>
       <ol
         aria-label="Add games stages"
-        className="my-4 flex flex-wrap gap-x-6 gap-y-2 ps-5 text-sm text-pc-muted-foreground"
+        className="my-4 flex flex-wrap gap-x-6 gap-y-2 ps-5 text-sm text-pc-muted-foreground [&_[aria-current=step]]:font-semibold [&_[aria-current=step]]:text-pc-foreground"
       >
         <li aria-current={!port ? "step" : undefined}>Choose a game or files</li>
         <li aria-current={port ? "step" : undefined}>Check requirements</li>
