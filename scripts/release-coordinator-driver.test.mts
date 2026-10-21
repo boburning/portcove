@@ -11,10 +11,54 @@ import {
   coordinatorOriginalJobDeadline,
   selectCoordinatorPendingPagesRecovery,
   materializeCoordinatorPublishedSite,
+  selectCoordinatorMetadataBootstrap,
+  requireActualCoordinatorBootstrapPreparation,
 } from "./release-coordinator-driver.mts";
-import { metadataFixture } from "./fixtures/release-metadata-fixture.mts";
+import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
 import { performance } from "node:perf_hooks";
 import { pagesRecoveryOperationFixture } from "./fixtures/release-pages-recovery-fixture.mts";
+
+void test("initial bootstrap selection closes permanently on a real seed and never clears an existing effect", async () => {
+  const { descriptor } = metadataBootstrapFixture();
+  const input = {
+    metadata_bootstrap: descriptor,
+    published_metadata: null,
+    active_candidate: { phase: "qualifying", transient_retries: 2, substantive_repairs: 3 },
+    review_request: { retained: true },
+  };
+  const before = structuredClone(input);
+  assert.equal(selectCoordinatorMetadataBootstrap(input, descriptor.generated_at), "resume");
+  assert.deepEqual(input, before);
+  assert.equal(
+    selectCoordinatorMetadataBootstrap(
+      { ...input, metadata_bootstrap: null },
+      descriptor.generated_at,
+    ),
+    "initial",
+  );
+  assert.equal(
+    selectCoordinatorMetadataBootstrap(
+      { ...input, published_metadata: metadataFixture().published },
+      descriptor.generated_at,
+    ),
+    "closed",
+  );
+  assert.equal(
+    selectCoordinatorMetadataBootstrap(
+      {
+        ...input,
+        controller: { capacity_attempt: { operation: pagesRecoveryOperationFixture() } },
+      },
+      descriptor.generated_at,
+    ),
+    "held-unresolved-effect",
+  );
+  assert.throws(() => selectCoordinatorMetadataBootstrap(input, "2099-01-01T00:00:00Z"), /expired/);
+  await assert.rejects(
+    requireActualCoordinatorBootstrapPreparation({ decision: "metadata-bootstrap-prepared" }),
+    /same-process/,
+  );
+});
 
 void test("default wake selects only unresolved exact Pages expectations without fabricating one", () => {
   const operation = pagesRecoveryOperationFixture();

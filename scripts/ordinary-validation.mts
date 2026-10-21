@@ -341,7 +341,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   [
     "scripts/release-authority-configuration.mts",
-    ["scripts/production-controller-admission.test.mts"],
+    [
+      "scripts/production-controller-admission.test.mts",
+      "scripts/release-bootstrap-preparation.test.mts",
+    ],
   ],
   [
     "scripts/fixtures/release-semantic-disposition-fixture.mts",
@@ -362,6 +365,11 @@ const explicitNodeTests = new Map<string, readonly string[]>([
 
   ["scripts/release-site-readback.mts", ["scripts/release-site-readback.test.mts"]],
   ["scripts/release-metadata-renewal.mts", ["scripts/release-metadata-renewal.test.mts"]],
+  ["scripts/release-bootstrap-preparation.mts", ["scripts/release-bootstrap-preparation.test.mts"]],
+  [
+    "scripts/release-bootstrap-public-inputs.mts",
+    ["scripts/release-bootstrap-preparation.test.mts"],
+  ],
   [
     "scripts/release-compiler-source-closure.mts",
     ["scripts/release-compiler-source.test.mts", "scripts/release-controller-tools.test.mts"],
@@ -460,7 +468,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   [
     "scripts/release-authority-configuration.mts",
-    ["scripts/production-controller-admission.test.mts"],
+    [
+      "scripts/production-controller-admission.test.mts",
+      "scripts/release-bootstrap-preparation.test.mts",
+    ],
   ],
   ...[
     "scripts/semantic-review-linux-supervisor.py",
