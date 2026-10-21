@@ -111,6 +111,27 @@ void test("keyless native post-sign verifier is an exact protected installation 
     );
   input.post_sign_verifier.sha256 = "d".repeat(64);
   assert.equal(actual.post_sign_verifier?.sha256, "c".repeat(64));
+  const pin = (name: string) => ({ path: `C:\\Tools\\${name}.exe`, sha256: "e".repeat(64) });
+  assert.throws(
+    () =>
+      inspectLocalNativeTransport(
+        {
+          ...input,
+          post_sign_verifier: pin("git"),
+          windows_tools: {
+            git: pin("git"),
+            powershell: pin("pwsh"),
+            desktop_tools: {
+              node: pin("node"),
+              tauri_driver: pin("tauri-driver"),
+              webview_driver: pin("webview-driver"),
+            },
+          },
+        },
+        "windows-x86_64",
+      ),
+    /overlaps an independently pinned desktop tool/,
+  );
 });
 
 void test("native installed descriptor binds fixed scheduler/platform and refuses supplied authority, aliases and foreign routes", () => {
