@@ -113,9 +113,8 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
     .toBeEnabled();
   expect(next.element().textContent).toContain("Harbor Adventure");
   await userEvent.click(page.getByRole("button", { name: "Review game preparation", exact: true }));
-  await expect
-    .element(page.getByText("Selected game files: fixture/owned.iso", { exact: true }))
-    .toBeVisible();
+  await expect.element(page.getByText("Selected game files", { exact: true })).toBeVisible();
+  await expect.element(page.getByText("fixture/owned.iso", { exact: true })).toBeVisible();
   await userEvent.click(page.getByRole("button", { name: "Prepare game data", exact: true }));
   await expect
     .element(

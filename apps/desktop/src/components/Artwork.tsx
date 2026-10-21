@@ -13,14 +13,23 @@ export function ArtworkImage({
   port,
   slot = "cover",
   className = "",
+  quietFallback = false,
 }: {
   port: Pick<PortDefinition, "id">;
   slot?: ArtworkSlot;
   className?: string;
+  quietFallback?: boolean;
 }) {
   const { element, visible } = useArtworkVisibility();
   const { display } = useArtwork(port.id, slot, visible);
-  return <ArtworkFrame element={element} display={display} className={className} />;
+  return (
+    <ArtworkFrame
+      element={element}
+      display={display}
+      className={className}
+      quietFallback={quietFallback}
+    />
+  );
 }
 
 export function artworkDisplayNotice(display: ReturnType<typeof useArtwork>["display"]) {
@@ -37,11 +46,13 @@ export function ArtworkFrame({
   display,
   className = "",
   identityArtwork = false,
+  quietFallback = false,
 }: {
   element: RefObject<HTMLDivElement | null>;
   display: ReturnType<typeof useArtwork>["display"];
   className?: string;
   identityArtwork?: boolean;
+  quietFallback?: boolean;
 }) {
   const image = display.image;
   const fallback = display.state?.generated_fallback;
@@ -61,7 +72,7 @@ export function ArtworkFrame({
         "artwork-image",
         styles.image,
         className,
-        identityArtwork
+        identityArtwork || (quietFallback && !image)
           ? "[--art-color:var(--color-bg-subtle)]"
           : image
             ? "bg-transparent"
@@ -78,7 +89,7 @@ export function ArtworkFrame({
           decoding="async"
           onError={display.onImageError}
         />
-      ) : identityArtwork ? (
+      ) : identityArtwork || quietFallback ? (
         <span className="grid max-w-full justify-items-center gap-2 p-2 text-pc-muted-foreground">
           <Gamepad2 aria-hidden="true" className="size-6 max-w-full" />
         </span>

@@ -68,6 +68,30 @@ detail-return and operation eligibility retain their existing owners. This Libra
 slice reuses the existing interface-size controller and does not establish new
 native enlargement acceptance.
 
+## Game details
+
+Details keep the complete original-game title, port/project and distinguishing
+variant together with the current Core-derived action. The action follows identity
+inside the hero rather than occupying a distant right-hand column. Whole-image
+2:3 cover frames are bounded independently of text:80CSS pixels in the narrow
+reading flow,120at24rem of detail width,160at48rem; the hero becomes two columns
+at32rem. Enlarged reading and long identities grow the text/action block and may
+require vertical scrolling. They never stretch or crop artwork.
+
+About, current installation/version facts and registered external-folder ownership
+precede routine update preferences and artwork management. A downloaded update's
+notice remains beside the current action; review and activation retain their
+existing separate controls. External-folder facts come from the registered runtime,
+not readiness or a support flag. Recorded compatibility checks use a keyboard
+disclosure. Existing file, backup, maintenance, artwork-override and technical
+controls remain reachable in their named sections, and Back retains its existing
+exact entry/query/view/scroll/focus contract.
+
+Missing hero artwork uses the existing quiet gamepad fallback, without repeating
+the title. Failure/stale artwork notices and all image precedence/cache behavior
+remain with the existing artwork owner. This presentation adds no crop inference
+or provider/asset mapping.
+
 ## Activity and contextual task feedback
 
 Pending launch controls in Library covers/rows, Continue, details and Activity retain
@@ -682,6 +706,22 @@ folder search supplies multi-game recognition. Retain ambiguous/unsupported and
 unknown evidence in existing review treatments. Detail/setup completion uses the
 shared primary/recovery and focus contracts. Save drafts during normal navigation;
 opening another destination must not imply cancellation or task completion.
+
+### Game-data preparation review
+
+The preparation review names the selected game/port and presents the installed
+version, exact installed folder and selected original-file path as labeled facts
+from the returned plan. Keep space, activation, preserved-data, interruption and
+external setup-window consequences in the same scrolling review before its
+explicit confirmation. Initial focus belongs to the review heading so compact
+and enlarged windows begin with identity and inputs; keyboard navigation reaches
+the confirmation and cancellation controls in document order. Cancellation and
+completion keep the existing context-bound return-focus owner.
+
+Preparation completion reports that game data is prepared. It does not grant
+launch availability: the refreshed Core readiness and existing current-action
+projection determine Play or the next required step. Package installation,
+preparation and external-folder registration remain separate operations.
 
 ### Library identity and artwork feedback
 
