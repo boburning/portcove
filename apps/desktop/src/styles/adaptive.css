@@ -100,3 +100,60 @@
     }
   }
 }
+
+@layer utilities {
+  .interface-workspace {
+    width: 100%;
+    min-width: 0;
+    container-type: inline-size;
+    container-name: app-window;
+  }
+  @media (min-width: 768px) {
+    @container app-window (max-width: 80em) {
+      .app-shell {
+        grid-template-columns: var(--layout-sidebar-compact) minmax(0, 1fr);
+      }
+      .app-shell > .sidebar {
+        padding-inline: 10px;
+      }
+      .sidebar .brand {
+        justify-content: center;
+        padding-inline: 0;
+      }
+      .sidebar .brand-avatar {
+        width: 36px;
+        height: 36px;
+      }
+      .sidebar .brand > div,
+      .sidebar .nav-item > .shortcut,
+      .sidebar .nav-item > b:not(.nav-status),
+      .sidebar .controller-hint {
+        display: none;
+      }
+      .sidebar .nav-item {
+        position: relative;
+        justify-content: center;
+        padding-inline: 10px;
+        gap: 0;
+      }
+      .sidebar .nav-status {
+        position: absolute;
+        inset: 0 0 auto auto;
+        min-width: 16px;
+        padding-inline: 2px;
+      }
+      .sidebar .nav-label,
+      .sidebar .sidebar-action-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+      .sidebar-footer > button {
+        padding-inline: 8px;
+      }
+    }
+  }
+}

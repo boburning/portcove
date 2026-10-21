@@ -292,9 +292,7 @@ it.each(["dark", "light"])(
     await expect.element(button("Remove Linux filter")).not.toBeInTheDocument();
     await expect.element(button("Filters (1)")).toHaveFocus();
     await userEvent.click(
-      page
-        .getByRole("group", { name: "Library filters", exact: true })
-        .getByRole("button", { name: "Clear search and filters", exact: true }),
+      page.getByRole("button", { name: "Clear search and filters", exact: true }),
     );
     await expect.element(button("All (3)")).toHaveAttribute("aria-pressed", "true");
     await expect.element(button("Filters (0)")).toBeInTheDocument();
