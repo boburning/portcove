@@ -3,11 +3,17 @@
 This checkpoint implements adapters, without appointing a publisher, provisioning
 keys, activating a workflow or claiming protected/provider acceptance.
 
-The coordinator requires its actual Core invocation receipt, the original settled
-semantic capture and a fresh selected-App Check, ratified catalog configuration,
+The coordinator requires its actual Core invocation receipt and freshly receives
+the selected-App Check over the exact complete opportunity, ratified catalog configuration,
 current maintenance controls, and the existing durable catalog subject. It keeps
 one original 170-second clock and one ordinal allocator (initial 0, then 1–14).
 The Core invocation must use the identical actual controller-tool receipt.
+The local semantic publisher still requires its direct runtime capture. That
+process-local capture is not imported or cast across hosts: the hosted receiver's
+private session comes from actual fixed OIDC/configuration/control admission and
+fresh GET verification of the appointed producer's schema-3 Check, including
+issuer, purpose, source, full opportunity, accepted coverage and immutable proof
+identity. Context guards freshly recheck that same Check under the original clock.
 
 `completeCoordinatorCatalogSigningContext` uses the existing exclusive pending,
 immutable context upload, provider readback and attestation transport. Each of the

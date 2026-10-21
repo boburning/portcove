@@ -6,7 +6,8 @@ import {
   requireActualCatalogInspection,
   readCatalogPublicationBundle,
 } from "./release-catalog-inspection.mts";
-import { requireActualCatalogSemanticReview } from "./release-semantic-broker.mts";
+import { readIndependentCatalogSemanticReview } from "./release-control-inputs.mts";
+import { semanticReviewCheckName } from "./release-semantic-review.mts";
 import {
   inspectPublicationReportRepair,
   reportRepairDispatchDestination,
@@ -132,7 +133,6 @@ type Reader = ReturnType<typeof createReleasePublicationReader>;
 type CatalogPreparationInputs = {
   tools: object;
   inspection: Parameters<typeof requireActualCatalogInspection>[0];
-  capture: Parameters<typeof requireActualCatalogSemanticReview>[0];
   opportunity: unknown;
   check_id: number;
 };
@@ -155,8 +155,9 @@ type ActualCatalogPreparation = {
 };
 const catalogPreparations = new WeakMap<object, ActualCatalogPreparation>();
 
-/** Actual fixed coordinator entry for a catalog purpose. Source/inspection and
- * direct settled semantic capture remain separate private receipts. It creates
+/** Actual fixed coordinator entry for a catalog purpose. The local publisher's
+ * direct capture is not imported: this receiver freshly authenticates its
+ * appointed App Check and exact complete opportunity. It creates
  * no app candidate and makes no provider mutation. */
 export async function prepareActualCoordinatorCatalogSigning(
   parent: string,
@@ -164,7 +165,7 @@ export async function prepareActualCoordinatorCatalogSigning(
   phaseDeadline?: number,
 ) {
   const inputs = { ...raw, opportunity: inspectCatalogSemanticOpportunity(raw.opportunity) };
-  if (Object.keys(raw).sort().join(",") !== "capture,check_id,inspection,opportunity,tools")
+  if (Object.keys(raw).sort().join(",") !== "check_id,inspection,opportunity,tools")
     throw new Error("catalog coordinator exact actual inputs required");
   const budget = coordinatorDeadline(phaseDeadline);
   return withCoordinatorDeadline(budget.monotonicDeadline, async () => {
@@ -232,15 +233,10 @@ export async function prepareActualCoordinatorCatalogSigning(
       )
         throw new Error("catalog Core inspection did not use the actual current controller tools");
       assertControllerCatalogPublisherScope(authorities, inspection.inspection, files);
-      const semantic = await requireActualCatalogSemanticReview(
-        inputs.capture,
-        inputs.opportunity,
-        {
-          app_id: authorities.apps.semantic.app_id,
-          installation_id: authorities.apps.semantic.installation_id,
-          writer_app_id: authorities.apps.classification.app_id,
-        },
+      const semantic = readCatalogCoordinatorReview(
         api,
+        authorities,
+        inputs.opportunity,
         inputs.check_id,
       );
       if (
@@ -380,15 +376,10 @@ export async function requireActualCoordinatorCatalogPreparation(
       throw new Error("catalog original Core tools receipt changed");
     assertControllerCatalogPublisherScope(authorities, inspection.inspection, files);
     const api = metadataContinuationApi(owned.directory, () => owned.deadline);
-    const semantic = await requireActualCatalogSemanticReview(
-      owned.inputs.capture,
-      owned.inputs.opportunity,
-      {
-        app_id: authorities.apps.semantic.app_id,
-        installation_id: authorities.apps.semantic.installation_id,
-        writer_app_id: authorities.apps.classification.app_id,
-      },
+    const semantic = readCatalogCoordinatorReview(
       api,
+      authorities,
+      owned.inputs.opportunity,
       owned.inputs.check_id,
     );
     if (
@@ -432,7 +423,64 @@ export async function requireActualCoordinatorCatalogPreparation(
       directory: owned.directory,
       deadline: owned.deadline,
       next_controls: owned.next_controls,
+      recheck_semantic: (tighter?: number) => recheckActualCatalogReview(result, tighter),
     };
+  });
+}
+/** An inert proof parser is not a receiver capability. Only the actual fixed
+ * OIDC/config/control admission above inserts the resulting session map. */
+function readCatalogCoordinatorReview(
+  api: Parameters<typeof readIndependentCatalogSemanticReview>[0],
+  authorities: { apps: { semantic: { app_id: number }; classification: { app_id: number } } },
+  opportunity: unknown,
+  check_id: number,
+) {
+  const selected = inspectCatalogSemanticOpportunity(opportunity),
+    proof = readIndependentCatalogSemanticReview(
+      api,
+      {
+        schema_version: 1,
+        review_app_id: authorities.apps.semantic.app_id,
+        writer_app_id: authorities.apps.classification.app_id,
+        review_check_name: semanticReviewCheckName,
+      },
+      selected,
+      check_id,
+    );
+  return {
+    opportunity: selected,
+    check_id,
+    proof,
+    proof_sha256: capacityDigest(proof),
+    authority: "none" as const,
+  };
+}
+async function recheckActualCatalogReview(result: object, tighter?: number) {
+  const owned = catalogPreparations.get(result);
+  if (!owned) throw new Error("actual protected catalog receiver required");
+  owned.deadline = coordinatorContinuationDeadline(owned.deadline, tighter);
+  return withCoordinatorDeadline(owned.deadline, async () => {
+    const { requireControllerCatalogPublicationAuthorities } =
+        await import("./release-authority-configuration.mts"),
+      authorities = await requireControllerCatalogPublicationAuthorities("coordinator");
+    if (capacityDigest(authorities) !== owned.authorities_sha256)
+      throw new Error("catalog selected issuer/configuration changed");
+    const semantic = readCatalogCoordinatorReview(
+      metadataContinuationApi(owned.directory, () => owned.deadline),
+      authorities,
+      owned.inputs.opportunity,
+      owned.inputs.check_id,
+    );
+    if (
+      owned.descriptor.admission_sha256 !==
+      catalogSigningAdmissionDigest({
+        ...semantic.opportunity,
+        semantic_proof_sha256: semantic.proof_sha256,
+      })
+    )
+      throw new Error("catalog receiver original proof changed");
+    coordinatorContinuationDeadline(owned.deadline);
+    return semantic;
   });
 }
 const metadataPreparations = new WeakMap<

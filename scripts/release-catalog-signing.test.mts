@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import path from "node:path";
+import os from "node:os";
+import { mkdir, mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import {
@@ -30,6 +32,7 @@ import {
   runCatalogRoleController,
   assembleActualCatalogRepository,
   catalogRoleControllerDeadline,
+  recheckCatalogSemanticProof,
 } from "./release-catalog-signing.mts";
 import { requireReceivedCatalogRoleArtifact } from "./release-tuf-role-artifact.mts";
 import {
@@ -37,6 +40,21 @@ import {
   tufOriginalJobDeadline,
 } from "./release-signing-job-budget.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
+import {
+  retainControllerUpload,
+  retainControllerAttestation,
+  retainControllerRoleKey,
+  nextControllerTransport,
+  acknowledgeControllerTransport,
+  normalizeControllerAttestationBundle,
+  retainControllerJobSettlement,
+  inspectControllerTransportEvent,
+} from "./release-controller-transport.mts";
+import {
+  prepareSemanticReviewHandoff,
+  semanticReviewCheckName,
+} from "./release-semantic-review.mts";
+import { readIndependentCatalogSemanticReview } from "./release-control-inputs.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 function fixture() {
   const index = Buffer.from('{"index_schema":1,"definitions":[],"contents":[]}'),
@@ -99,7 +117,7 @@ function fixture() {
       semantic_proof_sha256: "1".repeat(64),
       root_sha256: hash(root),
       offline_targets_sha256: hash(top),
-    generated_at: "2026-10-21T00:00:00Z",
+      generated_at: "2026-10-21T00:00:00Z",
       expires: {
         definitions: "2026-10-22T00:00:00Z",
         policy: "2026-10-22T00:00:00Z",
@@ -324,4 +342,218 @@ void test("imported contexts, preparations, roles and assemblies cannot reach re
       performance.now() - 1,
     ),
   );
+});
+void test("catalog same App Check receiver binds fresh exact proof without importing a local capture", () => {
+  const f = fixture(),
+    op = f.facts.semantic_opportunity,
+    handoff = prepareSemanticReviewHandoff(op, {
+      scope: "complete-catalog-publication-opportunity",
+      runtime: "codex-independent-local-review",
+      session_ref: "inert:transport-only",
+      completed_at: "2026-10-21T00:00:00Z",
+      coverage: { accumulated_changes: true, classification: true, compatibility: true },
+      accepted_opportunity: op,
+      report: "Inert receiver fixture; not actual capture/publisher authority.",
+    });
+  const body = {
+    ...handoff.proposed_request.body,
+    id: 303,
+    app: { id: 101 },
+    output: { ...handoff.proposed_request.body.output, annotations_count: 0 },
+  };
+  let observed = body,
+    reads = 0;
+  const api = {
+    request(method: string, route: string) {
+      reads++;
+      assert.equal(method, "GET");
+      return {
+        status: 200,
+        headers: new Map<string, string>(),
+        body: route.endsWith("check-runs/303")
+          ? observed
+          : { id: 1354613114, full_name: "boburning/portcove", node_id: "fixture" },
+      };
+    },
+    graphql() {
+      throw new Error("no mutation");
+    },
+  };
+  const proof = readIndependentCatalogSemanticReview(
+      api,
+      {
+        schema_version: 1,
+        review_app_id: 101,
+        writer_app_id: 202,
+        review_check_name: semanticReviewCheckName,
+      },
+      op,
+      303,
+    ),
+    proof_sha256 = digest(proof),
+    descriptor = {
+      ...f.facts.descriptor,
+      admission_sha256: catalogSigningAdmissionDigest({
+        ...op,
+        semantic_proof_sha256: proof_sha256,
+      }),
+    },
+    facts = inspectCatalogSigningFacts({
+      ...f.facts,
+      descriptor,
+      semantic_proof_sha256: proof_sha256,
+    }),
+    binding = {
+      ...f.binding,
+      descriptor_sha256: digest(descriptor),
+      semantic_proof_sha256: proof_sha256,
+      context_sha256: hash(catalogSigningContextBytes(facts)),
+    },
+    authorities = { apps: { semantic: { app_id: 101 }, classification: { app_id: 202 } } };
+  assert.equal(
+    recheckCatalogSemanticProof(api, authorities, facts, binding, descriptor.prior)
+      .semantic_check_id,
+    303,
+  );
+  const before = reads;
+  assert.equal(
+    recheckCatalogSemanticProof(api, authorities, facts, binding, descriptor.prior)
+      .semantic_proof_sha256,
+    proof_sha256,
+  );
+  assert.ok(reads > before);
+  for (const changed of [
+    { app: { id: 202 } },
+    { head_sha: "9".repeat(40) },
+    { conclusion: "failure" },
+    { external_id: "wrong-purpose" },
+  ]) {
+    observed = { ...body, ...changed };
+    assert.throws(() =>
+      recheckCatalogSemanticProof(api, authorities, facts, binding, descriptor.prior),
+    );
+  }
+  observed = body;
+  assert.throws(() =>
+    recheckCatalogSemanticProof(
+      api,
+      authorities,
+      { ...facts, semantic_proof_sha256: "8".repeat(64) },
+      binding,
+      descriptor.prior,
+    ),
+  );
+});
+void test("catalog context and role ready/predicate routes reach fixed upload and normalized attestation names", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "catalog-routing-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const oldRun = process.env.GITHUB_RUN_ID,
+    oldAttempt = process.env.GITHUB_RUN_ATTEMPT;
+  process.env.GITHUB_RUN_ID = "123";
+  process.env.GITHUB_RUN_ATTEMPT = "1";
+  t.after(() => {
+    if (oldRun === undefined) delete process.env.GITHUB_RUN_ID;
+    else process.env.GITHUB_RUN_ID = oldRun;
+    if (oldAttempt === undefined) delete process.env.GITHUB_RUN_ATTEMPT;
+    else process.env.GITHUB_RUN_ATTEMPT = oldAttempt;
+  });
+  const f = fixture(),
+    manifest = inspectSigningContextArchive(f.archive()).manifest,
+    manifestBytes = Buffer.from(JSON.stringify(manifest)),
+    directory = path.join(root, "context");
+  await mkdir(directory);
+  await writeFile(path.join(directory, "signing-context-manifest.json"), manifestBytes);
+  await writeFile(
+    path.join(directory, "signing-context-bytes.bin"),
+    Buffer.concat([...f.files].sort(([a], [b]) => (a < b ? -1 : 1)).map(([, bytes]) => bytes)),
+  );
+  await writeFile(
+    path.join(directory, "context-ready.json"),
+    JSON.stringify({
+      name: "trusted-catalog-signing-context-123-1",
+      files: ["signing-context-manifest.json", "signing-context-bytes.bin"],
+    }),
+  );
+  await retainControllerUpload(root, "coordinator", "context", directory);
+  const context = await nextControllerTransport(root, "coordinator", 1, performance.now() + 10000);
+  assert.equal(context.kind, "context");
+  assert.ok("context_kind" in context && context.context_kind === "catalog-signing-context");
+  await acknowledgeControllerTransport(root, "coordinator", 1, {
+    artifact_id: 70,
+    sha256: "1".repeat(64),
+  });
+  const predicate = path.join(directory, "signing-context-predicate.json");
+  await writeFile(
+    predicate,
+    JSON.stringify({ role: "catalog-signing-context", manifest_sha256: hash(manifestBytes) }),
+  );
+  await retainControllerAttestation(root, "coordinator", {
+    subject_path: path.join(directory, "signing-context-manifest.json"),
+    predicate_path: predicate,
+    predicate_type: "https://portcove.dev/attestations/release-signing-context/v1",
+  });
+  await retainControllerJobSettlement(root, "coordinator", 0, true);
+  assert.equal(
+    (await nextControllerTransport(root, "coordinator", 2, performance.now() + 10000)).kind,
+    "attest",
+  );
+  const action = path.join(root, "action.json");
+  await writeFile(action, "inert completed action bytes");
+  const normalized = await normalizeControllerAttestationBundle(
+    root,
+    "coordinator",
+    2,
+    action,
+    performance.now() + 10000,
+  );
+  assert.equal(normalized.name, "trusted-catalog-signing-context-attestation-123-1");
+  assert.equal(path.basename(normalized.path), "signing-context-attestation.json");
+  await acknowledgeControllerTransport(root, "coordinator", 2, {
+    artifact_id: 71,
+    sha256: normalized.sha256,
+  });
+  for (const role of ["definitions", "policy", "snapshot", "timestamp"] as const) {
+    const phase = `catalog-${role}` as const,
+      key = path.join(root, `${phase}-key`);
+    await mkdir(key);
+    await retainControllerRoleKey(root, phase, key);
+    const selected = await nextControllerTransport(root, phase, 1, performance.now() + 10000);
+    assert.equal(selected.kind, "role-key");
+    assert.ok("name" in selected && selected.name === phase);
+    const parsed = JSON.parse(
+      await readFile(path.join(root, `controller-transport-${phase}-role-key.json`), "utf8"),
+    ) as unknown;
+    assert.throws(() => inspectControllerTransportEvent(parsed, root, "tuf-snapshot"));
+    const roleDir = path.join(root, `${phase}-output`);
+    await mkdir(roleDir);
+    const publicDir = path.join(roleDir, "public");
+    await mkdir(publicDir);
+    const subject = path.join(publicDir, "signing-output-manifest.json"),
+      rolePredicate = path.join(publicDir, "predicate.json");
+    await writeFile(subject, "inert role manifest");
+    await writeFile(rolePredicate, "inert role predicate");
+    await retainControllerAttestation(roleDir, phase, {
+      subject_path: subject,
+      predicate_path: rolePredicate,
+      predicate_type: "https://portcove.dev/attestations/catalog-role-output/v1",
+    });
+    const event = JSON.parse(
+      await readFile(path.join(roleDir, `controller-transport-${phase}-attest.json`), "utf8"),
+    ) as unknown;
+    assert.equal(inspectControllerTransportEvent(event, roleDir, phase).kind, "attest");
+    await retainControllerJobSettlement(roleDir, phase, 0, true);
+    assert.equal(
+      (await nextControllerTransport(roleDir, phase, 1, performance.now() + 10000)).kind,
+      "attest",
+    );
+    const normalizedRole = await normalizeControllerAttestationBundle(
+      roleDir,
+      phase,
+      1,
+      action,
+      performance.now() + 10000,
+    );
+    assert.equal(normalizedRole.name, `trusted-${phase}-attestation-123-1`);
+    assert.equal(path.basename(normalizedRole.path), "role-attestation.json");
+  }
 });

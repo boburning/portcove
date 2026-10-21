@@ -19,7 +19,6 @@ import {
   requireActualCatalogInspection,
   readCatalogPublicationBundle,
 } from "./release-catalog-inspection.mts";
-import { requireActualCatalogSemanticReview } from "./release-semantic-broker.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
@@ -460,20 +459,10 @@ async function readContext(receipt: object) {
     throw new Error("catalog protected authority changed");
   assertControllerCatalogPublisherScope(authorities, inspection.inspection, bundle);
   const api = apiFor(owned),
-    semantic = await requireActualCatalogSemanticReview(
-      owned.session.inputs.capture,
-      owned.facts.semantic_opportunity,
-      {
-        app_id: authorities.apps.semantic.app_id,
-        installation_id: authorities.apps.semantic.installation_id,
-        writer_app_id: authorities.apps.classification.app_id,
-      },
-      api,
-      owned.facts.semantic_check_id,
-    );
+    semantic = await owned.session.recheck_semantic(owned.deadline);
   if (
     semantic.proof_sha256 !== owned.facts.semantic_proof_sha256 ||
-    inspection.tools_receipt!==owned.session.tools ||
+    inspection.tools_receipt !== owned.session.tools ||
     inspection.inspection_sha256 !== owned.facts.descriptor.core_inspection_sha256 ||
     inspection.bundle_sha256 !== owned.facts.descriptor.bundle_sha256
   )

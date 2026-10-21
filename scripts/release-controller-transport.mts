@@ -20,6 +20,7 @@ import {
   controlBridgeOriginalDeadline,
 } from "./release-control-step-bridge.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { inspectCatalogSigningBinding } from "./release-catalog-signing-contract.mts";
 
 const kinds = [
   "role-key",
@@ -100,11 +101,13 @@ export async function retainControllerJobSettlement(
     exit_code: exitCode,
   });
 }
-function bundleRoute(phase: Phase) {
+function bundleRoute(phase: Phase, contextKind?: "catalog-signing-context") {
   if (!allowed(phase, "attest")) throw new Error("fixed attestation phase required");
   const prefix =
     phase === "coordinator"
-      ? "trusted-coordinator-signing-context"
+      ? contextKind === "catalog-signing-context"
+        ? "trusted-catalog-signing-context"
+        : "trusted-coordinator-signing-context"
       : phase === "payload"
         ? "trusted-payload-signing-context"
         : phase === "release-publication"
@@ -115,7 +118,7 @@ function bundleRoute(phase: Phase) {
     filename:
       phase === "release-publication"
         ? "immutable-release-result-attestation.json"
-        : phase.startsWith("tuf-")
+        : phase.startsWith("tuf-") || phase.startsWith("catalog-")
           ? "role-attestation.json"
           : "signing-context-attestation.json",
   };
@@ -143,7 +146,7 @@ export async function normalizeControllerAttestationBundle(
     throw new Error("producer did not require attestation");
   const bytes = await readControllerToolFile(source, 512 * 1024);
   active(deadline);
-  const route = bundleRoute(phase),
+  const route = bundleRoute(phase, event.context_kind),
     directory = path.join(root, `controller-attestation-bundle-${phase}`);
   await mkdir(directory, { mode: 0o700 });
   const file = path.join(directory, route.filename);
@@ -204,6 +207,7 @@ function allowed(phase: Phase, kind: Kind) {
 const predicateType = (phase: Phase) =>
   `https://portcove.dev/attestations/${phase === "release-publication" ? "immutable-release-result" : phase.startsWith("tuf-") ? "tuf-role-output" : phase.startsWith("catalog-") ? "catalog-role-output" : "release-signing-context"}/v1`;
 type Event = {
+  context_kind?: "catalog-signing-context";
   schema_version: 1;
   phase: Phase;
   kind: Kind;
@@ -223,9 +227,15 @@ export function inspectControllerTransportEvent(
 ) {
   const phase = inspectReleaseControlPhase(expectedPhase);
   if (
-    !exact(
-      raw,
-      "ack,directory,files,kind,name,phase,predicate,predicate_sha256,predicate_type,schema_version",
+    !(
+      exact(
+        raw,
+        "ack,directory,files,kind,name,phase,predicate,predicate_sha256,predicate_type,schema_version",
+      ) ||
+      exact(
+        raw,
+        "ack,context_kind,directory,files,kind,name,phase,predicate,predicate_sha256,predicate_type,schema_version",
+      )
     ) ||
     raw.schema_version !== 1 ||
     raw.phase !== phase ||
@@ -235,6 +245,14 @@ export function inspectControllerTransportEvent(
     throw new Error("fixed phase transport event differs");
   const kind = raw.kind as Kind,
     directory = rootPath(root, raw.directory);
+  const catalogContext = Object.hasOwn(raw, "context_kind");
+  if (
+    catalogContext &&
+    (raw.context_kind !== "catalog-signing-context" ||
+      phase !== "coordinator" ||
+      !(kind === "context" || kind === "attest"))
+  )
+    throw new Error("closed catalog context route differs");
   if (
     typeof raw.name !== "string" ||
     !/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/u.test(raw.name) ||
@@ -319,13 +337,13 @@ export function inspectControllerTransportEvent(
     const expectedSubject =
       phase === "release-publication"
         ? "immutable-release-result.json"
-        : phase.startsWith("tuf-")
+        : phase.startsWith("tuf-") || phase.startsWith("catalog-")
           ? "signing-output-manifest.json"
           : "signing-context-manifest.json";
     const expectedPredicate =
       phase === "release-publication"
         ? "immutable-release-result-predicate.json"
-        : phase.startsWith("tuf-")
+        : phase.startsWith("tuf-") || phase.startsWith("catalog-")
           ? "predicate.json"
           : "signing-context-predicate.json";
     if (
@@ -336,6 +354,7 @@ export function inspectControllerTransportEvent(
   } else if (raw.predicate !== null || raw.predicate_type !== null || raw.predicate_sha256 !== null)
     throw new Error("unexpected attestation fields");
   return {
+    ...(catalogContext ? { context_kind: "catalog-signing-context" as const } : {}),
     schema_version: 1,
     phase,
     kind,
@@ -385,6 +404,36 @@ async function verifyEvent(root: string, event: Event) {
     (await fileIdentity(root, event.predicate, 1024 * 1024)).sha256 !== event.predicate_sha256
   )
     throw new Error("retained attestation predicate changed");
+  if (event.context_kind) await verifyCatalogContextRoute(root, event);
+}
+/** Integrity-only route selection, never producer admission. The existing
+ * private receiver independently authenticates the complete context bytes. */
+async function verifyCatalogContextRoute(root: string, event: Event) {
+  const manifestPath =
+    event.kind === "context"
+      ? path.join(event.directory, "signing-context-manifest.json")
+      : event.files[0]?.path;
+  if (!manifestPath) throw new Error("catalog context route lacks manifest");
+  await assertOwnedUnlinkedPath(root, manifestPath, "catalog context manifest route");
+  const manifest = await json(manifestPath, 1024 * 1024);
+  if (
+    !isRecord(manifest) ||
+    manifest.kind !== "catalog-signing-context" ||
+    manifest.schema_version !== 1 ||
+    manifest.authority !== "none"
+  )
+    throw new Error("catalog manifest cannot select this context route");
+  inspectCatalogSigningBinding(manifest.facts, manifest.binding, manifest.previous_site_pins);
+  if (event.kind === "attest") {
+    if (!event.predicate) throw new Error("catalog context predicate missing");
+    const predicate = await json(event.predicate, 65536);
+    if (
+      !isRecord(predicate) ||
+      predicate.role !== "catalog-signing-context" ||
+      predicate.manifest_sha256 !== event.files[0]?.sha256
+    )
+      throw new Error("catalog context attestation route differs from manifest");
+  }
 }
 /** Called only at the existing owned pending/ready boundary. No credential is
  * written. The downstream producer still verifies complete provider bytes. */
@@ -409,6 +458,10 @@ export async function retainControllerUpload(
   const ready = await json(path.join(directory, readyName), 65536);
   if (!isRecord(ready) || typeof ready.name !== "string")
     throw new Error("owned readiness unavailable");
+  const catalogContext =
+    kind === "context" &&
+    phase === "coordinator" &&
+    ready.name.startsWith("trusted-catalog-signing-context-");
   const prefix =
     kind === "aggregate"
       ? "trusted-release-final"
@@ -417,7 +470,9 @@ export async function retainControllerUpload(
         : kind === "context"
           ? phase === "payload"
             ? "trusted-payload-signing-context"
-            : "trusted-coordinator-signing-context"
+            : catalogContext
+              ? "trusted-catalog-signing-context"
+              : "trusted-coordinator-signing-context"
           : kind === "result"
             ? "trusted-immutable-release-result"
             : "application-update-site";
@@ -447,6 +502,7 @@ export async function retainControllerUpload(
   }
   const event = inspectControllerTransportEvent(
     {
+      ...(catalogContext ? { context_kind: "catalog-signing-context" } : {}),
       schema_version: 1,
       phase,
       kind,
@@ -480,10 +536,17 @@ export async function retainControllerUpload(
     root,
     phase,
   );
+  await verifyEvent(root, event);
   await retain(filename(root, phase, kind), event);
 }
 export async function retainControllerRoleKey(root: string, selected: string, directory: string) {
-  const phase = inspectReleaseControlPhase(selected === "payload" ? "payload" : `tuf-${selected}`);
+  const phase = inspectReleaseControlPhase(
+    selected === "payload"
+      ? "payload"
+      : selected.startsWith("catalog-")
+        ? selected
+        : `tuf-${selected}`,
+  );
   const event = inspectControllerTransportEvent(
     {
       schema_version: 1,
@@ -516,8 +579,20 @@ export async function retainControllerAttestation(
   let directory = path.dirname(raw.subject_path);
   while (!releasePathContains(directory, raw.predicate_path)) directory = path.dirname(directory);
   rootPath(root, directory);
+  let catalogContext = false;
+  if (phase === "coordinator") {
+    const bytes = await readControllerToolFile(raw.predicate_path, 65536);
+    let predicate: unknown;
+    try {
+      predicate = JSON.parse(bytes.toString("utf8"));
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error;
+    }
+    catalogContext = isRecord(predicate) && predicate.role === "catalog-signing-context";
+  }
   const event = inspectControllerTransportEvent(
     {
+      ...(catalogContext ? { context_kind: "catalog-signing-context" } : {}),
       schema_version: 1,
       phase,
       kind: "attest",
@@ -921,7 +996,7 @@ export async function acknowledgeControllerTransport(
       throw new Error("actual upload Action output unavailable");
     if (event.kind === "attest") {
       const ready = await json(filename(root, phase, "bundle-ready")),
-        route = bundleRoute(phase);
+        route = bundleRoute(phase, event.context_kind);
       if (
         !exact(ready, "bytes,name,path,sha256") ||
         ready.name !== route.name ||
