@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readInstalledUpdateStatus } from "./desktop-installed-update-harness.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 
-async function openInstalledUpdateSettings(browser: WebDriver) {
+export async function openInstalledUpdateSettings(browser: WebDriver) {
   await browser
     .findElement(
       By.xpath(
@@ -90,6 +90,38 @@ export async function driveInstalledUpdateToRestart(
   actions: string[],
   candidateVersion: string,
 ) {
+  return stageInstalledUpdate(browser, actions, candidateVersion);
+}
+
+/** UI staging after an independently captured old-restart refusal. The parent
+ * must establish actual installed identity, raw intent and helper settlement;
+ * sanitized status and this helper establish none of those predicates. */
+export async function driveInstalledForwardRepairToRestart(
+  browser: WebDriver,
+  actions: string[],
+  candidateVersion: string,
+  expectedPrior: { apply: Record<string, unknown>; staged: Record<string, unknown> },
+) {
+  assert.ok(
+    isRecord(expectedPrior) && isRecord(expectedPrior.apply) && isRecord(expectedPrior.staged),
+  );
+  const apply = expectedPrior.apply;
+  assert.ok(Number.isSafeInteger(apply.revision) && Number(apply.revision) > 0);
+  assert.equal(apply.request, "restart-to-apply");
+  assert.equal(apply.termination, "restart-to-apply");
+  assert.equal(apply.native_launch, null, "native effects require their own reconciliation");
+  assert.ok(typeof expectedPrior.staged.version === "string");
+  assert.notEqual(expectedPrior.staged.version, candidateVersion);
+  assert.equal(expectedPrior.staged.channel, "preview");
+  return stageInstalledUpdate(browser, actions, candidateVersion, expectedPrior);
+}
+
+async function stageInstalledUpdate(
+  browser: WebDriver,
+  actions: string[],
+  candidateVersion: string,
+  expectedPrior?: { apply: Record<string, unknown>; staged: Record<string, unknown> },
+) {
   assert.ok(
     typeof candidateVersion === "string" &&
       candidateVersion.length > 0 &&
@@ -99,8 +131,17 @@ export async function driveInstalledUpdateToRestart(
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 30_000);
   const before = await readInstalledUpdateStatus(browser);
   assert.equal(before.install_eligibility, "eligible", "ordinary installed updater is unavailable");
-  assert.equal(before.staged, null, "an earlier staged update cannot satisfy this attempt");
-  assert.equal(before.apply, null, "an earlier apply intent requires its existing recovery first");
+  if (expectedPrior) {
+    assert.deepEqual(before.staged, expectedPrior.staged, "retained prior staging changed");
+    assert.deepEqual(before.apply, expectedPrior.apply, "retained prior apply request changed");
+  } else {
+    assert.equal(before.staged, null, "an earlier staged update cannot satisfy this attempt");
+    assert.equal(
+      before.apply,
+      null,
+      "an earlier apply intent requires its existing recovery first",
+    );
+  }
   assert.equal(before.recovery_required.length, 0, "update state requires explicit recovery first");
   actions.push("installed-gui-opened");
   await openInstalledUpdateSettings(browser);
@@ -135,14 +176,17 @@ export async function driveInstalledUpdateToRestart(
   await browser
     .findElement(By.xpath('//button[normalize-space(.)="Download and verify update"]'))
     .click();
+  const restartLabel = expectedPrior ? "Retry restart to update" : "Restart to update";
   await browser.wait(
-    until.elementLocated(By.xpath('//button[normalize-space(.)="Restart to update"]')),
+    until.elementLocated(
+      By.xpath(`//button[normalize-space(.)="${restartLabel}" and not(@disabled)]`),
+    ),
     60_000,
   );
   const staged = await readInstalledUpdateStatus(browser);
   assert.equal(staged.install_eligibility, "eligible");
   assert.equal(staged.recovery_required.length, 0);
-  assert.equal(staged.apply, null, "staging did not authorize an apply intent");
+  assert.deepEqual(staged.apply, expectedPrior?.apply ?? null, "staging changed apply authority");
   assert.ok(isRecord(staged.staged));
   assert.equal(staged.staged.version, candidateVersion, "different public candidate was staged");
   assert.equal(staged.staged.channel, "preview");

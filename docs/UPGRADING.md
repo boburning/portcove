@@ -211,6 +211,14 @@ download on a DEB or RPM installation still uses that package manager's source;
 the in-app Restart to update action is withheld. Eligibility is checked again
 at restart, so a status read alone does not authorize replacement.
 
+If a staged release is withdrawn before restart, Portcove rechecks the current
+authenticated feed and refuses that old update. Check again, download the newer
+eligible release and choose **Retry restart to update**. That explicit action can
+replace an older restart request only before its native installation started and
+for the same installation, library and channel. An interrupted or ambiguous native
+installation still needs its existing recovery; downloading a newer release does
+not clear it.
+
 The same ownership check is available without starting the GUI:
 
 ```text

@@ -141,6 +141,7 @@ void test("real installed-byte readback refuses empty and aliased regular files"
 void test("retained state requires a real favorite, appearance choice and exact update preferences", () => {
   const before = {
     application_origin: "http://tauri.localhost" as const,
+    application_url: "http://tauri.localhost/",
     app_local_data: "C:\\qualification\\AppData\\Local\\io.github.portcove.portcove",
     application_version: "1.0.0",
     library_root: "C:\\qualification\\library",
@@ -323,11 +324,15 @@ void test("actual ordinary state callback binds packaged origin, known folder an
   };
   let origin = "http://tauri.localhost";
   const browser = {
-    executeAsyncScript: async (callback: (done: (result: string) => void) => unknown) =>
+    executeAsyncScript: async (
+      callback: (platform: string, done: (result: string) => void) => unknown,
+      platform: string,
+    ) =>
       new Promise<string>((resolve) => {
-        runInNewContext(`(${callback.toString()})(done)`, {
+        runInNewContext(`(${callback.toString()})(platform, done)`, {
+          platform,
           done: resolve,
-          location: { origin },
+          location: { origin, href: origin + "/" },
           window: {
             __TAURI_INTERNALS__: {
               invoke: async (command: string, args?: object) => {

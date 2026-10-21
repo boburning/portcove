@@ -26,6 +26,10 @@ class TransferTests(unittest.TestCase):
         self.assertEqual(transfer.inspect_header(predecessor, ID), predecessor)
         with self.assertRaises(RuntimeError):
             transfer.inspect_header({**predecessor, "bytes": 512 * transfer.MIB + 1}, ID)
+        parked = {**valid, "entry": "parked_capture", "bytes": 272 * transfer.MIB}
+        self.assertEqual(transfer.inspect_header(parked, ID), parked)
+        with self.assertRaises(RuntimeError):
+            transfer.inspect_header({**parked, "bytes": 272 * transfer.MIB + 1}, ID)
         for changed in (
             {**valid, "entry": "../controller/source"},
             {**valid, "path": "/tmp/other"},
@@ -37,12 +41,12 @@ class TransferTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 transfer.inspect_header(changed, ID)
 
-    def stage(self, root, payload, declared=None, suffix=b"", expected_header=True):
+    def stage(self, root, payload, declared=None, suffix=b"", expected_header=True, entry="plan"):
         raw = json.dumps(
             {
                 "schema_version": 1,
                 "invocation_id": ID,
-                "entry": "plan",
+                "entry": entry,
                 "bytes": len(payload),
                 "sha256": declared or hashlib.sha256(payload).hexdigest(),
             },
@@ -59,6 +63,20 @@ class TransferTests(unittest.TestCase):
             contextlib.redirect_stdout(io.StringIO()),
         ):
             transfer.stage(root, ID, hashlib.sha256(raw).hexdigest() if expected_header else "f" * 64)
+
+    def test_parked_capture_is_opaque_fixed_input_and_never_overwrites(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "invocations").mkdir()
+            payload = b"opaque retained wire; no acceptance from transfer"
+            self.stage(root, payload, entry="parked_capture")
+            target = root / "invocations" / ID / "inputs/parked-public-capture.wire"
+            self.assertEqual(target.read_bytes(), payload)
+            self.assertEqual(target.stat().st_nlink, 1)
+            self.assertFalse((root / "invocations" / ID / "work/home/profile.json").exists())
+            with self.assertRaises(RuntimeError):
+                self.stage(root, b"replacement", entry="parked_capture")
+            self.assertEqual(target.read_bytes(), payload)
 
     def test_complete_exact_bytes_are_published_once_without_overwrite(self):
         with tempfile.TemporaryDirectory() as directory:

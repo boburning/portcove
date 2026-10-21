@@ -9,6 +9,8 @@ import { requireActualNativeInvocation } from "./release-native-attempt.mts";
 import { inspectNativeWslBoundary } from "./release-native-wsl-boundary.mts";
 import { readNativeSchedulerToolDigest } from "./release-native-scheduler.mts";
 import { remainingNativeParentBudget } from "./release-native-parent.mts";
+import type { requireActualNativeParent } from "./release-native-parent.mts";
+import { requireActualPublicJourneyPair } from "./release-native-public-pair.mts";
 
 export function inspectNativeWslRegistration(
   raw: unknown,
@@ -108,9 +110,27 @@ export function inspectNativeWslGuestHost(
 }
 
 export async function observeActualNativeWslRegistration(claim: object) {
+  const actual = await requireActualNativeInvocation(claim);
+  const result = await observeRegistration(actual.parent, actual.capture_directory);
+  await requireActualNativeInvocation(claim);
+  return result;
+}
+
+/** The ordinary public pair has its own actual-source provenance. It must never
+ * be cast to a native-stage invocation merely to reuse this read-only observer. */
+export async function observeActualPublicWslRegistration(pairReceipt: object) {
+  const actual = await requireActualPublicJourneyPair(pairReceipt);
+  const result = await observeRegistration(actual.parent, actual.directory);
+  await requireActualPublicJourneyPair(pairReceipt);
+  return result;
+}
+
+async function observeRegistration(
+  parent: Awaited<ReturnType<typeof requireActualNativeParent>>,
+  captureDirectory: string,
+) {
   assert.equal(process.platform, "win32");
-  const actual = await requireActualNativeInvocation(claim),
-    parent = actual.parent;
+  await parent.recheck();
   assert.equal(parent.descriptor.platform_label, "linux-x86_64");
   const boundary = inspectNativeWslBoundary(
     parent.boundary_configuration,
@@ -161,8 +181,8 @@ export async function observeActualNativeWslRegistration(claim: object) {
         SystemRoot: process.env.SystemRoot,
         WINDIR: process.env.SystemRoot,
         PATH: path.win32.join(String(process.env.SystemRoot), "System32"),
-        TEMP: actual.capture_directory,
-        TMP: actual.capture_directory,
+        TEMP: captureDirectory,
+        TMP: captureDirectory,
       },
     },
   );
@@ -173,6 +193,6 @@ export async function observeActualNativeWslRegistration(claim: object) {
     await readNativeSchedulerToolDigest(scheduler.powershell.path, 64 * 1024 * 1024),
     scheduler.powershell.sha256,
   );
-  await requireActualNativeInvocation(claim);
+  await parent.recheck();
   return { observed, raw, helper_sha256: helperSha, authority: "none" as const };
 }

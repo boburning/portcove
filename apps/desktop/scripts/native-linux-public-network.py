@@ -37,6 +37,10 @@ METADATA_BASE = "https://boburning.github.io/portcove/application/metadata/"
 TARGETS_BASE = "https://boburning.github.io/portcove/application/targets/"
 
 
+class RelayPeerClosed(RuntimeError):
+    """Clean framing EOF still needs the owned controller's stop signal."""
+
+
 def require(condition, message):
     if not condition:
         raise RuntimeError(message)
@@ -367,7 +371,9 @@ class FramedPipe:
     def read(self, _):
         self.active()
         data = os.read(self.reader, CHUNK)
-        require(data, "private public-relay controller disconnected")
+        if not data:
+            require(not self.incoming, "private public-relay frame ended incomplete")
+            raise RelayPeerClosed("private public-relay controller disconnected")
         self.incoming.extend(data)
         # Bound the first line before parsing, including a fragmented oversized
         # line. A read may also contain the start of the next complete frame.
@@ -721,7 +727,11 @@ def read_policy(filename, expected_sha256):
 
 
 def outer_main(arguments):
-    require(len(arguments) == 4 and arguments[0] == "--outer", "fixed outer relay arguments required")
+    require(
+        len(arguments) == 4 and arguments[0] in ("--outer", "--outer-controlled"),
+        "fixed outer relay arguments required",
+    )
+    controlled = arguments[0] == "--outer-controlled"
     require(re.fullmatch(r"[1-9][0-9]{0,6}", arguments[3]) is not None, "original remaining relay budget required")
     milliseconds = int(arguments[3])
     require(milliseconds <= 1750000, "public relay budget exceeds native phase")
@@ -729,11 +739,49 @@ def outer_main(arguments):
     policy = read_policy(arguments[1], arguments[2])
     with selectors.DefaultSelector() as selector:
         relay = PublicNetworkRelay(policy, selector, 0, 1, deadline)
+        stopped = False
+
+        def stop(_mask):
+            nonlocal stopped
+            require(os.read(3, 2) == b"\0", "owned public-relay stop differs")
+            stopped = True
+
+        if controlled:
+            info = os.fstat(3)
+            require(
+                stat.S_ISFIFO(info.st_mode) or stat.S_ISSOCK(info.st_mode), "private public-relay control pipe required"
+            )
+            if stat.S_ISSOCK(info.st_mode):
+                with socket.socket(fileno=os.dup(3)) as channel:
+                    require(
+                        channel.family == socket.AF_UNIX and channel.type == socket.SOCK_STREAM,
+                        "local public-relay control socket required",
+                    )
+                    peer, uid, _ = struct.unpack("3i", channel.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
+                    require(peer == os.getppid() and uid == os.getuid(), "public-relay controller identity differs")
+            os.set_blocking(3, False)
+            selector.register(3, selectors.EVENT_READ, stop)
         try:
-            while True:
+            while not stopped:
                 relay.tick()
-                for key, mask in selector.select(min(0.25, max(0, deadline - time.monotonic()))):
-                    key.data(mask)
+                try:
+                    for key, mask in selector.select(min(0.25, max(0, deadline - time.monotonic()))):
+                        key.data(mask)
+                except RelayPeerClosed:
+                    if not controlled:
+                        raise
+                    # Independent stdio channels can deliver namespace EOF
+                    # before its final capture packet reaches the Node owner.
+                    # Close public sockets, then accept only the one private
+                    # NULL stop within the ORIGINAL lifetime and two seconds.
+                    # EOF alone or a truncated frame never reports success.
+                    relay.close()
+                    until = min(deadline, time.monotonic() + 2)
+                    while not stopped and time.monotonic() < until:
+                        for key, mask in selector.select(max(0, until - time.monotonic())):
+                            key.data(mask)
+                    require(stopped, "public relay EOF awaits exact owned stop")
+                    return
                 relay.active()
         finally:
             relay.close()
