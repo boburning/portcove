@@ -478,7 +478,7 @@ mod tests {
         let mut entries = BTreeMap::new();
         for index in 0..archive.len() {
             let mut entry = archive.by_index(index).unwrap();
-            let name = entry.name().unwrap().to_owned();
+            let name = entry.name().unwrap().into_owned();
             let mut contents = String::new();
             entry.read_to_string(&mut contents).unwrap();
             entries.insert(name, contents);
