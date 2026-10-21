@@ -12,8 +12,114 @@ import {
 } from "./release-metadata-contract.mts";
 import {
   composeSiteFiles,
+  composeCatalogSiteFiles,
+  readComposedCatalogSite,
   assembleAuthenticatedApplicationSite,
 } from "./release-site-composer.mts";
+
+void test("catalog bootstraps independently and each later component preserves the other's exact bytes", async (t) => {
+  // Byte-protocol fixture, not catalog TUF or protected acceptance.
+  const f = await fixture(t);
+  const catalog = path.join(f.root, "catalog-input");
+  await mkdir(path.join(catalog, "metadata"), { recursive: true });
+  await mkdir(path.join(catalog, "targets"));
+  await writeFile(path.join(catalog, "metadata/timestamp.json"), "catalog timestamp1");
+  await writeFile(path.join(catalog, "metadata/1.root.json"), "catalog root");
+  await writeFile(path.join(catalog, "metadata/1.snapshot.json"), "catalog snapshot1");
+  await writeFile(path.join(catalog, "targets/content.json"), "catalog immutable content");
+  const first = await composeCatalogSiteFiles({
+    previous: null,
+    expected_previous_generation: null,
+    catalog,
+    catalog_root_sha256: "b".repeat(64),
+    output_parent: f.output,
+  });
+  assert.equal(first.generation.schema_version, 2);
+  assert.equal(first.generation.application_root_sha256, null);
+  assert.equal(first.authority, "none");
+  const both = await composeSiteFiles({
+    ...f.request,
+    previous: first.output,
+    expected_previous_generation: first.generation.generation,
+  });
+  assert.equal(both.generation.schema_version, 2);
+  if (both.generation.schema_version !== 2) throw new Error("catalog provenance lost");
+  assert.equal(both.generation.catalog_root_sha256, "b".repeat(64));
+  const oldApp = both.generation.files.filter((file) => file.path.startsWith("application/"));
+  await writeFile(path.join(catalog, "metadata/timestamp.json"), "catalog timestamp2");
+  await writeFile(path.join(catalog, "metadata/2.snapshot.json"), "catalog snapshot2");
+  const next = await composeCatalogSiteFiles({
+    previous: both.output,
+    expected_previous_generation: both.generation.generation,
+    catalog,
+    catalog_root_sha256: "b".repeat(64),
+    output_parent: f.output,
+  });
+  assert.deepEqual(
+    next.generation.files.filter((file) => file.path.startsWith("application/")),
+    oldApp,
+  );
+  for (const file of oldApp)
+    assert.deepEqual(
+      await readFile(path.join(next.output, file.path)),
+      await readFile(path.join(both.output, file.path)),
+    );
+  const retry = await composeCatalogSiteFiles({
+    previous: next.output,
+    expected_previous_generation: next.generation.generation,
+    catalog,
+    catalog_root_sha256: "b".repeat(64),
+    output_parent: f.output,
+  });
+  assert.equal(retry.changed, false);
+  assert.equal(retry.output, next.output);
+  await assert.rejects(
+    readComposedCatalogSite(next.output, next.generation.generation, "a".repeat(64)),
+    /root differs/,
+  );
+  await assert.rejects(
+    composeCatalogSiteFiles({
+      previous: next.output,
+      expected_previous_generation: next.generation.generation,
+      catalog,
+      catalog_root_sha256: "c".repeat(64),
+      output_parent: f.output,
+    }),
+    /root replacement/,
+  );
+  await assert.rejects(
+    composeCatalogSiteFiles({
+      previous: next.output,
+      expected_previous_generation: "c".repeat(64),
+      catalog,
+      catalog_root_sha256: "b".repeat(64),
+      output_parent: f.output,
+    }),
+    /generation/,
+  );
+  await writeFile(path.join(catalog, "targets/content.json"), "substituted content");
+  await assert.rejects(
+    composeCatalogSiteFiles({
+      previous: next.output,
+      expected_previous_generation: next.generation.generation,
+      catalog,
+      catalog_root_sha256: "b".repeat(64),
+      output_parent: f.output,
+    }),
+    /immutable site history/,
+  );
+  const catBefore = next.generation.files.filter((file) => file.path.startsWith("catalog/"));
+  await writeFile(path.join(f.app, "metadata/timestamp.json"), "application timestamp2");
+  const appNext = await composeSiteFiles({
+    ...f.request,
+    previous: next.output,
+    expected_previous_generation: next.generation.generation,
+  });
+  assert.deepEqual(
+    appNext.generation.files.filter((file) => file.path.startsWith("catalog/")),
+    catBefore,
+  );
+});
 
 void test("expired or invalid composition deadline refuses before filesystem and verifier work", async (t) => {
   const f = await fixture(t);
