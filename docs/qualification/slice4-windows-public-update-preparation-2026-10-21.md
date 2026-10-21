@@ -423,3 +423,133 @@ completed idempotency, contradictory-history refusal and Windows continuation
 HOLD all passed. This is dispatch coverage only and cannot mint a real factory
 brand or native observation. Thirteen focused tests and three typed modules
 passed; actual host/setup/public acceptance remains pending.
+
+## Proposed dedicated Windows public boundary
+
+The retained B registration collision has a concrete proposed isolation boundary:
+one additional non-admin public-proof account, provisioned once under the final
+consolidated initial setup grant. Source now requires its separately hash-pinned
+boundary in the Windows public profile, inside protected controller staging.
+SID/name/profile/work must differ from the primary native account; both root
+ancestry directions and Windows canonical/case identity are checked. The broker,
+controller, helper and owner-only capture remain shared and exact. Primary
+native stages and their global qualification/Check identity stay unchanged.
+Public capture/registration expects the selected public SID and profile.
+
+The existing scheduler reader observes the extra owner-held boundary file and
+actual local-account/profile registration, protected isolated profile/work ACLs
+and HKU-loaded state. Candidate-writable roots cannot overlap either protected
+custody or the other account's roots. The actual helper still checks the loaded
+profile, SID/non-admin token, private desktop, process group and live public HKU
+inside each capture. Its closed credential-purpose selector preserves the
+primary target by default and gives the public account a second fixed broker
+Credential Manager target; no arbitrary target or password enters a request.
+
+Actual initial setup still requires an authorized operator to create the local
+non-admin account, establish its profile, configure isolated work/profile ACLs,
+store the separate credential under the ordinary broker and pin all resulting
+SID/path/hash/task/source records. Both account directions must actually refuse
+cross-writes, and actual logon/profile/HKU/private GUI/group teardown must be
+qualified. This work performed none of those OS actions. It adds no App, Check,
+coordinator journal, publication barrier, active-candidate relaxation or recurring
+admin/user step. The Windows V2 execution path remains the next source join.
+
+Initial focused checks retained two old-public-fixture failures because their
+new boundary pin was absent; those fixtures now model the explicit proposal.
+A new enum-negative fixture first failed while PowerShell rejected the invalid
+cast before the C# selector; Enum.ToObject now reaches and proves the selector's
+own refusal. The controlled ACL fixture first omitted the Force switch type;
+that fixture-only declaration is repaired. Those failures are retained, with
+no positive actual account or ACL observation inferred from the controlled tests.
+
+Final focused validation passed 27 setup/parent/scheduler/driver checks plus the
+separate compiled closed-credential-selector check, all with zero skips; eight
+affected TypeScript modules passed typed lint. The compilation/controlled ACL
+objects did not read credentials, log on another account or query its real ACLs.
+
+Independent review found an ancestor replacement gap in the first boundary
+preparation: a foreign ancestor owner could rewrite its DACL without an explicit
+allow ACE, and object DELETE had been omitted. Both public-root and shared
+owner-path readers now require trusted ancestor ownership and refuse foreign
+DELETE rights. The public account itself is trusted only at its appointed root,
+not at ancestors. Controlled actual-function fixtures cover foreign owner with
+no ACE, public-account ancestor ownership and foreign/public DELETE, plus both
+shared-reader cases. The first expanded fixture failed because its script-level
+loop variable replaced the root-owner stub; restoring that stub before the
+shared baseline fixed the fixture. All six scheduler checks then passed with no
+skips, and its TypeScript test passed typed lint. No actual account ACL query or
+mutation was performed.
+
+The Windows V2 continuation reader now recovers only the original positively
+settled B account binding, installer and public journey report through the actual
+current private continuation claim. It rehashes those original settlement files,
+checks the newly appointed public SID/profile/controller/helper, and derives only
+the original exact invocation work child, installer run/install/library paths,
+ordinary runtime and HKU registration leaf. Foreign account, sibling/aliased
+work, relocated application/runtime and changed parked identity refuse. This is
+an inert path/custody prerequisite; it does not launch, restore, install or grant
+an account capability. Three controlled path/private-import-refusal tests and
+two-file typed lint passed. Initial lint feedback on control-character regex and
+boundary-record narrowing was repaired without expanding accepted paths. Actual
+PS/Node continuation execution remains under engineering and is not enabled.
+
+### Windows parked-B continuation source connection
+
+The later `continue-with-v2` claim now connects to the same ordinary Windows
+installer/UI route. It selects the separate protected public account and derives
+only its original positively settled B work/run/install/library/runtime paths.
+The new invocation still owns a fresh capture, broker, profile keeper, process
+group and original lifetime. Before any application startup it verifies the
+single exact public-HKU V0 registration, V0 compiler bytes and retained
+uninstaller hash. It does not reinstall V0, seed a library, write a new marker or
+copy a profile. Initial/native branches keep their original fresh-install guard.
+
+The ordinary UI attempts the parked V1 Restart once. The parent requires a new
+owned V0 application generation, exact V0 installed bytes and a visible window
+with the shipping title, then closes that exact GUI application and settles its
+owned tree. A new read-only broker operation observes only a PID/creation pair
+already in that same job, brackets it with actual job membership and held-process
+creation checks, and reads its private-desktop title. A same-image updater helper
+cannot satisfy the GUI observation; it remains in the full settlement inventory.
+Raw post-restart apply state must retain the valid old request with no native
+launch, replacement or exit. After reopening V0, the maintained ordinary forward
+repair UI downloads V2 while preserving that old request; one Retry Restart must
+produce actual V2 bytes/new GUI generation before a separate normal V2 UI reopen
+and meaningful favorite/Light/Preview/Manual state readback. The original owned
+uninstall then completes. Only the fixed continuation preimage leaf receives the
+existing bounded large-payload treatment; no arbitrary file limit is widened.
+
+The installed worker now obtains original retained V0/V1 compiler custody and
+fresh current V2 compiler custody, claims the already derived continuation,
+runs the fixed Windows capture and records the existing positive settlement.
+No new journal, publication rendezvous, native Check identity or active-candidate
+permission is introduced. The normal helper has no typed failure-cause output;
+these observations establish only pre-native refusal plus independently checked
+current public Tough/V2 lineage and later V2 behavior, not a claimed native error
+subtype. Actual execution/acceptance remains unobserved, and the separate-account
+setup/protected proof grant remains unapplied.
+
+Focused connected validation passed 69 tests with zero skips, including actual
+PowerShell continuation-guard evaluation against inert files/registration
+objects, native helper compilation, worker import routing, fixed phase/config,
+private-import refusal and indexed-inventory fixtures. Fourteen changed
+TypeScript modules passed typed lint. An initial continuation helper call passed
+an obsolete second navigation argument; typed validation identified it and the
+caller now uses the maintained one-argument API. No candidate GUI/account logon,
+credential access, account/ACL/task provisioning, network proof or protected
+publication occurred. The earlier Windows-continuation HOLD descriptions above
+record earlier checkpoints; this section describes the connected source only.
+
+Independent review of the first connected V2 source (`b441a1c`) found that its
+post-old-Restart raw apply checks established pre-native structure but did not
+bind the intent to the exact original V1 candidate/V0/library. The repair now
+rehashes B's original `parked-v1/staging-staging.json` from its completed capture,
+checks its immutable release path/SHA and artifact version/length/SHA against the
+actual retained parked Tough slot, and pins that original file in the current
+child input. The child requires the entire raw intent SelectedCandidate to equal
+that original descriptor, its installed.current_version to equal V0 and its
+canonical library root to equal the observed original library. Changed candidate
+version, artifact/hash, release digest, installed version and library fixtures
+refuse. Sixteen connected/config/custody tests passed with zero skips; four
+changed TypeScript modules passed typed lint. The original reviewed source is
+preserved, and no native execution or new error-subtype claim is credited.

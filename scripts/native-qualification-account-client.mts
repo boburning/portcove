@@ -26,7 +26,7 @@ export interface NativeAccountLaunch {
   environment: Record<string, string>;
   nsis: boolean;
 }
-type Operation = "start" | "observe" | "close" | "stop" | "readback" | "finish";
+type Operation = "start" | "observe" | "window" | "close" | "stop" | "readback" | "finish";
 export type NativeAccountTransport = (
   command: string,
   args: readonly string[],

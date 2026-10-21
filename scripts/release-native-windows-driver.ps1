@@ -36,7 +36,7 @@ function Assert-DriverOwnerPath([string]$Path) {
 }
 function Assert-DriverStageSelection($Value) {
     if($Value.schema_version -eq 2) {
-        if($Value.stage -cnotin @('ordinary-public-initial','ordinary-public-park') -or $null -ne $Value.journey -or $null -ne $Value.predecessor -or
+        if($Value.stage -cnotin @('ordinary-public-initial','ordinary-public-park','ordinary-public-continue') -or $null -ne $Value.journey -or $null -ne $Value.predecessor -or
             (@($Value.PSObject.Properties.Name|Sort-Object)-join ',') -cne 'boundary,invocation_id,journey,package,predecessor,public_inputs,request_sha256,schema_version,stage,tools,version' -or
             (@($Value.public_inputs.PSObject.Properties.Name|Sort-Object)-join ',') -cne 'path,sha256' -or
             $Value.public_inputs.sha256 -cnotmatch '^[a-f0-9]{64}$') {throw 'Public driver plan differs from its separate fixed initial journey'}
@@ -131,6 +131,9 @@ if($planValue.invocation_id -cnotmatch '^[a-f0-9]{64}$' -or
 Assert-DriverStageSelection $planValue
 $publicMode=$planValue.schema_version -eq 2
 $boundary=Read-DriverJson $planValue.boundary.path $planValue.boundary.sha256
+if($publicMode) {
+    if($boundary.schema_version -ne 2 -or $boundary.purpose -cne 'ordinary-public-proof'){throw 'Separate public account boundary required'}
+} elseif($boundary.schema_version -ne 1) {throw 'Primary native account boundary required'}
 $capture=Join-Path $boundary.capture_root ('native-attempt-'+$planValue.invocation_id)
 if([IO.Path]::GetFullPath($Plan) -cne (Join-Path $capture 'windows-plan.json') -or
     [IO.Path]::GetFullPath($PSScriptRoot) -cne (Join-Path $boundary.controller_root 'scripts')) {throw 'Native driver is outside the fixed parent/capture'}
@@ -139,6 +142,7 @@ if($publicMode) {
     if([IO.Path]::GetFullPath($planValue.public_inputs.path) -cne (Join-Path $capture 'public-inputs.json')) {throw 'Public driver input is outside its exact claim leaf'}
     $publicInputs=Read-DriverJson $planValue.public_inputs.path $planValue.public_inputs.sha256
     if(($planValue.stage -ceq 'ordinary-public-park' -and ($publicInputs.schema_version -ne 2 -or $publicInputs.phase -cne 'park-v0-with-v1')) -or
+        ($planValue.stage -ceq 'ordinary-public-continue' -and ($publicInputs.schema_version -ne 3 -or $publicInputs.phase -cne 'continue-with-v2')) -or
         ($planValue.stage -ceq 'ordinary-public-initial' -and $publicInputs.schema_version -ne 1)){throw 'Actual public phase/input branch differs'}
     if($publicInputs.prior_installer_sha256 -cne $planValue.package.sha256 -or $publicInputs.prior_version -cne $planValue.version) {throw 'Public driver initial package differs'}
 }
@@ -160,7 +164,20 @@ if((Get-FileHash -LiteralPath $helper -Algorithm SHA256).Hash.ToLowerInvariant()
 Add-Type -TypeDefinition (Get-Content -LiteralPath $helper -Raw)
 Import-Module (Join-Path $PSScriptRoot 'native-qualification-account-adapter.psm1') -Force
 $work=Join-Path $boundary.work_root $planValue.invocation_id
-$null=New-Item -ItemType Directory -Path $work -ErrorAction Stop
+$publicContinue=$publicMode -and $planValue.stage -ceq 'ordinary-public-continue'
+if($publicContinue){
+    $old=$publicInputs.continuation
+    if($old.previous_invocation_id -cnotmatch '^[a-f0-9]{64}$' -or
+        -not [string]::Equals([IO.Path]::GetFullPath($old.work_root),(Join-Path $boundary.work_root $old.previous_invocation_id),[StringComparison]::OrdinalIgnoreCase)) {throw 'Public continuation original work differs'}
+    $work=[IO.Path]::GetFullPath($old.work_root)
+    $cursor=$work;$depth=0
+    while($cursor){
+        if(++$depth -gt 64){throw 'Public continuation work ancestry exceeds bound'}
+        $item=Get-Item -LiteralPath $cursor -Force
+        if(-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'Public continuation work ancestry differs'}
+        $next=[IO.Path]::GetDirectoryName($cursor);if(-not $next -or $next -eq $cursor){break};$cursor=$next
+    }
+}else{$null=New-Item -ItemType Directory -Path $work -ErrorAction Stop}
 $inputRoot=Join-Path $boundary.controller_root '.native-inputs'
 if(-not [IO.Directory]::Exists($inputRoot)){$null=New-Item -ItemType Directory -Path $inputRoot -ErrorAction Stop}
 Assert-DriverOwnerPath $inputRoot

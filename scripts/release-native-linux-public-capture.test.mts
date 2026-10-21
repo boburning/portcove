@@ -26,21 +26,26 @@ globalThis.fixture={
  continued(p,h){assert.equal(p,parent);assert.equal(h,historical);calls.push('continuation-pair');return pair},
  progress(p){assert.equal(p,pair);return {phase}},
  package(p,slot){assert.equal(p,pair);calls.push('package:'+slot);return {slot}},
- claim(p,inputs){assert.deepEqual(Object.keys(inputs).sort(),phase==='continue-with-v2'?['candidate_package','pair','parked_package','prior_package']:['candidate_package','pair','prior_package']);assert.equal(inputs.pair,pair);calls.push('claim');return claim},
+ claim(p,inputs){assert.deepEqual(Object.keys(inputs).sort(),[...(phase==='continue-with-v2'?['candidate_package','pair','parked_package','prior_package']:['candidate_package','pair','prior_package']),...(!linux?['compiler']:[])].sort());assert.equal(inputs.pair,pair);calls.push('claim');return claim},
  capture(c){assert.equal(c,claim);calls.push('linux-capture');return capture},
  getter(c){assert.equal(c,capture);calls.push('linux-getter')},
  record(c){assert.equal(c,capture);calls.push('linux-settlement');return {authority:'none'}},
+ winCapture(c){assert.equal(c,claim);calls.push('windows-capture');return capture},
+ winGetter(c){assert.equal(c,capture);calls.push('windows-getter')},
+ winRecord(c){assert.equal(c,capture);calls.push('windows-settlement');return {authority:'none'}},
+ compiler(p,slot){assert.equal(p,pair);calls.push('compiler:'+slot);return {slot}},
+ recoverCompiler(p,slot){assert.equal(p,pair);calls.push('retained-compiler:'+slot);return {slot}},
  fail(){throw Error('unexpected Windows, native-stage, compiler, or Check path')},
 };
 const f=globalThis.fixture;
 const modules={
  './release-native-parent.mts':{establishActualNativeParent:'establish',requireActualNativeParent:'requireParent'},
  './release-native-candidate.mts':{acquireActualNativeStageCandidate:'fail',readActualNativeWorkerDispatch:'public-route'},
- './release-native-attempt.mts':{claimActualNativeInvocation:'fail',readActualPublicJourneyParentPhase:'route',readActualPublicJourneyProgress:'progress',claimActualPublicJourneyInvocation:'claim',recordActualLinuxPublicSettlement:'record',recordActualWindowsPublicSettlement:'fail'},
+ './release-native-attempt.mts':{claimActualNativeInvocation:'fail',readActualPublicJourneyParentPhase:'route',readActualPublicJourneyProgress:'progress',claimActualPublicJourneyInvocation:'claim',recordActualLinuxPublicSettlement:'record',recordActualWindowsPublicSettlement:'winRecord'},
  './release-native-public-pair.mts':{acquireActualPublicJourneyPair:'initial',acquireActualPublicJourneyContinuationPair:'continued',materializeActualPublicJourneyPackage:'package'},
- './release-native-windows-capture.mts':{captureActualWindowsNativeInvocation:'fail',captureActualWindowsPublicJourney:'fail',requireActualWindowsPublicCapture:'fail'},
+ './release-native-windows-capture.mts':{captureActualWindowsNativeInvocation:'fail',captureActualWindowsPublicJourney:'winCapture',requireActualWindowsPublicCapture:'winGetter'},
  './release-native-linux-public-capture.mts':{captureActualLinuxPublicJourney:'capture',requireActualLinuxPublicCapture:'getter'},
- './release-native-public-compiler.mts':{collectActualPublicWindowsCompilerIdentity:'fail'},
+ './release-native-public-compiler.mts':{collectActualPublicWindowsCompilerIdentity:'compiler',recoverActualPublicWindowsCompilerIdentity:'recoverCompiler'},
  './release-native-pre-sign-report.mts':{prepareActualNativeStageReport:'fail',retainActualFailedNativeStage:'fail'},
  './release-native-check-broker.mts':{publishActualNativeStageReport:'fail'},
  './release-native-wsl-capture.mts':{captureActualWslNativeInvocation:'fail'},
@@ -61,7 +66,7 @@ for(const value of ['initial-v0-v1','park-v0-with-v1','continue-with-v2']){
 }
 phase='completed';calls.length=0;await runInstalledNativeWorker('inert','hash');assert.deepEqual(calls,['parent','phase']);
 phase='contradictory';calls.length=0;await assert.rejects(runInstalledNativeWorker('inert','hash'),/ambiguous original history/);assert.deepEqual(calls,['parent','phase']);
-phase='continue-with-v2';linux=false;calls.length=0;await runInstalledNativeWorker('inert','hash');assert.deepEqual(calls,['parent','phase','continuation-pair']);
+phase='continue-with-v2';linux=false;calls.length=0;await runInstalledNativeWorker('inert','hash');assert.deepEqual(calls,['parent','phase','continuation-pair','package:prior','package:candidate','package:parked','retained-compiler:prior','compiler:candidate','retained-compiler:parked','claim','windows-capture','windows-getter','windows-settlement']);
 console.log('actual-worker-mocked-route-pass');
 `;
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {

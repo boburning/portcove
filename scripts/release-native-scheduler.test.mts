@@ -3,6 +3,85 @@ import { spawnSync } from "node:child_process";
 import { stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+
+void test(
+  "fixed public-root observer rejects foreign readers and writers using controlled ACL objects only",
+  { skip: process.platform !== "win32" },
+  () => {
+    const script = String.raw`
+$ErrorActionPreference='Stop'
+$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_TEST_NATIVE_READER,[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'scheduler reader syntax differs'}
+$function=@($ast.FindAll({param($item)$item -is [Management.Automation.Language.FunctionDefinitionAst]},$true)|Where-Object Name -CEQ 'Read-PublicAccountRoot')
+if($function.Count -ne 1){throw 'fixed public account root observer missing'}
+Invoke-Expression $function[0].Extent.Text
+$script:broker=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+$script:account='S-1-5-21-1-2-3-1003';$script:foreign='S-1-5-21-1-2-3-1002'
+$script:root='C:\PublicProof\work';$script:owner=$script:broker;$script:ancestorOwner=$script:broker;$script:ancestorRules=@();$script:protected=$true;$script:reparse=$false;$script:rules=@()
+function Get-Item {param($LiteralPath,[switch]$Force) [pscustomobject]@{PSIsContainer=$true;Attributes=$(if($script:reparse -and $LiteralPath -eq $script:root){[IO.FileAttributes]::ReparsePoint}else{[IO.FileAttributes]::Directory})}}
+function Get-Acl {param($LiteralPath)
+ $object=[pscustomobject]@{AreAccessRulesProtected=$script:protected;root=($LiteralPath -eq $script:root)}
+ $object|Add-Member ScriptMethod GetOwner {param($kind) [Security.Principal.SecurityIdentifier]::new($(if($this.root){$script:owner}else{$script:ancestorOwner}))}
+ $object|Add-Member ScriptMethod GetAccessRules {param($a,$b,$kind) if($this.root){return $script:rules}else{return $script:ancestorRules}}
+ return $object
+}
+$value=Read-PublicAccountRoot $script:root $script:account
+if(-not $value.isolated -or $value.path -cne $script:root){throw 'isolated root projection failed'}
+$refused=0
+foreach($access in @('Read','Write')){
+ $script:rules=@([pscustomobject]@{AccessControlType='Allow';IdentityReference=[Security.Principal.SecurityIdentifier]::new($script:foreign);FileSystemRights=[Security.AccessControl.FileSystemRights]$access;PropagationFlags=0})
+ try{Read-PublicAccountRoot $script:root $script:account|Out-Null}catch{$refused++}
+}
+$script:rules=@();$script:owner=$script:foreign;try{Read-PublicAccountRoot $script:root $script:account|Out-Null}catch{$refused++}
+$script:owner=$script:broker;$script:protected=$false;try{Read-PublicAccountRoot $script:root $script:account|Out-Null}catch{$refused++}
+$script:protected=$true;$script:reparse=$true;try{Read-PublicAccountRoot $script:root $script:account|Out-Null}catch{$refused++}
+$script:reparse=$false
+foreach($owner in @($script:foreign,$script:account)){
+ $script:ancestorOwner=$owner
+ try{Read-PublicAccountRoot $script:root $script:account|Out-Null}catch{$refused++}
+}
+$script:ancestorOwner=$script:broker
+foreach($identity in @($script:foreign,$script:account)){
+ $script:ancestorRules=@([pscustomobject]@{AccessControlType='Allow';IdentityReference=[Security.Principal.SecurityIdentifier]::new($identity);FileSystemRights=[Security.AccessControl.FileSystemRights]'Delete';PropagationFlags=0})
+ try{Read-PublicAccountRoot $script:root $script:account|Out-Null}catch{$refused++}
+}
+if($refused -ne 9){throw 'public account root isolation widened'}
+$shared=@($ast.FindAll({param($item)$item -is [Management.Automation.Language.FunctionDefinitionAst]},$true)|Where-Object Name -CEQ 'Assert-OwnerPath')
+if($shared.Count -ne 1){throw 'fixed shared custody observer missing'}
+Invoke-Expression $shared[0].Extent.Text
+$script:ancestorRules=@();$script:owner=$script:broker
+Assert-OwnerPath $script:root $true $true|Out-Null
+$sharedRefused=0
+$script:ancestorOwner=$script:foreign
+try{Assert-OwnerPath $script:root $true $true|Out-Null}catch{$sharedRefused++}
+$script:ancestorOwner=$script:broker
+$script:ancestorRules=@([pscustomobject]@{AccessControlType='Allow';IdentityReference=[Security.Principal.SecurityIdentifier]::new($script:foreign);FileSystemRights=[Security.AccessControl.FileSystemRights]'Delete';PropagationFlags=0})
+try{Assert-OwnerPath $script:root $true $true|Out-Null}catch{$sharedRefused++}
+if($sharedRefused -ne 2){throw 'shared custody ancestor replacement widened'}
+Write-Output 'controlled-public-acl-pass'
+`;
+    const result = spawnSync(
+      "pwsh",
+      ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script],
+      {
+        encoding: "utf8",
+        timeout: 15000,
+        maxBuffer: 128 * 1024,
+        windowsHide: true,
+        env: {
+          SystemRoot: process.env.SystemRoot,
+          PATH: process.env.PATH,
+          PORTCOVE_TEST_NATIVE_READER: fileURLToPath(
+            new URL("./read-native-scheduler.ps1", import.meta.url),
+          ),
+        },
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /controlled-public-acl-pass/u);
+  },
+);
 import {
   inspectNativeSchedulerObservation,
   requireActualNativeSchedulerObservation,
@@ -130,6 +209,82 @@ function fixture() {
   };
   return { expected, observed };
 }
+void test("public account boundary requires its own observed owner ACL path without changing legacy custody", () => {
+  const f = fixture();
+  const pathname = "C:\\Portcove\\controller\\public-account.json";
+  const expected = {
+    ...f.expected,
+    public_account: {
+      account_name: "PortcovePublicProof",
+      account_sid: "S-1-5-21-1-2-3-1003",
+      work_root: "C:\\PublicProof\\work",
+      profile_root: "C:\\Users\\PortcovePublicProof",
+    },
+    protected_paths: { ...f.expected.protected_paths, public_boundary: pathname },
+  };
+  const entry = {
+    path: pathname,
+    owner_sid: f.expected.broker_sid,
+    directory: false,
+    protected: true,
+    private: false,
+  };
+  const publicAccount = {
+    account_name: expected.public_account.account_name,
+    account_sid: expected.public_account.account_sid,
+    enabled: true,
+    hku_loaded: false,
+    profile_registered: true,
+    profile: {
+      path: expected.public_account.profile_root,
+      owner_sid: expected.public_account.account_sid,
+      protected: true,
+      isolated: true,
+    },
+    work: {
+      path: expected.public_account.work_root,
+      owner_sid: f.expected.broker_sid,
+      protected: true,
+      isolated: true,
+    },
+  };
+  const observed = {
+    ...f.observed,
+    public_account: publicAccount,
+    custody: { ...f.observed.custody, public_boundary: entry },
+  };
+  assert.equal(inspectNativeSchedulerObservation(expected, observed, 200).authority, "none");
+  assert.throws(() => inspectNativeSchedulerObservation(expected, f.observed, 200));
+  for (const change of [
+    { enabled: false },
+    { profile_registered: false },
+    { account_sid: f.expected.broker_sid },
+    { hku_loaded: "unknown" },
+    { work: { ...publicAccount.work, isolated: false } },
+    { profile: { ...publicAccount.profile, owner_sid: "S-1-5-21-1-2-3-1002" } },
+  ])
+    assert.throws(() =>
+      inspectNativeSchedulerObservation(
+        expected,
+        { ...observed, public_account: { ...publicAccount, ...change } },
+        200,
+      ),
+    );
+  for (const change of [
+    { path: f.expected.protected_paths.boundary },
+    { owner_sid: "S-1-5-21-1-2-3-1003" },
+    { directory: true },
+    { private: true },
+  ])
+    assert.throws(() =>
+      inspectNativeSchedulerObservation(
+        expected,
+        { ...observed, custody: { ...observed.custody, public_boundary: { ...entry, ...change } } },
+        200,
+      ),
+    );
+  assert.equal(inspectNativeSchedulerObservation(f.expected, f.observed, 200).authority, "none");
+});
 void test("scheduler integrity joins fixed task/action/SID to creation-ordered actual-parent ancestry but mints no actual receipt", () => {
   const f = fixture();
   const result = inspectNativeSchedulerObservation(f.expected, f.observed, 200);
