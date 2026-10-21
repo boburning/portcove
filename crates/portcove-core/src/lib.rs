@@ -44,6 +44,7 @@ mod import_execution;
 mod import_journal;
 mod install;
 mod installed_contract;
+mod installed_mutability;
 mod launch;
 mod library;
 mod library_access;
