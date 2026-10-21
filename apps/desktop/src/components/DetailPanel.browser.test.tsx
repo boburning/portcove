@@ -6,10 +6,12 @@ import catalog from "../../../../crates/portcove-core/catalog/catalog.json";
 import type { PortDefinition } from "../types";
 import { fixtureValue, portDefinition, portStatus } from "../test-fixtures";
 import { DetailPanel, type DetailActions } from "./DetailPanel";
+import "../styles/index.css";
 
 afterEach(cleanup);
 
 it("keeps an unknown external installation's folder and maintenance facts distinct from readiness", async () => {
+  await page.viewport(960, 640);
   const port = portDefinition();
   const noop = vi.fn();
   const status = {
@@ -65,6 +67,10 @@ it("keeps an unknown external installation's folder and maintenance facts distin
   expect(
     page.getByRole("region", { name: "Installation and version", exact: true }).query(),
   ).toBeNull();
+  await page.screenshot({
+    element: document.querySelector<HTMLElement>("[data-detail-workspace]")!,
+    path: "../../../../outputs/detail-composition/unknown-external-960.png",
+  });
 });
 
 for (const width of [1200, 960]) {
