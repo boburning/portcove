@@ -84,7 +84,7 @@
   .collection-cover .collection-actions > span > button[data-variant="primary"],
   .collection-cover .collection-actions > span > button[data-variant="outline"]:not([aria-label]) {
     flex: 0 1 auto;
-    min-width: 5.25rem;
+    min-width: 5rem;
   }
   .collection-rows {
     max-width: max(840px, 52.5rem);

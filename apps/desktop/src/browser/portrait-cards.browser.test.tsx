@@ -347,11 +347,27 @@ it.for(["library", "catalog"] as const)(
         ? "Capture target exceeds viewport; capture identified title/actions instead"
         : null,
     );
-    await captureTargetScreenshot(
-      metadata.querySelector(view === "library" ? ".collection-title" : "h2")!,
+    const title = metadata.querySelector<HTMLElement>(
+      view === "library" ? ".collection-title" : "h2",
+    )!;
+    const fullTitle = many[99]!.presentation.original_game_title;
+    expect(title.textContent).toBe(fullTitle);
+    await expect.element(title).toHaveAccessibleName(fullTitle);
+    expect(title.scrollWidth).toBeLessThanOrEqual(title.clientWidth + 1);
+    const titleOversized = title.getBoundingClientRect().height > innerHeight;
+    const titleFailure = await captureTargetScreenshot(
+      title,
       `../../../../outputs/uiux-game-titles/expanded-${view}-960-title.png`,
       "expanded-title",
       context,
+    ).then(
+      () => null,
+      (error: unknown) => (error instanceof Error ? error.message : String(error)),
+    );
+    expect(titleFailure).toBe(
+      titleOversized
+        ? "Capture target exceeds viewport; capture identified title/actions instead"
+        : null,
     );
     await captureTargetScreenshot(
       view === "library"
@@ -419,21 +435,37 @@ it.each([
     await document.fonts.ready;
     const controls = [...document.querySelectorAll<HTMLElement>(".port-grid button")];
     expect(controls).toHaveLength(view === "library" ? 16 : 8);
+    window.scrollTo(0, 0);
+    await frame();
+    const initialControlBottom = Math.max(
+      ...controls.map((control) => control.getBoundingClientRect().bottom + window.scrollY),
+    );
+    const navigationScrolls: { before: number; after: number }[] = [];
+    const revealedTargets: { top: number; bottom: number; height: number }[] = [];
     const edges = new Map<HTMLElement, Set<HTMLElement>>();
     // Exercise the real hook and its live geometry. This finite graph proves
     // reachability without prescribing cosmetic nearest-neighbor preferences.
     for (const origin of controls) {
       const targets = new Set<HTMLElement>();
       for (const key of ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]) {
+        const beforeNavigation = window.scrollY;
         await act(async () => {
-          origin.focus();
+          // Only application navigation may reveal the target in this probe.
+          origin.focus({ preventScroll: true });
           origin.dispatchEvent(
             new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
           );
         });
         await frame();
+        navigationScrolls.push({ before: beforeNavigation, after: window.scrollY });
         const target = document.activeElement;
-        if (target instanceof HTMLElement && controls.includes(target)) targets.add(target);
+        if (target instanceof HTMLElement && controls.includes(target)) {
+          targets.add(target);
+          if (target !== origin) {
+            const bounds = target.getBoundingClientRect();
+            revealedTargets.push({ top: bounds.top, bottom: bounds.bottom, height: bounds.height });
+          }
+        }
         if (document.querySelector("[data-portcove-focus-scope]:not([data-closed])")) {
           await userEvent.keyboard("{Escape}");
         }
@@ -443,12 +475,23 @@ it.each([
       }
       edges.set(origin, targets);
     }
+    expect(
+      revealedTargets.filter(({ top, bottom, height }) =>
+        height <= innerHeight
+          ? top < -1 || bottom > innerHeight + 1
+          : bottom <= 0 || top >= innerHeight,
+      ),
+    ).toEqual([]);
     const reached = new Set<HTMLElement>([controls[0]!]);
     for (const origin of reached) for (const target of edges.get(origin) ?? []) reached.add(target);
     expect(reached.size).toBe(controls.length);
-    // At 1280px the shorter covers may keep all controls in view.
-    // When they extend below the viewport, navigation must actually scroll.
-    expect(document.documentElement.scrollHeight <= innerHeight || window.scrollY > 0).toBe(true);
+    // Padding can overflow while every control fits. Require scrolling when
+    // controls need it, and retain earlier movement even if the last move returns home.
+    expect(
+      initialControlBottom <= innerHeight + 1 ||
+        navigationScrolls.some(({ before, after }) => Math.abs(after - before) > 0.5),
+      JSON.stringify({ initialControlBottom, viewportHeight: innerHeight, navigationScrolls }),
+    ).toBe(true);
     const first = document.querySelector<HTMLElement>(
       view === "library"
         ? '[data-detail-game-id="portrait-0"]'
