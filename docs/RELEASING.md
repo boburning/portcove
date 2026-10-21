@@ -1733,8 +1733,13 @@ recovery refuse. A restart control alone cannot qualify a candidate: staged
 version, Preview channel, positive byte count and install eligibility must match.
 All maintained NSIS/AppImage/macOS adapters retain both status observations in
 their existing report. The macOS adapter remains outside the initial-beta gate.
-This read-only command requires no qualification feature, IPC hook or loopback
-feed. Controlled driver tests establish harness behavior only; actual public
+The shipping status query requires no qualification feature, IPC hook or loopback
+feed. It performs the product's normal staging reconciliation; retain raw fault
+preimages before application startup or querying status. The shared driver also
+exercises one explicitly selected existing schedule, staging or apply recovery
+button, then checks that its hold cleared while unrelated holds and unrelated
+staged/apply state remain. It performs no implicit recovery or generic IPC
+mutation. Controlled driver tests establish harness behavior only; actual public
 origins, payload hashes, restart/process ownership, retained user state, signature
 refusal, withdrawal/forward repair and recovery remain independently observed
 obligations. Existing qualification-marker restart harnesses retain their scope.

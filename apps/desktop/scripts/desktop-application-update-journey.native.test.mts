@@ -17,11 +17,11 @@ const source = await readFile(
   new URL("./desktop-application-update-journey.mts", import.meta.url),
   "utf8",
 );
-const start = source.indexOf("export async function driveInstalledUpdateToRestart(");
+const start = source.indexOf("async function openInstalledUpdateSettings(");
 assert.ok(start >= 0);
-const driveInstalledUpdateToRestart = runInNewContext(
-  stripTypeScriptTypes(source.slice(start).replace(/^export /u, "")) +
-    "\ndriveInstalledUpdateToRestart;",
+const drivers = runInNewContext(
+  stripTypeScriptTypes(source.slice(start).replace(/^export /gmu, "")) +
+    "\n({driveInstalledUpdateToRestart,driveInstalledUpdateRecovery});",
   {
     assert,
     isRecord,
@@ -29,15 +29,23 @@ const driveInstalledUpdateToRestart = runInNewContext(
     By: { css: (value: string) => ({ value }), xpath: (value: string) => ({ value }) },
     until: { elementLocated: (value: unknown) => value },
   },
-) as (
-  browser: WebDriver,
-  actions: string[],
-  version: string,
-) => Promise<{
-  before: unknown;
-  staged: unknown;
-  authority: string;
-}>;
+) as {
+  driveInstalledUpdateToRestart: (
+    browser: WebDriver,
+    actions: string[],
+    version: string,
+  ) => Promise<{
+    before: unknown;
+    staged: unknown;
+    authority: string;
+  }>;
+  driveInstalledUpdateRecovery: (
+    browser: WebDriver,
+    actions: string[],
+    area: "schedule" | "staging" | "apply",
+  ) => Promise<{ before: unknown; after: unknown; authority: string }>;
+};
+const { driveInstalledUpdateToRestart, driveInstalledUpdateRecovery } = drivers;
 
 void test("shipping status reader imports and executes outside dependency ancestry with Selenium unavailable", async (t) => {
   const parent = path.resolve(tmpdir());
@@ -93,7 +101,10 @@ function fixture() {
   const calls: string[] = [];
   const browser = {
     manage: () => ({ setTimeouts: async () => {} }),
-    wait: async () => {},
+    wait: async (predicate: unknown) => {
+      if (typeof predicate === "function")
+        assert.equal(await (predicate as () => Promise<unknown>)(), true);
+    },
     findElement: (locator: { value: string }) => ({
       click: async () => {
         calls.push(`click:${locator.value}`);
@@ -169,7 +180,67 @@ void test("a restart control alone cannot qualify wrong, absent, incompatible or
   }
 });
 
-void test("actual read-only callback refuses missing bridge, command failure and oversized status without exposing errors", async () => {
+void test("named ordinary recovery clears only its hold through one fixed UI action", async () => {
+  const labels = {
+    schedule: "Reset update-check history",
+    staging: "Delete damaged update download",
+    apply: "Clear pending update request",
+  };
+  for (const area of ["schedule", "staging", "apply"] as const) {
+    const f = fixture(),
+      actions: string[] = [];
+    const staged = { version: "0.1.0-beta.2" },
+      apply = { revision: 1 };
+    const others = [{ area: area === "schedule" ? "apply" : "schedule" }];
+    f.responses.splice(
+      0,
+      2,
+      { ...f.before, staged, apply, recovery_required: [{ area }, ...others] },
+      {
+        ...f.before,
+        staged: area === "staging" ? null : staged,
+        apply: area === "apply" ? null : apply,
+        recovery_required: others,
+      },
+    );
+    const result = await driveInstalledUpdateRecovery(f.browser, actions, area);
+    assert.equal(result.authority, "none");
+    assert.equal(f.calls.filter((call) => call.includes(labels[area])).length, 1);
+    assert.equal(f.calls.filter((call) => call.startsWith("invoke:")).length, 2);
+    assert.equal(actions.at(-1), `ordinary-${area}-recovery-read-back`);
+  }
+});
+
+void test("recovery refuses absent or unknown holds and never erases unrelated state", async () => {
+  for (const before of [[], [{ area: "unrecognized" }]]) {
+    const f = fixture();
+    f.responses[0] = { ...f.before, recovery_required: before };
+    await assert.rejects(driveInstalledUpdateRecovery(f.browser, [], "staging"));
+    assert.equal(f.calls.filter((call) => call.startsWith("click:")).length, 0);
+  }
+  for (const changed of [
+    { recovery_required: [] },
+    { apply: null },
+    { staged: { version: "wrong" } },
+  ]) {
+    const f = fixture();
+    const before = {
+      ...f.before,
+      apply: { revision: 1 },
+      staged: { version: "original" },
+      recovery_required: [{ area: "schedule" }, { area: "apply" }],
+    };
+    f.responses.splice(0, 2, before, {
+      ...before,
+      recovery_required: [{ area: "apply" }],
+      ...changed,
+    });
+    await assert.rejects(driveInstalledUpdateRecovery(f.browser, [], "schedule"));
+    assert.equal(f.calls.filter((call) => call.includes("Reset update-check history")).length, 1);
+  }
+});
+
+void test("ordinary query callback refuses missing bridge, command failure and oversized status without exposing errors", async () => {
   for (const mode of ["missing", "rejected", "oversized"]) {
     let retained = "";
     const browser = {
