@@ -2688,7 +2688,8 @@ async function recoverTrustedCoordinatorPages(
     initialFacts.reader.check_run_id !== reader.identity.check_run_id
   )
     throw new Error("same actual initial Pages recovery reader required");
-  let initialIdentity: string | undefined = coordinatorMaintenanceIdentity(initialFacts);
+  let initialIdentity: string | undefined = coordinatorMaintenanceIdentity(initialFacts),
+    mutationControls = initialSource;
   const freshBoundary = async () => {
     budget.check();
     if (++round > 4) throw new Error("Pages readback coordinator rounds exhausted");
@@ -2710,6 +2711,13 @@ async function recoverTrustedCoordinatorPages(
     if (initialIdentity !== undefined && identity !== initialIdentity)
       throw new Error("Pages recovery controls changed around public readback");
     initialIdentity = identity;
+    mutationControls = controls;
+    budget.check();
+  };
+  const beforeMutation = () => {
+    budget.check();
+    if (coordinatorMaintenanceIdentity(mutationControls.readMaintenance(api)) !== initialIdentity)
+      throw new Error("Pages recovery controls changed immediately before journal mutation");
     budget.check();
   };
   const readback = selected
@@ -2723,6 +2731,7 @@ async function recoverTrustedCoordinatorPages(
         directory,
         budget.monotonicDeadline,
         freshBoundary,
+        beforeMutation,
       )
     : null;
   const checkpoint = readback?.settled.checkpoint ?? recovered.checkpoint;
@@ -2742,6 +2751,7 @@ async function recoverTrustedCoordinatorPages(
       directory,
       budget.monotonicDeadline,
       freshBoundary,
+      beforeMutation,
     );
     return Object.freeze({
       decision: "pages-published-metadata-recovered",

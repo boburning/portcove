@@ -820,6 +820,7 @@ export async function recoverPublishedCatalogSiteHandoff(
   session: DeploymentSession,
   executor: Awaited<ReturnType<typeof authenticateCapacityExecutor>>,
   raw: { repository: string; checkpoint: string; remote_configuration: unknown },
+  guards?: { refresh: () => Promise<void>; beforeMutation: () => void },
 ) {
   const prepared = sessions.get(session);
   if (
@@ -830,65 +831,73 @@ export async function recoverPublishedCatalogSiteHandoff(
     prepared.archive_bytes !== 0
   )
     throw new Error("actual GET-only catalog site recovery session required");
-  return recoverOwnedPublishedCatalogMetadata(executor, raw, async (operation) => {
-    const catalog = await recheckCatalogDeployment(prepared);
-    if (capacityDigest(operation) !== catalog.recovery_intent?.operation_sha256)
-      throw new Error("catalog recovery operation differs from original verified intent");
-    const expected = inspectCatalogSitePublicationExpectation(operation.catalog_site_expectation);
-    const effect: unknown = Array.isArray(operation.completed_effects)
-      ? operation.completed_effects[0]
-      : null;
-    if (
-      !isRecord(effect) ||
-      typeof operation.id !== "string" ||
-      effect.remote_identity !==
-        `github-pages:boburning/portcove:${prepared.generation.generation}` ||
-      expected.site_generation_sha256 !== prepared.generation.generation ||
-      capacityDigest(inspectCatalogCapacitySubject(operation.catalog_publication).descriptor) !==
-        capacityDigest(catalog.subject)
-    )
-      throw new Error("catalog handoff differs from original exact Pages settlement");
-    const readback = await readBackSiteDeployment(session);
-    await recheckCatalogDeployment(prepared);
-    const directory = await mkdtemp(path.join(prepared.directory, "catalog-handoff-readback-"));
-    await writeFile(
-      path.join(directory, "readback.json"),
-      JSON.stringify({
-        operation_id: operation.id,
-        original_effect: effect,
-        public_readback: readback,
-        provider_mutations: 0,
-        authority: "none",
-      }),
-      { flag: "wx", mode: 0o600 },
-    );
-    const publication = {
-      evidence_sha256: effect.evidence_sha256,
-      remote_identity: effect.remote_identity,
-    };
-    return {
-      metadata: {
-        ...catalog.facts,
-        source_commit: catalog.subject.source_commit,
-        source_tree: catalog.subject.source_tree,
-        operation_id: operation.id,
-        publication: { ...publication, site_generation_sha256: prepared.generation.generation },
-      },
-      site: {
-        schema_version: 1,
-        generation_sha256: prepared.generation.generation,
-        components: {
-          application: catalog.prior?.components.application ?? null,
-          catalog: {
-            root_sha256: catalog.facts.root_sha256,
-            repository_sha256: catalog.facts.repository_sha256,
-          },
+  if (!guards) throw new Error("catalog recovery requires current control mutation guards");
+  await guards.refresh();
+  return recoverOwnedPublishedCatalogMetadata(
+    executor,
+    raw,
+    async (operation) => {
+      const catalog = await recheckCatalogDeployment(prepared);
+      if (capacityDigest(operation) !== catalog.recovery_intent?.operation_sha256)
+        throw new Error("catalog recovery operation differs from original verified intent");
+      const expected = inspectCatalogSitePublicationExpectation(operation.catalog_site_expectation);
+      const effect: unknown = Array.isArray(operation.completed_effects)
+        ? operation.completed_effects[0]
+        : null;
+      if (
+        !isRecord(effect) ||
+        typeof operation.id !== "string" ||
+        effect.remote_identity !==
+          `github-pages:boburning/portcove:${prepared.generation.generation}` ||
+        expected.site_generation_sha256 !== prepared.generation.generation ||
+        capacityDigest(inspectCatalogCapacitySubject(operation.catalog_publication).descriptor) !==
+          capacityDigest(catalog.subject)
+      )
+        throw new Error("catalog handoff differs from original exact Pages settlement");
+      const readback = await readBackSiteDeployment(session);
+      await recheckCatalogDeployment(prepared);
+      const directory = await mkdtemp(path.join(prepared.directory, "catalog-handoff-readback-"));
+      await writeFile(
+        path.join(directory, "readback.json"),
+        JSON.stringify({
+          operation_id: operation.id,
+          original_effect: effect,
+          public_readback: readback,
+          provider_mutations: 0,
+          authority: "none",
+        }),
+        { flag: "wx", mode: 0o600 },
+      );
+      const publication = {
+        evidence_sha256: effect.evidence_sha256,
+        remote_identity: effect.remote_identity,
+      };
+      await guards.refresh();
+      return {
+        metadata: {
+          ...catalog.facts,
+          source_commit: catalog.subject.source_commit,
+          source_tree: catalog.subject.source_tree,
+          operation_id: operation.id,
+          publication: { ...publication, site_generation_sha256: prepared.generation.generation },
         },
-        operation_id: operation.id,
-        publication,
-      },
-    };
-  });
+        site: {
+          schema_version: 1,
+          generation_sha256: prepared.generation.generation,
+          components: {
+            application: catalog.prior?.components.application ?? null,
+            catalog: {
+              root_sha256: catalog.facts.root_sha256,
+              repository_sha256: catalog.facts.repository_sha256,
+            },
+          },
+          operation_id: operation.id,
+          publication,
+        },
+      };
+    },
+    guards.beforeMutation,
+  );
 }
 
 /** Bind actual keyless composition to the authenticated publisher's exact

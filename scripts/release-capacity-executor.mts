@@ -618,16 +618,37 @@ function capacityRecoveryProviderApi(value: Pick<PrivateSession, "directory" | "
   });
 }
 
+/** The actual caller supplies a synchronous recheck of its current authenticated
+ * controls. GET-only recovery is separate from every journal mutation. */
+function recoveryJournalApi(value: PrivateSession, beforeMutation?: () => void) {
+  const journal = createCoordinatorJournalApi(value.directory, value.deadline);
+  const guard = () => {
+    if (beforeMutation && beforeMutation() !== undefined)
+      throw new Error("recovery mutation guard must complete synchronously");
+  };
+  return {
+    request: (...args: Parameters<typeof journal.request>) => {
+      if (args[0] !== "GET") guard();
+      return journal.request(...args);
+    },
+    graphql: (...args: Parameters<typeof journal.graphql>) => {
+      if (/^\s*mutation\b/u.test(args[0])) guard();
+      return journal.graphql(...args);
+    },
+  };
+}
 export async function recoverOwnedCapacityEffect(
   ...args: [
     Parameters<typeof recoverOwnedCapacityEffectWithinScope>[0],
     Parameters<typeof recoverOwnedCapacityEffectWithinScope>[1],
     Parameters<typeof recoverOwnedCapacityEffectWithinScope>[2],
+    beforeMutation?: () => void,
   ]
 ) {
   const value = sessions.get(args[0]);
   if (!value) throw new Error("an actual authenticated executor session is required");
-  const work = () => recoverOwnedCapacityEffectWithinScope(...args);
+  const work = () =>
+    recoverOwnedCapacityEffectWithinScope(args[0], args[1], args[2], false, args[3]);
   return value.deadline === undefined ? work() : withCoordinatorDeadline(value.deadline, work);
 }
 /** The same protected admitted-aggregate role may settle a previous terminal
@@ -638,7 +659,8 @@ export async function recoverOwnedAdmittedAggregateEffect(
   const value = sessions.get(args[0]);
   if (!value || value.role !== "aggregate-assembly")
     throw new Error("actual admitted aggregate recovery job required");
-  const work = () => recoverOwnedCapacityEffectWithinScope(...args, true);
+  const work = () =>
+    recoverOwnedCapacityEffectWithinScope(args[0], args[1], args[2], true, args[3]);
   return value.deadline === undefined ? work() : withCoordinatorDeadline(value.deadline, work);
 }
 async function recoverOwnedCapacityEffectWithinScope(
@@ -650,6 +672,7 @@ async function recoverOwnedCapacityEffectWithinScope(
     completed_effect?: { remote_identity: string; evidence_sha256: string };
   }>,
   admittedAggregate = false,
+  beforeMutation?: () => void,
 ) {
   const value = sessions.get(session);
   if (
@@ -671,7 +694,7 @@ async function recoverOwnedCapacityEffectWithinScope(
   const api = capacityRecoveryProviderApi(value);
   const remote = {
     configuration: input.remote_configuration,
-    api: createCoordinatorJournalApi(value.directory, value.deadline),
+    api: recoveryJournalApi(value, beforeMutation),
   };
   try {
     const executorIdentity = await refreshCapacityExecutor(session);
@@ -778,10 +801,12 @@ export async function recoverOwnedPublishedMetadata(
   session: ExecutorSession,
   raw: { repository: string; checkpoint: string; remote_configuration: unknown },
   readback: (operation: Readonly<Record<string, unknown>>) => Promise<unknown>,
+  beforeMutation?: () => void,
 ) {
   const value = sessions.get(session);
   if (!value) throw new Error("an actual authenticated executor session is required");
-  const work = () => recoverOwnedPublishedMetadataWithinScope(session, raw, readback);
+  const work = () =>
+    recoverOwnedPublishedMetadataWithinScope(session, raw, readback, "application", beforeMutation);
   return value.deadline === undefined ? work() : withCoordinatorDeadline(value.deadline, work);
 }
 /** Separate catalog-purpose handoff. The shared coordinator/terminal publisher
@@ -790,10 +815,12 @@ export async function recoverOwnedPublishedCatalogMetadata(
   session: ExecutorSession,
   raw: { repository: string; checkpoint: string; remote_configuration: unknown },
   readback: (operation: Readonly<Record<string, unknown>>) => Promise<unknown>,
+  beforeMutation?: () => void,
 ) {
   const value = sessions.get(session);
   if (!value) throw new Error("an actual authenticated executor session is required");
-  const work = () => recoverOwnedPublishedMetadataWithinScope(session, raw, readback, "catalog");
+  const work = () =>
+    recoverOwnedPublishedMetadataWithinScope(session, raw, readback, "catalog", beforeMutation);
   return value.deadline === undefined ? work() : withCoordinatorDeadline(value.deadline, work);
 }
 async function recoverOwnedPublishedMetadataWithinScope(
@@ -801,6 +828,7 @@ async function recoverOwnedPublishedMetadataWithinScope(
   raw: { repository: string; checkpoint: string; remote_configuration: unknown },
   readback: (operation: Readonly<Record<string, unknown>>) => Promise<unknown>,
   component: "application" | "catalog" = "application",
+  beforeMutation?: () => void,
 ) {
   const value = sessions.get(session);
   if (!value || value.role !== "coordinator")
@@ -816,7 +844,7 @@ async function recoverOwnedPublishedMetadataWithinScope(
   const api = capacityRecoveryProviderApi(value);
   const remote = {
     configuration: input.remote_configuration,
-    api: createCoordinatorJournalApi(value.directory, value.deadline),
+    api: recoveryJournalApi(value, beforeMutation),
   };
   try {
     const current = await refreshCapacityExecutor(session);

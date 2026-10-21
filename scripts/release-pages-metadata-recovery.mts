@@ -128,6 +128,7 @@ export async function recoverPublishedPagesMetadata(
   privateParent: string,
   phaseDeadline: number,
   freshBoundary: () => Promise<void>,
+  beforeMutation?: () => void,
 ) {
   const check = () => {
     if (!Number.isFinite(phaseDeadline) || performance.now() >= phaseDeadline)
@@ -156,67 +157,75 @@ export async function recoverPublishedPagesMetadata(
   try {
     await freshBoundary();
     const result = await withCoordinatorDeadline(phaseDeadline, () =>
-      recoverOwnedPublishedMetadata(executor, raw, async (actualOperation) => {
-        const current = await recoverReleaseOpportunity(raw.repository, raw.checkpoint);
-        const handoff = inspectSettledPagesMetadataHandoff(current.input);
-        if (!handoff || capacityDigest(handoff.operation) !== capacityDigest(actualOperation))
-          throw new Error("exact settled Pages checkpoint/operation changed");
-        const provider = createPagesProviderTransport(directory, {}, phaseDeadline);
-        const expected = {
-          artifact_id: handoff.expected.artifact_id,
-          generation: handoff.expected.site_generation_sha256,
-          controller_revision: handoff.operation.executor_identity!.controller_revision,
-        };
-        if (provider.observeByGeneration(expected).status !== "succeed")
-          throw new Error("settled Pages provider completion unavailable");
-        const acquired = await materializePublishedCompleteSite(
-          {
-            site_generation_sha256: handoff.expected.site_generation_sha256,
-            root_sha256: handoff.expected.root_sha256,
-            repository_sha256: handoff.expected.repository_sha256,
-          },
-          directory,
-          phaseDeadline,
-        );
-        const site = await requirePublishedCompleteSite(acquired.receipt);
-        const verifierSha = createHash("sha256")
-          .update(await readControllerToolFile(tools.rust, 128 * 1024 * 1024))
-          .digest("hex");
-        const verified = await prepareAuthenticatedMetadataRenewal({
-          verifier: tools.rust,
-          verifier_sha256: verifierSha,
-          trusted_root: site.root_path,
-          trusted_root_sha256: site.pins.root_sha256,
-          previous_repository: site.application,
-          prior_repository_sha256: site.pins.repository_sha256,
-          generated_at: new Date().toISOString().replace(/\.\d{3}Z$/u, "Z"),
-          output_parent: directory,
-          deadline: phaseDeadline,
-        });
-        const currentFacts = await inspectPreparedMetadataRenewal(verified);
-        const published = publishedPagesMetadataFromCurrentFacts(currentFacts.descriptor, handoff);
-        await verifiedControllerToolPaths(toolsReceipt);
-        await requirePublishedCompleteSite(acquired.receipt);
-        await inspectPreparedMetadataRenewal(verified);
-        await readPublicApplicationSiteMarker(site.generation, phaseDeadline);
-        if (provider.observeByGeneration(expected).status !== "succeed")
-          throw new Error("Pages provider changed during current-feed verification");
-        await writeFile(
-          path.join(directory, "current-publication.json"),
-          JSON.stringify({
-            operation_id: handoff.operation.id,
-            published,
-            verified_current_descriptor: currentFacts.descriptor,
-            scope: "actual current public feed; unused next plan not published",
-            pages_posts: 0,
-            authority: "none",
-          }),
-          { flag: "wx", mode: 0o600 },
-        );
-        await freshBoundary();
-        check();
-        return published;
-      }),
+      recoverOwnedPublishedMetadata(
+        executor,
+        raw,
+        async (actualOperation) => {
+          const current = await recoverReleaseOpportunity(raw.repository, raw.checkpoint);
+          const handoff = inspectSettledPagesMetadataHandoff(current.input);
+          if (!handoff || capacityDigest(handoff.operation) !== capacityDigest(actualOperation))
+            throw new Error("exact settled Pages checkpoint/operation changed");
+          const provider = createPagesProviderTransport(directory, {}, phaseDeadline);
+          const expected = {
+            artifact_id: handoff.expected.artifact_id,
+            generation: handoff.expected.site_generation_sha256,
+            controller_revision: handoff.operation.executor_identity!.controller_revision,
+          };
+          if (provider.observeByGeneration(expected).status !== "succeed")
+            throw new Error("settled Pages provider completion unavailable");
+          const acquired = await materializePublishedCompleteSite(
+            {
+              site_generation_sha256: handoff.expected.site_generation_sha256,
+              root_sha256: handoff.expected.root_sha256,
+              repository_sha256: handoff.expected.repository_sha256,
+            },
+            directory,
+            phaseDeadline,
+          );
+          const site = await requirePublishedCompleteSite(acquired.receipt);
+          const verifierSha = createHash("sha256")
+            .update(await readControllerToolFile(tools.rust, 128 * 1024 * 1024))
+            .digest("hex");
+          const verified = await prepareAuthenticatedMetadataRenewal({
+            verifier: tools.rust,
+            verifier_sha256: verifierSha,
+            trusted_root: site.root_path,
+            trusted_root_sha256: site.pins.root_sha256,
+            previous_repository: site.application,
+            prior_repository_sha256: site.pins.repository_sha256,
+            generated_at: new Date().toISOString().replace(/\.\d{3}Z$/u, "Z"),
+            output_parent: directory,
+            deadline: phaseDeadline,
+          });
+          const currentFacts = await inspectPreparedMetadataRenewal(verified);
+          const published = publishedPagesMetadataFromCurrentFacts(
+            currentFacts.descriptor,
+            handoff,
+          );
+          await verifiedControllerToolPaths(toolsReceipt);
+          await requirePublishedCompleteSite(acquired.receipt);
+          await inspectPreparedMetadataRenewal(verified);
+          await readPublicApplicationSiteMarker(site.generation, phaseDeadline);
+          if (provider.observeByGeneration(expected).status !== "succeed")
+            throw new Error("Pages provider changed during current-feed verification");
+          await writeFile(
+            path.join(directory, "current-publication.json"),
+            JSON.stringify({
+              operation_id: handoff.operation.id,
+              published,
+              verified_current_descriptor: currentFacts.descriptor,
+              scope: "actual current public feed; unused next plan not published",
+              pages_posts: 0,
+              authority: "none",
+            }),
+            { flag: "wx", mode: 0o600 },
+          );
+          await freshBoundary();
+          check();
+          return published;
+        },
+        beforeMutation,
+      ),
     );
     check();
     await writeFile(path.join(directory, "handoff.json"), JSON.stringify(result), {

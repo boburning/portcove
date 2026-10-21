@@ -374,13 +374,18 @@ void test("source-bound shared recovery requires exact terminal publisher/effect
     catalog_publication: { authority: "none" },
     executor_identity: original,
   };
+  let journalWrites = 0;
   let jobStatus = "completed",
     reads = 0,
     catalogWrites = 0,
     appWrites = 0,
     callbackReads = 0;
   const api = {
-    request() {
+    request(method: string) {
+      if (method !== "GET") {
+        journalWrites++;
+        return { status: 201, body: {} };
+      }
       reads++;
       return {
         status: 200,
@@ -398,7 +403,14 @@ void test("source-bound shared recovery requires exact terminal publisher/effect
   };
   const make = () =>
     runInNewContext(
-      stripTypeScriptTypes(source.slice(start)) + "\nrecoverOwnedPublishedMetadataWithinScope",
+      stripTypeScriptTypes(
+        source.slice(
+          source.indexOf("function recoveryJournalApi("),
+          source.indexOf("export async function recoverOwnedCapacityEffect("),
+        ),
+      ) +
+        stripTypeScriptTypes(source.slice(start)) +
+        "\nrecoverOwnedPublishedMetadataWithinScope",
       {
         sessions: new Map([["session", { role: "coordinator", directory: "inert" }]]),
         effectStates: new Map(),
@@ -421,7 +433,11 @@ void test("source-bound shared recovery requires exact terminal publisher/effect
           _cp: string,
           actual: unknown,
           cursor: unknown,
+          options: {
+            remote: { api: { request: (method: string, route: string, body: unknown) => unknown } };
+          },
         ) => {
+          options.remote.api.request("POST", "repos/boburning/portcove/git/blobs", {});
           catalogWrites++;
           assert.deepEqual(actual, inspectPublishedCatalogMetadata(metadata));
           assert.deepEqual(cursor, inspectPublishedSite(site));
@@ -437,6 +453,7 @@ void test("source-bound shared recovery requires exact terminal publisher/effect
       input: object,
       readback: () => Promise<unknown>,
       component?: "application" | "catalog",
+      beforeMutation?: () => void,
     ) => Promise<{ checkpoint: string }>;
   const raw = { repository: "inert", checkpoint: "old", remote_configuration: {} };
   const readback = async () => {
@@ -464,4 +481,66 @@ void test("source-bound shared recovery requires exact terminal publisher/effect
     /cursor differs/,
   );
   assert.equal(catalogWrites, 1);
+  let clock = 59000;
+  const beforeMutation = () => {
+    if (clock >= 60000) throw new Error("fresh controls expired before actual journal mutation");
+  };
+  await assert.rejects(
+    make()(
+      "session",
+      raw,
+      async () => {
+        clock = 61000;
+        return { metadata, site };
+      },
+      "catalog",
+      beforeMutation,
+    ),
+    /fresh controls expired/,
+  );
+  assert.equal(journalWrites, 1, "slow readback cannot reach the subsequent journal mutation");
+  assert.equal(catalogWrites, 1);
+});
+
+void test("actual recovery journal checks REST and GraphQL mutations synchronously after intervening reads", async () => {
+  const source = await readFile(
+      new URL("./release-capacity-executor.mts", import.meta.url),
+      "utf8",
+    ),
+    start = source.indexOf("function recoveryJournalApi("),
+    end = source.indexOf("export async function recoverOwnedCapacityEffect(", start);
+  let writes = 0,
+    reads = 0,
+    stale = false;
+  const journal = {
+    request: (method: string) => {
+      if (method === "GET") reads++;
+      else writes++;
+    },
+    graphql: (query: string) => {
+      if (/^\s*mutation\b/u.test(query)) writes++;
+      else reads++;
+    },
+  };
+  const make = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end)) + "\nrecoveryJournalApi",
+    {
+      createCoordinatorJournalApi: () => journal,
+    },
+  ) as (session: object, guard?: () => unknown) => typeof journal;
+  const api = make({ directory: "controlled" }, () => {
+    if (stale) throw new Error("controls stale");
+  });
+  api.request("POST");
+  api.graphql("mutation { exactCAS }");
+  assert.equal(writes, 2);
+  stale = true;
+  api.request("GET");
+  api.graphql("query { readback }");
+  assert.equal(reads, 2);
+  assert.throws(() => api.request("POST"), /controls stale/);
+  assert.throws(() => api.graphql("mutation { exactCAS }"), /controls stale/);
+  const asynchronous = make({}, () => Promise.resolve());
+  assert.throws(() => asynchronous.request("POST"), /complete synchronously/);
+  assert.equal(writes, 2);
 });

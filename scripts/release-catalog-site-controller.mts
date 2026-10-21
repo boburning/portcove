@@ -116,16 +116,22 @@ export async function recoverActualCatalogSitePublication(
     output_parent: string;
     deadline: number;
   },
+  guards?: { refresh: () => Promise<void>; beforeMutation: () => void },
 ) {
   const input = structuredClone(raw);
   remaining(input.deadline);
   return withCoordinatorDeadline(input.deadline, async () => {
     const session = await prepareCatalogSiteHandoffFromActualRepository(assembly, input);
-    return recoverPublishedCatalogSiteHandoff(session, executor, {
-      repository: input.repository,
-      checkpoint: input.checkpoint,
-      remote_configuration: input.remote_configuration,
-    });
+    return recoverPublishedCatalogSiteHandoff(
+      session,
+      executor,
+      {
+        repository: input.repository,
+        checkpoint: input.checkpoint,
+        remote_configuration: input.remote_configuration,
+      },
+      guards,
+    );
   });
 }
 
