@@ -124,7 +124,7 @@ export async function finalizeReleaseAssets(
     )
   ) {
     const { authorizeLinuxRelease } = await import("./linux-beta-risk-706.mts");
-    const decision = authorizeLinuxRelease(
+    const decision = await authorizeLinuxRelease(
       options.linuxQualificationRoot ?? projectRoot,
       inventory.tag,
     );

@@ -7,6 +7,7 @@ import { inspectBoundedZip } from "./bounded-zip.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import { inspectCompiledCliPackage } from "./release-compiler-outputs.mts";
+import { inspectWindowsDesktopCompilerIdentity } from "./release-compiler-desktop.mts";
 import { requireVerifiedReleaseCompilerSource } from "./release-compiler-source-admission.mts";
 import { verifyReleaseSourceAttestation } from "./release-source-attestation.mts";
 import type { verifyReleasePublicBuildInputs } from "./release-public-build-provenance.mts";
@@ -72,7 +73,12 @@ export function inspectReleaseCompilerReport(
   const nativePath = expected.platform === "windows-x86_64" ? path.win32 : path.posix;
   if (
     !isRecord(raw) ||
-    raw.schema_version !== 2 ||
+    (raw.schema_version !== 2 &&
+      !(
+        raw.schema_version === 3 &&
+        expected.platform === "windows-x86_64" &&
+        expected.interface === "desktop"
+      )) ||
     raw.authority !== "none" ||
     raw.evidence_scope !== "direct-build-process" ||
     raw.producer_job !== "build" ||
@@ -241,6 +247,10 @@ export function inspectReleaseCompilerReport(
         (expected.platform === "windows-x86_64" ? "portcove.exe" : "portcove"))
   )
     throw new Error("compiler CLI binary output differs");
+  const desktopExecutable =
+    raw.schema_version === 3 ? inspectWindowsDesktopCompilerIdentity(raw.desktop_executable) : null;
+  if (desktopExecutable && (outputs.length !== 1 || !outputs[0]!.filename.endsWith(".exe")))
+    throw new Error("compiler desktop identity lacks its single exact NSIS output slot");
   return {
     authority: "none",
     outputs,
@@ -248,15 +258,27 @@ export function inspectReleaseCompilerReport(
     started,
     finished,
     producer_job_id: job.id,
+    desktop_executable: desktopExecutable,
   };
 }
 
+interface VerifiedWindowsDesktopCompilerIdentity {
+  executable: ReturnType<typeof inspectWindowsDesktopCompilerIdentity>;
+  package: { filename: string; bytes: number; sha256: string };
+  source_commit: string;
+  source_tree: string;
+  run_id: string;
+  run_attempt: number;
+  producer_job_id: number;
+  report_sha256: string;
+}
 const verifiedCompiler = new WeakMap<
   object,
   {
     files: { filename: string; bytes: number; sha256: string }[];
     source: object;
     sourceTree: string;
+    windowsDesktop?: VerifiedWindowsDesktopCompilerIdentity;
   }
 >();
 export async function requireVerifiedReleaseCompilerEvidence(receipt: object) {
@@ -271,6 +293,15 @@ export async function requireVerifiedReleaseCompilerEvidence(receipt: object) {
     if (bytes.length !== file.bytes || hash(bytes) !== file.sha256)
       throw new Error("retained compiler proof changed before use");
   }
+}
+
+/** Actual attested same-job identity only. Installation/package membership and
+ * ordinary updater behavior must still be observed independently. */
+export async function requireVerifiedWindowsDesktopCompilerIdentity(receipt: object) {
+  await requireVerifiedReleaseCompilerEvidence(receipt);
+  const identity = verifiedCompiler.get(receipt)?.windowsDesktop;
+  if (!identity) throw new Error("actual attested Windows desktop executable observation required");
+  return Object.freeze(structuredClone(identity));
 }
 
 export async function collectReleaseCompilerEvidence(
@@ -428,6 +459,7 @@ export async function collectReleaseCompilerEvidence(
           exit_code: null,
           failure: null,
           outputs: [],
+          ...(raw.schema_version === 3 ? { desktop_executable: null } : {}),
           invocation: { ...raw.invocation, finished_at: null },
         })
       )
@@ -525,6 +557,28 @@ export async function collectReleaseCompilerEvidence(
       files: retained,
       source: sourceBinding,
       sourceTree: accepted.source_tree,
+      ...(() => {
+        const windows = observations.find((entry) => entry.platform === "windows-x86_64");
+        const subject = subjects.find(
+          (entry) => entry.filename === "compiler-result-desktop-windows-x86_64.json",
+        );
+        const executable = windows?.desktop.desktop_executable;
+        const packageIdentity = windows?.desktop.outputs[0];
+        return executable && subject && packageIdentity
+          ? {
+              windowsDesktop: structuredClone({
+                executable,
+                package: packageIdentity,
+                source_commit: accepted.source_commit,
+                source_tree: accepted.source_tree,
+                run_id: accepted.run_id,
+                run_attempt: accepted.run_attempt,
+                producer_job_id: windows.producer_job_id,
+                report_sha256: subject.sha256,
+              }),
+            }
+          : {};
+      })(),
     });
   }
   return receipt;

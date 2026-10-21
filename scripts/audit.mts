@@ -574,7 +574,7 @@ export async function main(argv = process.argv.slice(2)) {
   console.log(describeDevelopmentSecurity(decision));
   if (options.profile === "release") {
     const { releaseSecurity } = await import("./linux-beta-risk-706.mts");
-    const releaseDecision = releaseSecurity(projectRoot, scan);
+    const releaseDecision = await releaseSecurity(projectRoot, scan);
     writeJsonAtomic(`${scan706Path}.release.json`, releaseDecision);
   }
   if (process.env.PORTCOVE_AUDIT_CAPTURE === "1" && process.env.GITHUB_OUTPUT) {

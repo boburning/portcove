@@ -21,6 +21,7 @@ import {
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { collectReleaseArtifacts } from "./write-release-checksums.mts";
+import { projectWindowsNsisExecutable } from "./release-compiler-desktop.mts";
 
 const project = fileURLToPath(new URL("..", import.meta.url));
 const members = [
@@ -142,6 +143,22 @@ export interface CompilerCaptureOptions {
     cwd: string,
     environment: NodeJS.ProcessEnv,
   ) => Promise<number>;
+}
+
+/** Bounded post-bundling file observation only, never compiler acceptance. */
+export async function captureWindowsDesktopExecutable(targetDirectory: string) {
+  if (!path.isAbsolute(targetDirectory)) throw new Error("exact compiler target required");
+  const filename = path.join("release", "portcove-desktop.exe");
+  const before = await identity(targetDirectory, filename, 256 * 1024 * 1024);
+  const bytes = await readBoundedPublicBuildInputFile(targetDirectory, filename, 256 * 1024 * 1024);
+  const projected = projectWindowsNsisExecutable(bytes);
+  if (
+    projected.bytes !== before.bytes ||
+    projected.sha256 !== before.sha256 ||
+    !isDeepStrictEqual(before, await identity(targetDirectory, filename, 256 * 1024 * 1024))
+  )
+    throw new Error("desktop compiler executable changed during final capture");
+  return projected;
 }
 
 /** Direct parent invocation observation. Candidate compilation remains untrusted:
@@ -381,7 +398,8 @@ export async function captureReleaseCompiler(root: string, options: CompilerCapt
   const workingDirectory = options.interface === "cli" ? root : path.join(root, "apps/desktop");
   const started = new Date().toISOString();
   const report = {
-    schema_version: 2,
+    schema_version:
+      options.interface === "desktop" && options.platform === "windows-x86_64" ? 3 : 2,
     authority: "none",
     evidence_scope: options.invoke ? "injected-executor" : "direct-build-process",
     producer_job: process.env.GITHUB_JOB ?? null,
@@ -397,6 +415,9 @@ export async function captureReleaseCompiler(root: string, options: CompilerCapt
       await identity(root, "scripts/release-compiler-capture.mts", 256 * 1024)
     ).sha256,
     outputs: [] as { filename: string; bytes: number; sha256: string }[],
+    ...(options.interface === "desktop" && options.platform === "windows-x86_64"
+      ? { desktop_executable: null as ReturnType<typeof projectWindowsNsisExecutable> | null }
+      : {}),
     public_input_use:
       options.interface === "cli"
         ? "updater inputs not applicable to CLI compilation"
@@ -477,6 +498,13 @@ export async function captureReleaseCompiler(root: string, options: CompilerCapt
       );
       if (!report.outputs.length)
         throw new Error("actual compiler produced no complete selected outputs");
+      if (options.interface === "desktop" && options.platform === "windows-x86_64") {
+        // Capture only after the actual Tauri process and final NSIS package
+        // discovery. Tauri has restored its unbundled output slot by this point.
+        if (report.outputs.length !== 1 || !report.outputs[0]!.filename.endsWith(".exe"))
+          throw new Error("desktop compiler executable lacks its exact single NSIS package slot");
+        report.desktop_executable = await captureWindowsDesktopExecutable(targetDirectory);
+      }
     }
     report.state = "completed";
   } catch (error) {
