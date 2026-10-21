@@ -1126,6 +1126,20 @@ just desktop-verify --scenario keyboard-layout --scenario accessibility
 just desktop-verify --profile presentation
 ```
 
+`native-library-layout` uses two owned inert installations to check both Library
+views and themes through ordinary window sizes and native interface sizing. At
+startup it imports the existing red/blue diagnostic JPEGs into the disposable
+Library and waits for their loaded images, isolating resize behavior from
+catalog-network arrival and failure notices. These are geometry fixtures, not
+game-artwork references. At
+200%, it retains settled screenshots and an ordinary/wider/compact/ordinary
+resize cycle with the exact overflow trigger focused. Observations distinguish
+requested outer size, actual outer size, effective viewport and scroll-owner
+geometry. Query, view, entry count and trigger focus must survive the cycle;
+the existing 300%/400% reflow and detail-return checks still apply. This is a
+bounded native fixture check, not large-collection, gameplay, OS DPI, physical
+controller or assistive-technology acceptance.
+
 `just desktop-verify --scenario native-saved-folder-hash-resume --require-clean`
 selects one standalone
 Windows journey outside routine profiles. An isolated first-party CLI seeds a

@@ -255,6 +255,9 @@ export function planDesktopExecution(
       inputs.push({ kind: "executable", name });
     }
     inputs.push(receiptSource(new URL("./desktop-preparation-test.mts", harnessUrl)));
+    if (selection.selected_scenarios.includes("native-library-layout"))
+      for (const name of ["testdata/catalog-artwork-red.jpg", "testdata/catalog-artwork-blue.jpg"])
+        inputs.push(receiptSource(new URL(name, harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-readiness-test.mts", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-artwork-observations.mts", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-preparation-recovery-test.mts", harnessUrl)));

@@ -1,6 +1,7 @@
 import fsPromises from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, readFile, rm, chmod, link, readdir } from "node:fs/promises";
@@ -14,6 +15,22 @@ import {
   inspectRetainedLinuxPublicState,
   selectLinuxPublicRelaunch,
 } from "./desktop-linux-public-update.mts";
+void test("public integrity helpers import before desktop Selenium dependencies are installed", () => {
+  const module = new URL("./desktop-linux-public-update.mts", import.meta.url).href;
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `import {registerHooks} from 'node:module';
+registerHooks({resolve(name,context,next){if(name==='selenium-webdriver')throw Error('desktop dependency unavailable');return next(name,context)}});
+const value=await import(${JSON.stringify(module)});
+if(typeof value.inspectLinuxPublicRuntime!=='function')throw Error('missing integrity helper');`,
+    ],
+    { encoding: "utf8", timeout: 15000, maxBuffer: 65536, windowsHide: true },
+  );
+  assert.equal(result.status, 0, result.stderr);
+});
 void test("old restart preimage cannot conceal started, ambiguous or unrelated native effects", () => {
   const raw = {
     schema_version: 4,

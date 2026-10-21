@@ -100,6 +100,8 @@ function rethrowFailure(error: unknown): never {
   throw error;
 }
 import { executeBrowserScript } from "./browser-script.mts";
+import { observeVisibleTarget } from "./browser-readiness.mts";
+import { captureSettledVisual } from "../../../scripts/native-readiness.mts";
 import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 // Optional owned-fixture scenarios; all state stays under desktop-test's new output directory.
 import assert from "node:assert/strict";
@@ -1542,6 +1544,22 @@ export async function preparationScenarios({
     const first = await seed("opengoal-jak1", "success");
     const second = await seed("opengoal-jak2", "success");
     const before = [await status(first.port.id), await status(second.port.id)];
+    // Geometry diagnostics use local reviewed test images, so late catalog
+    // downloads or failure notices cannot change the focused row mid-resize.
+    for (const [index, port] of [first.port, second.port].entries()) {
+      const image = path.join(output, `library-layout-${port.id}.jpg`);
+      await copyFile(
+        new URL(`./testdata/catalog-artwork-${index === 0 ? "red" : "blue"}.jpg`, import.meta.url),
+        image,
+      );
+      const imported = transportValue(
+        "artwork_state",
+        command(["artwork", "import", port.id, image, "--slot", "cover"]),
+      );
+      assert.equal(imported.availability, "available");
+      assert.equal(imported.resolved_source.kind, "local_import");
+      artifacts.push(image);
+    }
     // Establish the post-seeding render before measuring. An in-flight
     // workspace read may legitimately have observed the two fixture commits.
     await browser.navigate().refresh();
@@ -1596,6 +1614,28 @@ export async function preparationScenarios({
           15_000,
           "Both exact prepared Library entries must render before layout measurement",
         );
+        await browser.wait(
+          () =>
+            executeBrowserScript(browser, () => {
+              const frames = [
+                ...document.querySelectorAll<HTMLElement>(".collection-entry .artwork-image"),
+              ];
+              return (
+                document.fonts.status === "loaded" &&
+                frames.length === 2 &&
+                frames.every((frame) => {
+                  const image = frame.querySelector("img");
+                  return (
+                    frame.dataset.artworkSource === "local_import" &&
+                    image?.complete &&
+                    image.naturalWidth > 0
+                  );
+                })
+              );
+            }),
+          10_000,
+          "Both owned local artwork images must load before the resize journey",
+        );
         for (const layout of ["Covers", "Compact rows"]) {
           await clickVisible(browser, await browser.findElement(button(layout)));
           for (const { width, height } of [
@@ -1609,7 +1649,11 @@ export async function preparationScenarios({
             const state = await measure();
             assert.ok(state.entries >= 2 && state.query === "Jak", JSON.stringify(state));
             assert.ok(state.scrollWidth <= state.contentWidth + 1, JSON.stringify(state));
-            observations.push({ window: { width, height }, ...state });
+            observations.push({
+              requestedWindow: { width, height },
+              window: await browser.manage().window().getRect(),
+              ...state,
+            });
             const file = path.join(
               output,
               `library-${theme}-${layout === "Covers" ? "covers" : "rows"}-${width}.png`,
@@ -1624,6 +1668,105 @@ export async function preparationScenarios({
           for (const size of [125, 150, 175, 200, 250, 300, 400]) {
             await shortcut("+");
             await browser.wait(async () => (await measure()).zoom === String(size), 10_000);
+            if (size === 200) {
+              await browser.manage().window().setRect({ width: 1366, height: 768 });
+              const target = '.collection-entry button[aria-label^="More actions for "]';
+              const more = await browser.findElement(By.css(target));
+              await clickVisible(browser, more);
+              await browser.wait(until.elementLocated(By.css('[role="menu"]')), 5000);
+              await browser.actions().sendKeys(Key.ESCAPE).perform();
+              await browser.wait(
+                () =>
+                  executeBrowserScript(
+                    browser,
+                    (element) => document.activeElement === element,
+                    more,
+                  ),
+                5000,
+                "Closing the enlarged Library menu must restore its exact trigger",
+              );
+              for (const requestedWindow of [
+                { width: 1366, height: 768 },
+                { width: 1920, height: 1080 },
+                { width: 960, height: 640 },
+                { width: 1366, height: 768 },
+              ]) {
+                await browser.manage().window().setRect(requestedWindow);
+                const state = await measure();
+                const continuity = await executeBrowserScript(browser, launchContinuityPoint, more);
+                observations.push({
+                  phase: "focused-resize-200",
+                  requestedWindow,
+                  window: await browser.manage().window().getRect(),
+                  ...state,
+                  continuity,
+                });
+                await browser.wait(
+                  () =>
+                    executeBrowserScript(
+                      browser,
+                      (element) => {
+                        const bounds = element.getBoundingClientRect();
+                        return (
+                          document.activeElement === element &&
+                          bounds.top >= 0 &&
+                          bounds.bottom <= innerHeight + 1 &&
+                          bounds.left >= 0 &&
+                          bounds.right <= innerWidth + 1
+                        );
+                      },
+                      more,
+                    ),
+                  5000,
+                  "The focused Library action must remain visible after resizing",
+                );
+                observations.push({
+                  phase: "settled-focused-resize-200",
+                  requestedWindow,
+                  window: await browser.manage().window().getRect(),
+                  ...(await measure()),
+                  continuity: await executeBrowserScript(browser, launchContinuityPoint, more),
+                });
+                assert.equal(state.zoom, "200");
+                assert.equal(state.query, "Jak");
+                assert.equal(state.layout, layout === "Covers" ? "covers" : "rows");
+                assert.equal(state.entries, 2);
+                assert.ok(state.scrollWidth <= state.contentWidth + 1, JSON.stringify(state));
+                assert.ok(
+                  continuity.originFocused && continuity.originConnected,
+                  JSON.stringify(continuity),
+                );
+                assert.ok(continuity.documentFocused, JSON.stringify(continuity));
+              }
+              // One scoped target avoids claiming that the whole scrollable collection
+              // fits above the fold. The screenshot still retains the native viewport.
+              const exactTarget = await more.getAttribute("data-detail-origin");
+              assert.ok(exactTarget, "The focused menu must have a stable Library return identity");
+              const selector = `button[data-detail-origin=${JSON.stringify(exactTarget)}]`;
+              const capture = await captureSettledVisual({
+                browser,
+                output,
+                name: `library-${theme}-${layout === "Covers" ? "covers" : "rows"}-200`,
+                scenario: "native-library-layout",
+                target: selector,
+                observeTarget: () =>
+                  executeBrowserScript(browser, observeVisibleTarget, selector, "visual" as const),
+                readiness: () =>
+                  executeBrowserScript(
+                    browser,
+                    (element) => ({
+                      ready:
+                        document.fonts.status === "loaded" &&
+                        Array.from(document.images).every((image) => image.complete) &&
+                        document.activeElement === element &&
+                        localStorage.getItem("portcove.appearance.interface-size") === "200",
+                    }),
+                    more,
+                  ),
+              });
+              artifacts.push(capture.image.path, capture.receipt);
+              await browser.manage().window().setRect({ width: 960, height: 640 });
+            }
           }
           await browser.wait(async () => (await measure()).zoom === "400", 10_000);
           const enlarged = await measure();
@@ -1667,12 +1810,18 @@ export async function preparationScenarios({
       for (const [index, port] of [first.port, second.port].entries()) {
         assert.deepEqual((await status(port.id)).active, before[index]!.active);
       }
-      const file = path.join(output, "native-library-layout-observations.json");
-      await writeFile(file, JSON.stringify(observations, null, 2) + "\n", { flag: "wx" });
-      artifacts.push(file);
     } finally {
-      await shortcut("0");
-      await browser.manage().window().setRect(originalWindow);
+      try {
+        const file = path.join(output, "native-library-layout-observations.json");
+        await writeFile(file, JSON.stringify(observations, null, 2) + "\n", { flag: "wx" });
+        artifacts.push(file);
+      } finally {
+        try {
+          await shortcut("0");
+        } finally {
+          await browser.manage().window().setRect(originalWindow);
+        }
+      }
     }
   });
   await scenario("native-ready-detail-composition", async () => {
