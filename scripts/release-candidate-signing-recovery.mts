@@ -65,9 +65,7 @@ const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex")
 const settled = (operation: Operation) =>
   ["succeeded", "recovered"].includes(operation.outcome) &&
   operation.completed_effects.length === 1 &&
-  (operation.outcome === "succeeded" ||
-    operation.recovery?.resolution === "effect-completed" ||
-    operation.receipt_limit === 1);
+  (operation.outcome === "succeeded" || operation.recovery?.resolution === "effect-completed");
 function destination(version: string, output: Output) {
   return `github-actions:boburning/portcove:${version}:${output === "payload" ? "payload-signatures" : output === "context" ? "payload-signing-context" : `tuf-${output}-envelope`}`;
 }

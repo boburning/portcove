@@ -6,7 +6,7 @@ import os from "node:os";
 import { performance } from "node:perf_hooks";
 import { execFileSync } from "node:child_process";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
-import { capacityDigest as digest } from "./release-capacity.mts";
+import { capacityDigest as digest, inspectCapacityOperation } from "./release-capacity.mts";
 import { orderedJsonValue } from "./json-values.mts";
 import { candidateProgressIdentity } from "./release-candidate-progress-contract.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -347,6 +347,45 @@ void test("unresolved positive artifact observation remains data only and incomp
   );
   assert.equal(requests, 2);
 });
+void test("schema-valid recovered partial receipt remains HOLD despite exact one completed effect", () => {
+  for (const output of ["payload", "context", ...roles] as const) {
+    const original = operation(output);
+    const partial = {
+      ...original,
+      outcome: "recovered",
+      recovery: {
+        checkpoint: "7".repeat(40),
+        evidence_sha256: "8".repeat(64),
+        resolution: "partial-effects-retained",
+      },
+    };
+    assert.ok(
+      inspectCapacityOperation(partial),
+      "actual journal parser admits retained partial evidence",
+    );
+    assert.equal(partial.completed_effects.length, 1);
+    assert.equal(partial.receipt_limit, 1);
+    assert.throws(
+      () => inspectCandidateSigningOperation(partial, candidate, output),
+      /not positively completed/u,
+    );
+    const completed = {
+      ...partial,
+      recovery: { ...partial.recovery, resolution: "effect-completed" },
+    };
+    assert.equal(inspectCandidateSigningOperation(completed, candidate, output).id, original.id);
+    assert.throws(
+      () =>
+        inspectCandidateSigningOperation(
+          { ...completed, completed_effects: [] },
+          candidate,
+          output,
+        ),
+      /not positively completed/u,
+    );
+  }
+});
+
 void test("unrelated unresolved operation is refused before raw receipt hydration/provider access", async () => {
   const op = operation("context", 1, { destination: "unrelated:effect" });
   await assert.rejects(
