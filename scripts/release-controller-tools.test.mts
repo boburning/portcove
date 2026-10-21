@@ -588,6 +588,7 @@ void test("the receiver dependency closure loads without npm packages before any
     "production-controller-admission",
     "release-control-phases",
     "github-api",
+    "release-coordinator-deadline",
     "github-binary",
     "runtime-values",
     "bounded-zip",
