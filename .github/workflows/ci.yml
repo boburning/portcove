@@ -406,6 +406,8 @@ jobs:
         run: node --test --test-timeout=30000 --test-name-pattern="Windows reader sharing" scripts/daily-discovery.test.mts
       - name: Test Windows helper and prerequisite controls
         run: node --test --test-concurrency=1 --test-timeout=30000 scripts/resource-capacity.test.mts scripts/resource-command.test.mts scripts/heavy-rust-test-lock.test.mts scripts/run-rust-tests.test.mts scripts/rust-test-tree-supervisor.test.mts scripts/native-confirmation.test.mts scripts/native-session.test.mts scripts/native-session-lock.test.mts scripts/native-helper-dependencies.test.mts scripts/frontend-command-preflight.test.mts scripts/desktop-verify.test.mts scripts/windows-helper-checks.test.mts
+      - name: Test inert fixed-account setup and capability contracts on Windows
+        run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts
       - name: Lint PowerShell scripts and exercise the causal fixture
         shell: pwsh
         run: |
@@ -624,6 +626,8 @@ jobs:
         run: node scripts/dev-storage.mts run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts --test-skip-pattern "pnpm uses|direct just recipes" scripts/dev-storage.test.mts
       - name: Test Windows qualification unit contracts
         run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/windows-qualification-session.test.mts
+      - name: Test inert fixed-account setup and capability contracts on Windows
+        run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts
       - name: Test Windows CI setup contract
         run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/ci-workflow.test.mts scripts/node-test-inventory.test.mts
       - name: Test Windows qualification session integration

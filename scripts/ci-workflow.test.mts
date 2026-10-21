@@ -655,6 +655,16 @@ const rustTests = jobSection("rust_tests", "rust_workspace_tests");
 const rustWorkspaceTests = jobSection("rust_workspace_tests", "rust_clippy");
 const rustClippy = jobSection("rust_clippy", "windows_storage");
 const windowsStorage = jobSection("windows_storage", "native_rust");
+void test("fixed-account cases execute on Windows in both fast and qualification plans", () => {
+  const helpers = jobSection("windows_helpers", "fast_catalog");
+  for (const lane of [helpers, windowsStorage]) {
+    assert.match(lane, /runs-on: windows-latest/);
+    assert.match(
+      lane,
+      /run: node --test --test-timeout=30000 --test-reporter=\.\/scripts\/test-duration-reporter\.mts scripts\/release-local-worker-accounts\.test\.mts scripts\/release-native-account-capability\.test\.mts/,
+    );
+  }
+});
 const nativeRust = jobSection("native_rust", "intel_build");
 const intelBuild = jobSection("intel_build", "intel_tests");
 const intelTests = jobSection("intel_tests", "rust_docs");
