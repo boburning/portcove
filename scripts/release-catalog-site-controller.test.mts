@@ -52,14 +52,17 @@ void test("imported catalog assemblies, deployments and executors cannot reach p
     output_parent: "uncreated",
     deadline: performance.now() + 10000,
   };
-  for (const prepare of [
-    prepareCatalogSiteDeploymentFromActualRepository,
-    prepareCatalogSiteHandoffFromActualRepository,
-  ])
-    await assert.rejects(
-      prepare({ kind: "actual-catalog-keyless-assembly" }, raw),
-      /actual keyless catalog assembly/,
-    );
+  await assert.rejects(
+    prepareCatalogSiteDeploymentFromActualRepository(
+      { kind: "actual-catalog-keyless-assembly" },
+      raw,
+    ),
+    /actual keyless catalog assembly/,
+  );
+  await assert.rejects(
+    prepareCatalogSiteHandoffFromActualRepository({ kind: "actual-catalog-keyless-assembly" }, raw),
+    /actual read-only catalog recovery verification/,
+  );
   await assert.rejects(
     runCatalogSitePublicationController({}, {}, "uncreated", raw.deadline),
     /actual keyless catalog assembly/,
@@ -82,7 +85,7 @@ void test("imported catalog assemblies, deployments and executors cannot reach p
     );
   await assert.rejects(
     recoverActualCatalogSitePublication({}, {} as never, { ...raw, remote_configuration: {} }),
-    /actual keyless catalog assembly/,
+    /actual read-only catalog recovery verification/,
   );
   assert.equal(reads, 0);
 });

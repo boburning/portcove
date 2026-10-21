@@ -69,6 +69,12 @@ import {
 } from "./release-catalog-inspection.mts";
 import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
 import { payloadSigningEnvironment } from "./release-payload-signing.mts";
+import {
+  materializePublishedCatalogCompleteSite,
+  requirePublishedCatalogCompleteSite,
+} from "./release-site-readback.mts";
+import { inspectCapacityOperation } from "./release-capacity.mts";
+import { assertCatalogSitePublicationBinding } from "./release-catalog-publication-contract.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 const run = promisify(execFile),
   hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -595,6 +601,7 @@ export async function runFixedCatalogRoleConfiguration(
 }
 
 type Assembly = {
+  recovery_only?: boolean;
   phase: "coordinator" | "site-publication";
   context: object;
   tools: object;
@@ -640,8 +647,189 @@ export async function assembleActualCatalogRepositoryForRecovery(
 ) {
   active(deadline);
   return withCoordinatorDeadline(deadline, () =>
-    assembleRepository(contextReceipt, toolsReceipt, rawRoles, parent, deadline, "coordinator"),
+    verifyPublishedRepositoryForRecovery(contextReceipt, toolsReceipt, rawRoles, parent, deadline),
   );
+}
+/** Read-only recovery authenticates the already public, precommitted inventory.
+ * It never calls the signing/assembly engine or changes the original clock. */
+async function verifyPublishedRepositoryForRecovery(
+  contextReceipt: object,
+  toolsReceipt: object,
+  rawRoles: readonly object[],
+  parent: string,
+  deadline: number,
+) {
+  const roles = Array.from(rawRoles),
+    admitted = await admittedContext(contextReceipt, toolsReceipt, "coordinator", deadline),
+    signed = await roleInputs(contextReceipt, roles, catalogSigningRoles, admitted, deadline),
+    directory = await mkdtemp(path.join(parent, "catalog-public-recovery-")),
+    scratch = path.join(directory, "work");
+  await mkdir(scratch, { mode: 0o700 });
+  const remote = { schema_version: 1, namespace: admitted.authorities.namespace };
+  const readIntent = async () => {
+    const state = await readRemoteCoordinatorSnapshot(directory, remote, {
+      transport: { cwd: directory, deadline },
+    });
+    const controller = state.input.controller,
+      operation = inspectCapacityOperation(
+        isRecord(controller) && isRecord(controller.capacity_attempt)
+          ? controller.capacity_attempt.operation
+          : null,
+      );
+    if (
+      !operation ||
+      operation.kind !== "upload" ||
+      operation.destination !== "github-pages:boburning/portcove:complete-site" ||
+      operation.outcome !== "recovered" ||
+      operation.recovery?.resolution !== "effect-completed" ||
+      operation.completed_effects.length !== 1 ||
+      digest(operation.catalog_publication?.descriptor) !== digest(admitted.facts.descriptor) ||
+      digest(state.input.catalog_publication) !== digest(admitted.facts.descriptor)
+    )
+      throw new Error("exact settled catalog Pages intent required for read-only verification");
+    return {
+      checkpoint: state.checkpoint,
+      operation,
+      expected: assertCatalogSitePublicationBinding(
+        admitted.facts.descriptor,
+        operation.catalog_site_expectation,
+      ),
+    };
+  };
+  try {
+    const intent = await readIntent(),
+      publicSite = await materializePublishedCatalogCompleteSite(
+        {
+          root_sha256: String(intent.expected.catalog_root_sha256),
+          repository_sha256: String(intent.expected.catalog_repository_sha256),
+          site_generation_sha256: String(intent.expected.site_generation_sha256),
+        },
+        directory,
+        deadline,
+      ),
+      site = await requirePublishedCatalogCompleteSite(publicSite.receipt),
+      repository = site.catalog,
+      binary = await readControllerToolFile(admitted.tools.rust),
+      tool = path.join(
+        scratch,
+        process.platform === "win32" ? "portcove-release-tools.exe" : "portcove-release-tools",
+      ),
+      config = path.join(directory, "verification.json");
+    await writeFile(tool, binary, { flag: "wx", mode: 0o700 });
+    await writeFile(
+      config,
+      JSON.stringify({
+        schema_version: 1,
+        trusted_root: path.join(path.dirname(admitted.context.context), "trusted-root.json"),
+        trusted_root_sha256: admitted.facts.root_sha256,
+        offline_targets: path.join(path.dirname(admitted.context.context), "offline-targets.json"),
+        offline_targets_sha256: admitted.facts.offline_targets_sha256,
+        repository,
+      }),
+      { flag: "wx", mode: 0o600 },
+    );
+    const env = payloadSigningEnvironment(scratch);
+    for (const value of new Set(Object.values(env)))
+      if (typeof value === "string" && value.startsWith(scratch))
+        await mkdir(value, { recursive: true, mode: 0o700 });
+    const result = await run(tool, ["verify-definition-repository", config], {
+      cwd: scratch,
+      env,
+      windowsHide: true,
+      timeout: Math.min(90000, active(deadline)),
+      maxBuffer: 4 * 1024 ** 2,
+      encoding: "utf8",
+    });
+    await writeFile(path.join(directory, "stdout.json"), result.stdout, {
+      flag: "wx",
+      mode: 0o600,
+    });
+    await writeFile(path.join(directory, "stderr.txt"), result.stderr, { flag: "wx", mode: 0o600 });
+    if (result.stderr) throw new Error("read-only catalog verifier stderr not empty");
+    const raw: unknown = JSON.parse(result.stdout),
+      report = inspectCatalogTufPublicationReport(raw),
+      files = await readBoundedReleaseContextFiles(repository);
+    if (
+      !isRecord(raw) ||
+      raw.changed !== false ||
+      digest(inventory(files)) !== digest(report.files) ||
+      report.facts.repository_sha256 !== intent.expected.catalog_repository_sha256 ||
+      report.facts.root_sha256 !== admitted.facts.root_sha256 ||
+      report.facts.offline_targets_sha256 !== admitted.facts.offline_targets_sha256 ||
+      hash(await readControllerToolFile(tool)) !== hash(binary)
+    )
+      throw new Error("recovered catalog verifier inventory or public anchors differ");
+    for (const [index, role] of catalogSigningRoles.entries()) {
+      const wire = role === "definitions" || role === "policy" ? `official-${role}` : role,
+        filename =
+          role === "timestamp"
+            ? "metadata/timestamp.json"
+            : `metadata/${admitted.facts.versions[role]}.${wire}.json`,
+        envelope = signed[index]!;
+      if (
+        report.facts.versions[role] !== admitted.facts.versions[role] ||
+        report.facts.expires[role] !== admitted.facts.expires[role] ||
+        hash(files.get(filename) ?? Buffer.alloc(0)) !== envelope.sha256
+      )
+        throw new Error("recovered catalog differs from original attested role bytes or clock");
+    }
+    const core: unknown = JSON.parse(
+      (
+        await readControllerToolFile(
+          path.join(path.dirname(admitted.context.context), "core-inspection.json"),
+          4 * 1024 ** 2,
+        )
+      ).toString("utf8"),
+    );
+    if (!isRecord(core) || report.facts.index_sha256 !== core.index_sha256)
+      throw new Error("recovered catalog index differs from reviewed Core input");
+    await admittedContext(contextReceipt, toolsReceipt, "coordinator", deadline);
+    await roleInputs(contextReceipt, roles, catalogSigningRoles, admitted, deadline);
+    recheckCatalogSemanticProof(
+      fixedApi(directory, deadline),
+      admitted.authorities,
+      admitted.facts,
+      admitted.binding,
+      admitted.manifest.previous_site_pins,
+    );
+    await requirePublishedCatalogCompleteSite(publicSite.receipt);
+    if (digest(await readIntent()) !== digest(intent))
+      throw new Error("catalog recovery intent changed during public verification");
+    const proof_files = [];
+    for (const name of ["stdout.json", "stderr.txt", "verification.json"]) {
+      const bytes = await readControllerToolFile(path.join(directory, name), 4 * 1024 ** 2);
+      proof_files.push({ path: name, bytes: bytes.length, sha256: hash(bytes) });
+    }
+    const receipt = Object.freeze({ kind: "actual-catalog-read-only-recovery", authority: "none" });
+    assemblies.set(receipt, {
+      recovery_only: true,
+      phase: "coordinator",
+      context: contextReceipt,
+      tools: toolsReceipt,
+      roles,
+      directory,
+      repository,
+      deadline,
+      report,
+      files: inventory(files),
+      proof_files,
+    });
+    await requireActualCatalogRepositoryForRecovery(receipt, deadline);
+    return receipt;
+  } catch (error) {
+    await writeFile(
+      path.join(directory, "refusal.json"),
+      JSON.stringify({
+        phase: "catalog-read-only-recovery",
+        automatic_retry: false,
+        authority: "none",
+      }),
+      { flag: "wx", mode: 0o600 },
+    ).catch(() => {});
+    throw new Error(`catalog public recovery verification refused; retain ${directory}`, {
+      cause: error,
+    });
+  }
 }
 async function assembleRepository(
   contextReceipt: object,
@@ -778,7 +966,22 @@ async function assembleRepository(
 }
 export async function requireActualCatalogRepository(receipt: object, phaseDeadline?: number) {
   const actual = assemblies.get(receipt);
-  if (!actual) throw new Error("actual keyless catalog assembly required");
+  if (!actual || actual.recovery_only)
+    throw new Error("actual keyless catalog assembly required for live publication");
+  if (phaseDeadline !== undefined) {
+    active(phaseDeadline);
+    actual.deadline = Math.min(actual.deadline, phaseDeadline);
+  }
+  return withCoordinatorDeadline(actual.deadline, () => readRepository(receipt));
+}
+/** A read-only recovery receipt cannot enter fresh composition/publication. */
+export async function requireActualCatalogRepositoryForRecovery(
+  receipt: object,
+  phaseDeadline?: number,
+) {
+  const actual = assemblies.get(receipt);
+  if (!actual?.recovery_only || actual.phase !== "coordinator")
+    throw new Error("actual read-only catalog recovery verification required");
   if (phaseDeadline !== undefined) {
     active(phaseDeadline);
     actual.deadline = Math.min(actual.deadline, phaseDeadline);
@@ -789,6 +992,11 @@ async function readRepository(receipt: object) {
   const actual = assemblies.get(receipt);
   if (!actual) throw new Error("actual keyless catalog assembly required");
   active(actual.deadline);
+  if (
+    actual.recovery_only &&
+    Object.values(actual.report.facts.expires).some((expiry) => Date.parse(expiry) <= Date.now())
+  )
+    throw new Error("recovered catalog metadata expired before handoff");
   const admitted = await admittedContext(
     actual.context,
     actual.tools,

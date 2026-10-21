@@ -168,6 +168,7 @@ interface PrivateDeployment {
   generation: Composed["generation"];
   publication?: Composed["publication"];
   catalog?: {
+    recovery_only?: true;
     assembly: object;
     subject: ReturnType<typeof inspectCatalogPublicationDescriptor>;
     facts: ReturnType<typeof inspectCatalogTufPublicationFacts>;
@@ -249,7 +250,8 @@ export async function verifyUploadedSiteArchive(
   } = {},
 ) {
   const prepared = sessions.get(session);
-  if (!prepared) throw new Error("actual prepared site session unavailable");
+  if (!prepared || prepared.catalog?.recovery_only)
+    throw new Error("actual publishable site session unavailable");
   remaining(prepared.deadline, 15000);
   const expected = structuredClone(rawExpected);
   if (
@@ -703,9 +705,12 @@ async function recheckCatalogDeployment(prepared: PrivateDeployment) {
   const catalog = prepared.catalog;
   if (!catalog || prepared.deadline === undefined)
     throw new Error("actual catalog site session required");
+  const signing = await import("./release-catalog-signing.mts");
   const actual = await (
-    await import("./release-catalog-signing.mts")
-  ).requireActualCatalogRepository(catalog.assembly, prepared.deadline);
+    catalog.recovery_only
+      ? signing.requireActualCatalogRepositoryForRecovery
+      : signing.requireActualCatalogRepository
+  )(catalog.assembly, prepared.deadline);
   if (
     capacityDigest(actual.descriptor) !== capacityDigest(catalog.subject) ||
     capacityDigest(actual.report.facts) !== capacityDigest(catalog.facts)
@@ -725,7 +730,7 @@ export async function prepareCatalogSiteHandoffFromActualRepository(
   remaining(request.deadline, 15000);
   const actual = await (
     await import("./release-catalog-signing.mts")
-  ).requireActualCatalogRepository(assembly, request.deadline);
+  ).requireActualCatalogRepositoryForRecovery(assembly, request.deadline);
   const deadline = Math.min(request.deadline, actual.deadline);
   const authorities = await withCoordinatorDeadline(deadline, () =>
     requireControllerCatalogPublicationAuthorities("coordinator"),
@@ -788,7 +793,7 @@ export async function prepareCatalogSiteHandoffFromActualRepository(
     );
   const session: DeploymentSession = Object.freeze({ kind: "prepared-catalog-site-deployment" });
   sessions.set(session, {
-    catalog: { assembly, subject, facts, prior },
+    catalog: { assembly, subject, facts, prior, recovery_only: true },
     deadline,
     generation: structuredClone(current.generation),
     previous_generation: null,
@@ -1021,7 +1026,12 @@ export async function publishPreparedSiteDeployment(
   refreshControls?: () => Promise<AuthenticatedReleaseControlSource>,
 ) {
   const prepared = sessions.get(session);
-  if (!prepared || !prepared.upload || prepared.upload.evidence_scope !== "github.com")
+  if (
+    !prepared ||
+    prepared.catalog?.recovery_only ||
+    !prepared.upload ||
+    prepared.upload.evidence_scope !== "github.com"
+  )
     throw new Error("actual authenticated composition and provider upload session required");
   remaining(prepared.deadline, 15000);
   const requireControls = prepared.catalog
