@@ -18,6 +18,12 @@ export type CatalogControlPhase =
   | "catalog-snapshot"
   | "catalog-timestamp";
 export type TufSigningRole = "releases" | "preview" | "stable" | "snapshot" | "timestamp";
+/** Routing data only. Each selected purpose still requires its named admission. */
+export function inspectControllerExecutionPurpose(raw: unknown = "application") {
+  if (raw !== "application" && raw !== "catalog-publication")
+    throw new Error("fixed controller publication purpose required");
+  return raw;
+}
 export type MaintenanceReleaseControlPhase =
   | "coordinator"
   | "site-publication"

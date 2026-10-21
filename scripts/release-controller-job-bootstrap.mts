@@ -8,7 +8,11 @@ import {
   verifiedControllerToolPaths,
 } from "./release-controller-tool-admission.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
-import { requireControllerReleaseAuthorities } from "./release-authority-configuration.mts";
+import {
+  requireControllerReleaseAuthorities,
+  requireControllerCatalogPublicationAuthorities,
+} from "./release-authority-configuration.mts";
+import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
 import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -38,6 +42,10 @@ export function assertControllerBootstrapEnvironment(environment: NodeJS.Process
           "PORTCOVE_CONTROL_APP_TOKEN",
           "PORTCOVE_ROLE_KEY",
           "PORTCOVE_ROLE_PASSWORD",
+          "PORTCOVE_CATALOG_DEFINITIONS_KEY",
+          "PORTCOVE_CATALOG_POLICY_KEY",
+          "PORTCOVE_CATALOG_SNAPSHOT_KEY",
+          "PORTCOVE_CATALOG_TIMESTAMP_KEY",
           "TAURI_SIGNING_PRIVATE_KEY",
           "TAURI_SIGNING_PRIVATE_KEY_PASSWORD",
         ].includes(key) ||
@@ -62,6 +70,10 @@ export async function launchFixedControllerJob(rawOperation: unknown) {
       "tuf-stable",
       "tuf-snapshot",
       "tuf-timestamp",
+      "catalog-definitions",
+      "catalog-policy",
+      "catalog-snapshot",
+      "catalog-timestamp",
     ].includes(String(rawOperation)) ||
     typeof rawOperation !== "string"
   )
@@ -69,9 +81,12 @@ export async function launchFixedControllerJob(rawOperation: unknown) {
   assertControllerBootstrapEnvironment();
   if (!process.env.RUNNER_TEMP || !path.isAbsolute(process.env.RUNNER_TEMP))
     throw new Error("clean fixed controller runtime required");
-  await requireControllerReleaseAuthorities(
-    rawOperation === "building" ? "admission" : rawOperation,
-  );
+  await (
+    inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) ===
+      "catalog-publication"
+      ? requireControllerCatalogPublicationAuthorities
+      : requireControllerReleaseAuthorities
+  )(rawOperation === "building" ? "admission" : rawOperation);
   const rawNeeds = process.env.PORTCOVE_FIXED_NEEDS;
   if (!rawNeeds || Buffer.byteLength(rawNeeds) > 256 * 1024)
     throw new Error("bounded fixed producer outputs unavailable");

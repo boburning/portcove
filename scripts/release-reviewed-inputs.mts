@@ -3,7 +3,11 @@ import { open, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import { admitReviewedInputsController } from "./production-controller-admission.mts";
+import {
+  admitReviewedInputsController,
+  admitProductionCatalogProtectionObserver,
+  readProductionControllerWorkflowBytes,
+} from "./production-controller-admission.mts";
 import {
   requestAssemblerToken,
   controllerOidcSubject,
@@ -18,11 +22,13 @@ import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { isRecord } from "./runtime-values.mts";
 import { appendFile } from "node:fs/promises";
 import {
+  inspectControllerExecutionPurpose,
   inspectReleaseControlPhase,
   releaseControlPhaseProfile,
 } from "./release-control-phases.mts";
 import {
   observeReleaseInputProtections,
+  observeCatalogMaintenanceProtections,
   requireReleaseInputWriterPolicy,
   prepareProductionProtectionHandoff,
 } from "./release-input-protections.mts";
@@ -102,6 +108,11 @@ async function runOperation(classification?: {
   const classificationObserver = mode === "observe-production-classification";
   const classificationProbe =
     mode === "probe-production-request" || mode === "probe-production-classification-observer";
+  const catalogPurpose =
+    inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) ===
+    "catalog-publication";
+  if (catalogPurpose && !mode?.startsWith("observe-production-"))
+    throw new Error("catalog input command may only observe maintenance");
   const productionObservation =
     !classificationObserver && mode?.startsWith("observe-production") === true;
   const roundIndex =
@@ -115,6 +126,13 @@ async function runOperation(classification?: {
       : "admission",
   );
   const phaseProfile = releaseControlPhaseProfile(phase);
+  if (catalogPurpose)
+    admitProductionCatalogProtectionObserver(
+      process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION,
+      process.env,
+      await readProductionControllerWorkflowBytes(),
+      phase,
+    );
   const observing = mode === "observe" || productionObservation || classificationObserver;
   const persisting =
     mode === "persist" || mode === "persist-request" || mode === "persist-production-request";
@@ -180,7 +198,11 @@ async function runOperation(classification?: {
       // dispatch-provided expected identity. No self-expectation from JWT claims.
       if (process.env.GITHUB_RUN_ATTEMPT !== "1")
         throw new Error("review input reruns are not admitted");
-      const policy: unknown = JSON.parse(process.env.PORTCOVE_CONTROLLER_ADMISSION ?? "null");
+      const policy: unknown = JSON.parse(
+        (catalogPurpose
+          ? process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION
+          : process.env.PORTCOVE_CONTROLLER_ADMISSION) ?? "null",
+      );
       if (!isRecord(policy)) throw new Error("ratified controller policy unavailable");
       const expected = inspectAssemblerIdentityExpectation({
         audience: classificationObserver
@@ -266,9 +288,11 @@ async function runOperation(classification?: {
         `eligible=${result.eligible === true ? "true" : "false"}\n`,
       );
     } else if (observing) {
-      result = observeReleaseInputProtections(api, {
-        releasePublication: phase === "release-publication",
-      });
+      result = catalogPurpose
+        ? observeCatalogMaintenanceProtections(api)
+        : observeReleaseInputProtections(api, {
+            releasePublication: phase === "release-publication",
+          });
       if (productionObservation)
         result = prepareProductionProtectionHandoff(observerIdentity, result, phase);
       if (productionObservation) {

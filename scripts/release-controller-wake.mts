@@ -1,11 +1,13 @@
+import { constants } from "node:fs";
 import { createHash } from "node:crypto";
-import { open } from "node:fs/promises";
+import { open, readFile, writeFile, appendFile } from "node:fs/promises";
 import { crc32, inflateRawSync } from "node:zlib";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import type { IncludedResponse } from "./github-api.mts";
 import { isRecord, errorMessage } from "./runtime-values.mts";
+import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
@@ -57,7 +59,10 @@ function dispatchIntent(
     endpoint: `${prefix}/actions/workflows/application-update-production.yml/dispatches`,
     body: {
       ref: config.execution_ref.slice("refs/tags/".length),
-      inputs: { wake_run_id: wakeRun },
+      inputs: {
+        wake_run_id: wakeRun,
+        ...(config.schema_version === 3 ? { publication_purpose: config.publication_purpose } : {}),
+      },
       return_run_details: true,
     },
     wake_run_id: wakeRun,
@@ -82,7 +87,8 @@ export function inspectWakeControllerRun(
     raw.path !== productionControllerWorkflow ||
     raw.event !== "workflow_dispatch" ||
     raw.run_attempt !== 1 ||
-    raw.display_title !== `Portcove application release wake ${wakeRun}` ||
+    raw.display_title !==
+      `Portcove ${config.schema_version === 3 && config.publication_purpose === "catalog-publication" ? "catalog publication" : "application release"} wake ${wakeRun}` ||
     !isRecord(raw.actor) ||
     String(raw.actor.id) !== config.dispatch_actor_id ||
     !isRecord(raw.triggering_actor) ||
@@ -111,6 +117,7 @@ async function verifyWakeIntentUpload(
     download?: typeof readGitHubArtifactArchive;
     directory: string;
     deadline?: number;
+    approved_configurations?: readonly ReturnType<typeof inspectControllerWakeConfiguration>[];
   },
 ) {
   const item = structuredClone(options.artifact);
@@ -169,13 +176,25 @@ async function verifyWakeIntentUpload(
       entry.method === 0
         ? Buffer.from(compressed)
         : inflateRawSync(compressed, { maxOutputLength: entry.bytes });
+  const matchedConfiguration = options.approved_configurations?.find((config) =>
+    bytes.equals(
+      Buffer.from(
+        JSON.stringify(
+          dispatchIntent(config, environment.GITHUB_RUN_ID!, environment.GITHUB_SHA!),
+        ) + "\n",
+      ),
+    ),
+  );
   if (
     bytes.length !== entry.bytes ||
     crc32(bytes) !== entry.crc ||
-    !bytes.equals(Buffer.from(JSON.stringify(intent) + "\n")) ||
+    !(options.approved_configurations
+      ? matchedConfiguration !== undefined
+      : bytes.equals(Buffer.from(JSON.stringify(intent) + "\n"))) ||
     digest(before) !== digest(read())
   )
     throw new Error("wake original durable intent changed");
+  return matchedConfiguration;
 }
 
 /** Read-only bounded recovery before another dispatch. A previous successful
@@ -191,6 +210,7 @@ export async function reconcilePreviousWakes(
     download?: typeof readGitHubArtifactArchive;
     directory?: string;
     deadline?: number;
+    approved_configurations?: readonly ReturnType<typeof inspectControllerWakeConfiguration>[];
   } = {},
 ) {
   const current = providerGet(api, `${prefix}/actions/runs/${environment.GITHUB_RUN_ID}`);
@@ -318,13 +338,14 @@ export async function reconcilePreviousWakes(
         !/^sha256:[a-f0-9]{64}$/u.test(matches[0].digest)
       )
         throw new Error("prior wake exact immutable intent unavailable");
-      await verifyWakeIntentUpload(
+      const originalConfiguration = await verifyWakeIntentUpload(
         api,
         { ...environment, GITHUB_RUN_ID: String(run.id), GITHUB_SHA: run.head_sha },
         dispatchIntent(config, String(run.id), run.head_sha),
         {
           artifact: { id: matches[0].id, sha256: matches[0].digest.slice(7) },
           directory: options.directory ?? process.cwd(),
+          approved_configurations: options.approved_configurations,
           ...(options.download ? { download: options.download } : {}),
           ...(options.deadline === undefined ? {} : { deadline: options.deadline }),
         },
@@ -332,7 +353,8 @@ export async function reconcilePreviousWakes(
       await record("prior-wake-boundary-observed", {
         wake_run_id: run.id,
         intent_artifact_id: matches[0].id,
-        configuration_sha256: digest(config),
+        configuration_sha256: digest(originalConfiguration ?? config),
+        publication_purpose: originalConfiguration?.publication_purpose ?? "application",
         scope: "dispatch scheduling only",
       });
       return;
@@ -373,14 +395,23 @@ export async function reconcilePreviousWakes(
     const production = collect(
       `${prefix}/actions/workflows/application-update-production.yml/runs?event=workflow_dispatch&head_sha=${config.revision}&created=${encodeURIComponent(`>=${run.created_at}`)}&per_page=100`,
     );
-    const matches = production.filter(
-      (item) => item.display_title === `Portcove application release wake ${String(run.id)}`,
+    const approved = options.approved_configurations ?? [config];
+    const matches = production.filter((item) =>
+      approved.some(
+        (config) =>
+          item.display_title ===
+          `Portcove ${config.schema_version === 3 && config.publication_purpose === "catalog-publication" ? "catalog publication" : "application release"} wake ${String(run.id)}`,
+      ),
     );
     if (matches.length !== 1)
       throw new Error("prior wake dispatch remains missing or ambiguous; no later POST");
     const observed = inspectWakeControllerRun(
       providerGet(api, `${prefix}/actions/runs/${String(matches[0]!.id)}`),
-      config,
+      approved.find(
+        (config) =>
+          matches[0]!.display_title ===
+          `Portcove ${config.schema_version === 3 && config.publication_purpose === "catalog-publication" ? "catalog publication" : "application release"} wake ${String(run.id)}`,
+      )!,
       String(run.id),
       String(matches[0]!.id),
     );
@@ -397,9 +428,11 @@ export async function reconcilePreviousWakes(
 export function inspectControllerWakeConfiguration(value: unknown) {
   if (
     !isRecord(value) ||
-    value.schema_version !== 2 ||
+    ![2, 3].includes(Number(value.schema_version)) ||
     Object.keys(value).sort().join(",") !==
-      "activation_started_at,dispatch_actor_id,execution_ref,revision,schema_version,wake_workflow_sha256,workflow_sha256" ||
+      (value.schema_version === 3
+        ? "activation_started_at,dispatch_actor_id,execution_ref,namespace,publication_purpose,revision,schema_version,wake_workflow_sha256,workflow_sha256"
+        : "activation_started_at,dispatch_actor_id,execution_ref,revision,schema_version,wake_workflow_sha256,workflow_sha256") ||
     typeof value.execution_ref !== "string" ||
     !/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(
       value.execution_ref,
@@ -417,8 +450,22 @@ export function inspectControllerWakeConfiguration(value: unknown) {
     !Number.isFinite(Date.parse(value.activation_started_at))
   )
     throw new Error("ratified wake-up controller tuple unavailable");
+  if (
+    value.schema_version === 3 &&
+    (typeof value.namespace !== "string" ||
+      !/^portcove-[a-z0-9]+(?:-[a-z0-9]+){0,5}$/u.test(value.namespace) ||
+      value.namespace.length > 64)
+  )
+    throw new Error("fixed shared wake namespace required");
+  const purpose =
+    value.schema_version === 3
+      ? inspectControllerExecutionPurpose(value.publication_purpose)
+      : "application";
   return {
-    schema_version: 2,
+    schema_version: value.schema_version === 3 ? 3 : 2,
+    ...(value.schema_version === 3
+      ? { publication_purpose: purpose, namespace: String(value.namespace) }
+      : {}),
     execution_ref: value.execution_ref,
     revision: value.revision,
     workflow_sha256: value.workflow_sha256,
@@ -438,13 +485,18 @@ export async function wakeRatifiedController(
   api: Api,
   record: (phase: string, evidence: unknown) => Promise<void>,
   options:
-    | { mode: "prepare"; deadline?: number }
+    | {
+        mode: "prepare";
+        deadline?: number;
+        approved_configurations?: readonly ReturnType<typeof inspectControllerWakeConfiguration>[];
+      }
     | {
         mode: "dispatch";
         artifact: { id: number; sha256: string };
         download?: typeof readGitHubArtifactArchive;
         directory: string;
         deadline?: number;
+        approved_configurations?: readonly ReturnType<typeof inspectControllerWakeConfiguration>[];
       },
 ) {
   const deadline = Math.min(performance.now() + 55000, options.deadline ?? Infinity);
@@ -553,7 +605,11 @@ export async function wakeRatifiedController(
   await record("dispatch-intent", intent);
   if (options.mode === "prepare")
     return { authority: "none", decision: "intent-prepared-only" as const, intent };
-  await verifyWakeIntentUpload(api, environment, intent, { ...options, deadline });
+  await verifyWakeIntentUpload(api, environment, intent, {
+    ...options,
+    approved_configurations: undefined,
+    deadline,
+  });
   await reconcilePreviousWakes(config, environment, api, record, { ...options, deadline });
   readRefs();
   if (performance.now() - started > 55000)
@@ -602,6 +658,130 @@ export async function wakeRatifiedController(
   return result;
 }
 
+/** Fixed scheduling only: data here never authenticates a candidate or effect. */
+/** Workflow variables map an unconfigured purpose to the empty string. Only
+ * absent/empty is inert; malformed configured JSON must still refuse. */
+export function readControllerWakeChoicesFromEnvironment(env: NodeJS.ProcessEnv = process.env) {
+  const parsed = (value: string | undefined): unknown =>
+    value === undefined || value === "" ? null : JSON.parse(value);
+  return inspectControllerWakeChoices(
+    parsed(env.PORTCOVE_CONTROLLER_WAKE),
+    parsed(env.PORTCOVE_CATALOG_CONTROLLER_WAKE),
+  );
+}
+
+export function inspectControllerWakeChoices(application: unknown, catalog: unknown) {
+  const configs = [application, catalog]
+    .filter((value) => value != null)
+    .map(inspectControllerWakeConfiguration);
+  if (configs.length < 1) throw new Error("no configured automatic controller purpose");
+  if (
+    application != null &&
+    configs[0]!.schema_version === 3 &&
+    configs[0]!.publication_purpose !== "application"
+  )
+    throw new Error("application wake purpose differs");
+  if (
+    catalog != null &&
+    !(
+      configs.at(-1)!.schema_version === 3 &&
+      configs.at(-1)!.publication_purpose === "catalog-publication"
+    )
+  )
+    throw new Error("catalog wake purpose differs");
+  if (configs.length === 2) {
+    const [a, b] = configs;
+    if (
+      a!.schema_version !== 3 ||
+      b!.schema_version !== 3 ||
+      a!.namespace !== b!.namespace ||
+      a!.revision !== b!.revision ||
+      a!.execution_ref !== b!.execution_ref ||
+      a!.workflow_sha256 !== b!.workflow_sha256 ||
+      a!.wake_workflow_sha256 !== b!.wake_workflow_sha256 ||
+      a!.activation_started_at !== b!.activation_started_at
+    )
+      throw new Error("automatic purposes require one shared controller/journal/history boundary");
+  }
+  return configs;
+}
+export function selectControllerWakePurpose(
+  configs: ReturnType<typeof inspectControllerWakeChoices>,
+  runNumber: unknown,
+  priority: unknown = null,
+) {
+  if (typeof runNumber !== "number" || !Number.isSafeInteger(runNumber) || runNumber < 1)
+    throw new Error("actual automatic run number required");
+  if (priority !== null) {
+    const purpose = inspectControllerExecutionPurpose(priority);
+    const selected = configs.find(
+      (config) => (config.publication_purpose ?? "application") === purpose,
+    );
+    if (!selected) throw new Error("pending journal purpose is not configured");
+    return selected;
+  }
+  return configs[(runNumber - 1) % configs.length]!;
+}
+export function readWakePurposePriority(api: Api, namespace: string) {
+  const endpoint = `${prefix}/git/ref/heads/${namespace}-coordinator-state`;
+  const before = providerGet(api, endpoint);
+  if (
+    !isRecord(before) ||
+    before.ref !== `refs/heads/${namespace}-coordinator-state` ||
+    !isRecord(before.object) ||
+    before.object.type !== "commit" ||
+    typeof before.object.sha !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(before.object.sha)
+  )
+    throw new Error("wake journal routing ref unavailable");
+  const raw = providerGet(api, `${prefix}/contents/state.json?ref=${before.object.sha}`);
+  const bytes = sourceBytes(raw, "state.json");
+  const state: unknown = JSON.parse(bytes.toString("utf8"));
+  if (
+    digest(before) !== digest(providerGet(api, endpoint)) ||
+    !isRecord(state) ||
+    state.schema_version !== 1 ||
+    !isRecord(state.input)
+  )
+    throw new Error("wake journal routing snapshot changed");
+  if (
+    Object.keys(state).sort().join(",") !== "input,previous,schema_version" ||
+    (state.previous !== null &&
+      (typeof state.previous !== "string" || !/^[a-f0-9]{40}$/u.test(state.previous)))
+  )
+    throw new Error("wake routing checkpoint schema malformed");
+  const input = state.input;
+  if (
+    !Object.hasOwn(input, "active_candidate") ||
+    (input.active_candidate !== null && !isRecord(input.active_candidate)) ||
+    !isRecord(input.controller) ||
+    !isRecord(input.controller.capacity_attempt) ||
+    !Object.hasOwn(input.controller.capacity_attempt, "operation") ||
+    (input.controller.capacity_attempt.operation !== null &&
+      !isRecord(input.controller.capacity_attempt.operation))
+  )
+    throw new Error("wake routing reservation/capacity unavailable");
+  for (const key of ["review_request", "catalog_review_request", "catalog_publication"])
+    if (input[key] != null && !isRecord(input[key]))
+      throw new Error("wake routing subject malformed");
+  if (input.active_candidate != null || input.review_request != null) return "application";
+  const controller = isRecord(input.controller) ? input.controller : null;
+  const capacity =
+    controller && isRecord(controller.capacity_attempt) ? controller.capacity_attempt : null;
+  const operation = capacity && isRecord(capacity.operation) ? capacity.operation : null;
+  if (
+    operation &&
+    !["pending", "succeeded", "recovered", "capacity-refused", "ambiguous"].includes(
+      String(operation.outcome),
+    )
+  )
+    throw new Error("wake routing outcome unknown");
+  if (operation && !["succeeded", "recovered"].includes(String(operation.outcome)))
+    return operation.catalog_publication != null ? "catalog-publication" : "application";
+  if (input.catalog_publication != null || input.catalog_review_request != null)
+    return "catalog-publication";
+  return null;
+}
 async function main() {
   const mode = process.argv[2];
   if (process.argv.length !== 3 || (mode !== "--prepare" && mode !== "--dispatch"))
@@ -648,8 +828,74 @@ async function main() {
     if (!Number.isFinite(remaining) || remaining <= 0 || remaining > 55000)
       throw new Error("actual wake job original budget exhausted or future-dated");
     deadline = performance.now() + remaining;
+    const choices = readControllerWakeChoicesFromEnvironment();
+    const selectedFile = path.join(temp, "controller-wake-selected.json");
+    let selected: ReturnType<typeof inspectControllerWakeConfiguration>;
+    if (mode === "--prepare") {
+      const current = providerGet(api, `${prefix}/actions/runs/${process.env.GITHUB_RUN_ID}`);
+      if (!isRecord(current) || String(current.id) !== process.env.GITHUB_RUN_ID)
+        throw new Error("actual wake run number unavailable");
+      const priority =
+        choices.length === 2 ? readWakePurposePriority(api, choices[0]!.namespace!) : null;
+      selected = selectControllerWakePurpose(choices, current.run_number, priority);
+      await writeFile(selectedFile, JSON.stringify(selected), { flag: "wx", mode: 0o600 });
+      const authority: unknown = JSON.parse(
+        (selected.publication_purpose === "catalog-publication"
+          ? process.env.PORTCOVE_CATALOG_AUTHORITIES
+          : process.env.PORTCOVE_RELEASE_AUTHORITIES) ?? "null",
+      );
+      if (
+        !isRecord(authority) ||
+        !isRecord(authority.apps) ||
+        !isRecord(authority.apps.dispatch) ||
+        String(authority.apps.dispatch.actor_id) !== selected.dispatch_actor_id ||
+        !Number.isSafeInteger(authority.apps.dispatch.app_id) ||
+        !Number.isSafeInteger(authority.apps.dispatch.installation_id) ||
+        Number(authority.apps.dispatch.app_id) < 1 ||
+        Number(authority.apps.dispatch.installation_id) < 1
+      )
+        throw new Error("selected wake dispatch App configuration unavailable");
+      if (!process.env.GITHUB_OUTPUT) throw new Error("wake selection output unavailable");
+      await appendFile(
+        process.env.GITHUB_OUTPUT,
+        `dispatch_app_id=${authority.apps.dispatch.app_id}\ndispatch_installation_id=${authority.apps.dispatch.installation_id}\npublication_purpose=${selected.publication_purpose ?? "application"}\n`,
+      );
+    } else {
+      const handle = await open(
+        selectedFile,
+        constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+      );
+      let bytes: Buffer;
+      try {
+        const before = await handle.stat();
+        if (!before.isFile() || before.nlink !== 1 || before.size < 1 || before.size > 65536)
+          throw new Error("retained wake selection invalid");
+        const buffer = Buffer.alloc(before.size + 1);
+        let length = 0;
+        for (;;) {
+          const part = await handle.read(buffer, length, buffer.length - length, null);
+          if (!part.bytesRead) break;
+          length += part.bytesRead;
+          if (length === buffer.length) break;
+        }
+        const after = await handle.stat();
+        if (
+          length !== before.size ||
+          after.size !== before.size ||
+          after.mtimeMs !== before.mtimeMs ||
+          after.ctimeMs !== before.ctimeMs
+        )
+          throw new Error("retained wake selection changed");
+        bytes = buffer.subarray(0, length);
+      } finally {
+        await handle.close();
+      }
+      selected = inspectControllerWakeConfiguration(JSON.parse(bytes.toString("utf8")));
+      if (!choices.some((config) => digest(config) === digest(selected)))
+        throw new Error("retained selected wake configuration changed");
+    }
     const result = await wakeRatifiedController(
-      JSON.parse(process.env.PORTCOVE_CONTROLLER_WAKE ?? "null"),
+      selected,
       process.env,
       api,
       async (phase, evidence) => {
@@ -657,10 +903,11 @@ async function main() {
         await receipt.sync();
       },
       mode === "--prepare"
-        ? { mode: "prepare", deadline }
+        ? { mode: "prepare", deadline, approved_configurations: choices }
         : {
             mode: "dispatch",
             deadline,
+            approved_configurations: choices,
             directory: temp,
             artifact: {
               id: Number(process.env.PORTCOVE_WAKE_INTENT_ARTIFACT_ID),
