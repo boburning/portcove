@@ -15,6 +15,7 @@ import {
 } from "./release-tuf-signing.mts";
 import {
   requireReceivedSigningContext,
+  requireRetainedSigningContext,
   receiveSigningContextArtifact,
   receiveMetadataSigningContextArtifact,
   signingContextRemaining,
@@ -22,6 +23,7 @@ import {
 import type { SigningContextArtifactExpected } from "./release-signing-context-artifact.mts";
 import {
   requireReceivedTufRoleArtifact,
+  requireRetainedTufRoleArtifact,
   receiveTufRoleArtifact,
   tufRolePredicateType,
 } from "./release-tuf-role-artifact.mts";
@@ -260,9 +262,9 @@ export async function runTufRoleController(
     const guard = async () => {
       active();
       await verifiedControllerToolPaths(toolsReceipt);
-      await requireReceivedSigningContext(contextReceipt, deadline);
+      await requireRetainedSigningContext(contextReceipt, deadline);
       for (const dependency of capturedDependencies)
-        await requireReceivedTufRoleArtifact(dependency, deadline);
+        await requireRetainedTufRoleArtifact(dependency, deadline);
       await fresh();
       const snapshot = await readRemoteCoordinatorSnapshot(directory, coordinator, {
         transport: { cwd: directory, deadline },
@@ -437,9 +439,9 @@ export async function requirePreparedTufRoleOutput(receipt: object) {
   if (!retained) throw new Error("actual TUF role output required");
   signingContextRemaining(retained.deadline, 15000);
   await verifiedControllerToolPaths(retained.tools);
-  await requireReceivedSigningContext(retained.context, retained.deadline);
+  await requireRetainedSigningContext(retained.context, retained.deadline);
   for (const dependency of retained.dependencies)
-    await requireReceivedTufRoleArtifact(dependency, retained.deadline);
+    await requireRetainedTufRoleArtifact(dependency, retained.deadline);
   for (const file of retained.result.files) {
     const bytes = await readControllerToolFile(
       path.join(retained.directory, "handoff", "output", file.filename),

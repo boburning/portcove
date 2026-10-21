@@ -299,6 +299,25 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ...["release-tuf-controller", "release-tuf-launch", "release-signing-job-budget"].map(
+    (name): [string, string[]] => [
+      `scripts/${name}.mts`,
+      ["scripts/release-tuf-controller.test.mts"],
+    ],
+  ),
+  ...[
+    "release-metadata-signing-contract",
+    "release-metadata-signing-context",
+    "release-metadata-signing-controller",
+  ].map((name): [string, string[]] => [
+    `scripts/${name}.mts`,
+    ["scripts/release-metadata-signing-context.test.mts"],
+  ]),
+  ["scripts/release-tuf-publication.mts", ["scripts/release-tuf-signing.test.mts"]],
+  [
+    "scripts/release-native-publication-admission.mts",
+    ["scripts/release-native-admission.test.mts"],
+  ],
   ["scripts/release-coordinator-deadline.mts", ["scripts/release-coordinator-deadline.test.mts"]],
   ...["worker", "worker-recovery", "request-pipeline"].map((name): [string, string[]] => [
     `scripts/release-semantic-${name}.mts`,
@@ -733,6 +752,8 @@ const releaseContractTests = Object.freeze([
   "scripts/release-signing-handoff.test.mts",
   "scripts/release-tuf-role-artifact.test.mts",
   "scripts/release-tuf-signing.test.mts",
+  "scripts/release-tuf-controller.test.mts",
+  "scripts/release-metadata-signing-context.test.mts",
   "scripts/release-signing-context.test.mts",
   "scripts/release-signing-context-artifact.test.mts",
   "scripts/release-publication-result.test.mts",

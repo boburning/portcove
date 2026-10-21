@@ -198,6 +198,19 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
   );
   assert.equal(driver.status, 1);
   assert.match(driver.stderr, /usage: release-coordinator-driver/u);
+  const tuf = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-tuf-controller.bundle.mjs")],
+    {
+      cwd: root,
+      encoding: "utf8",
+      timeout: 5000,
+      env: { SystemRoot: process.env.SystemRoot },
+    },
+  );
+  assert.equal(tuf.status, 1, tuf.stderr);
+  assert.match(tuf.stderr, /fixed TUF role controller refused/);
+  assert.doesNotMatch(tuf.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
   assert.deepEqual(controllerToolEntries, [
     "production-controller-admission",
     "release-control-ready",
@@ -206,6 +219,7 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
     "release-signing-controller",
     "release-role-key-channel",
     "release-coordinator-driver",
+    "release-tuf-controller",
   ]);
 });
 void test("bootstrap environment excludes ambient credentials, wrappers, npm hooks and caches", () => {
