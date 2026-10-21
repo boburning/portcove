@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, rm, access } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, access, readdir, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
@@ -8,7 +8,7 @@ import test from "node:test";
 import { materializeSemanticSource } from "./release-semantic-source.mts";
 
 const pins = { git_sha256: "a".repeat(64), python_sha256: "b".repeat(64) };
-async function fixture(t: { after: (fn: () => Promise<void>) => void }) {
+async function fixture(t: { after: (fn: () => Promise<void>) => void }, oversizedCommit = false) {
   const root = await mkdtemp(path.join(os.tmpdir(), "semantic-source-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const origin = path.join(root, "origin.git");
@@ -42,11 +42,17 @@ async function fixture(t: { after: (fn: () => Promise<void>) => void }) {
     Buffer.from(
       `tree ${tree}\n${parent ? `parent ${parent}\n` : ""}author A <a@fixture.invalid> 1792281600 -0430\ncommitter A <a@fixture.invalid> 1792281600 +0545\n\nraw offset fixture\n`,
     );
-  const oldRaw = rawCommit(oldTree);
+  const ancestor = git(origin, ["hash-object", "-w", "-t", "commit", "--stdin"], rawCommit(oldTree))
+    .toString()
+    .trim();
+  const oldRaw = rawCommit(oldTree, ancestor);
   const old = git(origin, ["hash-object", "-w", "-t", "commit", "--stdin"], oldRaw)
     .toString()
     .trim();
-  const newRaw = rawCommit(newTree, old);
+  const newRaw = Buffer.concat([
+    rawCommit(newTree, old),
+    Buffer.from(oversizedCommit ? "x".repeat(128 * 1024) : ""),
+  ]);
   const current = git(origin, ["hash-object", "-w", "-t", "commit", "--stdin"], newRaw)
     .toString()
     .trim();
@@ -154,6 +160,51 @@ void test("empty source cache acquires exact raw non-UTC commits, annotated publ
   await assert.rejects(access(path.join(result.repository, "objects/info/alternates")));
   await assert.rejects(access(path.join(f.parent, "input.bin")));
   assert.deepEqual(f.phases, ["commits", "blobs"]);
+  assert.equal(
+    (await readFile(path.join(result.repository, "shallow"), "utf8")).trim(),
+    f.expected.base_commit,
+  );
+  assert.equal(
+    f
+      .git(result.repository, ["rev-list", f.expected.source_commit, `^${f.expected.base_commit}`])
+      .toString()
+      .trim(),
+    f.expected.source_commit,
+  );
+  const indexes = (await readdir(path.join(result.repository, "objects/pack"))).filter((name) =>
+    name.endsWith(".idx"),
+  );
+  assert.equal(indexes.length, 1);
+  const packed = f
+    .git(result.repository, [
+      "verify-pack",
+      "-v",
+      path.join(result.repository, "objects/pack", indexes[0]!),
+    ])
+    .toString()
+    .split("\n")
+    .filter((line) => /^[a-f0-9]{40} /u.test(line));
+  assert.equal(packed.length, 7);
+  assert.ok(
+    packed.every((line) =>
+      /^[a-f0-9]{40} (?:commit|tree|blob|tag) [0-9]+ [0-9]+ [0-9]+$/u.test(
+        line.trim().split(/\s+/u).join(" "),
+      ),
+    ),
+    "handoff pack has no deltas or unrelated network objects",
+  );
+});
+
+void test("oversized raw intermediate/source commit refuses before snapshots or blob fetch", async (t) => {
+  const f = await fixture(t, true);
+  await assert.rejects(
+    materializeSemanticSource(f.parent, f.expected, f.api, pins, {
+      git: "git",
+      fetchObjects: f.fetchObjects,
+    }),
+    /raw commit preflight/,
+  );
+  assert.deepEqual(f.phases, ["commits"]);
 });
 
 for (const fault of ["oversize", "truncated", "symlink"])

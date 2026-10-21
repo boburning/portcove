@@ -103,6 +103,9 @@ class GitPolicy(unittest.TestCase):
             ("sizes", [], "cat-file"),
             ("peel", ["a" * 40], "rev-parse"),
             ("history", ["a" * 40, "a" * 40], "rev-list"),
+            ("kind", ["a" * 40], "cat-file"),
+            ("tag", ["a" * 40], "cat-file"),
+            ("pack", [], "pack-objects"),
         ):
             with self.subTest(phase=phase):
                 calls = self.run_request({"oids": objects}, phase=phase)

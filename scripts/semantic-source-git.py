@@ -66,6 +66,9 @@ def main():
         "peel": (1, 1),
         "tree": (0, 0),
         "sizes": (0, 0),
+        "kind": (1, 1),
+        "tag": (1, 1),
+        "pack": (0, 0),
     }
     if (
         phase not in counts
@@ -89,7 +92,7 @@ def main():
             raise ValueError("fixed source Git changed")
     # These apply before Git/index-pack touches untrusted compressed data.
     resource.setrlimit(resource.RLIMIT_AS, (1024**3, 1024**3))
-    file_limit = (64 if phase == "commits" else 256) * 1024**2
+    file_limit = (256 if phase in ("blobs", "pack") else 64) * 1024**2
     resource.setrlimit(resource.RLIMIT_FSIZE, (file_limit, file_limit))
     cpu = math.ceil(remaining / 1000) + 1
     resource.setrlimit(resource.RLIMIT_CPU, (cpu, cpu))
@@ -153,6 +156,16 @@ def main():
             "peel": ["rev-parse", "--verify", *[f"{oid}^{{commit}}" for oid in objects]],
             "tree": ["hash-object", "-w", "-t", "tree", "--stdin"],
             "sizes": ["cat-file", "--batch-check=%(objectname) %(objecttype) %(objectsize)"],
+            "kind": ["cat-file", "-t", *objects],
+            "tag": ["cat-file", "tag", *objects],
+            "pack": [
+                "pack-objects",
+                "--no-reuse-delta",
+                "--no-reuse-object",
+                "--window=0",
+                "--depth=0",
+                os.path.join(os.path.dirname(value["home"]), "review.git", "objects", "pack", "pack"),
+            ],
         }
         args.extend(["--git-dir", value["repository"], *operations[phase]])
     environment = {

@@ -74,6 +74,7 @@ export async function materializeSemanticSource(
       : {}),
   };
   const repository = path.join(parent, "source.git");
+  const reviewRepository = path.join(parent, "review.git");
   const home = path.join(parent, "source-home");
   await mkdir(home, { mode: 0o700 });
   let requestIndex = 0;
@@ -93,16 +94,23 @@ export async function materializeSemanticSource(
       } else if (operation[0] === "cat-file" && operation[1] === "commit") {
         phase = "commit";
         objects = [operation[2]!];
+      } else if (operation[0] === "cat-file" && operation[1] === "tag") {
+        phase = "tag";
+        objects = [operation[2]!];
+      } else if (operation[0] === "cat-file" && operation[1] === "-t") {
+        phase = "kind";
+        objects = [operation[2]!];
       } else if (operation[0] === "cat-file" && operation[1]?.startsWith("--batch-check="))
         phase = "sizes";
       else if (operation[0] === "hash-object") phase = "tree";
+      else if (operation[0] === "pack-objects") phase = "pack";
       else throw new Error("unsupported fixed local semantic Git operation");
       const filename = path.join(parent, `source-local-${requestIndex++}.json`);
       writeFileSync(
         filename,
         JSON.stringify({
           schema_version: 1,
-          repository,
+          repository: operation[0] === "init" ? operation.at(-1) : args[1],
           home,
           oids: objects,
           phase,
@@ -245,9 +253,51 @@ export async function materializeSemanticSource(
     .split("\n")
     .filter(Boolean);
   if (changed.length > 1600) throw new Error("semantic source change history exceeds bound");
+  const selectedCommits = [...new Set([...commits, ...changed])];
+  const commitRows = inRepository(
+    ["cat-file", "--batch-check=%(objectname) %(objecttype) %(objectsize)"],
+    Buffer.from(selectedCommits.join("\n") + "\n"),
+    256 * 1024,
+  )
+    .toString("utf8")
+    .trim()
+    .split("\n");
+  let commitBytes = 0;
+  if (
+    commitRows.length !== selectedCommits.length ||
+    commitRows.some((row, index) => {
+      const match = /^([a-f0-9]{40}) commit ([0-9]+)$/u.exec(row);
+      const size = Number(match?.[2]);
+      commitBytes += size;
+      return (
+        match?.[1] !== selectedCommits[index] ||
+        !Number.isSafeInteger(size) ||
+        size < 1 ||
+        size > 128 * 1024 ||
+        commitBytes > 32 * 1024 * 1024
+      );
+    })
+  )
+    throw new Error("semantic source raw commit preflight exceeds bound");
+  const selectedObjects = new Set(selectedCommits);
+  let tagged = expected.published_object;
+  for (let depth = 0; ; depth++) {
+    const kind = inRepository(["cat-file", "-t", tagged]).toString("utf8").trim();
+    if (kind === "commit") {
+      if (tagged !== published) throw new Error("publication tag chain differs");
+      break;
+    }
+    if (kind !== "tag" || depth >= 4) throw new Error("publication tag chain exceeds bound");
+    selectedObjects.add(tagged);
+    const raw = inRepository(["cat-file", "tag", tagged], undefined, 128 * 1024);
+    const next = /^object ([a-f0-9]{40})\ntype (?:commit|tag)\n/u.exec(raw.toString("utf8"))?.[1];
+    if (!next) throw new Error("publication tag chain is malformed");
+    tagged = next;
+  }
   const blobs = new Map<string, number>();
   let selectedBytes = 0;
   const trees = new Set<string>();
+  let treeBytes = 0;
   for (const commit of commits) {
     // A treeless fetch deliberately has no tree yet. Peeling ^{tree} would
     // require that missing object (or trigger a prohibited lazy fetch).
@@ -291,13 +341,18 @@ export async function materializeSemanticSource(
       if (blobs.size > 20000 || selectedBytes > maximumSelected)
         throw new Error("semantic source selected snapshot exceeds bound");
     }
-    for (const object of inventory.objects)
+    for (const object of inventory.objects) {
+      if (!selectedObjects.has(object.oid)) treeBytes += object.bytes.length;
+      if (treeBytes > 16 * 1024 * 1024)
+        throw new Error("semantic source raw tree bytes exceed bound");
+      selectedObjects.add(object.oid);
       if (
         inRepository(["hash-object", "-w", "-t", "tree", "--stdin"], Buffer.from(object.bytes))
           .toString("utf8")
           .trim() !== object.oid
       )
         throw new Error("semantic source imported tree differs");
+    }
   }
   const objects = [...blobs.keys()];
   for (let index = 0; index < objects.length; index += 256)
@@ -316,9 +371,29 @@ export async function materializeSemanticSource(
   )
     throw new Error("semantic source materialized object types/sizes differ");
   await stored(repository);
+  // Export only preflighted consumed objects with delta reuse disabled. The
+  // existing freezer must not inherit network-supplied delta-base expansion.
+  for (const object of objects) selectedObjects.add(object);
+  git(["init", "--bare", "--quiet", "--template=", reviewRepository]);
+  inRepository(
+    [
+      "pack-objects",
+      "--no-reuse-delta",
+      "--no-reuse-object",
+      "--window=0",
+      "--depth=0",
+      path.join(reviewRepository, "objects/pack/pack"),
+    ],
+    Buffer.from([...selectedObjects].join("\n") + "\n"),
+  );
+  await writeFile(path.join(reviewRepository, "shallow"), `${expected.base_commit}\n`, {
+    flag: "wx",
+    mode: 0o600,
+  });
+  await stored(reviewRepository);
   active();
   return {
-    repository,
+    repository: reviewRepository,
     commits,
     selected_bytes: selectedBytes,
     blobs: blobs.size,

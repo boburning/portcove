@@ -32,6 +32,14 @@ local Git decoding/query/import operation, through a fixed operation enum with
 network disabled. The existing resource supervisor owns fetch process-tree
 cleanup. Failure evidence remains in the original technical attempt.
 
+Before handoff, every changed/base/source/publication commit passes the existing
+128 KiB-per-commit / 32 MiB-total preflight. Only those commits, exact snapshot
+trees/blobs and bounded publication tags are exported to a second bare store,
+with delta and object reuse disabled. Subsequent existing freezer reads therefore
+do not inherit network-selected delta bases or unrelated objects. Its shallow
+boundary is the explicit review base; raw parent bytes remain unchanged and the
+existing independent provider comparison still verifies the complete change set.
+
 The still-unprovisioned worker setup must additionally pin `source_git_sha256`
 for `/usr/bin/git`; the existing Python pin is reused. `source_repository` remains
 a compatibility field but is no longer used as a freshness prerequisite. The
