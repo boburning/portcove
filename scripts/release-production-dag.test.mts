@@ -1,9 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { spawnSync } from "node:child_process";
+import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { runInNewContext } from "node:vm";
 import { parse } from "yaml";
+import { slice4CapacityResources } from "./release-capacity.mts";
 
 type Step = {
   run?: string;
@@ -20,8 +21,40 @@ type Job = {
   "runs-on": string;
   "timeout-minutes": number;
 };
-type Workflow = { on: unknown; concurrency: Record<string, unknown>; jobs: Record<string, Job> };
+type Workflow = {
+  on: unknown;
+  "run-name"?: string;
+  concurrency: Record<string, unknown>;
+  jobs: Record<string, Job>;
+};
 const root = new URL("../", import.meta.url);
+void test("held automatic wake uses only the bound dispatch App and its actual installation", async () => {
+  const wake = parse(
+    await readFile(new URL("docs/qualification/application-update-wake.held.yml", root), "utf8"),
+  ) as Workflow;
+  const job = wake.jobs.wake!;
+  assert.equal(job.if, "${{ false }}");
+  assert.equal(job["timeout-minutes"], slice4CapacityResources.wake_job_minutes[0]);
+  assert.equal(wake.concurrency.group, slice4CapacityResources.wake_concurrency);
+  const app = job.steps.findIndex((step) =>
+    step.uses?.startsWith("actions/create-github-app-token@"),
+  );
+  assert.ok(app > 0);
+  assert.equal(
+    job.steps[app]!.with?.["app-id"],
+    "${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.dispatch.app_id }}",
+  );
+  assert.equal(job.steps[app]!.with?.["permission-actions"], "write");
+  assert.equal(
+    job.steps[app + 1]?.env?.PORTCOVE_OBSERVED_INSTALLATION_ID,
+    "${{ steps.dispatch-token.outputs.installation-id }}",
+  );
+  assert.equal(
+    job.steps[app + 1]?.env?.PORTCOVE_EXPECTED_INSTALLATION_ID,
+    "${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.dispatch.installation_id }}",
+  );
+  assert.ok(!JSON.stringify(wake).includes("SIGNING_PRIVATE_KEY"));
+});
 void test("actual held job conditions route retained custody without repeating signing and preserve renewal", async () => {
   const workflow = parse(
     await readFile(
@@ -85,10 +118,35 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
   );
   const workflow = parse(source) as Workflow;
   assert.ok(Buffer.byteLength(source) < 65536);
-  assert.deepEqual(workflow.on, { workflow_dispatch: {} });
+  assert.deepEqual(workflow.on, {
+    workflow_dispatch: {
+      inputs: {
+        wake_run_id: {
+          description: "Inert automatic wake correlation; grants no admission authority",
+          required: true,
+          type: "string",
+        },
+      },
+    },
+  });
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
   assert.equal(workflow.concurrency.queue, "max");
   const jobs = workflow.jobs;
+  assert.equal(workflow["run-name"], "Portcove application release wake ${{ inputs.wake_run_id }}");
+  const inputs = (name: string) =>
+    name.includes("protection_observation") || name === "classification_writer";
+  assert.deepEqual(
+    Object.entries(jobs)
+      .filter(([name]) => inputs(name))
+      .map(([, job]) => job["timeout-minutes"]),
+    slice4CapacityResources.input_job_minutes,
+  );
+  assert.deepEqual(
+    Object.entries(jobs)
+      .filter(([name]) => !inputs(name))
+      .map(([, job]) => job["timeout-minutes"]),
+    slice4CapacityResources.aggregate_job_minutes,
+  );
   const requiredJob = (name: string) => {
     const selected = jobs[name];
     assert.ok(selected, `missing fixed job ${name}`);
@@ -103,6 +161,12 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
   assert.equal(requiredJob("attest")["timeout-minutes"], 2);
   for (const [name, job] of Object.entries(jobs)) {
     assert.equal(job["runs-on"], "ubuntu-22.04", name);
+    if (job.permissions?.actions === "read")
+      assert.equal(
+        job.permissions.checks,
+        "read",
+        `${name} needs authenticated producer/job Check readback`,
+      );
     for (const match of JSON.stringify(job).matchAll(/needs\.([a-z_][a-z_0-9]*)/gu))
       assert.ok(
         job.needs?.includes(match[1]!),
@@ -280,14 +344,18 @@ void test("actual observer installation guard refuses drift before invoking its 
     ["123\n", "123\n", 1],
     ["$(exit 0)", "$(exit 0)", 1],
   ] as const) {
-    const result = spawnSync(bash, ["--noprofile", "--norc", "-c", guard], {
-      env: {
-        PORTCOVE_EXPECTED_INSTALLATION_ID: expected,
-        PORTCOVE_OBSERVED_INSTALLATION_ID: observed,
+    const result: SpawnSyncReturns<string> = spawnSync(
+      bash,
+      ["--noprofile", "--norc", "-c", guard],
+      {
+        env: {
+          PORTCOVE_EXPECTED_INSTALLATION_ID: expected,
+          PORTCOVE_OBSERVED_INSTALLATION_ID: observed,
+        },
+        encoding: "utf8",
+        timeout: 5000,
       },
-      encoding: "utf8",
-      timeout: 5000,
-    });
+    );
     assert.equal(result.status, status, result.stderr);
   }
 });

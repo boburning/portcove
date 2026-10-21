@@ -11,7 +11,12 @@ env:
   PORTCOVE_REVIEW_PRODUCER: ${{ vars.PORTCOVE_REVIEW_PRODUCER }}
   PORTCOVE_PAYLOAD_PUBLIC_KEY_SHA256: ${{ vars.PORTCOVE_PAYLOAD_PUBLIC_KEY_SHA256 }}
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      wake_run_id:
+        description: Inert automatic wake correlation; grants no admission authority
+        required: true
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -66,6 +71,7 @@ jobs:
       contents: read
       actions: read
       id-token: write
+      checks: read
     outputs:
       artifact_id: ${{ steps.upload.outputs.artifact-id }}
       artifact_sha256: ${{ steps.upload.outputs.artifact-digest }}
@@ -247,6 +253,7 @@ jobs:
       contents: read
       actions: read
       id-token: write
+      checks: read
     outputs:
       eligible: ${{ steps.probe.outputs.eligible }}
       observation: ${{ steps.observe.outputs.observation }}
@@ -298,6 +305,7 @@ jobs:
       contents: read
       actions: read
       id-token: write
+      checks: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -354,6 +362,7 @@ jobs:
       actions: read
       id-token: write
       attestations: write
+      checks: read
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
@@ -426,6 +435,7 @@ jobs:
       contents: read
       actions: read
       id-token: write
+      checks: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -458,6 +468,7 @@ jobs:
       contents: read
       actions: read
       id-token: write
+      checks: read
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
@@ -521,6 +532,7 @@ jobs:
       contents: read
       actions: read
       id-token: write
+      checks: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -652,6 +664,7 @@ jobs:
       actions: read
       id-token: write
       attestations: write
+      checks: read
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
@@ -705,6 +718,7 @@ jobs:
       contents: read
       actions: read
       id-token: write
+      checks: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -744,6 +758,7 @@ jobs:
       actions: read
       id-token: write
       attestations: write
+      checks: read
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
@@ -810,6 +825,7 @@ jobs:
       actions: read
       id-token: write
       attestations: write
+      checks: read
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
@@ -877,6 +893,7 @@ jobs:
       actions: read
       id-token: write
       attestations: write
+      checks: read
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
@@ -945,6 +962,7 @@ jobs:
       actions: read
       id-token: write
       attestations: write
+      checks: read
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
@@ -1014,6 +1032,7 @@ jobs:
       actions: read
       id-token: write
       attestations: write
+      checks: read
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
@@ -1074,6 +1093,7 @@ jobs:
       contents: read
       actions: read
       id-token: write
+      checks: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -1149,6 +1169,7 @@ jobs:
       actions: read
       id-token: write
       attestations: write
+      checks: read
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
@@ -1219,6 +1240,7 @@ jobs:
       contents: read
       actions: read
       id-token: write
+      checks: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -1263,6 +1285,7 @@ jobs:
       actions: read
       id-token: write
       pages: write
+      checks: read
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
@@ -1316,6 +1339,7 @@ jobs:
       contents: read
       actions: read
       id-token: write
+      checks: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -1333,3 +1357,4 @@ jobs:
           app_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
           installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
+run-name: Portcove application release wake ${{ inputs.wake_run_id }}
