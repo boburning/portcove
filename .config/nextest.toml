@@ -7,6 +7,17 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# CI 39725354018/a1 retained two Windows 30s harness timeouts. The launch
+# fixture returned its second owned probe at 24.84s; rollback reached second
+# reopened status at 28.47s. Keep both complete attempts, assertions, cleanup,
+# fixed two-slot reservation and zero retries with exact-case finite 60s room.
+# Product and child deadlines are unchanged.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^definition_repository::tests::publisher_policy_tests::curated_retained_launch_withdrawal_supervises_exact_owned_child_after_reopen$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_revocation_preserves_unaffected_active_and_recovery_evidence$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # Explicitly ignored host SDK diagnostic: fifteen-minute cooperative probe with
 # one minute for its final retained error log. Never changes the product clock.
 [[profile.default.overrides]]
