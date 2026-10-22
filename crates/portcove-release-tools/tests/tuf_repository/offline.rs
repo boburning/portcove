@@ -529,7 +529,9 @@ async fn prove_online_targets(fixture: &Ceremony) {
             ("snapshot", 4),
             ("timestamp", 5),
         ] {
-            let output = format!("{envelopes}/{role}.json");
+            // Snapshot/Timestamp inputs are immutable public artifacts. Each
+            // signer writes outside that input tree, then hands its output off.
+            let output = format!("online-role-{generation}-{role}.json");
             let mut config = json!({"schema_version":1,"context":context_path,
                 "signing_key":fixture.keys[index].0,"output":output});
             if ["snapshot", "timestamp"].contains(&role) {
@@ -547,6 +549,11 @@ async fn prove_online_targets(fixture: &Ceremony) {
                 "{}",
                 String::from_utf8_lossy(&result.stderr)
             );
+            fs::copy(
+                fixture.root().join(&output),
+                fixture.root().join(&envelopes).join(format!("{role}.json")),
+            )
+            .unwrap();
         }
         // A genuinely signed changed authority must still refuse before the
         // Snapshot signer reads its private key. Restore the exact good bytes.
