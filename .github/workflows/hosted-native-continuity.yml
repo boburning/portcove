@@ -99,8 +99,10 @@ jobs:
             work/updater-rehearsal/windows-installed-update-summary.json
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.json
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.png
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/failure.html
             work/updater-rehearsal/linux-appimage-qualification/application-update-evidence.json
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/*.json
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/*.png
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/failure.html
           if-no-files-found: error
           retention-days: 7
