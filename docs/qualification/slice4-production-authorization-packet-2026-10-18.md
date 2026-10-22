@@ -9,6 +9,17 @@ It grants nothing. The complete controller and automatic wake now have installed
 [complete held controller](application-update-production.complete.yml) retains identical review bytes; it is not activated. The older aggregate-only proposal is
 retained as historical evidence.
 
+## Actual setup checkpoint — 2026-10-22
+
+The [current readiness and artifact receipt](slice4-setup-readiness-and-artifact-refresh-2026-10-22.md)
+records successful actual profile/credential completion with both accounts still disabled,
+the independent protected controller/Node/dependency preparation and static worker imports,
+and the actual Ubuntu26.04 versus approved24.04 hold. It proposes a separate Ubuntu-24.04
+registration; that changed distribution selection remains unapproved. It also records the
+unrepaired public gamev1.0.1/v1.0.2 sources and the independently reviewed, unsubmitted
+#144 contribution refreshed onto actualv1.0.2. These observations add no production,
+Task, native, signing, publication or completed journey acceptance.
+
 ## Managed catalog publication integration
 
 The [2026-10-21 catalog integration receipt](slice4-managed-catalog-integration-2026-10-21.md)
