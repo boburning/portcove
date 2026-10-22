@@ -231,6 +231,20 @@ impl DefinitionContentIndex {
                 "required mutable files require staged-source capability version 4",
             ));
         }
+        if port
+            .release
+            .user_prepared
+            .values()
+            .any(|runtime| runtime.source_directory_environment)
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 18
+            })
+        {
+            return Err(PortcoveError::verification(
+                "prepared source directory binding requires staged-source capability version 18",
+            ));
+        }
         if port.n64_windows_initial_d3d12
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "n64-recomp-portable" && requirement.minimum_version >= 2

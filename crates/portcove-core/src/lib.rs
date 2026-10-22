@@ -274,7 +274,8 @@ pub use types::*;
 // Public75 adds exact relative-file sets and closed managed TFE initialization.
 // API74 retains managed Windows path policy; API73 retains external shared directories.
 // Public78 adds the closed CVLoD source-build recipe and N64 template version3.
-pub const API_SCHEMA_VERSION: u32 = 78;
+// Public79 adds opt-in prepared original-directory environment binding (staged template18).
+pub const API_SCHEMA_VERSION: u32 = 79;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

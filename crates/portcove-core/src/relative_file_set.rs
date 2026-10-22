@@ -408,13 +408,29 @@ pub(crate) fn inspect(
     profile_id: &str,
     path: &Path,
 ) -> Result<crate::SourceInspection> {
+    inspect_with_checkpoint(catalog, profile_id, path, &|| Ok(()))
+}
+
+pub(crate) fn inspect_with_checkpoint(
+    catalog: &crate::Catalog,
+    profile_id: &str,
+    path: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<crate::SourceInspection> {
     let mut budget = crate::source_file::HashBudget {
         operation: None,
         limit: u64::MAX,
         hashed: 0,
         max_zip_entries: 4096,
     };
-    inspect_with_budget(catalog, profile_id, path, &mut budget)
+    inspect_with_limits_and_checkpoint(
+        catalog,
+        profile_id,
+        path,
+        &mut budget,
+        &mut ReadLimits::default(),
+        checkpoint,
+    )
 }
 
 pub(crate) fn inspect_with_budget(
@@ -439,6 +455,17 @@ pub(crate) fn inspect_with_limits(
     budget: &mut crate::source_file::HashBudget,
     limits: &mut ReadLimits,
 ) -> Result<crate::SourceInspection> {
+    inspect_with_limits_and_checkpoint(catalog, profile_id, path, budget, limits, &|| Ok(()))
+}
+
+fn inspect_with_limits_and_checkpoint(
+    catalog: &crate::Catalog,
+    profile_id: &str,
+    path: &Path,
+    budget: &mut crate::source_file::HashBudget,
+    limits: &mut ReadLimits,
+    external_checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<crate::SourceInspection> {
     let profile = catalog
         .source_catalog()
         .and_then(|source| {
@@ -450,6 +477,7 @@ pub(crate) fn inspect_with_limits(
         .ok_or_else(|| PortcoveError::source("relative source profile is missing"))?;
     let operation = budget.operation.clone();
     let checkpoint = || {
+        external_checkpoint()?;
         if let Some(operation) = &operation {
             operation.checkpoint()?;
         }

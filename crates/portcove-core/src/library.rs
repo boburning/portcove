@@ -56,7 +56,9 @@ fn external_runtime_row_sha256(port_id: &str, record: &str, catalog: &str) -> Re
 fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
     let port = catalog.port(port_id)?;
     if port.release.user_prepared.values().any(|runtime| {
-        !runtime.required_mutable_files.is_empty() || runtime.shared_preferences.is_some()
+        !runtime.required_mutable_files.is_empty()
+            || runtime.shared_preferences.is_some()
+            || runtime.source_directory_environment
     }) {
         return Ok(serde_json::to_string(
             &crate::installed_contract::InstalledContract::capture(catalog, port_id)?,
@@ -2731,6 +2733,41 @@ fn parse_launch_session(row: StoredLaunchSession) -> Result<LaunchSessionRecord>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn prepared_source_directory_retained_envelope_refuses_prior_readers() {
+        let input = include_str!("../tests/fixtures/prepared-source-directory.json");
+        let catalog = Catalog::from_json(input).unwrap();
+        let id = "prepared-directory-fixture";
+        let encoded = encode_external_catalog(&catalog, id).unwrap();
+        // The prior raw external reader has no schema_version/ports at this level.
+        assert!(serde_json::from_str::<crate::CatalogDocument>(&encoded).is_err());
+        let restored = decode_external_catalog(&encoded, id).unwrap();
+        assert_eq!(
+            serde_json::to_value(restored.authoritative_document()).unwrap(),
+            serde_json::to_value(catalog.authoritative_document()).unwrap()
+        );
+        assert!(decode_external_catalog(&encoded, "other-port").is_err());
+        let mut value: serde_json::Value = serde_json::from_str(input).unwrap();
+        value["ports"][0]["release"]["user_prepared"]["windows-x86-64"]["source_directory_environment"] =
+            false.into();
+        let legacy = Catalog::from_json(&value.to_string()).unwrap();
+        let raw = encode_external_catalog(&legacy, id).unwrap();
+        assert!(serde_json::from_str::<crate::CatalogDocument>(&raw).is_ok());
+        assert!(!raw.contains("source_directory_environment"));
+        assert!(decode_external_catalog(&raw, id).is_ok());
+        let mut envelope: serde_json::Value = serde_json::from_str(&encoded).unwrap();
+        let mut inner: serde_json::Value =
+            serde_json::from_str(envelope["catalog_json"].as_str().unwrap()).unwrap();
+        inner["ports"][0]["release"]["user_prepared"]["windows-x86-64"]["unknown_directory_constraint"] =
+            true.into();
+        envelope["catalog_json"] = inner.to_string().into();
+        assert!(decode_external_catalog(&envelope.to_string(), id).is_err());
+        let mut envelope: serde_json::Value = serde_json::from_str(&encoded).unwrap();
+        envelope["future_constraint"] = true.into();
+        assert!(decode_external_catalog(&envelope.to_string(), id).is_err());
+    }
+
     use tempfile::tempdir;
 
     #[test]

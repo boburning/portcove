@@ -449,6 +449,28 @@ migrate AppData, qualify an upstream package, or grant update/backup ownership.
 Removing the external registration preserves both the external folder and private
 user files. No current title is admitted by this generic engine component.
 
+API 79 / staged-source template version 18 adds the opt-in prepared spec flag
+`source_directory_environment: true`. It requires `staged-source-portable`, a
+`relative-file-set` source profile, and a safe port `source_environment` name.
+Core revalidates the retained runtime and original-source contract, requires a
+real directory without redirected ancestors, then binds its absolute path through
+that variable. An otherwise valid relative-file-set ZIP is incompatible for this
+route; Core does not extract it. Authored fixed arguments remain available, while
+caller-forwarded arguments are refused. This flag cannot combine with a positional
+source extension, settings/shared-preferences selector, or the version-17 Windows
+positional-file path policy. Omitted/false retains previous behavior.
+
+The existing relative-file-set bounds and identity scope remain unchanged: exact
+declared members are authenticated; additional scanned files are not thereby
+authenticated as a complete original tree. This binding grants no runtime write
+protection, source ownership, assembly, acquisition or update authority. A source
+directory alone does not establish a safe title route. Opt-in registrations retain
+the strict contract envelope so older readers refuse rather than ignore this
+binding; indexed definitions must declare a minimum staged-source version of 18.
+Private user data can reuse `library_user_data` after source verification. No
+re:Blue definition, game-data hashes, executable, or operation acceptance is added
+by the generic capability.
+
 Mutable paths exempt player-owned output bytes from the immutable digest, not
 from filesystem safety. Every regular mutable file must have exactly one
 filesystem link during both sweeps of full prepared-runtime inspection, including

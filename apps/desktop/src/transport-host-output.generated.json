@@ -10739,6 +10739,10 @@
               "null"
             ]
           },
+          "source_directory_environment": {
+            "description": "Bind an authenticated relative-file-set directory through source_environment.\nThis does not materialize archives or authorize writes to the source.",
+            "type": "boolean"
+          },
           "version": {
             "type": "string"
           }

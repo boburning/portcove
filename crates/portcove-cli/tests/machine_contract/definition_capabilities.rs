@@ -149,7 +149,8 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     assert!(pairs.contains(&("staged-source-portable", 15)));
     assert!(pairs.contains(&("staged-source-portable", 16)));
     assert!(pairs.contains(&("staged-source-portable", 17)));
-    assert_eq!(templates.len(), adapters.len() + 18);
+    assert!(pairs.contains(&("staged-source-portable", 18)));
+    assert_eq!(templates.len(), adapters.len() + 19);
     let requirements = temporary.path().join("prepared-directory.json");
     std::fs::write(&requirements, serde_json::to_vec(&json!({
         "capability_contract_schema": 1,
@@ -181,6 +182,24 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     ));
     assert_eq!(current["data"]["compatible"], true);
     assert_eq!(current["data"]["checks"][0]["installed_version"], 10);
+    for (version, compatible) in [(18, true), (19, false)] {
+        std::fs::write(&requirements, serde_json::to_vec(&json!({
+            "capability_contract_schema": 1,
+            "required_capabilities": [{"template":"staged-source-portable", "minimum_version":version, "maximum_version":version}]
+        })).unwrap()).unwrap();
+        let negotiated = json_stdout(&portcove(
+            temporary.path(),
+            &[
+                "--json",
+                "catalog",
+                "check-capabilities",
+                requirements.to_str().unwrap(),
+            ],
+        ));
+        assert_eq!(negotiated["schema_version"], 79);
+        assert_eq!(negotiated["data"]["compatible"], compatible);
+        assert_eq!(negotiated["data"]["checks"][0]["installed_version"], 18);
+    }
     let mut identities = std::collections::HashSet::new();
     for template in templates {
         assert!(identities.insert((

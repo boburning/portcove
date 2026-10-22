@@ -1511,6 +1511,11 @@ export interface UserPreparedRuntimeSpec {
    */
   shared_preferences?: PreparedSharedPreferencesContract | null;
   source_argument_extension: string | null;
+  /**
+   * Bind an authenticated relative-file-set directory through source_environment.
+   * This does not materialize archives or authorize writes to the source.
+   */
+  source_directory_environment?: boolean;
   version: string;
   [k: string]: unknown;
 }

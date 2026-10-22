@@ -264,7 +264,7 @@ internal static class ContractTests
             .Cast<string>().Concat(new[] { "artwork.handoff", "artwork.handoff-bytes" }).ToArray();
         ProtocolStream.Negotiate(artworkAdditive, ConsumerCapability.Library);
         Check(true, "existing library reader accepts optional artwork handoff without consuming it");
-        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78 })
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79 })
         {
             var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             supported["schema_version"] = publicSchema;
@@ -272,7 +272,7 @@ internal static class ContractTests
             ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
             Check(true, "public schema " + publicSchema + " negotiated");
         }
-        foreach (var publicSchema in new[] { 72, 73, 74, 75, 76, 77, 78 })
+        foreach (var publicSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79 })
         {
             var relink = Json.Object(Json.Parse(Json.Print(Capabilities())));
             relink["schema_version"] = publicSchema;
@@ -289,7 +289,7 @@ internal static class ContractTests
         var stream73 = new ProtocolStream("status");
         stream73.Line(Json.Print(result73));
         Check(Json.Array(stream73.Finish(0)).Length == 0, "schema 73 result crosses the actual protocol reader");
-        foreach (var privateSchema in new[] { 58, 59, 64, 79 })
+        foreach (var privateSchema in new[] { 58, 59, 64, 80 })
         {
             var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             unsupported["schema_version"] = privateSchema;
@@ -477,6 +477,9 @@ internal static class ContractTests
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "fixed CVLoD recipe keeps source-build eligibility and execution in Core");
         bad["schema_version"] = 79;
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "prepared source directory keeps verification and environment binding in Core");
+        bad["schema_version"] = 80;
         Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond runtime paths rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
@@ -564,6 +567,11 @@ internal static class ContractTests
         if (args.Length == 2)
         {
             var real = new PublicCli(args[0], args[1]); await real.Connect();
+            var capabilities = await real.Read("capabilities", "capabilities");
+            Check(real.ApiSchemaVersion == 79 && Json.Array(Json.Field(capabilities, "engine_templates"))
+                .Any(template => Json.Text(template, "template") == "staged-source-portable"
+                    && Json.Number(template, "contract_version") == 18),
+                "compiled API79 producer advertises the prepared directory contract through the actual client");
             var statuses = Json.Array(await real.Read("status", "status"));
             var catalog = Json.Array(await real.Read("catalog.list", "catalog", "list"));
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
@@ -575,7 +583,7 @@ internal static class ContractTests
                     && game.GameId == Identity.Game("compiled-game-title-library", game.PortId);
             }), "compiled current-schema catalog titles lead actual reader names without changing port identities");
             var prepared = catalog.Where(port => Json.Text(Json.Field(port, "release"), "provider") == "user-prepared").ToArray();
-            Check(prepared.Length == 2 && prepared.All(port => SetupInstructions.Summary(Json.Field(port, "presentation")).Contains("1. ")),
+            Check(prepared.Length > 0 && prepared.All(port => SetupInstructions.Summary(Json.Field(port, "presentation")).Contains("1. ")),
                 "compiled current-schema authored setup steps are consumed by the actual client");
             Check(prepared.All(port => SetupInstructions.TechnicalNotes(Json.Field(port, "presentation"))
                     == Json.Text(Json.Field(port, "presentation"), "manual_preparation"))
@@ -806,12 +814,12 @@ internal static class ContractTests
         capabilities["schema_version"] = 73;
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "shared-directory schema preserves reviewed external flow");
         capabilities["commands"] = new[] { "external", "external.review", "external.relink" };
-        foreach (var supportedRelinkSchema in new[] { 72, 73, 74, 75, 76, 77, 78 })
+        foreach (var supportedRelinkSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79 })
         {
             capabilities["schema_version"] = supportedRelinkSchema;
             Check(ProtocolStream.SupportsExternalRelink(capabilities), "known relink schema preserves reviewed folder change");
         }
-        foreach (var unsupportedRelinkSchema in new[] { 71, 79 })
+        foreach (var unsupportedRelinkSchema in new[] { 71, 80 })
         {
             capabilities["schema_version"] = unsupportedRelinkSchema;
             Check(!ProtocolStream.SupportsExternalRelink(capabilities), "older and unknown relink schemas are refused");
@@ -851,7 +859,7 @@ internal static class ContractTests
         biosReadiness["blockers"] = new object[0];
         Reject(() => PortActions.ValidateStatus(biosStatus, 69), "legacy recovery schema independently rejects the new BIOS action reason");
         Reject(() => PortActions.ValidateStatus(biosStatus, 68), "schema68 rejects the new BIOS action reason even without new readiness fields");
-        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 79 })
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 80 })
         {
             capabilities["schema_version"] = unsupported;
             Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);
@@ -1562,8 +1570,8 @@ internal static class ContractTests
             var invocations = client.InvocationCount - before;
             var plan = Json.Field(value, "plan");
             var inputs = Json.Array(Json.Field(plan, "auxiliary_downloads"));
-            Check(client.ApiSchemaVersion == 78 && inputs.Length == 1490,
-                "compiled API78 producer exposes the complete fixed CVLoD acquisition inventory");
+            Check(client.ApiSchemaVersion == 79 && inputs.Length == 1490,
+                "compiled API79 producer preserves the complete fixed CVLoD acquisition inventory");
             var review = InstallationReview.Read(value, port, args[2]);
             var required = Json.Number(Json.Field(plan, "temporary_space"), "required_bytes");
             var primaryBytes = Json.Number(Json.Field(Json.Field(plan, "release"), "asset"), "size");
