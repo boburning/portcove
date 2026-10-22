@@ -5,6 +5,7 @@ import {
   runDoctorRead,
   admitDoctorReadRetry,
   inventoryFailureKind,
+  InventoryError,
 } from "./repository-issue-inventory.mts";
 import type {
   RepositoryInventoryEvidence,
@@ -3971,7 +3972,7 @@ export class RoadmapClient {
   }
 
   projectAudit(projectId: string) {
-    const query = `query($id: ID!) { node(id: $id) { ... on ProjectV2 { id number title public repositories(first: 100) { nodes { name owner { login } } } } } }`;
+    const query = `query($id: ID!) { node(id: $id) { ... on ProjectV2 { id number title public items(first:1){totalCount} repositories(first: 100) { nodes { name owner { login } } } } } }`;
     return qualificationField(this.graphql(query, { id: projectId }), "node");
   }
 
@@ -4986,6 +4987,35 @@ export async function runDoctor(
   });
   const catalog = qualificationCatalogObservation(JSON.parse(await readFile(catalogPath, "utf8")));
   const items = inventory?.items ?? client.itemList(number, { includeDependencies: true, details });
+  if (!inventory) {
+    const afterAudit = client.projectAudit(projectId);
+    const beforeTotal = nestedGitHubField(rawAudit, "items", "totalCount");
+    const afterTotal = nestedGitHubField(afterAudit, "items", "totalCount");
+    if (
+      qualificationField(rawAudit, "id") !== projectId ||
+      qualificationField(afterAudit, "id") !== projectId ||
+      typeof beforeTotal !== "number" ||
+      !Number.isSafeInteger(beforeTotal) ||
+      beforeTotal < 0 ||
+      typeof afterTotal !== "number" ||
+      !Number.isSafeInteger(afterTotal) ||
+      afterTotal < 0
+    )
+      throw new InventoryError(
+        "inventory_incomplete",
+        "Doctor Project coverage count or identity is unavailable",
+      );
+    if (beforeTotal !== afterTotal)
+      throw new InventoryError(
+        "inventory_changed",
+        `Doctor Project inventory changed (${beforeTotal} -> ${afterTotal}); discard the read`,
+      );
+    if (items.length !== beforeTotal)
+      throw new InventoryError(
+        "inventory_incomplete",
+        `Doctor Project inventory is incomplete: observed ${items.length}, independent count ${beforeTotal}`,
+      );
+  }
   const repositoryIssues =
     inventory?.issues ??
     readDoctorRepositoryIssues(client, repositoryIssueInventoryAttempts).issues;

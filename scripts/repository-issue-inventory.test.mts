@@ -172,7 +172,7 @@ void test("programmatic doctor uses the same strict collector with or without an
       gh: () => "",
       completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
       viewList: () => [],
-      projectAudit: () => ({ repositories: { nodes: [] } }),
+      projectAudit: () => ({ id: "P", items: { totalCount: 0 }, repositories: { nodes: [] } }),
       itemList: () => [],
       repositoryIssues() {
         return collectRepositoryIssueInventory(this);
@@ -188,6 +188,28 @@ void test("programmatic doctor uses the same strict collector with or without an
     assert.equal(f.requests(), 2);
     if (sink) assert.equal(sink.length, 1);
   }
+});
+
+void test("doctor cannot turn a self-consistent empty Project traversal into missing-issue findings", async () => {
+  const f = readerFixture(0);
+  const client = {
+    ...f.reader,
+    gh: () => "",
+    completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
+    viewList: () => [],
+    projectAudit: () => ({ id: "P", items: { totalCount: 900 }, repositories: { nodes: [] } }),
+    itemList: () => [],
+    repositoryIssues() {
+      return collectRepositoryIssueInventory(this);
+    },
+  };
+  await assert.rejects(
+    runDoctor(config, client, { quiet: true }),
+    (error) =>
+      error instanceof InventoryError &&
+      error.kind === "inventory_incomplete" &&
+      /observed 0, independent count 900/.test(error.message),
+  );
 });
 void test("intake and normalization never mutate after incomplete collection", () => {
   const f = readerFixture(3, (value, marker) => {
