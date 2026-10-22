@@ -2622,155 +2622,52 @@ function issueConnectionResponse(
   return included({ data: { repository } });
 }
 
-void test("doctor recovers a missing high-water record using a complete fresh traversal", () => {
-  let traversals = 0;
-  let markers = 0;
+void test("doctor requires count-verified inventory even when truncated REST includes its marker", () => {
+  let restReads = 0;
   const client = new RoadmapClient(config, (args, input) => {
-    if (args[1] === "graphql") return issueConnectionResponse(input, [1924]);
-    const endpoint = fixtureElement(args, 2);
-    if (endpoint.includes("direction=desc")) {
-      markers++;
-      return included([restIssue(2377, { pull_request: { url: "https://example.test" } })]);
-    }
-    traversals++;
-    return included(
-      traversals === 1
-        ? [restIssue(2250)]
-        : [restIssue(1924), restIssue(2377, { pull_request: { url: "https://example.test" } })],
-    );
+    if (args[1] === "graphql") return issueConnectionResponse(input, [1, 2, 3]);
+    restReads++;
+    return included([restIssue(3)]);
   });
   const result = readDoctorRepositoryIssues(client);
   assert.deepEqual(
     result.issues.map((issue) => issue.number),
-    [1924],
+    [1, 2, 3],
   );
-  assert.equal(traversals, 1);
-  assert.equal(markers, 2);
+  assert.equal(restReads, 0);
   assert.deepEqual(result.attempts, [
-    {
-      attempt: 1,
-      source: "rest",
-      outcome: "failed",
-      error: "incomplete GitHub inventory: high-water record is missing",
-      snapshot: { before: 2377, after: 2377, records: 1, highest: 2250 },
-    },
-    { attempt: 2, source: "graphql", outcome: "passed", issues: 1 },
+    { attempt: 1, source: "graphql", outcome: "passed", issues: 3 },
   ]);
 });
 
-void test("doctor retries a changed marker from the beginning and discards rejected records", () => {
-  const markers = [2, 3];
-  let traversals = 0;
-  const client = new RoadmapClient(config, (args, input) => {
-    if (args[1] === "graphql") return issueConnectionResponse(input, [3]);
-    if (fixtureElement(args, 2).includes("direction=desc"))
-      return included([restIssue(fixtureValue(markers.shift()))]);
-    return included([restIssue(++traversals === 1 ? 2 : 3)]);
-  });
-  const result = readDoctorRepositoryIssues(client);
-  assert.deepEqual(
-    result.issues.map((issue) => issue.number),
-    [3],
-  );
-  assert.equal(result.attempts.length, 2);
-  assert.deepEqual(fixtureValue(result.attempts[0]).snapshot, {
-    before: 2,
-    after: 3,
-    records: 1,
-    highest: 2,
-  });
-  assert.equal(markers.length, 0);
-});
-
-void test("doctor retains both inconsistent snapshots and stops after two traversals", () => {
-  let traversals = 0;
-  const client = new RoadmapClient(config, (args, input) => {
-    if (args[1] === "graphql") {
-      if (fixtureValue(input).includes("RepositoryIssueInventory")) traversals++;
-      return issueConnectionResponse(input, [1], 3);
-    }
-    if (fixtureElement(args, 2).includes("direction=desc")) return included([restIssue(3)]);
-    traversals++;
-    return included([restIssue(1)]);
-  });
+void test("doctor retains a failed GraphQL observation without a retry", () => {
+  let requests = 0;
   const attempts: Parameters<typeof readDoctorRepositoryIssues>[1] = [];
-  assert.throws(
-    () => readDoctorRepositoryIssues(client, attempts),
-    /record count does not match total/,
-  );
-  assert.equal(traversals, 2);
-  assert.deepEqual(
-    attempts.map((entry) => entry.outcome),
-    ["failed", "failed"],
-  );
-  assert.deepEqual(
-    attempts.map((entry) => entry.snapshot),
-    [{ before: 3, after: 3, records: 1, highest: 1 }, undefined],
-  );
-});
-
-void test("doctor never retries malformed duplicate stalled or transport failures", () => {
-  const runners: GitHubRunner[] = [
-    () => included([{}]),
-    (args) =>
-      included(
-        fixtureElement(args, 2).includes("direction=desc")
-          ? [restIssue(1)]
-          : [restIssue(1), restIssue(1)],
-      ),
-    (args) =>
-      fixtureElement(args, 2).includes("direction=desc")
-        ? included([restIssue(1)])
-        : included([restIssue(1)], { link: `<${fixtureElement(args, 2)}>; rel="next"` }),
-    () => {
-      throw new Error("transport unavailable");
-    },
-    () => {
-      throw new Error("GitHub inventory changed during pagination; retry the read");
-    },
-  ];
-  for (const runner of runners) {
-    const attempts: Parameters<typeof readDoctorRepositoryIssues>[1] = [];
-    assert.throws(() => readDoctorRepositoryIssues(new RoadmapClient(config, runner), attempts));
-    assert.equal(attempts.length, 1);
-    assert.equal(fixtureValue(attempts[0]).outcome, "failed");
-    assert.equal(fixtureValue(attempts[0]).snapshot, undefined);
-  }
-});
-
-void test("doctor retains a retry transport failure without a third traversal", () => {
-  let traversals = 0;
-  const client = new RoadmapClient(config, (args) => {
-    if (fixtureElement(args, 2).includes("direction=desc")) return included([restIssue(3)]);
-    if (++traversals === 2) throw new Error("transport unavailable");
-    return included([restIssue(1)]);
+  const client = new RoadmapClient(config, () => {
+    requests++;
+    throw new Error("transport unavailable");
   });
-  const attempts: Parameters<typeof readDoctorRepositoryIssues>[1] = [];
   assert.throws(() => readDoctorRepositoryIssues(client, attempts), /transport unavailable/);
-  assert.equal(traversals, 2);
-  assert.equal(attempts.length, 2);
-  assert.equal(fixtureValue(attempts[0]).snapshot?.before, 3);
-  assert.match(fixtureValue(attempts[1]).error ?? "", /transport unavailable/);
+  assert.equal(requests, 1);
+  assert.equal(attempts.length, 1);
+  assert.equal(fixtureValue(attempts[0]).source, "graphql");
+  assert.equal(fixtureValue(attempts[0]).outcome, "failed");
 });
 
-void test("doctor accepts a consistent empty repository in one attempt", () => {
-  const result = readDoctorRepositoryIssues(new RoadmapClient(config, () => included([])));
-  assert.deepEqual(result, {
+void test("doctor records one complete empty GraphQL observation", () => {
+  const client = new RoadmapClient(config, (_args, input) => issueConnectionResponse(input, []));
+  assert.deepEqual(readDoctorRepositoryIssues(client), {
     issues: [],
-    attempts: [{ attempt: 1, source: "rest", outcome: "passed", issues: 0 }],
+    attempts: [{ attempt: 1, source: "graphql", outcome: "passed", issues: 0 }],
   });
 });
 
-void test("runDoctor retains failed repository attempts for its CLI receipt", async () => {
+void test("runDoctor retains an incomplete GraphQL observation for its CLI receipt", async () => {
   let traversals = 0;
   const client = new RoadmapClient(config, (args, input) => {
-    if (args[1] === "graphql") {
-      if (fixtureValue(input).includes("RepositoryIssueInventory")) traversals++;
-      return issueConnectionResponse(input, [1], 3);
-    }
-    if (fixtureElement(args, 2).includes("direction=desc")) return included([restIssue(3)]);
-    traversals++;
-    return included([restIssue(1)]);
+    assert.equal(args[1], "graphql");
+    if (fixtureGraphql(input).query.includes("RepositoryIssueInventory")) traversals++;
+    return issueConnectionResponse(input, [1], 3);
   });
   const attempts: Parameters<typeof readDoctorRepositoryIssues>[1] = [];
   await assert.rejects(
@@ -2789,14 +2686,14 @@ void test("runDoctor retains failed repository attempts for its CLI receipt", as
     ),
     /record count does not match total/,
   );
-  assert.equal(traversals, 2);
+  assert.equal(traversals, 1);
   assert.deepEqual(
     attempts.map((entry) => entry.outcome),
-    ["failed", "failed"],
+    ["failed"],
   );
+  assert.equal(fixtureValue(attempts[0]).source, "graphql");
 });
-
-void test("GraphQL repository fallback reads all pages and binds the repository and latest issue", () => {
+void test("GraphQL repository inventory reads all pages and binds the repository and latest issue", () => {
   const cursors: unknown[] = [];
   const client = new RoadmapClient(config, (_args, input) => {
     const { query, variables } = fixtureGraphql(input);
@@ -2816,7 +2713,7 @@ void test("GraphQL repository fallback reads all pages and binds the repository 
   assert.deepEqual(empty.repositoryIssues({ useGraphql: true }), []);
 });
 
-void test("GraphQL repository fallback rejects incomplete malformed duplicate and foreign inventories", () => {
+void test("GraphQL repository inventory rejects incomplete malformed duplicate and foreign inventories", () => {
   const corruptions: ((repository: Record<string, unknown>, marker: boolean) => void)[] = [
     (repository) => {
       repository.id = "";
@@ -2876,7 +2773,7 @@ void test("GraphQL repository fallback rejects incomplete malformed duplicate an
   }
 });
 
-void test("GraphQL repository fallback rejects changed totals or latest identities at final readback", () => {
+void test("GraphQL repository inventory rejects changed totals or latest identities at final readback", () => {
   for (const change of ["total", "identity"]) {
     let markers = 0;
     const client = new RoadmapClient(config, (_args, input) => {

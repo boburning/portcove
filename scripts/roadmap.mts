@@ -5118,24 +5118,20 @@ export function readDoctorRepositoryIssues(
   client: Pick<RoadmapClient, "repositoryIssues">,
   attempts: DoctorRepositoryInventoryAttempt[] = [],
 ) {
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    const source = attempt === 1 ? "rest" : "graphql";
-    try {
-      const issues = client.repositoryIssues({ useGraphql: source === "graphql" });
-      attempts.push({ attempt, source, outcome: "passed", issues: issues.length });
-      return { issues, attempts };
-    } catch (error) {
-      attempts.push({
-        attempt,
-        source,
-        outcome: "failed",
-        error: sanitizeOperationError(error).message,
-        ...(error instanceof RepositoryIssueSnapshotError ? { snapshot: error.snapshot } : {}),
-      });
-      if (attempt === 2 || !(error instanceof RepositoryIssueSnapshotError)) throw error;
-    }
+  try {
+    const issues = client.repositoryIssues({ useGraphql: true });
+    attempts.push({ attempt: 1, source: "graphql", outcome: "passed", issues: issues.length });
+    return { issues, attempts };
+  } catch (error) {
+    attempts.push({
+      attempt: 1,
+      source: "graphql",
+      outcome: "failed",
+      error: sanitizeOperationError(error).message,
+      ...(error instanceof RepositoryIssueSnapshotError ? { snapshot: error.snapshot } : {}),
+    });
+    throw error;
   }
-  throw new Error("Doctor repository inventory attempt limit exhausted");
 }
 
 export async function runDoctor(
