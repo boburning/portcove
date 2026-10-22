@@ -5990,14 +5990,30 @@ mod tests {
                         Err(error) => panic!("legacy fixture accept failed: {error}"),
                     }
                 };
+                // Windows inherits the listener's nonblocking socket mode.
+                // Wait for the actual bounded request before replying/closing.
+                stream.set_nonblocking(false).unwrap();
                 stream
                     .set_read_timeout(Some(Duration::from_secs(2)))
                     .unwrap();
                 stream
                     .set_write_timeout(Some(Duration::from_secs(2)))
                     .unwrap();
-                let mut request = [0u8; 1024];
-                let _ = stream.read(&mut request);
+                let deadline = std::time::Instant::now() + Duration::from_secs(2);
+                let mut request = Vec::new();
+                while !request.ends_with(b"\r\n\r\n") {
+                    assert!(request.len() < 4096, "legacy fixture request header limit");
+                    let remaining = deadline
+                        .checked_duration_since(std::time::Instant::now())
+                        .expect("legacy fixture request deadline");
+                    stream.set_read_timeout(Some(remaining)).unwrap();
+                    let mut byte = [0];
+                    stream
+                        .read_exact(&mut byte)
+                        .expect("legacy fixture complete request headers");
+                    request.push(byte[0]);
+                }
+                assert!(request.starts_with(b"GET /legacy.zip HTTP/1.1\r\n"));
                 write!(
                     stream,
                     "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
