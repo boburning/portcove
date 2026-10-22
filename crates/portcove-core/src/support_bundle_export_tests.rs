@@ -50,6 +50,248 @@ fn log_fixture(directory: &Path, message: &str) {
 }
 
 #[test]
+fn host_session_logs_export_typed_surfaces_before_legacy_and_omit_unselected_files() {
+    let temporary = tempfile::tempdir().unwrap();
+    let logs = temporary.path().join("logs");
+    let mut originals = Vec::new();
+    for (slot, surface, session) in [
+        (0, "desktop", "9505cf6e-559d-4b40-a77e-d9176e6b426c"),
+        (7, "cli", "7daf2f0b-df14-4f8c-a541-f06659acb3e9"),
+    ] {
+        let directory = logs.join(format!("session-{slot:02}"));
+        fs::create_dir_all(&directory).unwrap();
+        let record = json!({
+            "schema_version": 1,
+            "timestamp_ms": 42,
+            "elapsed_ms": 3,
+            "session_id": session,
+            "process_id": 17,
+            "surface": surface,
+            "build": "0.1.0-alpha.2",
+            "level": "INFO",
+            "target": "portcove_host_diagnostics",
+            "context_complete": true,
+            "omitted_fields": 0,
+            "spans": [],
+            "error": null,
+            "fields": {
+                "component": "startup",
+                "phase": "start",
+                "success": false,
+                "message": "host startup token=session-private-canary safe=visible"
+            }
+        });
+        let path = directory.join(LOG_NAME);
+        let bytes = format!("{record}\n").into_bytes();
+        fs::write(&path, &bytes).unwrap();
+        originals.push((path, bytes));
+        for name in [
+            ".portcove-session.json",
+            "arbitrary.jsonl",
+            "portcove-desktop.jsonl.6",
+        ] {
+            fs::write(directory.join(name), b"unselected-session-canary").unwrap();
+        }
+    }
+    let malformed = logs.join("session-01");
+    fs::create_dir(&malformed).unwrap();
+    fs::write(
+        malformed.join(LOG_NAME),
+        b"{invalid\n{\"fields\":{\"message\":\"retained session record\"}}\n{\"partial\":\"trailing-session-canary",
+    )
+    .unwrap();
+    log_fixture(&logs.join("session-08"), "outside-session-inventory-canary");
+    log_fixture(&logs, "retained legacy host record");
+    let exported = export_support_bundle(SupportBundleRequest {
+        destination_dir: &temporary.path().join("exports"),
+        logs_dir: Some(&logs),
+        library: None,
+        startup_failure: None,
+    })
+    .unwrap();
+    let files = members(&exported.path);
+    let manifest = document(&files, "manifest.json");
+    let included: Vec<_> = manifest["sections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|section| section["kind"] == "runtime_log" && section["entry"].is_string())
+        .collect();
+    assert_eq!(
+        included
+            .iter()
+            .map(|section| section["entry"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        [
+            "logs/session-00/portcove-desktop.jsonl",
+            "logs/session-01/portcove-desktop.jsonl",
+            "logs/session-07/portcove-desktop.jsonl",
+            "logs/portcove-desktop.jsonl",
+        ]
+    );
+    assert!(
+        included[..3]
+            .iter()
+            .all(|section| section["provenance"] == "host_runtime_log")
+    );
+    assert_eq!(included[3]["provenance"], "desktop_runtime_log");
+    assert_eq!(included[1]["status"], "partial");
+    assert_eq!(
+        included[1]["reasons"],
+        json!(["invalid_record", "incomplete_record"])
+    );
+    for (name, surface, session) in [
+        (
+            "logs/session-00/portcove-desktop.jsonl",
+            "desktop",
+            "9505cf6e-559d-4b40-a77e-d9176e6b426c",
+        ),
+        (
+            "logs/session-07/portcove-desktop.jsonl",
+            "cli",
+            "7daf2f0b-df14-4f8c-a541-f06659acb3e9",
+        ),
+    ] {
+        let record = document(&files, name);
+        assert_eq!(record["surface"], surface);
+        assert_eq!(record["session_id"], session);
+        assert_eq!(record["fields"]["success"], false);
+        assert_eq!(record["context_complete"], true);
+    }
+    assert_eq!(
+        manifest["sections"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|section| section["kind"] == "runtime_log")
+            .count(),
+        54
+    );
+    for bytes in files.values() {
+        let text = String::from_utf8_lossy(bytes);
+        for canary in [
+            "session-private-canary",
+            "unselected-session-canary",
+            "outside-session-inventory-canary",
+            "trailing-session-canary",
+        ] {
+            assert!(!text.contains(canary), "host export leaked {canary}");
+        }
+    }
+    for (path, bytes) in originals {
+        assert_eq!(fs::read(path).unwrap(), bytes);
+    }
+}
+
+#[test]
+fn session_log_input_budget_bounds_invalid_record_scanning_across_all_slots() {
+    let temporary = tempfile::tempdir().unwrap();
+    let logs = temporary.path().join("logs");
+    for slot in 0..8 {
+        let directory = logs.join(format!("session-{slot:02}"));
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(directory.join(LOG_NAME), b"{\n".repeat(512)).unwrap();
+    }
+    log_fixture(
+        &logs,
+        "legacy input must remain uncollected after the input cap",
+    );
+    let limits = SupportBundleLimits {
+        log_bytes: 128,
+        log_input_bytes: 192,
+        ..Default::default()
+    };
+    let exported = export(
+        &temporary.path().join("exports"),
+        Some(&logs),
+        None,
+        None,
+        limits,
+        &mut |_, _| Ok(()),
+    )
+    .unwrap();
+    let files = members(&exported.path);
+    let logs: Vec<_> = exported
+        .manifest
+        .sections
+        .iter()
+        .filter(|section| section.kind == SupportBundleSectionKind::RuntimeLog)
+        .collect();
+    assert_eq!(
+        logs.iter()
+            .filter_map(|section| section.bytes_read)
+            .sum::<usize>(),
+        192
+    );
+    assert!(
+        logs.iter()
+            .all(|section| section.bytes_read.unwrap_or(0) <= 128)
+    );
+    assert!(logs.iter().all(|section| section.records.unwrap_or(0) == 0));
+    let stopped = logs.last().unwrap();
+    assert_eq!(stopped.status, SupportBundleSectionStatus::Omitted);
+    assert_eq!(stopped.reasons, [SupportBundleReason::SectionLimit]);
+    assert!(!files.contains_key("logs/session-02/portcove-desktop.jsonl"));
+    assert!(!files.contains_key("logs/portcove-desktop.jsonl"));
+    assert_eq!(exported.manifest.limits.log_input_bytes, 192);
+}
+
+#[test]
+fn unsafe_session_file_and_directory_candidates_preserve_available_legacy_logs() {
+    let temporary = tempfile::tempdir().unwrap();
+    let logs = temporary.path().join("logs");
+    log_fixture(&logs, "retained safe legacy diagnostics");
+    let private = temporary.path().join("private-file");
+    fs::write(&private, b"private-session-link-canary\n").unwrap();
+    let slot = logs.join("session-00");
+    fs::create_dir(&slot).unwrap();
+    fs::hard_link(&private, slot.join(LOG_NAME)).unwrap();
+    fs::write(
+        logs.join("session-01"),
+        b"private-session-nondirectory-canary",
+    )
+    .unwrap();
+    #[cfg(unix)]
+    {
+        let outside = temporary.path().join("outside-session");
+        log_fixture(&outside, "private-session-directory-link-canary");
+        std::os::unix::fs::symlink(&outside, logs.join("session-02")).unwrap();
+    }
+    let exported = export_support_bundle(SupportBundleRequest {
+        destination_dir: &temporary.path().join("exports"),
+        logs_dir: Some(&logs),
+        library: None,
+        startup_failure: None,
+    })
+    .unwrap();
+    let files = members(&exported.path);
+    assert!(files.contains_key("logs/portcove-desktop.jsonl"));
+    assert!(!files.keys().any(|name| name.starts_with("logs/session-")));
+    let unsafe_section = exported
+        .manifest
+        .sections
+        .iter()
+        .find(|section| {
+            section.kind == SupportBundleSectionKind::RuntimeLog
+                && section.reasons.contains(&SupportBundleReason::UnsafeFile)
+        })
+        .unwrap();
+    assert_eq!(unsafe_section.status, SupportBundleSectionStatus::Omitted);
+    assert_eq!(
+        fs::read(&private).unwrap(),
+        b"private-session-link-canary\n"
+    );
+    assert_eq!(
+        fs::read(logs.join("session-01")).unwrap(),
+        b"private-session-nondirectory-canary"
+    );
+    for bytes in files.values() {
+        let text = String::from_utf8_lossy(bytes);
+        assert!(!text.contains("private-session-"));
+    }
+}
+
+#[test]
 fn support_bundle_survives_unavailable_and_corrupt_library_with_host_diagnostics() {
     let temporary = tempfile::tempdir().unwrap();
     let logs = temporary.path().join("logs");

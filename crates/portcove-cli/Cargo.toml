@@ -17,6 +17,7 @@ qualification-fixtures = ["portcove-core/qualification-fixtures"]
 [dependencies]
 clap.workspace = true
 portcove-core = { path = "../portcove-core" }
+portcove-diagnostics = { path = "../portcove-diagnostics" }
 rpassword.workspace = true
 schemars.workspace = true
 serde.workspace = true
@@ -24,10 +25,10 @@ serde_json.workspace = true
 tokio.workspace = true
 time = { workspace = true, features = ["formatting"] }
 tracing-subscriber.workspace = true
+tracing.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
 async-trait.workspace = true
 rusqlite.workspace = true
 tempfile.workspace = true
-tracing.workspace = true

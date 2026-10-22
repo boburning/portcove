@@ -594,10 +594,17 @@ pub(crate) fn connect(root: &Path) -> Result<Connection> {
 }
 
 pub(crate) fn migrate(root: &Path) -> Result<()> {
-    migrate_to(root, CURRENT_SCHEMA_VERSION)
+    crate::runtime_diagnostics::observe_host_result(
+        "database_migration",
+        migrate_to(root, CURRENT_SCHEMA_VERSION),
+    )
 }
 
 pub(crate) fn requires_migration(root: &Path) -> Result<bool> {
+    crate::runtime_diagnostics::observe_host_result("database_open", inspect_migration(root))
+}
+
+fn inspect_migration(root: &Path) -> Result<bool> {
     let path = database_path(root);
     if !path.exists() {
         return Ok(true);

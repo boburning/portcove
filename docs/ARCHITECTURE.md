@@ -2393,11 +2393,45 @@ an event never removes durable history or declares recovery successful.
 
 ### Runtime diagnostic writer
 
-Tauri writes structured JSONL diagnostics in the `diagnostics` directory beside
-the configured host-preference file. A dedicated best-effort worker owns file
-opening, writing, synchronization and rotation. Producers never perform file I/O
-or wait for queue capacity. At most eight producers format concurrently; a
-contended admission or full 256-record queue drops the new event. Records are
+Desktop and CLI use `portcove-diagnostics` for structured JSONL records, approved
+field filtering, bounded writing, session retention and independent health.
+Each executable installs its own subscriber; Core emits instrumentation and owns
+classification without installing a subscriber. The shared crate has no Tauri
+dependency. Ordinary Desktop startup and its detached supervision/recovery
+helpers start host diagnostics before preferences, the application runtime lease,
+library opening or database initialization. CLI starts after pure argument parsing
+and before handling its result or accessing preferences and the library.
+
+Location selection uses the `diagnostics` sibling of an absolute
+`PORTCOVE_PREFERENCES` location without constructing or reading the preference
+store. An absent, invalid or unavailable configured location uses the safe OS
+per-user configuration location when available; otherwise logging is unavailable.
+After a root is selected, session capacity or writer failure does not switch it.
+Library selection and replacement retain the same host root, session UUID and
+monotonic clock. Earlier library-local logs are not migrated or searched.
+
+One bootstrap thread performs all diagnostic directory preparation, bounded
+session inventory, pruning and startup marker I/O. The caller waits at most 250 ms for
+that preparation, then continues with unavailable logging. This is a caller
+deadline, not cancellation of a blocked OS call: the bootstrap thread can
+outlive the wait and retains any acquired lease until its work returns. Only
+a timely result can start the writer; late preparation is discarded without
+starting a writer or installing a subscriber. There is no automatic retry.
+Logging initialization failure never changes an otherwise valid startup outcome.
+
+File filtering defaults to application INFO and dependency WARN. Exactly
+`PORTCOVE_DIAGNOSTICS_DEBUG=1`, or CLI `-vv`, enables application DEBUG for that
+process without saving a preference. Later sessions use defaults unless opted in
+again. CLI's separate stderr layer preserves WARN by default, INFO with `-v`,
+and DEBUG with `-vv`; new host-stage observations are excluded from that layer.
+Machine JSON/JSONL stdout, raw child stdout/stderr and exit codes retain their
+existing contracts. Fixed, private-safe early Desktop stderr summaries remain
+available when file logging cannot start.
+
+A dedicated best-effort writer owns file opening, writing, synchronization and
+rotation. Producers never perform file I/O or wait for queue capacity. At most
+eight producers format concurrently; contended admission or a full 256-record
+queue drops the new event. Records are
 capped at 32 KiB, for at most 8 MiB of queued payload plus one worker record and
 bounded formatting scratch. Limits apply to logger-owned buffers, not the
 caller's already-created values or total process memory.
@@ -2415,8 +2449,8 @@ JSON scalars, redacts bounded human messages and omits unknown field names and
 nested caller values. Logs are redacted, not anonymous; human diagnostic text
 can still describe local context.
 
-Envelope schema 1 adds a host-session UUID, process ID, desktop surface, package
-build, wall-clock observation time and monotonic elapsed milliseconds. Approved
+Envelope schema 1 adds a host-session UUID, process ID, Desktop or CLI surface,
+package build, wall-clock observation time and monotonic elapsed milliseconds. Approved
 fields carry existing operation/activity/parent IDs, request identity, exact
 port/release/install identifiers, selected phases, typed error code and mutation
 state, and observed outcomes. Identifiers use a bounded 128-byte ASCII vocabulary;
@@ -2459,41 +2493,56 @@ Renderer IDs supply no Core operation or mutation authority. The render boundary
 reports once and absorbs synchronous/rejected reporting failures while keeping
 the original recovery display and reload action available.
 
-The active file and five exact rotation names each have a 4 MiB limit, for a
-24 MiB runtime-file budget below the evaluated 32 MiB ceiling. Seven-day expiry
-is checked at startup and at most once per minute during subsequent writes for
-those exact names; arbitrary directory entries are never swept. Idle files can
-remain until the next retention check. The
-writer takes a nonblocking namespace lease, validates regular single-link files
-and safe ancestors, and refuses a second participating writer. Its lock file is
-never removed. File, permission, rotation or retention failures remain visible
-in health and may leave existing bytes retained; they do not promise impossible
-cleanup or authorize deletion of unknown files. This lease does not introduce
-isolated session files or coordinate older versions that lack the lease.
+The root has eight fixed session slots, `session-00` through `session-07`.
+Each slot has an independent nonblocking OS lease and retains the existing
+`portcove-desktop.jsonl` basename plus five exact rotations; the envelope records
+the actual surface. Six files of at most 4 MiB give a 24 MiB budget per session
+and a 192 MiB bound on managed runtime payload across the eight slots. Concurrent
+Desktop and CLI processes use distinct leased slots. When every slot is active
+or unavailable, startup continues with unavailable logging.
+
+The bounded startup retention pass expires inactive sessions whose recorded
+start is older than seven days and prunes oldest inactive sessions toward a
+64 MiB observed-byte target.
+It uses an empty slot first, then reuses the oldest eligible inactive slot.
+Only an exclusive OS lease proves a slot is available; PIDs never establish
+liveness. Active or inaccessible slots, unknown files, and unmarked namespaces
+containing log files are preserved. Safe ancestors, regular single-link files
+and held identities are checked before owned reads, writes and cleanup. Lease
+files are never removed. A running writer also checks seven-day file expiry at
+startup and at most once per minute during subsequent writes, so idle files can
+remain until a later retention check. The byte targets describe conforming
+managed payload, not unconditional cleanup of unsafe, foreign or inaccessible
+bytes; failures remain visible rather than authorizing broader deletion.
+
+A bounded session marker identifies the writer and records a completed close
+only after successful final drain and synchronization. A valid inactive marker
+without that completion can produce an observation about the previous session
+with an unknown cause. Missing or malformed metadata does not establish a crash,
+and neither marker state nor a missing log establishes an operation outcome or
+authorizes recovery. The writer worker holds its lease through shutdown,
+including after the caller's flush deadline, until actual worker completion.
 
 The read-only `get_runtime_diagnostic_health` desktop command (frontend adapter
 `desktopApi.runtimeDiagnosticHealth`) returns fixed text built from independent
 atomic counters and closed states. It works without a healthy library and does
 not read the log or report through tracing. It names admission/drop reasons,
 truncated and opaque fields, open/write/rotation/retention/lease errors,
-permission/disk-full failures, queue occupancy and flush state. Counters are
-separately sampled observations, not an atomic activity ledger.
+permission/disk-full failures, queue occupancy and flush state. It also reports
+the startup session inventory and pruning snapshot, observed inactive bytes,
+location fallback and bootstrap timeout separately from live writer counters.
+These are sampled observations, not an atomic activity ledger.
 
-The worker synchronizes during idle intervals and at normal shutdown. Tauri's
-actual `RunEvent::Exit` callback closes admission and waits at most two seconds;
+The worker synchronizes during idle intervals and at normal shutdown. CLI and
+ordinary Desktop helper exits use the bounded guard flush. Tauri's actual
+`RunEvent::Exit` callback closes admission and waits at most two seconds;
 the preventable `ExitRequested` event does not stop logging. A stalled OS call
 cannot be cancelled, so expiry detaches the worker and retains a timed-out
 status instead of waiting on a join. Abrupt process/machine exit can lose queued
 or unsynchronized records. This changes runtime-log durability only: Core
 activity capture, persistent operation outcomes and recovery remain unchanged.
 
-The host location is available before library initialization and remains stable
-across library replacement. Failure to initialize logging does not change the
-library initialization outcome. Earlier library-local logs are not migrated or
-searched. CLI subscriber policy and raw/machine output remain independent;
-shared host policy and session isolation are separately owned. Early failures
-before host preferences or the runtime lease remain owned by their existing
-subprocess diagnostics. The owned fixture and measurement method is described
+The owned fixture and measurement method is described
 in [runtime diagnostic qualification](reference/runtime-diagnostic-qualification.md).
 
 ### Support-bundle export classification
@@ -2528,8 +2577,10 @@ not inferred from successful log collection.
 
 Collection admits at most 100 recent activities (128 KiB per SQLite row), 32
 capture records (8 MiB per admitted payload group, 16 MiB aggregate raw capture
-bytes), six fixed runtime files (4 MiB raw input each), and 64 KiB per runtime
-record. Structured sections are capped at 8 MiB and all exported payloads at
+bytes), and 54 fixed runtime-file candidates: six names in each of the eight
+session slots followed by six legacy names at the host root. Runtime reads admit
+at most 4 MiB per file, 24 MiB of aggregate raw input and 64 KiB per record.
+Structured sections are capped at 8 MiB and all exported payloads at
 16 MiB, plus a separately capped 64 KiB manifest and fixed ZIP metadata. Reads,
 redaction and serialization are bounded before publication; log records stream
 through a bounded buffer. A 30-second cooperative deadline is checked between
@@ -2544,8 +2595,11 @@ entire admitted byte/record reservation, so a corrupt later row cannot reset
 the aggregate budget. Capture completeness, observed bytes and stream truncation retain
 their original meanings, distinct from export omissions.
 
-Only the active runtime file and five exact rotation names are opened through
-the existing single-link, no-follow regular-file reader. Rotation/read failures,
+Only the active runtime file and five exact rotation names in those fixed
+locations are opened through the existing single-link, no-follow regular-file
+reader. Session files carry `host_runtime_log` provenance; legacy root files
+retain `desktop_runtime_log`. Session markers, lock files and arbitrary directory
+entries are never collected. Rotation/read failures,
 oversize or malformed records and incomplete trailing records retain available
 sections and receive closed reasons; raw errors and filenames cannot become
 manifest reasons. Member names never come from stored IDs or paths. A private
@@ -2583,7 +2637,7 @@ and reports those unknowns in its manifest and independent documents.
 | Runtime envelope                  | Timestamp, recognized level and re-redacted tracing-module target are projected. Unknown envelope members are omitted and counted.                                                                                                                                                                                                                                                                   |
 | Runtime fields                    | Explicit scalar operation/activity/port identities, numeric measurements, booleans, closed auth labels/codes and re-redacted messages are included. Opaque Debug events/targets/errors, parent-option Debug strings, frontend stacks, spans, paths, URLs, environments and every unclassified field are omitted, including their names. Objects/arrays cannot enter through an approved scalar name. |
 | Legacy runtime text               | Plain legacy lines are explicitly classified as re-redacted diagnostic text. Malformed JSON-shaped records and non-object JSON are represented by a fixed omission reason instead of being exported as raw text.                                                                                                                                                                                     |
-| Archive inputs and names          | Only the active runtime log and its five canonical rotation names are eligible. Summary and capture member names are fixed; stored activity IDs cannot form archive paths. Arbitrary prefix-matching files, source inventories/payloads, credential stores, cached responses and the database are excluded.                                                                                          |
+| Archive inputs and names          | Only six canonical runtime names in each of eight fixed session slots and the six legacy root names are eligible. Session markers and locks are excluded. Summary and capture member names are fixed; stored activity IDs cannot form archive paths. Arbitrary prefix-matching files, source inventories/payloads, credential stores, cached responses and the database are excluded.                |
 
 Classification prevents newly introduced structured data from inheriting export
 permission from generic serialization. Existing credential-pattern redaction
@@ -2952,13 +3006,16 @@ application composition. Tauri
 and core still own library opening, lease exclusion, persistence and generation
 assignment.
 
-Before the window and library diagnostics exist, host-preference construction
-and application runtime-lease failures have distinct fixed recovery summaries
+Before the window exists, host-preference construction and application
+runtime-lease failures have distinct fixed recovery summaries
 and the original semantic error code on stderr. They return a failing process
 status through the normal stack, without printing private error messages or
 details. Preference document loading and library initialization failures still
-use the existing bootstrap recovery window. This early subprocess diagnostic
-does not provide a launcher-visible recovery dialog or a second log location.
+use the existing bootstrap recovery window. Shared host diagnostics starts
+before these stages and records their typed observations when available; the
+fixed stderr summaries also work when logging is unavailable. This early
+subprocess diagnostic does not provide a launcher-visible recovery dialog or
+create a second log location.
 
 The `features/source-intake` unit owns only the catalog-bound request used to
 open the source-intake dialog. Unknown port or profile identities do not open a

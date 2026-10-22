@@ -22,6 +22,7 @@ use crate::{
 const MIB: usize = 1024 * 1024;
 const LOG_NAME: &str = "portcove-desktop.jsonl";
 const ROTATIONS: usize = 5;
+const SESSION_SLOTS: usize = 8;
 const MANIFEST_BYTES: usize = 64 * 1024;
 
 /// Prepare only the host's fixed log namespace. An existing alias or nonregular
@@ -81,6 +82,8 @@ pub struct SupportBundleLimits {
     pub total_bytes: usize,
     pub section_bytes: usize,
     pub log_bytes: usize,
+    /// Aggregate raw runtime-log input across session and legacy candidates.
+    pub log_input_bytes: usize,
     pub record_bytes: usize,
     pub activity_count: usize,
     pub capture_count: usize,
@@ -94,6 +97,7 @@ impl Default for SupportBundleLimits {
             total_bytes: 16 * MIB,
             section_bytes: 8 * MIB,
             log_bytes: 4 * MIB,
+            log_input_bytes: 24 * MIB,
             record_bytes: 64 * 1024,
             activity_count: SUPPORT_BUNDLE_ACTIVITY_LIMIT,
             capture_count: SUPPORT_BUNDLE_CAPTURE_LIMIT,
@@ -133,6 +137,7 @@ pub enum SupportBundleProvenance {
     ActivityHistory,
     ActivityDiagnostics,
     DesktopRuntimeLog,
+    HostRuntimeLog,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
@@ -296,7 +301,10 @@ impl Collector {
     }
 
     fn omitted(&mut self, kind: SupportBundleSectionKind, reason: SupportBundleReason) {
-        let mut section = section(kind);
+        self.omitted_section(section(kind), reason);
+    }
+
+    fn omitted_section(&mut self, mut section: SupportBundleSection, reason: SupportBundleReason) {
         section.status = SupportBundleSectionStatus::Omitted;
         section.reasons.push(reason);
         self.manifest.sections.push(section);
@@ -326,12 +334,12 @@ impl Collector {
                 return Ok(());
             }
         };
-        self.bytes(kind, name, &bytes, reasons, bytes_read, records)
+        self.bytes(section(kind), name, &bytes, reasons, bytes_read, records)
     }
 
     fn bytes(
         &mut self,
-        kind: SupportBundleSectionKind,
+        mut section: SupportBundleSection,
         name: &str,
         bytes: &[u8],
         reasons: Vec<SupportBundleReason>,
@@ -340,7 +348,6 @@ impl Collector {
     ) -> Result<()> {
         write_entry(&mut self.archive, name, bytes)?;
         self.remaining -= bytes.len();
-        let mut section = section(kind);
         section.entry = Some(name.into());
         section.status = if reasons.is_empty() {
             SupportBundleSectionStatus::Included
@@ -494,16 +501,35 @@ impl Collector {
             );
             return Ok(());
         };
-        // No directory walk: at most the active file and five fixed rotations.
-        for index in 0..=ROTATIONS {
+        // No directory walk or name from log content: eight fixed session
+        // namespaces, then the six legacy files. Preserve the legacy aggregate
+        // raw-input budget even when many invalid records produce no payload.
+        let candidates = (0..SESSION_SLOTS)
+            .map(Some)
+            .chain(std::iter::once(None))
+            .flat_map(|slot| (0..=ROTATIONS).map(move |index| (slot, index)));
+        let mut input_remaining = self.manifest.limits.log_input_bytes;
+        for (slot, index) in candidates {
+            let mut section = section(SupportBundleSectionKind::RuntimeLog);
+            if slot.is_some() {
+                section.provenance = SupportBundleProvenance::HostRuntimeLog;
+            }
             if let Some(reason) = self.stopped() {
-                self.omitted(SupportBundleSectionKind::RuntimeLog, reason);
+                self.omitted_section(section, reason);
                 break;
             }
-            let name = if index == 0 {
+            if input_remaining == 0 {
+                self.omitted_section(section, SupportBundleReason::SectionLimit);
+                break;
+            }
+            let filename = if index == 0 {
                 LOG_NAME.into()
             } else {
                 format!("{LOG_NAME}.{index}")
+            };
+            let name = match slot {
+                Some(slot) => format!("session-{slot:02}/{filename}"),
+                None => filename,
             };
             let path = directory.join(&name);
             let file = match crate::external_runtime::open_single_link_file(&path) {
@@ -518,14 +544,17 @@ impl Collector {
                     } else {
                         SupportBundleReason::ReadFailed
                     };
-                    self.omitted(SupportBundleSectionKind::RuntimeLog, reason);
+                    self.omitted_section(section, reason);
                     continue;
                 }
             };
             let limit = self.remaining.min(self.manifest.limits.section_bytes);
-            let log = read_log(file, &self.manifest.limits, limit, self.started);
+            let mut limits = self.manifest.limits.clone();
+            limits.log_bytes = limits.log_bytes.min(input_remaining);
+            let log = read_log(file, &limits, limit, self.started);
+            input_remaining -= log.read;
             self.bytes(
-                SupportBundleSectionKind::RuntimeLog,
+                section,
                 &format!("logs/{name}"),
                 &log.bytes,
                 log.reasons,

@@ -27,6 +27,7 @@ function bundle(): DesktopSupportBundleExport {
         total_bytes: 16 * 1024 * 1024,
         section_bytes: 8 * 1024 * 1024,
         log_bytes: 4 * 1024 * 1024,
+        log_input_bytes: 24 * 1024 * 1024,
         record_bytes: 64 * 1024,
         activity_count: 100,
         capture_count: 32,

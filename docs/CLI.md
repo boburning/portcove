@@ -1267,6 +1267,33 @@ recovering commands retain Core's existing recovery before shared-service dispat
 Commands with early dispatch keep their own existing construction paths. This
 classification does not grant mutation, cancellation, or launch authority.
 
+### Local host diagnostics
+
+CLI and Desktop share a bounded, redacted file logger initialized before
+preferences, runtime leases or a library are opened. Each process uses its own
+leased session namespace in the host diagnostics directory, independently of the
+selected library. Preference, selection and startup failures can therefore leave
+typed phase/error evidence without a healthy library. Logging is best effort:
+an unavailable location, exhausted session inventory or failed writer never
+changes the command result. Core's durable activity and recovery remain authoritative.
+
+File logging defaults to application **INFO** and dependency **WARN**. CLI
+stderr retains its existing thresholds: **WARN** normally, **INFO** with `-v`,
+and **DEBUG** with `-vv`. New host-startup observations go only to files.
+`-vv` also enables application DEBUG in that process's file log. Setting
+`PORTCOVE_DIAGNOSTICS_DEBUG=1` enables application DEBUG file logging without
+changing stderr verbosity. Other values have no effect. These choices are never
+saved to preferences; each new process starts from its own arguments and
+environment. There is no automatic timer within a running process: DEBUG ends
+when that process ends. Command arguments and environment values are not logged.
+
+JSON/JSONL stdout, human rendering, exit codes and the child's raw `exec` streams
+keep their existing contracts. Explicit `-v`/`-vv` still select the pre-existing
+stderr trace output around those commands. Normal exit allows up to two seconds
+for the bounded file queue to flush; forced termination can lose records. A
+previous session without a completed close is reported as unclean with an unknown
+cause, never as proof of a crash or failed operation. Logs are redacted, not anonymous.
+
 ### Route-bound game-file observations
 
 `source query PORT_ID --route managed-install --channel stable` explicitly

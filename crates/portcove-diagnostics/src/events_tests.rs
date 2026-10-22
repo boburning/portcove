@@ -1,7 +1,5 @@
 use super::*;
-use crate::diagnostics_writer::{
-    DiagnosticSink, FlushState, HealthSnapshot, Limits, RuntimeWriter, SinkError,
-};
+use crate::writer::{DiagnosticSink, FlushState, HealthSnapshot, Limits, RuntimeWriter, SinkError};
 use std::{fmt, time::Duration};
 use tracing_subscriber::layer::SubscriberExt;
 

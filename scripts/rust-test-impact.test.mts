@@ -62,7 +62,12 @@ void test("workspace impact preserves package qualification and broad fallback b
     ),
     ["package(=portcove-core)"],
   );
-  for (const file of ["Cargo.lock", "unknown/input.bin", "crates/future-crate/src/lib.rs"])
+  for (const file of [
+    "Cargo.lock",
+    "unknown/input.bin",
+    "crates/future-crate/src/lib.rs",
+    "crates/portcove-diagnostics/src/sessions.rs",
+  ])
     assert.deepEqual(
       selectWorkspaceRustImpact(workspacePlan([file])).map((g) => g.filter),
       ["all()"],
@@ -81,9 +86,11 @@ void test("workspace impact preserves package qualification and broad fallback b
 void test("runtime diagnostics preserve the complete fixture binary across Desktop, Core and fixture changes", () => {
   const fixture = "crates/portcove-cli/tests/runtime_diagnostics.rs";
   // Select the binary, including nested module unit tests without this name prefix.
-  const expected = "package(=portcove-cli) & (binary(=runtime_diagnostics))";
+  const expected =
+    "package(=portcove-cli) & (binary(=runtime_diagnostics) | binary(=host_diagnostics) | binary(=desktop_host_diagnostics))";
   for (const file of [
     "apps/desktop/src-tauri/src/diagnostics.rs",
+    "apps/desktop/src-tauri/src/host_startup.rs",
     "apps/desktop/src-tauri/src/diagnostics_writer.rs",
     "apps/desktop/src-tauri/src/diagnostics_writer_tests.rs",
     "apps/desktop/src-tauri/src/diagnostics_events.rs",
@@ -95,6 +102,8 @@ void test("runtime diagnostics preserve the complete fixture binary across Deskt
     "crates/portcove-core/src/service.rs",
     "crates/portcove-core/src/preparation_execution.rs",
     "crates/portcove-core/src/tool_process.rs",
+    "crates/portcove-cli/tests/host_diagnostics.rs",
+    "crates/portcove-cli/tests/desktop_host_diagnostics.rs",
     fixture,
   ]) {
     const groups = selectWorkspaceRustImpact(workspacePlan([file]));

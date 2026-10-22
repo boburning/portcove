@@ -6049,6 +6049,12 @@
             "minimum": 0,
             "type": "integer"
           },
+          "log_input_bytes": {
+            "description": "Aggregate raw runtime-log input across session and legacy candidates.",
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
           "record_bytes": {
             "format": "uint",
             "minimum": 0,
@@ -6069,6 +6075,7 @@
           "total_bytes",
           "section_bytes",
           "log_bytes",
+          "log_input_bytes",
           "record_bytes",
           "activity_count",
           "capture_count",
@@ -6140,7 +6147,8 @@
           "library_doctor_snapshot",
           "activity_history",
           "activity_diagnostics",
-          "desktop_runtime_log"
+          "desktop_runtime_log",
+          "host_runtime_log"
         ],
         "type": "string"
       },

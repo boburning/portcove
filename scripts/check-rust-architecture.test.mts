@@ -6,6 +6,7 @@ import { formatViolations, validateArchitecture } from "./check-rust-architectur
 function metadata(overrides: Record<string, string[]> = {}) {
   const dependencies = {
     "portcove-core": ["serde"],
+    "portcove-diagnostics": ["portcove-core", "tracing-subscriber"],
     "portcove-cli": ["clap", "portcove-core"],
     "portcove-desktop": ["portcove-core", "serde", "tauri"],
     "portcove-release-tools": ["minisign-verify"],
@@ -23,6 +24,21 @@ function metadata(overrides: Record<string, string[]> = {}) {
 
 void test("accepts the intended core and adapter graph", () => {
   assert.deepEqual(validateArchitecture(metadata()), []);
+});
+
+void test("shared host logging cannot import Desktop or become a Core dependency", () => {
+  const violations = validateArchitecture(
+    metadata({
+      "portcove-core": ["serde", "portcove-diagnostics"],
+      "portcove-diagnostics": ["portcove-core", "tauri", "portcove-desktop"],
+    }),
+  );
+  assert.equal(violations.length, 3);
+  assert.ok(
+    violations.every((item) =>
+      ["portcove-core", "portcove-diagnostics"].includes(item.packageName),
+    ),
+  );
 });
 
 void test("reports forbidden cross-layer dependencies with actionable context", () => {

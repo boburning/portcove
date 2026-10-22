@@ -14,7 +14,7 @@ use portcove_core::{
 };
 use schemars::JsonSchema;
 use serde::Serialize;
-use tracing_subscriber::EnvFilter;
+use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt};
 
 #[cfg(test)]
 use portcove_core::OperationEventKind;
@@ -134,7 +134,54 @@ fn command_is_observation(command: &Commands) -> bool {
 async fn run() -> ExitCode {
     let raw_args = std::env::args_os().collect::<Vec<_>>();
     let requested_mode = requested_output_mode(&raw_args);
-    let cli = match Cli::try_parse_from(raw_args) {
+    // Parsing is in-memory only. Start the host session before handling its
+    // result or opening preferences, the runtime lease, or any library.
+    let parsed = Cli::try_parse_from(raw_args);
+    let verbosity = parsed.as_ref().map_or(0, |cli| cli.verbose);
+    let (host, mut diagnostic_guard) = portcove_diagnostics::HostDiagnostics::start(
+        portcove_diagnostics::Surface::Cli,
+        portcove_diagnostics::debug_requested() || verbosity >= 2,
+    );
+    // Retain the existing stderr verbosity contract. The new host lifecycle
+    // observations are file-only, so they do not enter machine or game streams.
+    let subscriber = tracing_subscriber::registry()
+        .with(host.layer().with_filter(host.filter()))
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_writer(io::stderr)
+                .with_filter(stderr_diagnostic_filter(verbosity)),
+        );
+    // A subscriber or file-sink failure cannot change the command's outcome.
+    let _ = tracing::subscriber::set_global_default(subscriber);
+    tracing::debug!(
+        target: "portcove_cli::host_diagnostics",
+        component = "startup",
+        phase = "start",
+        message = "CLI diagnostic debug enabled"
+    );
+    let exit = run_parsed(parsed, requested_mode).await;
+    if let Some(guard) = diagnostic_guard.as_mut() {
+        let _ = guard.shutdown(std::time::Duration::from_secs(2));
+    }
+    exit
+}
+
+fn stderr_diagnostic_filter(verbosity: u8) -> EnvFilter {
+    let level = match verbosity {
+        0 => "warn",
+        1 => "info",
+        _ => "debug",
+    };
+    EnvFilter::new(format!(
+        "{level},portcove_cli::host_diagnostics=off,portcove_core::host_diagnostics=off"
+    ))
+}
+
+async fn run_parsed(
+    parsed: std::result::Result<Cli, clap::Error>,
+    requested_mode: OutputMode,
+) -> ExitCode {
+    let cli = match parsed {
         Ok(cli) => cli,
         Err(error)
             if matches!(
@@ -147,25 +194,27 @@ async fn run() -> ExitCode {
             return ExitCode::from(exit_code);
         }
         Err(error) if requested_mode != OutputMode::Human => {
+            startup::record_diagnostic(
+                startup::DiagnosticPhase::Arguments,
+                false,
+                Some(ErrorCode::Usage),
+            );
             let error = PortcoveError::usage(error.to_string().trim());
             render_error(requested_mode, "cli", &error, false);
             return ExitCode::from(exit_code(&error));
         }
         Err(error) => {
+            startup::record_diagnostic(
+                startup::DiagnosticPhase::Arguments,
+                false,
+                Some(ErrorCode::Usage),
+            );
             let exit_code = error.exit_code().try_into().unwrap_or(2);
             let _ = error.print();
             return ExitCode::from(exit_code);
         }
     };
-    let filter = match cli.verbose {
-        0 => "warn",
-        1 => "info",
-        _ => "debug",
-    };
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::new(filter))
-        .with_writer(io::stderr)
-        .init();
+    startup::record_diagnostic(startup::DiagnosticPhase::Arguments, true, None);
     let mode = if cli.json {
         OutputMode::Json
     } else if cli.jsonl {
@@ -176,8 +225,16 @@ async fn run() -> ExitCode {
     let command_name = command_name(&cli.command).to_owned();
     let technical_details = cli.technical_details;
     match execute(cli, mode).await {
-        Ok(exit) => exit,
+        Ok(exit) => {
+            startup::record_diagnostic(
+                startup::DiagnosticPhase::Command,
+                exit == ExitCode::SUCCESS,
+                None,
+            );
+            exit
+        }
         Err(error) => {
+            startup::record_diagnostic(startup::DiagnosticPhase::Command, false, Some(error.code));
             render_error(mode, &command_name, &error, technical_details);
             ExitCode::from(exit_code(&error))
         }
@@ -284,9 +341,15 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         )?;
         return Ok(ExitCode::SUCCESS);
     }
-    let preferences = host_preference_store()?;
-    let _application_runtime =
-        ApplicationRuntimeGuard::acquire(&HostPreferenceStore::application_runtime_lock_path()?)?;
+    let preferences = startup::observe(
+        startup::DiagnosticPhase::Preferences,
+        host_preference_store(),
+    )?;
+    let _application_runtime = startup::observe(
+        startup::DiagnosticPhase::RuntimeLease,
+        HostPreferenceStore::application_runtime_lock_path()
+            .and_then(|path| ApplicationRuntimeGuard::acquire(&path)),
+    )?;
     if let Commands::Catalog {
         command: CatalogCommand::CheckCapabilities { file },
     } = &cli.command
@@ -336,7 +399,10 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         })?;
         return Ok(ExitCode::SUCCESS);
     }
-    let platform_default = portcove_core::Library::default_root()?;
+    let platform_default = startup::observe(
+        startup::DiagnosticPhase::LibrarySelection,
+        portcove_core::Library::default_root(),
+    )?;
     if let Commands::Library { command } = &cli.command {
         execute_library(
             &preferences,
@@ -351,8 +417,14 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         execute_tool(&preferences, command, mode)?;
         return Ok(ExitCode::SUCCESS);
     }
-    let selection = preferences.resolve(cli.library.as_deref(), &platform_default)?;
-    let library = portcove_core::Library::open(selection.root)?;
+    let selection = startup::observe(
+        startup::DiagnosticPhase::LibrarySelection,
+        preferences.resolve(cli.library.as_deref(), &platform_default),
+    )?;
+    let library = startup::observe(
+        startup::DiagnosticPhase::LibraryOpen,
+        portcove_core::Library::open(selection.root),
+    )?;
     if let Commands::Launch {
         command: LaunchCommand::Show { request_id },
     } = &cli.command
@@ -393,14 +465,17 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
     };
     #[cfg(not(feature = "qualification-fixtures"))]
     let qualification_provider: Option<std::sync::Arc<dyn portcove_core::ReleaseProvider>> = None;
-    let service = std::sync::Arc::new(match qualification_provider {
-        Some(provider) if command_is_observation(&cli.command) => {
-            PortcoveService::with_provider_read_only(library, provider)?
-        }
-        Some(provider) => PortcoveService::with_provider(library, provider)?,
-        None if command_is_observation(&cli.command) => PortcoveService::new_read_only(library)?,
-        None => PortcoveService::new(library)?,
-    });
+    let service = std::sync::Arc::new(startup::observe(
+        startup::DiagnosticPhase::ServiceStartup,
+        match qualification_provider {
+            Some(provider) if command_is_observation(&cli.command) => {
+                PortcoveService::with_provider_read_only(library, provider)
+            }
+            Some(provider) => PortcoveService::with_provider(library, provider),
+            None if command_is_observation(&cli.command) => PortcoveService::new_read_only(library),
+            None => PortcoveService::new(library),
+        },
+    )?);
     #[cfg(feature = "qualification-fixtures")]
     let qualification_update_run = matches!(
         &cli.command,
@@ -2738,6 +2813,46 @@ fn command_name(command: &Commands) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn stderr_verbosity_keeps_existing_levels_and_excludes_host_observations() {
+        use tracing_subscriber::{Layer, layer::SubscriberExt};
+
+        for verbosity in [0, 1, 2] {
+            let output = tempfile::NamedTempFile::new().unwrap();
+            let writer = output.as_file().try_clone().unwrap();
+            let subscriber = tracing_subscriber::registry().with(
+                tracing_subscriber::fmt::layer()
+                    .without_time()
+                    .with_ansi(false)
+                    .with_writer(move || writer.try_clone().unwrap())
+                    .with_filter(super::stderr_diagnostic_filter(verbosity)),
+            );
+            tracing::subscriber::with_default(subscriber, || {
+                tracing::warn!(target: "portcove_core", "existing application warning");
+                tracing::info!(target: "portcove_core", "existing application info");
+                tracing::debug!(target: "portcove_core", "existing application debug");
+                tracing::warn!(target: "owned_dependency", "existing dependency warning");
+                tracing::info!(target: "owned_dependency", "existing dependency info");
+                tracing::debug!(target: "owned_dependency", "existing dependency debug");
+                tracing::info!(target: "portcove_cli::host_diagnostics", "file-only CLI stage");
+                tracing::info!(target: "portcove_core::host_diagnostics", "file-only Core stage");
+            });
+            let text = std::fs::read_to_string(output.path()).unwrap();
+            for owner in ["application", "dependency"] {
+                assert!(text.contains(&format!("existing {owner} warning")));
+                assert_eq!(
+                    text.contains(&format!("existing {owner} info")),
+                    verbosity >= 1
+                );
+                assert_eq!(
+                    text.contains(&format!("existing {owner} debug")),
+                    verbosity >= 2
+                );
+            }
+            assert!(!text.contains("file-only"));
+        }
+    }
+
     #[test]
     fn consent_prompt_keeps_external_paths_on_one_control_safe_line() {
         let mut output = Vec::new();

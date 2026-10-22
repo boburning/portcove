@@ -203,8 +203,9 @@ retain their independent commitments.
 
 ## Local-first diagnostics
 
-This is planned specification work, not a claim that the following machinery
-has shipped. Runtime diagnostics explain behavior; Core activity/lifecycle
+This section records the diagnostic boundaries and canonical issue ownership;
+the [architecture contract](ARCHITECTURE.md#runtime-diagnostic-writer) describes
+the implementation. Runtime diagnostics explain behavior; Core activity/lifecycle
 persistence establishes committed outcomes, recovery and safe continuation;
 captured preparation/tool/game output retains its own supervision, storage,
 retention and completeness contract. Neither a missing completion log nor a
@@ -215,9 +216,10 @@ uniformity or make diagnostic logs another application authority.
 The bounded inspection at main `eea77d8d16a8adad8456346c598e4f3a32159fce`
 found synchronous desktop per-event metadata/open/write/sync work, ignored span
 context/string-only fields, initialization after library opening, and fail-fast
-support-bundle section collection. CLI tracing writes to stderr with explicit
-verbosity. This is source evidence, not proof that logging caused any previous
-timeout. Existing redaction, rotation, bounded activity captures, snapshot-rewrite
+support-bundle section collection. At that revision CLI tracing wrote to stderr
+with explicit verbosity. This historical source evidence does not prove that
+logging caused any previous timeout. Existing redaction, rotation, bounded
+activity captures, snapshot-rewrite
 avoidance [#990](https://github.com/boburning/portcove/issues/990), early safe stderr
 [#1465](https://github.com/boburning/portcove/issues/1465), retained log readback
 [#1494](https://github.com/boburning/portcove/issues/1494), and diagnostic copy/fallback
@@ -230,7 +232,7 @@ The independent delivery slices are:
 | Outcome                                                 | Canonical owner                                            | Interface dependency                                                                                                        |
 | ------------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Bounded writer and independent health                   | [#1922](https://github.com/boburning/portcove/issues/1922) | Consume #33 measurements where useful; no profiling prerequisite.                                                           |
-| Shared host policy, early startup and isolated sessions | [#1923](https://github.com/boburning/portcove/issues/1923) | Shared bounded backend when adopted; early fallback can ship independently.                                                 |
+| Shared host policy, early startup and isolated sessions | [#1923](https://github.com/boburning/portcove/issues/1923) | Shared bounded backend and approved field policy; executables retain subscriber and output ownership.                       |
 | Safe typed operation and frontend correlation           | [#1924](https://github.com/boburning/portcove/issues/1924) | Approved formatting/classification and existing operation IDs; no blanket host migration gate.                              |
 | Resilient support bundles and focused controls          | [#1925](https://github.com/boburning/portcove/issues/1925) | Each exported class needs #34 policy; startup-only sections need host log access, existing-library partial export does not. |
 
@@ -245,14 +247,16 @@ semantic errors, truthful committed/unknown/recovery outcomes and its finite
 remaining acceptance. These new diagnostics enhancements do not defer that
 acceptance or silently add beta requirements. Live Project fields own scheduling.
 
-The desktop bounded writer, independent health readback, finite exit flush,
-versioned typed operation/span observations and bounded frontend reports are
-implemented in the [runtime diagnostics contract](ARCHITECTURE.md#runtime-diagnostic-writer).
-Shared CLI host policy and isolated session files retain their separate owner
-below. Runtime writing and activity-capture durability remain distinct; a
-diagnostic session ID does not imply isolated files.
+The shared Desktop/CLI host policy, early bootstrap, isolated leased sessions,
+bounded writer, independent health readback, finite exit flush, versioned typed
+operation/span observations and bounded frontend reports are implemented in the
+[runtime diagnostics contract](ARCHITECTURE.md#runtime-diagnostic-writer).
+Support export collects the fixed session and legacy names through its existing
+independent, classified sections. Runtime writing, Core activity-capture durability
+and export budgets remain separate. Completion evidence belongs to the owning
+issues and PRs; this section does not mirror live Project status or CI results.
 
-### Policy and planned coverage
+### Diagnostics policy
 
 - Retain tracing/tracing-subscriber. Executables initialize subscribers; Core
   emits instrumentation. Share only useful host policy/formatting/redaction,
@@ -296,24 +300,35 @@ diagnostic session ID does not imply isolated files.
   Existing activity captures use separate 2 MiB per-stream/64 MiB retained-library
   bounds at the inspected revision; runtime settings must not redefine them.
 
-Candidate defaults for shared host/session policy remain application INFO/noisy
-dependency WARN, temporary DEBUG that resets at session end, and a 32 MiB
-aggregate session budget. The desktop writer retains 4 MiB segments and five
-rotated generations (24 MiB) with seven-day expiry of exact owned names. CLI
-still defaults WARN with explicit verbosity. Each remaining owner records
-measured capacities, active-session retention/failure behavior, DEBUG reset/expiry
-and CLI compatibility before changes.
+Shared file policy defaults to application INFO and dependency WARN. Exactly
+`PORTCOVE_DIAGNOSTICS_DEBUG=1`, or CLI `-vv`, enables application DEBUG for that
+process without changing saved preferences; subsequent sessions return to defaults
+unless opted in again. CLI stderr retains its separate WARN/`-v` INFO/`-vv` DEBUG
+contract. JSON/JSONL and raw child-stream output retain their existing behavior.
+
+Diagnostic location and session preparation runs on one bootstrap thread with a
+250 ms caller deadline. A timed-out preparation cannot start a late writer;
+blocked OS work can outlive the caller without changing startup success. The
+host session and location survive library switches. Eight independently leased
+slots each retain six 4 MiB files: 24 MiB per session and 192 MiB of managed
+runtime payload. Startup retention expires inactive sessions after seven days
+and targets 64 MiB of observed inactive bytes. Active, inaccessible and foreign
+files remain preserved, and an incomplete close marker never establishes its
+cause or authorizes recovery. Support export inspects only the 48 fixed session
+names and six legacy names, with 4 MiB per-file and 24 MiB aggregate raw-input
+limits, while retaining the independent 16 MiB exported-payload cap.
+
 No unrelated CI-policy, dependency, remote telemetry, hosted logging, account,
 query service, comprehensive viewer or universal game-capture project is implied.
 
-Start with a bounded writer/failure fixture and independent health evidence;
-partial export fixes and early startup fallback can proceed independently.
 Only genuine interface/data-class dependencies constrain their matching changes,
 not a four-phase waterfall. Typed classification is required for each newly exported
 class; existing-class export resilience need not wait for complete enrichment.
 Focused owned Windows/Linux fixtures, privacy canaries, exact CLI/operation outcome
-controls and separate review provide evidence. No owner playtest, proprietary game
-data, paid Actions or owner-operated Mac requirement is introduced.
+controls and separate review provide evidence through the
+[runtime qualification route](reference/runtime-diagnostic-qualification.md).
+No owner playtest, proprietary game data, paid Actions or owner-operated Mac
+requirement is introduced.
 
 ## Optional Docker development tooling
 

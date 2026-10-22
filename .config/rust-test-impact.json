@@ -120,9 +120,13 @@
         },
         {
           "id": "runtime-diagnostics",
-          "reason": "the complete runtime fixture binary covers the Desktop writer, typed events, frontend report admission, shared Core privacy policy, and committed outcomes under injected failures",
-          "paths": ["crates/portcove-cli/tests/runtime_diagnostics.rs"],
-          "filter": "binary(=runtime_diagnostics)"
+          "reason": "complete runtime and host subprocess fixtures cover shared writing, typed privacy, early startup, CLI streams and committed outcomes under injected failures",
+          "paths": [
+            "crates/portcove-cli/tests/runtime_diagnostics.rs",
+            "crates/portcove-cli/tests/host_diagnostics.rs",
+            "crates/portcove-cli/tests/desktop_host_diagnostics.rs"
+          ],
+          "filter": "binary(=runtime_diagnostics) | binary(=host_diagnostics) | binary(=desktop_host_diagnostics)"
         }
       ]
     }
