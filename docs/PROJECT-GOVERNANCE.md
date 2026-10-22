@@ -158,8 +158,9 @@ duplicate, stalled, changed or transport-failed observations fail without an
 automatic retry. Project reads, supplied validated inventories and other
 collectors retain their existing budgets and behavior; partial coverage never
 establishes missing canonical issues or a successful inventory.
-Programmatic doctor calls keep single-attempt collection unless the caller
-supplies the attempt-evidence sink; supplied validated inventories bypass it.
+Programmatic doctor calls retain their default collector unless the caller
+supplies the attempt-evidence sink to select the count-verified GraphQL collector;
+supplied validated inventories bypass collection.
 
 Repository Node tools execute GitHub requests through the shared
 `scripts/github-api.mts` transport. GraphQL queries and variables are serialized
