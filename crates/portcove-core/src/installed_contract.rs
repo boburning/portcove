@@ -22,6 +22,8 @@ pub(crate) struct InstalledContract {
     original_format: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     preparation_mode: Option<crate::PreparationMode>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    external_trust: Option<crate::ExternalRuntimeTrust>,
     port_id: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     catalog_json: String,
@@ -40,7 +42,7 @@ impl InstalledContract {
         catalog.port(port_id)?;
         let definition = catalog.definition_snapshot(port_id).cloned();
         let admission = catalog.definition_selection(port_id).cloned();
-        let contract = Self {
+        let mut contract = Self {
             format: if admission.is_some() {
                 3
             } else if definition.is_some() {
@@ -50,6 +52,7 @@ impl InstalledContract {
             },
             original_format: None,
             preparation_mode: None,
+            external_trust: None,
             port_id: port_id.into(),
             catalog_json: if definition.is_some() {
                 String::new()
@@ -59,16 +62,35 @@ impl InstalledContract {
             definition,
             admission,
         };
+        if catalog
+            .port(port_id)?
+            .release
+            .user_prepared
+            .values()
+            .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
+        {
+            contract.original_format = Some(contract.format);
+            contract.format = 5;
+            contract.external_trust = Some(crate::ExternalRuntimeTrust::UserSelected);
+        }
         contract.catalog(port_id)?;
         Ok(contract)
     }
 
     pub(crate) fn catalog(&self, port_id: &str) -> Result<Catalog> {
-        let original_format = match (self.format, self.original_format, self.preparation_mode) {
-            (format @ 1..=3, None, None) => format,
-            (4, Some(format @ 1..=3), Some(crate::PreparationMode::Ghostship200Legacy))
+        let original_format = match (
+            self.format,
+            self.original_format,
+            self.preparation_mode,
+            self.external_trust,
+        ) {
+            (format @ 1..=3, None, None, None) => format,
+            (4, Some(format @ 1..=3), Some(crate::PreparationMode::Ghostship200Legacy), None)
                 if self.port_id == "ghostship" =>
             {
+                format
+            }
+            (5, Some(format @ 1..=3), None, Some(crate::ExternalRuntimeTrust::UserSelected)) => {
                 format
             }
             _ => {
@@ -109,9 +131,13 @@ impl InstalledContract {
             }
             None => self.catalog_json.clone(),
         };
-        if self.format == 4 {
-            cache_key =
-                serde_json::to_string(&(self.original_format, self.preparation_mode, cache_key))?;
+        if self.format == 4 || self.format == 5 {
+            cache_key = serde_json::to_string(&(
+                self.original_format,
+                self.preparation_mode,
+                self.external_trust,
+                cache_key,
+            ))?;
         }
         if let Ok(cache) = DECODED_CATALOG.lock()
             && let Some((format, content, catalog)) = cache.as_ref()
@@ -129,6 +155,18 @@ impl InstalledContract {
             catalog.retain_definition_selection(Arc::new(admission.clone()))?;
         }
         catalog.port(port_id)?;
+        if self.format == 5
+            && !catalog
+                .port(port_id)?
+                .release
+                .user_prepared
+                .values()
+                .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
+        {
+            return Err(PortcoveError::verification(
+                "retained user-selection envelope has no matching trust semantics",
+            ));
+        }
         // Format 1 stores canonical legacy semantics. Format 2 already ran the
         // strict indexed interpreter; neither route may discard unknown fields.
         if self.definition.is_none()
@@ -348,6 +386,7 @@ mod tests {
             format: 1,
             original_format: None,
             preparation_mode: None,
+            external_trust: None,
             port_id: "zelda64-recomp".into(),
             catalog_json: serde_json::to_string(successor.definition.as_ref().unwrap()).unwrap(),
             definition: None,

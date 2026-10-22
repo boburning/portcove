@@ -333,7 +333,7 @@ fn native_setup_captures_both_streams_and_preserves_exit_status() {
     assert!(output.output.contains("owned stdout"));
     assert!(output.output.contains("owned stderr"));
     assert!(output.output.contains('\u{fffd}'));
-    assert!(!output.truncated);
+    assert!(output.output.len() < SETUP_OUTPUT_LIMIT);
 
     let failure = fixture("failure");
     let output = run_fixture(failure.path(), &|| Ok(())).unwrap();
@@ -403,10 +403,36 @@ fn idle_setup_does_not_republish_unchanged_diagnostics() {
 #[test]
 fn verbose_setup_is_drained_with_bounded_capture() {
     let temporary = fixture("flood");
-    let output = run_fixture(temporary.path(), &|| Ok(())).unwrap();
+    let root = temporary.path();
+    let mut final_capture = None;
+    let output = run_setup(
+        &std::env::current_exe().unwrap(),
+        &["--exact".into(), CHILD_TEST.into(), "--nocapture".into()],
+        &root.join("owned-fixture.iso"),
+        root,
+        &Default::default(),
+        &|| Ok(()),
+        ToolProcessObserver {
+            diagnostics: Some(ToolDiagnosticSink {
+                activity_id: "owned-flood-fixture",
+                phase: "preparation.setup",
+                record: &mut |snapshot| {
+                    final_capture = Some(snapshot.clone());
+                    Ok(())
+                },
+            }),
+            quiesced: None,
+        },
+    )
+    .unwrap();
     assert!(output.status.success());
-    assert!(output.truncated);
     assert!(output.output.len() <= SETUP_OUTPUT_LIMIT);
+    let captured = final_capture.unwrap();
+    assert!(captured.complete);
+    assert!(
+        captured.stdout.observed_bytes + captured.stderr.observed_bytes
+            > output.output.len() as u64
+    );
 }
 
 #[test]

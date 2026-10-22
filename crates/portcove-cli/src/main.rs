@@ -1660,6 +1660,70 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             )?;
         }
         Commands::External { command } => match command {
+            ExternalCommand::SelectPreview {
+                port_id,
+                executable,
+                working_directory,
+                arguments,
+            } => {
+                render_read_success(
+                    mode,
+                    "external.select-preview",
+                    service.preview_user_selected_runtime(
+                        &port_id,
+                        &executable,
+                        &working_directory,
+                        &arguments,
+                    )?,
+                    |result| human::external_preview(result, service.catalog()),
+                )?;
+            }
+            ExternalCommand::Select {
+                port_id,
+                executable,
+                working_directory,
+                arguments,
+                expected_preview,
+                yes,
+            } => {
+                let preview = service.preview_user_selected_runtime(
+                    &port_id,
+                    &executable,
+                    &working_directory,
+                    &arguments,
+                )?;
+                if mode == OutputMode::Human {
+                    println!("{}", human::external_preview(&preview, service.catalog()));
+                }
+                require_confirmation(
+                    &format!(
+                        "Run the executable you selected at {} with working directory {}? You or the upstream launcher manage this installation and updates. Portcove has not authenticated it as an official package and will not replace, back up or delete its files.",
+                        preview.executable.display(),
+                        preview.path.display()
+                    ),
+                    yes,
+                    cli.non_interactive,
+                )?;
+                let authorization = service.authorize_user_selected_runtime(
+                    &port_id,
+                    &executable,
+                    &working_directory,
+                    &arguments,
+                    &expected_preview,
+                )?;
+                render_read_success(
+                    mode,
+                    "external.select",
+                    service.register_user_selected_runtime(
+                        &port_id,
+                        &executable,
+                        &working_directory,
+                        &arguments,
+                        &authorization.token,
+                    )?,
+                    |result| human::external_runtime(result, service.catalog()),
+                )?;
+            }
             ExternalCommand::RelinkPreview { port_id, path } => {
                 render_read_success(
                     mode,
@@ -2674,6 +2738,8 @@ fn command_name(command: &Commands) -> &'static str {
         },
         Commands::External { command } => match command {
             ExternalCommand::Preview { .. } => "external.preview",
+            ExternalCommand::SelectPreview { .. } => "external.select-preview",
+            ExternalCommand::Select { .. } => "external.select",
             ExternalCommand::RemovalPreview { .. } => "external.removal-preview",
             ExternalCommand::Register { .. } => "external.register",
             ExternalCommand::RelinkPreview { .. } => "external.relink-preview",

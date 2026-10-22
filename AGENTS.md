@@ -18,6 +18,13 @@ activation, rollback, credentials and executable trust. For structural or
 cross-layer changes, start at [the ownership map](docs/ARCHITECTURE.md#find-the-owning-boundary),
 then the affected subsystem.
 
+Port integrations follow the [upstream-first ownership contract](docs/CATALOG.md#integration-ownership).
+Prefer official packages and supported upstream preparation; each installation
+has one runtime-replacement owner. Use bounded non-owning registration or a
+precise upstream dependency/product deferral when full management would require
+disproportionate downstream builds or engine repair. Preserve existing runtime
+and player-data compatibility separately from offering new runtime creation.
+
 GitHub Projects owns live planning fields; issues own specifications and
 completion evidence; `catalog.json` owns support; docs own stable contracts and
 dated evidence. Keep Cataloged distinct from Supported, unknown optional evidence

@@ -149,6 +149,9 @@ fn attach_process_tree_proof(
 pub(crate) struct SetupOutput {
     pub status: ExitStatus,
     pub output: String,
+    // The retained producer receipt records aggregate capture truncation. The
+    // ordinary setup callers consume status/text and durable stream diagnostics.
+    #[cfg(feature = "qualification-fixtures")]
     pub truncated: bool,
     #[cfg(any(test, feature = "qualification-fixtures"))]
     pub process_tree_proof: BTreeMap<String, String>,
@@ -351,6 +354,7 @@ pub(crate) fn run_tool(
         diagnostic.map_err(|error| attach_process_tree_proof(error, &process_tree_proof))?;
     checkpoint().map_err(|error| attach_process_tree_proof(error, &process_tree_proof))?;
     let mut output = format!("{}\n{}", diagnostic.stdout.text, diagnostic.stderr.text);
+    #[cfg(feature = "qualification-fixtures")]
     let truncated = diagnostic.stdout.truncated
         || diagnostic.stderr.truncated
         || output.len() > SETUP_OUTPUT_LIMIT;
@@ -362,6 +366,7 @@ pub(crate) fn run_tool(
     Ok(SetupOutput {
         status,
         output,
+        #[cfg(feature = "qualification-fixtures")]
         truncated,
         #[cfg(any(test, feature = "qualification-fixtures"))]
         process_tree_proof,

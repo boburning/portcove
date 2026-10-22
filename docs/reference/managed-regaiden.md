@@ -9,12 +9,20 @@ This is user-side acquisition, not redistribution or a blanket license assertion
 Keep all package files and notices. Historical prepared registrations keep their
 original non-owning contract; no external folders or saves are adopted.
 
+The current definition uses `gbrecompiled-windows-v1` (capability 19), typed
+retained direct-release identity and the source-reviewed save-ID basename.
+The exact v0.4.1 facts and observations below remain package-scoped. Compatible
+future facts need focused checks of this parser, local/shared paths and save-ID
+behavior. The old `regaiden041-windows` interpretation remains for identified
+[persisted consumers](upstream-first-compatibility.md).
+
 Core copies the admitted original to `game.gbc`, creates an owned local `saves`
 directory in private installation staging, and launches the fixed executable from
-the installation root with `--rom game.gbc --save-dir saves`. Only this exact
-artifact and closed route support the new `regaiden-gbc` materialization. Older
-engines cannot parse it. Definition capability 16 and API77 describe the contract;
-Render96 capability13, Gundam capability14 and RaceWave capability15 cannot authorize shared preferences.
+the installation root with `--rom game.gbc --save-dir saves`. This reviewed
+behavior supports `regaiden-gbc` materialization. Older engines cannot parse it.
+Definition capability 16 and API77 describe its original exact-artifact contract;
+new reusable declarations require capability 19 and API80. A retired builder
+capability cannot authorize shared preferences.
 Historical qualification retains its original engine identity;
 schema7 installation manifests retain the reviewed account/path binding. Earlier
 manifest readers refuse schema7 instead of dropping consent.

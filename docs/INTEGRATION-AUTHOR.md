@@ -63,6 +63,17 @@ an unchanged documentation task does not require a new package build or replay.
 
 ## Channel compatibility
 
+API80 adds explicit user-selected external execution intent and reusable managed
+runtime policies. User-selected registrations are distinct from exact accepted
+package certification: use Core's selected executable/working-directory/argument
+review and consent, then supervised launch and registration-only removal. Never
+invent package authenticity or managed update/backup/rollback/delete rights.
+The Playnite reference launches/removes retained registrations, and directs new
+user-selected setup to Desktop or CLI; it does not parse build internals. Unknown
+trust values, required capabilities and future API versions remain refused.
+See [the CLI flow](CLI.md#using-the-cli) and
+[retained consumer commitments](reference/upstream-first-compatibility.md).
+
 Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
 
 ## Discover and bind
@@ -100,7 +111,7 @@ program/argument objects, not shell command strings:
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
 only the required command names and formats: launch-only needs JSON plus raw
 `exec`, read-only library integration needs JSON, and lifecycle operations add
-JSONL. The reference supports API 42–57, 60–63 or 65–79/events 2–3; schema 50 advertises
+JSONL. The reference supports API 42–57, 60–63 or 65–80/events 2–3; schema 50 advertises
 the event authority as `operation_event_schema_version`, while the historical
 42–49 window retains its documented event-2 contract. Schema 51 replaces the
 activity array with a feed whose protected ID sets and completeness fields must
@@ -315,7 +326,7 @@ see [the managed contract and recovery path](reference/managed-regaiden.md).
 
 Current event records have **event schema 3 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's supported 42–57, 60–63 or 65–79 membership. Some
+schema within the client's supported 42–57, 60–63 or 65–80 membership. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core

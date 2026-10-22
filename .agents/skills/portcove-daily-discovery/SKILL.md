@@ -7,6 +7,11 @@ metadata:
 ---
 
 Read [the daily investigation contract](../../../docs/DAILY-PORT-DISCOVERY.md).
+Apply its current #1422 owner amendment and the
+[upstream-first ownership boundary](../../../docs/CATALOG.md#integration-ownership)
+when investigating routes: a useful limited integration, upstream dependency or
+product deferral can replace disproportionate downstream engineering. Discovery
+does not authorize implementation or reversal of deferrals.
 Use the existing portcove-roadmap skill for canonical intake and readback.
 Run the maintained `node scripts/daily-discovery.mts plan`, then `run` in the
 clean, detached dedicated metadata checkout. Start `run` with `exec_command`

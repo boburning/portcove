@@ -421,6 +421,7 @@ fn existing_external_registration_excludes_current_managed_install() {
     let (_temporary, service, batch) = service_fixture();
     let port = service.catalog().port("zelda64-recomp").unwrap();
     let record = crate::ExternalRuntimeRecord {
+        user_selected: None,
         id: "historical-external".into(),
         port_id: port.id.clone(),
         path: service.library().root().join("inert-external"),

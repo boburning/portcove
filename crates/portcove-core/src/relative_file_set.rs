@@ -433,21 +433,6 @@ pub(crate) fn inspect_with_checkpoint(
     )
 }
 
-pub(crate) fn inspect_with_budget(
-    catalog: &crate::Catalog,
-    profile_id: &str,
-    path: &Path,
-    budget: &mut crate::source_file::HashBudget,
-) -> Result<crate::SourceInspection> {
-    inspect_with_limits(
-        catalog,
-        profile_id,
-        path,
-        budget,
-        &mut ReadLimits::default(),
-    )
-}
-
 pub(crate) fn inspect_with_limits(
     catalog: &crate::Catalog,
     profile_id: &str,
@@ -1147,7 +1132,14 @@ mod tests {
             max_zip_entries: 16,
         };
         assert!(
-            inspect_with_budget(&catalog(), "relative-fixture", root.path(), &mut budget).is_err()
+            inspect_with_limits(
+                &catalog(),
+                "relative-fixture",
+                root.path(),
+                &mut budget,
+                &mut ReadLimits::default()
+            )
+            .is_err()
         );
         assert!(budget.hashed <= budget.limit);
     }

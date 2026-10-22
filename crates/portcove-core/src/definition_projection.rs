@@ -59,7 +59,7 @@ impl DefinitionSnapshot {
     pub(crate) fn projection(&self) -> Result<DefinitionCatalogProjection> {
         self.validate_bounds()?;
         let index = DefinitionContentIndex::parse(self.index_json.as_bytes())?;
-        index.inspect_catalog_projection(
+        index.inspect_retained_catalog_projection(
             &self.namespace,
             &self.stable_id,
             self.entry_json.as_bytes(),
@@ -112,7 +112,44 @@ impl DefinitionContentIndex {
         entry_bytes: &[u8],
         contract_bytes: &[u8],
     ) -> Result<DefinitionCatalogProjection> {
-        let entry = self.inspect_entry(namespace, stable_id, entry_bytes)?;
+        self.inspect_catalog_projection_mode(
+            namespace,
+            stable_id,
+            entry_bytes,
+            contract_bytes,
+            false,
+        )
+    }
+
+    pub(crate) fn inspect_retained_catalog_projection(
+        &self,
+        namespace: &str,
+        stable_id: &str,
+        entry_bytes: &[u8],
+        contract_bytes: &[u8],
+    ) -> Result<DefinitionCatalogProjection> {
+        self.inspect_catalog_projection_mode(
+            namespace,
+            stable_id,
+            entry_bytes,
+            contract_bytes,
+            true,
+        )
+    }
+
+    fn inspect_catalog_projection_mode(
+        &self,
+        namespace: &str,
+        stable_id: &str,
+        entry_bytes: &[u8],
+        contract_bytes: &[u8],
+        retained: bool,
+    ) -> Result<DefinitionCatalogProjection> {
+        let entry = if retained {
+            self.inspect_retained_entry(namespace, stable_id, entry_bytes)?
+        } else {
+            self.inspect_entry(namespace, stable_id, entry_bytes)?
+        };
         if !entry.capabilities().compatible {
             return Err(PortcoveError::unsupported(
                 "definition requires unsupported engine capabilities",

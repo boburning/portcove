@@ -56,7 +56,8 @@ fn external_runtime_row_sha256(port_id: &str, record: &str, catalog: &str) -> Re
 fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
     let port = catalog.port(port_id)?;
     if port.release.user_prepared.values().any(|runtime| {
-        !runtime.required_mutable_files.is_empty()
+        runtime.trust == crate::ExternalRuntimeTrust::UserSelected
+            || !runtime.required_mutable_files.is_empty()
             || runtime.shared_preferences.is_some()
             || runtime.source_directory_environment
     }) {
@@ -88,6 +89,13 @@ fn check_external_preferences_binding(
         .user_prepared
         .get(&record.platform)
     {
+        if (spec.trust == crate::ExternalRuntimeTrust::UserSelected)
+            != record.user_selected.is_some()
+        {
+            return Err(PortcoveError::verification(
+                "external runtime trust differs from its retained contract",
+            ));
+        }
         crate::external_runtime::shared_preferences::check_binding(record, spec)?;
     } else if record.shared_preferences.is_some() {
         return Err(PortcoveError::verification(

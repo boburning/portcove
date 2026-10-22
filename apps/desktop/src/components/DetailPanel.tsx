@@ -8,6 +8,10 @@ import { BrowsingMatchDetails } from "../features/browsing/BrowsingMatchDetails"
 import type { CatalogQueryResult } from "../features/browsing/catalog-query";
 import { SteamEntryControl } from "./SteamEntry";
 import { ExternalRuntimeControl } from "./ExternalRuntime";
+import {
+  usesExternalRuntimeRoute,
+  usesUserSelectedRuntime,
+} from "../shared/external-runtime-trust";
 import { ArtworkControls, ArtworkImage, DetailArtwork } from "./Artwork";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
@@ -521,7 +525,7 @@ function DetailBody({
   openLibraryStorage?: (() => void) | undefined;
 }) {
   const managedPreparation = needsManagedPreparation(port, installed);
-  const external = port.release.provider === "user-prepared" || Boolean(status?.external_runtime);
+  const external = usesExternalRuntimeRoute(port, status);
   return (
     <div className="detail-body pb-10">
       <div className="detail-summary">
@@ -581,7 +585,7 @@ function DetailBody({
         <summary className="cursor-pointer py-2 text-sm font-medium">File matching details</summary>
         {observations}
       </details>
-      {!external && (
+      {!external && port.release.provider !== "user-prepared" && (
         <UpdatesGroup
           perform={perform}
           port={port}
@@ -722,7 +726,7 @@ function StatusActionsGroup({
     Boolean(
       selectedSourceRequirement(sources.source, sources.sourcePath, sources.bios, sources.biosPath),
     );
-  if (port.release.provider === "user-prepared" || status?.external_runtime) {
+  if (usesExternalRuntimeRoute(port, status)) {
     return (
       <section aria-label="Game actions" className="grid gap-3">
         <RetiredNotice port={port} />
@@ -772,7 +776,7 @@ function StatusActionsGroup({
       </section>
     );
   }
-  if (!installed && actionPresentation.blocked)
+  if (!installed && !stagedVersion && actionPresentation.blocked)
     return (
       <section aria-label="Game actions" className="grid gap-3">
         <RetiredNotice port={port} />
@@ -1056,7 +1060,7 @@ function SavesStorageGroup({
   return (
     <DetailGroup title="Saves and storage" headingRef={heading}>
       <TrustStrip status={status} />
-      <SavesAndSettingsSummary port={port} />
+      <SavesAndSettingsSummary port={port} status={status} />
       <StorageSummary status={status} />
       <FutureSetupDisclosure
         deferred={deferSetupChoices}
@@ -1261,7 +1265,9 @@ function ProjectReleaseSummary({ port }: { port: PortDefinition }) {
               ? "Portcove uses the pinned release recorded in the catalog."
               : "Portcove uses the release details recorded in the catalog."
             : port.release.provider === "user-prepared"
-              ? "Portcove uses the accepted package identity recorded in the catalog. You prepare the runtime."
+              ? usesUserSelectedRuntime(port)
+                ? "You or the upstream launcher manage setup and updates. Portcove saves your selected launch details without authenticating the files as an official package."
+                : "Portcove uses the accepted package identity recorded in the catalog. You prepare the runtime."
               : "Portcove checks this project for releases."}
         </span>
       </div>
@@ -1296,16 +1302,24 @@ function RequirementsSummary({ port }: { port: PortDefinition }) {
   );
 }
 
-function SavesAndSettingsSummary({ port }: { port: PortDefinition }) {
+function SavesAndSettingsSummary({
+  port,
+  status,
+}: {
+  port: PortDefinition;
+  status?: PortStatus | undefined;
+}) {
   return (
     <div className="metadata grid grid-cols-[1fr_1fr] gap-[10px]">
       <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
         <small className="mb-[5px] block text-[var(--color-text-muted)]">Saved data handling</small>
-        {port.presentation?.saves_and_settings === "portcove-managed"
-          ? "Managed by Portcove for backup and restore"
-          : port.presentation?.saves_and_settings === "external-user-owned"
-            ? "Stored with your external runtime; Portcove does not back up or remove it"
-            : "Unavailable in this catalog"}
+        {(status?.active || status?.staged) && port.release.provider === "user-prepared"
+          ? "Managed by Portcove under this installation's retained contract"
+          : port.presentation?.saves_and_settings === "portcove-managed"
+            ? "Managed by Portcove for backup and restore"
+            : port.presentation?.saves_and_settings === "external-user-owned"
+              ? "Stored with your external runtime; Portcove does not back up or remove it"
+              : "Unavailable in this catalog"}
       </span>
     </div>
   );
@@ -1527,7 +1541,7 @@ function TechnicalDetails({
   sources: SourceControls;
   actions: DetailActions;
 }) {
-  const includeManagement = port.release.provider !== "user-prepared" && !status?.external_runtime;
+  const includeManagement = !usesExternalRuntimeRoute(port, status);
   const persistentFiles = [
     ...port.persistent_paths,
     ...(port.persistent_file_patterns ?? []).map(
@@ -1553,7 +1567,9 @@ function TechnicalDetails({
               <small className="mb-[5px] block text-[var(--color-text-muted)]">
                 Saved data patterns
               </small>
-              {persistentFiles || "No saved data paths declared"}
+              {(status?.active || status?.staged) && port.release.provider === "user-prepared"
+                ? "Saved data follows this installation's retained contract."
+                : persistentFiles || "No saved data paths declared"}
             </span>
           </div>
         )}
@@ -1845,7 +1861,11 @@ function PrimaryActions({
       </>
     );
   if (!installed)
-    return (
+    return stagedVersion ? (
+      <div className="actions primary-actions mt-[16px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
+        <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />
+      </div>
+    ) : (
       <InstallAction
         cancellations={installCancellations}
         ready={launchReady}
@@ -2508,6 +2528,7 @@ interface DetailStateInput {
   missingRequirement: SelectedRequirement | undefined;
   invalidInstallation: boolean;
   externalRuntime: boolean;
+  userSelectedRuntime: boolean;
 }
 
 function detailState({
@@ -2523,7 +2544,16 @@ function detailState({
   missingRequirement,
   invalidInstallation,
   externalRuntime,
+  userSelectedRuntime,
 }: DetailStateInput): DetailState {
+  if (invalidInstallation && userSelectedRuntime)
+    return {
+      title: "Existing installation unavailable",
+      description:
+        "Check the selected executable and working directory. Complete any upstream setup, or remove only this registration and choose the launch details again. Your external files stay in place.",
+      tone: "setup",
+      icon: AlertTriangle,
+    };
   if (invalidInstallation)
     return {
       title: "Installation needs repair",
@@ -2533,7 +2563,12 @@ function detailState({
       icon: AlertTriangle,
     };
   if (!installed)
-    return availableInstallState(selectedRequirement, missingRequirement, externalRuntime);
+    return availableInstallState(
+      selectedRequirement,
+      missingRequirement,
+      externalRuntime,
+      userSelectedRuntime,
+    );
   if (runtimeNeeded) return runtimeRequirementState(runtimeUpdateAvailable);
   const sourceIssue = sourceHealthState("game", sourceHealth);
   if (sourceIssue) return sourceIssue;
@@ -2604,7 +2639,16 @@ function availableInstallState(
   selectedRequirement?: SelectedRequirement,
   missingRequirement?: SelectedRequirement,
   externalRuntime = false,
+  userSelectedRuntime = false,
 ): DetailState {
+  if (userSelectedRuntime)
+    return {
+      title: "Choose your existing installation",
+      description:
+        "Complete upstream setup, then choose the game executable, working directory and any required arguments. You or the upstream launcher manage setup and updates; Portcove saves these launch details.",
+      tone: "available",
+      icon: Wrench,
+    };
   if (missingRequirement) {
     const requirement =
       missingRequirement === "both"
@@ -2803,7 +2847,8 @@ function presentDetailState({
           invalidInstallation: Boolean(
             status?.readiness?.blockers.includes("invalid_installation"),
           ),
-          externalRuntime: port.release.provider === "user-prepared",
+          externalRuntime: usesExternalRuntimeRoute(port, status),
+          userSelectedRuntime: usesUserSelectedRuntime(port, status),
         });
 }
 

@@ -26,6 +26,16 @@ renaming; this history does not deliver future commands or migrate stored data.
 
 ## Documented API changes
 
+API80 introduces explicit selected-executable external trust/intent and the
+reusable typed managed-policy declarations (staged-source capabilities 20 and
+19 respectively). Registration preview/results distinguish selected bytes from
+accepted-package certification. New retained format5 makes old readers refuse
+user-selected execution semantics. Existing exact-package records and managed
+runtime manifests retain their original meanings; creation-only recipe
+capabilities retire without erasing those readers. Events remain version3.
+The [compatibility record](upstream-first-compatibility.md) identifies actual
+published, development and persisted consumers and remaining retirement conditions.
+
 “Additive” describes the recorded shape change, not automatic compatibility with
 an unknown enum, capability or execution consequence. Breaking array/object,
 review, ownership and required-assessment changes need explicit reader handling.

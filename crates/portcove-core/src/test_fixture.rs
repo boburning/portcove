@@ -120,7 +120,22 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = target(contract);
         let port = self.port;
         let port_id = &port.id;
-        let capability_version = if port.managed_shared_preferences.is_some() {
+        let capability_version = if port
+            .release
+            .user_prepared
+            .values()
+            .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
+        {
+            20
+        } else if port.managed_initialization
+            == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1)
+            || port.runtime_data_policy
+                == Some(crate::RuntimeDataPolicy::VersionLocalRetroAchievementsV1)
+            || port.managed_shared_preferences
+                == Some(crate::PreparedSharedPreferencesContract::GbRecompiledWindowsV1)
+        {
+            19
+        } else if port.managed_shared_preferences.is_some() {
             16
         } else if port.runtime_data_policy.is_some() {
             15
@@ -204,9 +219,9 @@ impl<'a> IndexedCatalogFixture<'a> {
 fn indexed_policy_fixtures_keep_delivered_reader_floors() {
     let catalog = crate::Catalog::embedded().unwrap();
     for (id, version) in [
-        ("resident-evil-gaiden-recomp", 16),
-        ("wave-race-64-racewave46", 15),
-        ("render96ex", 13),
+        ("resident-evil-gaiden-recomp", 19),
+        ("wave-race-64-racewave46", 19),
+        ("render96ex", 20),
     ] {
         let bundle = IndexedCatalogFixture::new(&catalog, id).at_revision(7);
         let entry: serde_json::Value = serde_json::from_slice(&bundle.contents[0].1).unwrap();

@@ -25,6 +25,66 @@ const MAX_TREE_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 
 pub(crate) mod shared_preferences;
 pub(crate) mod tfe_settings;
+mod user_selected;
+pub(crate) use user_selected::{
+    check_record as check_user_selected_record, preview as preview_user_selected,
+};
+
+pub(crate) fn validate_user_selected_route(
+    port: &crate::PortDefinition,
+    spec: &UserPreparedRuntimeSpec,
+) -> Result<()> {
+    if port.adapter != crate::AdapterKind::StagedSourcePortable
+        || spec.version != "user-managed"
+        || !spec.archive_name.is_empty()
+        || spec.archive_size != 0
+        || !spec.archive_sha256.is_empty()
+        || !spec.immutable_tree_sha256.is_empty()
+        || !spec.executable.is_empty()
+        || spec.source_argument_extension.is_some()
+        || spec.source_directory_environment
+        || spec.library_user_data
+        || !spec.mutable_paths.is_empty()
+        || !spec.required_mutable_files.is_empty()
+        || spec.settings_contract.is_some()
+        || spec.shared_preferences.is_some()
+        || port.source_profile.is_some()
+        || port.bios_source_profile.is_some()
+        || port
+            .executable_hints
+            .values()
+            .any(|hints| !hints.is_empty())
+        || !port.persistent_paths.is_empty()
+        || !port.persistent_file_patterns.is_empty()
+        || !port.runtime_mutable_paths.is_empty()
+        || !port.runtime_mutable_file_patterns.is_empty()
+        || port.windows_runtime_path_policy.is_some()
+        || port.portable_marker
+        || port.n64_windows_initial_d3d12
+        || port.managed_initialization.is_some()
+        || port.runtime_data_policy.is_some()
+        || port.managed_shared_preferences.is_some()
+        || port.source_environment.is_some()
+        || port.user_data_environment.is_some()
+        || !port.launch_environment.is_empty()
+        || !port.launch_arguments.is_empty()
+        || port.runtime_subdirectory.is_some()
+        || port.runtime_source_filename.is_some()
+        || port.runtime_source_materialization.is_some()
+        || !port.runtime_source_hashes.is_empty()
+        || !port.runtime_source_set.is_empty()
+        || port.launch_from_install_root
+        || !port.setup_executable_hints.is_empty()
+        || !port.setup_arguments.is_empty()
+        || port.setup_marker.is_some()
+        || !port.setup_output_paths.is_empty()
+    {
+        return Err(PortcoveError::usage(
+            "user-selected runtime offers execution and registration removal only; package, source, settings and managed lifecycle declarations are not allowed",
+        ));
+    }
+    Ok(())
+}
 
 /// Required selectors are existence/type constraints, never content authority.
 pub(crate) fn validate_required_mutable_files(spec: &UserPreparedRuntimeSpec) -> Result<()> {
@@ -154,6 +214,8 @@ pub(crate) struct InspectedExternalRuntime {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExternalRuntimePreview {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_selected: Option<crate::UserSelectedLaunch>,
     pub port_id: String,
     pub path: PathBuf,
     pub executable: PathBuf,
@@ -215,6 +277,14 @@ pub(crate) fn check_registered_location(
     spec: &UserPreparedRuntimeSpec,
     library_root: &Path,
 ) -> Result<()> {
+    if spec.trust == crate::ExternalRuntimeTrust::UserSelected {
+        return check_user_selected_record(record, spec, library_root);
+    }
+    if record.user_selected.is_some() {
+        return Err(PortcoveError::verification(
+            "user-selected execution has no retained trust contract",
+        ));
+    }
     if record.platform != Platform::current()? {
         return Err(PortcoveError::unsupported(
             "external runtime belongs to another platform",
@@ -807,6 +877,7 @@ mod tests {
         fs::create_dir(&runtime).unwrap();
         fs::write(runtime.join("game.exe"), b"accepted executable").unwrap();
         let mut spec = UserPreparedRuntimeSpec {
+            trust: crate::ExternalRuntimeTrust::AcceptedPackage,
             version: "1.0".into(),
             archive_name: "game-windows.zip".into(),
             archive_size: 100,
@@ -833,6 +904,7 @@ mod tests {
     ) -> ExternalRuntimeRecord {
         let inspected = inspect(runtime, spec, library).unwrap();
         ExternalRuntimeRecord {
+            user_selected: None,
             id: "location-probe".into(),
             port_id: "location-probe".into(),
             path: inspected.root,

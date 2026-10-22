@@ -611,6 +611,36 @@ export const desktopApi = {
     }),
   previewExternalRuntime: (portId: string, path: string, generation: number) =>
     invoke<ExternalRuntimePreview>("preview_external_runtime", { portId, path, generation }),
+  previewUserSelectedRuntime: (
+    portId: string,
+    executable: string,
+    workingDirectory: string,
+    arguments_: string[],
+    generation: number,
+  ) =>
+    invoke<ExternalRuntimePreview>("preview_user_selected_runtime", {
+      portId,
+      executable,
+      workingDirectory,
+      arguments: arguments_,
+      generation,
+    }),
+  registerUserSelectedRuntime: (
+    portId: string,
+    executable: string,
+    workingDirectory: string,
+    arguments_: string[],
+    expectedPreview: string,
+    generation: number,
+  ) =>
+    invoke<ExternalRuntimeRecord | null>("register_user_selected_runtime", {
+      portId,
+      executable,
+      workingDirectory,
+      arguments: arguments_,
+      expectedPreview,
+      generation,
+    }),
   previewExternalRuntimeRelink: (portId: string, path: string, generation: number) =>
     invoke<import("./types").ExternalRuntimeRelinkPreview>("preview_external_runtime_relink", {
       portId,

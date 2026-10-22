@@ -8,6 +8,90 @@ use portcove_core::{
 use std::path::PathBuf;
 
 #[tauri::command]
+pub(crate) async fn preview_user_selected_runtime(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    executable: PathBuf,
+    working_directory: PathBuf,
+    arguments: Vec<String>,
+    generation: u64,
+) -> DesktopResult<ExternalRuntimePreview> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .preview_user_selected_runtime(&port_id, &executable, &working_directory, &arguments)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn register_user_selected_runtime(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    executable: PathBuf,
+    working_directory: PathBuf,
+    arguments: Vec<String>,
+    expected_preview: String,
+    generation: u64,
+) -> DesktopResult<Option<ExternalRuntimeRecord>> {
+    let review = preview_user_selected_runtime(
+        state.clone(),
+        port_id.clone(),
+        executable.clone(),
+        working_directory.clone(),
+        arguments.clone(),
+        generation,
+    )
+    .await?;
+    if review.preview_sha256 != expected_preview {
+        return Err(PortcoveError::conflict(
+            "selected launch details changed after review; inspect them again",
+        )
+        .into());
+    }
+    let description = format!(
+        "Run the executable you selected at {} with working directory {} and arguments {}? Portcove has not authenticated these bytes as an official package. You or the upstream launcher manage setup and updates. Portcove will launch it and can remove this registration; it will not replace, back up, restore, roll back or delete the external files.",
+        review.executable.display(),
+        review.path.display(),
+        serde_json::to_string(&arguments).map_err(PortcoveError::from)?
+    );
+    if !confirm_destructive(
+        &app,
+        "Use your existing installation",
+        description,
+        "Use installation",
+    )
+    .await
+    {
+        return Ok(None);
+    }
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        let authorization = service.authorize_user_selected_runtime(
+            &port_id,
+            &executable,
+            &working_directory,
+            &arguments,
+            &expected_preview,
+        )?;
+        service
+            .register_user_selected_runtime(
+                &port_id,
+                &executable,
+                &working_directory,
+                &arguments,
+                &authorization.token,
+            )
+            .map(Some)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn preview_external_runtime_relink(
     state: tauri::State<'_, DesktopState>,
     port_id: String,

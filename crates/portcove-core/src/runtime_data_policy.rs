@@ -28,24 +28,36 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
         return Ok(());
     }
     let release = port.release.direct.get(&crate::Platform::WindowsX86_64);
+    let legacy = port.runtime_data_policy == Some(crate::RuntimeDataPolicy::Racewave46V100Windows);
+    if !legacy {
+        crate::managed_runtime_policy::artifact(port)?;
+    }
     if port.adapter != crate::AdapterKind::StagedSourcePortable
         || port.platforms != [crate::Platform::WindowsX86_64]
         || port.release.provider != crate::ReleaseSource::DirectManifest
         || !port.release.user_prepared.is_empty()
-        || release.is_none_or(|release| {
-            release.version != "v1.0.0"
-                || release.size != 35_768_574
-                || release.sha256
-                    != "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
-        })
+        || (legacy
+            && release.is_none_or(|release| {
+                release.version != "v1.0.0"
+                    || release.size != 35_768_574
+                    || release.sha256
+                        != "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
+            }))
         || port.persistent_paths != [".runtime"]
         || port.runtime_mutable_paths != ["game.z64"]
         || port.runtime_source_hashes.len() != 1
+        || (legacy
+            && port
+                .runtime_source_hashes
+                .get("game.z64")
+                .map(String::as_str)
+                != Some("f35d2423ebcb86eaf86fa935b613c7532b123a7bc50fb74996984c3b02fc3999"))
         || port
             .runtime_source_hashes
             .get("game.z64")
-            .map(String::as_str)
-            != Some("f35d2423ebcb86eaf86fa935b613c7532b123a7bc50fb74996984c3b02fc3999")
+            .is_none_or(|hash| {
+                hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit())
+            })
         || !port.persistent_file_patterns.is_empty()
         || port.runtime_subdirectory.is_some()
         || !port.launch_from_install_root
@@ -60,10 +72,16 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
         || port
             .executable_hints
             .get(&crate::Platform::WindowsX86_64)
-            .is_none_or(|hints| hints != &["WaveRace64Recompiled.exe"])
+            .is_none_or(|hints| {
+                if legacy {
+                    hints != &["WaveRace64Recompiled.exe"]
+                } else {
+                    hints.len() != 1 || !hints[0].to_ascii_lowercase().ends_with(".exe")
+                }
+            })
     {
         return Err(PortcoveError::usage(
-            "version-local credential handling requires the exact reviewed RaceWave46 v1.0.0 Windows staged-source route",
+            "version-local credential handling requires its reviewed Windows staged-source route and local data layout",
         ));
     }
     Ok(())
@@ -97,6 +115,9 @@ pub(crate) fn require_artifact(
     platform: Option<crate::Platform>,
 ) -> Result<()> {
     validate(port)?;
+    if port.runtime_data_policy == Some(crate::RuntimeDataPolicy::VersionLocalRetroAchievementsV1) {
+        return crate::managed_runtime_policy::require_artifact(port, version, artifact, platform);
+    }
     if port.runtime_data_policy.is_some() || known_artifact(&artifact.sha256) {
         if port.runtime_data_policy.is_none()
             || platform != Some(crate::Platform::WindowsX86_64)

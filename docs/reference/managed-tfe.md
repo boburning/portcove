@@ -1,7 +1,12 @@
 # Managed Dark Forces setup
 
-The managed Windows route for The Force Engine is closed to the reviewed
-v1.22.420 engine artifact. It accepts the complete reviewed PC installed-data
+The current reviewed Windows route selects the v1.22.420 engine artifact through
+typed retained direct-release facts and `tfe-dark-forces-portable-v1` (capability
+19). This record describes that actual package; future compatible facts require
+focused behavior checks and do not inherit its observations. The exact old
+initializer remains a retained-state reader under
+[the compatibility contract](upstream-first-compatibility.md).
+It accepts the complete reviewed PC installed-data
 folder or ZIP: four GOB files and 44 files under `LFD/`. A lone `DARK.GOB`, an
 unrecognized edition, or flattened LFD files cannot satisfy this route. The
 historical single-GOB profile and retained external installations keep their

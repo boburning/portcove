@@ -52,19 +52,7 @@ impl EngineTemplateCapability {
         });
         supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
-            contract_version: 6,
-        });
-        supported.push(Self {
-            template: AdapterKind::StagedSourcePortable,
-            contract_version: 7,
-        });
-        supported.push(Self {
-            template: AdapterKind::StagedSourcePortable,
             contract_version: 8,
-        });
-        supported.push(Self {
-            template: AdapterKind::StagedSourcePortable,
-            contract_version: 9,
         });
         supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
@@ -77,14 +65,6 @@ impl EngineTemplateCapability {
         supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 12,
-        });
-        supported.push(Self {
-            template: AdapterKind::StagedSourcePortable,
-            contract_version: 13,
-        });
-        supported.push(Self {
-            template: AdapterKind::StagedSourcePortable,
-            contract_version: 14,
         });
         supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
@@ -101,6 +81,14 @@ impl EngineTemplateCapability {
         supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 18,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 19,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 20,
         });
         supported
     }
@@ -155,6 +143,21 @@ pub fn check_definition_capabilities(
     request: &DefinitionCapabilityRequest,
 ) -> Result<DefinitionCapabilityReport> {
     check_with_inventory(request, &EngineTemplateCapability::current())
+}
+
+/// Exact historical interpreters are available only for already-retained state.
+/// They are deliberately absent from the public creation capability inventory.
+pub(crate) fn check_retained_definition_capabilities(
+    request: &DefinitionCapabilityRequest,
+) -> Result<DefinitionCapabilityReport> {
+    let mut inventory = EngineTemplateCapability::current();
+    inventory.extend([6, 7, 9, 13, 14].into_iter().map(|contract_version| {
+        EngineTemplateCapability {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version,
+        }
+    }));
+    check_with_inventory(request, &inventory)
 }
 
 fn check_with_inventory(
@@ -338,7 +341,7 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(3));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 19, 19)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 21, 21)).unwrap();
         assert!(!future.compatible);
     }
 
@@ -411,25 +414,6 @@ mod tests {
     }
 
     #[test]
-    fn fixed_source_builds_require_v9_and_preserve_older_capabilities() {
-        let request = request("staged-source-portable", 9, 9);
-        assert!(check_definition_capabilities(&request).unwrap().compatible);
-        let previous: Vec<_> = EngineTemplateCapability::current()
-            .into_iter()
-            .filter(|entry| {
-                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version < 9
-            })
-            .collect();
-        let old = check_with_inventory(&request, &previous).unwrap();
-        assert!(!old.compatible);
-        assert_eq!(
-            old.checks[0].outcome,
-            DefinitionCapabilityOutcome::UnsupportedVersion
-        );
-        assert_eq!(old.checks[0].installed_version, Some(8));
-    }
-
-    #[test]
     fn managed_preferences_require_v16_beyond_credential_only_v15() {
         let credential_only: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
@@ -455,22 +439,23 @@ mod tests {
     }
 
     #[test]
-    fn runtime_credentials_require_v15_beyond_gundam_only_v14() {
-        let gundam_only: Vec<_> = EngineTemplateCapability::current()
+    fn runtime_credentials_require_v15_beyond_prior_policy_v12() {
+        let prior_policy: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
             .filter(|entry| {
                 entry.template != AdapterKind::StagedSourcePortable || entry.contract_version <= 14
             })
             .collect();
         assert!(
-            check_with_inventory(&request("staged-source-portable", 14, 14), &gundam_only)
+            check_with_inventory(&request("staged-source-portable", 12, 12), &prior_policy)
                 .unwrap()
                 .compatible
         );
         let refused =
-            check_with_inventory(&request("staged-source-portable", 15, 15), &gundam_only).unwrap();
+            check_with_inventory(&request("staged-source-portable", 15, 15), &prior_policy)
+                .unwrap();
         assert!(!refused.compatible);
-        assert_eq!(refused.checks[0].installed_version, Some(14));
+        assert_eq!(refused.checks[0].installed_version, Some(12));
         assert!(
             check_definition_capabilities(&request("staged-source-portable", 15, 15))
                 .unwrap()
@@ -479,84 +464,25 @@ mod tests {
     }
 
     #[test]
-    fn render96_source_recipe_negotiates_v13_without_widening_existing_clients() {
-        let required = request("staged-source-portable", 13, 13);
-        assert!(check_definition_capabilities(&required).unwrap().compatible);
-        let previous: Vec<_> = EngineTemplateCapability::current()
-            .into_iter()
-            .filter(|entry| {
-                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version < 13
-            })
-            .collect();
-        let report = check_with_inventory(&required, &previous).unwrap();
-        assert!(!report.compatible);
-        assert_eq!(report.checks[0].installed_version, Some(12));
-        assert!(
-            check_with_inventory(&request("staged-source-portable", 12, 12), &previous)
-                .unwrap()
-                .compatible
-        );
-        assert!(
-            check_with_inventory(&request("staged-source-portable", 11, 11), &previous)
-                .unwrap()
-                .compatible
-        );
-        assert!(
-            check_with_inventory(&request("staged-source-portable", 9, 9), &previous)
-                .unwrap()
-                .compatible
-        );
-    }
-
-    #[test]
-    fn gundam_native_source_recipe_requires_v14_and_preserves_v13() {
-        let required = request("staged-source-portable", 14, 14);
-        assert!(check_definition_capabilities(&required).unwrap().compatible);
-        let previous: Vec<_> = EngineTemplateCapability::current()
-            .into_iter()
-            .filter(|entry| {
-                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version < 14
-            })
-            .collect();
-        let report = check_with_inventory(&required, &previous).unwrap();
-        assert!(!report.compatible);
-        assert_eq!(report.checks[0].installed_version, Some(13));
-        assert_eq!(
-            report.checks[0].outcome,
-            DefinitionCapabilityOutcome::UnsupportedVersion
-        );
-        for version in [13, 12, 11, 9] {
+    fn retired_creation_versions_are_refused_but_exact_retained_readers_survive() {
+        for version in [6, 7, 9, 13, 14] {
+            let required = request("staged-source-portable", version, version);
+            assert!(!check_definition_capabilities(&required).unwrap().compatible);
             assert!(
-                check_with_inventory(
-                    &request("staged-source-portable", version, version),
-                    &previous
-                )
-                .unwrap()
-                .compatible
+                check_retained_definition_capabilities(&required)
+                    .unwrap()
+                    .compatible
             );
         }
-    }
-
-    #[test]
-    fn cartridge_build_preserves_v5_and_refuses_v5_readers() {
-        let previous: Vec<_> = EngineTemplateCapability::current()
-            .into_iter()
-            .filter(|entry| entry.contract_version <= 5)
-            .collect();
-        let required = request("staged-source-portable", 6, 6);
-        let old = check_with_inventory(&required, &previous).unwrap();
-        assert!(!old.compatible);
-        assert_eq!(old.checks[0].installed_version, Some(5));
-        assert!(check_definition_capabilities(&required).unwrap().compatible);
-        assert_eq!(
-            check_definition_capabilities(&request("staged-source-portable", 5, 5))
-                .unwrap()
-                .checks[0]
-                .installed_version,
-            Some(5)
-        );
+        for version in [5, 8, 10, 11, 12, 15, 16, 17, 18] {
+            assert!(
+                check_definition_capabilities(&request("staged-source-portable", version, version))
+                    .unwrap()
+                    .compatible
+            );
+        }
         assert!(
-            !check_definition_capabilities(&request("n64-recomp-portable", 6, 6))
+            !check_retained_definition_capabilities(&request("staged-source-portable", 999, 999))
                 .unwrap()
                 .compatible
         );
@@ -571,7 +497,7 @@ mod tests {
         let required = request("staged-source-portable", 8, 8);
         let old = check_with_inventory(&required, &previous).unwrap();
         assert!(!old.compatible);
-        assert_eq!(old.checks[0].installed_version, Some(7));
+        assert_eq!(old.checks[0].installed_version, Some(5));
         assert!(check_definition_capabilities(&required).unwrap().compatible);
         assert!(
             !check_definition_capabilities(&request("n64-recomp-portable", 8, 8))
@@ -579,7 +505,7 @@ mod tests {
                 .compatible
         );
         assert!(
-            check_definition_capabilities(&request("staged-source-portable", 7, 7))
+            check_retained_definition_capabilities(&request("staged-source-portable", 7, 7))
                 .unwrap()
                 .compatible
         );
@@ -594,28 +520,10 @@ mod tests {
         let required = request("staged-source-portable", 10, 10);
         let old = check_with_inventory(&required, &previous).unwrap();
         assert!(!old.compatible);
-        assert_eq!(old.checks[0].installed_version, Some(9));
+        assert_eq!(old.checks[0].installed_version, Some(8));
         assert!(check_definition_capabilities(&required).unwrap().compatible);
         assert!(
             check_definition_capabilities(&request("staged-source-portable", 8, 8))
-                .unwrap()
-                .compatible
-        );
-    }
-
-    #[test]
-    fn dr_mario_cartridge_version_refuses_v6_inventory_and_preserves_yoshi_v6() {
-        let previous: Vec<_> = EngineTemplateCapability::current()
-            .into_iter()
-            .filter(|entry| entry.contract_version <= 6)
-            .collect();
-        let required = request("staged-source-portable", 7, 7);
-        let old = check_with_inventory(&required, &previous).unwrap();
-        assert!(!old.compatible);
-        assert_eq!(old.checks[0].installed_version, Some(6));
-        assert!(check_definition_capabilities(&required).unwrap().compatible);
-        assert!(
-            check_definition_capabilities(&request("staged-source-portable", 6, 6))
                 .unwrap()
                 .compatible
         );

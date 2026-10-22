@@ -211,7 +211,7 @@ pub(crate) fn recover_published_install(
                 && operation.kind == LifecycleOperationKind::Install
                 && operation.preparation_process_quiesced.is_some()
             {
-                crate::cartridge_build::cvlod::cleanup::unlink_published_private_wininet_junction(
+                crate::legacy_cartridge_cleanup::unlink_published_private_wininet_junction(
                     &service.library,
                     operation,
                     &staging,
