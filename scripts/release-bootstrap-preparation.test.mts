@@ -86,6 +86,17 @@ void test("declared bootstrap context preserves exact u64 version and has no man
   assert.match(serialized, /"targets":18446744073709551615/u);
   assert(!serialized.includes("previous_repository"));
   assert.match(serialized, /"initial_bootstrap":"initial-bootstrap.json"/u);
+  assert(!serialized.includes("initial_root_profile"));
+  const one = metadataBootstrapContextBytes(descriptor, "single-owner-one-of-one-v1").toString(
+    "utf8",
+  );
+  assert.match(one, /"initial_root_profile":"single-owner-one-of-one-v1"/u);
+  assert.match(one, /"targets":18446744073709551615/u);
+  assert(!one.includes("previous_repository"));
+  assert.throws(
+    () => metadataBootstrapContextBytes(descriptor, "download-selected" as never),
+    /Root profile/,
+  );
   assert.equal(descriptor.expires.timestamp, "2026-10-22T00:00:00Z");
   files.set("root", Buffer.from("changed"));
   assert.throws(

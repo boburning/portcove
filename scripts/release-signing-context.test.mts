@@ -154,6 +154,14 @@ void test("context preserves exact positive u64 numeric tokens above Number prec
   assert.doesNotMatch(bytes, /"18446744073709551615"/);
   const raw: unknown = JSON.parse(bytes);
   assert.equal(typeof raw, "object");
+  assert(!bytes.includes("initial_root_profile"));
+  const one = releaseSigningContextBytes(descriptor, "single-owner-one-of-one-v1").toString();
+  assert.match(one, /"initial_root_profile":"single-owner-one-of-one-v1"/);
+  assert.match(one, /"releases":18446744073709551615/);
+  assert.throws(
+    () => releaseSigningContextBytes(descriptor, "download-selected" as never),
+    /Root profile/,
+  );
   for (const invalid of ["0", "01", "18446744073709551616", "1e3", '1,"extra":1'])
     assert.throws(
       () =>

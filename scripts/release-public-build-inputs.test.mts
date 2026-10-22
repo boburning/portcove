@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { parse } from "yaml";
 import { isRecord } from "./runtime-values.mts";
+import { profiledRoot } from "./fixtures/release-public-root-fixture.mts";
 import {
   inspectPublicBuildInputIdentity,
   prepareReleasePublicBuildInputs,
@@ -253,6 +254,108 @@ void test("an oversized public file cannot bypass its read bound", async (t) => 
   await assert.rejects(
     prepareReleasePublicBuildInputs({ ...f.options, expectedManifestSha256 }),
     /bounded/,
+  );
+  await assert.rejects(readdir(f.outputRoot), { code: "ENOENT" });
+});
+
+void test("ratified schema-2 profile selects exact public Root bytes without weakening legacy inputs", async (t) => {
+  const f = await fixture(t);
+  for (const [count, profile] of [
+    [1, "single-owner-one-of-one-v1"],
+    [3, "legacy-two-of-three-v1"],
+  ] as const) {
+    f.material.root = profiledRoot(count);
+    const expectedManifestSha256 = await f.makeManifest({
+      schema_version: 2,
+      initial_root_profile: profile,
+    });
+    const result = await prepareReleasePublicBuildInputs({ ...f.options, expectedManifestSha256 });
+    assert.equal(result.initialRootProfile, profile);
+    assert.equal(result.receipt.schema_version, 2);
+    assert.equal(result.receipt.initial_root_profile, profile);
+    assert.deepEqual(
+      await readFile(result.environment.PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE),
+      f.material.root,
+    );
+    assert.equal(result.receipt.root_sha256, digest(f.material.root));
+    assert.equal(result.receipt.authority, "none");
+  }
+});
+
+void test("profile omission, substitution and malformed role inventories refuse before any build output", async (t) => {
+  const f = await fixture(t);
+  const one = profiledRoot(1);
+  f.material.root = one;
+  const pin = await f.makeManifest({
+    schema_version: 2,
+    initial_root_profile: "single-owner-one-of-one-v1",
+  });
+  await f.makeManifest({ schema_version: 2, initial_root_profile: "legacy-two-of-three-v1" });
+  await assert.rejects(
+    prepareReleasePublicBuildInputs({ ...f.options, expectedManifestSha256: pin }),
+    /manifest digest/,
+  );
+  for (const override of [
+    { schema_version: 2 },
+    { schema_version: 2, initial_root_profile: "download-selected" },
+    { schema_version: 1, initial_root_profile: "single-owner-one-of-one-v1" },
+    { schema_version: 2, initial_root_profile: "legacy-two-of-three-v1" },
+  ]) {
+    const expectedManifestSha256 = await f.makeManifest(override);
+    await assert.rejects(
+      prepareReleasePublicBuildInputs({ ...f.options, expectedManifestSha256 }),
+      /profile|fields/,
+    );
+  }
+  const cases: ((root: Record<string, unknown>) => void)[] = [
+    (root) => {
+      record(record(record(root.signed).roles).root).keyids = ["00".repeat(32), "00".repeat(32)];
+    },
+    (root) => {
+      const roles = record(record(root.signed).roles);
+      roles.targets = roles.root;
+    },
+    (root) => {
+      record(record(record(root.signed).roles).root).threshold = 2;
+    },
+    (root) => {
+      record(record(root.signed).keys)["00".repeat(32)] = {};
+    },
+    (root) => {
+      const keys = record(record(root.signed).keys);
+      const key = record(Object.values(keys)[0]);
+      record(key.keyval).public = "ff".repeat(32);
+    },
+    (root) => {
+      const signature = records(root.signatures)[0]!;
+      signature.keyid = "ff".repeat(32);
+    },
+    (root) => {
+      const signatures = records(root.signatures);
+      root.signatures = [signatures[0], signatures[0]];
+    },
+  ];
+  for (const mutate of cases) {
+    const root = jsonRecord(one.toString("utf8"));
+    mutate(root);
+    f.material.root = json(root);
+    const expectedManifestSha256 = await f.makeManifest({
+      schema_version: 2,
+      initial_root_profile: "single-owner-one-of-one-v1",
+    });
+    await assert.rejects(
+      prepareReleasePublicBuildInputs({ ...f.options, expectedManifestSha256 }),
+      /Root|root/,
+    );
+  }
+  f.material.root = profiledRoot(3);
+  const expectedManifestSha256 = await f.makeManifest({
+    schema_version: 2,
+    initial_root_profile: "single-owner-one-of-one-v1",
+  });
+  await assert.rejects(
+    prepareReleasePublicBuildInputs({ ...f.options, expectedManifestSha256 }),
+    /profile/,
   );
   await assert.rejects(readdir(f.outputRoot), { code: "ENOENT" });
 });

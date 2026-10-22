@@ -55,6 +55,17 @@ void test("imported JSON cannot stand in for an actual private renewal preparati
     /not prepared/,
   );
 });
+void test("unknown initial Root profile refuses before any output or verifier invocation", async (t) => {
+  const f = await fixture(t);
+  await assert.rejects(
+    prepareAuthenticatedMetadataRenewal({
+      ...f.request,
+      initial_root_profile: "download-selected" as never,
+    }),
+    /Root profile/,
+  );
+  assert.deepEqual(await readdir(f.output), []);
+});
 void test("wrong actual tool or independently ratified root refuses before creating outputs", async (t) => {
   const f = await fixture(t);
   await assert.rejects(

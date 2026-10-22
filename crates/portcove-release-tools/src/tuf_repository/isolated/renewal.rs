@@ -6,6 +6,8 @@ use super::*;
 #[serde(deny_unknown_fields)]
 struct RenewalConfig {
     schema_version: u32,
+    #[serde(default)]
+    initial_root_profile: InitialRootProfile,
     generated_at: String,
     trusted_root: String,
     previous_repository: String,
@@ -358,7 +360,10 @@ pub async fn prepare_tuf_renewal(config_path: &Path) -> Result<RenewalReport, Tu
             .map(|(name, value)| ((*name).to_owned(), serde_json::json!(value.to_string())))
             .collect::<serde_json::Map<_, _>>()
     };
-    let context = serde_json::json!({"schema_version":1,"generated_at":generated.to_string(),"trusted_root":"trusted-root.json","offline_targets":"offline-targets.json","payload_key_registry":"payload.json","reconstructed_records":"records","previous_repository":"prior","versions":number_versions(&next_versions),"expires":expiry_values(&next_expires)});
+    let mut context = serde_json::json!({"schema_version":1,"generated_at":generated.to_string(),"trusted_root":"trusted-root.json","offline_targets":"offline-targets.json","payload_key_registry":"payload.json","reconstructed_records":"records","previous_repository":"prior","versions":number_versions(&next_versions),"expires":expiry_values(&next_expires)});
+    if config.initial_root_profile == InitialRootProfile::SingleOwnerOneOfOneV1 {
+        context["initial_root_profile"] = serde_json::to_value(config.initial_root_profile)?;
+    }
     if !targets.contains_key("keys/payload.json") {
         return invalid("payload registry absent");
     }

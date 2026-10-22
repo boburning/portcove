@@ -21,6 +21,29 @@ import {
 } from "./release-public-build-provenance.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
+void test("schema-2 appointed profile survives both immutable public archives and rejects a substituted recipe", async (t) => {
+  const f = await releasePublicBuildProvenanceFixture(t, true);
+  let evidence = collectReleaseRunEvidence(f.expected, { api: f.api });
+  const result = await verifyReleasePublicBuildInputs(f.root, f.binding, evidence, f.options);
+  assert.equal(result.receipts.length, 2);
+  for (const receipt of result.receipts) {
+    assert.equal(receipt.schema_version, 2);
+    assert.equal(receipt.initial_root_profile, "single-owner-one-of-one-v1");
+    assert.equal(receipt.root_sha256, f.prepared.receipt.root_sha256);
+    assert.equal(receipt.manifest_sha256, f.configuration.manifest_sha256);
+  }
+  const receipt: unknown = JSON.parse(f.publicFiles.get("build-inputs.json")!.toString("utf8"));
+  assert.ok(isRecord(receipt));
+  receipt.initial_root_profile = "legacy-two-of-three-v1";
+  f.publicFiles.set("build-inputs.json", Buffer.from(JSON.stringify(receipt)));
+  f.replacePublicArchive();
+  evidence = collectReleaseRunEvidence(f.expected, { api: f.api });
+  await assert.rejects(
+    verifyReleasePublicBuildInputs(f.root, f.binding, evidence, f.options),
+    CoordinatorRemoteError,
+  );
+});
+
 void test("schema3 binds complete exact immutable public inputs through actual package assembly without claiming compiler contents", async (t) => {
   const f = await releasePublicBuildProvenanceFixture(t);
   const { accepted } = await inspectTrustedAssemblyInput(f.request);

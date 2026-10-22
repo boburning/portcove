@@ -6,6 +6,12 @@ import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { isRecord } from "./runtime-values.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
+import { releaseCanonicalDigest } from "./release-canonical.mts";
+import {
+  inspectInitialRootProfile,
+  type InitialRootProfile as PublicInitialRootProfile,
+} from "./release-initial-root-profile.mts";
+export type { InitialRootProfile as PublicInitialRootProfile } from "./release-initial-root-profile.mts";
 
 const project = fileURLToPath(new URL("..", import.meta.url));
 const files = ["bundle.json", "root.json", "updater-public.key", "packaging.json"].sort();
@@ -62,7 +68,41 @@ export async function readBoundedPublicBuildInputFile(
 }
 const boundedFile = readBoundedPublicBuildInputFile;
 
-function inspectRoot(bytes: Buffer) {
+/** This profile is selected by independently ratified manifest bytes, never by
+ * a downloaded Root's own threshold. This is a structural build-input check;
+ * the maintained Tough consumers still authenticate signatures and history. */
+export function inspectPublicBuildManifest(manifest: unknown) {
+  const version = isRecord(manifest) ? manifest.schema_version : undefined;
+  exact(
+    manifest,
+    [
+      "schema_version",
+      "repository",
+      "purpose",
+      "metadata_url",
+      "targets_url",
+      "root",
+      "payload_public_key",
+      "packaging",
+      ...(version === 2 ? ["initial_root_profile"] : []),
+    ],
+    "manifest",
+  );
+  if (
+    (version !== 1 && version !== 2) ||
+    manifest.repository !== "boburning/portcove" ||
+    manifest.purpose !== "application-release-public-build-inputs" ||
+    manifest.metadata_url !== metadataUrl ||
+    manifest.targets_url !== targetsUrl
+  )
+    throw new Error("public input scope or application origins differ");
+  const profile = inspectInitialRootProfile(
+    version === 1 ? "legacy-two-of-three-v1" : manifest.initial_root_profile,
+  );
+  return { manifest, version, profile };
+}
+
+function inspectRoot(bytes: Buffer, profile?: PublicInitialRootProfile) {
   const root: unknown = JSON.parse(bytes.toString("utf8"));
   if (
     !isRecord(root) ||
@@ -108,6 +148,64 @@ function inspectRoot(bytes: Buffer) {
       typeof key.keyval.public !== "string"
     )
       throw new Error("application root may contain public verification keys only");
+  }
+  if (profile) {
+    const count = profile === "single-owner-one-of-one-v1" ? 1 : 3;
+    const threshold = count === 1 ? 1 : 2;
+    exact(root.signed.roles, ["root", "targets", "snapshot", "timestamp"], "Root roles");
+    if (root.signed.spec_version !== "1.0.0" || Object.keys(keys).length !== count + 3)
+      throw new Error("public Root differs from its appointed profile");
+    const used = new Set<string>(),
+      material = new Set<string>();
+    for (const name of ["root", "targets", "snapshot", "timestamp"]) {
+      const role = root.signed.roles[name];
+      exact(role, ["keyids", "threshold"], "Root role");
+      if (
+        !Array.isArray(role.keyids) ||
+        role.keyids.length !== (name === "root" ? count : 1) ||
+        role.threshold !== (name === "root" ? threshold : 1)
+      )
+        throw new Error("public Root role differs from its appointed profile");
+      for (const id of role.keyids) {
+        if (typeof id !== "string" || !/^[a-f0-9]{64}$/u.test(id) || used.has(id))
+          throw new Error("public Root role key inventory is not separated");
+        const key = keys[id];
+        exact(key, ["keytype", "scheme", "keyval"], "Root public key");
+        exact(key.keyval, ["public"], "Root key material");
+        if (
+          key.keytype !== "ed25519" ||
+          key.scheme !== "ed25519" ||
+          typeof key.keyval.public !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(key.keyval.public) ||
+          releaseCanonicalDigest(key) !== id ||
+          material.has(key.keyval.public)
+        )
+          throw new Error("public Root requires distinct canonical Ed25519 public keys");
+        used.add(id);
+        material.add(key.keyval.public);
+      }
+    }
+    const role = root.signed.roles.root;
+    if (
+      !isRecord(role) ||
+      !Array.isArray(role.keyids) ||
+      root.signatures.length < threshold ||
+      root.signatures.length > count
+    )
+      throw new Error("public Root signature inventory differs from its appointed profile");
+    const signers = new Set<string>();
+    for (const signature of root.signatures) {
+      exact(signature, ["keyid", "sig"], "Root signature");
+      if (
+        typeof signature.keyid !== "string" ||
+        !role.keyids.includes(signature.keyid) ||
+        signers.has(signature.keyid) ||
+        typeof signature.sig !== "string" ||
+        !/^[a-f0-9]{128}$/u.test(signature.sig)
+      )
+        throw new Error("public Root signature inventory differs from its appointed profile");
+      signers.add(signature.keyid);
+    }
   }
 }
 
@@ -160,29 +258,9 @@ export async function prepareReleasePublicBuildInputs(options: {
   const manifestBytes = await boundedFile(configurationRoot, "bundle.json", 16 * 1024);
   if (sha256(manifestBytes) !== expected.digest)
     throw new Error("public input manifest digest differs");
-  const manifest: unknown = JSON.parse(manifestBytes.toString("utf8"));
-  exact(
-    manifest,
-    [
-      "schema_version",
-      "repository",
-      "purpose",
-      "metadata_url",
-      "targets_url",
-      "root",
-      "payload_public_key",
-      "packaging",
-    ],
-    "manifest",
+  const { manifest, version, profile } = inspectPublicBuildManifest(
+    JSON.parse(manifestBytes.toString("utf8")),
   );
-  if (
-    manifest.schema_version !== 1 ||
-    manifest.repository !== "boburning/portcove" ||
-    manifest.purpose !== "application-release-public-build-inputs" ||
-    manifest.metadata_url !== metadataUrl ||
-    manifest.targets_url !== targetsUrl
-  )
-    throw new Error("public input scope or application origins differ");
   const read = async (field: string, filename: string, maximum: number) => {
     const identity = manifest[field];
     exact(identity, ["bytes", "sha256"], field);
@@ -194,7 +272,7 @@ export async function prepareReleasePublicBuildInputs(options: {
   const root = await read("root", "root.json", 256 * 1024);
   const payloadKey = await read("payload_public_key", "updater-public.key", 16 * 1024);
   const packaging = await read("packaging", "packaging.json", 16 * 1024);
-  inspectRoot(root);
+  inspectRoot(root, version === 2 ? profile : undefined);
   const publicKey = inspectPayloadKey(payloadKey);
   const template = await boundedFile(
     path.join(options.projectRoot ?? project, "apps/desktop/src-tauri"),
@@ -218,7 +296,8 @@ export async function prepareReleasePublicBuildInputs(options: {
   const configuration = path.join(output, "tauri.release-public.conf.json");
   const configurationBytes = Buffer.from(`${JSON.stringify(config, null, 2)}\n`);
   const receipt = {
-    schema_version: 1,
+    schema_version: version,
+    ...(version === 2 ? { initial_root_profile: profile } : {}),
     authority: "none",
     configuration_revision: expected.revision,
     manifest_sha256: expected.digest,
@@ -240,6 +319,7 @@ export async function prepareReleasePublicBuildInputs(options: {
   return {
     output,
     receipt,
+    initialRootProfile: profile,
     environment: {
       PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE: rootFile,
       PORTCOVE_APPLICATION_UPDATE_METADATA_URL: metadataUrl,

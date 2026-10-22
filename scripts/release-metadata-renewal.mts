@@ -9,6 +9,11 @@ import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { inspectMetadataRenewalDescriptor, metadataInstant } from "./release-metadata-contract.mts";
 import { assertOwnedUnlinkedPath, releasePathContains } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  inspectInitialRootProfile,
+  initialRootProfileFields,
+  type InitialRootProfile,
+} from "./release-initial-root-profile.mts";
 
 const run = promisify(execFile);
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -17,6 +22,7 @@ type Files = Map<string, Buffer>;
 type Identity = { path: string; bytes: number; sha256: string };
 type Descriptor = ReturnType<typeof inspectMetadataRenewalDescriptor>;
 interface BoundPreparation {
+  initial_root_profile: InitialRootProfile;
   prepared_root: string;
   context: string;
   descriptor: Descriptor;
@@ -154,7 +160,12 @@ function publicContext(bytes: Buffer): unknown {
 }
 function validateOutput(
   files: Files,
-  expected: { generated_at: string; root_sha256: string; prior_sha256: string },
+  expected: {
+    generated_at: string;
+    root_sha256: string;
+    prior_sha256: string;
+    initial_root_profile: InitialRootProfile;
+  },
 ) {
   const required = (name: string) => {
     const bytes = files.get(name);
@@ -175,10 +186,25 @@ function validateOutput(
   const context = publicContext(required("context.json"));
   exact(
     context,
-    "expires,generated_at,offline_targets,payload_key_registry,previous_repository,reconstructed_records,schema_version,trusted_root,versions",
+    [
+      "expires",
+      "generated_at",
+      "offline_targets",
+      "payload_key_registry",
+      "previous_repository",
+      "reconstructed_records",
+      "schema_version",
+      "trusted_root",
+      "versions",
+      ...Object.keys(initialRootProfileFields(expected.initial_root_profile)),
+    ]
+      .sort()
+      .join(","),
   );
   if (
     context.schema_version !== "1" ||
+    (expected.initial_root_profile === "single-owner-one-of-one-v1" &&
+      context.initial_root_profile !== expected.initial_root_profile) ||
     context.generated_at !== descriptor.generated_at ||
     context.trusted_root !== "trusted-root.json" ||
     context.offline_targets !== "offline-targets.json" ||
@@ -213,6 +239,7 @@ function validateOutput(
  * JSON reports and hash equality alone grant no publisher or execution authority.
  */
 export async function prepareAuthenticatedMetadataRenewal(request: {
+  initial_root_profile?: InitialRootProfile;
   verifier: string;
   verifier_sha256: string;
   trusted_root: string;
@@ -223,7 +250,12 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
   output_parent: string;
   deadline?: number;
 }): Promise<PreparedMetadataRenewal> {
-  const selected = structuredClone(request);
+  const selected = {
+    ...structuredClone(request),
+    initial_root_profile: inspectInitialRootProfile(
+      request.initial_root_profile ?? "legacy-two-of-three-v1",
+    ),
+  };
   const remaining = () => {
     const timeout =
       selected.deadline === undefined
@@ -275,6 +307,7 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
       config,
       JSON.stringify({
         schema_version: 1,
+        ...initialRootProfileFields(selected.initial_root_profile),
         generated_at: selected.generated_at,
         trusted_root: "trusted-root.json",
         previous_repository: "prior",
@@ -308,6 +341,7 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
     const files = await tree(prepared, true),
       fileIdentities = identities(files);
     const descriptor = validateOutput(files, {
+      initial_root_profile: selected.initial_root_profile,
       generated_at: selected.generated_at,
       root_sha256: selected.trusted_root_sha256,
       prior_sha256: selected.prior_repository_sha256,
@@ -331,6 +365,7 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
     )
       throw new Error("renewal inputs changed during actual verification");
     const inputManifest = digest({
+      ...initialRootProfileFields(selected.initial_root_profile),
       generated_at: selected.generated_at,
       tool_sha256: selected.verifier_sha256,
       root_sha256: selected.trusted_root_sha256,
@@ -343,6 +378,7 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
     });
     remaining();
     preparations.set(session, {
+      initial_root_profile: selected.initial_root_profile,
       prepared_root: prepared,
       context: path.join(prepared, "context.json"),
       descriptor,

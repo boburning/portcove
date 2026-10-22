@@ -16,6 +16,11 @@ import { readControllerToolFile } from "./release-controller-tools.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  inspectInitialRootProfile,
+  initialRootProfileFields,
+  type InitialRootProfile,
+} from "./release-initial-root-profile.mts";
 
 const run = promisify(execFile);
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -34,6 +39,7 @@ const identities = (files: ReadonlyMap<string, Buffer>) =>
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([path, bytes]) => ({ path, bytes: bytes.length, sha256: sha(bytes) }));
 type Preparation = {
+  initial_root_profile: InitialRootProfile;
   prepared_root: string;
   context: string;
   descriptor: Descriptor;
@@ -131,10 +137,14 @@ export function deriveMetadataBootstrapDescriptor(
     expires,
   });
 }
-export function metadataBootstrapContextBytes(raw: unknown) {
+export function metadataBootstrapContextBytes(
+  raw: unknown,
+  profile: InitialRootProfile = "legacy-two-of-three-v1",
+) {
   const descriptor = inspectMetadataBootstrapDescriptor(raw);
   const base = JSON.stringify({
     schema_version: 1,
+    ...initialRootProfileFields(profile),
     generated_at: descriptor.generated_at,
     trusted_root: "trusted-root.json",
     offline_targets: "offline-targets.json",
@@ -194,6 +204,7 @@ function validateReport(raw: unknown, files: ReadonlyMap<string, Buffer>, descri
     throw new Error("actual bootstrap verifier report differs from retained public context");
 }
 export async function prepareAuthenticatedMetadataBootstrap(request: {
+  initial_root_profile?: InitialRootProfile;
   verifier: string;
   verifier_sha256: string;
   publication: unknown;
@@ -204,6 +215,9 @@ export async function prepareAuthenticatedMetadataBootstrap(request: {
 }) {
   const selected = {
     ...request,
+    initial_root_profile: inspectInitialRootProfile(
+      request.initial_root_profile ?? "legacy-two-of-three-v1",
+    ),
     publication: structuredClone(request.publication),
     descriptor: structuredClone(request.descriptor),
     public_files: new Map(
@@ -260,7 +274,7 @@ export async function prepareAuthenticatedMetadataBootstrap(request: {
     await mkdir(prepared, { mode: 0o700 });
     await mkdir(path.join(prepared, "records"), { mode: 0o700 });
     const files = new Map([
-      ["context.json", metadataBootstrapContextBytes(descriptor)],
+      ["context.json", metadataBootstrapContextBytes(descriptor, selected.initial_root_profile)],
       ["initial-bootstrap.json", Buffer.from(JSON.stringify(descriptor))],
       ["trusted-root.json", selected.public_files.get("root")!],
       ["offline-targets.json", selected.public_files.get("offline_targets")!],
@@ -304,6 +318,7 @@ export async function prepareAuthenticatedMetadataBootstrap(request: {
       descriptor_sha256: digest(descriptor),
     });
     preparations.set(receipt, {
+      initial_root_profile: selected.initial_root_profile,
       prepared_root: prepared,
       context,
       descriptor,
