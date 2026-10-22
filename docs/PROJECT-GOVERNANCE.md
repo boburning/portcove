@@ -148,20 +148,19 @@ The provenance generator leaves the previous snapshot intact when enrichment
 fails. A successful traversal is a dated observation, not an atomic snapshot
 of concurrent field edits.
 
-The standalone Roadmap doctor makes one independent GraphQL issue-only traversal when the
-REST before/after newest-record markers differ or a terminal REST traversal omits
-that marker. The fallback checks every page against a stable total, unique node
-IDs and issue numbers, repository identity, issue URL bindings and before/after
-newest-issue markers. It discards rejected REST records and retains both ordered
-attempts and their sources in `repository_issue_inventory` in its JSON receipt,
-including marker values, record count and highest observed number for rejected
-REST snapshots. An incomplete fallback fails without another attempt. Malformed
-REST responses, duplicate identities, stalled pagination and transport errors
-fail immediately. Project reads, supplied validated inventories and other
-collectors retain their existing budgets and behavior; recovery never turns
-partial coverage into a successful inventory.
-Programmatic doctor calls keep single-attempt collection unless the caller
-supplies the attempt-evidence sink; supplied validated inventories bypass it.
+The standalone Roadmap doctor uses one GraphQL issue-only traversal as its
+repository inventory. A newest-record marker alone cannot establish complete
+middle-page coverage. The traversal checks every page against a stable total,
+unique node IDs and issue numbers, repository identity, issue URL bindings and
+before/after newest-issue markers. It retains the source and outcome in
+`repository_issue_inventory` in its JSON receipt. Incomplete, malformed,
+duplicate, stalled, changed or transport-failed observations fail without an
+automatic retry. Project reads, supplied validated inventories and other
+collectors retain their existing budgets and behavior; partial coverage never
+establishes missing canonical issues or a successful inventory.
+Programmatic doctor calls retain their default collector unless the caller
+supplies the attempt-evidence sink to select the count-verified GraphQL collector;
+supplied validated inventories bypass collection.
 
 Repository Node tools execute GitHub requests through the shared
 `scripts/github-api.mts` transport. GraphQL queries and variables are serialized
