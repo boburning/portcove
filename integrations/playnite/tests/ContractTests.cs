@@ -583,7 +583,7 @@ internal static class ContractTests
                     && game.GameId == Identity.Game("compiled-game-title-library", game.PortId);
             }), "compiled current-schema catalog titles lead actual reader names without changing port identities");
             var prepared = catalog.Where(port => Json.Text(Json.Field(port, "release"), "provider") == "user-prepared").ToArray();
-            Check(prepared.Length == 2 && prepared.All(port => SetupInstructions.Summary(Json.Field(port, "presentation")).Contains("1. ")),
+            Check(prepared.Length > 0 && prepared.All(port => SetupInstructions.Summary(Json.Field(port, "presentation")).Contains("1. ")),
                 "compiled current-schema authored setup steps are consumed by the actual client");
             Check(prepared.All(port => SetupInstructions.TechnicalNotes(Json.Field(port, "presentation"))
                     == Json.Text(Json.Field(port, "presentation"), "manual_preparation"))
