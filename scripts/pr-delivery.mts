@@ -1572,6 +1572,7 @@ const deliveryFlags: Readonly<Record<string, readonly string[]>> = {
     "--snapshot-file",
     "--closure-intent-file",
     "--merge-message-file",
+    "--verify-local-composition",
     "--json",
   ],
   "verify-merge": [
@@ -1650,7 +1651,7 @@ export function deliveryHelp(command: string | null | undefined = null) {
   }
   if (!command || ["prepare-merge", "verify-merge"].includes(command))
     lines.push(
-      "  Snapshot commands read supplied observations only; no network, mutation, retry, review or acceptance authority. Prepare requires fresh bracketed collection within 60 seconds and complete source-bound check/job/closure inventories. Verify requires actual squash parent/tree/message and closure readback. See docs/CONTRIBUTION-CONVENTIONS.md for the snapshot contract.",
+      "  Snapshot commands perform no network, remote mutation, retry, review or acceptance. Prepare requires fresh bracketed collection within 60 seconds and complete source-bound check/job/closure inventories. --verify-local-composition independently checks stored Git objects and current composition when the provider preview is historical. Verify requires actual squash parent/tree/message and closure readback. See docs/CONTRIBUTION-CONVENTIONS.md for the snapshot contract.",
     );
   return "usage:\n" + lines.join("\n");
 }
@@ -1669,7 +1670,16 @@ export function parseArguments(argv: string[]) {
     )
       throw new Error(`unsupported ${command} option: ${name}; use ${command} --help`);
     if (Object.hasOwn(options, name)) throw new Error(`duplicate option: ${name}`);
-    if (["--json", "--queue", "--help", "--summary", "--progress"].includes(name)) {
+    if (
+      [
+        "--json",
+        "--queue",
+        "--help",
+        "--summary",
+        "--progress",
+        "--verify-local-composition",
+      ].includes(name)
+    ) {
       options[name] = true;
       continue;
     }
@@ -1792,7 +1802,11 @@ async function main(argv: string[]) {
     try {
       result =
         command === "prepare-merge"
-          ? prepareMergeSnapshot(snapshot, expected)
+          ? prepareMergeSnapshot(
+              snapshot,
+              expected,
+              options["--verify-local-composition"] ? process.cwd() : undefined,
+            )
           : verifyMergeSnapshotReadback(snapshot, expected);
     } catch (error) {
       if (command !== "verify-merge") throw error;

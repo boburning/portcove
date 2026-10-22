@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtempSync, rmSync, writeFileSync, symlinkSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync, symlinkSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -145,6 +145,272 @@ function readback(clock = now) {
     },
   };
 }
+
+function localGitFixture() {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-delivery-git-"));
+  const git = (args: string[]) => {
+    const result = spawnSync(
+      "git",
+      [
+        "-c",
+        "user.name=Delivery fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "-c",
+        "commit.gpgsign=false",
+        ...args,
+      ],
+      {
+        cwd: directory,
+        encoding: "utf8",
+        timeout: 15_000,
+        env: {
+          ...process.env,
+          GIT_CONFIG_NOSYSTEM: "1",
+          GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null",
+        },
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  const save = (name: string, body: string) => {
+    writeFileSync(path.join(directory, name), body);
+    git(["add", name]);
+    git(["commit", "-m", name]);
+    return git(["rev-parse", "HEAD"]);
+  };
+  git(["init", "-b", "main"]);
+  save("shared.txt", "one\ntwo\nthree\nfour\nfive\nsix\n");
+  const base = save(".gitattributes", "*.txt merge=fixture-driver\n");
+  git(["checkout", "-b", "candidate"]);
+  const source = save("shared.txt", "source\ntwo\nthree\nfour\nfive\nsix\n");
+  git(["checkout", "main"]);
+  const previousTarget = save("before.txt", "earlier target\n");
+  const previewTree = git(["merge-tree", "--write-tree", previousTarget, source]);
+  const preview = git([
+    "commit-tree",
+    previewTree,
+    "-p",
+    previousTarget,
+    "-p",
+    source,
+    "-m",
+    "Historical preview",
+  ]);
+  const currentTarget = save("shared.txt", "one\ntwo\nthree\nfour\nfive\ntarget\n");
+  const currentTree = git(["merge-tree", "--write-tree", currentTarget, source]);
+  git(["checkout", "candidate"]);
+  const snapshot = fixture(Date.now());
+  for (const pull of [snapshot.pull_before, snapshot.pull_after]) {
+    pull.head.sha = source;
+    pull.base.sha = previousTarget;
+    pull.merge_commit_sha = preview;
+  }
+  for (const branch of [snapshot.target_before, snapshot.target_after])
+    branch.commit.sha = currentTarget;
+  for (const run of [snapshot.run_before, snapshot.run_after]) run.head_sha = source;
+  for (const closing of [snapshot.closing_before, snapshot.closing_after]) closing.head = source;
+  for (const check of snapshot.checks.check_runs) check.head_sha = source;
+  for (const job of snapshot.jobs.jobs) job.head_sha = source;
+  snapshot.statuses.sha = source;
+  snapshot.commits[0]!.sha = source;
+  snapshot.preview = {
+    sha: preview,
+    parents: [{ sha: previousTarget }, { sha: source }],
+    tree: { sha: previewTree },
+  };
+  return {
+    directory,
+    git,
+    save,
+    base,
+    snapshot,
+    expected: {
+      ...expected,
+      head: source,
+      target: currentTarget,
+      tree: currentTree,
+      now: Date.now,
+    },
+  };
+}
+
+void test("local composition admits a historical provider preview only after checking actual stored Git objects", () => {
+  const value = localGitFixture();
+  try {
+    assert.throws(
+      () => prepareMergeSnapshot(value.snapshot, value.expected),
+      /composition differs/,
+    );
+    assert.throws(
+      () =>
+        prepareMergeSnapshot(
+          { ...value.snapshot, composition: { method: "local-git-merge-tree", verified: true } },
+          value.expected,
+        ),
+      /composition differs/,
+    );
+    const result = prepareMergeSnapshot(value.snapshot, value.expected, value.directory);
+    assert.equal(result.head, value.expected.head);
+    assert.equal(result.target, value.expected.target);
+    assert.equal(result.tree, value.expected.tree);
+    assert.equal(result.preview, value.snapshot.preview.sha);
+    assert.deepEqual(result.composition, {
+      method: "local-git-merge-tree",
+      preview_target: value.snapshot.preview.parents[0]!.sha,
+      preview_tree: value.snapshot.preview.tree.sha,
+    });
+    const clock = Date.now();
+    let clockReads = 0;
+    assert.throws(
+      () =>
+        prepareMergeSnapshot(
+          value.snapshot,
+          {
+            ...value.expected,
+            now: () => (clockReads++ < 2 ? clock : clock + 60_001),
+          },
+          value.directory,
+        ),
+      /stale/,
+    );
+    const snapshotFile = path.join(value.directory, "snapshot.json"),
+      intentFile = path.join(value.directory, "intent.json"),
+      messageFile = path.join(value.directory, "message.json");
+    writeFileSync(snapshotFile, JSON.stringify(value.snapshot));
+    writeFileSync(intentFile, JSON.stringify(intent));
+    writeFileSync(messageFile, JSON.stringify(message));
+    const cli = spawnSync(
+      process.execPath,
+      [
+        fileURLToPath(new URL("./pr-delivery.mts", import.meta.url)),
+        "prepare-merge",
+        "--pr",
+        "7",
+        "--head",
+        value.expected.head,
+        "--target",
+        value.expected.target,
+        "--tree",
+        value.expected.tree,
+        "--run",
+        "42",
+        "--attempt",
+        "1",
+        "--snapshot-file",
+        snapshotFile,
+        "--closure-intent-file",
+        intentFile,
+        "--merge-message-file",
+        messageFile,
+        "--verify-local-composition",
+        "--json",
+      ],
+      { cwd: value.directory, encoding: "utf8", timeout: 15_000 },
+    );
+    assert.equal(cli.status, 0, cli.stderr);
+    const output: unknown = JSON.parse(cli.stdout);
+    assert.ok(output && typeof output === "object" && "tree" in output);
+    assert.equal(output.tree, value.expected.tree);
+  } finally {
+    rmSync(value.directory, { recursive: true, force: true });
+  }
+});
+
+void test("local composition refuses wrong source, tree, preview objects, missing history and target conflicts", () => {
+  const value = localGitFixture();
+  try {
+    for (const target of [value.base, "1".repeat(40)]) {
+      const snapshot = structuredClone(value.snapshot);
+      snapshot.target_before.commit.sha = snapshot.target_after.commit.sha = target;
+      assert.throws(() =>
+        prepareMergeSnapshot(snapshot, { ...value.expected, target }, value.directory),
+      );
+    }
+    assert.throws(
+      () =>
+        prepareMergeSnapshot(
+          value.snapshot,
+          { ...value.expected, tree: value.base },
+          value.directory,
+        ),
+      /reviewed tree/,
+    );
+    for (const mutate of [
+      (snapshot: typeof value.snapshot) => {
+        snapshot.preview.tree.sha = value.expected.tree;
+      },
+      (snapshot: typeof value.snapshot) => {
+        snapshot.preview.parents[1]!.sha = value.base;
+      },
+      (snapshot: typeof value.snapshot) => {
+        snapshot.preview.parents[0]!.sha = value.base;
+      },
+      (snapshot: typeof value.snapshot) => {
+        snapshot.preview.sha =
+          snapshot.pull_before.merge_commit_sha =
+          snapshot.pull_after.merge_commit_sha =
+            "1".repeat(40);
+      },
+    ]) {
+      const snapshot = structuredClone(value.snapshot);
+      mutate(snapshot);
+      assert.throws(() => prepareMergeSnapshot(snapshot, value.expected, value.directory));
+    }
+    assert.throws(() => prepareMergeSnapshot(value.snapshot, value.expected, "."), /absolute/);
+    const shallow = path.join(value.directory, ".git", "shallow");
+    writeFileSync(shallow, value.expected.head + "\n");
+    assert.throws(
+      () => prepareMergeSnapshot(value.snapshot, value.expected, value.directory),
+      /complete stored history/,
+    );
+    rmSync(shallow);
+    value.git(["checkout", "main"]);
+    assert.throws(
+      () => prepareMergeSnapshot(value.snapshot, value.expected, value.directory),
+      /checkout head/,
+    );
+    const conflict = value.save("shared.txt", "conflicting target\ntwo\nthree\nfour\nfive\nsix\n");
+    value.git(["checkout", "candidate"]);
+    const snapshot = structuredClone(value.snapshot);
+    snapshot.target_before.commit.sha = snapshot.target_after.commit.sha = conflict;
+    assert.throws(
+      () =>
+        prepareMergeSnapshot(snapshot, { ...value.expected, target: conflict }, value.directory),
+      /Git merge-tree failed/,
+    );
+  } finally {
+    rmSync(value.directory, { recursive: true, force: true });
+  }
+});
+
+void test("local composition ignores external merge drivers, replacement refs and inherited Git overrides", () => {
+  const value = localGitFixture();
+  try {
+    const sentinel = path.join(value.directory, "driver-ran");
+    value.git([
+      "config",
+      "merge.fixture-driver.driver",
+      `echo forbidden > '${sentinel.replaceAll("\\", "/")}'`,
+    ]);
+    value.git(["replace", value.expected.target, value.expected.head]);
+    const prior = process.env.GIT_DIR;
+    try {
+      process.env.GIT_DIR = path.join(value.directory, "not-a-repository");
+      assert.equal(
+        prepareMergeSnapshot(value.snapshot, value.expected, value.directory).tree,
+        value.expected.tree,
+      );
+    } finally {
+      if (prior === undefined) delete process.env.GIT_DIR;
+      else process.env.GIT_DIR = prior;
+    }
+    assert.equal(existsSync(sentinel), false);
+  } finally {
+    rmSync(value.directory, { recursive: true, force: true });
+  }
+});
 
 void test("connector preparation preserves independently expected head, target, tree and exact squash request", () => {
   const result = prepareMergeSnapshot(fixture(), expected);

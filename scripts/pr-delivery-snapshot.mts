@@ -1,8 +1,12 @@
 import { open, lstat } from "node:fs/promises";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { isRecord } from "./runtime-values.mts";
 import { checkClosureIntent } from "./closure-intent.mts";
+import { commandFailure } from "./report-summary.mts";
 import type {
   DeliveryCheckRun,
   DeliveryJob,
@@ -461,14 +465,169 @@ function composition(
     throw new Error("Git commit composition differs from expected source, target, or tree");
 }
 
-export function prepareMergeSnapshot(value: unknown, expected: MergeSnapshotExpectation) {
+function localComposition(
+  value: unknown,
+  previewSha: string,
+  expected: MergeSnapshotExpectation,
+  checkout: string,
+  remainingMs: number,
+) {
+  if (!path.isAbsolute(checkout)) throw new Error("Local composition checkout must be absolute");
+  const preview = record(value, "Git commit composition");
+  const parents = preview.parents;
+  const previewTree = record(preview.tree, "Git commit tree").sha;
+  if (
+    preview.sha !== previewSha ||
+    !sha(previewTree) ||
+    !Array.isArray(parents) ||
+    parents.length !== 2 ||
+    !sha(record(parents[0], "preview target").sha) ||
+    record(parents[1], "preview source").sha !== expected.head
+  )
+    throw new Error("Historical preview source, target or tree is incomplete");
+  const previewTarget = record(parents[0], "preview target").sha as string;
+  const deadline = Date.now() + remainingMs;
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-merge-composition-"));
+  try {
+    const empty = path.join(directory, "empty"),
+      bare = path.join(directory, "objects.git");
+    mkdirSync(empty);
+    const config = path.join(directory, "empty-config");
+    writeFileSync(config, "");
+    // Copy no ambient Git overrides, repository configuration, attributes,
+    // replacement refs, grafts or promisor setup into the object-only verifier.
+    const env = {
+      PATH: process.env.PATH,
+      SystemRoot: process.env.SystemRoot,
+      WINDIR: process.env.WINDIR,
+      PATHEXT: process.env.PATHEXT,
+      GIT_CONFIG_NOSYSTEM: "1",
+      GIT_CONFIG_SYSTEM: config,
+      GIT_CONFIG_GLOBAL: config,
+      GIT_ATTR_NOSYSTEM: "1",
+      GIT_CONFIG_COUNT: "3",
+      GIT_CONFIG_KEY_0: "core.hooksPath",
+      GIT_CONFIG_VALUE_0: empty,
+      GIT_CONFIG_KEY_1: "core.attributesFile",
+      GIT_CONFIG_VALUE_1: config,
+      GIT_CONFIG_KEY_2: "core.fsmonitor",
+      GIT_CONFIG_VALUE_2: "false",
+      GIT_NO_REPLACE_OBJECTS: "1",
+      GIT_NO_LAZY_FETCH: "1",
+      GIT_ALLOW_PROTOCOL: "",
+      GIT_TERMINAL_PROMPT: "0",
+    };
+    const git = (cwd: string, args: string[]) => {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0)
+        throw new Error("Local composition exhausted the snapshot collection budget");
+      const result = spawnSync("git", ["--no-replace-objects", ...args], {
+        cwd,
+        env,
+        encoding: "buffer",
+        shell: false,
+        windowsHide: true,
+        timeout: Math.min(15_000, remaining),
+        maxBuffer: 1024 * 1024,
+      });
+      if (
+        result.error ||
+        result.status !== 0 ||
+        !Buffer.isBuffer(result.stdout) ||
+        Date.now() > deadline
+      )
+        throw commandFailure(
+          `Local composition Git ${args[0]} failed; missing objects, conflicts or an expired budget require reconciliation`,
+          result,
+          path.join(checkout, "work", "pr-delivery"),
+        );
+      return result.stdout;
+    };
+    const text = (cwd: string, args: string[]) => git(cwd, args).toString("utf8").trim();
+    const checkHead = () => {
+      if (text(checkout, ["rev-parse", "--verify", "HEAD"]) !== expected.head)
+        throw new Error("Local composition checkout head differs from the reviewed source");
+    };
+    checkHead();
+    if (text(checkout, ["rev-parse", "--is-shallow-repository"]) !== "false")
+      throw new Error("Local composition requires complete stored history");
+    const objects = text(checkout, [
+      "rev-parse",
+      "--path-format=absolute",
+      "--git-path",
+      "objects",
+    ]);
+    if (!path.isAbsolute(objects) || /[\r\n\0]/u.test(objects))
+      throw new Error("Local composition object directory is invalid");
+    git(directory, ["init", "--bare", "--template", empty, bare]);
+    writeFileSync(
+      path.join(bare, "objects", "info", "alternates"),
+      objects.replaceAll("\\", "/") + "\n",
+    );
+    const commit = (id: string) => {
+      const bytes = git(bare, ["cat-file", "commit", id]);
+      if (createHash("sha1").update(`commit ${bytes.length}\0`).update(bytes).digest("hex") !== id)
+        throw new Error("Local composition raw commit identity differs");
+      const header = bytes.toString("utf8").split("\n\n")[0] ?? "";
+      const tree = /^tree ([a-f0-9]{40})$/mu.exec(header)?.[1];
+      const parents = [...header.matchAll(/^parent ([a-f0-9]{40})$/gmu)].map((match) => match[1]);
+      if (!sha(tree)) throw new Error("Local composition commit tree is invalid");
+      return { tree, parents };
+    };
+    const actualPreview = commit(previewSha);
+    if (
+      actualPreview.tree !== previewTree ||
+      !same(actualPreview.parents, [previewTarget, expected.head])
+    )
+      throw new Error("Local preview object differs from the provider observation");
+    commit(expected.head);
+    commit(expected.target);
+    git(bare, ["merge-base", "--is-ancestor", previewTarget, expected.target]);
+    if (text(bare, ["merge-tree", "--write-tree", previewTarget, expected.head]) !== previewTree)
+      throw new Error("Historical provider preview differs from the independently computed tree");
+    if (
+      text(bare, ["merge-tree", "--write-tree", expected.target, expected.head]) !== expected.tree
+    )
+      throw new Error("Current local composition differs from the independently reviewed tree");
+    checkHead();
+    return {
+      method: "local-git-merge-tree",
+      preview_target: previewTarget,
+      preview_tree: previewTree,
+    };
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+
+export function prepareMergeSnapshot(
+  value: unknown,
+  expected: MergeSnapshotExpectation,
+  localCheckout?: string,
+) {
   const { snapshot, ...interval } = envelope(value, "prepare-merge", expected);
   const observed = bracketed(snapshot, expected, interval);
   const ref = observed.pull.base.ref!;
   branch(snapshot.target_before, ref, expected.target);
   branch(snapshot.target_after, ref, expected.target);
   if (!sha(observed.pull.merge_commit_sha)) throw new Error("Merge preview is unavailable");
-  composition(snapshot.preview, expected, observed.pull.merge_commit_sha, false);
+  let verifiedComposition;
+  if (localCheckout !== undefined) {
+    verifiedComposition = localComposition(
+      snapshot.preview,
+      observed.pull.merge_commit_sha,
+      expected,
+      localCheckout,
+      collectionBudgetMs - ((expected.now ?? Date.now)() - interval.started),
+    );
+  } else {
+    composition(snapshot.preview, expected, observed.pull.merge_commit_sha, false);
+    verifiedComposition = {
+      method: "provider-preview",
+      preview_target: expected.target,
+      preview_tree: expected.tree,
+    };
+  }
   if (
     !Number.isSafeInteger(expected.run) ||
     Number(expected.run) < 1 ||
@@ -542,6 +701,7 @@ export function prepareMergeSnapshot(value: unknown, expected: MergeSnapshotExpe
     closureIntent: expected.closureIntent,
     mergeMessage: expected.mergeMessage,
   });
+  envelope(value, "prepare-merge", expected);
   return {
     format_version: 1,
     phase: "prepare-merge",
@@ -553,6 +713,7 @@ export function prepareMergeSnapshot(value: unknown, expected: MergeSnapshotExpe
     tree: expected.tree,
     target_ref: ref,
     preview: observed.pull.merge_commit_sha,
+    composition: verifiedComposition,
     run: expected.run,
     attempt: expected.attempt,
     closing_fingerprint: fingerprint(observed.closing),
