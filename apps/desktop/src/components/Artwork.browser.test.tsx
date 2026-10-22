@@ -518,7 +518,8 @@ describe("local artwork controls", () => {
     await click("cover", "Reset to default");
     expect(reset).toHaveBeenCalledWith("sample", "cover", 1, 7);
     expect(container.querySelector(".artwork-image:not(.wide-artwork) img")).toBeNull();
-    expect(container.querySelector(".detail-artwork img")).not.toBeNull();
+    container.querySelector<HTMLElement>(".detail-artwork")!.scrollIntoView();
+    await expect.poll(() => container.querySelector(".detail-artwork img")).not.toBeNull();
     expect(
       getComputedStyle(container.querySelector(".artwork-image")!)
         .getPropertyValue("--art-color")
