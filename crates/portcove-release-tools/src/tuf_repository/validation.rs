@@ -97,7 +97,9 @@ pub(super) fn validate_root_contract(
     let root_keys: BTreeSet<_> = root_role.keyids.iter().collect();
     let valid_count = match profile {
         InitialRootProfile::LegacyTwoOfThreeV1 => root_keys.len() >= 3,
-        InitialRootProfile::SingleOwnerOneOfOneV1 => root_keys.len() == 1,
+        InitialRootProfile::SingleOwnerOneOfOneV1 => {
+            root_keys.len() == 1 && root_role.keyids.len() == 1
+        }
     };
     if root_role.threshold.get() != profile.threshold() || !valid_count {
         return Err(TufRepositoryError::Invalid(

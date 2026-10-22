@@ -269,6 +269,36 @@ async fn prove_bootstrap(fixture: Ceremony) {
             .remove("initial_root_profile");
         fixture.config("context.json", &implicit);
         assert!(!fixture.cli("inspect-tuf-bootstrap", &path).status.success());
+
+        // A duplicate inventory is still malformed when the appointed key
+        // genuinely signs the changed body. Refuse the shape, not just an
+        // invalid signature or a stale bootstrap-descriptor hash.
+        let mut duplicate = read_root("root-final.json").signed;
+        let role = duplicate.roles.get_mut(&RoleType::Root).unwrap();
+        role.keyids.push(role.keyids[0].clone());
+        let signed_duplicate = SignedRole::new(
+            duplicate.clone(),
+            &KeyHolder::Root(duplicate),
+            &[fixture.keys[0].source()],
+            &SystemRandom::new(),
+        )
+        .await
+        .unwrap();
+        fs::write(
+            fixture.root().join("duplicate-root-ids.json"),
+            signed_duplicate.buffer(),
+        )
+        .unwrap();
+        let mut duplicate_context = context.clone();
+        duplicate_context["trusted_root"] = json!("duplicate-root-ids.json");
+        fixture.config("initial.json", &descriptor("duplicate-root-ids.json"));
+        fixture.config("context.json", &duplicate_context);
+        let refused = fixture.cli("inspect-tuf-bootstrap", &path);
+        assert!(!refused.status.success());
+        assert!(String::from_utf8_lossy(&refused.stderr).contains("initial Root profile"));
+        assert!(!fixture.root().join("envelopes").exists());
+        assert!(!fixture.root().join("jobs").exists());
+        fixture.config("initial.json", &descriptor("root-final.json"));
         fixture.config("context.json", &context);
     }
     fixture.success("inspect-tuf-bootstrap", &path);
