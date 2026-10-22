@@ -157,6 +157,7 @@ void test("coordinator state and remote transport retain protected release quali
     "scripts/release-coordinator-remote.mts",
     "scripts/release-coordinator-recovery.mts",
     "scripts/recover-local-worker-empty-setup.ps1",
+    "scripts/resume-local-worker-profile.ps1",
     "scripts/recover-local-worker-empty-setup.test.mts",
     "scripts/release-source-changes.mts",
     "scripts/trusted-release-assembly.mts",

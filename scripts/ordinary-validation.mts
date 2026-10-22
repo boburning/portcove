@@ -643,6 +643,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-local-native-setup.mts", ["scripts/release-local-native-setup.test.mts"]],
   ["scripts/release-local-worker-tasks.mts", ["scripts/release-local-worker-tasks.test.mts"]],
   ["scripts/release-local-worker-accounts.ps1", ["scripts/release-local-worker-accounts.test.mts"]],
+  ["scripts/resume-local-worker-profile.ps1", ["scripts/release-local-worker-accounts.test.mts"]],
   [
     "scripts/recover-local-worker-empty-setup.ps1",
     ["scripts/recover-local-worker-empty-setup.test.mts"],
