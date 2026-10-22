@@ -710,20 +710,33 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
   assert.match(linuxFixture, /shell: bash/u); // Bash's pipefail preserves a failed test before tee.
   assert.match(
     linuxFixture,
-    /node scripts\/run-rust-tests\.mts --guard-command cargo test --locked -p portcove-cli --test runtime_diagnostics -- --test-threads=1 --nocapture/u,
+    /node scripts\/run-rust-tests\.mts --guard-command cargo test --locked -p portcove-cli --test runtime_diagnostics --test host_diagnostics --test desktop_host_diagnostics -- --test-threads=1 --nocapture/u,
   );
   assert.match(linuxFixture, /--test-threads=1 --nocapture 2>&1 \| tee/u);
   assert.doesNotMatch(linuxFixture, /rustc --edition|--workspace|tauri build|continue-on-error/u);
   assert.match(linuxFixture, /\/runtime-tests\.txt/u);
+  assert.match(
+    linuxFixture,
+    /cargo test --locked -p portcove-diagnostics -- --test-threads=1 --nocapture/u,
+  );
+  assert.match(
+    linuxFixture,
+    /cargo test --locked -p portcove-core support_bundle_export -- --test-threads=1 --nocapture/u,
+  );
   for (const lane of [fastRust, fastRustQuality]) {
     assert.match(lane, /checked-git\.mts rev-parse HEAD/u);
     assert.match(lane, /rustc --version --verbose/u);
     assert.match(lane, /source_sha256:hashes/u);
     for (const source of [
-      "apps/desktop/src-tauri/src/diagnostics_writer.rs",
-      "apps/desktop/src-tauri/src/diagnostics_writer_tests.rs",
-      "apps/desktop/src-tauri/src/diagnostics_events.rs",
-      "apps/desktop/src-tauri/src/diagnostics_events_tests.rs",
+      "crates/portcove-diagnostics/src/lib.rs",
+      "crates/portcove-diagnostics/src/sessions.rs",
+      "crates/portcove-diagnostics/src/writer.rs",
+      "crates/portcove-diagnostics/src/writer_tests.rs",
+      "crates/portcove-diagnostics/src/events.rs",
+      "crates/portcove-diagnostics/src/events_tests.rs",
+      "apps/desktop/src-tauri/src/host_startup.rs",
+      "crates/portcove-cli/tests/host_diagnostics.rs",
+      "crates/portcove-cli/tests/desktop_host_diagnostics.rs",
       "apps/desktop/src-tauri/src/frontend_diagnostics.rs",
       "crates/portcove-core/src/runtime_diagnostics.rs",
       "crates/portcove-core/src/operation.rs",

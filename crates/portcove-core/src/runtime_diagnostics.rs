@@ -49,6 +49,7 @@ pub fn field(name: &str, value: &Value) -> Option<Value> {
         | "activity_id"
         | "port_id"
         | "release"
+        | "previous_session_id"
         | "install_id" => value
             .as_str()
             .filter(|value| identifier(value))
@@ -82,11 +83,14 @@ pub fn field(name: &str, value: &Value) -> Option<Value> {
         | "consistency_attempt"
         | "report_id"
         | "message_bytes"
+        | "active_sessions"
+        | "unavailable_sessions"
+        | "pruned_sessions"
         | "stack_bytes" => value.as_u64().map(|value| json!(value)),
         "stdout_bytes" | "stderr_bytes" => value.as_u64().map(|value| json!(value)),
         "exit_code" => value.as_i64().map(|value| json!(value)),
         "success" | "truncated" | "activity_recorded" | "capture_recorded" | "stream_complete"
-        | "context_complete" => value.as_bool().map(|value| json!(value)),
+        | "context_complete" | "session_clean" => value.as_bool().map(|value| json!(value)),
         "operation" => label(
             value,
             &[
@@ -144,6 +148,21 @@ pub fn field(name: &str, value: &Value) -> Option<Value> {
                 "render",
                 "activity_record",
                 "resolved",
+                "arguments",
+                "command",
+                "preferences",
+                "preference_read",
+                "preference_decode",
+                "runtime_lease",
+                "library_selection",
+                "library_open",
+                "service_open",
+                "service_startup",
+                "database_open",
+                "database_migration",
+                "runtime_support",
+                "unclean_session",
+                "session_complete",
             ],
         ),
         "observed_result" => label(value, &["succeeded", "failed", "cancelled", "unknown"]),
@@ -193,6 +212,23 @@ pub fn field(name: &str, value: &Value) -> Option<Value> {
         ),
         _ => None,
     }
+}
+
+/// Observe an actual host-startup result without formatting its payload or error.
+/// The caller retains the original result and all durable/recovery decisions.
+pub(crate) fn observe_host_result<T>(
+    phase: &'static str,
+    result: crate::Result<T>,
+) -> crate::Result<T> {
+    tracing::info!(
+        target: "portcove_core::host_diagnostics",
+        component = "startup",
+        phase,
+        success = result.is_ok(),
+        code = result.as_ref().err().map(|error| code_label(error.code)).unwrap_or("None"),
+        message = "host startup phase observed"
+    );
+    result
 }
 
 pub(crate) fn code_label(code: crate::ErrorCode) -> &'static str {
@@ -397,7 +433,7 @@ pub(crate) fn project(record: &Map<String, Value>) -> Value {
     let surface = record
         .get("surface")
         .and_then(Value::as_str)
-        .filter(|value| *value == "desktop");
+        .filter(|value| matches!(*value, "desktop" | "cli"));
     let complete = record.get("context_complete").and_then(Value::as_bool);
     let prior_omissions = record.get("omitted_fields").and_then(Value::as_u64);
     let invalid_metadata = [

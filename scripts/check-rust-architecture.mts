@@ -55,7 +55,19 @@ const RULES: Readonly<Record<string, ArchitectureRule>> = {
         "Host tracing subscribers and rotation belong in adapters; core returns structured failure reports and shared redaction.",
       "portcove-cli": "portcove-core cannot depend on an adapter that consumes it.",
       "portcove-desktop": "portcove-core cannot depend on an adapter that consumes it.",
+      "portcove-diagnostics":
+        "Core emits observations; host diagnostic writing cannot become a Core dependency.",
       "portcove-release-tools": "Repository release verification is not game-management authority.",
+    },
+  },
+  "portcove-diagnostics": {
+    required: ["portcove-core"],
+    forbidden: {
+      tauri: "Shared host diagnostics must remain usable without the desktop runtime.",
+      clap: "Executable argument parsing remains in the CLI adapter.",
+      "portcove-cli": "Shared diagnostics cannot depend on its CLI consumer.",
+      "portcove-desktop": "Shared diagnostics cannot depend on its Desktop consumer.",
+      "portcove-release-tools": "Host logging is independent of repository release tooling.",
     },
   },
   "portcove-cli": {

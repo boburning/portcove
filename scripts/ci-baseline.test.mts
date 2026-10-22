@@ -71,6 +71,28 @@ const make = (files: string[]) =>
     checkout: "b".repeat(40),
   });
 
+void test("shared diagnostics inputs keep hosted frontend and quality plans runnable", () => {
+  for (const file of [
+    "crates/portcove-diagnostics/Cargo.toml",
+    "crates/portcove-diagnostics/src/lib.rs",
+    "crates/portcove-diagnostics/src/sessions/tests.rs",
+  ]) {
+    const plan = make([file]);
+    assert.equal(plan.fallback, null, file);
+    assert.ok(plan.groups.includes("rust"), file);
+    assert.ok(plan.groups.includes("rust-quality"), file);
+    assert.equal(baselineSelection(plan).unknown.size, 0, file);
+    assert.doesNotThrow(() => baselineLintPlan(plan), file);
+
+    const mixed = make([file, "apps/desktop/src/App.tsx"]);
+    assert.ok(
+      baselineFrontendPlan(mixed).some((entry) => entry.id === "ui-build"),
+      file,
+    );
+    assert.doesNotThrow(() => baselineLintPlan(mixed), file);
+  }
+});
+
 void test("storage metadata contracts provision pinned Rust for direct and indirect selection", () => {
   for (const file of [
     "scripts/dev-storage.mts",

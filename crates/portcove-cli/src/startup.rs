@@ -1,5 +1,52 @@
-//! Constructor policy only. Early dispatch and cancellation ownership stay in main.
+//! Constructor policy and bounded startup observations. Dispatch and
+//! cancellation ownership stay in main; Core owns every durable outcome.
 use crate::*;
+
+#[derive(Clone, Copy)]
+pub(super) enum DiagnosticPhase {
+    Arguments,
+    Preferences,
+    RuntimeLease,
+    LibrarySelection,
+    LibraryOpen,
+    ServiceStartup,
+    Command,
+}
+
+impl DiagnosticPhase {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Arguments => "arguments",
+            Self::Preferences => "preferences",
+            Self::RuntimeLease => "runtime_lease",
+            Self::LibrarySelection => "library_selection",
+            Self::LibraryOpen => "library_open",
+            Self::ServiceStartup => "service_startup",
+            Self::Command => "command",
+        }
+    }
+}
+
+pub(super) fn record_diagnostic(phase: DiagnosticPhase, success: bool, code: Option<ErrorCode>) {
+    tracing::info!(
+        target: "portcove_cli::host_diagnostics",
+        component = "startup",
+        operation_id = "cli-startup",
+        phase = phase.label(),
+        success,
+        code = code.map(portcove_diagnostics::code_label).unwrap_or("None"),
+        message = "CLI stage completed"
+    );
+}
+
+pub(super) fn observe<T>(phase: DiagnosticPhase, result: Result<T>) -> Result<T> {
+    record_diagnostic(
+        phase,
+        result.is_ok(),
+        result.as_ref().err().map(|error| error.code),
+    );
+    result
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum StartupMode {

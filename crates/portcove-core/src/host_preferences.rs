@@ -134,22 +134,41 @@ impl HostPreferenceStore {
     }
 
     pub fn load(&self) -> Result<HostPreferences> {
+        let bytes = crate::runtime_diagnostics::observe_host_result(
+            "preference_read",
+            self.read_preferences(),
+        )?;
+        let Some(bytes) = bytes else {
+            return Ok(HostPreferences::default());
+        };
+        crate::runtime_diagnostics::observe_host_result(
+            "preference_decode",
+            Self::decode_preferences(&bytes),
+        )
+    }
+
+    fn read_preferences(&self) -> Result<Option<Vec<u8>>> {
         crate::path::refuse_symlink_ancestors(&self.path)?;
         match fs::symlink_metadata(&self.path) {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                return Ok(HostPreferences::default());
+                return Ok(None);
             }
             Err(error) => return Err(error.into()),
             Ok(_) => {}
         }
-        let bytes = crate::path::read_bounded_regular(&self.path, MAX_BYTES).map_err(|error| {
-            if error.details.contains_key("bounded_regular_oversize") {
-                invalid_document(error)
-            } else {
-                error
-            }
-        })?;
-        let preferences: HostPreferences = serde_json::from_slice(&bytes).map_err(|error| {
+        crate::path::read_bounded_regular(&self.path, MAX_BYTES)
+            .map(Some)
+            .map_err(|error| {
+                if error.details.contains_key("bounded_regular_oversize") {
+                    invalid_document(error)
+                } else {
+                    error
+                }
+            })
+    }
+
+    fn decode_preferences(bytes: &[u8]) -> Result<HostPreferences> {
+        let preferences: HostPreferences = serde_json::from_slice(bytes).map_err(|error| {
             invalid_document(
                 PortcoveError::state(
                     "host preferences are malformed; explicitly reset or repair them",

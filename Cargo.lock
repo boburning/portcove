@@ -3588,6 +3588,7 @@ dependencies = [
  "async-trait",
  "clap",
  "portcove-core",
+ "portcove-diagnostics",
  "rpassword",
  "rusqlite",
  "schemars 1.2.3",
@@ -3660,6 +3661,7 @@ dependencies = [
  "libc",
  "minisign-verify",
  "portcove-core",
+ "portcove-diagnostics",
  "reqwest",
  "rusqlite",
  "rustix",
@@ -3687,6 +3689,19 @@ dependencies = [
  "windows-sys 0.61.2",
  "windows-version 0.100.0",
  "zip",
+]
+
+[[package]]
+name = "portcove-diagnostics"
+version = "0.1.0-alpha.2"
+dependencies = [
+ "portcove-core",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

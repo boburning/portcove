@@ -608,7 +608,12 @@ export type OutputDesktopSteamProfiles = string[];
 export type SupportBundleScope = "bounded_recent_diagnostics";
 export type SupportBundleSectionKind = "startup" | "doctor" | "activities" | "activity_capture" | "runtime_log";
 export type SupportBundleProvenance =
-  "desktop_startup" | "library_doctor_snapshot" | "activity_history" | "activity_diagnostics" | "desktop_runtime_log";
+  | "desktop_startup"
+  | "library_doctor_snapshot"
+  | "activity_history"
+  | "activity_diagnostics"
+  | "desktop_runtime_log"
+  | "host_runtime_log";
 export type SupportBundleReason =
   | "unavailable"
   | "read_failed"
@@ -3059,6 +3064,10 @@ export interface SupportBundleLimits {
    */
   collection_seconds: number;
   log_bytes: number;
+  /**
+   * Aggregate raw runtime-log input across session and legacy candidates.
+   */
+  log_input_bytes: number;
   record_bytes: number;
   section_bytes: number;
   total_bytes: number;

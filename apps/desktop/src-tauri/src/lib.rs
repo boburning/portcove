@@ -43,6 +43,7 @@ mod external_runtime_commands;
 mod favorite_commands;
 mod frontend_diagnostics;
 mod game_updates;
+mod host_startup;
 mod library_selection;
 mod library_transfer;
 mod managed_install_review;
@@ -1600,7 +1601,9 @@ pub fn run_hidden_helper() -> Option<i32> {
         Some(mode) if mode == "--portcove-supervise" => {
             let request = arguments.next().map(PathBuf::from);
             Some(match request {
-                Some(request) if arguments.next().is_none() => run_supervisor_request(&request),
+                Some(request) if arguments.next().is_none() => {
+                    run_host_helper(|| run_supervisor_request(&request))
+                }
                 _ => 2,
             })
         }
@@ -1610,7 +1613,9 @@ pub fn run_hidden_helper() -> Option<i32> {
             Some(match (library, session_id) {
                 (Some(library), Some(session_id)) if arguments.next().is_none() => {
                     match session_id.to_str() {
-                        Some(session_id) => run_recovery_helper(&library, session_id),
+                        Some(session_id) => {
+                            run_host_helper(|| run_recovery_helper(&library, session_id))
+                        }
                         None => 2,
                     }
                 }
@@ -1823,6 +1828,13 @@ fn run_adapter_conformance_statuses(library: &Path) -> i32 {
     }
 }
 
+fn run_host_helper(action: impl FnOnce() -> i32) -> i32 {
+    let (_host, mut diagnostic_guard) = diagnostics::HostDiagnostics::start();
+    let exit = action();
+    diagnostics::shutdown(&mut diagnostic_guard);
+    exit
+}
+
 fn run_supervisor_request(request_path: &Path) -> i32 {
     let _application_runtime = match application_runtime_guard() {
         Ok(guard) => guard,
@@ -1843,7 +1855,7 @@ fn run_supervisor_request(request_path: &Path) -> i32 {
         }
     };
     let mut response_written = false;
-    let result = Library::open(&request.library_root)
+    let result = host_startup::open_library_at(&request.library_root)
         .and_then(PortcoveService::new)
         .and_then(|service| {
             service.supervise_launch_identified(
@@ -1891,7 +1903,7 @@ fn run_recovery_helper(library_root: &Path, session_id: &str) -> i32 {
         Ok(guard) => guard,
         Err(_) => return 1,
     };
-    match Library::open(library_root)
+    match host_startup::open_library_at(library_root)
         .and_then(PortcoveService::new)
         .and_then(|service| service.recover_launch_session(session_id))
     {
@@ -2214,23 +2226,21 @@ fn initialize_desktop_with(
     preferences: &HostPreferenceStore,
     configured_root: Option<PathBuf>,
 ) -> DesktopResult<ReadyDesktopState> {
-    let default = Library::default_root().map_err(DesktopError::from)?;
-    let selection = preferences
-        .resolve(configured_root.as_deref(), &default)
-        .map_err(DesktopError::from)?;
+    let selection =
+        host_startup::select_library(preferences, configured_root).map_err(DesktopError::from)?;
     initialize_desktop_selection(selection)
 }
 
 fn host_preference_store() -> DesktopResult<HostPreferenceStore> {
-    HostPreferenceStore::open_configured().map_err(DesktopError::from)
+    host_startup::preference_store().map_err(DesktopError::from)
 }
 
 fn application_runtime_guard() -> portcove_core::Result<ApplicationRuntimeGuard> {
-    ApplicationRuntimeGuard::acquire(&HostPreferenceStore::application_runtime_lock_path()?)
+    host_startup::runtime_guard()
 }
 
 fn initialize_desktop_selection(selection: LibrarySelection) -> DesktopResult<ReadyDesktopState> {
-    let library = Library::open(&selection.root).map_err(DesktopError::from)?;
+    let library = host_startup::open_library(&selection).map_err(DesktopError::from)?;
     start_stale_launch_recovery(&library).map_err(DesktopError::from)?;
     let workspace_observer = std::sync::Arc::new(std::sync::Mutex::new(
         library.change_observer().map_err(DesktopError::from)?,
@@ -2465,32 +2475,18 @@ where
     }
 }
 
-#[derive(Clone, Copy)]
-enum EarlyStartupPhase {
-    Preferences,
-    RuntimeLease,
-}
+use host_startup::EarlyPhase as EarlyStartupPhase;
 
 fn early_startup_message(phase: EarlyStartupPhase, error: &DesktopError) -> String {
-    // Before library diagnostics exist, print only fixed copy and the semantic
-    // code. Error messages/details may contain private paths or credentials.
-    let message = match phase {
-        EarlyStartupPhase::Preferences => {
-            "Portcove could not open host preferences. Check the preference file setting, then try again."
-        }
-        EarlyStartupPhase::RuntimeLease if error.code == portcove_core::ErrorCode::Conflict => {
-            "Portcove cannot start while an application update is replacing it. Let the update finish, then try again."
-        }
-        EarlyStartupPhase::RuntimeLease => {
-            "Portcove could not open its runtime lease. Check access to the application state location, then try again."
-        }
-    };
-    format!("{message} [{:?}]", error.code)
+    host_startup::failure_message(phase, error.code)
 }
 
 pub fn run() -> std::process::ExitCode {
     #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
     report_application_update_qualification_stage("process entry");
+    // Only the host location is resolved here. No preference content, library,
+    // database or migration is required to explain an early failure.
+    let (host_diagnostics, mut diagnostic_guard) = diagnostics::HostDiagnostics::start();
     let preferences: DesktopResult<HostPreferenceStore> = match host_preference_store() {
         Ok(store) => Ok(store),
         Err(error) => {
@@ -2498,6 +2494,7 @@ pub fn run() -> std::process::ExitCode {
                 "{}",
                 early_startup_message(EarlyStartupPhase::Preferences, &error)
             );
+            diagnostics::shutdown(&mut diagnostic_guard);
             return std::process::ExitCode::FAILURE;
         }
     };
@@ -2508,6 +2505,7 @@ pub fn run() -> std::process::ExitCode {
                 "{}",
                 early_startup_message(EarlyStartupPhase::RuntimeLease, &error.into())
             );
+            diagnostics::shutdown(&mut diagnostic_guard);
             return std::process::ExitCode::FAILURE;
         }
     };
@@ -2517,16 +2515,20 @@ pub fn run() -> std::process::ExitCode {
     recover_application_update_after_interrupted_replacement(&_application_runtime);
     #[cfg(any(windows, target_os = "linux"))]
     if let Err(message) = runtime_support::check() {
+        tracing::error!(
+            component = "startup",
+            phase = "runtime_support",
+            success = false,
+            code = "unsupported",
+            message = "desktop runtime support check failed"
+        );
         runtime_support::report_failure(&message);
+        diagnostics::shutdown(&mut diagnostic_guard);
         return std::process::ExitCode::FAILURE;
     }
     let configured_root = std::env::var_os("PORTCOVE_LIBRARY")
         .filter(|path| !path.is_empty())
         .map(PathBuf::from);
-    let mut host_diagnostics = diagnostics::HostDiagnostics::new(&preferences);
-    // Logging is best effort and cannot turn successful library initialization
-    // into a failure. Its host location is ready before the library is opened.
-    let mut diagnostic_guard = host_diagnostics.start();
     tracing::info!(
         operation_id = "desktop-startup",
         phase = "start",
@@ -2545,6 +2547,12 @@ pub fn run() -> std::process::ExitCode {
         ),
         message = "desktop initialization"
     );
+    if let Err(error) = &initialization_result {
+        eprintln!(
+            "{}",
+            early_startup_message(EarlyStartupPhase::Library, error)
+        );
+    }
     #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
     if initialization_result.is_ok() {
         report_application_update_qualification_stage("desktop initialization");

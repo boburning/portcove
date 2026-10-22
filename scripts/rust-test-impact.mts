@@ -279,6 +279,7 @@ export function runRustImpactUnion(
 export const rustPackagePrefixes = new Map([
   ["crates/portcove-core/", "portcove-core"],
   ["crates/portcove-cli/", "portcove-cli"],
+  ["crates/portcove-diagnostics/", "portcove-diagnostics"],
   ["crates/portcove-release-tools/", "portcove-release-tools"],
   ["apps/desktop/src-tauri/", "portcove-desktop"],
 ]);
@@ -295,6 +296,8 @@ export function selectWorkspaceRustImpact(
     !plan.changes.length ||
     plan.changed_files.some(
       (file: string) =>
+        // Both executable adapters consume this host-owned policy and worker.
+        file.startsWith("crates/portcove-diagnostics/") ||
         ([
           "Cargo.toml",
           "Cargo.lock",
@@ -389,16 +392,20 @@ export function selectWorkspaceRustImpact(
       reason: "public CLI artwork consumer",
     });
   }
-  // The CLI fixture compiles these exact Desktop modules without a Tauri host.
-  // Preserve its typed event, privacy/export and Core outcome consumers as well.
+  // The CLI fixtures exercise shared host policy and the exact Desktop startup
+  // functions without Tauri. Preserve these consumers across boundary changes.
   const diagnosticsInputs = new Set([
     "apps/desktop/src-tauri/src/diagnostics.rs",
+    "apps/desktop/src-tauri/src/host_startup.rs",
     "apps/desktop/src-tauri/src/diagnostics_writer.rs",
     "apps/desktop/src-tauri/src/diagnostics_writer_tests.rs",
     "apps/desktop/src-tauri/src/diagnostics_events.rs",
     "apps/desktop/src-tauri/src/diagnostics_events_tests.rs",
     "apps/desktop/src-tauri/src/frontend_diagnostics.rs",
     "crates/portcove-core/src/runtime_diagnostics.rs",
+    "crates/portcove-core/src/host_preferences.rs",
+    "crates/portcove-core/src/database.rs",
+    "crates/portcove-core/src/support_bundle_export.rs",
     "crates/portcove-core/src/support_bundle.rs",
     "crates/portcove-core/src/operation.rs",
     "crates/portcove-core/src/service.rs",

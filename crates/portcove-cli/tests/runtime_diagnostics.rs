@@ -1,10 +1,7 @@
-//! The exact Desktop writer and tracing layer, exercised without Tauri or a
-//! second CLI logging implementation. CLI subprocesses retain their normal logger.
+//! The shared production writer and tracing layer, exercised without Tauri.
+//! CLI subprocesses retain their normal output and host diagnostics boundaries.
 
-#[path = "../../../apps/desktop/src-tauri/src/diagnostics_events.rs"]
-mod diagnostics_events;
-#[path = "../../../apps/desktop/src-tauri/src/diagnostics_writer.rs"]
-mod diagnostics_writer;
+use portcove_diagnostics::{events as diagnostics_events, writer as diagnostics_writer};
 #[path = "../../../apps/desktop/src-tauri/src/frontend_diagnostics.rs"]
 mod frontend_diagnostics;
 

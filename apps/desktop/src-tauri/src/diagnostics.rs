@@ -1,18 +1,16 @@
 use std::{
-    io,
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
     time::Duration,
 };
 
 use portcove_core::{
-    ErrorCode, FailureReport, HostPreferenceStore, Library, PortcoveError, Result,
-    SupportBundleExport, SupportBundleRequest, export_support_bundle,
+    ErrorCode, FailureReport, Library, PortcoveError, Result, SupportBundleExport,
+    SupportBundleRequest, export_support_bundle,
 };
-use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::{Layer, layer::SubscriberExt};
 
-use crate::diagnostics_events::DiagnosticLayer;
-use crate::diagnostics_writer::{Guard, LOG_FILE_NAME, Limits, Producer, RuntimeWriter};
+use crate::diagnostics_writer::{Guard, Limits};
 
 const SHUTDOWN_FLUSH: Duration = Duration::from_secs(2);
 
@@ -46,54 +44,41 @@ impl GithubAuthObservation {
     }
 }
 
-fn initialize(logs_dir: &Path) -> Result<(Producer, Guard)> {
-    let logs_dir = portcove_core::prepare_support_log_directory(logs_dir)?;
-    let (producer, guard) = RuntimeWriter::start(logs_dir.join(LOG_FILE_NAME), Limits::default())?;
-    let subscriber = tracing_subscriber::registry().with(DiagnosticLayer::new(producer.clone()));
-    tracing::subscriber::set_global_default(subscriber).map_err(|error| {
-        PortcoveError::state("could not initialize desktop diagnostics")
-            .detail("cause", error.to_string())
-    })?;
-    Ok((producer, guard))
-}
-
 /// This host-owned location survives library initialization/replacement. It
 /// carries no library state and never grants recovery or sharing authority.
 #[derive(Clone)]
 pub(crate) struct HostDiagnostics {
     pub(crate) directory: crate::DesktopResult<PathBuf>,
-    producer: Producer,
+    shared: portcove_diagnostics::HostDiagnostics,
 }
 
 impl HostDiagnostics {
-    pub(crate) fn new(preferences: &crate::DesktopResult<HostPreferenceStore>) -> Self {
+    fn from_shared(shared: portcove_diagnostics::HostDiagnostics) -> Self {
         Self {
-            directory: preferences
-                .as_ref()
-                .map(HostPreferenceStore::diagnostics_directory)
-                .map_err(Clone::clone),
-            producer: Producer::disabled(io::ErrorKind::NotConnected),
+            directory: shared.directory().map(Path::to_path_buf).ok_or_else(|| {
+                PortcoveError::state("host diagnostics location is unavailable").report()
+            }),
+            shared,
         }
     }
 
-    pub(crate) fn start(&mut self) -> Option<Guard> {
-        let directory = self.directory.as_ref().ok()?;
-        match initialize(directory) {
-            Ok((producer, guard)) => {
-                self.producer = producer;
-                Some(guard)
-            }
-            Err(_) => {
-                // No raw OS/path/error details, and no attempt to report a
-                // logger failure through tracing. Library startup still runs.
-                self.producer = Producer::disabled(io::ErrorKind::Other);
-                None
-            }
+    pub(crate) fn start() -> (Self, Option<Guard>) {
+        let (shared, mut guard) = portcove_diagnostics::HostDiagnostics::start(
+            portcove_diagnostics::Surface::Desktop,
+            portcove_diagnostics::debug_requested(),
+        );
+        let subscriber =
+            tracing_subscriber::registry().with(shared.layer().with_filter(shared.filter()));
+        if tracing::subscriber::set_global_default(subscriber).is_err() {
+            // Subscriber conflicts cannot change otherwise valid startup.
+            shutdown(&mut guard);
         }
+        (Self::from_shared(shared), guard)
     }
 
     pub(crate) fn health(&self) -> String {
-        let health = self.producer.health();
+        let health = self.shared.health();
+        let sessions = self.shared.sessions();
         // Live independent readback: fixed copy and numeric/closed values only.
         // This command does not open a library, read a log, or emit an event.
         format!(
@@ -105,6 +90,9 @@ impl HostDiagnostics {
              record_limit={} field_limit={} value_budget={} producer_limit={}\n\
              field_count_limit={} field_name_limit={} target_limit={}\n\
              segment_limit={} retained_generations={} max_age_days=7 shutdown_deadline_ms=2000\n\
+             session_limit=8 active_sessions={} unavailable_sessions={} previous_unclean_sessions={} pruned_sessions={}\n\
+             inactive_bytes_observed={} inactive_target_bytes=67108864 managed_payload_bound_bytes=201326592 fallback={}\n\
+             bootstrap_deadline_ms={} bootstrap_timed_out={}\n\
              Best effort; abrupt exit can lose queued or unsynchronized records.",
             health.flush_state,
             health.admitted,
@@ -136,6 +124,14 @@ impl HostDiagnostics {
             crate::diagnostics_events::MAX_TARGET_BYTES,
             Limits::default().max_file_bytes,
             Limits::default().retained_files,
+            sessions.active_sessions,
+            sessions.unavailable_sessions,
+            sessions.previous_unclean_sessions,
+            sessions.pruned_sessions,
+            sessions.retained_inactive_bytes,
+            self.shared.used_fallback(),
+            portcove_diagnostics::BOOTSTRAP_TIMEOUT_MS,
+            self.shared.bootstrap_timed_out(),
         )
     }
 }
@@ -181,10 +177,13 @@ pub fn create_support_bundle(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::diagnostics_writer::{EnqueueOutcome, FlushState};
+    use crate::diagnostics_events::DiagnosticLayer;
+    use crate::diagnostics_writer::{
+        EnqueueOutcome, FlushState, LOG_FILE_NAME, Producer, RuntimeWriter,
+    };
     use portcove_core::{
-        PortcoveService, redact_diagnostic_text as redact_text, redact_diagnostic_value,
-        sensitive_diagnostic_field as is_sensitive_field,
+        HostPreferenceStore, PortcoveService, redact_diagnostic_text as redact_text,
+        redact_diagnostic_value, sensitive_diagnostic_field as is_sensitive_field,
     };
     use serde_json::{Value, json};
     use std::{
@@ -203,37 +202,48 @@ mod tests {
     #[test]
     fn support_export_uses_host_location_without_a_ready_library() {
         let temporary = tempfile::tempdir().unwrap();
-        let preferences =
-            HostPreferenceStore::new(temporary.path().join("preferences.json")).unwrap();
-        let host = HostDiagnostics::new(&Ok(preferences));
-        let directory = host.directory.unwrap();
-        assert_eq!(directory, temporary.path().join("diagnostics"));
-        fs::create_dir(&directory).unwrap();
-        let (producer, mut guard) =
-            RuntimeWriter::start(directory.join(LOG_FILE_NAME), Limits::default()).unwrap();
-        append_fixture(
-            &producer,
-            json!({"fields": {"message": "startup host log remains available"}}),
+        let root = fs::canonicalize(temporary.path()).unwrap();
+        let preferences = HostPreferenceStore::new(root.join("preferences.json")).unwrap();
+        let (shared, mut host_guard) = portcove_diagnostics::HostDiagnostics::start_in(
+            &preferences.diagnostics_directory(),
+            portcove_diagnostics::Surface::Desktop,
+            false,
         );
-        assert_eq!(
-            guard.shutdown(Duration::from_secs(2)).flush_state,
-            FlushState::Complete
-        );
+        let session = shared
+            .session_directory()
+            .unwrap()
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        let subscriber =
+            tracing_subscriber::registry().with(shared.layer().with_filter(shared.filter()));
+        let host = HostDiagnostics::from_shared(shared);
+        let directory = host.directory.as_ref().unwrap();
+        assert_eq!(directory, &root.join("diagnostics"));
+        tracing::subscriber::with_default(subscriber, || {
+            tracing::info!(
+                target: "portcove_desktop",
+                message = "startup host log remains available"
+            );
+        });
+        shutdown(&mut host_guard);
+        assert_eq!(host.shared.health().flush_state, FlushState::Complete);
         let failure = PortcoveError::state("unavailable library token=startup-canary").report();
         let original = failure.clone();
-        let exported = create_support_bundle(None, Some(&failure), &directory).unwrap();
+        let exported = create_support_bundle(None, Some(&failure), directory).unwrap();
         assert!(!exported.manifest.library_available);
         assert_eq!(failure, original);
         assert!(exported.path.is_file());
         let mut archive = zip::ZipArchive::new(File::open(exported.path).unwrap()).unwrap();
         let mut log = String::new();
         archive
-            .by_name(&format!("logs/{LOG_FILE_NAME}"))
+            .by_name(&format!("logs/{session}/{LOG_FILE_NAME}"))
             .unwrap()
             .read_to_string(&mut log)
             .unwrap();
         assert!(log.contains("startup host log remains available"));
-        assert!(!temporary.path().join("preferences.json").exists());
+        assert!(!root.join("preferences.json").exists());
     }
 
     #[test]
@@ -318,24 +328,51 @@ mod tests {
     #[test]
     fn unsafe_existing_host_log_cannot_be_enabled_for_startup_writes() {
         let temporary = tempfile::tempdir().unwrap();
-        let foreign = temporary.path().join("private-file");
+        let root = fs::canonicalize(temporary.path()).unwrap();
+        let foreign = root.join("private-file");
         fs::write(&foreign, b"preserve foreign data").unwrap();
-        let directory = temporary.path().join("diagnostics");
+        let directory = root.join("diagnostics");
         fs::create_dir(&directory).unwrap();
         fs::hard_link(&foreign, directory.join(LOG_FILE_NAME)).unwrap();
-        assert!(initialize(&directory).is_err());
+        // Root preparation still validates legacy logs before a session slot
+        // is allocated. A foreign alias must never be adopted for writing.
+        let (shared, guard) = portcove_diagnostics::HostDiagnostics::start_in(
+            &directory,
+            portcove_diagnostics::Surface::Desktop,
+            false,
+        );
+        assert!(guard.is_none());
+        assert!(shared.session_directory().is_none());
+        assert_eq!(shared.health().flush_state, FlushState::Unavailable);
+        let host = HostDiagnostics::from_shared(shared);
+        assert!(host.directory.is_err());
         assert_eq!(fs::read(&foreign).unwrap(), b"preserve foreign data");
+        assert_eq!(
+            fs::read(directory.join(LOG_FILE_NAME)).unwrap(),
+            b"preserve foreign data"
+        );
     }
 
     #[cfg(unix)]
     #[test]
     fn unsafe_host_ancestor_cannot_redirect_early_logging() {
         let temporary = tempfile::tempdir().unwrap();
-        let foreign = temporary.path().join("foreign");
+        let root = fs::canonicalize(temporary.path()).unwrap();
+        let foreign = root.join("foreign");
         fs::create_dir(&foreign).unwrap();
-        let alias = temporary.path().join("aliased-host");
+        let alias = root.join("aliased-host");
         std::os::unix::fs::symlink(&foreign, &alias).unwrap();
-        assert!(initialize(&alias.join("diagnostics")).is_err());
+        let (shared, guard) = portcove_diagnostics::HostDiagnostics::start_in(
+            &alias.join("diagnostics"),
+            portcove_diagnostics::Surface::Desktop,
+            false,
+        );
+        assert!(guard.is_none());
+        assert!(shared.session_directory().is_none());
+        assert_eq!(shared.health().flush_state, FlushState::Unavailable);
+        let host = HostDiagnostics::from_shared(shared);
+        assert!(host.directory.is_err());
+        assert_eq!(fs::read_link(alias).unwrap(), foreign);
         assert!(!foreign.join("diagnostics").exists());
     }
 
@@ -388,17 +425,23 @@ mod tests {
 
     #[test]
     fn live_health_is_independent_of_logs_and_a_ready_library() {
-        let host = HostDiagnostics::new(&Err(PortcoveError::state(
-            "private-path token=health-canary",
-        )
-        .report()));
+        let temporary = tempfile::tempdir().unwrap();
+        let blocked = temporary.path().join("private-path-token-health-canary");
+        fs::write(&blocked, b"preserved").unwrap();
+        let (shared, guard) = portcove_diagnostics::HostDiagnostics::start_in(
+            &blocked,
+            portcove_diagnostics::Surface::Desktop,
+            false,
+        );
+        assert!(guard.is_none());
+        let host = HostDiagnostics::from_shared(shared);
         let first = host.health();
         assert_eq!(first, host.health());
         assert!(first.contains("Unavailable"));
         assert!(first.contains("record_limit=32768"));
         assert!(!first.contains("private-path"));
         assert!(!first.contains("health-canary"));
-        assert_eq!(host.producer.health().admitted, 0);
+        assert_eq!(host.shared.health().admitted, 0);
     }
 
     #[test]
