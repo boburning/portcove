@@ -17,6 +17,7 @@ pub use renewal::prepare_tuf_renewal;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OnlineRole {
+    Targets,
     Releases,
     Preview,
     Stable,
@@ -27,16 +28,18 @@ pub enum OnlineRole {
 impl OnlineRole {
     pub fn parse(value: &str) -> Result<Self, TufRepositoryError> {
         match value {
+            "targets" => Ok(Self::Targets),
             "releases" => Ok(Self::Releases),
             "preview" => Ok(Self::Preview),
             "stable" => Ok(Self::Stable),
             "snapshot" => Ok(Self::Snapshot),
             "timestamp" => Ok(Self::Timestamp),
-            _ => invalid("only the five separately authorized online roles are supported"),
+            _ => invalid("unsupported separately authorized online role"),
         }
     }
     fn name(self) -> &'static str {
         match self {
+            Self::Targets => "targets",
             Self::Releases => "releases",
             Self::Preview => "preview",
             Self::Stable => "stable",
@@ -46,6 +49,7 @@ impl OnlineRole {
     }
     fn index(self) -> usize {
         match self {
+            Self::Targets => 0,
             Self::Releases => 3,
             Self::Preview => 4,
             Self::Stable => 5,
@@ -61,12 +65,22 @@ const DELEGATED: [(DelegatedRole, OnlineRole); 3] = [
     (DelegatedRole::Stable, OnlineRole::Stable),
 ];
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+enum TargetsProfile {
+    #[default]
+    OfflinePinnedV1,
+    OnlineUnchangedAuthorityV1,
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ContextConfig {
     schema_version: u32,
     #[serde(default)]
     initial_root_profile: InitialRootProfile,
+    #[serde(default)]
+    top_level_targets_profile: TargetsProfile,
     generated_at: String,
     trusted_root: String,
     offline_targets: String,
@@ -116,6 +130,7 @@ struct Context {
     root: Signed<Root>,
     top_bytes: Vec<u8>,
     top: Signed<Targets>,
+    next_top: Option<Targets>,
     ids: [Vec<u8>; 6],
     versions: [NonZeroU64; 6],
     expires: [Timestamp; 6],
@@ -367,7 +382,17 @@ fn verify_history(
                 return invalid("historical root requires separate offline rotation");
             }
         } else if role == "targets.json" {
-            if version != context.versions[0] || bytes != &context.top_bytes {
+            if context.next_top.is_some() {
+                let signed: Signed<Targets> = serde_json::from_slice(bytes)?;
+                context.root.signed.verify_role(&signed)?;
+                if signed.signed.version != version || version > versions[0] {
+                    return invalid("historical Targets version exceeds its authenticated floor");
+                }
+                let mut authority = signed.signed;
+                authority.version = context.top.signed.version;
+                authority.expires = context.top.signed.expires;
+                same_body(&authority, &context.top.signed)?;
+            } else if version != context.versions[0] || bytes != &context.top_bytes {
                 return invalid("historical offline targets require separate offline rotation");
             }
         } else if role == "snapshot.json" {
@@ -515,9 +540,27 @@ async fn verify_prior(
         return invalid("prior metadata contains unsupported signed content");
     }
     let mut versions = context.versions;
+    if context.next_top.is_some() {
+        let prior_top =
+            snapshot.signed.meta.get("targets.json").ok_or_else(|| {
+                TufRepositoryError::Invalid("prior Targets identity missing".into())
+            })?;
+        let bytes = bytes_at(
+            &files,
+            &format!("metadata/{}.targets.json", prior_top.version),
+        )?;
+        if prior_top.version != context.top.signed.version || bytes != context.top_bytes {
+            return invalid("authenticated base Targets differs from exact retained prior bytes");
+        }
+        same_body(prior_top, &metadata_identity(bytes, prior_top.version)?)?;
+        versions[0] = prior_top.version;
+    }
     versions[1] = snapshot.signed.version;
     versions[2] = timestamp.signed.version;
     let mut expires = context.expires;
+    if context.next_top.is_some() {
+        expires[0] = context.top.signed.expires;
+    }
     expires[1] = snapshot.signed.expires;
     expires[2] = timestamp.signed.expires;
     let mut logical = BTreeMap::new();
@@ -658,6 +701,17 @@ async fn load_context(path: &Path) -> Result<Context, TufRepositoryError> {
     if config.schema_version != 1 {
         return invalid("unsupported public signing context schema");
     }
+    let online_targets =
+        config.top_level_targets_profile == TargetsProfile::OnlineUnchangedAuthorityV1;
+    if online_targets
+        && (config.initial_root_profile != InitialRootProfile::SingleOwnerOneOfOneV1
+            || config.previous_repository.is_none()
+            || config.initial_bootstrap.is_some())
+    {
+        return invalid(
+            "online Targets requires explicit single-owner profile and authenticated prior",
+        );
+    }
     let base = path.parent().unwrap_or_else(|| Path::new("."));
     let root_path = resolve(base, &config.trusted_root, "trusted root")?;
     let top_path = resolve(base, &config.offline_targets, "offline targets")?;
@@ -728,7 +782,37 @@ async fn load_context(path: &Path) -> Result<Context, TufRepositoryError> {
     )?;
     let registry = read_regular_bounded(&registry_path, MAX_REGISTRY_BYTES, "payload registry")?;
     validate_payload_registry(&registry)?;
-    online::load_offline_targets(&top_path, &root, &ids, &versions, &expires, &registry)?;
+    let mut base_versions = versions;
+    let mut base_expires = expires;
+    let next_top = if online_targets {
+        if top.signed.version.get().checked_add(1) != Some(versions[0].get())
+            || expires[0] <= top.signed.expires
+            || expires[0] > root.signed.expires
+        {
+            return invalid(
+                "online Targets must advance one version and expiry within the unchanged Root",
+            );
+        }
+        base_versions[0] = top.signed.version;
+        base_expires[0] = top.signed.expires;
+        let mut next = top.signed.clone();
+        next.version = versions[0];
+        next.expires = expires[0];
+        Some(next)
+    } else {
+        None
+    };
+    let (checked_top, _) = online::load_offline_targets(
+        &top_path,
+        &root,
+        &ids,
+        &base_versions,
+        &base_expires,
+        &registry,
+    )?;
+    if online_targets && checked_top != top_bytes {
+        return invalid("base Targets changed during validation");
+    }
     let record_manifest: ReconstructionManifest = parse_file(
         &records_path.join("reconstruction-manifest.json"),
         "reconstruction manifest",
@@ -757,6 +841,7 @@ async fn load_context(path: &Path) -> Result<Context, TufRepositoryError> {
         root,
         top_bytes,
         top,
+        next_top,
         ids,
         versions,
         expires,
@@ -829,7 +914,7 @@ fn snapshot(
     let mut value = Snapshot::new("1.0.0".into(), context.versions[1], context.expires[1]);
     value.meta.insert(
         "targets.json".into(),
-        metadata_identity(&context.top_bytes, context.versions[0])?,
+        metadata_identity(selected_top_bytes(context, roles)?, context.versions[0])?,
     );
     for (_, role) in DELEGATED {
         let bytes = bytes_at(roles, &format!("{}.json", role.name()))?;
@@ -839,6 +924,17 @@ fn snapshot(
         );
     }
     Ok(value)
+}
+
+fn selected_top_bytes<'a>(
+    context: &'a Context,
+    roles: &'a BTreeMap<String, Vec<u8>>,
+) -> Result<&'a [u8], TufRepositoryError> {
+    if context.next_top.is_some() {
+        bytes_at(roles, "targets.json")
+    } else {
+        Ok(&context.top_bytes)
+    }
 }
 
 fn timestamp(
@@ -865,18 +961,21 @@ fn verify_inputs(
     if !fs::symlink_metadata(directory)?.is_dir() {
         return invalid("signed role inputs must be a regular directory");
     }
-    let allowed = BTreeSet::from([
+    let mut allowed = BTreeSet::from([
         "releases.json",
         "preview.json",
         "stable.json",
         "snapshot.json",
         "timestamp.json",
     ]);
+    if context.next_top.is_some() {
+        allowed.insert("targets.json");
+    }
     let mut count = 0;
     for entry in fs::read_dir(directory)? {
         let entry = entry?;
         count += 1;
-        if count > 5
+        if count > allowed.len()
             || entry
                 .file_name()
                 .to_str()
@@ -887,6 +986,17 @@ fn verify_inputs(
         }
     }
     let mut roles = BTreeMap::new();
+    if let Some(expected) = &context.next_top {
+        let bytes = read_regular_bounded(
+            &directory.join("targets.json"),
+            MAX_MANIFEST_BYTES,
+            "signed Targets input",
+        )?;
+        let signed: Signed<Targets> = serde_json::from_slice(&bytes)?;
+        context.root.signed.verify_role(&signed)?;
+        same_body(&signed.signed, expected)?;
+        roles.insert("targets.json".into(), bytes);
+    }
     for (delegated, role) in DELEGATED {
         let name = format!("{}.json", role.name());
         let bytes = read_regular_bounded(
@@ -956,7 +1066,8 @@ fn write_envelope(output: &Path, bytes: &[u8]) -> Result<bool, TufRepositoryErro
 }
 
 /// Reads one bounded private key, after all public inputs and prior floors pass.
-/// No configuration field can supply another private role, root or targets key.
+/// No configuration field can supply another private role or Root key. Targets
+/// is available only in the explicit unchanged-authority renewal mode.
 pub async fn sign_tuf_role(
     role: OnlineRole,
     config_path: &Path,
@@ -968,6 +1079,11 @@ pub async fn sign_tuf_role(
     let base = config_path.parent().unwrap_or_else(|| Path::new("."));
     let context_path = resolve(base, &config.context, "public context")?;
     let context = load_context(&context_path).await?;
+    if role == OnlineRole::Targets && context.next_top.is_none() {
+        return invalid(
+            "Targets signing requires explicit unchanged-authority online renewal context",
+        );
+    }
     let private = resolve(base, &config.signing_key, "single role key")?;
     let output = resolve(base, &config.output, "signed role output")?;
     let signed_roles = config
@@ -1003,6 +1119,18 @@ pub async fn sign_tuf_role(
     let rng = SystemRandom::new();
     let root_holder = KeyHolder::Root(context.root.signed.clone());
     let bytes = match role {
+        OnlineRole::Targets => SignedRole::new(
+            context
+                .next_top
+                .clone()
+                .ok_or_else(|| TufRepositoryError::Invalid("online Targets body absent".into()))?,
+            &root_holder,
+            &keys,
+            &rng,
+        )
+        .await?
+        .buffer()
+        .to_vec(),
         OnlineRole::Snapshot => SignedRole::new(
             snapshot(
                 &context,
@@ -1095,6 +1223,7 @@ pub async fn assemble_tuf_repository(
     inputs.extend([config_path, directory.as_path()]);
     ensure_no_overlap(&output, &inputs)?;
     let roles = verify_inputs(&context, &directory, true, true)?;
+    let selected_top = selected_top_bytes(&context, &roles)?;
     let mut files = BTreeMap::new();
     files.insert(
         format!("metadata/{}.root.json", context.root.signed.version),
@@ -1102,7 +1231,7 @@ pub async fn assemble_tuf_repository(
     );
     files.insert(
         format!("metadata/{}.targets.json", context.versions[0]),
-        context.top_bytes.clone(),
+        selected_top.to_vec(),
     );
     for role in [
         OnlineRole::Releases,
@@ -1145,7 +1274,7 @@ pub async fn assemble_tuf_repository(
             root_version: context.root.signed.version,
             signing_key_ids: &context.ids,
             namespace_delegations: true,
-            offline_targets: Some(&context.top_bytes),
+            offline_targets: Some(selected_top),
         },
     )
     .await?;
@@ -1166,6 +1295,31 @@ pub async fn assemble_tuf_repository(
     );
     write_files(staged.path(), &files)?;
     verify_history(&context, &files, &context.versions)?;
+    if context.next_top.is_some() {
+        // Authenticate the actual merged output after all immutable history has
+        // been restored, not only the earlier current-generation projection.
+        let repository = RepositoryLoader::new(
+            &context.root_bytes,
+            Url::from_directory_path(staged.path().join("metadata"))
+                .map_err(|_| TufRepositoryError::Invalid("merged metadata path invalid".into()))?,
+            Url::from_directory_path(staged.path().join("targets"))
+                .map_err(|_| TufRepositoryError::Invalid("merged target path invalid".into()))?,
+        )
+        .load()
+        .await?;
+        for (name, expected) in &context.targets {
+            let actual = repository
+                .read_target(&TargetName::new(name.clone())?)
+                .await?
+                .ok_or_else(|| TufRepositoryError::Invalid("merged current target absent".into()))?
+                .try_collect::<Vec<_>>()
+                .await?
+                .concat();
+            if actual != *expected {
+                return invalid("merged current target differs");
+            }
+        }
+    }
     let expected = report_files(staged.path())?;
     let publication = renewal::authenticated_publication(&context, &files)?;
     if output.exists() {

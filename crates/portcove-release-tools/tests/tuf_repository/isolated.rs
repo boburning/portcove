@@ -439,7 +439,8 @@ async fn refuses_expiry_version_floor_release_history_changes_and_extra_key_conf
             .to_string()
             .contains("unknown field")
     );
-    for name in ["root", "targets", "payload", "other"] {
+    assert_eq!(OnlineRole::parse("targets").unwrap(), OnlineRole::Targets);
+    for name in ["root", "payload", "other"] {
         assert!(OnlineRole::parse(name).is_err());
     }
 }
