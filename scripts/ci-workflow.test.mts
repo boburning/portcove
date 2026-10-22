@@ -661,7 +661,7 @@ void test("fixed-account cases execute on Windows in both fast and qualification
     assert.match(lane, /runs-on: windows-latest/);
     assert.match(
       lane,
-      /run: node --test --test-timeout=30000 --test-reporter=\.\/scripts\/test-duration-reporter\.mts scripts\/release-local-worker-accounts\.test\.mts scripts\/release-native-account-capability\.test\.mts/,
+      /run: node --test --test-timeout=30000 --test-reporter=\.\/scripts\/test-duration-reporter\.mts scripts\/release-local-worker-accounts\.test\.mts scripts\/release-native-account-capability\.test\.mts scripts\/recover-local-worker-empty-setup\.test\.mts/,
     );
   }
 });
