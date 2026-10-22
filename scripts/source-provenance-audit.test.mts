@@ -851,7 +851,11 @@ void test("live enrichment calls only bounded read commands and API errors do no
         nodes: [],
         pageInfo: { hasNextPage: false, endCursor: null },
       };
-      return included({ data: { node: { items: page } } });
+      return included({
+        data: fixtureGraphql(input).query.includes("RepositoryIssue")
+          ? { repository: { id: "R", nameWithOwner: "boburning/portcove", issues: page } }
+          : { node: { items: page } },
+      });
     },
   });
   assert.deepEqual(result, {
@@ -863,9 +867,9 @@ void test("live enrichment calls only bounded read commands and API errors do no
   assert.deepEqual(
     calls.map(({ args }) => args.slice(0, 2)),
     [
-      ["api", "--include"],
-      ["api", "--include"],
-      ["api", "--include"],
+      ["api", "graphql"],
+      ["api", "graphql"],
+      ["api", "graphql"],
       ["project", "view"],
       ["api", "graphql"],
     ],
@@ -877,8 +881,8 @@ void test("live enrichment calls only bounded read commands and API errors do no
   );
   for (const { input } of calls.filter((call) => call.input)) {
     const query = fixtureGraphql(input).query;
-    assert.match(query, /^query\(/);
-    assert.match(query, /(?:issues\(first: 100|items\(first: 50)/);
+    assert.match(query, /^query(?: |\()/);
+    assert.match(query, /(?:issues\(first:(?:1|50)|items\(first: 50)/);
     assert.match(query, /totalCount/);
     assert.doesNotMatch(query, /\bmutation\b/);
   }
@@ -949,41 +953,55 @@ function paginatedLiveRunner(
 ): ReadCommand {
   return (args, input) => {
     if (args[0] === "project") return { id: "PVT" };
-    if (args[0] === "api" && args[1] === "--include" && !input) {
-      const endpoint = fixtureElement(args, 2);
-      if (endpoint.includes("direction=desc")) {
-        const latest = issues.reduce(
-          (current, issue) => (issue.number > current.number ? issue : current),
-          { number: 0 },
-        );
-        return included(latest.number ? [{ number: latest.number }] : []);
-      }
-      const pageMatch = /[?&]page=(\d+)/u.exec(endpoint);
-      const pageNumber = Number(pageMatch?.[1] ?? 1);
-      const offset = (pageNumber - 1) * 100;
-      intercept({ isIssues: true, offset });
-      const nodes = issues.slice(offset, offset + 100).map((issue) => ({
+    const { query, variables } = fixtureGraphql(input);
+    if (query.includes("RepositoryIssue")) {
+      const marker = query.includes("RepositoryIssueMarker");
+      const offset = Number(variables.after ?? 0),
+        size = 50;
+      if (!marker) intercept({ isIssues: true, offset });
+      const values = issues.map((issue) => ({
         ...issue,
-        node_id: issue.node_id ?? `I_${issue.number}`,
-        html_url: issue.html_url ?? issue.url ?? `https://github.test/issues/${issue.number}`,
-        state: String(issue.state ?? "open").toLowerCase(),
+        id: issue.node_id ?? "I_" + issue.number,
+        url: "https://github.com/boburning/portcove/issues/" + issue.number,
+        state: String(issue.state ?? "OPEN").toUpperCase(),
+        updatedAt: "2026-10-17T00:00:00Z",
       }));
-      const hasNextPage = offset + nodes.length < issues.length;
-      return included(
-        nodes,
-        hasNextPage
-          ? {
-              link: `<repos/boburning/portcove/issues?state=all&sort=created&direction=asc&per_page=100&page=${pageNumber + 1}>; rel="next"`,
-            }
-          : {},
-      );
+      const nodes = marker ? values.slice(-1) : values.slice(offset, offset + size);
+      const hasNextPage = !marker && offset + nodes.length < values.length;
+      return included({
+        data: {
+          repository: {
+            id: "R",
+            nameWithOwner: "boburning/portcove",
+            issues: {
+              nodes,
+              totalCount: values.length,
+              pageInfo: {
+                hasNextPage,
+                endCursor: hasNextPage ? String(offset + nodes.length) : null,
+              },
+            },
+          },
+        },
+      });
     }
-    const { variables } = fixtureGraphql(input);
     const values = projectItems;
     const size = 50;
     const offset = Number(variables.after ?? 0);
     intercept({ isIssues: false, offset });
-    const nodes = values.slice(offset, offset + size);
+    const nodes = values.slice(offset, offset + size).map((raw) => {
+      const item = fixtureObject(raw),
+        content = fixtureObject(item.content);
+      return {
+        ...item,
+        content: {
+          id: `I_${String(content.number ?? item.id)}`,
+          updatedAt: "2026-10-17T00:00:00Z",
+          body: "",
+          ...content,
+        },
+      };
+    });
     const hasNextPage = offset + nodes.length < values.length;
     const page = {
       nodes,
@@ -1051,7 +1069,7 @@ void test("live provenance includes canonical ports beyond 1000 records with det
   });
   assert.equal(live.issues.length, 1003);
   assert.equal(live.projectItems.length, 1003);
-  assert.equal(calls.filter((call) => call.isIssues).length, 11);
+  assert.equal(calls.filter((call) => call.isIssues).length, 21);
   assert.equal(calls.filter((call) => !call.isIssues).length, 21);
   assert.equal(fixtureValue(fixtureValue(live.projectItems.at(-1)).content).number, 1);
   const first = buildSourceProvenanceAudit({ ...input, ...live });
@@ -1095,7 +1113,12 @@ void test("failed live collection phases preserve snapshots without exposing raw
       label: `${phase}, malformed response`,
       phase,
       run(args, payload) {
-        if (isIssues ? !payload && args[0] === "api" : Boolean(payload))
+        if (
+          payload &&
+          (isIssues
+            ? fixtureGraphql(payload).query.includes("RepositoryIssue")
+            : fixtureGraphql(payload).query.includes("items(first:"))
+        )
           return included({ invalid: secret });
         return baseRun(args, payload);
       },

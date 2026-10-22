@@ -148,19 +148,13 @@ The provenance generator leaves the previous snapshot intact when enrichment
 fails. A successful traversal is a dated observation, not an atomic snapshot
 of concurrent field edits.
 
-The standalone Roadmap doctor uses one GraphQL issue-only traversal as its
-repository inventory. A newest-record marker alone cannot establish complete
-middle-page coverage. The traversal checks every page against a stable total,
-unique node IDs and issue numbers, repository identity, issue URL bindings and
-before/after newest-issue markers. It retains the source and outcome in
-`repository_issue_inventory` in its JSON receipt. Incomplete, malformed,
-duplicate, stalled, changed or transport-failed observations fail without an
-automatic retry. Project reads, supplied validated inventories and other
-collectors retain their existing budgets and behavior; partial coverage never
-establishes missing canonical issues or a successful inventory.
-Programmatic doctor calls retain their default collector unless the caller
-supplies the attempt-evidence sink to select the count-verified GraphQL collector;
-supplied validated inventories bypass collection.
+All live Roadmap repository issue inventories use one verified direct GraphQL collector. Metadata pages contain at most 100 issues; body-inclusive pages contain at most 50. Stable totals, terminal pagination, advancing cursors, unique node IDs and issue numbers, required fields, repository identity, issue URL bindings and before/after newest-issue markers establish complete coverage. A newest-record marker alone never establishes middle-page coverage. Collector results are bound to their client, fields and observation time; raw arrays and persisted caches cannot establish live completeness.
+
+Standalone and programmatic doctors use the same collector regardless of evidence reporting. Supplied collector-validated Roadmap inventories bypass duplicate collection. Otherwise doctor brackets its fresh repository issue read with independent active-Project count, identity and revision observations. The same issue traversal may project complete live issue-side Project memberships and their fields. A unique same-Project active set establishes Project coverage only when its size exhausts the stable independent count; this cardinality proof does not assume drafts, foreign issues or pull requests are absent. A smaller projection still requires full Project item enumeration; a larger projection, malformed nested connections, or changing revision/counts invalidate the observation. No persisted membership proof or partial traversal is reused. This avoids the Project-wide listing when fresh authoritative memberships already prove the whole set, while retaining complete-list coverage for broader Projects. A self-consistent but truncated Project traversal cannot establish missing memberships. Discovery also checks independently counted active-plus-archived membership in its existing Project revision reads; redacted Project content remains incomplete coverage. Discovery preserves metadata-first enumeration, revision checks, body-cache hashes, hydration batches of ten, archive scope, freshness and mutation invalidation. The generic connection validator is shared with Project/dependency traversals; their independent scope remains required.
+
+The collector makes one attempt. Only the standalone doctor may restart its whole read once after typed concurrent changes or an admitted timeout, connection reset, or HTTP 502/503/504. Fresh counts and provider quota must admit the replacement read within caller deadlines; rate limits, authentication, malformed/incomplete data, identity failures and exhausted budgets never trigger that retry. Every retry discards prior observations and Project context and repeats checkout-context checks. Discovery retains its own single recollection allowance without nested retry or expanded hard budgets.
+
+Receipts preserve both read attempts, repository inventory proof, sanitized page/query fingerprints, counts, request IDs, timestamps, bytes, elapsed time and available provider quota/cost. Failed collection is inconclusive coverage, never missing canonical issues or duplicate-intake permission. Direct API metrics exclude internal requests made by GitHub CLI commands and do not claim total provider usage. Requests, response bytes, observed GraphQL points and requests of unknown cost are distinct. Quota estimates are admission headroom rather than exclusive reservations or guarantees about provider cost. Provenance generation preserves its prior snapshot when collection fails.
 
 Repository Node tools execute GitHub requests through the shared
 `scripts/github-api.mts` transport. GraphQL queries and variables are serialized
@@ -185,11 +179,7 @@ diagnostics stay on stderr and every status other than `planned` or `succeeded`
 exits nonzero. JSON does not relax exact-head checks, mutation readback or
 inventory completeness.
 
-Repository issue coverage uses the REST issue collection, follows every
-pagination link, validates opaque node IDs and issue numbers before filtering
-pull requests, and requires an unchanged newest-record marker across the read.
-ProjectV2 fields, items, views and dependencies remain GraphQL-owned; REST issue
-coverage cannot substitute for those fields.
+Repository issue coverage cannot substitute for GraphQL-owned ProjectV2 fields, items, views, dependencies or explicit archive scope.
 
 For more than one planned field transition, prepare an ignored JSON file under
 `work/` and use `node scripts/roadmap.mts set-many --spec-file <path>`. Each

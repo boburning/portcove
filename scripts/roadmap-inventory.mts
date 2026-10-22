@@ -1,3 +1,7 @@
+import {
+  collectRepositoryIssueInventory,
+  readCompleteConnection,
+} from "./repository-issue-inventory.mts";
 import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
 import type { RoadmapClient, RoadmapIssueItem } from "./roadmap.mts";
@@ -45,40 +49,15 @@ function connection(
   variables: Record<string, unknown>,
   select: (v: unknown) => unknown,
 ) {
-  const result: RoadmapIssueItem[] = [];
-  const ids = new Set<string>();
-  const cursors = new Set<string>();
-  let after: string | null = null;
-  let expected: number | null = null;
-  for (;;) {
-    const page = object(select(client.graphql(query, { ...variables, after })));
-    if (
-      !Number.isSafeInteger(page.totalCount) ||
-      Number(page.totalCount) < 0 ||
-      !Array.isArray(page.nodes)
-    )
-      throw new Error("Incomplete Roadmap inventory connection");
-    expected ??= Number(page.totalCount);
-    if (expected !== page.totalCount) throw new Error("Roadmap inventory total changed");
-    for (const raw of page.nodes) {
-      const node = object(raw);
-      if (typeof node.id !== "string" || !node.id || ids.has(node.id))
-        throw new Error("Missing or duplicate opaque Roadmap identity");
-      ids.add(node.id);
-      result.push(node);
-    }
-    const info = object(page.pageInfo);
-    if (typeof info.hasNextPage !== "boolean")
-      throw new Error("Missing Roadmap terminal pagination");
-    if (!info.hasNextPage) break;
-    if (typeof info.endCursor !== "string" || !info.endCursor || cursors.has(info.endCursor))
-      throw new Error("Roadmap cursor did not advance");
-    cursors.add(info.endCursor);
-    after = info.endCursor;
-  }
-  if (result.length !== expected) throw new Error("Roadmap inventory count mismatch");
-  return result;
+  return readCompleteConnection(
+    client,
+    query,
+    variables,
+    select,
+    (node) => object(node).id,
+  ) as RoadmapIssueItem[];
 }
+
 export function collectRoadmapInventory(
   client: RoadmapClient,
   cache?: InventoryCache,
@@ -107,9 +86,10 @@ export function collectRoadmapInventory(
   repositoryIdentity = before.id;
   if (cache?.repository_node_id && cache.repository_node_id !== before.id)
     throw new Error("Repository provider identity changed; preserve the historical baseline");
-  const query = `query($owner:String!,$name:String!,$after:String){repository(owner:$owner,name:$name){issues(first:100,after:$after,orderBy:{field:CREATED_AT,direction:ASC}){totalCount nodes{id number title url state updatedAt} pageInfo{hasNextPage endCursor}}}}`;
   const enumerate = () =>
-    connection(client, query, { owner, name }, (v) => object(object(v).repository).issues);
+    collectRepositoryIssueInventory(client, { bodies: false }).issues.map(
+      (row): RoadmapIssueItem => ({ ...row }),
+    );
   let rows = enumerate();
   const cached = new Map<string, RoadmapIssueItem>();
   if (cache?.format === 1 && cache.repository === repository && Array.isArray(cache.issues)) {
@@ -232,7 +212,7 @@ export function collectRoadmapInventory(
     const value = object(
       object(
         client.graphql(
-          `query($id:ID!){projectRevision:node(id:$id){... on ProjectV2{id updatedAt}}}`,
+          `query($id:ID!){projectRevision:node(id:$id){... on ProjectV2{id updatedAt items(first:1,archivedStates:[ARCHIVED,NOT_ARCHIVED]){totalCount}}}}`,
           { id: context.details.id },
         ),
       ).projectRevision,
@@ -243,6 +223,9 @@ export function collectRoadmapInventory(
       !Number.isFinite(Date.parse(value.updatedAt))
     )
       throw new Error("Project revision binding is invalid");
+    const total = object(value.items).totalCount;
+    if (typeof total !== "number" || !Number.isSafeInteger(total) || total < 0)
+      throw new Error("Project revision coverage count is invalid");
     return value;
   };
   const projectBefore = projectMarker();
@@ -253,6 +236,8 @@ export function collectRoadmapInventory(
     includeArchived: true,
     pageSize: 100,
   });
+  if (allItems.length !== object(projectBefore.items).totalCount)
+    throw new Error("Project inventory count mismatch with independent revision observation");
   const byId = new Map(rows.map((i) => [i.id, i]));
   const foreign: RoadmapIssueItem[] = [];
   for (const item of allItems) {

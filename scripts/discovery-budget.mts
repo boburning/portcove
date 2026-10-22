@@ -19,6 +19,8 @@ interface ProviderQuota {
 export interface Usage {
   requests: number;
   bytes: number;
+  graphql_points_observed: number;
+  graphql_cost_unknown_requests: number;
   started_at: string;
   profile: DiscoveryProfile;
   backoff_until?: string;
@@ -32,6 +34,7 @@ export class DiscoveryBudget {
   delivery = false;
   readonly persist: (usage: Usage) => void;
   readonly now: () => number;
+  graphqlPointHeadroom = discoveryGraphqlPointHeadroom;
   constructor(
     profile: DiscoveryProfile,
     persist: (usage: Usage) => void = () => {},
@@ -43,6 +46,8 @@ export class DiscoveryBudget {
     this.usage = {
       requests: 0,
       bytes: 0,
+      graphql_points_observed: 0,
+      graphql_cost_unknown_requests: 0,
       started_at: new Date(now()).toISOString(),
       profile,
       attempts: [],
@@ -66,9 +71,15 @@ export class DiscoveryBudget {
     )
       throw new Error("Invalid operation budget");
     if (this.usage.backoff_until && Date.parse(this.usage.backoff_until) > this.now())
-      throw new Error("Provider backoff is active; resume after " + this.usage.backoff_until);
+      throw new GitHubApiError(
+        "rate_limited",
+        "Provider backoff is active; resume after " + this.usage.backoff_until,
+      );
     if (left.milliseconds <= 0 || requests > left.requests || bytes > left.bytes)
-      throw new Error("Discovery budget cannot admit the complete operation");
+      throw new GitHubApiError(
+        "budget_exhausted",
+        "Discovery budget cannot admit the complete operation",
+      );
   }
   reserveDelivery(requests: number, bytes: number) {
     const previous = this.reserve;
@@ -107,7 +118,8 @@ export class DiscoveryBudget {
     const quota = this.usage.provider_quotas?.[resource];
     if (!quota || Date.parse(quota.resetAt) <= this.now()) {
       if (required)
-        throw new Error(
+        throw new GitHubApiError(
+          "quota_unknown",
           `GitHub ${resource} capacity unknown; refresh provider quota before delivery`,
         );
       return;
@@ -115,15 +127,23 @@ export class DiscoveryBudget {
     const reserve =
       this.delivery || resource === "search"
         ? 0
-        : this.reserve.requests * (resource === "graphql" ? discoveryGraphqlPointHeadroom : 1);
+        : this.reserve.requests * (resource === "graphql" ? this.graphqlPointHeadroom : 1);
     if (quota.remaining < points + reserve)
-      throw new Error(
+      throw new GitHubApiError(
+        "rate_limited",
         `GitHub ${resource} quota cannot preserve delivery reserve: remaining ${quota.remaining}, needed ${points + reserve}; resume after ${quota.resetAt}`,
       );
   }
   requireProviderCapacity(requests: number) {
     this.admitProvider("core", requests, true);
-    this.admitProvider("graphql", requests * discoveryGraphqlPointHeadroom, true);
+    this.admitProvider("graphql", requests * this.graphqlPointHeadroom, true);
+  }
+  observeGraphqlCost(cost: unknown, unknownRequests = 1) {
+    if (typeof cost === "number" && Number.isSafeInteger(cost) && cost >= 0) {
+      this.usage.graphql_points_observed += cost;
+      this.graphqlPointHeadroom = Math.max(this.graphqlPointHeadroom, cost);
+    } else this.usage.graphql_cost_unknown_requests += unknownRequests;
+    this.persist(this.usage);
   }
   charge(method: string, endpoint: string, requests: number, bytes: number, status: string) {
     if (
@@ -138,7 +158,7 @@ export class DiscoveryBudget {
     this.usage.attempts.push({ method, endpoint, status, requests, bytes });
     this.persist(this.usage);
     if (this.usage.requests > this.limits.requests || this.usage.bytes > this.limits.bytes)
-      throw new Error("Discovery hard budget exceeded");
+      throw new GitHubApiError("budget_exhausted", "Discovery hard budget exceeded");
   }
 }
 export function selectDiscoveryProfile(cache: unknown, now = Date.now()): DiscoveryProfile {
@@ -169,7 +189,7 @@ export function createDiscoveryTransport(
           : target.pathname.startsWith("/search/")
             ? "search"
             : "core",
-        1,
+        target.pathname === "/graphql" ? budget.graphqlPointHeadroom : 1,
       );
     const cap = Math.min(2 * 1024 * 1024, left.bytes);
     const maxRequests = Math.min(5, left.requests);
@@ -182,6 +202,8 @@ export function createDiscoveryTransport(
       maxBuffer: cap * 2 + 65536,
     });
     if (response.error || response.status !== 0) {
+      if (target.origin === "https://api.github.com" && target.pathname === "/graphql")
+        budget.observeGraphqlCost(undefined, maxRequests);
       budget.charge(
         method,
         new URL(url).origin + new URL(url).pathname,
@@ -195,6 +217,8 @@ export function createDiscoveryTransport(
     try {
       parsed = JSON.parse(response.stdout);
     } catch {
+      if (target.origin === "https://api.github.com" && target.pathname === "/graphql")
+        budget.observeGraphqlCost(undefined, maxRequests);
       budget.charge(
         method,
         new URL(url).origin + new URL(url).pathname,
@@ -217,6 +241,8 @@ export function createDiscoveryTransport(
       !isRecord(parsed.headers) ||
       typeof parsed.text !== "string"
     ) {
+      if (target.origin === "https://api.github.com" && target.pathname === "/graphql")
+        budget.observeGraphqlCost(undefined, maxRequests);
       budget.charge(
         method,
         new URL(url).origin + new URL(url).pathname,
@@ -225,6 +251,18 @@ export function createDiscoveryTransport(
         "unknown",
       );
       throw new Error("Malformed bounded transport receipt; conservative charge");
+    }
+    if (target.origin === "https://api.github.com" && target.pathname === "/graphql") {
+      let cost: unknown;
+      try {
+        const body: unknown = JSON.parse(parsed.text);
+        if (isRecord(body) && isRecord(body.data) && isRecord(body.data.rateLimit))
+          cost = body.data.rateLimit.cost;
+      } catch {
+        /* Invalid JSON remains an invalid provider response; it establishes no cost. */
+      }
+      budget.observeGraphqlCost(cost);
+      if (parsed.requests > 1) budget.observeGraphqlCost(undefined, parsed.requests - 1);
     }
     budget.charge(
       method,
@@ -280,6 +318,10 @@ export function createDiscoveryTransport(
       throw new GitHubApiError("http_error", `GitHub HTTP ${response.status}`, {
         status: response.status,
         rateLimit: rateLimitFromResponse(parseIncludedResponse(included)),
+        retryAfter: response.headers["retry-after"] ?? null,
+        requestId: response.headers["x-github-request-id"] ?? null,
+        responseDate: response.headers.date ?? null,
+        responseBytes: Buffer.byteLength(response.text),
       });
     return included;
   };

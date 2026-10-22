@@ -1,3 +1,4 @@
+import { fixtureIssueInventory } from "./repository-issue-inventory.fixture.mts";
 import type { RoadmapIssueItem } from "./roadmap.mts";
 import { validateApproval706 } from "./linux-beta-risk-706.mts";
 import type { GitHubRunner } from "./github-api.mts";
@@ -2357,7 +2358,7 @@ void test("capture-port creates one Project-backed issue without depending on pa
     return "";
   };
   const client = new RoadmapClient(mockedConfig, runner);
-  client.repositoryIssues = () => [];
+  client.repositoryIssues = () => fixtureIssueInventory(client, []);
   const result = client.createPortIssue({
     title: "New Port",
     upstream: "https://example.test/upstream",
@@ -2471,6 +2472,8 @@ Preserve this contributor text.`;
                       id: "PVTI_form",
                       content: {
                         __typename: "Issue",
+                        id: "I_42",
+                        updatedAt: "2026-10-17T00:00:00Z",
                         number: 42,
                         title: issue().title,
                         body,
@@ -2505,7 +2508,8 @@ Preserve this contributor text.`;
       return "";
     };
     const client = new RoadmapClient(mockedConfig, runner);
-    client.repositoryIssues = () => [{ ...issue(), type: "Issue", url: issue().html_url }];
+    client.repositoryIssues = () =>
+      fixtureIssueInventory(client, [{ ...issue(), type: "Issue", url: issue().html_url }]);
     const catalog = { ports: [] };
     const first = client.normalizePortIssue({ number: 42, catalog });
     assert.equal(first.bodyChanged, true);
@@ -2537,62 +2541,6 @@ function restIssue(number: number, overrides: Readonly<Record<string, unknown>> 
   };
 }
 
-void test("repository issue inventory follows every REST page and filters pull requests", () => {
-  const calls: (readonly string[])[] = [];
-  let markers = 0;
-  const runner: GitHubRunner = (args: readonly string[]) => {
-    calls.push(args);
-    const endpoint = fixtureElement(args, 2);
-    if (endpoint.includes("direction=desc")) {
-      markers += 1;
-      return included([restIssue(3, { pull_request: { url: "https://example.test" } })]);
-    }
-    if (endpoint === "https://api.github.test/issues?page=2")
-      return included([restIssue(3, { pull_request: { url: "https://example.test" } })]);
-    return included([restIssue(1), restIssue(2)], {
-      link: '<https://api.github.test/issues?page=2>; rel="next"',
-    });
-  };
-  const issues = new RoadmapClient(config, runner).repositoryIssues();
-  assert.deepEqual(
-    issues.map((issue) => issue.number),
-    [1, 2],
-  );
-  assert.equal(markers, 2);
-  assert.equal(calls.length, 4);
-});
-
-void test("repository issue inventory rejects pagination loops duplicates and a changing high-water mark", () => {
-  const scenarios = [
-    (args: readonly string[]) => {
-      const endpoint = fixtureElement(args, 2);
-      if (endpoint.includes("direction=desc")) return included([restIssue(1)]);
-      return included([restIssue(1)], {
-        link: `<${endpoint}>; rel="next"`,
-      });
-    },
-    (args: readonly string[]) => {
-      const endpoint = fixtureElement(args, 2);
-      if (endpoint.includes("direction=desc")) return included([restIssue(1)]);
-      return included([restIssue(1), restIssue(1)]);
-    },
-    (() => {
-      let marker = 1;
-      return (args: readonly string[]) => {
-        if (fixtureElement(args, 2).includes("direction=desc"))
-          return included([restIssue(marker++)]);
-        return included([restIssue(1)]);
-      };
-    })(),
-  ];
-  for (const runner of scenarios) {
-    assert.throws(
-      () => new RoadmapClient(config, runner).repositoryIssues(),
-      /inventory|pagination/,
-    );
-  }
-});
-
 function issueConnectionResponse(
   input: string | undefined,
   numbers: number[],
@@ -2608,6 +2556,7 @@ function issueConnectionResponse(
     body: "",
     url: `https://github.com/boburning/portcove/issues/${number}`,
     state: "OPEN",
+    updatedAt: "2026-10-17T00:00:00Z",
   }));
   const repository = {
     id: "R_repository",
@@ -2635,9 +2584,10 @@ void test("doctor requires count-verified inventory even when truncated REST inc
     [1, 2, 3],
   );
   assert.equal(restReads, 0);
-  assert.deepEqual(result.attempts, [
-    { attempt: 1, source: "graphql", outcome: "passed", issues: 3 },
-  ]);
+  assert.deepEqual(
+    result.attempts.map(({ evidence: _evidence, ...attempt }) => attempt),
+    [{ attempt: 1, source: "graphql", outcome: "passed", issues: 3 }],
+  );
 });
 
 void test("doctor retains a failed GraphQL observation without a retry", () => {
@@ -2656,10 +2606,9 @@ void test("doctor retains a failed GraphQL observation without a retry", () => {
 
 void test("doctor records one complete empty GraphQL observation", () => {
   const client = new RoadmapClient(config, (_args, input) => issueConnectionResponse(input, []));
-  assert.deepEqual(readDoctorRepositoryIssues(client), {
-    issues: [],
-    attempts: [{ attempt: 1, source: "graphql", outcome: "passed", issues: 0 }],
-  });
+  const result = readDoctorRepositoryIssues(client);
+  assert.deepEqual(result.issues, []);
+  assert.equal(result.attempts[0]?.issues, 0);
 });
 
 void test("runDoctor retains an incomplete GraphQL observation for its CLI receipt", async () => {
@@ -2673,15 +2622,18 @@ void test("runDoctor retains an incomplete GraphQL observation for its CLI recei
   await assert.rejects(
     runDoctor(
       config,
-      {
+      Object.assign(client, {
         gh: () => "",
         completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
         viewList: () => [],
-        projectAudit: () => ({ repositories: { nodes: [] } }),
+        projectAudit: () => ({
+          id: "P",
+          updatedAt: "2026-10-22T00:00:00Z",
+          items: { totalCount: 0 },
+          repositories: { nodes: [] },
+        }),
         itemList: () => [],
-        repositoryIssues: (options: Parameters<RoadmapClient["repositoryIssues"]>[0]) =>
-          client.repositoryIssues(options),
-      },
+      }),
       { quiet: true, repositoryIssueInventoryAttempts: attempts },
     ),
     /record count does not match total/,
@@ -2705,12 +2657,12 @@ void test("GraphQL repository inventory reads all pages and binds the repository
     });
   });
   assert.deepEqual(
-    client.repositoryIssues({ useGraphql: true }).map((issue) => issue.number),
+    client.repositoryIssues().issues.map((issue) => issue.number),
     [1, 2],
   );
   assert.deepEqual(cursors, [null, "second"]);
   const empty = new RoadmapClient(config, (_args, input) => issueConnectionResponse(input, []));
-  assert.deepEqual(empty.repositoryIssues({ useGraphql: true }), []);
+  assert.deepEqual(empty.repositoryIssues().issues, []);
 });
 
 void test("GraphQL repository inventory rejects incomplete malformed duplicate and foreign inventories", () => {
@@ -2769,7 +2721,7 @@ void test("GraphQL repository inventory rejects incomplete malformed duplicate a
         corrupt(repository, fixtureGraphql(input).query.includes("RepositoryIssueMarker")),
       ),
     );
-    assert.throws(() => client.repositoryIssues({ useGraphql: true }), /inventory|pagination/);
+    assert.throws(() => client.repositoryIssues(), /inventory|pagination/);
   }
 });
 
@@ -2787,7 +2739,7 @@ void test("GraphQL repository inventory rejects changed totals or latest identit
         }
       });
     });
-    assert.throws(() => client.repositoryIssues({ useGraphql: true }), /inventory changed/);
+    assert.throws(() => client.repositoryIssues(), /inventory changed/);
   }
 });
 
@@ -2798,37 +2750,7 @@ void test("GraphQL repository markers reject null IDs for a nonempty inventory",
         fixtureObject(repository.issues).nodes = [{ id: null, number: 3 }];
     }),
   );
-  assert.throws(
-    () => client.repositoryIssues({ useGraphql: true }),
-    /invalid repository issue marker/,
-  );
-});
-
-void test("non-CLI doctors preserve single-attempt collection without an evidence sink", async () => {
-  let traversals = 0;
-  const client = new RoadmapClient(config, (args) => {
-    if (args[1] === "graphql") throw new Error("unexpected fallback");
-    if (fixtureElement(args, 2).includes("direction=desc")) return included([restIssue(3)]);
-    traversals++;
-    return included([restIssue(1)]);
-  });
-  await assert.rejects(
-    runDoctor(
-      config,
-      {
-        gh: () => "",
-        completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
-        viewList: () => [],
-        projectAudit: () => ({ repositories: { nodes: [] } }),
-        itemList: () => [],
-        repositoryIssues: (options: Parameters<RoadmapClient["repositoryIssues"]>[0]) =>
-          client.repositoryIssues(options),
-      },
-      { quiet: true },
-    ),
-    /high-water record is missing/,
-  );
-  assert.equal(traversals, 1);
+  assert.throws(() => client.repositoryIssues(), /invalid repository issue marker/);
 });
 
 void test("promotion validation happens before any GitHub mutation", () => {
@@ -2855,7 +2777,13 @@ void test("move refuses ambiguous item references", () => {
               nodes: [
                 {
                   id: "A",
-                  content: { __typename: "DraftIssue", title: "Same" },
+                  content: {
+                    __typename: "DraftIssue",
+                    id: "DI_same",
+                    updatedAt: "2026-10-17T00:00:00Z",
+                    body: "Draft",
+                    title: "Same",
+                  },
                   fieldValues: {
                     totalCount: 0,
                     nodes: [],
@@ -2864,7 +2792,13 @@ void test("move refuses ambiguous item references", () => {
                 },
                 {
                   id: "B",
-                  content: { __typename: "DraftIssue", title: "Same" },
+                  content: {
+                    __typename: "DraftIssue",
+                    id: "DI_same",
+                    updatedAt: "2026-10-17T00:00:00Z",
+                    body: "Draft",
+                    title: "Same",
+                  },
                   fieldValues: {
                     totalCount: 0,
                     nodes: [],
@@ -2873,7 +2807,13 @@ void test("move refuses ambiguous item references", () => {
                 },
                 {
                   id: "C",
-                  content: { __typename: "DraftIssue", title: "Before" },
+                  content: {
+                    __typename: "DraftIssue",
+                    id: "DI_before",
+                    updatedAt: "2026-10-17T00:00:00Z",
+                    body: "Draft",
+                    title: "Before",
+                  },
                   fieldValues: {
                     totalCount: 0,
                     nodes: [],
@@ -2920,23 +2860,6 @@ void test("Project membership refuses malformed or stalled coverage before mutat
     assert.throws(() => client.ensureIssueItem("I_source"), /incomplete GitHub inventory/);
     assert.equal(mutations, 0);
   }
-});
-
-void test("repository marker reserves empty sentinel for an actually empty response", () => {
-  for (const marker of [
-    [{}],
-    [null],
-    [{ number: null }],
-    [{ number: 0 }],
-    [{ number: 1 }, { number: 2 }],
-  ]) {
-    const client = new RoadmapClient(config, (args: readonly string[]) =>
-      JSON.stringify(fixtureElement(args, 2).includes("per_page=1") ? marker : []),
-    );
-    assert.throws(() => client.repositoryIssues(), /invalid repository issue marker/);
-  }
-  const empty = new RoadmapClient(config, () => "[]");
-  assert.deepEqual(empty.repositoryIssues(), []);
 });
 
 void test("RoadmapClient reuses an existing issue item instead of duplicating it", () => {
@@ -3311,7 +3234,13 @@ void test("GraphQL Project item pagination reads every item with normalized fiel
     const item = after
       ? {
           id: "I2",
-          content: { __typename: "DraftIssue", title: "Second", body: "Draft" },
+          content: {
+            __typename: "DraftIssue",
+            id: "DI_second",
+            updatedAt: "2026-10-17T00:00:00Z",
+            body: "Draft",
+            title: "Second",
+          },
           fieldValues: {
             totalCount: 1,
             nodes: [{ name: "Inbox", field: { name: "Status" } }],
@@ -3322,6 +3251,8 @@ void test("GraphQL Project item pagination reads every item with normalized fiel
           id: "I1",
           content: {
             __typename: "Issue",
+            id: "I_1",
+            updatedAt: "2026-10-17T00:00:00Z",
             number: 1,
             title: "First",
             body: "Issue",
@@ -3372,6 +3303,13 @@ void test("Project item inventory rejects a truncated nested field connection", 
             nodes: [
               {
                 id: "I1",
+                content: {
+                  __typename: "DraftIssue",
+                  id: "DI_1",
+                  title: "Draft",
+                  body: "",
+                  updatedAt: "2026-10-17T00:00:00Z",
+                },
                 fieldValues: {
                   totalCount: 2,
                   nodes: [{ name: "Ready", field: { name: "Status" } }],
@@ -3461,6 +3399,11 @@ void test("set-many validates transitions before one mutation and exact readback
                   id: "PVTI_838",
                   content: {
                     __typename: "Issue",
+                    id: "I_838",
+                    title: "Fixture",
+                    body: "",
+                    state: "OPEN",
+                    updatedAt: "2026-10-17T00:00:00Z",
                     number: 838,
                     url: "https://github.com/boburning/portcove/issues/838",
                   },
@@ -3659,7 +3602,16 @@ void test("set-many resumes already-applied assignments with exact readback and 
 void test("the Project reader preserves full bodies and all pages above the ordinary transport limit", () => {
   const node = (number: number) => ({
     id: `PVTI_${number}`,
-    content: { __typename: "Issue", number, body: "x".repeat(22000) },
+    content: {
+      __typename: "Issue",
+      id: `I_${number}`,
+      title: "Fixture",
+      url: `https://github.com/boburning/portcove/issues/${number}`,
+      state: "OPEN",
+      updatedAt: "2026-10-17T00:00:00Z",
+      number,
+      body: "x".repeat(22000),
+    },
     fieldValues: { totalCount: 0, nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
   });
   const first = Array.from({ length: 50 }, (_, i) => node(i + 1));
@@ -3792,6 +3744,13 @@ void test("GraphQL failures retain provider quota and reset evidence", () => {
 for (const kind of ["items"]) {
   const node = (value: number) => ({
     id: `PVTI_${value}`,
+    content: {
+      __typename: "DraftIssue",
+      id: `DI_${value}`,
+      title: "Draft",
+      body: "",
+      updatedAt: "2026-10-17T00:00:00Z",
+    },
     fieldValues: {
       totalCount: 0,
       nodes: [],
