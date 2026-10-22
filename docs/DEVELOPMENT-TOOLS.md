@@ -635,7 +635,7 @@ the existing development-storage wrapper for heavy commands.
 
 Selective development uses the shared capability map in
 `scripts/development-capabilities.mts`. Observe a requested profile with
-`just doctor --profile frontend|core|daily|native-desktop`; observation never
+`just doctor --profile frontend|core|daily|native-desktop|native-drivers`; observation never
 acquires tools or dependencies. Existing `standard` and `desktop` defaults retain
 their legacy behavior. Profile readiness is prerequisite evidence; it does not
 prove a build, test run, fresh execution task, cold acquisition or native session.
@@ -644,12 +644,13 @@ prove a build, test run, fresh execution task, cold acquisition or native sessio
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `frontend`       | Pinned Node and pnpm, installed root and desktop frontend dependencies; Windows/Linux also use pinned rustc and its platform linker for cached process containment.                                                                                                                                                                    |
 | `core`           | Pinned Rust/Cargo, rustfmt and Clippy components, pinned cargo-nextest. Direct Cargo development does not require Node, frontend dependencies or Tauri.                                                                                                                                                                                |
+| `native-drivers` | Windows-only pinned Node/Rust/Cargo, pinned tauri-driver and an authenticated Microsoft EdgeDriver matching the installed WebView2 runtime. No frontend installation, hooks, Aqua, analyzers, nextest or build/native acceptance is implied.                                                                                           |
 | `daily`          | Frontend and Core, Git, PowerShell, pinned Aqua and its verified Ruff/ShellCheck/actionlint payloads, all required Cargo tools from the quality manifest, and PSScriptAnalyzer on Windows.                                                                                                                                             |
 | `native-desktop` | Daily plus platform build prerequisites, tauri-driver and the platform driver; Linux also requires Xvfb. Missing or unverified platform capabilities fail this requested profile. Windows observes installed compiler/linker paths; this does not prove Cargo selection. Linux/macOS driver identity remains unverified by this slice. |
 
 Explicitly provision only the requested supported profile with
 `./scripts/bootstrap-quality-tools.sh --profile frontend|core|daily` on Linux/macOS,
-or `./scripts/bootstrap-quality-tools.ps1 -Profile frontend|core|daily|native-desktop`
+or `./scripts/bootstrap-quality-tools.ps1 -Profile frontend|core|daily|native-desktop|native-drivers`
 on Windows. These setup planners use Node to read the shared map and existing pin
 files; this launcher prerequisite does not make Node a prerequisite of direct
 Cargo commands. Validation commands that execute Node wrappers still require
@@ -657,6 +658,10 @@ Node. Selective profiles cannot be combined with legacy deep/desktop switches.
 Frontend setup uses the pinned package-manager declaration and frozen lockfile;
 Core setup selects the existing Rust pin/components and cargo-nextest only.
 Daily keeps existing Aqua checksum/attestation and Cargo cache boundaries.
+The hosted native prerequisite selects `native-drivers` to avoid provisioning unrelated
+development tools. It preserves driver pin/hash receipts, Microsoft Authenticode-before-execution,
+actual runtime matching, cache promotion and the selected doctor's readback. Its
+checkout state records the expected Aqua location without claiming that Aqua is installed.
 
 Native setup remains platform-scoped: the PowerShell route provisions existing
 Windows drivers; the POSIX bootstrap refuses native setup with the existing

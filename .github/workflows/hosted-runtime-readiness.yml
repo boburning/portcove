@@ -1,6 +1,11 @@
 name: Hosted Windows runtime readiness
 on:
   workflow_dispatch:
+    inputs:
+      include_native_drivers:
+        description: Also qualify the bounded cold and warm Windows driver setup
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -18,11 +23,46 @@ jobs:
       - name: Prepare and read back the maintained shipping engine floor
         shell: pwsh
         run: ./scripts/prepare-hosted-windows-runtime.ps1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: inputs.include_native_drivers
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: ./.github/actions/setup-rust
+        if: inputs.include_native_drivers
+      - name: Qualify actual cold and warm driver-only prerequisites
+        if: inputs.include_native_drivers
+        shell: pwsh
+        env:
+          CARGO_BUILD_JOBS: "2"
+          CARGO_NET_RETRY: "0"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $taskReceipt = 'work/hosted-continuity-evidence/native-drivers.json'
+          $taskStage = 'cold'
+          try {
+            ./scripts/bootstrap-quality-tools.ps1 -Profile native-drivers
+            if ($LASTEXITCODE -ne 0) { throw 'Cold driver-only setup failed; no retry' }
+            $taskState = Get-Content -Raw work/tool-bin/tool-state.json | ConvertFrom-Json
+            $taskBefore = @($taskState.desktop.tauri_driver, $taskState.desktop.native_driver) | ForEach-Object { Get-FileHash -LiteralPath $_ -Algorithm SHA256 }
+            $taskStage = 'warm'
+            ./scripts/bootstrap-quality-tools.ps1 -Profile native-drivers
+            if ($LASTEXITCODE -ne 0) { throw 'Warm driver-only setup failed; no retry' }
+            $taskWarmState = Get-Content -Raw work/tool-bin/tool-state.json | ConvertFrom-Json
+            if (($taskState.desktop | ConvertTo-Json -Compress) -cne ($taskWarmState.desktop | ConvertTo-Json -Compress)) { throw 'Warm driver identities changed' }
+            $taskAfter = @($taskWarmState.desktop.tauri_driver, $taskWarmState.desktop.native_driver) | ForEach-Object { Get-FileHash -LiteralPath $_ -Algorithm SHA256 }
+            if (($taskBefore.Hash -join ',') -cne ($taskAfter.Hash -join ',')) { throw 'Warm driver bytes changed' }
+            $taskStage = 'ready-cold-and-warm'
+          } finally {
+            @{stage=$taskStage; source=$env:GITHUB_SHA; run_id=$env:GITHUB_RUN_ID; attempt=$env:GITHUB_RUN_ATTEMPT; drivers=$taskState.desktop; automatic_retry=$false} | ConvertTo-Json | Set-Content $taskReceipt
+          }
       - name: Retain the original runtime result
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: hosted-windows-runtime-${{ github.sha }}-${{ github.run_attempt }}
-          path: work/hosted-continuity-evidence/windows-runtime.json
+          path: |
+            work/hosted-continuity-evidence/windows-runtime.json
+            work/hosted-continuity-evidence/native-drivers.json
           retention-days: 7
           if-no-files-found: error
