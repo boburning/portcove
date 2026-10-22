@@ -1,0 +1,103 @@
+name: Hosted native continuity feasibility
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: One bounded prerequisite rehearsal; no production acceptance
+        required: true
+        type: choice
+        options: [windows-x86_64, linux-x86_64]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hosted-native-continuity-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  installed-prerequisite:
+    if: github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public'
+    runs-on: ${{ inputs.platform == 'windows-x86_64' && 'windows-2022' || 'ubuntu-24.04' }}
+    timeout-minutes: 90
+    env:
+      pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
+      CARGO_BUILD_JOBS: "2"
+      CARGO_NET_RETRY: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: ./.github/actions/setup-rust
+      - name: Bind the original job and scope before native effects
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory work/hosted-continuity-evidence | Out-Null
+          $taskCommit = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $taskCommit -cne $env:GITHUB_SHA) { throw 'Actual source differs' }
+          @{
+            source = $taskCommit; run_id = $env:GITHUB_RUN_ID; attempt = $env:GITHUB_RUN_ATTEMPT
+            workflow = $env:GITHUB_WORKFLOW_REF; runner_name = $env:RUNNER_NAME
+            image_os = $env:ImageOS; image_version = $env:ImageVersion
+            session = [Diagnostics.Process]::GetCurrentProcess().SessionId
+            user_interactive = [Environment]::UserInteractive
+            host = [Environment]::MachineName; started_at = [DateTime]::UtcNow.ToString('o')
+            scope = 'Two-version disposable-key installed/UI prerequisite. Three-version public continuity and catalog same-client acceptance remain unproved.'
+            production_credentials = 'none'; automatic_retry = $false
+          } | ConvertTo-Json | Set-Content work/hosted-continuity-evidence/intent.json
+      - name: Install existing Linux desktop and AppImage prerequisites
+        if: runner.os == 'Linux'
+        timeout-minutes: 15
+        run: |
+          ./scripts/install-linux-desktop-prerequisites.sh --include-rpm --include-appimage-runtime --include-webdriver
+          version=$(node -p "require('./.config/tool-bootstrap.json').desktop.tauri_driver")
+          cargo install tauri-driver --locked --version "$version"
+      - run: pnpm install --frozen-lockfile
+      - name: Provision pinned Windows native driver
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./scripts/bootstrap-quality-tools.ps1 -Desktop
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned native prerequisite failed' }
+      - name: Exercise the maintained installed updater on this one machine
+        shell: pwsh
+        run: |
+          ./scripts/rehearse-updater-artifacts.ps1 -PlatformLabel '${{ inputs.platform }}' -TransitionProfile preview-final -EvidenceWorkflow .github/workflows/hosted-native-continuity.yml
+          if ($LASTEXITCODE -ne 0) { throw 'Installed prerequisite failed; preserve its original result' }
+      - name: Read back the original host and actual native result
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $taskIntent = Get-Content -Raw work/hosted-continuity-evidence/intent.json | ConvertFrom-Json
+          if ($taskIntent.host -cne [Environment]::MachineName -or $taskIntent.run_id -cne $env:GITHUB_RUN_ID -or $taskIntent.attempt -cne $env:GITHUB_RUN_ATTEMPT) { throw 'Original job continuity lost' }
+          $taskResultPath = 'work/updater-rehearsal/rehearsal-result.json'
+          $taskResult = if (Test-Path -LiteralPath $taskResultPath) { Get-Content -Raw $taskResultPath | ConvertFrom-Json } else { $null }
+          @{ observed_at = [DateTime]::UtcNow.ToString('o'); original_host_preserved = $true; result = $taskResult; production_acceptance = 'not-established' } | ConvertTo-Json -Depth 8 | Set-Content work/hosted-continuity-evidence/readback.json
+          if ($null -eq $taskResult -or $taskResult.status -cne 'passed') { throw 'Native result absent/failed; not a continuity success' }
+      - name: Retain only selected public diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hosted-native-prerequisite-${{ inputs.platform }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            work/hosted-continuity-evidence/*.json
+            work/updater-rehearsal/rehearsal-result.json
+            work/updater-rehearsal/windows-installed-update.json
+            work/updater-rehearsal/windows-installed-update-summary.json
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.json
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.png
+            work/updater-rehearsal/linux-appimage-qualification/application-update-evidence.json
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/*.json
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/*.png
+          if-no-files-found: error
+          retention-days: 7

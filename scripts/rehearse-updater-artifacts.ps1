@@ -4,7 +4,10 @@ param(
     [string]$PlatformLabel,
     [ValidateSet("legacy-adjacent", "legacy-skipped", "preview-final")]
     [string]$TransitionProfile = "legacy-skipped",
-    [switch]$DescribeTransition
+    [switch]$DescribeTransition,
+    [ValidateSet('.github/workflows/updater-artifact-rehearsal.yml', '.github/workflows/hosted-native-continuity.yml')]
+    [string]$EvidenceWorkflow = '.github/workflows/updater-artifact-rehearsal.yml',
+    [switch]$DescribeWorkflow
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,6 +22,13 @@ $transition = [ordered]@{
 }
 if ($DescribeTransition) {
     $transition | ConvertTo-Json -Compress
+    exit 0
+}
+if ($env:GITHUB_WORKFLOW_REF -and -not $env:GITHUB_WORKFLOW_REF.StartsWith("boburning/portcove/$EvidenceWorkflow@", [StringComparison]::Ordinal)) {
+    throw 'Hosted rehearsal evidence workflow differs from the actual invocation'
+}
+if ($DescribeWorkflow) {
+    @{ workflow = $EvidenceWorkflow; scope = 'disposable-key installed updater rehearsal only' } | ConvertTo-Json -Compress
     exit 0
 }
 $predecessorVersion = $transition.predecessor_version
@@ -335,7 +345,7 @@ try {
                 signature = "candidate.sig"
                 source_tree = $sourceTree
                 qualified_run = [ordered]@{
-                    workflow = ".github/workflows/updater-artifact-rehearsal.yml"
+                    workflow = $EvidenceWorkflow
                     workflow_commit = $revision
                     run_id = $runId
                     attempt = $attempt
@@ -413,7 +423,7 @@ try {
                 signature = "candidate.sig"
                 source_tree = $sourceTree
                 qualified_run = [ordered]@{
-                    workflow = ".github/workflows/updater-artifact-rehearsal.yml"
+                    workflow = $EvidenceWorkflow
                     workflow_commit = $revision
                     run_id = $runId
                     attempt = $attempt
@@ -689,7 +699,7 @@ try {
                 signature = "candidate.sig"
                 source_tree = $sourceTree
                 qualified_run = [ordered]@{
-                    workflow = ".github/workflows/updater-artifact-rehearsal.yml"
+                    workflow = $EvidenceWorkflow
                     workflow_commit = $revision
                     run_id = $runId
                     attempt = $attempt
