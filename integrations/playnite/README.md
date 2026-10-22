@@ -158,11 +158,15 @@ validation or silently move a game. Reviewed folder relink remains available on
 supported schemas72 through80 when its command capability is advertised. Compiled
 producer/client observations remain tied to the exact executed revision.
 
-Schema78 adds a closed CVLoD source recipe. The client retains Core's complete
-installation plan, acquisitions, capacity, readiness and existing confirmation
-flow. It does not parse catalog build recipes or execute build instructions.
-No command/input/event contract changes; event schemas remain 2–3 and unknown
-API80 is refused. Build-tool prerequisites and actual execution stay in Core.
+Schema78 introduced a closed CVLoD source recipe without changing commands,
+inputs or event schemas. Its custom creation route is now retired; retained
+runtime/recovery compatibility does not offer new builds or require compiler
+acquisition. The client still displays Core's current offered plan, acquisitions,
+capacity and consent, and delegates readiness and execution to Core. It does not
+parse historical recipe names or execute catalog build instructions. This revision
+accepts API80 within the reviewed membership above and event schemas 2–3; future
+APIs and unknown execution/ownership semantics remain refused. See
+[retained compatibility](../../docs/reference/upstream-first-compatibility.md).
 
 Schema79 adds opt-in prepared original-directory binding. The client uses the
 same Core readiness and supervised launch path: Core revalidates the retained

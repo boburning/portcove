@@ -245,16 +245,23 @@ missing process-start identity, changed install, or live supervisor remains a
 conflict requiring review. Recovery does not prove that a hard-killed game flushed
 its own saves; it only performs the collection that core can verify afterward.
 
-API78 adds the closed `cvlod-n64-source-cb8548d145a1-ui-lifetime-v1` recipe
-and N64 template version 3. It adds no command, input field or event version.
-Clients continue to display the complete Core installation plan, including
-fixed acquisitions and temporary capacity, and obtain its existing consent.
-They must not execute catalog build instructions or derive eligibility from the
-recipe name. The reference consumes Core action/readiness decisions; it does
-not parse the descriptive catalog recipe enum. Capability negotiation still
-rejects unknown API80 and used event schemas outside 2–3. Definition admission
-separately requires N64 version 3 and the existing Windows path capability 11;
-API78 alone does not admit a definition or authorize a build.
+API78 introduced the closed `cvlod-n64-source-cb8548d145a1-ui-lifetime-v1`
+recipe and N64 template version 3 without adding a command, input field or event
+version. That creation route is now retired. New indexed definitions with
+`release.managed_build` are refused even though N64 version 3 and the shared
+Windows path capability 11 remain advertised. Private retained readers preserve
+the identified installed runtimes and recovery contracts; they do not offer new
+builds or require clients to acquire compilers. See
+[retained consumers and retirement conditions](reference/upstream-first-compatibility.md).
+
+Clients display Core's complete current plan, acquisitions and capacity when
+offered, obtain its required consent and consume its action/readiness decisions.
+They must not execute catalog build instructions or derive eligibility from a
+historical recipe name. The maintained reference accepts API80 within its reviewed
+42–57, 60–63 or 65–80 membership and event schemas 2–3; unknown future APIs,
+unsupported required capabilities and unknown execution/ownership semantics
+remain refused. API or template negotiation alone grants no admission or operation
+authority.
 
 API79 adds the prepared `source_directory_environment` contract, requiring
 staged-source template18. Core authenticates declared relative-file-set members,
