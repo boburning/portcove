@@ -2894,6 +2894,46 @@ void test("GraphQL repository fallback rejects changed totals or latest identiti
   }
 });
 
+void test("GraphQL repository markers reject null IDs for a nonempty inventory", () => {
+  const client = new RoadmapClient(config, (_args, input) =>
+    issueConnectionResponse(input, [1, 2], 2, (repository) => {
+      if (fixtureGraphql(input).query.includes("RepositoryIssueMarker"))
+        fixtureObject(repository.issues).nodes = [{ id: null, number: 3 }];
+    }),
+  );
+  assert.throws(
+    () => client.repositoryIssues({ useGraphql: true }),
+    /invalid repository issue marker/,
+  );
+});
+
+void test("non-CLI doctors preserve single-attempt collection without an evidence sink", async () => {
+  let traversals = 0;
+  const client = new RoadmapClient(config, (args, input) => {
+    if (args[1] === "graphql") throw new Error("unexpected fallback");
+    if (fixtureElement(args, 2).includes("direction=desc")) return included([restIssue(3)]);
+    traversals++;
+    return included([restIssue(1)]);
+  });
+  await assert.rejects(
+    runDoctor(
+      config,
+      {
+        gh: () => "",
+        completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
+        viewList: () => [],
+        projectAudit: () => ({ repositories: { nodes: [] } }),
+        itemList: () => [],
+        repositoryIssues: (options: Parameters<RoadmapClient["repositoryIssues"]>[0]) =>
+          client.repositoryIssues(options),
+      },
+      { quiet: true },
+    ),
+    /high-water record is missing/,
+  );
+  assert.equal(traversals, 1);
+});
+
 void test("promotion validation happens before any GitHub mutation", () => {
   let calls = 0;
   const client = new RoadmapClient(config, () => {

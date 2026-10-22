@@ -3657,7 +3657,7 @@ export class RoadmapClient {
       const id = count === 0 ? null : qualificationField(nodes[0], "id");
       const number = count === 0 ? 0 : qualificationField(nodes[0], "number");
       if (
-        (id !== null && (typeof id !== "string" || !id)) ||
+        (count > 0 && (typeof id !== "string" || !id)) ||
         typeof number !== "number" ||
         !Number.isSafeInteger(number) ||
         (count > 0 && number < 1)
@@ -5145,7 +5145,7 @@ export async function runDoctor(
     quiet = false,
     cache,
     inventory: suppliedInventory,
-    repositoryIssueInventoryAttempts = [],
+    repositoryIssueInventoryAttempts,
   }: {
     quiet?: boolean;
     cache?: InventoryCache;
@@ -5187,7 +5187,9 @@ export async function runDoctor(
   const items = inventory?.items ?? client.itemList(number, { includeDependencies: true, details });
   const repositoryIssues =
     inventory?.issues ??
-    readDoctorRepositoryIssues(client, repositoryIssueInventoryAttempts).issues;
+    (repositoryIssueInventoryAttempts
+      ? readDoctorRepositoryIssues(client, repositoryIssueInventoryAttempts).issues
+      : client.repositoryIssues());
   const stage = evaluateRoadmapDoctor({
     config,
     catalog,
