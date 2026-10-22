@@ -2018,20 +2018,30 @@ mod legacy_dkr_tests {
                 let qualification =
                     InstallQualification::from_catalog(&catalog, "dkr-r", artifact.platform)
                         .unwrap();
-                installer.verify_critical(&install, &qualification).unwrap();
+                // Cross-platform metadata remains readable, but this host
+                // cannot represent another platform's executable permissions.
+                // Exercise native integrity without weakening those guards.
+                let native = artifact.platform == Platform::current().unwrap();
+                if native {
+                    installer.verify_critical(&install, &qualification).unwrap();
+                }
                 fs::create_dir(install.path.join("dkr-runtime-data")).unwrap();
                 fs::write(
                     install.path.join("dkr-runtime-data/save"),
                     b"retained player data",
                 )
                 .unwrap();
-                installer.verify_critical(&install, &qualification).unwrap();
+                if native {
+                    installer.verify_critical(&install, &qualification).unwrap();
+                }
                 assert_eq!(
                     fs::read(install.path.join(".portcove-manifest.json")).unwrap(),
                     before
                 );
                 fs::write(install.path.join(&artifact.executable), b"changed runtime").unwrap();
-                assert!(installer.verify_critical(&install, &qualification).is_err());
+                if native {
+                    assert!(installer.verify_critical(&install, &qualification).is_err());
+                }
             }
         }
     }

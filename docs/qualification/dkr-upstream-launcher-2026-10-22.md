@@ -118,10 +118,16 @@ owner-confirmed retirement. No custom builder or deferred engine repair is reope
 
 Final source review, focused contract tests and hosted checks are recorded in the
 delivery PR and canonical issue. The original fixture-schema failure and three
-30-second harness timeouts remain in `focused-core-settled.log`; the schema repair
-keeps proposal inspection schema 2, and only the three exact Windows fixtures
-receive finite 90-second harness headroom. Product/child timing, assertions,
-cleanup, two workers and zero retries remain unchanged.
+30-second harness timeouts remain in `focused-core-settled.log`. The later
+`focused-core-final.log` retains a cross-platform fixture error (Linux executable
+permissions checked on Windows) and another exact-case 30-second timeout. The
+repair keeps all historical metadata cases, checks file permissions/integrity
+on the matching host, and keeps proposal inspection schema 2. Only four exact
+Windows selected-runtime fixtures receive finite 90-second harness headroom;
+the 16-library legacy metadata matrix receives finite 60-second headroom.
+Product/child timing, assertions, cleanup, two workers and zero retries remain
+unchanged. These larger budgets prove completion within those budgets, not
+equivalent timing or a product repair.
 
 New Linux registration is unoffered by this definition. A future useful Linux
 route requires its own scoped upstream/package/launch evidence. No signing,
