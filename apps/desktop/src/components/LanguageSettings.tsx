@@ -25,9 +25,6 @@ export function LanguageSettings() {
 
   return (
     <SettingsRow className="language-card" data-focus-group>
-      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-        {localization.t("language.eyebrow")}
-      </p>
       <h2>{localization.t("language.title")}</h2>
       <p>{localization.t("language.description")}</p>
       <ChoiceSelect

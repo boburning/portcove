@@ -1074,9 +1074,7 @@ export function GameFileLibraries({
         }
       }}
     >
-      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-        SAVED FOLDERS
-      </p>
+      <p className="mb-1.5 text-xs text-pc-muted-foreground">Saved folders</p>
       {renderHeading()}
       <p>
         Choose folders on this PC, a mounted network share, or a removable drive. Portcove searches
