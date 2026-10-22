@@ -195,6 +195,7 @@ impl PortcoveService {
                 Some(port_id),
             )?;
             emit(operation.started());
+            operation.observe_release(&plan.inputs.install.version, Some(&plan.inputs.install.id));
             let mut result = self
                 .prepare_derivative(&plan, &operation, &mut emit)
                 .map_err(|error| {
@@ -488,6 +489,7 @@ impl PortcoveService {
         }
         let mut conversion_quiesced =
             || record_preparation_process_quiescence(self, operation.operation_id(), true);
+        operation.observe_phase("preparation.extract");
         crate::adapter::prepare_admitted_runtime_source(
             &plan.inputs.source,
             &source,
@@ -591,6 +593,7 @@ impl PortcoveService {
             }),
             quiesced: Some(&mut setup_quiesced),
         };
+        operation.observe_phase("preparation.setup");
         let output = if legacy {
             super::ghostship::require_path(&setup_directory)?;
             super::ghostship::require_path(&source)?;
@@ -639,12 +642,6 @@ impl PortcoveService {
             )
         }
         .map_err(|error| error.during("preparation.setup"))?;
-        tracing::info!(
-            port_id = port.id,
-            output = output.output,
-            truncated = output.truncated,
-            "managed setup diagnostics"
-        );
         if !output.status.success() {
             return Err(PortcoveError::source(format!(
                 "upstream setup rejected or could not prepare the source (exit {})",

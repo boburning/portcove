@@ -113,6 +113,7 @@ impl PortcoveService {
                 &reviewed.plan_sha256,
             )?;
             let status = self.status(port_id)?;
+            operation.observe_release(&reviewed.plan.release.version, None);
             let mut reporter = OperationReporter {
                 operation: &operation,
                 emit: &mut emit,

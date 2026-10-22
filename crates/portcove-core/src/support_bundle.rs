@@ -484,6 +484,9 @@ fn runtime_field(value: &Value, policy: RuntimeFieldPolicy) -> Option<Value> {
 }
 
 fn runtime_record(record: &Map<String, Value>) -> Value {
+    if record.contains_key("schema_version") {
+        return crate::runtime_diagnostics::project(record);
+    }
     let mut fields = Map::new();
     let mut omitted_fields = 0;
     if let Some(Value::Object(values)) = record.get("fields") {

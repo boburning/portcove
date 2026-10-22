@@ -76,6 +76,7 @@ mod relative_file_set;
 mod release;
 mod runtime;
 mod runtime_data_policy;
+pub mod runtime_diagnostics;
 mod runtime_path_policy;
 mod service;
 mod signed_catalog;

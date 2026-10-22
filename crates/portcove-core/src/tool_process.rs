@@ -228,7 +228,13 @@ pub(crate) fn run_tool(
         )?;
         if let Some((revision, value)) = projected {
             if let Some(sink) = diagnostics.as_mut() {
-                (sink.record)(&value)?;
+                let recorded = (sink.record)(&value);
+                // Only the forced terminal snapshot emits runtime metadata;
+                // periodic capture persistence and output bytes stay separate.
+                if force {
+                    crate::runtime_diagnostics::observe_capture(&value, recorded.is_ok());
+                }
+                recorded?;
             }
             last_published = Some(revision);
             return Ok::<_, PortcoveError>(Some(value));

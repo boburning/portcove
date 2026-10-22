@@ -171,13 +171,12 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       } satisfies Awaited<ReturnType<typeof desktopApi.launch>>;
     },
     report_frontend_error: (args) => {
-      if (typeof args?.message !== "string" || typeof args?.componentStack !== "string")
+      if (typeof args?.report !== "object" || args.report === null)
         return unsupported("report_frontend_error");
       requireArgs("report_frontend_error", args, {
-        message: args.message,
-        componentStack: args.componentStack,
+        report: args.report,
       });
-      refuse(`Fixture App error: ${args.message}`);
+      refuse("Fixture App rendering failed");
     },
     get_bootstrap_status: (args) => {
       requireArgs("get_bootstrap_status", args, {});

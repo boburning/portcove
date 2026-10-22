@@ -786,10 +786,16 @@ impl PortcoveService {
             Err(error) => (ActivityStatus::Failed, Some(error.message.as_str())),
         };
         let failure = result.as_ref().err().map(PortcoveError::report);
-        if let Err(error) =
+        let recorded =
             self.library
-                .finish_activity_report(&activity.id, status, message, failure.as_ref())
-        {
+                .finish_activity_report(&activity.id, status, message, failure.as_ref());
+        crate::runtime_diagnostics::observe_activity(
+            &activity,
+            status,
+            failure.as_ref(),
+            recorded.is_ok(),
+        );
+        if let Err(error) = recorded {
             if status == ActivityStatus::Cancelled {
                 return Err(
                     PortcoveError::state("Cancellation could not be recorded durably")
@@ -798,9 +804,11 @@ impl PortcoveService {
                 );
             }
             tracing::warn!(
-                activity_id = activity.id,
-                operation = %activity.operation,
-                "could not finish activity record: {error}"
+                component = "activity",
+                phase = "activity_record",
+                activity_id = activity.id.as_str(),
+                error_code = crate::runtime_diagnostics::code_label(error.code),
+                message = "Activity outcome persistence failed",
             );
         }
         result
@@ -2496,6 +2504,7 @@ impl PortcoveService {
             let release = operation
                 .interruptible(self.resolve_release(port, selected_channel, platform))
                 .await?;
+            operation.observe_release(&release.release.version, None);
             let mut reporter = OperationReporter {
                 operation: &operation,
                 emit: &mut emit,
@@ -2594,6 +2603,7 @@ impl PortcoveService {
             let release = operation
                 .interruptible(self.resolve_release(port, status.channel, Platform::current()?))
                 .await?;
+            operation.observe_release(&release.release.version, None);
             self.record_update_check(port_id, &status, &release.release)?;
             let mut reporter = OperationReporter {
                 operation: &operation,
@@ -4202,6 +4212,8 @@ impl PortcoveService {
             ActivityTargetKind::Port,
             Some(port_id),
         )?;
+        let observed_at = std::time::Instant::now();
+        let _ = operation.started();
         let mut session_created = false;
         let mut child_state_uncertain = false;
         let mut legacy_data_seal = None;
@@ -4293,6 +4305,18 @@ impl PortcoveService {
             };
             self.library.create_launch_session(&session)?;
             session_created = true;
+            if let Some(install) = &active {
+                operation.observe_release(&install.version, Some(&install.id));
+            }
+            tracing::debug!(
+                component = "launch",
+                observation = "launch_session",
+                phase = "accepted",
+                activity_id = activity.id.as_str(),
+                operation_id = activity.id.as_str(),
+                port_id,
+                activity_recorded = true
+            );
             on_accepted(&session);
 
             operation.checkpoint()?;
@@ -4497,6 +4521,16 @@ impl PortcoveService {
                 session.child_identity = Some(child_identity);
                 session.phase = LaunchSessionPhase::Running;
                 session.updated_at = Library::now();
+                tracing::debug!(
+                    component = "launch",
+                    observation = "launch_session",
+                    phase = "running",
+                    activity_id = activity.id.as_str(),
+                    operation_id = activity.id.as_str(),
+                    port_id,
+                    activity_recorded = true,
+                    elapsed_ms = observed_at.elapsed().as_millis().min(u128::from(u64::MAX)) as u64
+                );
                 child_state_uncertain = true;
                 self.faults.check(LifecycleFaultPoint::LaunchChildStarted)?;
 
@@ -4612,6 +4646,21 @@ impl PortcoveService {
         if session_created && child_state_uncertain {
             // An uncertain child or collection state must remain durable and
             // keep the activity running for explicit stale-session recovery.
+            tracing::debug!(
+                component = "launch",
+                observation = "launch_session",
+                phase = "returned",
+                activity_id = activity.id.as_str(),
+                operation_id = activity.id.as_str(),
+                port_id,
+                observed_result = "unknown",
+                activity_recorded = false,
+                error_code = result
+                    .as_ref()
+                    .err()
+                    .map(|error| crate::runtime_diagnostics::code_label(error.code)),
+                elapsed_ms = observed_at.elapsed().as_millis().min(u128::from(u64::MAX)) as u64
+            );
             return result;
         }
         if session_created {
@@ -4642,8 +4691,41 @@ impl PortcoveService {
                 message,
                 legacy_data_seal.as_ref(),
             ) {
+                tracing::debug!(
+                    component = "launch",
+                    observation = "launch_session",
+                    phase = "returned",
+                    activity_id = activity.id.as_str(),
+                    operation_id = activity.id.as_str(),
+                    port_id,
+                    observed_result = "unknown",
+                    activity_recorded = false,
+                    error_code = crate::runtime_diagnostics::code_label(error.code),
+                    elapsed_ms = observed_at.elapsed().as_millis().min(u128::from(u64::MAX)) as u64
+                );
                 return result.and(Err(error));
             }
+            let observed_result = match outcome {
+                LaunchSessionOutcome::Succeeded => "succeeded",
+                LaunchSessionOutcome::Failed => "failed",
+                LaunchSessionOutcome::Cancelled => "cancelled",
+            };
+            tracing::debug!(
+                component = "launch",
+                observation = "launch_session",
+                phase = "finished",
+                activity_id = activity.id.as_str(),
+                operation_id = activity.id.as_str(),
+                port_id,
+                observed_result,
+                activity_recorded = true,
+                exit_code = exit_code.map(i64::from),
+                error_code = result
+                    .as_ref()
+                    .err()
+                    .map(|error| crate::runtime_diagnostics::code_label(error.code)),
+                elapsed_ms = observed_at.elapsed().as_millis().min(u128::from(u64::MAX)) as u64
+            );
         } else {
             return self.finish_activity(activity, result);
         }

@@ -680,7 +680,7 @@ const fastDependencyReview = jobSection("fast_dependency_review", "dependency_re
 const dependencyReview = jobSection("dependency_review_full", "dependency-review");
 const dependencyReviewGate = jobSection("dependency-review");
 
-void test("runtime diagnostics retain Windows outcome fixtures and standalone Linux writer evidence", () => {
+void test("runtime diagnostics retain complete Windows and Linux typed fixture evidence", () => {
   assert.match(fastRust, /runs-on: windows-latest/u);
   assert.match(
     fastRust,
@@ -689,13 +689,19 @@ void test("runtime diagnostics retain Windows outcome fixtures and standalone Li
   assert.match(fastRust, /rust-test-impact\.mts --workspace-run/u);
   assert.match(fastRust, /PORTCOVE_DIAGNOSTICS_SOURCE_REVISION=.*GITHUB_ENV/u);
   assert.match(
+    fastRustQuality,
+    /uses: \.\/\.github\/actions\/setup-rust\n\s+if: contains\(fromJSON\(needs\.classify\.outputs\.groups_json\), 'rust'\)\n\s+with:\n\s+test-fixtures: true/u,
+  );
+  assert.match(
     fastRust,
     /- name: Retain runtime diagnostics acceptance and latency evidence\n\s+if: always\(\)/u,
   );
   const linuxFixture = requiredFixture(
     requiredFixture(
-      fastRustQuality.split("      - name: Test bounded runtime diagnostics writer on Linux")[1],
-    ).split("      - name: Retain Linux runtime diagnostics writer evidence")[0],
+      fastRustQuality.split(
+        "      - name: Test typed runtime diagnostics and frontend admission on Linux",
+      )[1],
+    ).split("      - name: Retain Linux runtime diagnostics acceptance evidence")[0],
   );
   assert.match(
     linuxFixture,
@@ -704,17 +710,27 @@ void test("runtime diagnostics retain Windows outcome fixtures and standalone Li
   assert.match(linuxFixture, /shell: bash/u); // Bash's pipefail preserves a failed test before tee.
   assert.match(
     linuxFixture,
-    /rustc --edition 2024 --test apps\/desktop\/src-tauri\/src\/diagnostics_writer\.rs/u,
+    /node scripts\/run-rust-tests\.mts --guard-command cargo test --locked -p portcove-cli --test runtime_diagnostics -- --test-threads=1 --nocapture/u,
   );
   assert.match(linuxFixture, /--test-threads=1 --nocapture 2>&1 \| tee/u);
-  assert.doesNotMatch(linuxFixture, /cargo (?:build|test)|tauri build|continue-on-error/u);
+  assert.doesNotMatch(linuxFixture, /rustc --edition|--workspace|tauri build|continue-on-error/u);
+  assert.match(linuxFixture, /\/runtime-tests\.txt/u);
   for (const lane of [fastRust, fastRustQuality]) {
     assert.match(lane, /checked-git\.mts rev-parse HEAD/u);
     assert.match(lane, /rustc --version --verbose/u);
     assert.match(lane, /source_sha256:hashes/u);
     for (const source of [
       "apps/desktop/src-tauri/src/diagnostics_writer.rs",
+      "apps/desktop/src-tauri/src/diagnostics_writer_tests.rs",
       "apps/desktop/src-tauri/src/diagnostics_events.rs",
+      "apps/desktop/src-tauri/src/diagnostics_events_tests.rs",
+      "apps/desktop/src-tauri/src/frontend_diagnostics.rs",
+      "crates/portcove-core/src/runtime_diagnostics.rs",
+      "crates/portcove-core/src/operation.rs",
+      "crates/portcove-core/src/support_bundle.rs",
+      "crates/portcove-core/src/service.rs",
+      "crates/portcove-core/src/preparation_execution.rs",
+      "crates/portcove-core/src/tool_process.rs",
       "crates/portcove-cli/tests/runtime_diagnostics.rs",
     ])
       assert.ok(lane.includes(source), source);
@@ -723,7 +739,7 @@ void test("runtime diagnostics retain Windows outcome fixtures and standalone Li
   }
   assert.match(
     fastRustQuality,
-    /- name: Retain Linux runtime diagnostics writer evidence\n\s+if: always\(\) && contains/u,
+    /- name: Retain Linux runtime diagnostics acceptance evidence\n\s+if: always\(\) && contains/u,
   );
 });
 

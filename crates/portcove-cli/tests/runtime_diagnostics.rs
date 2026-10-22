@@ -5,6 +5,8 @@
 mod diagnostics_events;
 #[path = "../../../apps/desktop/src-tauri/src/diagnostics_writer.rs"]
 mod diagnostics_writer;
+#[path = "../../../apps/desktop/src-tauri/src/frontend_diagnostics.rs"]
+mod frontend_diagnostics;
 
 use std::{
     collections::BTreeMap,
@@ -102,6 +104,11 @@ fn limits_json(limits: &Limits) -> Value {
         "max_field_bytes": diagnostics_events::MAX_FIELD_BYTES,
         "max_value_bytes": diagnostics_events::MAX_VALUE_BYTES,
         "max_formatting_producers": diagnostics_events::MAX_FORMATTING_PRODUCERS,
+        "max_target_bytes": diagnostics_events::MAX_TARGET_BYTES,
+        "max_stored_spans": diagnostics_events::MAX_STORED_SPANS,
+        "max_projected_spans": portcove_core::runtime_diagnostics::MAX_SPANS,
+        "max_span_fields": portcove_core::runtime_diagnostics::MAX_SPAN_FIELDS,
+        "max_span_bytes": portcove_core::runtime_diagnostics::MAX_SPAN_BYTES,
     })
 }
 
@@ -313,6 +320,560 @@ fn runtime_diagnostics_failures_preserve_committed_core_and_cli_results() {
     evidence(
         "core-cli-failure-isolation",
         json!({"cases": cases, "activity_recovery_and_capture_unchanged": true, "limits": limits_json(&Limits::default())}),
+    );
+}
+
+/// Returns a previously admitted, exact owned package. No network, catalog
+/// override, invented manifest, or fabricated successful activity is involved.
+struct OwnedRelease(portcove_core::InstallRecord);
+
+#[async_trait::async_trait]
+impl portcove_core::ReleaseProvider for OwnedRelease {
+    async fn resolve(
+        &self,
+        port: &portcove_core::PortDefinition,
+        channel: portcove_core::ReleaseChannel,
+        _platform: portcove_core::Platform,
+    ) -> portcove_core::Result<portcove_core::ResolvedRelease> {
+        assert_eq!(port.id, self.0.port_id);
+        assert_eq!(channel, self.0.channel);
+        Ok(portcove_core::ResolvedRelease {
+            version: self.0.version.clone(),
+            channel,
+            published_at: None,
+            asset: portcove_core::ReleaseAsset {
+                name: self.0.artifact.asset_name.clone(),
+                url: "https://example.invalid/owned-retained-package.zip".into(),
+                size: self.0.artifact.size,
+                sha256: self.0.artifact.sha256.clone(),
+            },
+        })
+    }
+}
+
+fn owned_lifecycle_helper(directory: &Path) -> PathBuf {
+    let executable = directory.join(if cfg!(windows) {
+        "owned-host-helper.exe"
+    } else {
+        "owned-host-helper"
+    });
+    if let Some(prepared) = std::env::var_os("PORTCOVE_HOST_TOOL_FIXTURE") {
+        fs::copy(prepared, &executable).unwrap();
+    } else {
+        let source = directory.join("owned-host-helper.rs");
+        fs::write(
+            &source,
+            include_str!("../../portcove-core/src/testdata/host_tool_probe.rs.txt"),
+        )
+        .unwrap();
+        let compiled =
+            ChildProcessPolicy::native_command(ChildProcessClass::ManagedBuilder, "rustc")
+                .unwrap()
+                .arg("--edition=2024")
+                .arg(source)
+                .arg("-o")
+                .arg(&executable)
+                .output()
+                .unwrap();
+        assert!(
+            compiled.status.success(),
+            "owned helper compilation failed: {}",
+            String::from_utf8_lossy(&compiled.stderr)
+        );
+    }
+    executable
+}
+
+fn adopt_owned_package(
+    service: &PortcoveService,
+    helper: &Path,
+    directory: &Path,
+    port_id: &str,
+    identity: &str,
+) -> portcove_core::InstallRecord {
+    let platform = portcove_core::Platform::current().unwrap();
+    let port = service.catalog().port(port_id).unwrap();
+    fs::create_dir(directory).unwrap();
+    for relative in port.executable_hints[&platform].iter().chain(
+        port.setup_executable_hints
+            .get(&platform)
+            .into_iter()
+            .flatten(),
+    ) {
+        let destination = directory.join(relative);
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        fs::copy(helper, destination).unwrap();
+    }
+    fs::write(directory.join("owned-package-identity"), identity).unwrap();
+    if port_id == "opengoal-jak1" {
+        fs::write(directory.join("owned-setup-mode"), "success").unwrap();
+    }
+    let preview = service.preview_adoption(directory, Some(port_id)).unwrap();
+    let authorization = service
+        .authorize_adoption(directory, Some(port_id), &preview.plan_sha256)
+        .unwrap();
+    service
+        .adopt(directory, Some(port_id), &authorization.token)
+        .unwrap()
+}
+
+fn activity_from_events(
+    library: &Library,
+    events: &[portcove_core::OperationEvent],
+    operation: portcove_core::ActivityOperation,
+) -> portcove_core::ActivityRecord {
+    let started = events
+        .iter()
+        .find(|event| {
+            event.operation == operation.to_string()
+                && event.parent_operation_id.is_none()
+                && matches!(event.event, portcove_core::OperationEventKind::Started)
+        })
+        .expect("production operation must emit its actual start");
+    let activity = library
+        .activities(100)
+        .unwrap()
+        .into_iter()
+        .find(|activity| activity.id == started.operation_id)
+        .expect("event identity must name the existing durable activity");
+    assert_eq!(activity.operation, operation);
+    assert_eq!(activity.status, portcove_core::ActivityStatus::Succeeded);
+    assert!(activity.finished_at.is_some());
+    assert!(events.iter().any(|event| {
+        event.operation_id == activity.id
+            && matches!(
+                event.event,
+                portcove_core::OperationEventKind::Finished {
+                    result: portcove_core::OperationResult::Succeeded
+                }
+            )
+    }));
+    activity
+}
+
+fn correlated_records<'a>(records: &'a [Value], operation_id: &str) -> Vec<&'a Value> {
+    records
+        .iter()
+        .filter(|record| record["fields"]["operation_id"] == operation_id)
+        .collect()
+}
+
+#[test]
+fn runtime_diagnostics_correlates_real_install_update_prepare_and_launch() {
+    const PORT: &str = "opengoal-jak1";
+    let temporary = tempfile::tempdir().unwrap();
+    let helper = owned_lifecycle_helper(temporary.path());
+    let helper_bytes = fs::read(&helper).unwrap();
+    let library = Library::open(temporary.path().join("owned-library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let package_a = temporary.path().join("owned-package-a");
+    let package_b = temporary.path().join("owned-package-b");
+    let first = adopt_owned_package(&service, &helper, &package_a, PORT, "package-a");
+    let second = adopt_owned_package(&service, &helper, &package_b, PORT, "package-b");
+    assert_ne!(first.artifact.sha256, second.artifact.sha256);
+    let source = temporary.path().join("owned.iso");
+    fs::write(&source, b"owned source awaiting upstream validation").unwrap();
+    let profile = service
+        .catalog()
+        .port(PORT)
+        .unwrap()
+        .source_profile
+        .as_deref()
+        .unwrap();
+    service.register_source(profile, &source).unwrap();
+    let failing_port = "zelda64-recomp";
+    let failed_install = adopt_owned_package(
+        &service,
+        &helper,
+        &temporary.path().join("owned-failing-game"),
+        failing_port,
+        "nonzero-game",
+    );
+    drop(service);
+
+    let log_path = fs::canonicalize(temporary.path())
+        .unwrap()
+        .join(diagnostics_writer::LOG_FILE_NAME);
+    let (producer, mut guard) = RuntimeWriter::start(log_path.clone(), Limits::default()).unwrap();
+    let subscriber = tracing_subscriber::registry().with(DiagnosticLayer::new(producer));
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let (operations, prepared, launch, failed_launch) =
+        tracing::subscriber::with_default(subscriber, || {
+            runtime.block_on(async {
+                let install_service = PortcoveService::with_provider(
+                    library.clone(),
+                    Arc::new(OwnedRelease(first.clone())),
+                )
+                .unwrap();
+                // Adoption legitimately activates B. The generic install route
+                // can reuse A; the game workspace's first-install action is
+                // intentionally unavailable while an installation is active.
+                let plan = install_service.plan_install(PORT, None).await.unwrap();
+                assert_eq!(plan.action, portcove_core::InstallPlanAction::ReuseRetained);
+                let mut install_events = Vec::new();
+                let installed = install_service
+                    .install(PORT, None, None, None, true, |event| {
+                        install_events.push(event)
+                    })
+                    .await
+                    .unwrap();
+                assert_eq!(installed.id, first.id);
+                let install_activity = activity_from_events(
+                    &library,
+                    &install_events,
+                    portcove_core::ActivityOperation::Install,
+                );
+                drop(install_service);
+
+                let service = PortcoveService::with_provider(
+                    library.clone(),
+                    Arc::new(OwnedRelease(second.clone())),
+                )
+                .unwrap();
+                let review = service.plan_game_update(PORT, true).await.unwrap();
+                assert_eq!(
+                    review.plan.action,
+                    portcove_core::InstallPlanAction::ReuseRetained
+                );
+                let grant = service
+                    .authorize_game_update(PORT, true, &review.plan_sha256)
+                    .await
+                    .unwrap();
+                let mut update_events = Vec::new();
+                let updated = service
+                    .apply_game_update(PORT, true, &grant.token, |event| update_events.push(event))
+                    .await
+                    .unwrap();
+                assert_eq!(updated.id, second.id);
+                let update_activity = activity_from_events(
+                    &library,
+                    &update_events,
+                    portcove_core::ActivityOperation::Update,
+                );
+                let status = service.status(PORT).unwrap();
+                assert_eq!(status.active.unwrap().id, second.id);
+                assert_eq!(status.previous.unwrap().id, first.id);
+
+                let options = portcove_core::PreparationOptions {
+                    target: portcove_core::Platform::current().unwrap(),
+                    mode: portcove_core::PreparationMode::Default,
+                };
+                let review = service.plan_preparation(PORT, options).unwrap();
+                let grant = service
+                    .authorize_preparation(PORT, options, &review.plan_sha256)
+                    .unwrap();
+                let mut preparation_events = Vec::new();
+                let prepared = service
+                    .prepare(PORT, options, &grant.token, |event| {
+                        preparation_events.push(event)
+                    })
+                    .unwrap();
+                let preparation_activity = activity_from_events(
+                    &library,
+                    &preparation_events,
+                    portcove_core::ActivityOperation::Prepare,
+                );
+                assert_eq!(prepared.id, preparation_activity.id);
+                let captures = library
+                    .activity_diagnostic(&preparation_activity.id)
+                    .unwrap();
+                assert_eq!(captures.len(), 1);
+                assert_eq!(captures[0].activity_id, preparation_activity.id);
+                assert_eq!(captures[0].phase, "preparation.setup");
+                assert!(captures[0].complete);
+                assert!(captures[0].stdout.text.contains("owned setup began"));
+                assert!(
+                    !captures[0]
+                        .stdout
+                        .text
+                        .contains("owned-fixture-private-value")
+                );
+                let exported_capture = serde_json::to_value(
+                    portcove_core::SupportBundleData::activity_captures(&captures),
+                )
+                .unwrap();
+                assert_eq!(exported_capture[0]["activity_id"], preparation_activity.id);
+                assert_eq!(exported_capture[0]["complete"], true);
+                assert!(
+                    !exported_capture
+                        .to_string()
+                        .contains("owned-fixture-private-value")
+                );
+
+                let request = uuid::Uuid::new_v4().to_string();
+                let launched = service
+                    .supervise_launch_identified(
+                        portcove_core::IdentifiedLaunchRequest {
+                            request_id: &request,
+                            port_id: PORT,
+                            source_override: None,
+                            arguments: &[],
+                            stdio: portcove_core::LaunchStdio::Null,
+                        },
+                        |session| assert_eq!(session.id, request),
+                        |_| {},
+                    )
+                    .unwrap();
+                assert!(launched.successful);
+                assert_eq!(launched.exit_code, Some(0));
+                let launch = library.launch_request(&request).unwrap().unwrap();
+                assert_eq!(launch.id, request);
+                assert_eq!(launch.install_id, prepared.id);
+                assert_eq!(
+                    launch.outcome,
+                    Some(portcove_core::LaunchSessionOutcome::Succeeded)
+                );
+
+                let request = uuid::Uuid::new_v4().to_string();
+                let failed = service
+                    .supervise_launch_identified(
+                        portcove_core::IdentifiedLaunchRequest {
+                            request_id: &request,
+                            port_id: failing_port,
+                            source_override: None,
+                            arguments: &["--nonzero".into()],
+                            stdio: portcove_core::LaunchStdio::Null,
+                        },
+                        |session| assert_eq!(session.id, request),
+                        |_| {},
+                    )
+                    .unwrap();
+                assert!(
+                    !failed.successful,
+                    "Ok supervision must not imply a successful child exit"
+                );
+                assert_eq!(failed.exit_code, Some(7));
+                let failed_launch = library.launch_request(&request).unwrap().unwrap();
+                assert_eq!(failed_launch.install_id, failed_install.id);
+                assert_eq!(
+                    failed_launch.outcome,
+                    Some(portcove_core::LaunchSessionOutcome::Failed)
+                );
+                assert!(library.launch_sessions().unwrap().is_empty());
+                (
+                    vec![install_activity, update_activity, preparation_activity],
+                    prepared,
+                    launch,
+                    failed_launch,
+                )
+            })
+        });
+    let health = guard.shutdown(FLUSH_DEADLINE);
+    assert_eq!(health.flush_state, FlushState::Complete);
+    assert_eq!(health.dropped, 0, "{health:?}");
+    let raw = fs::read_to_string(log_path).unwrap();
+    assert!(!raw.contains("owned-fixture-private-value"));
+    assert!(!raw.contains(&source.to_string_lossy().to_string()));
+    let records = raw
+        .lines()
+        .map(|line| serde_json::from_str::<Value>(line).unwrap())
+        .collect::<Vec<_>>();
+    let exported = raw
+        .lines()
+        .map(|line| {
+            serde_json::to_value(portcove_core::SupportBundleData::runtime_log_line(line)).unwrap()
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        !serde_json::to_string(&exported)
+            .unwrap()
+            .contains("owned-fixture-private-value")
+    );
+    for activity in &operations {
+        let observed = correlated_records(&records, &activity.id);
+        assert!(!observed.is_empty());
+        for phase in ["started", "finished"] {
+            assert_eq!(
+                observed
+                    .iter()
+                    .filter(|record| record["fields"]["observation"] == "event"
+                        && record["fields"]["phase"] == phase)
+                    .count(),
+                1,
+                "duplicate or absent {phase}: {observed:?}"
+            );
+        }
+        let terminal = observed
+            .iter()
+            .find(|record| record["fields"]["observation"] == "activity")
+            .unwrap();
+        assert_eq!(terminal["fields"]["activity_id"], activity.id);
+        assert_eq!(terminal["fields"]["observed_result"], "succeeded");
+        assert_eq!(terminal["fields"]["activity_recorded"], true);
+        let elapsed = observed
+            .iter()
+            .filter_map(|record| record["fields"]["elapsed_ms"].as_u64())
+            .collect::<Vec<_>>();
+        assert!(elapsed.len() >= 2 && elapsed.windows(2).all(|pair| pair[0] <= pair[1]));
+        let export = correlated_records(&exported, &activity.id);
+        assert_eq!(export.len(), observed.len());
+        assert!(
+            export
+                .iter()
+                .any(|record| record["fields"]["activity_recorded"] == true)
+        );
+        let expected_release = match activity.operation {
+            portcove_core::ActivityOperation::Install => &first.version,
+            portcove_core::ActivityOperation::Update
+            | portcove_core::ActivityOperation::Prepare => &second.version,
+            _ => panic!("unexpected fixture operation"),
+        };
+        for projected in [&observed, &export] {
+            let resolved: Vec<_> = projected
+                .iter()
+                .filter(|record| record["fields"]["phase"] == "resolved")
+                .collect();
+            assert_eq!(resolved.len(), 1);
+            assert_eq!(resolved[0]["fields"]["release"], *expected_release);
+            if activity.operation == portcove_core::ActivityOperation::Prepare {
+                assert_eq!(resolved[0]["fields"]["install_id"], second.id);
+            } else {
+                assert!(
+                    resolved[0]["fields"].get("install_id").is_none(),
+                    "an unresolved install identity must remain absent"
+                );
+            }
+        }
+    }
+    let preparation = correlated_records(&records, &prepared.id);
+    for phase in ["preparation.extract", "preparation.setup"] {
+        assert_eq!(
+            preparation
+                .iter()
+                .filter(|record| record["fields"]["observation"] == "event"
+                    && record["fields"]["phase"] == phase)
+                .count(),
+            1,
+            "real preparation must retain its {phase} boundary"
+        );
+    }
+    let captures = library.activity_diagnostic(&prepared.id).unwrap();
+    let capture = &captures[0];
+    for projected in [&records, &exported] {
+        let capture_records = projected
+            .iter()
+            .filter(|record| {
+                record["fields"]["observation"] == "capture"
+                    && record["fields"]["activity_id"] == prepared.id
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(capture_records.len(), 1);
+        let fields = &capture_records[0]["fields"];
+        assert_eq!(fields["phase"], capture.phase);
+        assert_eq!(fields["capture_recorded"], true);
+        assert_eq!(fields["stream_complete"], capture.complete);
+        assert_eq!(fields["stdout_bytes"], capture.stdout.observed_bytes);
+        assert_eq!(fields["stderr_bytes"], capture.stderr.observed_bytes);
+        assert_eq!(
+            fields["truncated"],
+            capture.stdout.truncated || capture.stderr.truncated
+        );
+    }
+    for (launch, expected) in [(&launch, "succeeded"), (&failed_launch, "failed")] {
+        let observed = correlated_records(&records, &launch.id);
+        let terminal = observed
+            .iter()
+            .filter(|record| {
+                record["fields"]["observation"] == "launch_session"
+                    && record["fields"]["phase"] == "finished"
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(terminal.len(), 1);
+        assert_eq!(terminal[0]["fields"]["observed_result"], expected);
+        assert_eq!(terminal[0]["fields"]["activity_id"], launch.id);
+        assert_eq!(terminal[0]["fields"]["activity_recorded"], true);
+        assert_eq!(
+            terminal[0]["fields"]["exit_code"],
+            launch.exit_code.unwrap()
+        );
+        assert!(
+            observed
+                .iter()
+                .all(|record| record["fields"].get("stream_complete").is_none())
+        );
+        let activity = library
+            .activities(100)
+            .unwrap()
+            .into_iter()
+            .find(|activity| activity.id == launch.id)
+            .unwrap();
+        assert_eq!(serde_json::to_value(activity.status).unwrap(), expected);
+        assert!(library.activity_diagnostic(&launch.id).unwrap().is_empty());
+        assert_eq!(
+            correlated_records(&exported, &launch.id).len(),
+            observed.len()
+        );
+        let expected_install = if expected == "succeeded" {
+            &prepared
+        } else {
+            &failed_install
+        };
+        for projected in [&records, &exported] {
+            let resolved: Vec<_> = projected
+                .iter()
+                .filter(|record| {
+                    record["fields"]["operation_id"] == launch.id
+                        && record["fields"]["phase"] == "resolved"
+                })
+                .collect();
+            assert_eq!(resolved.len(), 1);
+            assert_eq!(resolved[0]["fields"]["release"], expected_install.version);
+            assert_eq!(resolved[0]["fields"]["install_id"], expected_install.id);
+        }
+    }
+    assert_eq!(
+        fs::read(&source).unwrap(),
+        b"owned source awaiting upstream validation"
+    );
+    assert_eq!(
+        fs::read(package_a.join("owned-package-identity")).unwrap(),
+        b"package-a"
+    );
+    assert_eq!(
+        fs::read(package_b.join("owned-package-identity")).unwrap(),
+        b"package-b"
+    );
+    let platform = portcove_core::Platform::current().unwrap();
+    let catalog = portcove_core::Catalog::embedded().unwrap();
+    let port = catalog.port(PORT).unwrap();
+    for package in [&package_a, &package_b] {
+        for relative in port.executable_hints[&platform].iter().chain(
+            port.setup_executable_hints
+                .get(&platform)
+                .into_iter()
+                .flatten(),
+        ) {
+            assert_eq!(fs::read(package.join(relative)).unwrap(), helper_bytes);
+        }
+    }
+    let reopened = PortcoveService::new(Library::open(library.root()).unwrap()).unwrap();
+    assert_eq!(
+        reopened.status(PORT).unwrap().active.unwrap().id,
+        prepared.id
+    );
+    assert_eq!(
+        reopened
+            .library()
+            .launch_request(&launch.id)
+            .unwrap()
+            .unwrap(),
+        launch
+    );
+    evidence(
+        "typed-lifecycle-correlation",
+        json!({
+            "operations": operations.iter().map(|activity| json!({"id": activity.id, "operation": activity.operation, "status": activity.status})).collect::<Vec<_>>(),
+            "prepared_install_id": prepared.id,
+            "launch": {"id": launch.id, "outcome": launch.outcome, "exit_code": launch.exit_code},
+            "nonzero_launch": {"id": failed_launch.id, "outcome": failed_launch.outcome, "exit_code": failed_launch.exit_code},
+            "runtime_records": records.len(), "exported_runtime_records": exported.len(),
+            "resolved_observations": records.iter().filter(|record| record["fields"]["phase"] == "resolved").map(|record| &record["fields"]).collect::<Vec<_>>(),
+            "health": health_json(&health), "source_bytes_preserved": true,
+            "scope": "Owned native helper, real planned retained-install and reviewed update/setup with supervised launch; no game compatibility or download qualification",
+        }),
     );
 }
 
@@ -540,7 +1101,14 @@ fn runtime_diagnostics_measures_producer_work_against_synchronous_baseline() {
         fs::read_to_string(path)
             .unwrap()
             .lines()
-            .map(|line| serde_json::from_str::<Value>(line).unwrap()["fields"].clone())
+            .map(|line| {
+                // The retained baseline wrote primitive strings. Compare their
+                // supported export meaning with the new typed envelope without
+                // changing the measured historical producer implementation.
+                serde_json::to_value(portcove_core::SupportBundleData::runtime_log_line(line))
+                    .unwrap()["fields"]
+                    .clone()
+            })
             .collect::<Vec<_>>()
     };
     assert_eq!(fields(&baseline_path), fields(&candidate_path));
@@ -550,6 +1118,7 @@ fn runtime_diagnostics_measures_producer_work_against_synchronous_baseline() {
             "baseline_revision": BASELINE_REVISION,
             "baseline_scope": "Exact prior small-event path; real per-event sync_data; rotation not triggered",
             "candidate_scope": "Exact production Desktop event layer and background file writer",
+            "field_comparison": "Equivalent support-export values; historical numeric strings become typed numbers",
             "event_count": EVENTS,
             "baseline_producer_latency": latency_summary(baseline),
             "candidate_producer_latency": latency_summary(candidate),

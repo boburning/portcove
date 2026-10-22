@@ -2410,10 +2410,54 @@ JSON escaping are bounded too. Encoded oversize records are dropped whole, so
 UTF-8 and JSON are never cut into invalid prefixes. Arbitrary Debug, Display and
 error implementations, including tracing's formatted-message arguments, are not
 called. Their fields contain a fixed omission marker and increment independent
-counters. Borrowed strings, primitive fields, essential host messages and the
-existing Core operation/parent IDs remain available. Span values are not
-collected; approved typed span enrichment remains separately scoped. Logs are
-redacted, not anonymous.
+counters. A closed Core field policy preserves approved numbers and booleans as
+JSON scalars, redacts bounded human messages and omits unknown field names and
+nested caller values. Logs are redacted, not anonymous; human diagnostic text
+can still describe local context.
+
+Envelope schema 1 adds a host-session UUID, process ID, desktop surface, package
+build, wall-clock observation time and monotonic elapsed milliseconds. Approved
+fields carry existing operation/activity/parent IDs, request identity, exact
+port/release/install identifiers, selected phases, typed error code and mutation
+state, and observed outcomes. Identifiers use a bounded 128-byte ASCII vocabulary;
+unrecognized values are omitted, never normalized into a different claimed
+identity. The support-bundle projector uses the same scalar policy and budgets.
+Unversioned historical records retain their existing projection; unknown envelope
+versions are reported as uninterpreted without exporting their payload.
+
+The layer retains at most 256 live span contexts, each with at most eight
+approved scalar fields and 512 bytes of values, and projects at most the nearest
+four ancestors in parent-to-child order. It does not format span names or
+arbitrary objects. Span updates use a nonblocking inner lock. A dropped update
+invalidates that context for the span's remaining lifetime, so old identities
+cannot later appear current. Missing, contended, malformed or omitted context
+clears `context_complete`; that flag describes the diagnostic projection, not
+the operation, durable activity or output stream.
+
+Core owns the selected lifecycle observations. Existing operation events provide
+start, zero-count phase entry and completion; selected resolved-release,
+preparation extraction/setup and accepted/running/finished launch observations
+add known context without a second operation registry. The activity completion
+boundary reports ordinary typed failures once and separately states whether its
+durable activity write succeeded. Launch uses the actual child outcome, including
+an unsuccessful child exit returned by successful supervision. Uncertain child
+or final persistence evidence remains an unknown observation with the existing
+session/activity recovery state retained. A forced terminal setup capture logs
+only its existing activity ID, phase, observed byte counts, truncation,
+`stream_complete` and actual `capture_recorded` result. Periodic capture writes
+and raw output are not copied into runtime records. Completion logs and absent
+logs never determine whether a mutation succeeded.
+
+The existing `report_frontend_error` command accepts only versioned closed
+metadata: a positive renderer report ID, error-kind enum, bounded message/stack
+byte counts and a truncation flag. React inspects at most 1,024 message bytes and
+4,096 component-stack bytes; it sends neither text, paths, URLs nor arbitrary
+objects. The host refuses unknown fields/versions and out-of-range values,
+admits at most four distinct reports per monotonic 60-second process window,
+and refuses recursion or lock contention without logging a reporting error.
+Renderer IDs supply no Core operation or mutation authority. The render boundary
+reports once and absorbs synchronous/rejected reporting failures while keeping
+the original recovery display and reload action available.
 
 The active file and five exact rotation names each have a 4 MiB limit, for a
 24 MiB runtime-file budget below the evaluated 32 MiB ceiling. Seven-day expiry

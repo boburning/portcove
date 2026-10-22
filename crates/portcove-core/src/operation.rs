@@ -6,7 +6,7 @@ use std::{
         Arc,
         atomic::{AtomicU64, Ordering},
     },
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
 use rusqlite::params;
@@ -549,6 +549,8 @@ pub struct OperationCoordinator {
     target: Option<OperationTarget>,
     next_sequence: Arc<AtomicU64>,
     cancellation: Option<Arc<crate::cancellation::CancellationScope>>,
+    observed_at: Instant,
+    durable_activity: bool,
 }
 
 impl OperationCoordinator {
@@ -560,6 +562,8 @@ impl OperationCoordinator {
             target,
             next_sequence: Arc::new(AtomicU64::new(0)),
             cancellation: None,
+            observed_at: Instant::now(),
+            durable_activity: false,
         }
     }
 
@@ -574,6 +578,8 @@ impl OperationCoordinator {
             }),
             next_sequence: Arc::new(AtomicU64::new(0)),
             cancellation: None,
+            observed_at: Instant::now(),
+            durable_activity: true,
         }
     }
 
@@ -589,6 +595,8 @@ impl OperationCoordinator {
             target,
             next_sequence: Arc::new(AtomicU64::new(0)),
             cancellation: None,
+            observed_at: Instant::now(),
+            durable_activity: false,
         }
     }
 
@@ -600,6 +608,8 @@ impl OperationCoordinator {
             target,
             next_sequence: Arc::new(AtomicU64::new(0)),
             cancellation: self.cancellation.clone(),
+            observed_at: Instant::now(),
+            durable_activity: false,
         }
     }
 
@@ -686,8 +696,43 @@ impl OperationCoordinator {
         self.event(OperationEventKind::Finished { result })
     }
 
+    pub(crate) fn observe_release(&self, release: &str, install_id: Option<&str>) {
+        tracing::debug!(
+            component = "operation",
+            observation = "event",
+            phase = "resolved",
+            operation_id = self.operation_id.as_str(),
+            activity_id = self.durable_activity.then_some(self.operation_id.as_str()),
+            operation = self.operation.as_str(),
+            release,
+            install_id,
+            elapsed_ms = self
+                .observed_at
+                .elapsed()
+                .as_millis()
+                .min(u128::from(u64::MAX)) as u64,
+        );
+    }
+
+    pub(crate) fn observe_phase(&self, phase: &'static str) {
+        tracing::debug!(
+            component = "operation",
+            observation = "event",
+            operation_id = self.operation_id.as_str(),
+            parent_operation_id = self.parent_operation_id.as_deref(),
+            activity_id = self.durable_activity.then_some(self.operation_id.as_str()),
+            operation = self.operation.as_str(),
+            phase,
+            elapsed_ms = self
+                .observed_at
+                .elapsed()
+                .as_millis()
+                .min(u128::from(u64::MAX)) as u64,
+        );
+    }
+
     fn event(&self, event: OperationEventKind) -> OperationEvent {
-        OperationEvent {
+        let event = OperationEvent {
             schema_version: OPERATION_EVENT_SCHEMA_VERSION,
             operation_id: self.operation_id.clone(),
             parent_operation_id: self.parent_operation_id.clone(),
@@ -696,7 +741,51 @@ impl OperationCoordinator {
             operation: self.operation.clone(),
             target: self.target.clone(),
             event,
+        };
+        // One instrumentation owner for Desktop and CLI. Operation events stay
+        // best effort; only existing activity/outcome/capture writes own truth.
+        let observation = match &event.event {
+            OperationEventKind::Started => Some(("started", None)),
+            OperationEventKind::Progress {
+                phase,
+                completed: 0,
+                ..
+            } => Some((phase.as_str(), None)),
+            OperationEventKind::Finished { result } => Some((
+                "finished",
+                Some(match result {
+                    OperationResult::Succeeded => "succeeded",
+                    OperationResult::Failed => "failed",
+                    OperationResult::Cancelled => "cancelled",
+                }),
+            )),
+            _ => None,
+        };
+        if let Some((phase, result)) = observation {
+            tracing::debug!(
+                component = "operation",
+                observation = "event",
+                operation_id = event.operation_id.as_str(),
+                parent_operation_id = event.parent_operation_id.as_deref(),
+                activity_id = self.durable_activity.then_some(event.operation_id.as_str()),
+                event_schema_version = event.schema_version,
+                sequence = event.sequence,
+                operation = event.operation.as_str(),
+                port_id = event
+                    .target
+                    .as_ref()
+                    .filter(|target| target.kind == crate::ActivityTargetKind::Port)
+                    .map(|target| target.id.as_str()),
+                phase,
+                observed_result = result,
+                elapsed_ms = self
+                    .observed_at
+                    .elapsed()
+                    .as_millis()
+                    .min(u128::from(u64::MAX)) as u64,
+            );
         }
+        event
     }
 }
 

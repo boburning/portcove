@@ -15,6 +15,7 @@ import type { InstallInput, LaunchResult } from "./types";
 import type { GameUpdatePlan, PreparationCleanupPreview, PreparationPlan } from "./types";
 import type { CatalogStatus, CatalogUpdatePlan, CatalogUpdateSource } from "./types";
 import { Channel, invoke } from "@tauri-apps/api/core";
+import type { FrontendFailureReport } from "./frontend-diagnostics";
 import type { CancellationState, OperationEvent } from "./types";
 import type {
   LibraryImportPlan,
@@ -557,8 +558,8 @@ export const desktopApi = {
       destination,
       abort: false,
     }),
-  reportFrontendError: (message: string, componentStack: string) =>
-    invoke<void>("report_frontend_error", { message, componentStack }),
+  reportFrontendError: (report: FrontendFailureReport) =>
+    invoke<void>("report_frontend_error", { report }),
   plan: (portId: string, channel: ReleaseChannel) =>
     invoke<InstallPlan>("plan_port", { portId, channel }),
   openUserData: (portId: string, generation: number) =>
