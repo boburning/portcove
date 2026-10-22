@@ -46,3 +46,36 @@ void test("rehearsal receipts bind only the actual allowlisted workflow before n
   assert.notEqual(unlisted.status, 0);
   assert.match(unlisted.stderr, /EvidenceWorkflow/);
 });
+const helper = fileURLToPath(new URL("./prepare-hosted-windows-runtime.ps1", import.meta.url));
+void test("hosted runtime gate retains the shipping floor and rejects absent, malformed, preview and older engines", () => {
+  for (const [version, eligible] of [
+    ["155.0.4283.62", true],
+    ["155.0.4283.63", true],
+    ["156.0.0.0", true],
+    ["155.0.4283.61", false],
+    ["154.0.9999.99", false],
+    ["155.0.4283.62 dev", false],
+    ["unknown", false],
+  ] as const) {
+    const result = spawnSync(
+      "pwsh",
+      ["-NoProfile", "-NonInteractive", "-File", helper, "-InspectVersion", version],
+      { encoding: "utf8", timeout: 30000 },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), {
+      scope: "declared-version-only; no host observation or installation",
+      minimum: "155.0.4283.62",
+      eligible,
+    });
+  }
+});
+void test("owner-host invocation refuses before any runtime installation", () => {
+  const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", helper], {
+    encoding: "utf8",
+    timeout: 30000,
+    env: { ...process.env, GITHUB_ACTIONS: "false" },
+  });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Only the reviewed standard hosted diagnostic/);
+});

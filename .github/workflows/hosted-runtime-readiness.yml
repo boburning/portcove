@@ -1,0 +1,28 @@
+name: Hosted Windows runtime readiness
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: hosted-windows-runtime-readiness
+  cancel-in-progress: false
+jobs:
+  runtime:
+    if: github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public'
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Prepare and read back the maintained shipping engine floor
+        shell: pwsh
+        run: ./scripts/prepare-hosted-windows-runtime.ps1
+      - name: Retain the original runtime result
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hosted-windows-runtime-${{ github.sha }}-${{ github.run_attempt }}
+          path: work/hosted-continuity-evidence/windows-runtime.json
+          retention-days: 7
+          if-no-files-found: error
