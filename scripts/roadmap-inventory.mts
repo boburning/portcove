@@ -212,7 +212,7 @@ export function collectRoadmapInventory(
     const value = object(
       object(
         client.graphql(
-          `query($id:ID!){projectRevision:node(id:$id){... on ProjectV2{id updatedAt}}}`,
+          `query($id:ID!){projectRevision:node(id:$id){... on ProjectV2{id updatedAt items(first:1,archivedStates:[ARCHIVED,NOT_ARCHIVED]){totalCount}}}}`,
           { id: context.details.id },
         ),
       ).projectRevision,
@@ -223,6 +223,9 @@ export function collectRoadmapInventory(
       !Number.isFinite(Date.parse(value.updatedAt))
     )
       throw new Error("Project revision binding is invalid");
+    const total = object(value.items).totalCount;
+    if (typeof total !== "number" || !Number.isSafeInteger(total) || total < 0)
+      throw new Error("Project revision coverage count is invalid");
     return value;
   };
   const projectBefore = projectMarker();
@@ -233,6 +236,8 @@ export function collectRoadmapInventory(
     includeArchived: true,
     pageSize: 100,
   });
+  if (allItems.length !== object(projectBefore.items).totalCount)
+    throw new Error("Project inventory count mismatch with independent revision observation");
   const byId = new Map(rows.map((i) => [i.id, i]));
   const foreign: RoadmapIssueItem[] = [];
   for (const item of allItems) {

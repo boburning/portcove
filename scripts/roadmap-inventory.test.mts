@@ -72,7 +72,13 @@ function fixture(count = 2, bodySize = 32) {
     assert.ok(vars);
     let value: unknown;
     if (query.includes("projectRevision"))
-      value = { projectRevision: { id: "PROJECT", updatedAt: "2026-10-17T00:00:00Z" } };
+      value = {
+        projectRevision: {
+          id: "PROJECT",
+          updatedAt: "2026-10-17T00:00:00Z",
+          items: { totalCount: project.length },
+        },
+      };
     else if (query.includes("RepositoryIssueMarker")) {
       value = {
         repository: {
@@ -156,6 +162,12 @@ void test("cold inventory hydrates once, joins by opaque identity, and keeps arc
   );
   got.issues[0]!.body = "tampered";
   assert.throws(() => requireRoadmapInventory(got, config.repository), /collector-validated/);
+});
+
+void test("validated inventory refuses a self-consistent Project traversal missing independently counted items", () => {
+  const f = fixture(2);
+  f.client.itemList = () => [];
+  assert.throws(() => collectRoadmapInventory(f.client), /Project inventory count mismatch/);
 });
 async function temporarySession(
   t: test.TestContext,
@@ -363,7 +375,7 @@ void test("charged final recollection fits the scheduled budget and refuses genu
       session.client.graphql = (query, vars) => {
         session.budget.admit(1, 1);
         let response: ReturnType<typeof f.client.graphql>;
-        if (query.includes("items(first:")) {
+        if (query.includes("items(first:") && !query.includes("projectRevision")) {
           if (vars?.after === null) traversals++;
           const offset = vars?.after === null ? 0 : Number(vars?.after);
           const nodes = f.project.slice(offset, offset + 100).map((item) => ({
@@ -435,7 +447,7 @@ void test("one complete recollection replaces Project count drift without joinin
   let traversals = 0;
   let alwaysDrift = false;
   session.client.graphql = (query, vars) => {
-    if (query.includes("items(first:")) {
+    if (query.includes("items(first:") && !query.includes("projectRevision")) {
       if (vars?.after === null) traversals++;
       const offset = vars?.after === null ? 0 : 100;
       const drift = (traversals === 1 || alwaysDrift) && offset === 100;

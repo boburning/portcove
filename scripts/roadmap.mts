@@ -4932,7 +4932,8 @@ function doctorApiMetrics(clients: readonly RoadmapClient[]) {
   const observations = clients.flatMap((client) => client.api.observations);
   const graphql = observations.filter((entry) => entry.operation === "POST graphql");
   return {
-    requests: observations.length,
+    scope: "direct API response observations; excludes internal GitHub CLI requests",
+    api_requests_observed: observations.length,
     response_bytes_observed: observations.reduce((sum, entry) => sum + entry.bytes, 0),
     response_size_unknown_requests: observations.filter((entry) => !entry.bytes_known).length,
     graphql_points_observed: graphql.reduce((sum, entry) => sum + (entry.rate?.cost ?? 0), 0),
@@ -4987,6 +4988,11 @@ export async function runDoctor(
   });
   const catalog = qualificationCatalogObservation(JSON.parse(await readFile(catalogPath, "utf8")));
   const items = inventory?.items ?? client.itemList(number, { includeDependencies: true, details });
+  if (items.some((item) => !item.content))
+    throw new InventoryError(
+      "inventory_incomplete",
+      "Redacted Project content leaves incomplete doctor coverage",
+    );
   if (!inventory) {
     const afterAudit = client.projectAudit(projectId);
     const beforeTotal = nestedGitHubField(rawAudit, "items", "totalCount");

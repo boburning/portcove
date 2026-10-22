@@ -211,6 +211,29 @@ void test("doctor cannot turn a self-consistent empty Project traversal into mis
       /observed 0, independent count 900/.test(error.message),
   );
 });
+
+void test("doctor refuses redacted Project items even when all counts agree", async () => {
+  const f = readerFixture(0);
+  const client = {
+    ...f.reader,
+    gh: () => "",
+    completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
+    viewList: () => [],
+    projectAudit: () => ({ id: "P", items: { totalCount: 1 }, repositories: { nodes: [] } }),
+    itemList: () => [{ id: "ITEM", content: null }],
+    repositoryIssues() {
+      return collectRepositoryIssueInventory(this);
+    },
+  };
+  await assert.rejects(
+    runDoctor(config, client, { quiet: true }),
+    (error) =>
+      error instanceof InventoryError &&
+      error.kind === "inventory_incomplete" &&
+      /Redacted Project content/.test(error.message),
+  );
+  assert.equal(f.requests(), 0, "refuse before repository body downloads");
+});
 void test("intake and normalization never mutate after incomplete collection", () => {
   const f = readerFixture(3, (value, marker) => {
     if (!marker) connection(value).nodes.pop();
