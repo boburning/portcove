@@ -65,6 +65,8 @@ struct Delegates {
 #[serde(deny_unknown_fields)]
 struct OfflineConfig {
     schema_version: u32,
+    #[serde(default)]
+    initial_root_profile: InitialRootProfile,
     generated_at: String,
     trusted_root: String,
     trusted_root_sha256: String,
@@ -104,7 +106,7 @@ pub async fn sign_offline_definition_targets(path: &Path) -> Result<DefinitionRo
     let root_bytes = io::read(&root_path, ROOT_MAX)?;
     expected(&root_bytes, &config.trusted_root_sha256)?;
     let root: Signed<Root> = serde_json::from_slice(&root_bytes)?;
-    policy::root(&root, at)?;
+    policy::root(&root, at, config.initial_root_profile)?;
     let expires = config.expires.parse::<Timestamp>().map_err(|_| {
         TufRepositoryError::Invalid("offline catalog Targets expiry malformed".into())
     })?;

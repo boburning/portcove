@@ -570,10 +570,15 @@ For a separately approved configured release, `catalog definition-authority`
 returns a `provisioning_schema: 1` review. `--apply --expected-plan <expected_plan>`
 requires explicit confirmation (`--yes` for noninteractive use) and delegates to
 Core. No file, URL, key, environment override or qualification option supplies
-the anchor. The compiled root is bounded to 1 MiB and must self-verify with a
-2-of-3 root quorum, distinct root/targets/snapshot/timestamp signing material,
-consistent snapshots and exactly the four supported top-level roles. Existing
-TUF acquisition still authenticates rotation, expiry and fresh metadata.
+the anchor. The compiled root is bounded to 1 MiB and must self-verify against
+the initial-anchor profile appointed in reviewed source. The selected Slice 4
+profile is single-owner-one-of-one-v1: one Root key/signature, distinct Ed25519
+Root/Targets/Snapshot/Timestamp material, consistent snapshots and exactly four
+top-level roles. The compiled root remains null until its separate appointment.
+Legacy two-of-three validation remains available for existing anchors and
+qualification; downloaded metadata cannot select a lower profile. Existing TUF
+acquisition still authenticates rotation, expiry and fresh metadata. This new
+initial profile cannot replace an installed anchor or bypass its old quorum.
 
 The reviewed fingerprint binds the library identity and canonical path, compiled
 anchor and retained authority/policy/admission/launch/curated state. Core recomputes

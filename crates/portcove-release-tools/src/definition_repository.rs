@@ -2,6 +2,7 @@
 //! Public input validation and signatures confer no publisher admission or grant.
 //! Each signer reads one appointed private key; assembly has no key input.
 
+use crate::initial_root_profile::InitialRootProfile;
 use crate::tuf_repository::TufRepositoryError;
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
@@ -133,6 +134,8 @@ impl<T: Copy> Four<T> {
 #[serde(deny_unknown_fields)]
 struct ContextConfig {
     schema_version: u32,
+    #[serde(default)]
+    initial_root_profile: InitialRootProfile,
     generated_at: String,
     trusted_root: String,
     trusted_root_sha256: String,
@@ -170,7 +173,7 @@ async fn load_context(path: &Path) -> Result<Context> {
     let root_bytes = io::read(&root_path, ROOT_MAX)?;
     expected(&root_bytes, &config.trusted_root_sha256)?;
     let root: Signed<Root> = serde_json::from_slice(&root_bytes)?;
-    policy::root(&root, at)?;
+    policy::root(&root, at, config.initial_root_profile)?;
     let top_bytes = io::read(&top_path, ROLE_MAX)?;
     expected(&top_bytes, &config.offline_targets_sha256)?;
     let top: Signed<Targets> = serde_json::from_slice(&top_bytes)?;

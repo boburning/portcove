@@ -12,6 +12,8 @@ use tough::schema::{RoleType, Root, Signed};
 use crate::{Library, PortcoveError, Result};
 
 const COMPILED_ROOT: &[u8] = include_bytes!("../catalog/official-definition-root.json");
+// This appointment belongs to reviewed source, never a downloaded Root or API argument.
+const COMPILED_INITIAL_ROOT_PROFILE: &str = "single-owner-one-of-one-v1";
 const MAX_ROOT_BYTES: usize = 1024 * 1024;
 const MAX_REVIEW_BYTES: usize = 64 * 1024 * 1024;
 
@@ -32,7 +34,23 @@ pub struct DefinitionAuthorityProvisioning {
     pub review: DefinitionAuthorityReview,
 }
 
-fn configured_root(bytes: &[u8]) -> Result<Option<&str>> {
+#[derive(Clone, Copy)]
+enum InitialRootProfile {
+    LegacyTwoOfThreeV1,
+    SingleOwnerOneOfOneV1,
+}
+
+fn compiled_profile() -> Result<InitialRootProfile> {
+    match COMPILED_INITIAL_ROOT_PROFILE {
+        "legacy-two-of-three-v1" => Ok(InitialRootProfile::LegacyTwoOfThreeV1),
+        "single-owner-one-of-one-v1" => Ok(InitialRootProfile::SingleOwnerOneOfOneV1),
+        _ => Err(PortcoveError::state(
+            "compiled initial Root profile is unknown",
+        )),
+    }
+}
+
+fn configured_root(bytes: &[u8], profile: InitialRootProfile) -> Result<Option<&str>> {
     if bytes.is_empty() || bytes.len() > MAX_ROOT_BYTES {
         return Err(PortcoveError::state(
             "compiled definition root exceeds its bound",
@@ -52,6 +70,18 @@ fn configured_root(bytes: &[u8]) -> Result<Option<&str>> {
             "compiled catalog root role contract differs",
         ));
     }
+    if matches!(profile, InitialRootProfile::SingleOwnerOneOfOneV1)
+        && (!root.signed._extra.is_empty()
+            || root
+                .signed
+                .roles
+                .values()
+                .any(|role| !role._extra.is_empty()))
+    {
+        return Err(PortcoveError::verification(
+            "single-owner catalog Root extensions are unsupported",
+        ));
+    }
     let mut materials = BTreeSet::new();
     let mut ids = BTreeSet::new();
     for role in [
@@ -64,19 +94,29 @@ fn configured_root(bytes: &[u8]) -> Result<Option<&str>> {
             PortcoveError::verification("compiled catalog root is missing a role")
         })?;
         let (count, threshold) = if role == RoleType::Root {
-            (3, 2)
+            match profile {
+                InitialRootProfile::LegacyTwoOfThreeV1 => (3, 2),
+                InitialRootProfile::SingleOwnerOneOfOneV1 => (1, 1),
+            }
         } else {
             (1, 1)
         };
         if keys.keyids.len() != count || keys.threshold.get() != threshold {
             return Err(PortcoveError::verification(
-                "compiled catalog root requires 2-of-3 roots and separated role keys",
+                "compiled catalog root differs from its appointed initial profile or separated role keys",
             ));
         }
         for id in &keys.keyids {
             let key = root.signed.keys.get(id).ok_or_else(|| {
                 PortcoveError::verification("compiled catalog role key is missing")
             })?;
+            if matches!(profile, InitialRootProfile::SingleOwnerOneOfOneV1)
+                && !matches!(key, tough::schema::key::Key::Ed25519 { .. })
+            {
+                return Err(PortcoveError::verification(
+                    "single-owner catalog roles require Ed25519",
+                ));
+            }
             let (algorithm, public) = super::signing_material(key);
             if !ids.insert(hex::encode(id.as_ref()))
                 || !materials.insert((algorithm.to_owned(), public.to_vec()))
@@ -284,8 +324,12 @@ fn review_from(
     })
 }
 
-fn review(library: &Library, bytes: &[u8]) -> Result<DefinitionAuthorityReview> {
-    let root = configured_root(bytes)?;
+fn review(
+    library: &Library,
+    bytes: &[u8],
+    profile: InitialRootProfile,
+) -> Result<DefinitionAuthorityReview> {
+    let root = configured_root(bytes, profile)?;
     let mut connection = library.connection()?;
     let transaction = connection.transaction_with_behavior(TransactionBehavior::Deferred)?;
     let result = review_from(library, &transaction, root, false)?;
@@ -293,8 +337,8 @@ fn review(library: &Library, bytes: &[u8]) -> Result<DefinitionAuthorityReview> 
     Ok(result)
 }
 
-fn require_installed(library: &Library, bytes: &[u8]) -> Result<()> {
-    let reviewed = review(library, bytes)?;
+fn require_installed(library: &Library, bytes: &[u8], profile: InitialRootProfile) -> Result<()> {
+    let reviewed = review(library, bytes, profile)?;
     if !reviewed.configured {
         return Err(PortcoveError::unsupported(
             "this build has no configured definition authority",
@@ -309,13 +353,13 @@ fn require_installed(library: &Library, bytes: &[u8]) -> Result<()> {
 }
 
 pub(super) fn installed_compiled_root(library: &Library) -> Result<&'static [u8]> {
-    require_installed(library, COMPILED_ROOT)?;
+    require_installed(library, COMPILED_ROOT, compiled_profile()?)?;
     Ok(COMPILED_ROOT)
 }
 
 #[cfg(test)]
 pub(crate) fn installed_fixture_root<'a>(library: &Library, bytes: &'a [u8]) -> Result<&'a [u8]> {
-    require_installed(library, bytes)?;
+    require_installed(library, bytes, InitialRootProfile::LegacyTwoOfThreeV1)?;
     Ok(bytes)
 }
 
@@ -323,6 +367,7 @@ fn apply(
     library: &Library,
     bytes: &[u8],
     expected: &str,
+    profile: InitialRootProfile,
 ) -> Result<DefinitionAuthorityProvisioning> {
     if expected.len() != 64
         || !expected
@@ -333,7 +378,7 @@ fn apply(
             "definition authority apply requires an exact reviewed plan",
         ));
     }
-    let root = configured_root(bytes)?.ok_or_else(|| {
+    let root = configured_root(bytes, profile)?.ok_or_else(|| {
         PortcoveError::unsupported("this build has no configured definition authority")
     })?;
     let mut connection = library.connection()?;
@@ -365,7 +410,7 @@ fn apply(
 impl Library {
     /// Review only the root compiled into this release; no candidate root input.
     pub fn review_definition_authority(&self) -> Result<DefinitionAuthorityReview> {
-        review(self, COMPILED_ROOT)
+        review(self, COMPILED_ROOT, compiled_profile()?)
     }
 
     /// Explicit one-time installation of this release's separately approved
@@ -375,13 +420,13 @@ impl Library {
         &self,
         expected_plan: &str,
     ) -> Result<DefinitionAuthorityProvisioning> {
-        apply(self, COMPILED_ROOT, expected_plan)
+        apply(self, COMPILED_ROOT, expected_plan, compiled_profile()?)
     }
 }
 
 #[cfg(test)]
 pub(crate) fn review_fixture(library: &Library, bytes: &[u8]) -> Result<DefinitionAuthorityReview> {
-    review(library, bytes)
+    review(library, bytes, InitialRootProfile::LegacyTwoOfThreeV1)
 }
 
 #[cfg(test)]
@@ -390,5 +435,32 @@ pub(crate) fn apply_fixture(
     bytes: &[u8],
     expected: &str,
 ) -> Result<DefinitionAuthorityProvisioning> {
-    apply(library, bytes, expected)
+    apply(
+        library,
+        bytes,
+        expected,
+        InitialRootProfile::LegacyTwoOfThreeV1,
+    )
+}
+
+#[cfg(test)]
+pub(crate) fn review_single_owner_fixture(
+    library: &Library,
+    bytes: &[u8],
+) -> Result<DefinitionAuthorityReview> {
+    review(library, bytes, InitialRootProfile::SingleOwnerOneOfOneV1)
+}
+
+#[cfg(test)]
+pub(crate) fn apply_single_owner_fixture(
+    library: &Library,
+    bytes: &[u8],
+    expected: &str,
+) -> Result<DefinitionAuthorityProvisioning> {
+    apply(
+        library,
+        bytes,
+        expected,
+        InitialRootProfile::SingleOwnerOneOfOneV1,
+    )
 }

@@ -2,6 +2,7 @@
 //! This crate has no catalog, game, installation, credential-provisioning or publication authority.
 
 pub mod definition_repository;
+pub mod initial_root_profile;
 pub mod tuf_repository;
 
 use std::fs::{self, File};

@@ -2,6 +2,7 @@
 //! every signing process receives one private-key pathname. Production use
 //! requires independently authorized initial custody setup.
 use super::*;
+use portcove_release_tools::initial_root_profile::InitialRootProfile;
 use std::process::{Command, Output};
 use tough::schema::{Role, Signed};
 
@@ -10,10 +11,15 @@ struct Ceremony {
     keys: Vec<TestKey>,
     public: Vec<serde_json::Value>,
     generated: Timestamp,
+    profile: InitialRootProfile,
 }
 
 impl Ceremony {
     async fn new() -> Self {
+        Self::with_profile(InitialRootProfile::LegacyTwoOfThreeV1).await
+    }
+
+    async fn with_profile(profile: InitialRootProfile) -> Self {
         let directory = tempfile::tempdir().unwrap();
         fs::create_dir(directory.path().join("tmp")).unwrap();
         let mut fixture = Self {
@@ -21,6 +27,7 @@ impl Ceremony {
             keys: Vec::new(),
             public: Vec::new(),
             generated: Timestamp::now(),
+            profile,
         };
         for index in 0..9 {
             let output = format!("custodian-{index}");
@@ -101,17 +108,32 @@ impl Ceremony {
         }
     }
     fn proposal(&self) -> serde_json::Value {
-        json!({"schema_version":1,"generated_at":self.generated.to_string(),"expires":self.future(300),
-            "root_public_keys":&self.public[..3],"targets_public_key":self.public[3],
-            "snapshot_public_key":self.public[4],"timestamp_public_key":self.public[5],"output":"proposal.json"})
+        let count = if self.profile == InitialRootProfile::SingleOwnerOneOfOneV1 {
+            1
+        } else {
+            3
+        };
+        self.appointed(json!({"schema_version":1,"generated_at":self.generated.to_string(),"expires":self.future(300),
+            "root_public_keys":&self.public[..count],"targets_public_key":self.public[3],
+            "snapshot_public_key":self.public[4],"timestamp_public_key":self.public[5],"output":"proposal.json"}))
+    }
+    fn appointed(&self, mut value: serde_json::Value) -> serde_json::Value {
+        if self.profile == InitialRootProfile::SingleOwnerOneOfOneV1 {
+            value["initial_root_profile"] = json!(self.profile);
+        }
+        value
     }
     fn partial(&self, input: &str, body: &str, key: usize, output: &str) -> serde_json::Value {
-        json!({"schema_version":1,"generated_at":self.generated.to_string(),"root":input,
-            "signed_body_sha256":body,"signing_key":self.keys[key].0,"output":output})
+        self.appointed(
+            json!({"schema_version":1,"generated_at":self.generated.to_string(),"root":input,
+            "signed_body_sha256":body,"signing_key":self.keys[key].0,"output":output}),
+        )
     }
     fn finalize(&self, input: &str, body: &str, output: &str) -> serde_json::Value {
-        json!({"schema_version":1,"generated_at":self.generated.to_string(),"root":input,
-            "signed_body_sha256":body,"output":output})
+        self.appointed(
+            json!({"schema_version":1,"generated_at":self.generated.to_string(),"root":input,
+            "signed_body_sha256":body,"output":output}),
+        )
     }
     fn prepare(&self) -> String {
         let result = self.success(
@@ -120,26 +142,35 @@ impl Ceremony {
         );
         assert_eq!(result["root_quorum"], false);
         let body = result["signed_body_sha256"].as_str().unwrap().to_owned();
-        self.success(
+        let first = self.success(
             "sign-offline-root",
             &self.config(
                 "sign-first.json",
                 &self.partial("proposal.json", &body, 0, "partial-one.json"),
             ),
         );
-        let second = self.success(
-            "sign-offline-root",
-            &self.config(
-                "sign-second.json",
-                &self.partial("partial-one.json", &body, 1, "partial-two.json"),
-            ),
+        assert_eq!(
+            first["root_quorum"],
+            self.profile == InitialRootProfile::SingleOwnerOneOfOneV1
         );
-        assert_eq!(second["root_quorum"], true);
+        let complete = if self.profile == InitialRootProfile::LegacyTwoOfThreeV1 {
+            let second = self.success(
+                "sign-offline-root",
+                &self.config(
+                    "sign-second.json",
+                    &self.partial("partial-one.json", &body, 1, "partial-two.json"),
+                ),
+            );
+            assert_eq!(second["root_quorum"], true);
+            "partial-two.json"
+        } else {
+            "partial-one.json"
+        };
         self.success(
             "finalize-offline-root",
             &self.config(
                 "finalize.json",
-                &self.finalize("partial-two.json", &body, "root-final.json"),
+                &self.finalize(complete, &body, "root-final.json"),
             ),
         );
         body
@@ -147,26 +178,44 @@ impl Ceremony {
     fn targets(&self) -> serde_json::Value {
         let bytes=serde_json::to_vec(&json!({"schema_version":1,"keys":[{"id":sha256(PAYLOAD_PUBLIC_KEY),"tauri_public_key":STANDARD.encode(PAYLOAD_PUBLIC_KEY)}]})).unwrap();
         fs::write(self.root().join("payload.json"), &bytes).unwrap();
-        json!({"schema_version":1,"generated_at":self.generated.to_string(),"trusted_root":"root-final.json",
+        self.appointed(json!({"schema_version":1,"generated_at":self.generated.to_string(),"trusted_root":"root-final.json",
             "trusted_root_sha256":sha256(&fs::read(self.root().join("root-final.json")).unwrap()),
             "payload_key_registry":"payload.json","payload_key_registry_sha256":sha256(&bytes),
             "delegated_public_keys":{"releases":self.public[6],"preview":self.public[7],"stable":self.public[8]},
-            "version":1,"expires":self.future(60),"signing_key":self.keys[3].0,"output":"offline-targets.json"})
+            "version":1,"expires":self.future(60),"signing_key":self.keys[3].0,"output":"offline-targets.json"}))
     }
 }
 
 #[tokio::test]
 async fn offline_ceremony_actual_single_key_cli_then_five_separate_jobs_bootstrap_with_tough() {
     let fixture = Ceremony::new().await;
+    prove_bootstrap(fixture).await;
+}
+
+#[tokio::test]
+async fn explicitly_appointed_single_owner_cli_and_five_role_bootstrap_refuse_implicit_downgrade() {
+    let fixture = Ceremony::with_profile(InitialRootProfile::SingleOwnerOneOfOneV1).await;
+    prove_bootstrap(fixture).await;
+}
+
+async fn prove_bootstrap(fixture: Ceremony) {
     let body = fixture.prepare();
     let read_root = |name| {
         serde_json::from_slice::<Signed<Root>>(&fs::read(fixture.root().join(name)).unwrap())
             .unwrap()
     };
     let partial = read_root("partial-one.json");
-    assert_eq!(partial.signed.roles[&RoleType::Root].threshold.get(), 2);
+    let threshold = if fixture.profile == InitialRootProfile::SingleOwnerOneOfOneV1 {
+        1
+    } else {
+        2
+    };
+    assert_eq!(
+        partial.signed.roles[&RoleType::Root].threshold.get(),
+        threshold
+    );
     assert_eq!(partial.signatures.len(), 1);
-    assert!(partial.signed.verify_role(&partial).is_err());
+    assert_eq!(partial.signed.verify_role(&partial).is_ok(), threshold == 1);
     let complete = read_root("root-final.json");
     complete.signed.verify_role(&complete).unwrap();
     assert_eq!(
@@ -174,7 +223,7 @@ async fn offline_ceremony_actual_single_key_cli_then_five_separate_jobs_bootstra
         partial.signed.canonical_form().unwrap()
     );
     assert_eq!(sha256(&complete.signed.canonical_form().unwrap()), body);
-    assert_eq!(complete.signatures.len(), 2);
+    assert_eq!(complete.signatures.len(), threshold as usize);
 
     fixture.success(
         "sign-offline-targets",
@@ -188,9 +237,9 @@ async fn offline_ceremony_actual_single_key_cli_then_five_separate_jobs_bootstra
     let expires = json!({"targets":fixture.future(60),"releases":fixture.future(60),"preview":fixture.future(6),"stable":fixture.future(6),"snapshot":fixture.future(6),"timestamp":fixture.future(1)});
     let versions =
         json!({"targets":1,"releases":1,"preview":1,"stable":1,"snapshot":1,"timestamp":1});
-    let mut context = json!({"schema_version":1,"generated_at":fixture.generated.to_string(),"trusted_root":"root-final.json",
+    let mut context = fixture.appointed(json!({"schema_version":1,"generated_at":fixture.generated.to_string(),"trusted_root":"root-final.json",
         "offline_targets":"offline-targets.json","payload_key_registry":"payload.json","reconstructed_records":"records",
-        "initial_bootstrap":"initial.json","versions":versions,"expires":expires});
+        "initial_bootstrap":"initial.json","versions":versions,"expires":expires}));
     let descriptor = |root: &str| {
         json!({"schema_version":1,"kind":"application-tuf-initial-bootstrap","generated_at":fixture.generated.to_string(),
         "setup_plan_sha256":"1".repeat(64),"initial_site_preimage_sha256":"2".repeat(64),
@@ -200,13 +249,28 @@ async fn offline_ceremony_actual_single_key_cli_then_five_separate_jobs_bootstra
         "initial_records_sha256":sha256(b"[]"),"expires":expires,
         "versions":{"targets":"1","releases":"1","preview":"1","stable":"1","snapshot":"1","timestamp":"1"}})
     };
-    fixture.config("initial.json", &descriptor("partial-one.json"));
-    context["trusted_root"] = json!("partial-one.json");
+    let incomplete = if threshold == 1 {
+        "proposal.json"
+    } else {
+        "partial-one.json"
+    };
+    fixture.config("initial.json", &descriptor(incomplete));
+    context["trusted_root"] = json!(incomplete);
     let path = fixture.config("context.json", &context);
     assert!(!fixture.cli("inspect-tuf-bootstrap", &path).status.success());
     context["trusted_root"] = json!("root-final.json");
     fixture.config("initial.json", &descriptor("root-final.json"));
     fixture.config("context.json", &context);
+    if threshold == 1 {
+        let mut implicit = context.clone();
+        implicit
+            .as_object_mut()
+            .unwrap()
+            .remove("initial_root_profile");
+        fixture.config("context.json", &implicit);
+        assert!(!fixture.cli("inspect-tuf-bootstrap", &path).status.success());
+        fixture.config("context.json", &context);
+    }
     fixture.success("inspect-tuf-bootstrap", &path);
 
     fs::create_dir(fixture.root().join("envelopes")).unwrap();
@@ -278,6 +342,61 @@ async fn offline_ceremony_actual_single_key_cli_then_five_separate_jobs_bootstra
     assert_eq!(
         fs::read(fixture.root().join("assembled/metadata/1.targets.json")).unwrap(),
         fs::read(fixture.root().join("offline-targets.json")).unwrap()
+    );
+}
+
+#[tokio::test]
+async fn single_owner_requires_explicit_profile_exact_body_sole_signer_and_new_outputs() {
+    let fixture = Ceremony::with_profile(InitialRootProfile::SingleOwnerOneOfOneV1).await;
+    let mut implicit = fixture.proposal();
+    implicit
+        .as_object_mut()
+        .unwrap()
+        .remove("initial_root_profile");
+    fixture.refuse("prepare-offline-root", implicit, "implicit-proposal.json");
+    let mut aliased = fixture.proposal();
+    aliased["targets_public_key"] = aliased["root_public_keys"][0].clone();
+    fixture.refuse("prepare-offline-root", aliased, "aliased-role.json");
+    let body = fixture.prepare();
+    fixture.refuse(
+        "sign-offline-root",
+        fixture.partial("proposal.json", &body, 3, "wrong-role.json"),
+        "wrong-role-config.json",
+    );
+    fixture.refuse(
+        "finalize-offline-root",
+        fixture.finalize("proposal.json", &body, "unsigned-final.json"),
+        "unsigned-config.json",
+    );
+    fixture.refuse(
+        "sign-offline-root",
+        fixture.partial("partial-one.json", &body, 0, "extra-signature.json"),
+        "extra-signature-config.json",
+    );
+    fixture.refuse(
+        "finalize-offline-root",
+        fixture.finalize("partial-one.json", &"0".repeat(64), "changed-body.json"),
+        "changed-body-config.json",
+    );
+    let mut wrong_profile = fixture.finalize("partial-one.json", &body, "wrong-profile.json");
+    wrong_profile["initial_root_profile"] = json!(InitialRootProfile::LegacyTwoOfThreeV1);
+    fixture.refuse(
+        "finalize-offline-root",
+        wrong_profile,
+        "wrong-profile-config.json",
+    );
+    let retained = fs::read(fixture.root().join("root-final.json")).unwrap();
+    let result = fixture.cli(
+        "finalize-offline-root",
+        &fixture.config(
+            "reuse-config.json",
+            &fixture.finalize("partial-one.json", &body, "root-final.json"),
+        ),
+    );
+    assert!(!result.status.success());
+    assert_eq!(
+        fs::read(fixture.root().join("root-final.json")).unwrap(),
+        retained
     );
 }
 

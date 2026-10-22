@@ -65,6 +65,8 @@ const DELEGATED: [(DelegatedRole, OnlineRole); 3] = [
 #[serde(deny_unknown_fields)]
 struct ContextConfig {
     schema_version: u32,
+    #[serde(default)]
+    initial_root_profile: InitialRootProfile,
     generated_at: String,
     trusted_root: String,
     offline_targets: String,
@@ -717,7 +719,13 @@ async fn load_context(path: &Path) -> Result<Context, TufRepositoryError> {
             "role",
         )?;
     }
-    validate_root_contract(&root.signed, generated, now, &ids)?;
+    validate_root_contract(
+        &root.signed,
+        generated,
+        now,
+        &ids,
+        config.initial_root_profile,
+    )?;
     let registry = read_regular_bounded(&registry_path, MAX_REGISTRY_BYTES, "payload registry")?;
     validate_payload_registry(&registry)?;
     online::load_offline_targets(&top_path, &root, &ids, &versions, &expires, &registry)?;

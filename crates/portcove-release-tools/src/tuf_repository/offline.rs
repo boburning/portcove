@@ -13,6 +13,8 @@ use tough::schema::{KeyHolder, Role, Targets, key::Key};
 #[serde(deny_unknown_fields)]
 struct RootConfig {
     schema_version: u32,
+    #[serde(default)]
+    initial_root_profile: InitialRootProfile,
     generated_at: String,
     root: String,
     signed_body_sha256: String,
@@ -24,6 +26,8 @@ struct RootConfig {
 #[serde(deny_unknown_fields)]
 struct FinalizeConfig {
     schema_version: u32,
+    #[serde(default)]
+    initial_root_profile: InitialRootProfile,
     generated_at: String,
     root: String,
     signed_body_sha256: String,
@@ -34,6 +38,8 @@ struct FinalizeConfig {
 #[serde(deny_unknown_fields)]
 struct TargetsConfig {
     schema_version: u32,
+    #[serde(default)]
+    initial_root_profile: InitialRootProfile,
     generated_at: String,
     trusted_root: String,
     trusted_root_sha256: String,
@@ -65,9 +71,11 @@ struct PublicKeyInput {
 #[serde(deny_unknown_fields)]
 struct ProposalConfig {
     schema_version: u32,
+    #[serde(default)]
+    initial_root_profile: InitialRootProfile,
     generated_at: String,
     expires: String,
-    root_public_keys: [PublicKeyInput; 3],
+    root_public_keys: Vec<PublicKeyInput>,
     targets_public_key: PublicKeyInput,
     snapshot_public_key: PublicKeyInput,
     timestamp_public_key: PublicKeyInput,
@@ -300,6 +308,9 @@ fn inspect_public_key(value: &serde_json::Value) -> Result<(), TufRepositoryErro
 pub fn prepare_initial_root(path: &Path) -> Result<OfflineReport, TufRepositoryError> {
     let config: ProposalConfig = parse(path)?;
     let at = generated(config.schema_version, &config.generated_at)?;
+    if config.root_public_keys.len() != config.initial_root_profile.root_keys() {
+        return invalid("initial Root public key count differs from the configured profile");
+    }
     let base = path.parent().unwrap_or_else(|| Path::new("."));
     let mut keys = serde_json::Map::new();
     let mut roles = serde_json::Map::new();
@@ -317,7 +328,7 @@ pub fn prepare_initial_root(path: &Path) -> Result<OfflineReport, TufRepositoryE
     }
     roles.insert(
         "root".into(),
-        serde_json::json!({"keyids":root_ids,"threshold":2}),
+        serde_json::json!({"keyids":root_ids,"threshold":config.initial_root_profile.threshold()}),
     );
     for (name, input) in [
         ("targets", &config.targets_public_key),
@@ -341,7 +352,7 @@ pub fn prepare_initial_root(path: &Path) -> Result<OfflineReport, TufRepositoryE
         "_type":"root","spec_version":"1.0.0","version":1,"consistent_snapshot":true,
         "expires":expiration(&config.expires,"initial Root")?,"keys":keys,"roles":roles
     }))?;
-    root_policy(&root, at)?;
+    root_policy(&root, at, config.initial_root_profile)?;
     let body = root.canonical_form()?;
     let mut bytes = serde_json::to_vec_pretty(&Signed {
         signed: root,
@@ -357,12 +368,16 @@ pub fn prepare_initial_root(path: &Path) -> Result<OfflineReport, TufRepositoryE
     )
 }
 
-fn root_policy(root: &Root, at: Timestamp) -> Result<[Vec<u8>; 6], TufRepositoryError> {
+fn root_policy(
+    root: &Root,
+    at: Timestamp,
+    profile: InitialRootProfile,
+) -> Result<[Vec<u8>; 6], TufRepositoryError> {
     if root.version != NonZeroU64::MIN
         || root.spec_version != "1.0.0"
         || !root._extra.is_empty()
         || root.roles.len() != 4
-        || root.keys.len() != 6
+        || root.keys.len() != profile.root_keys() + 3
     {
         return invalid("offline ceremony accepts only the fixed initial Root v1");
     }
@@ -370,8 +385,12 @@ fn root_policy(root: &Root, at: Timestamp) -> Result<[Vec<u8>; 6], TufRepository
         .roles
         .get(&RoleType::Root)
         .ok_or_else(|| TufRepositoryError::Invalid("initial Root role is absent".into()))?;
-    if roots.keyids.len() != 3 || roots.keyids.iter().collect::<BTreeSet<_>>().len() != 3 {
-        return invalid("initial Root requires exactly three distinct public root keys");
+    if roots.keyids.len() != profile.root_keys()
+        || roots.keyids.iter().collect::<BTreeSet<_>>().len() != profile.root_keys()
+    {
+        return invalid(
+            "initial Root distinct public key count differs from the configured profile",
+        );
     }
     let mut ids: [Vec<u8>; 6] = Default::default();
     let mut assigned = roots.keyids.iter().cloned().collect::<BTreeSet<_>>();
@@ -398,7 +417,7 @@ fn root_policy(root: &Root, at: Timestamp) -> Result<[Vec<u8>; 6], TufRepository
             return invalid("Root key ID does not match its public key bytes");
         }
     }
-    validate_root_contract(root, at, Timestamp::now(), &ids)?;
+    validate_root_contract(root, at, Timestamp::now(), &ids, profile)?;
     Ok(ids)
 }
 
@@ -479,18 +498,18 @@ fn write_new(
 }
 
 /// Add exactly one distinct authorized Root signature, without collecting any
-/// other private key. The approved original body keeps its threshold of two.
+/// other private key. The original body must match the explicitly selected profile.
 pub async fn sign_initial_root(path: &Path) -> Result<OfflineReport, TufRepositoryError> {
     let config: RootConfig = parse(path)?;
     let at = generated(config.schema_version, &config.generated_at)?;
     let base = path.parent().unwrap_or_else(|| Path::new("."));
     let input = resolve(base, &config.root, "initial Root")?;
     let root = parse_root(&read_input(&input, MAX_MANIFEST_BYTES, "initial Root")?)?;
-    root_policy(&root.signed, at)?;
+    root_policy(&root.signed, at, config.initial_root_profile)?;
     let body = root.signed.canonical_form()?;
     expected(&body, &config.signed_body_sha256)?;
     check_partial(&root)?;
-    if root.signatures.len() >= 2 {
+    if root.signatures.len() as u64 >= config.initial_root_profile.threshold() {
         return invalid("initial Root already has a complete quorum; finalize it without a key");
     }
     let key_path = resolve(base, &config.signing_key, "one offline Root key")?;
@@ -525,7 +544,8 @@ pub async fn sign_initial_root(path: &Path) -> Result<OfflineReport, TufReposito
     if signed.signed().signed.canonical_form()? != body {
         return invalid("Root signature merge changed the approved body");
     }
-    let complete = signed.signed().signatures.len() == 2;
+    let complete =
+        signed.signed().signatures.len() as u64 == config.initial_root_profile.threshold();
     if complete {
         signed.signed().signed.verify_role(signed.signed())?;
     }
@@ -549,7 +569,7 @@ pub fn finalize_initial_root(path: &Path) -> Result<OfflineReport, TufRepository
         "Root quorum",
     )?;
     let root = parse_root(&bytes)?;
-    root_policy(&root.signed, at)?;
+    root_policy(&root.signed, at, config.initial_root_profile)?;
     let body = root.signed.canonical_form()?;
     expected(&body, &config.signed_body_sha256)?;
     check_partial(&root)?;
@@ -584,7 +604,7 @@ pub async fn sign_initial_targets(path: &Path) -> Result<OfflineReport, TufRepos
     let root_bytes = read_input(&root_path, MAX_MANIFEST_BYTES, "trusted initial Root")?;
     expected(&root_bytes, &config.trusted_root_sha256)?;
     let root = parse_root(&root_bytes)?;
-    let mut ids = root_policy(&root.signed, at)?;
+    let mut ids = root_policy(&root.signed, at, config.initial_root_profile)?;
     check_partial(&root)?;
     root.signed.verify_role(&root)?;
     let registry_path = resolve(base, &config.payload_key_registry, "payload registry")?;

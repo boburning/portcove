@@ -30,12 +30,12 @@ pub(super) fn window(at: Timestamp, expires: Timestamp, seconds: u64) -> Result<
     }
     Ok(())
 }
-pub(super) fn root(root: &Signed<Root>, at: Timestamp) -> Result<()> {
+pub(super) fn root(root: &Signed<Root>, at: Timestamp, profile: InitialRootProfile) -> Result<()> {
     if root.signed.spec_version != "1.0.0"
         || !root.signed.consistent_snapshot
         || !root.signed._extra.is_empty()
         || root.signed.roles.len() != 4
-        || root.signed.keys.len() != 6
+        || root.signed.keys.len() != profile.root_keys() + 3
     {
         return invalid("catalog Root requires exact consistent-snapshot role inventory");
     }
@@ -54,12 +54,14 @@ pub(super) fn root(root: &Signed<Root>, at: Timestamp) -> Result<()> {
             .get(&role)
             .ok_or_else(|| TufRepositoryError::Invalid("catalog Root role missing".into()))?;
         let (count, threshold) = if role == RoleType::Root {
-            (3, 2)
+            (profile.root_keys(), profile.threshold())
         } else {
             (1, 1)
         };
         if r.keyids.len() != count || r.threshold.get() != threshold {
-            return invalid("catalog Root requires two-of-three and distinct one-key roles");
+            return invalid(
+                "catalog Root differs from its configured profile or separated one-key roles",
+            );
         }
         for id in &r.keyids {
             let public = root
@@ -78,8 +80,8 @@ pub(super) fn root(root: &Signed<Root>, at: Timestamp) -> Result<()> {
     }
     let root_ids = &root.signed.roles[&RoleType::Root].keyids;
     let mut seen = BTreeSet::new();
-    if root.signatures.len() < 2
-        || root.signatures.len() > 3
+    if (root.signatures.len() as u64) < profile.threshold()
+        || root.signatures.len() > profile.root_keys()
         || root
             .signatures
             .iter()
