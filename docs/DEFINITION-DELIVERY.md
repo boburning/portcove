@@ -10,12 +10,18 @@ upstreams, and #246 owns the protected publication and unchanged-client proof.
 ## Implemented engine capability negotiation
 
 Core advertises each installed `AdapterKind` template with contract version 1.
-The N64 portable template advertises version 3 for the fixed CVLoD Windows
-source recipe. Such entries also require the independent staged-source version
-11 path capability. A version-2 reader refuses this recipe before use; the new
-version does not authorize catalog-supplied compilers or scripts. The retained
-original-source and platform contracts still apply. See [catalog recipe
-contract](CATALOG.md).
+The public inventory additionally advertises N64 portable versions 2 and 3 and
+staged-source portable versions 2–5, 8, 10–12 and 15–20. Staged-source creation
+versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
+and historical meanings are preserved; version numbers are not reused.
+
+Capability negotiation, new-definition admission and retained-state interpretation
+are separate checks. A supported capability does not admit every operation once
+associated with it. New indexed entries with `release.managed_build` are refused,
+including the retired CVLoD recipe associated with the still-advertised N64
+portable version 3 and staged-source version 11 path capability. Advertising those
+versions does not restore CVLoD source creation or authorize compilers or scripts.
+Shared path capabilities remain available to their other consumers.
 
 The N64 portable template also advertises version 2, which implements the
 catalog-declared fresh Windows D3D12 default. Inventory identities are unique
@@ -47,27 +53,40 @@ Versions 1 and 2 remain supported. Other templates cannot declare a prepared
 runtime subdirectory. Capability schema and public envelope shapes are unchanged.
 This primitive supplies no title, package, generated-output or native acceptance.
 
-Staged-source portable version 6 implements the fixed Core-owned
-`release.managed_build` original-driven cartridge recipe described in
-[the catalog contract](CATALOG.md). An indexed Yoshi entry must require
-minimum version 6; a window admitting older engines is refused. Versions 1–5
-remain available. Full recipe retention, source/tool/output checks and the
-ordinary lifecycle remain necessary after negotiation. This adds no definition
-publisher, signing or protected delivery authority.
+Only the private retained-definition reader can interpret retired staged-source
+versions 6, 7, 9, 13 and 14 for the identified existing runtime contracts. Yoshi's
+historical version 6 and Dr. Mario NES's historical version 7 retain their exact
+meanings there; they are not recipes for new indexed entries. The small cartridge
+interpreter preserves installed-runtime launch, original/source and persistence
+semantics without retaining generation, compiler acquisition or new builds.
+Preserving an installed runtime's contract never re-enables its creation recipe.
+The [compatibility record](reference/upstream-first-compatibility.md) identifies
+the actual consumers, CVLoD recovery cleanup and concrete retirement conditions.
 
 Staged-source portable version 8 adds the typed `regaiden041-windows` shared
 preferences opt-in for the exact reviewed ReGaiden 0.4.1 Windows package.
-Indexed entries declaring it must require minimum version 8. Versions 1–7
-remain supported. Preview, explicit consumer acknowledgment, retained
+Indexed entries declaring it must require minimum version 8. Earlier advertised
+versions remain negotiable only within their implemented contracts; the retired
+creation versions are not public capabilities. Preview, explicit consumer acknowledgment, retained
 account/path and launch-time checks are consequential semantics; accepting the
 field alone is insufficient. Retained external registrations use the existing
 strict installed-contract envelope so older readers refuse lost semantics.
 
-Staged-source portable version 7 adds the fixed Dr. Mario USA v1.3.0 cartridge
-recipe. Its indexed entry must require minimum version 7; admitting v6 engines
-is refused. Yoshi's existing recipe continues to require version 6, and versions
-1–6 remain supported by the new client. Negotiation is not recipe execution,
-title admission, source permission or protected publication acceptance.
+Staged-source portable version 19 covers the constrained reusable TFE initializer,
+version-local RetroAchievements credential policy and GBRecompiled shared
+preferences policy. Indexed entries using these policies must require minimum
+version 19. Typed retained release facts select the reviewed behavior; artifact,
+path, persistence, credential and consent invariants remain in Core. A compatible
+release can reuse the policy after focused validation without a new title-specific
+capability. A checksum or matching filename alone does not prove compatibility.
+
+Staged-source portable version 20 covers explicit `trust: "user-selected"`
+execution. Such indexed entries must require minimum version 20. Explicit native
+executable, working directory and bounded literal arguments support registration,
+launch and registration-only removal; selected bytes are not authenticated
+official packages. This contract grants no update, deletion, migration, backup or
+rollback rights over external files. Older readers must refuse its unknown
+consequential semantics. See [installation ownership](CATALOG.md#integration-ownership).
 
 API schema 45 exposes the inventory as `capabilities.engine_templates`. The CLI
 `catalog check-capabilities <file>` and Tauri `check_definition_capabilities`
