@@ -2616,6 +2616,29 @@ mod tests {
         paper_mario.project_url = "https://github.com/SMCGames/Paper-Mario-ReCut-Deprecated".into();
         paper_mario.release.repository = "SMCGames/Paper-Mario-ReCut-Deprecated".into();
         paper_mario.upstream_status = crate::UpstreamStatus::Retired;
+        // New DKR registrations delegate runtime replacement to upstream. The
+        // historical managed definition/profile remain frozen reader inputs.
+        let dkr = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "dkr-r")
+            .unwrap();
+        dkr.platforms = vec![Platform::WindowsX86_64];
+        dkr.adapter = crate::AdapterKind::StagedSourcePortable;
+        dkr.release.provider = ReleaseSource::UserPrepared;
+        dkr.release.asset_hints.clear();
+        dkr.release.user_prepared = serde_json::from_value(serde_json::json!({
+            "windows-x86-64": {
+                "trust": "user-selected", "version": "user-managed",
+                "archive_name": "", "archive_size": 0, "archive_sha256": "",
+                "immutable_tree_sha256": "", "executable": "", "mutable_paths": []
+            }
+        }))
+        .unwrap();
+        dkr.source_profile = None;
+        dkr.executable_hints.clear();
+        dkr.persistent_paths.clear();
+        dkr.runtime_source_filename = None;
+        dkr.launch_arguments.clear();
         for (id, hint) in [
             ("zelda64-recomp", "Linux-X64.zip"),
             ("banjo-recomp", "Linux-X64."),
