@@ -12,7 +12,13 @@ import {
 } from "./repository-issue-inventory.mts";
 import type { DoctorReadAttempt, InventoryReader } from "./repository-issue-inventory.mts";
 import { GitHubApiClient, GitHubApiError, createGitHubRunner } from "./github-api.mts";
-import { RoadmapClient, runDoctor, validateConfig, renderPortIssueBody } from "./roadmap.mts";
+import {
+  RoadmapClient,
+  runDoctor,
+  doctorProjectItems,
+  validateConfig,
+  renderPortIssueBody,
+} from "./roadmap.mts";
 import { DiscoveryBudget, createDiscoveryTransport } from "./discovery-budget.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
@@ -71,6 +77,181 @@ const connection = (value: Record<string, unknown>) =>
     nodes: Record<string, unknown>[];
     pageInfo: { hasNextPage: boolean; endCursor: string | null };
   };
+
+void test("doctor proves Project coverage from fresh reverse memberships without the failing listing", async () => {
+  const f = readerFixture(2, (value, marker) => {
+    if (marker) return;
+    for (const row of connection(value).nodes) {
+      row.blockedBy = { totalCount: 0, nodes: [] };
+      row.projectItems = {
+        totalCount: 1,
+        nodes: [
+          {
+            id: `ITEM_${String(row.number)}`,
+            project: { id: "P" },
+            isArchived: false,
+            fieldValues: {
+              totalCount: 0,
+              nodes: [],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        ],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+    }
+  });
+  let listings = 0;
+  const client = {
+    ...f.reader,
+    gh: () => "",
+    completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
+    viewList: () => [],
+    projectAudit: () => ({
+      id: "P",
+      updatedAt: "2026-10-22T00:00:00Z",
+      items: { totalCount: 2 },
+      repositories: { nodes: [] },
+    }),
+    itemList: () => {
+      listings++;
+      throw new Error("Project listing unavailable");
+    },
+    repositoryIssues(options?: { projectMemberships?: boolean }) {
+      return collectRepositoryIssueInventory(this, options);
+    },
+  };
+  await assert.rejects(
+    runDoctor(config, client, { quiet: true }),
+    (error) => error instanceof Error && Array.isArray(Reflect.get(error, "doctorErrors")),
+  );
+  assert.equal(listings, 0);
+  assert.equal(f.requests(), 3, "one repository traversal, with its two markers");
+  assert.ok(f.queries.some((q) => q.includes("projectItems(")));
+});
+
+function membershipFixture(change: (row: Record<string, unknown>) => void = () => {}) {
+  return readerFixture(2, (value, marker) => {
+    if (marker) return;
+    for (const row of connection(value).nodes) {
+      row.blockedBy = { totalCount: 0, nodes: [] };
+      row.projectItems = {
+        totalCount: 1,
+        nodes: [
+          {
+            id: `ITEM_${String(row.number)}`,
+            project: { id: "P" },
+            isArchived: false,
+            fieldValues: {
+              totalCount: 0,
+              nodes: [],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        ],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+      change(row);
+    }
+  });
+}
+void test("reverse membership proof requires live verified coverage and exact active cardinality", () => {
+  const f = membershipFixture();
+  const inventory = collectRepositoryIssueInventory(f.reader, { projectMemberships: true });
+  assert.equal(doctorProjectItems(inventory, f.reader, "P", 2)?.length, 2);
+  assert.equal(
+    doctorProjectItems(inventory, f.reader, "P", 3),
+    undefined,
+    "unknown drafts or foreign items require full enumeration",
+  );
+  assert.throws(() => doctorProjectItems(inventory, f.reader, "P", 1), {
+    code: "inventory_changed",
+  });
+  assert.throws(() => doctorProjectItems(inventory, f.reader, "P", null), {
+    code: "inventory_incomplete",
+  });
+  assert.throws(() => doctorProjectItems({ ...inventory }, f.reader, "P", 2), {
+    code: "inventory_incomplete",
+  });
+  assert.throws(() => doctorProjectItems(inventory, { ...f.reader }, "P", 2), {
+    code: "inventory_incomplete",
+  });
+  assert.equal(inventory.evidence.project_memberships, 2);
+  const scoped = membershipFixture((row) => {
+    if (row.number === 1)
+      (row.projectItems as { nodes: Record<string, unknown>[] }).nodes[0]!.isArchived = true;
+  });
+  const archived = collectRepositoryIssueInventory(scoped.reader, { projectMemberships: true });
+  assert.equal(doctorProjectItems(archived, scoped.reader, "P", 1)?.[0]?.content?.number, 2);
+  assert.equal(doctorProjectItems(archived, scoped.reader, "other-project", 1), undefined);
+});
+void test("nested memberships and blockers cannot silently truncate or lose identity", () => {
+  for (const corrupt of [
+    (row: Record<string, unknown>) => {
+      row.projectItems = null;
+    },
+    (row: Record<string, unknown>) => {
+      (row.projectItems as Record<string, unknown>).totalCount = 2;
+    },
+    (row: Record<string, unknown>) => {
+      (row.projectItems as { pageInfo: Record<string, unknown> }).pageInfo.hasNextPage = true;
+    },
+    (row: Record<string, unknown>) => {
+      (row.projectItems as { nodes: Record<string, unknown>[] }).nodes[0]!.id = "duplicate";
+    },
+    (row: Record<string, unknown>) => {
+      (row.projectItems as { nodes: Record<string, unknown>[] }).nodes[0]!.project = { id: null };
+    },
+    (row: Record<string, unknown>) => {
+      (row.projectItems as { nodes: Record<string, unknown>[] }).nodes[0]!.isArchived = null;
+    },
+    (row: Record<string, unknown>) => {
+      row.blockedBy = { totalCount: 2, nodes: [] };
+    },
+  ]) {
+    const f = membershipFixture(corrupt);
+    assert.throws(
+      () => collectRepositoryIssueInventory(f.reader, { projectMemberships: true }),
+      InventoryError,
+    );
+  }
+  const f = membershipFixture((row) => {
+    (row.projectItems as { nodes: Record<string, unknown>[] }).nodes[0]!.fieldValues = {
+      totalCount: 1,
+      nodes: [],
+      pageInfo: { hasNextPage: true },
+    };
+  });
+  const inventory = collectRepositoryIssueInventory(f.reader, { projectMemberships: true });
+  assert.throws(() => doctorProjectItems(inventory, f.reader, "P", 2), /fields are truncated/);
+});
+void test("doctor discards reverse membership proof on a changed or missing Project revision", async () => {
+  for (const revision of [undefined, "invalid", "2026-10-23T00:00:00Z"]) {
+    const f = membershipFixture();
+    let audits = 0;
+    const client = {
+      ...f.reader,
+      gh: () => "",
+      completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
+      viewList: () => [],
+      projectAudit: () => ({
+        id: "P",
+        updatedAt: audits++ ? revision : "2026-10-22T00:00:00Z",
+        items: { totalCount: 2 },
+        repositories: { nodes: [] },
+      }),
+      itemList: () => {
+        throw new Error("must not enumerate the projected set again");
+      },
+      repositoryIssues(options?: { projectMemberships?: boolean }) {
+        return collectRepositoryIssueInventory(this, options);
+      },
+    };
+    await assert.rejects(runDoctor(config, client, { quiet: true }), {
+      code: revision === "2026-10-23T00:00:00Z" ? "inventory_changed" : "inventory_incomplete",
+    });
+  }
+});
 
 void test("shared collector covers empty and exact pagination boundaries with bounded field selection", () => {
   for (const count of [0, 1, 50, 51, 100, 101, 1001]) {
@@ -172,7 +353,12 @@ void test("programmatic doctor uses the same strict collector with or without an
       gh: () => "",
       completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
       viewList: () => [],
-      projectAudit: () => ({ id: "P", items: { totalCount: 0 }, repositories: { nodes: [] } }),
+      projectAudit: () => ({
+        id: "P",
+        updatedAt: "2026-10-22T00:00:00Z",
+        items: { totalCount: 0 },
+        repositories: { nodes: [] },
+      }),
       itemList: () => [],
       repositoryIssues() {
         return collectRepositoryIssueInventory(this);
@@ -197,7 +383,12 @@ void test("doctor cannot turn a self-consistent empty Project traversal into mis
     gh: () => "",
     completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
     viewList: () => [],
-    projectAudit: () => ({ id: "P", items: { totalCount: 900 }, repositories: { nodes: [] } }),
+    projectAudit: () => ({
+      id: "P",
+      updatedAt: "2026-10-22T00:00:00Z",
+      items: { totalCount: 900 },
+      repositories: { nodes: [] },
+    }),
     itemList: () => [],
     repositoryIssues() {
       return collectRepositoryIssueInventory(this);
@@ -219,7 +410,12 @@ void test("doctor refuses redacted Project items even when all counts agree", as
     gh: () => "",
     completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
     viewList: () => [],
-    projectAudit: () => ({ id: "P", items: { totalCount: 1 }, repositories: { nodes: [] } }),
+    projectAudit: () => ({
+      id: "P",
+      updatedAt: "2026-10-22T00:00:00Z",
+      items: { totalCount: 1 },
+      repositories: { nodes: [] },
+    }),
     itemList: () => [{ id: "ITEM", content: null }],
     repositoryIssues() {
       return collectRepositoryIssueInventory(this);
@@ -232,7 +428,11 @@ void test("doctor refuses redacted Project items even when all counts agree", as
       error.kind === "inventory_incomplete" &&
       /Redacted Project content/.test(error.message),
   );
-  assert.equal(f.requests(), 0, "refuse before repository body downloads");
+  assert.equal(
+    f.requests(),
+    3,
+    "reuse the single repository observation before refusing Project coverage",
+  );
 });
 
 void test("real Project reads and doctor reject malformed content before interpreting absence", async () => {
@@ -290,7 +490,12 @@ void test("real Project reads and doctor reject malformed content before interpr
       gh: () => "",
       completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
       viewList: () => [],
-      projectAudit: () => ({ id: "P", items: { totalCount: 1 }, repositories: { nodes: [] } }),
+      projectAudit: () => ({
+        id: "P",
+        updatedAt: "2026-10-22T00:00:00Z",
+        items: { totalCount: 1 },
+        repositories: { nodes: [] },
+      }),
       itemList: real.itemList.bind(real),
       repositoryIssues() {
         return collectRepositoryIssueInventory(this);
@@ -299,7 +504,7 @@ void test("real Project reads and doctor reject malformed content before interpr
     await assert.rejects(runDoctor(config, client, { quiet: true }), {
       code: "inventory_incomplete",
     });
-    assert.equal(f.requests(), 0);
+    assert.equal(f.requests(), 3);
   }
 });
 void test("intake and normalization never mutate after incomplete collection", () => {

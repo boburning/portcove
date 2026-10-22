@@ -18,6 +18,22 @@ export interface RepositoryIssueRecord {
   updatedAt: string;
   type: "Issue";
   body?: string;
+  blockedBy?: { totalCount: number; nodes: readonly RepositoryIssueBlocker[] };
+}
+interface RepositoryIssueBlocker {
+  [fieldName: string]: unknown;
+  id: string;
+  number: number;
+  title: string;
+  url: string;
+  state: "OPEN" | "CLOSED";
+}
+export interface IssueProjectMembership {
+  readonly id: string;
+  readonly project_id: string;
+  readonly issue_id: string;
+  readonly isArchived: boolean;
+  readonly fieldValues: unknown;
 }
 export type InventoryFailureKind =
   | "inventory_changed"
@@ -171,6 +187,7 @@ export interface RepositoryInventoryEvidence {
   query_sha256: string;
   pages: InventoryPageEvidence[];
   total?: number;
+  project_memberships?: number;
 }
 export interface VerifiedRepositoryIssueInventory {
   readonly repository: string;
@@ -179,6 +196,8 @@ export interface VerifiedRepositoryIssueInventory {
   readonly field_coverage: "metadata" | "bodies";
   readonly issues: readonly Readonly<RepositoryIssueRecord>[];
   readonly evidence: RepositoryInventoryEvidence;
+  /** Fresh, complete issue-side links, not a claim that every Project item is an issue here. */
+  readonly project_memberships?: readonly IssueProjectMembership[];
 }
 const verified = new WeakMap<
   VerifiedRepositoryIssueInventory,
@@ -208,9 +227,11 @@ export function collectRepositoryIssueInventory(
   reader: InventoryReader,
   {
     bodies = true,
+    projectMemberships = false,
     evidence: sink,
   }: {
     bodies?: boolean;
+    projectMemberships?: boolean;
     evidence?: RepositoryInventoryEvidence[];
   } = {},
 ): VerifiedRepositoryIssueInventory {
@@ -218,7 +239,10 @@ export function collectRepositoryIssueInventory(
   const [owner, name, extra] = binding.split("/");
   if (!owner || !name || extra)
     throw new InventoryError("inventory_identity", "Invalid repository inventory binding");
-  const query = `query RepositoryIssueInventory($owner:String!,$name:String!,$after:String){repository(owner:$owner,name:$name){id nameWithOwner issues(first:${bodies ? 50 : 100},after:$after,orderBy:{field:CREATED_AT,direction:ASC}){totalCount nodes{id number title ${bodies ? "body" : ""} url state updatedAt} pageInfo{hasNextPage endCursor}}} rateLimit{cost limit remaining used resetAt}}`;
+  const links = projectMemberships
+    ? "blockedBy(first:100){totalCount nodes{id number title url state}} projectItems(first:10,includeArchived:true){totalCount nodes{id isArchived project{id} fieldValues(first:25){totalCount nodes{...on ProjectV2ItemFieldSingleSelectValue{name field{...on ProjectV2SingleSelectField{name}}}} pageInfo{hasNextPage endCursor}}} pageInfo{hasNextPage endCursor}}"
+    : "";
+  const query = `query RepositoryIssueInventory($owner:String!,$name:String!,$after:String){repository(owner:$owner,name:$name){id nameWithOwner issues(first:${bodies ? 50 : 100},after:$after,orderBy:{field:CREATED_AT,direction:ASC}){totalCount nodes{id number title ${bodies ? "body" : ""} url state updatedAt ${links}} pageInfo{hasNextPage endCursor}}} rateLimit{cost limit remaining used resetAt}}`;
   const evidence: RepositoryInventoryEvidence = {
     source: "graphql",
     repository: binding,
@@ -286,6 +310,8 @@ export function collectRepositoryIssueInventory(
   try {
     const before = marker();
     const numbers = new Set<number>();
+    const memberships: IssueProjectMembership[] = [];
+    const membershipIds = new Set<string>();
     const issues = readCompleteConnection(
       reader,
       query,
@@ -315,6 +341,87 @@ export function collectRepositoryIssueInventory(
           "incomplete GitHub inventory: malformed repository issue revision, number or binding",
         );
       numbers.add(row.number);
+      let blockedBy: RepositoryIssueRecord["blockedBy"];
+      if (projectMemberships) {
+        const blockers = object(row.blockedBy);
+        if (
+          !Array.isArray(blockers.nodes) ||
+          !Number.isSafeInteger(blockers.totalCount) ||
+          blockers.totalCount !== blockers.nodes.length
+        )
+          throw new InventoryError(
+            "inventory_incomplete",
+            "Incomplete issue blocking dependencies",
+          );
+        const blockerIds = new Set<string>();
+        const blockerNodes = blockers.nodes.map((raw): RepositoryIssueBlocker => {
+          const node = object(raw);
+          if (
+            typeof node.id !== "string" ||
+            !node.id ||
+            blockerIds.has(node.id) ||
+            typeof node.number !== "number" ||
+            !Number.isSafeInteger(node.number) ||
+            node.number < 1 ||
+            typeof node.title !== "string" ||
+            typeof node.url !== "string" ||
+            !node.url ||
+            (node.state !== "OPEN" && node.state !== "CLOSED")
+          )
+            throw new InventoryError("inventory_malformed", "Malformed issue blocking dependency");
+          blockerIds.add(node.id);
+          return Object.freeze({
+            id: node.id,
+            number: node.number,
+            title: node.title,
+            url: node.url,
+            state: node.state,
+          });
+        });
+        blockedBy = Object.freeze({
+          totalCount: blockerNodes.length,
+          nodes: Object.freeze(blockerNodes),
+        });
+        const connection = object(row.projectItems);
+        const info = object(connection.pageInfo);
+        if (
+          !Array.isArray(connection.nodes) ||
+          !Number.isSafeInteger(connection.totalCount) ||
+          connection.totalCount !== connection.nodes.length ||
+          info.hasNextPage !== false ||
+          !(info.endCursor === null || typeof info.endCursor === "string")
+        )
+          throw new InventoryError(
+            "inventory_incomplete",
+            "Incomplete issue-side Project memberships",
+          );
+        for (const rawLink of connection.nodes) {
+          const link = object(rawLink),
+            project = object(link.project);
+          if (
+            typeof link.id !== "string" ||
+            !link.id ||
+            membershipIds.has(link.id) ||
+            typeof project.id !== "string" ||
+            !project.id ||
+            typeof link.isArchived !== "boolean"
+          )
+            throw new InventoryError(
+              "inventory_identity",
+              "Malformed or duplicate issue-side Project membership",
+            );
+          membershipIds.add(link.id);
+          memberships.push(
+            Object.freeze({
+              id: link.id,
+              project_id: project.id,
+              issue_id: row.id,
+              isArchived: link.isArchived,
+              fieldValues: link.fieldValues,
+            }),
+          );
+        }
+      }
       return Object.freeze({
         id: row.id,
         node_id: row.id,
@@ -326,6 +433,7 @@ export function collectRepositoryIssueInventory(
         updatedAt: row.updatedAt,
         type: "Issue",
         ...(bodies ? { body: row.body as string } : {}),
+        ...(blockedBy ? { blockedBy } : {}),
       });
     });
     const after = marker();
@@ -341,6 +449,7 @@ export function collectRepositoryIssueInventory(
       );
     evidence.total = issues.length;
     evidence.finished_at = new Date().toISOString();
+    if (projectMemberships) evidence.project_memberships = memberships.length;
     const result = Object.freeze({
       repository: binding,
       repository_node_id: repositoryId!,
@@ -348,6 +457,7 @@ export function collectRepositoryIssueInventory(
       field_coverage: evidence.field_coverage,
       issues: Object.freeze(issues),
       evidence,
+      ...(projectMemberships ? { project_memberships: Object.freeze(memberships) } : {}),
     });
     verified.set(result, { reader, hash: hash(result) });
     return result;

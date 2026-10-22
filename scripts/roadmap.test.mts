@@ -2626,7 +2626,12 @@ void test("runDoctor retains an incomplete GraphQL observation for its CLI recei
         gh: () => "",
         completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
         viewList: () => [],
-        projectAudit: () => ({ id: "P", items: { totalCount: 0 }, repositories: { nodes: [] } }),
+        projectAudit: () => ({
+          id: "P",
+          updatedAt: "2026-10-22T00:00:00Z",
+          items: { totalCount: 0 },
+          repositories: { nodes: [] },
+        }),
         itemList: () => [],
       }),
       { quiet: true, repositoryIssueInventoryAttempts: attempts },

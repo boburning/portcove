@@ -10,6 +10,8 @@ import {
 import type {
   RepositoryInventoryEvidence,
   DoctorReadAttempt,
+  VerifiedRepositoryIssueInventory,
+  InventoryReader,
 } from "./repository-issue-inventory.mts";
 import {
   collectRoadmapInventory,
@@ -3541,8 +3543,8 @@ export class RoadmapClient {
     });
   }
 
-  repositoryIssues() {
-    return collectRepositoryIssueInventory(this);
+  repositoryIssues(options: { projectMemberships?: boolean } = {}) {
+    return collectRepositoryIssueInventory(this, options);
   }
 
   repositoryIssue(number: number) {
@@ -4014,7 +4016,7 @@ export class RoadmapClient {
   }
 
   projectAudit(projectId: string) {
-    const query = `query($id: ID!) { node(id: $id) { ... on ProjectV2 { id number title public items(first:1){totalCount} repositories(first: 100) { nodes { name owner { login } } } } } }`;
+    const query = `query($id: ID!) { node(id: $id) { ... on ProjectV2 { id updatedAt number title public items(first:1){totalCount} repositories(first: 100) { nodes { name owner { login } } } } } }`;
     return qualificationField(this.graphql(query, { id: projectId }), "node");
   }
 
@@ -4944,9 +4946,10 @@ export interface DoctorRepositoryInventoryAttempt {
 export function readDoctorRepositoryIssues(
   client: Pick<RoadmapClient, "repositoryIssues" | "config">,
   attempts: DoctorRepositoryInventoryAttempt[] = [],
+  options: { projectMemberships?: boolean } = {},
 ) {
   try {
-    const inventory = requireRepositoryIssueInventory(client.repositoryIssues(), client);
+    const inventory = requireRepositoryIssueInventory(client.repositoryIssues(options), client);
     attempts.push({
       attempt: attempts.length + 1,
       source: "graphql",
@@ -4954,7 +4957,7 @@ export function readDoctorRepositoryIssues(
       issues: inventory.issues.length,
       evidence: [inventory.evidence],
     });
-    return { issues: inventory.issues, attempts };
+    return { issues: inventory.issues, inventory, attempts };
   } catch (error) {
     attempts.push({
       attempt: attempts.length + 1,
@@ -4981,6 +4984,65 @@ function doctorApiMetrics(clients: readonly RoadmapClient[]) {
     graphql_points_observed: graphql.reduce((sum, entry) => sum + (entry.rate?.cost ?? 0), 0),
     graphql_cost_unknown_requests: graphql.filter((entry) => entry.rate?.cost == null).length,
   };
+}
+
+/** A live subset becomes complete only when it exhausts the independently counted Project. */
+export function doctorProjectItems(
+  inventory: VerifiedRepositoryIssueInventory,
+  client: Pick<InventoryReader, "config">,
+  projectId: string,
+  expectedTotal: unknown,
+): RoadmapIssueItem[] | undefined {
+  requireRepositoryIssueInventory(inventory, client);
+  if (!inventory.project_memberships) return undefined;
+  if (
+    typeof expectedTotal !== "number" ||
+    !Number.isSafeInteger(expectedTotal) ||
+    expectedTotal < 0
+  )
+    throw new InventoryError("inventory_incomplete", "Project coverage count is unavailable");
+  const links = inventory.project_memberships.filter(
+    (link) => link.project_id === projectId && !link.isArchived,
+  );
+  if (links.length > expectedTotal)
+    throw new InventoryError(
+      "inventory_changed",
+      "Live issue memberships exceed the Project listing count; discard the read",
+    );
+  // Drafts, foreign issues and pull requests are not presumed absent.
+  if (links.length < expectedTotal) return undefined;
+  const issues = new Map(inventory.issues.map((issue) => [issue.id, issue]));
+  return links.map((link) => {
+    const issue = issues.get(link.issue_id);
+    if (!issue)
+      throw new InventoryError("inventory_identity", "Project membership issue is unavailable");
+    return issueObservation({
+      id: link.id,
+      isArchived: false,
+      title: issue.title,
+      type: "Issue",
+      content: { ...issue, __typename: "Issue" },
+      fieldValues: projectFieldValues(link),
+    });
+  });
+}
+
+function doctorProjectMarker(audit: unknown, projectId: string) {
+  const total = nestedGitHubField(audit, "items", "totalCount");
+  const revision = qualificationField(audit, "updatedAt");
+  if (
+    qualificationField(audit, "id") !== projectId ||
+    typeof total !== "number" ||
+    !Number.isSafeInteger(total) ||
+    total < 0 ||
+    typeof revision !== "string" ||
+    !Number.isFinite(Date.parse(revision))
+  )
+    throw new InventoryError(
+      "inventory_incomplete",
+      "Doctor Project coverage count, identity or revision is unavailable",
+    );
+  return { total, revision };
 }
 
 export async function runDoctor(
@@ -5017,6 +5079,7 @@ export async function runDoctor(
     throw new Error("Doctor inventory belongs to a different Project");
   const views = client.viewList(projectId);
   const rawAudit = client.projectAudit(projectId);
+  const beforeProject = inventory ? undefined : doctorProjectMarker(rawAudit, projectId);
   const audit = projectDetailsObservation(rawAudit);
   const rawRepositories = nestedGitHubField(rawAudit, "repositories", "nodes");
   if (rawRepositories != null && !Array.isArray(rawRepositories))
@@ -5029,40 +5092,38 @@ export async function runDoctor(
     repositories: repositoryEntries.map(linkedRepositoryObservation),
   });
   const catalog = qualificationCatalogObservation(JSON.parse(await readFile(catalogPath, "utf8")));
-  const items = inventory?.items ?? client.itemList(number, { includeDependencies: true, details });
+  const repositoryRead = inventory
+    ? undefined
+    : readDoctorRepositoryIssues(client, repositoryIssueInventoryAttempts, {
+        projectMemberships: true,
+      });
+  const projected = repositoryRead
+    ? doctorProjectItems(repositoryRead.inventory, client, projectId, beforeProject!.total)
+    : undefined;
+  const items =
+    inventory?.items ??
+    projected ??
+    client.itemList(number, { includeDependencies: true, details });
   for (const item of items) completeProjectContent(item.content);
   if (!inventory) {
-    const afterAudit = client.projectAudit(projectId);
-    const beforeTotal = nestedGitHubField(rawAudit, "items", "totalCount");
-    const afterTotal = nestedGitHubField(afterAudit, "items", "totalCount");
-    if (
-      qualificationField(rawAudit, "id") !== projectId ||
-      qualificationField(afterAudit, "id") !== projectId ||
-      typeof beforeTotal !== "number" ||
-      !Number.isSafeInteger(beforeTotal) ||
-      beforeTotal < 0 ||
-      typeof afterTotal !== "number" ||
-      !Number.isSafeInteger(afterTotal) ||
-      afterTotal < 0
-    )
-      throw new InventoryError(
-        "inventory_incomplete",
-        "Doctor Project coverage count or identity is unavailable",
-      );
-    if (beforeTotal !== afterTotal)
+    const afterProject = doctorProjectMarker(client.projectAudit(projectId), projectId);
+    if (beforeProject!.revision !== afterProject.revision)
       throw new InventoryError(
         "inventory_changed",
-        `Doctor Project inventory changed (${beforeTotal} -> ${afterTotal}); discard the read`,
+        "Project revision changed during membership collection; discard the read",
       );
-    if (items.length !== beforeTotal)
+    if (beforeProject!.total !== afterProject.total)
+      throw new InventoryError(
+        "inventory_changed",
+        `Doctor Project inventory changed (${beforeProject!.total} -> ${afterProject.total}); discard the read`,
+      );
+    if (items.length !== beforeProject!.total)
       throw new InventoryError(
         "inventory_incomplete",
-        `Doctor Project inventory is incomplete: observed ${items.length}, independent count ${beforeTotal}`,
+        `Doctor Project inventory is incomplete: observed ${items.length}, independent count ${beforeProject!.total}`,
       );
   }
-  const repositoryIssues =
-    inventory?.issues ??
-    readDoctorRepositoryIssues(client, repositoryIssueInventoryAttempts).issues;
+  const repositoryIssues = inventory?.issues ?? repositoryRead!.issues;
   const stage = evaluateRoadmapDoctor({
     config,
     catalog,
@@ -5103,6 +5164,11 @@ export async function runDoctor(
     diagnostics: stage.diagnostics,
     repositoryIssueInventoryAttempts,
     inventory,
+    projectInventorySource: inventory
+      ? "discovery-inventory"
+      : projected
+        ? "issue-project-memberships"
+        : "project-items-connection",
   };
 }
 
@@ -5282,6 +5348,7 @@ async function main(argv: readonly string[]) {
           warnings: checked.result.warnings,
           diagnostics: checked.result.diagnostics,
           repository_issue_inventory: repositoryIssueInventoryAttempts,
+          project_inventory_source: checked.result.projectInventorySource,
           read_attempts: readAttempts,
           api_observations: readClients.flatMap((entry) => entry.api.observations),
           metrics: doctorApiMetrics(readClients),
