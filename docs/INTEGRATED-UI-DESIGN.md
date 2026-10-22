@@ -5,7 +5,7 @@ This contract supersedes the earlier staged UI delivery proposal. The owner requ
 ## Product decisions
 
 - Keep four destinations: Library, Find games, Activity and Settings. Add games is a contextual task. Keep Commands and its shortcut discoverable with quiet secondary treatment; place installation copy with Add games and About/help with Settings rather than competing permanent sidebar actions. Preserve shortcuts, navigation regions and valid return focus.
-- Identity and the current next action lead. Separate games, stable port IDs and variants. Keep red Play, quiet checked readiness, blue selection and gold keyboard focus. Keep graphite/warm-light tokens, bundled Geist, Lucide controls and the approved crab assets.
+- Identity and the current next action lead. Separate games, stable port IDs and variants. Keep red Play, quiet green checked readiness, blue selection and gold keyboard focus. Keep graphite/warm-light tokens, bundled Geist, Lucide controls and the approved crab assets.
 - Keep whole-image 2:3 collection frames, metadata outside artwork, compact wrapping rows and bounded detail/task artwork. Do not infer ownership, readiness, image crops or eligibility from appearance. Unclassified artwork retains its complete source image.
 - Use the existing workspace scroll owner and native sizing preference. Constrain reading/forms within the available workspace; never constrain its scrollbar to a stale width. Reflow navigation and task actions with no lost functionality at enlargement.
 - Add games offers intentions: choose a game/port, find games in a folder, or use an existing installation. Requirements determine the route; there is no universal six-step wizard. Preserve checked inputs and drafts across navigation.
@@ -94,3 +94,40 @@ reviews show the returned saves/settings location, preserve specific external
 notices, and say that keeping an old game version is separate from a save backup;
 this review has no save-compatibility assessment. Saved candidates use keeping
 language instead of inventing another download.
+
+## Library and detail refinement (22 October 2026)
+
+Library uses one named Readiness picker at every width. Favorites remains an
+independent toggle; Filters retains declared dimensions, active chips and reset.
+A second command row groups Add games and scoped Collection commands, with the
+labeled cover/row choice opposite. Inactive Favorites and view choices use quiet
+controls; selected controls retain the independent selected cue. Core projections,
+counts, filtering, Steam selection scope and browsing-return owners are unchanged.
+
+Ready text and its check use the semantic success foreground in covers, rows and
+detail. Warning, downloaded-update, primary Play, selection and focus retain their
+own roles. Whole-image cover limits are 220px ordinarily, 180px when the viewport
+is at most 800px high, and 160px at most 680px high. Existing effective-width and
+enlargement rules still apply; essential text does not shrink to fit the artwork.
+
+Detail keeps identity and the dominant action first. Matching selected/installed
+channels share a Release channel fact; differing channels remain explicit separate
+facts. Check for updates is secondary to the game action. The optional future
+install-folder editor is disclosed without unmounting its draft/review owner.
+Artwork selection and the optional large detail preview live inside Change artwork.
+Requirements, backups, retained versions, source tools, qualification, diagnostics
+and native plan/consent owners remain available through their existing routes.
+
+Preparation reviews retain full selectable source/install paths and version,
+minimum-space uncertainty, activation/rollback consequences and retained-work
+facts before confirmation. Short lists replace repeated paragraphs. The running
+view, Continue browsing, cancellation, review digest and completion ownership
+remain with their existing operation owners. Other route-specific reviews keep
+their distinct production contracts.
+
+Interactive development scenarios mount the actual App in a viewport-bound root,
+using the production scroll model: the workspace at desktop widths, the document at narrow widths. Review controls collapse into a
+small labeled demo desk. `embed=1` hides that desk for a comparison whose parent
+must label the simulation; reset and journey changes preserve embedded mode.
+Static previews remain inert. Browser fixtures do not establish native, packaged,
+real-game, screen-reader or physical-controller acceptance.

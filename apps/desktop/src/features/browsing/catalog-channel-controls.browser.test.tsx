@@ -2,6 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { PortBrowser } from "../../components/PortBrowser";
 import { LibrarySelectionCard, SettingsView } from "../../components/Chrome";
 import { portDefinition, portStatus } from "../../test-fixtures";
@@ -314,7 +315,7 @@ describe("Catalog channel controls", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("keeps mounted Library readiness shortcuts independent of Catalog channels", async () => {
+  it("keeps mounted Library readiness independent of Catalog channels", async () => {
     for (const [id, launchable] of [
       ["stable", true],
       ["beta", false],
@@ -342,19 +343,16 @@ describe("Catalog channel controls", () => {
     await click("beta");
     await click("stable");
     await act(async () => shell.setView("library"));
-    const libraryButton = (name: string) =>
-      [
-        ...host.querySelectorAll<HTMLButtonElement>(
-          '[aria-label="Library filters"] button[aria-pressed]',
-        ),
-      ].find((item) => item.textContent?.startsWith(`${name} (`))!;
-    await act(async () => libraryButton("Ready").click());
+    const readiness = page.getByRole("combobox", { name: /^Readiness / });
+    await readiness.click();
+    await page.getByRole("option", { name: "Ready (1)", exact: true }).click();
     expect(
       [...host.querySelectorAll("article.port-card")].map(
         (card) => card.querySelector('[role="heading"][aria-level="2"]')?.textContent,
       ),
     ).toEqual(["Stable port"]);
-    await act(async () => libraryButton("Needs attention").click());
+    await readiness.click();
+    await page.getByRole("option", { name: "Needs attention (1)", exact: true }).click();
     expect(
       [...host.querySelectorAll("article.port-card")].map(
         (card) => card.querySelector('[role="heading"][aria-level="2"]')?.textContent,
@@ -363,7 +361,7 @@ describe("Catalog channel controls", () => {
     await act(async () => shell.setView("catalog"));
     expect(visibleIds()).toEqual(["stable", "beta", "both"]);
     await act(async () => shell.setView("library"));
-    expect(libraryButton("Needs attention").getAttribute("aria-pressed")).toBe("true");
+    await expect.element(readiness).toHaveAccessibleName("Readiness Needs attention (1)");
   });
 });
 

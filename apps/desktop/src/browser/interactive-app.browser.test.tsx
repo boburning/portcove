@@ -6,6 +6,10 @@ import {
 } from "../dev-scenarios/interactive/entry";
 import { recoveryKey } from "../dev-scenarios/interactive/transport";
 import "../styles/index.css";
+import "../dev-scenarios/scenarios.css";
+import scenarioShell from "../../scenarios.html?raw";
+import axe from "axe-core";
+import { THEME_STORAGE_KEY } from "../theme";
 beforeEach(async () => {
   localStorage.clear();
   await page.viewport(1280, 800);
@@ -13,9 +17,25 @@ beforeEach(async () => {
 
 function mount(journey: string) {
   window.history.replaceState(null, "", `/scenarios.html?mode=interactive&journey=${journey}`);
-  document.body.innerHTML =
-    '<select id="scenario" aria-label="Journey"></select><p id="scenario-limitation"></p><div id="scenario-preview"></div>';
+  document.body.innerHTML = new DOMParser().parseFromString(
+    scenarioShell,
+    "text/html",
+  ).body.innerHTML;
   startInteractiveScenarios();
+}
+async function settleCapture() {
+  await document.fonts.ready;
+  await expect.poll(() => [...document.images].every((image) => image.complete)).toBe(true);
+  // Let the resized workspace and the theme owner's deferred invalidation paint.
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
+  await Promise.all(
+    document
+      .getAnimations()
+      .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
+      .map((animation) => animation.finished.catch(() => {})),
+  );
 }
 afterEach(() => {
   stopInteractiveScenarios();
@@ -26,7 +46,81 @@ afterEach(() => {
   window.history.replaceState(null, "", "/");
 });
 
-it("uses a named compact readiness choice at narrow and enlarged widths without losing its filter", async () => {
+it.each(["dark", "light"])(
+  "keeps enlarged %s rows readable and checks the changed controls",
+  async (theme) => {
+    await page.viewport(1366, 768);
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+    mount("collection");
+    document.documentElement.style.fontSize = "200%";
+    await page.getByRole("button", { name: "Compact rows", exact: true }).click();
+    await settleCapture();
+    const row = document.querySelector<HTMLElement>(".collection-row")!;
+    const state = row.querySelector<HTMLElement>(".collection-state")!;
+    const identity = row.querySelector<HTMLElement>(".collection-identity")!;
+    expect(
+      parseFloat(getComputedStyle(identity.querySelector(".collection-title")!).fontSize),
+    ).toBeGreaterThanOrEqual(28);
+    expect(document.documentElement.dataset.theme).toBe(theme);
+    expect(state.querySelector(".readiness")!.getBoundingClientRect().left).toBeCloseTo(
+      identity.querySelector(".collection-title")!.getBoundingClientRect().left,
+      0,
+    );
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(1366);
+    await page.screenshot({ path: `../../../../outputs/ui-refinement/rows-text-200-${theme}.png` });
+    const result = await axe.run(document.querySelector<HTMLElement>("#scenario-preview")!, {
+      runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"] },
+    });
+    expect(
+      result.violations.map(
+        (item) => `${item.id}: ${item.nodes.map((node) => node.target.join(" ")).join(", ")}`,
+      ),
+    ).toEqual([]);
+    await page.viewport(1920, 1080);
+    await settleCapture();
+    expect(state.getBoundingClientRect().left).toBeGreaterThanOrEqual(
+      identity.getBoundingClientRect().right,
+    );
+    const readiness = state.querySelector<HTMLElement>(".readiness")!;
+    expect(readiness.getBoundingClientRect().height).toBeLessThanOrEqual(
+      parseFloat(getComputedStyle(readiness).lineHeight) + 1,
+    );
+    const play = row.querySelector<HTMLButtonElement>('button[data-variant="primary"]')!;
+    expect(play.textContent).toBe("Play");
+    play.focus();
+    await expect.element(play).toHaveFocus();
+    await settleCapture();
+    await page.screenshot({
+      path: `../../../../outputs/ui-refinement/rows-text-200-wide-${theme}.png`,
+    });
+  },
+);
+
+it("keeps enlarged review facts and cancellation reachable", async () => {
+  await page.viewport(1366, 768);
+  document.documentElement.style.fontSize = "200%";
+  mount("setup");
+  await page
+    .getByRole("button", {
+      name: "View details for Harbor Adventure Port: Harbor Adventure",
+      exact: true,
+    })
+    .click();
+  await page.getByRole("button", { name: "Review game preparation", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect.element(dialog.getByText("fixture/owned.iso", { exact: true })).toBeVisible();
+  expect(dialog.element().scrollWidth).toBeLessThanOrEqual(dialog.element().clientWidth + 1);
+  await page.screenshot({ path: "../../../../outputs/ui-refinement/preparation-text-200.png" });
+  await page.viewport(320, 900);
+  expect(dialog.element().scrollWidth).toBeLessThanOrEqual(dialog.element().clientWidth + 1);
+  await page.getByRole("button", { name: "Cancel review", exact: true }).click();
+  await expect.element(dialog).not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: "Review game preparation", exact: true }))
+    .toHaveFocus();
+});
+
+it("keeps one named readiness choice across narrow, desktop and enlarged widths", async () => {
   await page.viewport(320, 900);
   mount("library");
   const readiness = page.getByRole("combobox", { name: /^Readiness/ });
@@ -39,11 +133,8 @@ it("uses a named compact readiness choice at narrow and enlarged widths without 
   expect(document.querySelectorAll(".collection-entry")).toHaveLength(1);
   expect(document.querySelector(".collection-entry")?.textContent).toContain("Harbor Adventure");
   await page.viewport(1280, 800);
-  await expect.element(page.getByRole("button", { name: "Ready (1)", exact: true })).toBeVisible();
-  await expect
-    .element(page.getByRole("button", { name: "Ready (1)", exact: true }))
-    .toHaveAttribute("aria-pressed", "true");
-  await expect.element(readiness).not.toBeInTheDocument();
+  await expect.element(readiness).toBeVisible();
+  await expect.element(readiness).toHaveAccessibleName("Readiness Ready (1)");
   await page.viewport(1366, 768);
   document.documentElement.style.fontSize = "200%";
   await expect.element(readiness).toBeVisible();
@@ -53,9 +144,7 @@ it("uses a named compact readiness choice at narrow and enlarged widths without 
   await userEvent.fill(page.getByPlaceholder("Game or port name"), "");
   await expect.poll(() => readiness.element().textContent).toContain("All (2)");
   expect(document.querySelectorAll(".collection-entry")).toHaveLength(2);
-  expect(document.querySelector<HTMLElement>(".collection-readiness-wide")?.checkVisibility()).toBe(
-    false,
-  );
+  expect(document.querySelector(".collection-readiness-wide")).toBeNull();
 });
 
 it("uses real App search, readiness filters, chips, artwork fallback, and details/back navigation", async () => {
@@ -85,10 +174,11 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
       }),
     )
     .not.toBeInTheDocument();
-  await userEvent.click(page.getByRole("button", { name: "Ready (1)", exact: true }));
+  await page.getByRole("combobox", { name: /^Readiness / }).click();
+  await page.getByRole("option", { name: "Ready (1)", exact: true }).click();
   await expect
-    .element(page.getByRole("button", { name: "Ready (1)", exact: true }))
-    .toHaveAttribute("aria-pressed", "true");
+    .element(page.getByRole("combobox", { name: /^Readiness / }))
+    .toHaveAccessibleName("Readiness Ready (1)");
   await expect
     .element(
       page.getByRole("button", {
@@ -114,6 +204,7 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
     page.getByRole("button", { name: "Back to previous workspace", exact: true }),
   );
   await expect.element(page.getByPlaceholder("Game or port name")).toHaveValue("Harbor");
+  await page.getByText("Demo library · simulated files — review controls", { exact: true }).click();
   await userEvent.click(page.getByRole("button", { name: "Reset journey", exact: true }));
   // Reset remounts the renderer fixture; private browsing preferences still restore.
   await expect.element(page.getByPlaceholder("Game or port name")).toHaveValue("Harbor");
@@ -201,6 +292,7 @@ it("renders recovery choices, returns to Library via the actual bootstrap hook, 
     .toBeVisible();
   await userEvent.click(page.getByRole("button", { name: "Use platform default", exact: true }));
   await expect.element(page.getByPlaceholder("Game or port name")).toBeVisible();
+  await page.getByText("Demo library · simulated files — review controls", { exact: true }).click();
   await userEvent.click(page.getByRole("button", { name: "Reset journey", exact: true }));
   await expect
     .element(page.getByRole("button", { name: "Continue location change", exact: true }))

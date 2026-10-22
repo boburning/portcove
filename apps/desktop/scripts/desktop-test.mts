@@ -3903,11 +3903,11 @@ try {
       async () =>
         (await executeBrowserScript(
           browser,
-          (element) => !element.classList.contains("is-deferred") && element.hasAttribute("open"),
+          (element) => element.hasAttribute("open"),
           outputDisclosure,
         )) === true,
       5_000,
-      "future setup choices did not expand after selecting game files",
+      "the open future-folder editor closed after selecting game files",
     );
     assert.equal(await outputDraft.getAttribute("value"), draftPath);
     await sourceDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE);
@@ -3915,12 +3915,14 @@ try {
       async () =>
         (await executeBrowserScript(
           browser,
-          (element) => element.classList.contains("is-deferred") && !element.hasAttribute("open"),
+          (element) => element.hasAttribute("open"),
           outputDisclosure,
         )) === true,
       5_000,
-      "future setup choices did not defer after removing the selected path",
+      "the open future-folder editor closed after removing the selected path",
     );
+    await outputChoices.click();
+    assert.equal(await outputDisclosure.getAttribute("open"), null);
     await outputChoices.click();
     assert.equal(await outputDraft.getAttribute("value"), draftPath);
     await captureScenarioScreenshot("game-details-future-output-draft");

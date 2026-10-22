@@ -13,19 +13,6 @@ afterEach(async () => {
   localStorage.clear();
 });
 
-function matches(filters: Element, expression: string) {
-  const result = document.evaluate(
-    expression,
-    filters,
-    null,
-    XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
-  );
-  return Array.from(
-    { length: result.snapshotLength },
-    (_, index) => result.snapshotItem(index) as HTMLButtonElement,
-  );
-}
-
 async function mount(width: number) {
   localStorage.clear();
   await page.viewport(width, 640);
@@ -67,38 +54,25 @@ async function openDetails() {
     .toBeVisible();
 }
 
-it("distinguishes the compact Select trigger from native wide choices and reaches details after selection", async () => {
-  const filters = await mount(640);
-  const oldCandidates = matches(filters, './/button[starts-with(normalize-space(.),"All (")]');
-  const wideCandidates = matches(
-    filters,
-    './/button[not(@role="combobox")][starts-with(normalize-space(.),"All (")]',
-  );
-  expect(
-    oldCandidates.some(
-      (candidate) =>
-        candidate.getAttribute("role") === "combobox" && candidate.getClientRects().length > 0,
-    ),
-  ).toBe(true);
-  expect(wideCandidates.some((candidate) => candidate.getClientRects().length > 0)).toBe(false);
-  const picker = page.getByRole("combobox", { name: /^Readiness / });
-  await picker.click();
-  const listId = picker.element().getAttribute("aria-controls")!;
-  await page.getByRole("option", { name: /^All \(/ }).click();
-  await expect.element(picker).toHaveAttribute("aria-expanded", "false");
-  await expect.poll(() => readinessClosed(listId)).toBe(true);
-  await openDetails();
-});
-
-it("uses the actual wide readiness button and reaches game details at desktop size", async () => {
-  const filters = await mount(1600);
-  const candidates = matches(
-    filters,
-    './/button[not(@role="combobox")][starts-with(normalize-space(.),"All (")]',
-  );
-  const visible = candidates.filter((candidate) => candidate.getClientRects().length > 0);
-  expect(visible).toHaveLength(1);
-  expect(visible[0]!.getAttribute("role")).not.toBe("combobox");
-  await userEvent.click(visible[0]!);
-  await openDetails();
-});
+for (const width of [640, 1600]) {
+  it(`uses the named readiness picker and reaches details after selection at ${width}px`, async () => {
+    await mount(width);
+    const picker = page.getByRole("combobox", { name: /^Readiness / });
+    await expect.element(picker).toBeVisible();
+    await picker.click();
+    const listId = picker.element().getAttribute("aria-controls")!;
+    await page.getByRole("option", { name: /^Ready \(/ }).click();
+    await expect.element(picker).toHaveAttribute("aria-expanded", "false");
+    await expect.poll(() => readinessClosed(listId)).toBe(true);
+    expect(document.querySelectorAll(".collection-entry").length).toBeLessThan(12);
+    await openDetails();
+    await page.getByRole("button", { name: "Back to previous workspace" }).click();
+    await expect.element(picker).toHaveAccessibleName(/^Readiness Ready \(\d+\)$/);
+    picker.element().focus();
+    await expect.element(picker).toHaveFocus();
+    await userEvent.keyboard("{Enter}");
+    await expect.element(page.getByRole("option", { name: /^All \(/ })).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+    await expect.element(picker).toHaveFocus();
+  });
+}

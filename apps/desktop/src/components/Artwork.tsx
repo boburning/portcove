@@ -128,10 +128,7 @@ export function DetailArtwork({ port }: { port: PortDefinition }) {
 export function ArtworkControls({ port }: { port: PortDefinition }) {
   const [open, setOpen] = useState(false);
   return (
-    <details
-      className="artwork-controls m-[var(--space-5)_var(--space-6)]"
-      onToggle={(event) => setOpen(event.currentTarget.open)}
-    >
+    <details className="artwork-controls" onToggle={(event) => setOpen(event.currentTarget.open)}>
       <summary className="cursor-pointer py-3" data-focusable>
         Change artwork
       </summary>
@@ -139,6 +136,7 @@ export function ArtworkControls({ port }: { port: PortDefinition }) {
         <div className="artwork-slots grid gap-5">
           <ArtworkSlotControl key={`${port.id}:cover`} port={port} slot="cover" />
           <ArtworkSlotControl key={`${port.id}:detail`} port={port} slot="detail" />
+          <DetailArtwork port={port} />
         </div>
       )}
     </details>

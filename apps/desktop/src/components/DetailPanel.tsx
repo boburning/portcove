@@ -12,7 +12,7 @@ import {
   usesExternalRuntimeRoute,
   usesUserSelectedRuntime,
 } from "../shared/external-runtime-trust";
-import { ArtworkControls, ArtworkImage, DetailArtwork } from "./Artwork";
+import { ArtworkControls, ArtworkImage } from "./Artwork";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
 import { useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
@@ -416,7 +416,7 @@ function DetailHero({
         <span
           className={cn(
             `hero-state mt-[10px] inline-flex items-center gap-2 text-[length:var(--text-xs)] font-[750] text-[var(--color-text)] ${state.tone}`,
-            "[&.ready]:text-pc-muted-foreground [&.setup]:text-[var(--color-warning-text)] [&.staged]:text-[var(--color-interactive-text)]",
+            "[&.ready]:text-pc-success-foreground [&.setup]:text-[var(--color-warning-text)] [&.staged]:text-[var(--color-interactive-text)]",
           )}
         >
           <Icon glyph={state.icon} size="sm" />
@@ -652,7 +652,6 @@ function DetailBody({
       </DetailGroup>
       <DetailGroup title="Artwork">
         <ArtworkControls key={`controls:${port.id}:${libraryGeneration}`} port={port} />
-        <DetailArtwork key={`artwork:${port.id}:${libraryGeneration}`} port={port} />
       </DetailGroup>
       <NavigationHints />
       {(!external || hasRecordedChecks(port, sources)) && (
@@ -968,11 +967,11 @@ function UpdatesGroup({
           <p>
             {checked
               ? checked.update_available
-                ? `Update ${checked.release.version} was available at the saved check. Review it again before making changes.`
-                : "No update was found at the saved check. Review can identify a release again without changing the installation."
-              : "There is no saved update check for this installation and channel. Review identifies the release before asking what to do."}
+                ? `Update ${checked.release.version} was available at the last check. Review it before making changes.`
+                : "No update was found at the last check. You can check again."
+              : "No update check is saved for this installation and channel."}
           </p>
-          {!knownCandidate && <UpdateCheckAction busy={busy} check={actions.check} primary />}
+          {!knownCandidate && <UpdateCheckAction busy={busy} check={actions.check} />}
           {knownCandidate && (
             <GameUpdateControl
               key={`${port.id}:${libraryGeneration}:${status?.active?.id}:${status?.staged?.id}:${selectedChannel}:${policy}`}
@@ -1063,9 +1062,8 @@ function SavesStorageGroup({
       <SavesAndSettingsSummary port={port} status={status} />
       <StorageSummary status={status} />
       <FutureSetupDisclosure
-        deferred={deferSetupChoices}
         title="Folder for a future install"
-        description="Game files are still required before installation. Choosing an output folder here does not move or install a game."
+        description={`${deferSetupChoices ? "Game files are still required before installation. " : ""}Choosing a future folder does not move or install a game. Review any change before applying it.`}
       >
         {outputLocation}
       </FutureSetupDisclosure>
@@ -1096,30 +1094,22 @@ function SavesStorageGroup({
 }
 
 function FutureSetupDisclosure({
-  deferred,
   title,
   description,
   children,
 }: {
-  deferred: boolean;
   title: string;
   description: string;
   children: React.ReactNode;
 }) {
   return (
-    <details
-      className={`future-setup-disclosure${deferred ? " advanced-settings is-deferred border-y border-pc-border" : ""}`}
-      open={!deferred}
-    >
-      <summary
-        data-focusable={deferred ? true : undefined}
-        className={cn(`advanced-summary ${disclosureSummaryStyle}`, !deferred && "hidden")}
-      >
+    <details className="future-setup-disclosure advanced-settings border-y border-pc-border">
+      <summary data-focusable className={`advanced-summary ${disclosureSummaryStyle}`}>
         {title}
         <Icon className="text-[var(--color-interactive-text)]" glyph={ChevronDown} />
       </summary>
-      <div className={`grid gap-4${deferred ? ` advanced-body ${disclosureBodyStyle}` : ""}`}>
-        {deferred && <p>{description}</p>}
+      <div className={`advanced-body grid gap-4 ${disclosureBodyStyle}`}>
+        <p>{description}</p>
         {children}
       </div>
     </details>
@@ -1170,10 +1160,12 @@ function InstallationVersionSummary({
         <dd>{status?.active?.version ?? "Not installed"}</dd>
       </div>
       <div>
-        <dt>Selected channel</dt>
+        <dt>
+          {status?.active?.channel === selectedChannel ? "Release channel" : "Selected channel"}
+        </dt>
         <dd>{releaseChannelPresentation(selectedChannel).label}</dd>
       </div>
-      {status?.active && (
+      {status?.active && status.active.channel !== selectedChannel && (
         <div>
           <dt>Installed channel</dt>
           <dd>{releaseChannelPresentation(status.active.channel).label}</dd>

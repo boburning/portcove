@@ -6,6 +6,36 @@ import { ChoiceSelect } from "./ChoiceSelect";
 
 afterEach(cleanup);
 
+it("keeps the inline label and selected count named while using closed-trigger typeahead", async () => {
+  const changed = vi.fn();
+  function Fixture() {
+    const [value, setValue] = useState("all");
+    return (
+      <ChoiceSelect
+        inline
+        label="Readiness"
+        value={value}
+        options={[
+          { value: "all", label: "All (12)" },
+          { value: "ready", label: "Ready (9)" },
+        ]}
+        onChange={(next) => {
+          changed(next);
+          setValue(next);
+        }}
+      />
+    );
+  }
+  await render(<Fixture />);
+  const trigger = page.getByRole("combobox", { name: "Readiness All (12)" });
+  await userEvent.tab();
+  await expect.element(trigger).toHaveFocus();
+  await expect.poll(() => document.querySelectorAll('[role="option"]').length).toBe(2);
+  await userEvent.keyboard("r");
+  await expect.element(page.getByRole("combobox", { name: "Readiness Ready (9)" })).toHaveFocus();
+  expect(changed).toHaveBeenCalledExactlyOnceWith("ready");
+});
+
 it("does not turn a held unmatched key into a preference change when the current option retires", async () => {
   const change = vi.fn();
   const first = [

@@ -8,6 +8,9 @@ import { desktopApi } from "../../api";
 import { doctor, workspace } from "./scenarios";
 import { sourceProfile } from "../../test-fixtures";
 import { navigateTo } from "../../../test/primary-navigation";
+import "../../styles/index.css";
+import "../scenarios.css";
+import scenarioShell from "../../../scenarios.html?raw";
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   Object.defineProperty(navigator, "getGamepads", { configurable: true, value: () => [] });
@@ -32,8 +35,10 @@ afterEach(async () => {
 
 async function mount(journey: string) {
   window.history.replaceState(null, "", `/scenarios.html?mode=interactive&journey=${journey}`);
-  document.body.innerHTML =
-    '<select id="scenario"></select><p id="scenario-limitation"></p><div id="scenario-preview"></div>';
+  document.body.innerHTML = new DOMParser().parseFromString(
+    scenarioShell,
+    "text/html",
+  ).body.innerHTML;
   await act(async () => startInteractiveScenarios());
 }
 async function click(label: string) {
@@ -57,6 +62,80 @@ it("opens actual game details, returns to Library and resets the selected journe
   await click("Reset journey");
   expect(document.querySelector("#port-search")).not.toBeNull();
   expect(document.querySelectorAll("#scenario-preview .app-shell")).toHaveLength(1);
+});
+
+it("keeps the optional folder editor and artwork behind disclosures without losing a draft", async () => {
+  await mount("library");
+  await click("View details for Harbor Adventure Port: Harbor Adventure");
+  const folder = page.getByText("Folder for a future install", { exact: true });
+  const input = page.getByRole("textbox", { name: "Folder for future installs", exact: true });
+  await expect.element(input).not.toBeInTheDocument();
+  expect(document.querySelector(".detail-artwork")).toBeNull();
+  await folder.click();
+  await expect.element(input).toBeVisible();
+  await input.fill("fixture/future-draft");
+  await folder.click();
+  await expect.element(input).not.toBeInTheDocument();
+  await folder.click();
+  await expect.element(input).toHaveValue("fixture/future-draft");
+  await page.getByText("Change artwork", { exact: true }).click();
+  await expect
+    .element(
+      page
+        .getByRole("region", { name: "Cover image", exact: true })
+        .getByRole("button", { name: "Choose local image", exact: true }),
+    )
+    .toBeVisible();
+  expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
+});
+
+it("shows different installed and selected release channels separately", async () => {
+  const snapshot = workspace("library");
+  snapshot.statuses[0]!.channel = "beta";
+  vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+  await mount("library");
+  await click("View details for Harbor Adventure Port: Harbor Adventure");
+  const facts = document.querySelector('[aria-label="Installation and release versions"]')!;
+  expect(facts.textContent).toContain("Selected channelPreview");
+  expect(facts.textContent).toContain("Installed channelStable");
+  expect(facts.textContent).toContain("Installed version1.2");
+});
+
+it("uses a viewport-bound demo workspace across resizing and preserves embedded mode on reset", async () => {
+  window.history.replaceState(
+    null,
+    "",
+    "/scenarios.html?mode=interactive&journey=collection-large&embed=1",
+  );
+  document.body.innerHTML =
+    '<details class="scenario-controls" open><summary>Review desk</summary><p id="scenario-description">Static previews</p><select id="scenario"></select><p id="scenario-limitation"></p></details><div id="scenario-preview" class="scenario-preview" inert></div>';
+  await act(async () => startInteractiveScenarios());
+  await document.fonts.ready;
+  expect(document.querySelector("#scenario-description")?.textContent).toContain(
+    "Actions are simulated",
+  );
+  expect(document.querySelector<HTMLDetailsElement>(".scenario-controls")?.open).toBe(false);
+  const preview = document.querySelector<HTMLElement>("#scenario-preview")!;
+  const work = document.querySelector<HTMLElement>('main[data-focus-region="workspace"]')!;
+  for (const [width, height] of [
+    [1366, 768],
+    [1920, 1080],
+    [960, 640],
+    [1366, 768],
+  ] as const) {
+    await page.viewport(width, height);
+    await expect.poll(() => Math.round(preview.getBoundingClientRect().height)).toBe(height);
+    expect(work.getBoundingClientRect().bottom).toBeLessThanOrEqual(height);
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
+    expect(work.scrollHeight).toBeGreaterThan(work.clientHeight);
+  }
+  await page.viewport(320, 900);
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(320);
+  expect(getComputedStyle(work).overflowY).toBe("visible");
+  expect(document.scrollingElement!.scrollHeight).toBeGreaterThan(900);
+  await click("Reset journey");
+  expect(new URL(window.location.href).searchParams.get("embed")).toBe("1");
+  expect(document.querySelectorAll(".collection-entry")).toHaveLength(60);
 });
 
 it("returns to the exact older recovery activity after opening its game", async () => {
