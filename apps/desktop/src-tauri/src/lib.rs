@@ -37,6 +37,8 @@ mod cli_context;
 #[doc(hidden)]
 pub mod desktop_contract;
 mod diagnostics;
+mod diagnostics_events;
+mod diagnostics_writer;
 mod external_runtime_commands;
 mod favorite_commands;
 mod game_updates;
@@ -451,15 +453,7 @@ async fn confirm_destructive(
 }
 
 fn emit_operation(app: &tauri::AppHandle, event: OperationEvent) {
-    tracing::info!(
-        operation_id = %event.operation_id,
-        parent_operation_id = ?event.parent_operation_id,
-        sequence = event.sequence,
-        operation = %event.operation,
-        target = ?event.target,
-        event = ?event.event,
-        "operation event"
-    );
+    diagnostics_events::record_operation_event(&event);
     let _ =
         emit_desktop_event::<portcove_core::OperationEvent>(app, DESKTOP_EVENT_OPERATION, event);
 }
@@ -2121,6 +2115,13 @@ fn validate_external_url(catalog: &CatalogDocument, url: &str) -> DesktopResult<
 }
 
 #[tauri::command]
+fn get_runtime_diagnostic_health(
+    diagnostics: tauri::State<'_, diagnostics::HostDiagnostics>,
+) -> String {
+    diagnostics.health()
+}
+
+#[tauri::command]
 async fn create_support_bundle(
     state: tauri::State<'_, DesktopState>,
     diagnostics: tauri::State<'_, diagnostics::HostDiagnostics>,
@@ -2167,9 +2168,9 @@ async fn export_library_metadata(
 fn report_frontend_error(message: String, component_stack: String) -> DesktopResult<()> {
     tracing::error!(
         operation_id = "frontend-render",
-        %message,
-        %component_stack,
-        "frontend render failed"
+        message = message.as_str(),
+        component_stack = component_stack.as_str(),
+        context = "frontend render failed"
     );
     Ok(())
 }
@@ -2266,7 +2267,7 @@ fn recover_application_update_after_interrupted_replacement(runtime: &Applicatio
     match result {
         Ok(LinuxApplicationUpdateRecovery::RecoveredPreActivation) => tracing::warn!(
             operation_id = "application-update-recovery",
-            "recovered an interrupted Linux AppImage replacement before activation"
+            message = "recovered an interrupted Linux AppImage replacement before activation"
         ),
         Ok(
             LinuxApplicationUpdateRecovery::NoAttempt
@@ -2277,7 +2278,7 @@ fn recover_application_update_after_interrupted_replacement(runtime: &Applicatio
             tracing::warn!(
                 operation_id = "application-update-recovery",
                 error = %error,
-                "retained the interrupted Linux AppImage replacement because startup recovery could not prove safe cleanup"
+                message = "retained the interrupted Linux AppImage replacement because startup recovery could not prove safe cleanup"
             );
         }
     }
@@ -2295,7 +2296,7 @@ fn recover_application_update_after_interrupted_replacement(runtime: &Applicatio
     match result {
         Ok(MacosApplicationUpdateRecovery::RecoveredPreActivation) => tracing::warn!(
             operation_id = "application-update-recovery",
-            "recovered an interrupted macOS bundle extraction before activation"
+            message = "recovered an interrupted macOS bundle extraction before activation"
         ),
         Ok(
             MacosApplicationUpdateRecovery::NoAttempt
@@ -2306,7 +2307,7 @@ fn recover_application_update_after_interrupted_replacement(runtime: &Applicatio
             tracing::warn!(
                 operation_id = "application-update-recovery",
                 error = %error,
-                "retained the interrupted macOS bundle replacement for explicit recovery"
+                message = "retained the interrupted macOS bundle replacement for explicit recovery"
             );
         }
     }
@@ -2327,7 +2328,7 @@ fn reconcile_application_update_after_healthy_startup() {
     match result {
         Ok(WindowsApplicationUpdateReconciliation::Reconciled) => tracing::info!(
             operation_id = "application-update-reconciliation",
-            "confirmed the running Windows application update"
+            message = "confirmed the running Windows application update"
         ),
         Ok(WindowsApplicationUpdateReconciliation::CandidateNotInstalled) => {
             report_application_update_qualification_failure(
@@ -2336,7 +2337,8 @@ fn reconcile_application_update_after_healthy_startup() {
             );
             tracing::info!(
                 operation_id = "application-update-reconciliation",
-                "retained the application update request because the candidate is not running"
+                message =
+                    "retained the application update request because the candidate is not running"
             );
         }
         Ok(WindowsApplicationUpdateReconciliation::NoAttempt) => {}
@@ -2345,7 +2347,7 @@ fn reconcile_application_update_after_healthy_startup() {
             tracing::warn!(
                 operation_id = "application-update-reconciliation",
                 error = %error,
-                "retained the application update request because startup reconciliation failed"
+                message = "retained the application update request because startup reconciliation failed"
             );
         }
     }
@@ -2372,19 +2374,19 @@ fn reconcile_application_update_after_healthy_startup() {
             );
             tracing::warn!(
                 operation_id = "application-update-reconciliation",
-                "retained the Linux application update request because the candidate is not running"
+                message = "retained the Linux application update request because the candidate is not running"
             );
         }
         Ok(LinuxApplicationUpdateReconciliation::Reconciled) => tracing::info!(
             operation_id = "application-update-reconciliation",
-            "confirmed the running Linux application update"
+            message = "confirmed the running Linux application update"
         ),
         Err(error) => {
             report_application_update_qualification_failure("reconciliation", &error.to_string());
             tracing::warn!(
                 operation_id = "application-update-reconciliation",
                 error = %error,
-                "retained the Linux application update request because startup reconciliation failed"
+                message = "retained the Linux application update request because startup reconciliation failed"
             );
         }
     }
@@ -2405,7 +2407,7 @@ fn reconcile_application_update_after_healthy_startup() {
     match result {
         Ok(MacosApplicationUpdateReconciliation::Reconciled) => tracing::info!(
             operation_id = "application-update-reconciliation",
-            "confirmed the running macOS installed-bundle update"
+            message = "confirmed the running macOS installed-bundle update"
         ),
         Ok(MacosApplicationUpdateReconciliation::CandidateNotInstalled) => {
             report_application_update_qualification_failure(
@@ -2414,7 +2416,8 @@ fn reconcile_application_update_after_healthy_startup() {
             );
             tracing::warn!(
                 operation_id = "application-update-reconciliation",
-                "retained the macOS bundle update request because the candidate is not running"
+                message =
+                    "retained the macOS bundle update request because the candidate is not running"
             );
         }
         Ok(MacosApplicationUpdateReconciliation::NoAttempt) => {}
@@ -2423,7 +2426,7 @@ fn reconcile_application_update_after_healthy_startup() {
             tracing::warn!(
                 operation_id = "application-update-reconciliation",
                 error = %error,
-                "retained the macOS bundle update request because startup reconciliation failed"
+                message = "retained the macOS bundle update request because startup reconciliation failed"
             );
         }
     }
@@ -2522,16 +2525,14 @@ pub fn run() -> std::process::ExitCode {
     let configured_root = std::env::var_os("PORTCOVE_LIBRARY")
         .filter(|path| !path.is_empty())
         .map(PathBuf::from);
-    let host_diagnostics = diagnostics::HostDiagnostics::new(&preferences);
+    let mut host_diagnostics = diagnostics::HostDiagnostics::new(&preferences);
     // Logging is best effort and cannot turn successful library initialization
     // into a failure. Its host location is ready before the library is opened.
-    if let Ok(directory) = &host_diagnostics.directory {
-        let _ = diagnostics::initialize(directory);
-    }
+    let mut diagnostic_guard = host_diagnostics.start();
     tracing::info!(
         operation_id = "desktop-startup",
         phase = "start",
-        "desktop initialization"
+        message = "desktop initialization"
     );
     let initialization_result = preferences
         .as_ref()
@@ -2541,8 +2542,10 @@ pub fn run() -> std::process::ExitCode {
         operation_id = "desktop-startup",
         phase = "complete",
         success = initialization_result.is_ok(),
-        code = ?initialization_result.as_ref().err().map(|error| error.code),
-        "desktop initialization"
+        code = diagnostics::error_code_label(
+            initialization_result.as_ref().err().map(|error| error.code)
+        ),
+        message = "desktop initialization"
     );
     #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
     if initialization_result.is_ok() {
@@ -2554,7 +2557,7 @@ pub fn run() -> std::process::ExitCode {
         .plugin(webview_boundary::init());
     #[cfg(feature = "native-compatibility-qualification")]
     let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
-    builder
+    let application = builder
         .manage(host_diagnostics)
         .manage(application_update_commands::configured_state())
         .manage(application_update_preferences::configured_state())
@@ -2567,6 +2570,7 @@ pub fn run() -> std::process::ExitCode {
         })
         .invoke_handler(main_window_invoke_handler(tauri::generate_handler![
             get_bootstrap_status,
+            get_runtime_diagnostic_health,
             get_locale_preference,
             favorite_commands::get_favorite_ports,
             favorite_commands::set_port_favorite,
@@ -2747,8 +2751,21 @@ pub fn run() -> std::process::ExitCode {
             );
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .unwrap_or_else(|error| eprintln!("Portcove desktop stopped: {error}"));
+        .build(tauri::generate_context!());
+    match application {
+        Ok(application) => application.run(move |_, event| {
+            // Tauri exits the process directly, without dropping local guards.
+            // ExitRequested can be prevented; only the actual Exit closes the
+            // diagnostic producer and waits for its finite best-effort flush.
+            if matches!(event, tauri::RunEvent::Exit) {
+                diagnostics::shutdown(&mut diagnostic_guard);
+            }
+        }),
+        Err(error) => {
+            diagnostics::shutdown(&mut diagnostic_guard);
+            eprintln!("Portcove desktop stopped: {error}");
+        }
+    }
     std::process::ExitCode::SUCCESS
 }
 

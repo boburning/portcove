@@ -535,6 +535,7 @@ export const desktopApi = {
   openHostToolOfficialSite: (toolId: string) =>
     invoke<void>("open_host_tool_official_site", { toolId }),
   createSupportBundle: () => invoke<DesktopSupportBundleExport>("create_support_bundle"),
+  runtimeDiagnosticHealth: () => invoke<string>("get_runtime_diagnostic_health"),
   exportLibraryMetadata: (path: string) =>
     invoke<LibraryMetadataFile>("export_library_metadata", { path }),
   planLibraryMove: (destination: string) =>

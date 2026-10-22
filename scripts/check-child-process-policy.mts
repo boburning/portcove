@@ -11,6 +11,8 @@ const ALLOWED_DIRECT_COMMAND_FILES = new Set([
   // to test the policy itself. These are exact test modules, not production adapters.
   "crates/portcove-cli/tests/machine_contract/source_discovery.rs",
   "crates/portcove-core/src/tool_process/linux_tests.rs",
+  // The std-only writer test launches itself to verify the cross-process lease.
+  "apps/desktop/src-tauri/src/diagnostics_writer_tests.rs",
 ]);
 
 function rustFiles(directory: string): string[] {
