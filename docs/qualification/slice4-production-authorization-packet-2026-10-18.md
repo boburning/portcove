@@ -1,5 +1,9 @@
 # Slice 4 protected execution and custody decision packet
 
+## October 22 selected replacement: simpler setup, hosted proof first
+
+The owner approved the [simpler replacement and its single-owner recovery tradeoff](slice4-hosted-continuity-first-2026-10-22.md), with implementation conditional on proving hosted same-client execution first. Its exact changed custody, two-App/job-token authority, online Targets, ordinary-user review worker and hosted-native gates supersede the corresponding consolidated setup proposals below. Production remains held. Old 0bd69c0 source/tag/digests do not activate the changed boundary; actual replacement implementation, evidence and final reviewed source remain required. Historical grants, failed receipts and already completed components retain their exact scope. No extra drive ceremony, account-password setup or recurring admin loop is resumed.
+
 Owner: [#534](https://github.com/boburning/portcove/issues/534). This dated packet
 refines the [accepted custody design](https://github.com/boburning/portcove/issues/534#issuecomment-5690295114),
 its [custody amendment](https://github.com/boburning/portcove/issues/534#issuecomment-5999823580),

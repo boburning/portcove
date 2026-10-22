@@ -994,6 +994,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/run-ui-tests.mts", ["scripts/ui-test-selection.test.mts"]],
   ["scripts/run-viteplus.mts", ["scripts/frontend-command-preflight.test.mts"]],
   ["scripts/pr-delivery.mts", ["scripts/repository-skills.test.mts"]],
+  [
+    "scripts/rehearse-updater-artifacts.ps1",
+    ["scripts/hosted-native-continuity.test.mts", "scripts/updater-artifact-inventory.test.mts"],
+  ],
   ["scripts/package-local.ps1", ["scripts/repository-skills.test.mts"]],
   ["scripts/release-preflight.ps1", ["scripts/repository-skills.test.mts"]],
   [
@@ -1175,6 +1179,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
 ]);
 
 const workflowTests = new Map([
+  [
+    "hosted-native-continuity.yml",
+    ["scripts/hosted-native-continuity.test.mts", "scripts/updater-artifact-inventory.test.mts"],
+  ],
   ["controller-tool-build-fixture.yml", ["scripts/release-controller-tools.test.mts"]],
   [
     "application-update-production.yml",
@@ -1204,6 +1212,7 @@ const workflowTests = new Map([
 ]);
 
 const releaseContractTests = Object.freeze([
+  "scripts/hosted-native-continuity.test.mts",
   "scripts/recover-local-worker-empty-setup.test.mts",
   "scripts/release-native-account-capability.test.mts",
   "scripts/release-local-worker-accounts.test.mts",
