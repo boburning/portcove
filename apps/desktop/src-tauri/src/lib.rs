@@ -1662,7 +1662,6 @@ fn qualify_installed_application_selection() -> i32 {
     use application_update::ApplicationChannel;
     use application_update_coordinator::ApplicationUpdateChecker;
     use application_update_host::ApplicationUpdateHostProvider;
-    use application_update_preferences::{ApplicationUpdateChoice, ApplicationUpdateMode};
 
     let result = (|| -> Result<_, Box<dyn std::error::Error>> {
         let provider = ApplicationUpdateHostProvider::compiled()?
@@ -1670,11 +1669,7 @@ fn qualify_installed_application_selection() -> i32 {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()?;
-        let selected = runtime.block_on(provider.check(ApplicationUpdateChoice {
-            channel: ApplicationChannel::Preview,
-            mode: ApplicationUpdateMode::Manual,
-            paused: false,
-        }))?;
+        let selected = runtime.block_on(provider.check(ApplicationChannel::Preview))?;
         Ok(serde_json::json!({
             "state": selected.selection.state,
             "version": selected.selection.candidate.as_ref().map(|candidate| &candidate.release.version),
