@@ -413,7 +413,7 @@
     },
     {
       "port_id": "wave-race-64-racewave46",
-      "port_contract_sha256": "1191af25646c79f8c0f5ffec7013e95739fd2b3b526e78ccb51148d8d7cf3daf",
+      "port_contract_sha256": "eafaca09ef9cb9ab56ae113e2ec15ba7a21dfb05f0036f8714358c8489568bf4",
       "platform": "windows-x86-64",
       "url": "https://github.com/DomazinUS/RaceWave46/releases/download/v1.0.0/RaceWave46-Windows-x64-v1.0.0.zip",
       "size": 35768574,
@@ -515,7 +515,7 @@
     },
     {
       "port_id": "the-force-engine-dark-forces",
-      "port_contract_sha256": "ad87e8d4cd155c85fc4b3cd9c1fe146bcc358e9ed4b33de3733f588533dfbca6",
+      "port_contract_sha256": "398077825e9faba9af09ac605559398af97b656423ac7f9667ebacc6e1131b82",
       "platform": "windows-x86-64",
       "url": "https://github.com/TheForceEngine/TheForceEngine/releases/download/v1.22.420/TheForceEngine-v1.22.420.zip",
       "size": 10561878,
@@ -566,7 +566,7 @@
     },
     {
       "port_id": "resident-evil-gaiden-recomp",
-      "port_contract_sha256": "774419134bd441656eed48910643b3c70cd63f0538382fd23d6f5b3ab3d5f32e",
+      "port_contract_sha256": "2ce80b761b2af18ab47e2d92224a52b8909ef27d315679363c9e252ef1ce020c",
       "platform": "windows-x86-64",
       "url": "https://github.com/sergiomanzur/regaiden-recomp/releases/download/v0.4.1/Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip",
       "size": 33085815,
@@ -649,48 +649,5 @@
       "resume_condition": "Reconsider exact original-location evidence under #247/#139. Lineage, destination availability and accepted bytes remain unassessed; any changed condition requires review."
     }
   ],
-  "source_archives": [
-    {
-      "port_id": "earthbound-recomp",
-      "port_contract_sha256": "fda3af5584fd25ba991ce8430479f532797c4e4614e0f948c1f311232ba4c67c",
-      "platform": "windows-x86-64",
-      "url": "https://github.com/nickclyde/EarthBoundRecomp/archive/fe1155dc26ffc40df36a8003dd0e639e17af3349.zip",
-      "size": 69441,
-      "sha256": "3cb01dc15d769defa1a8c3428b1ef5ce50f9c1cc224e3f0347f751841fc84710",
-      "repository": "nickclyde/EarthBoundRecomp",
-      "repository_id": 1318786722,
-      "archived": false,
-      "commit_sha": "fe1155dc26ffc40df36a8003dd0e639e17af3349",
-      "tree_sha": "af54b96d63e5f4485d6fcdbc45ef3447f123fbca",
-      "commit_facts_sha256": "10a1fed703034acfbdf474126aaa002d4bea011bb82569334368150057e54aa2"
-    },
-    {
-      "port_id": "render96ex",
-      "port_contract_sha256": "99eac6e50e502c92032a0452ad093a21ae4fa8e284615e4003b5bcc7bd34a69a",
-      "platform": "windows-x86-64",
-      "url": "https://github.com/Render96/Render96ex/archive/48da5c491c8abfb2f5192b59278c1c269411e533.zip",
-      "size": 11615689,
-      "sha256": "43091630151c8023b72e7faa2726c3914376fee2cc3becbfefba30423b71b403",
-      "repository": "Render96/Render96ex",
-      "repository_id": 285468762,
-      "archived": false,
-      "commit_sha": "48da5c491c8abfb2f5192b59278c1c269411e533",
-      "tree_sha": "d36e3764e1bf29d421e3f77bde6fe58256a00fc9",
-      "commit_facts_sha256": "60f2a048f0f255a76d5a4c61a4be6295029fd744259ca618c99210e8a552ba0e"
-    },
-    {
-      "port_id": "gundam-wing-endless-duel-recomp",
-      "port_contract_sha256": "a90b6796b19a1fcde82c213190f0a7f054b676a00c2b493f098b7b640295a7f3",
-      "platform": "windows-x86-64",
-      "url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/archive/c7aaaa152192db5d750db3fb190e8f93b6240c19.zip",
-      "size": 3363589,
-      "sha256": "bfe295943d83d144def7f355ac47f04fd90fb5bd2000ca0217e7874dfc33c2ee",
-      "repository": "TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
-      "repository_id": 1346886040,
-      "archived": false,
-      "commit_sha": "c7aaaa152192db5d750db3fb190e8f93b6240c19",
-      "tree_sha": "9dedda7d4e931d21453717d3e8a06bb5d5d5e333",
-      "commit_facts_sha256": "80f6e283d0bed6ae6e681b96cc16715680cac1069e43d42dba31a9a156e24702"
-    }
-  ]
+  "source_archives": []
 }
