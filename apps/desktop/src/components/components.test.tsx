@@ -553,7 +553,7 @@ describe("desktop components", () => {
       );
       const activation = html.match(/<button[^>]*>Use update · retained-staged<\/button>/)?.[0];
       expect(activation).toBeDefined();
-      expect(activation?.includes("disabled")).toBe(Boolean(busy));
+      expect(/\sdisabled(?:=|\s|>)/.test(activation ?? "")).toBe(Boolean(busy));
       expect(html).toContain("Managed by Portcove under this installation");
       expect(html).not.toContain("Choose game executable");
       expect(html).not.toContain("Remove registration");

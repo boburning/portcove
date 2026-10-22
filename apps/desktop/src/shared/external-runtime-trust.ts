@@ -4,7 +4,8 @@ import type { PortDefinition, PortStatus } from "../types";
 export function usesUserSelectedRuntime(port: PortDefinition, status?: PortStatus) {
   if (status?.active || status?.staged) return false;
   if (status?.external_runtime) return Boolean(status.external_runtime.user_selected);
-  return Object.values(port.release.user_prepared).some(
+  if (port.release.provider !== "user-prepared") return false;
+  return Object.values(port.release.user_prepared ?? {}).some(
     (runtime) => runtime?.trust === "user-selected",
   );
 }
