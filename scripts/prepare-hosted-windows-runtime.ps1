@@ -81,3 +81,4 @@ try {
     $taskReceipt.observed_at=[DateTime]::UtcNow.ToString('o')
     $taskReceipt | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $taskReceiptPath
 }
+exit 0
