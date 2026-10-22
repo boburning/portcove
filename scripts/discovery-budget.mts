@@ -138,11 +138,11 @@ export class DiscoveryBudget {
     this.admitProvider("core", requests, true);
     this.admitProvider("graphql", requests * this.graphqlPointHeadroom, true);
   }
-  observeGraphqlCost(cost: unknown) {
+  observeGraphqlCost(cost: unknown, unknownRequests = 1) {
     if (typeof cost === "number" && Number.isSafeInteger(cost) && cost >= 0) {
       this.usage.graphql_points_observed += cost;
       this.graphqlPointHeadroom = Math.max(this.graphqlPointHeadroom, cost);
-    } else this.usage.graphql_cost_unknown_requests++;
+    } else this.usage.graphql_cost_unknown_requests += unknownRequests;
     this.persist(this.usage);
   }
   charge(method: string, endpoint: string, requests: number, bytes: number, status: string) {
@@ -202,6 +202,8 @@ export function createDiscoveryTransport(
       maxBuffer: cap * 2 + 65536,
     });
     if (response.error || response.status !== 0) {
+      if (target.origin === "https://api.github.com" && target.pathname === "/graphql")
+        budget.observeGraphqlCost(undefined, maxRequests);
       budget.charge(
         method,
         new URL(url).origin + new URL(url).pathname,
@@ -215,6 +217,8 @@ export function createDiscoveryTransport(
     try {
       parsed = JSON.parse(response.stdout);
     } catch {
+      if (target.origin === "https://api.github.com" && target.pathname === "/graphql")
+        budget.observeGraphqlCost(undefined, maxRequests);
       budget.charge(
         method,
         new URL(url).origin + new URL(url).pathname,
@@ -237,6 +241,8 @@ export function createDiscoveryTransport(
       !isRecord(parsed.headers) ||
       typeof parsed.text !== "string"
     ) {
+      if (target.origin === "https://api.github.com" && target.pathname === "/graphql")
+        budget.observeGraphqlCost(undefined, maxRequests);
       budget.charge(
         method,
         new URL(url).origin + new URL(url).pathname,
@@ -246,13 +252,6 @@ export function createDiscoveryTransport(
       );
       throw new Error("Malformed bounded transport receipt; conservative charge");
     }
-    budget.charge(
-      method,
-      new URL(url).origin + new URL(url).pathname,
-      parsed.requests,
-      parsed.bytes,
-      String(parsed.status),
-    );
     if (target.origin === "https://api.github.com" && target.pathname === "/graphql") {
       let cost: unknown;
       try {
@@ -263,7 +262,15 @@ export function createDiscoveryTransport(
         /* Invalid JSON remains an invalid provider response; it establishes no cost. */
       }
       budget.observeGraphqlCost(cost);
+      if (parsed.requests > 1) budget.observeGraphqlCost(undefined, parsed.requests - 1);
     }
+    budget.charge(
+      method,
+      new URL(url).origin + new URL(url).pathname,
+      parsed.requests,
+      parsed.bytes,
+      String(parsed.status),
+    );
     const resource = parsed.headers["x-ratelimit-resource"];
     const remaining = parsed.headers["x-ratelimit-remaining"];
     const reset = parsed.headers["x-ratelimit-reset"];
@@ -311,6 +318,10 @@ export function createDiscoveryTransport(
       throw new GitHubApiError("http_error", `GitHub HTTP ${response.status}`, {
         status: response.status,
         rateLimit: rateLimitFromResponse(parseIncludedResponse(included)),
+        retryAfter: response.headers["retry-after"] ?? null,
+        requestId: response.headers["x-github-request-id"] ?? null,
+        responseDate: response.headers.date ?? null,
+        responseBytes: Buffer.byteLength(response.text),
       });
     return included;
   };

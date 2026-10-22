@@ -13,7 +13,7 @@ import {
 import type { DoctorReadAttempt, InventoryReader } from "./repository-issue-inventory.mts";
 import { GitHubApiClient, GitHubApiError, createGitHubRunner } from "./github-api.mts";
 import { RoadmapClient, runDoctor, validateConfig, renderPortIssueBody } from "./roadmap.mts";
-import { DiscoveryBudget } from "./discovery-budget.mts";
+import { DiscoveryBudget, createDiscoveryTransport } from "./discovery-budget.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
 const config = validateConfig(
@@ -327,7 +327,7 @@ void test("retry admission requires fresh totals, known quota and the existing d
           fields: { totalCount: 22 },
           views: { totalCount: 10 },
         },
-        rateLimit: { remaining, resetAt: "2026-10-22T20:00:00Z" },
+        rateLimit: { cost: 1, remaining, resetAt: "2026-10-22T20:00:00Z" },
       }),
     };
     assert.equal(admitDoctorReadRetry(reader, "P", 1000), remaining === 1000);
@@ -351,4 +351,75 @@ void test("provider query points are distinct from requests and increase admissi
   });
   assert.throws(() => budget.requireProviderCapacity(1), /capacity unknown|reserve/);
   assert.equal(budget.graphqlPointHeadroom, 15);
+});
+
+void test("failed HTTP responses retain backoff, request identity and received byte evidence", () => {
+  const body = JSON.stringify({ message: "temporarily unavailable" });
+  const api = new GitHubApiClient(
+    createGitHubRunner({
+      spawn: () => ({
+        status: 1,
+        stderr: "HTTP 503",
+        stdout: `HTTP/2 503\nretry-after: 60\nx-github-request-id: failed-request\nx-ratelimit-remaining: 1000\n\n${body}`,
+      }),
+    }),
+  );
+  assert.throws(
+    () => api.graphql("query { viewer { id } }"),
+    (error) =>
+      error instanceof GitHubApiError &&
+      error.retryAfter === "60" &&
+      !retryableInventoryRead(error),
+  );
+  assert.equal(api.observations[0]?.request_id, "failed-request");
+  assert.equal(api.observations[0]?.bytes, Buffer.byteLength(body));
+});
+void test("retry admission refuses expired quota and query costs above original headroom", () => {
+  let resetAt = new Date(Date.now() + 60000).toISOString();
+  const reader: InventoryReader = {
+    config,
+    graphql: () => ({
+      repository: { id: "R", nameWithOwner: repository, issues: { totalCount: 900 } },
+      node: {
+        id: "P",
+        items: { totalCount: 900 },
+        fields: { totalCount: 22 },
+        views: { totalCount: 10 },
+      },
+      rateLimit: { cost: 1, remaining: 500, resetAt },
+    }),
+  };
+  assert.equal(admitDoctorReadRetry(reader, "P", 1), true);
+  assert.equal(admitDoctorReadRetry(reader, "P", 1, 30), false);
+  resetAt = "2000-01-01T00:00:00Z";
+  assert.equal(admitDoctorReadRetry(reader, "P", 1), false);
+});
+void test("response byte observations preserve whitespace and Unicode rather than reserializing JSON", () => {
+  const body = '  { "data" : { "name" : "雪" } }\n';
+  const api = new GitHubApiClient(
+    createGitHubRunner({
+      spawn: () => ({ status: 0, stderr: "", stdout: "HTTP/2 200\n\n" + body }),
+    }),
+  );
+  api.graphql("query { viewer { id } }");
+  assert.equal(api.observations[0]?.bytes, Buffer.byteLength(body));
+});
+
+void test("failed bounded GraphQL workers conservatively retain unknown point costs", () => {
+  const budget = new DiscoveryBudget("ordinary");
+  const transport = createDiscoveryTransport(
+    budget,
+    "fixture-token",
+    new URL("./nonexistent-inert-worker.mts", import.meta.url).pathname,
+  );
+  assert.throws(
+    () =>
+      transport.runner(
+        ["api", "graphql", "--include", "--input", "-"],
+        '{"query":"query{viewer{id}}"}',
+      ),
+    /Bounded HTTP worker failed/,
+  );
+  assert.equal(budget.usage.requests, 5);
+  assert.equal(budget.usage.graphql_cost_unknown_requests, 5);
 });

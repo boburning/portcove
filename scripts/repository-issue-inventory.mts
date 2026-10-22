@@ -27,7 +27,8 @@ export type InventoryFailureKind =
   | "transport"
   | "authentication"
   | "rate_limit"
-  | "budget";
+  | "budget"
+  | "planning_findings";
 export class InventoryError extends GitHubApiError {
   readonly kind: InventoryFailureKind;
   constructor(kind: InventoryFailureKind, message: string) {
@@ -36,6 +37,7 @@ export class InventoryError extends GitHubApiError {
   }
 }
 export function inventoryFailureKind(error: unknown): InventoryFailureKind {
+  if (isRecord(error) && Array.isArray(error.doctorErrors)) return "planning_findings";
   if (error instanceof InventoryError) return error.kind;
   if (error instanceof GitHubApiError) {
     if (error.code === "budget_exhausted" || error.code === "quota_unknown") return "budget";
@@ -51,6 +53,7 @@ export function inventoryFailureKind(error: unknown): InventoryFailureKind {
   return "inventory_malformed";
 }
 export function retryableInventoryRead(error: unknown) {
+  if (error instanceof GitHubApiError && error.retryAfter !== null) return false;
   const kind = inventoryFailureKind(error);
   if (kind === "inventory_changed") return true;
   if (kind !== "transport" || !(error instanceof GitHubApiError)) return false;
@@ -86,71 +89,77 @@ export function readCompleteConnection(
     cursors = new Set<string>();
   let after: string | null = null,
     total: number | undefined;
-  for (;;) {
-    const page = object(select(reader.graphql(query, { ...variables, after })));
-    const info = object(page.pageInfo);
-    if (
-      !Array.isArray(page.nodes) ||
-      typeof page.totalCount !== "number" ||
-      !Number.isSafeInteger(page.totalCount) ||
-      page.totalCount < 0 ||
-      typeof info.hasNextPage !== "boolean" ||
-      !(info.endCursor === null || typeof info.endCursor === "string")
-    )
-      throw new InventoryError(
-        "inventory_malformed",
-        "incomplete GitHub inventory: malformed connection or pagination",
-      );
-    total ??= page.totalCount;
-    evidence.push({
-      page: evidence.length + 1,
-      cursor_sha256: hash(after),
-      reported_total: page.totalCount,
-      observed: page.nodes.length,
-      terminal: !info.hasNextPage,
-    });
-    if (total !== page.totalCount)
-      throw new InventoryError(
-        "inventory_changed",
-        `GitHub inventory changed during pagination; discard the read (total ${total} -> ${page.totalCount})`,
-      );
-    for (const node of page.nodes) {
-      const id = identity(node);
-      if (typeof id !== "string" || !id || ids.has(id))
+  try {
+    for (;;) {
+      const page = object(select(reader.graphql(query, { ...variables, after })));
+      const info = object(page.pageInfo);
+      if (
+        !Array.isArray(page.nodes) ||
+        typeof page.totalCount !== "number" ||
+        !Number.isSafeInteger(page.totalCount) ||
+        page.totalCount < 0 ||
+        typeof info.hasNextPage !== "boolean" ||
+        !(info.endCursor === null || typeof info.endCursor === "string")
+      )
+        throw new InventoryError(
+          "inventory_malformed",
+          "incomplete GitHub inventory: malformed connection or pagination",
+        );
+      total ??= page.totalCount;
+      evidence.push({
+        page: evidence.length + 1,
+        cursor_sha256: hash(after),
+        reported_total: page.totalCount,
+        observed: page.nodes.length,
+        terminal: !info.hasNextPage,
+      });
+      if (total !== page.totalCount)
+        throw new InventoryError(
+          "inventory_changed",
+          `GitHub inventory changed during pagination; discard the read (total ${total} -> ${page.totalCount})`,
+        );
+      for (const node of page.nodes) {
+        const id = identity(node);
+        if (typeof id !== "string" || !id || ids.has(id))
+          throw new InventoryError(
+            "inventory_incomplete",
+            "incomplete GitHub inventory: missing or duplicate record identity",
+          );
+        ids.add(id);
+        rows.push(node);
+      }
+      if (rows.length > total)
         throw new InventoryError(
           "inventory_incomplete",
-          "incomplete GitHub inventory: missing or duplicate record identity",
+          "incomplete GitHub inventory: record count exceeds total",
         );
-      ids.add(id);
-      rows.push(node);
+      if (!info.hasNextPage) break;
+      const cursor = info.endCursor;
+      if (
+        !page.nodes.length ||
+        typeof cursor !== "string" ||
+        !cursor ||
+        cursors.has(cursor) ||
+        rows.length >= total
+      )
+        throw new InventoryError(
+          "inventory_incomplete",
+          "incomplete GitHub inventory: pagination did not advance",
+        );
+      cursors.add(cursor);
+      after = cursor;
     }
-    if (rows.length > total)
+    if (rows.length !== total)
       throw new InventoryError(
         "inventory_incomplete",
-        "incomplete GitHub inventory: record count exceeds total",
+        "incomplete GitHub inventory: record count does not match total",
       );
-    if (!info.hasNextPage) break;
-    const cursor = info.endCursor;
-    if (
-      !page.nodes.length ||
-      typeof cursor !== "string" ||
-      !cursor ||
-      cursors.has(cursor) ||
-      rows.length >= total
-    )
-      throw new InventoryError(
-        "inventory_incomplete",
-        "incomplete GitHub inventory: pagination did not advance",
-      );
-    cursors.add(cursor);
-    after = cursor;
+    return rows;
+  } catch (error) {
+    if (error instanceof Error)
+      Object.assign(error, { connectionEvidence: { query_sha256: hash(query), pages: evidence } });
+    throw error;
   }
-  if (rows.length !== total)
-    throw new InventoryError(
-      "inventory_incomplete",
-      "incomplete GitHub inventory: record count does not match total",
-    );
-  return rows;
 }
 export interface RepositoryInventoryEvidence {
   source: "graphql";
@@ -355,14 +364,18 @@ export interface DoctorReadAttempt {
   outcome: "passed" | "failed";
   error?: ReturnType<typeof sanitizeOperationError>;
   failure_kind?: InventoryFailureKind;
+  connection_evidence?: unknown;
+  provider?: { status: number | null; rate: unknown; retry_after: string | null };
 }
 /** Retry admission uses fresh counts/quota, never a request-count claim about actual API cost. */
 export function admitDoctorReadRetry(
   reader: InventoryReader,
   projectId: string,
   elapsedMs: number,
+  pointHeadroom = 10,
 ) {
   try {
+    if (!Number.isFinite(pointHeadroom) || pointHeadroom < 10) return false;
     const requiredMs = Math.max(1, Math.ceil(elapsedMs));
     if (coordinatorCommandTimeout(requiredMs) < requiredMs) return false;
     const [owner, name] = reader.config.repository.split("/");
@@ -382,7 +395,8 @@ export function admitDoctorReadRetry(
       !Number.isSafeInteger(rate.remaining) ||
       rate.remaining < 0 ||
       typeof rate.resetAt !== "string" ||
-      !Number.isFinite(Date.parse(rate.resetAt))
+      !Number.isFinite(Date.parse(rate.resetAt)) ||
+      Date.parse(rate.resetAt) <= Date.now()
     )
       return false;
     const count = (value: unknown) => {
@@ -391,6 +405,9 @@ export function admitDoctorReadRetry(
         throw new InventoryError("inventory_incomplete", "Retry admission counts are unavailable");
       return total;
     };
+    if (typeof rate.cost !== "number" || !Number.isSafeInteger(rate.cost) || rate.cost < 0)
+      return false;
+    pointHeadroom = Math.max(pointHeadroom, rate.cost);
     const requests =
       Math.max(1, Math.ceil(count(repository.issues) / 50)) +
       Math.max(1, Math.ceil(count(project.items) / 50)) +
@@ -398,7 +415,11 @@ export function admitDoctorReadRetry(
       Math.max(1, Math.ceil(count(project.views) / 100)) +
       8;
     // Ten points per planned request is existing Roadmap discovery headroom, not a provider guarantee.
-    return rate.remaining >= requests * 10 && coordinatorCommandTimeout(requiredMs) >= requiredMs;
+    return (
+      rate.remaining >= requests * pointHeadroom &&
+      Date.parse(rate.resetAt) > Date.now() &&
+      coordinatorCommandTimeout(requiredMs) >= requiredMs
+    );
   } catch {
     return false;
   }
@@ -426,6 +447,18 @@ export async function runDoctorRead<T>({
         outcome: "failed",
         failure_kind: inventoryFailureKind(error),
         error: sanitizeOperationError(error),
+        ...(isRecord(error) && error.connectionEvidence
+          ? { connection_evidence: error.connectionEvidence }
+          : {}),
+        ...(error instanceof GitHubApiError
+          ? {
+              provider: {
+                status: error.status,
+                rate: error.rateLimit,
+                retry_after: error.retryAfter,
+              },
+            }
+          : {}),
       });
       if (attempt === 2 || !retryableInventoryRead(error) || !admitRetry()) throw error;
       reset();

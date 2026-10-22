@@ -4927,6 +4927,18 @@ export function readDoctorRepositoryIssues(
   }
 }
 
+function doctorApiMetrics(clients: readonly RoadmapClient[]) {
+  const observations = clients.flatMap((client) => client.api.observations);
+  const graphql = observations.filter((entry) => entry.operation === "POST graphql");
+  return {
+    requests: observations.length,
+    response_bytes_observed: observations.reduce((sum, entry) => sum + entry.bytes, 0),
+    response_size_unknown_requests: observations.filter((entry) => !entry.bytes_known).length,
+    graphql_points_observed: graphql.reduce((sum, entry) => sum + (entry.rate?.cost ?? 0), 0),
+    graphql_cost_unknown_requests: graphql.filter((entry) => entry.rate?.cost == null).length,
+  };
+}
+
 export async function runDoctor(
   config: RoadmapConfig,
   clientInput: unknown,
@@ -5143,7 +5155,12 @@ async function main(argv: readonly string[]) {
             const projectId = last._completeProjectContext?.details.id;
             return (
               typeof projectId === "string" &&
-              admitDoctorReadRetry(last, projectId, Date.now() - readStarted)
+              admitDoctorReadRetry(
+                last,
+                projectId,
+                Date.now() - readStarted,
+                Math.max(10, ...last.api.observations.map((entry) => entry.rate?.cost ?? 0)),
+              )
             );
           },
           reset: () => {
@@ -5193,6 +5210,7 @@ async function main(argv: readonly string[]) {
           repository_issue_inventory: repositoryIssueInventoryAttempts,
           read_attempts: readAttempts,
           api_observations: readClients.flatMap((entry) => entry.api.observations),
+          metrics: doctorApiMetrics(readClients),
           elapsed_ms: Date.now() - readStarted,
         };
       } catch (error) {
@@ -5206,6 +5224,7 @@ async function main(argv: readonly string[]) {
           repository_issue_inventory: repositoryIssueInventoryAttempts,
           read_attempts: readAttempts,
           api_observations: readClients.flatMap((entry) => entry.api.observations),
+          metrics: doctorApiMetrics(readClients),
           elapsed_ms: Date.now() - readStarted,
           errors: (() => {
             const errors = qualificationField(error, "doctorErrors");

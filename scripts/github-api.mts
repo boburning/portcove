@@ -20,6 +20,8 @@ export interface IncludedResponse {
   status?: number;
   headers: ReadonlyMap<string, string>;
   body: unknown;
+  /** Received UTF-8 body bytes, excluding included HTTP headers. */
+  bodyBytes?: number;
 }
 export interface GitHubRestReader {
   request(method: string, endpoint: string): IncludedResponse;
@@ -30,6 +32,9 @@ interface GitHubErrorDetails {
   status?: number | null;
   rateLimit?: GitHubRateLimit | null;
   retryAfter?: string | null;
+  requestId?: string | null;
+  responseDate?: string | null;
+  responseBytes?: number | null;
 }
 export type GitHubRunner = (args: readonly string[], input?: string) => string;
 export type OperationStatus = "planned" | "succeeded" | "partial" | "unknown" | "failed";
@@ -55,6 +60,9 @@ export class GitHubApiError extends Error {
   readonly status: number | null;
   readonly rateLimit: GitHubRateLimit | null;
   readonly retryAfter: string | null;
+  readonly requestId: string | null;
+  readonly responseDate: string | null;
+  readonly responseBytes: number | null;
   constructor(code: string, message: string, details: GitHubErrorDetails = {}) {
     super(message, details.cause ? { cause: details.cause } : undefined);
     this.name = "GitHubApiError";
@@ -63,6 +71,9 @@ export class GitHubApiError extends Error {
     this.status = details.status ?? null;
     this.rateLimit = details.rateLimit ?? null;
     this.retryAfter = details.retryAfter ?? null;
+    this.requestId = details.requestId ?? null;
+    this.responseDate = details.responseDate ?? null;
+    this.responseBytes = details.responseBytes ?? null;
   }
 }
 
@@ -111,10 +122,15 @@ export function githubOperationEnvelope({
 
 export function parseIncludedResponse(output: unknown): IncludedResponse {
   const raw: unknown = output ?? "";
-  const text = String(raw).trim();
-  if (!text) return { headers: new Map<string, string>(), body: null };
-  if (text.startsWith("{") || text.startsWith("[")) {
-    return { headers: new Map<string, string>(), body: JSON.parse(text) };
+  const text = String(raw);
+  if (!text.trim())
+    return { headers: new Map<string, string>(), body: null, bodyBytes: Buffer.byteLength(text) };
+  if (text.trimStart().startsWith("{") || text.trimStart().startsWith("[")) {
+    return {
+      headers: new Map<string, string>(),
+      body: JSON.parse(text),
+      bodyBytes: Buffer.byteLength(text),
+    };
   }
 
   const blocks = [...text.matchAll(/(?:^|\r?\n)(HTTP\/[^\r\n]+\r?\n(?:[^\r\n]*\r?\n)*?)\r?\n/gmu)];
@@ -129,8 +145,13 @@ export function parseIncludedResponse(output: unknown): IncludedResponse {
     if (separator < 1) throw new Error(`GitHub API response had a malformed header: ${line}`);
     headers.set(line.slice(0, separator).trim().toLowerCase(), line.slice(separator + 1).trim());
   }
-  const bodyText = text.slice((block.index ?? 0) + block[0].length).trim();
-  return { status, headers, body: bodyText ? JSON.parse(bodyText) : null };
+  const bodyText = text.slice((block.index ?? 0) + block[0].length);
+  return {
+    status,
+    headers,
+    body: bodyText.trim() ? JSON.parse(bodyText) : null,
+    bodyBytes: Buffer.byteLength(bodyText),
+  };
 }
 
 function numericHeader(headers: ReadonlyMap<string, string>, name: string) {
@@ -278,11 +299,15 @@ export function createGitHubRunner({
           operation,
           status: response?.status ?? null,
           rateLimit: response ? rateLimitFromResponse(response) : null,
+          retryAfter: response?.headers.get("retry-after") ?? null,
+          requestId: response?.headers.get("x-github-request-id") ?? null,
+          responseDate: response?.headers.get("date") ?? null,
+          responseBytes: response?.bodyBytes ?? null,
         },
       );
     }
     checkCoordinatorDeadline();
-    return result.stdout.trim();
+    return args.includes("--include") ? result.stdout : result.stdout.trim();
   };
 }
 
@@ -300,6 +325,7 @@ export class GitHubApiClient {
     request_id: string | null;
     date: string | null;
     bytes: number;
+    bytes_known: boolean;
     elapsed_ms: number;
     rate: GitHubRateLimit | null;
     failure?: string;
@@ -323,9 +349,20 @@ export class GitHubApiClient {
       operation,
       ...(query ? { query_sha256: createHash("sha256").update(query).digest("hex") } : {}),
       status: response?.status ?? (error instanceof GitHubApiError ? error.status : null),
-      request_id: response?.headers.get("x-github-request-id") ?? null,
-      date: response?.headers.get("date") ?? null,
-      bytes: response ? Buffer.byteLength(JSON.stringify(response.body)) : 0,
+      request_id:
+        response?.headers.get("x-github-request-id") ??
+        (error instanceof GitHubApiError ? error.requestId : null),
+      date:
+        response?.headers.get("date") ??
+        (error instanceof GitHubApiError ? error.responseDate : null),
+      bytes: response
+        ? (response.bodyBytes ?? 0)
+        : error instanceof GitHubApiError
+          ? (error.responseBytes ?? 0)
+          : 0,
+      bytes_known:
+        response?.bodyBytes !== undefined ||
+        (error instanceof GitHubApiError && error.responseBytes !== null),
       elapsed_ms: Date.now() - started,
       rate: response
         ? rateLimitFromResponse(response)
