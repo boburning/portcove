@@ -12,17 +12,20 @@ export async function openInstalledUpdateSettings(browser: WebDriver) {
       ),
     )
     .click();
-  await browser.wait(
+  const category = await browser.wait(
+    until.elementLocated(
+      By.css('nav[aria-label="Settings categories"] button[aria-controls="settings-updates"]'),
+    ),
+    15_000,
+  );
+  await category.click();
+  // Settings panels remain mounted while hidden. Select the category before
+  // waiting for its ordinary update controls to become usable.
+  const panel = await browser.wait(
     until.elementLocated(By.css('article[aria-labelledby="application-update-settings-title"]')),
     15_000,
   );
-  await browser
-    .findElement(
-      By.xpath(
-        '//*[@aria-label="Settings sections"]//button[normalize-space(.)="Portcove & catalog updates"]',
-      ),
-    )
-    .click();
+  await browser.wait(until.elementIsVisible(panel), 15_000);
 }
 
 /** Exercise one existing, explicitly selected recovery control. Callers retain

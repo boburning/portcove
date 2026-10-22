@@ -21,15 +21,19 @@ const start = source.indexOf("async function openInstalledUpdateSettings(");
 assert.ok(start >= 0);
 const drivers = runInNewContext(
   stripTypeScriptTypes(source.slice(start).replace(/^export /gmu, "")) +
-    "\n({driveInstalledUpdateToRestart,driveInstalledUpdateRecovery,driveInstalledForwardRepairToRestart});",
+    "\n({openInstalledUpdateSettings,driveInstalledUpdateToRestart,driveInstalledUpdateRecovery,driveInstalledForwardRepairToRestart});",
   {
     assert,
     isRecord,
     readInstalledUpdateStatus,
     By: { css: (value: string) => ({ value }), xpath: (value: string) => ({ value }) },
-    until: { elementLocated: (value: unknown) => value },
+    until: {
+      elementLocated: (value: unknown) => value,
+      elementIsVisible: (value: unknown) => ({ visible: value }),
+    },
   },
 ) as {
+  openInstalledUpdateSettings: (browser: WebDriver) => Promise<void>;
   driveInstalledUpdateToRestart: (
     browser: WebDriver,
     actions: string[],
@@ -52,10 +56,67 @@ const drivers = runInNewContext(
   ) => Promise<{ before: unknown; staged: unknown; authority: string }>;
 };
 const {
+  openInstalledUpdateSettings,
   driveInstalledUpdateToRestart,
   driveInstalledUpdateRecovery,
   driveInstalledForwardRepairToRestart,
 } = drivers;
+
+void test("ordinary updater selects the Updates category before using its mounted hidden panel", async () => {
+  let settingsOpened = false,
+    categorySelected = false,
+    visibilityWaited = false;
+  const panel = { id: "mounted-updater-panel" };
+  const browser = {
+    findElement: (locator: { value: string }) => {
+      assert.match(locator.value, /Primary navigation/u);
+      return {
+        click: async () => {
+          settingsOpened = true;
+        },
+      };
+    },
+    wait: async (condition: { value?: string; visible?: unknown }) => {
+      assert.equal(settingsOpened, true);
+      if (condition.value?.includes("Settings categories")) {
+        assert.equal(
+          condition.value,
+          'nav[aria-label="Settings categories"] button[aria-controls="settings-updates"]',
+        );
+        return {
+          click: async () => {
+            categorySelected = true;
+          },
+        };
+      }
+      assert.equal(categorySelected, true, "a mounted hidden panel cannot select its category");
+      if (condition.value) {
+        assert.equal(
+          condition.value,
+          'article[aria-labelledby="application-update-settings-title"]',
+        );
+        return panel;
+      }
+      assert.equal(condition.visible, panel);
+      visibilityWaited = true;
+      return panel;
+    },
+  } as unknown as WebDriver;
+  await openInstalledUpdateSettings(browser);
+  assert.equal(visibilityWaited, true, "locating a mounted panel does not establish visibility");
+});
+
+void test("a hidden Updates panel preserves the navigation failure instead of driving hidden controls", async () => {
+  const failure = new Error("Updates panel remained hidden");
+  const browser = {
+    findElement: () => ({ click: async () => {} }),
+    wait: async (condition: { visible?: unknown }) => {
+      if (Object.hasOwn(condition, "visible")) throw failure;
+      return { click: async () => {} };
+    },
+  } as unknown as WebDriver;
+  await assert.rejects(openInstalledUpdateSettings(browser), (error: unknown) => error === failure);
+});
 
 void test("shipping status reader imports and executes outside dependency ancestry with Selenium unavailable", async (t) => {
   const parent = path.resolve(tmpdir());
@@ -114,6 +175,7 @@ function fixture() {
     wait: async (predicate: unknown) => {
       if (typeof predicate === "function")
         assert.equal(await (predicate as () => Promise<unknown>)(), true);
+      return { click: async () => {} };
     },
     findElement: (locator: { value: string }) => ({
       click: async () => {
