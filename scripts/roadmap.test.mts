@@ -13,6 +13,8 @@ import { createGitHubRunner } from "./github-api.mts";
 
 import {
   RoadmapClient,
+  readDoctorRepositoryIssues,
+  runDoctor,
   roadmapHelp,
   roadmapCommandHelp,
   analyzeReleaseReadiness,
@@ -2589,6 +2591,168 @@ void test("repository issue inventory rejects pagination loops duplicates and a 
       /inventory|pagination/,
     );
   }
+});
+
+void test("doctor recovers a missing high-water record using a complete fresh traversal", () => {
+  let traversals = 0;
+  let markers = 0;
+  const client = new RoadmapClient(config, (args) => {
+    const endpoint = fixtureElement(args, 2);
+    if (endpoint.includes("direction=desc")) {
+      markers++;
+      return included([restIssue(2377, { pull_request: { url: "https://example.test" } })]);
+    }
+    traversals++;
+    return included(
+      traversals === 1
+        ? [restIssue(2250)]
+        : [restIssue(1924), restIssue(2377, { pull_request: { url: "https://example.test" } })],
+    );
+  });
+  const result = readDoctorRepositoryIssues(client);
+  assert.deepEqual(
+    result.issues.map((issue) => issue.number),
+    [1924],
+  );
+  assert.equal(traversals, 2);
+  assert.equal(markers, 4);
+  assert.deepEqual(result.attempts, [
+    {
+      attempt: 1,
+      outcome: "failed",
+      error: "incomplete GitHub inventory: high-water record is missing",
+      snapshot: { before: 2377, after: 2377, records: 1, highest: 2250 },
+    },
+    { attempt: 2, outcome: "passed", issues: 1 },
+  ]);
+});
+
+void test("doctor retries a changed marker from the beginning and discards rejected records", () => {
+  const markers = [2, 3, 3, 3];
+  let traversals = 0;
+  const client = new RoadmapClient(config, (args) => {
+    if (fixtureElement(args, 2).includes("direction=desc"))
+      return included([restIssue(fixtureValue(markers.shift()))]);
+    return included([restIssue(++traversals === 1 ? 2 : 3)]);
+  });
+  const result = readDoctorRepositoryIssues(client);
+  assert.deepEqual(
+    result.issues.map((issue) => issue.number),
+    [3],
+  );
+  assert.equal(result.attempts.length, 2);
+  assert.deepEqual(fixtureValue(result.attempts[0]).snapshot, {
+    before: 2,
+    after: 3,
+    records: 1,
+    highest: 2,
+  });
+  assert.equal(markers.length, 0);
+});
+
+void test("doctor retains both inconsistent snapshots and stops after two traversals", () => {
+  let traversals = 0;
+  const client = new RoadmapClient(config, (args) => {
+    if (fixtureElement(args, 2).includes("direction=desc")) return included([restIssue(3)]);
+    traversals++;
+    return included([restIssue(1)]);
+  });
+  const attempts: Parameters<typeof readDoctorRepositoryIssues>[1] = [];
+  assert.throws(() => readDoctorRepositoryIssues(client, attempts), /high-water record is missing/);
+  assert.equal(traversals, 2);
+  assert.deepEqual(
+    attempts.map((entry) => entry.outcome),
+    ["failed", "failed"],
+  );
+  assert.deepEqual(
+    attempts.map((entry) => entry.snapshot),
+    [
+      { before: 3, after: 3, records: 1, highest: 1 },
+      { before: 3, after: 3, records: 1, highest: 1 },
+    ],
+  );
+});
+
+void test("doctor never retries malformed duplicate stalled or transport failures", () => {
+  const runners: GitHubRunner[] = [
+    () => included([{}]),
+    (args) =>
+      included(
+        fixtureElement(args, 2).includes("direction=desc")
+          ? [restIssue(1)]
+          : [restIssue(1), restIssue(1)],
+      ),
+    (args) =>
+      fixtureElement(args, 2).includes("direction=desc")
+        ? included([restIssue(1)])
+        : included([restIssue(1)], { link: `<${fixtureElement(args, 2)}>; rel="next"` }),
+    () => {
+      throw new Error("transport unavailable");
+    },
+    () => {
+      throw new Error("GitHub inventory changed during pagination; retry the read");
+    },
+  ];
+  for (const runner of runners) {
+    const attempts: Parameters<typeof readDoctorRepositoryIssues>[1] = [];
+    assert.throws(() => readDoctorRepositoryIssues(new RoadmapClient(config, runner), attempts));
+    assert.equal(attempts.length, 1);
+    assert.equal(fixtureValue(attempts[0]).outcome, "failed");
+    assert.equal(fixtureValue(attempts[0]).snapshot, undefined);
+  }
+});
+
+void test("doctor retains a retry transport failure without a third traversal", () => {
+  let traversals = 0;
+  const client = new RoadmapClient(config, (args) => {
+    if (fixtureElement(args, 2).includes("direction=desc")) return included([restIssue(3)]);
+    if (++traversals === 2) throw new Error("transport unavailable");
+    return included([restIssue(1)]);
+  });
+  const attempts: Parameters<typeof readDoctorRepositoryIssues>[1] = [];
+  assert.throws(() => readDoctorRepositoryIssues(client, attempts), /transport unavailable/);
+  assert.equal(traversals, 2);
+  assert.equal(attempts.length, 2);
+  assert.equal(fixtureValue(attempts[0]).snapshot?.before, 3);
+  assert.match(fixtureValue(attempts[1]).error ?? "", /transport unavailable/);
+});
+
+void test("doctor accepts a consistent empty repository in one attempt", () => {
+  const result = readDoctorRepositoryIssues(new RoadmapClient(config, () => included([])));
+  assert.deepEqual(result, {
+    issues: [],
+    attempts: [{ attempt: 1, outcome: "passed", issues: 0 }],
+  });
+});
+
+void test("runDoctor retains failed repository attempts for its CLI receipt", async () => {
+  let traversals = 0;
+  const client = new RoadmapClient(config, (args) => {
+    if (fixtureElement(args, 2).includes("direction=desc")) return included([restIssue(3)]);
+    traversals++;
+    return included([restIssue(1)]);
+  });
+  const attempts: Parameters<typeof readDoctorRepositoryIssues>[1] = [];
+  await assert.rejects(
+    runDoctor(
+      config,
+      {
+        gh: () => "",
+        completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
+        viewList: () => [],
+        projectAudit: () => ({ repositories: { nodes: [] } }),
+        itemList: () => [],
+        repositoryIssues: () => client.repositoryIssues(),
+      },
+      { quiet: true, repositoryIssueInventoryAttempts: attempts },
+    ),
+    /high-water record is missing/,
+  );
+  assert.equal(traversals, 2);
+  assert.deepEqual(
+    attempts.map((entry) => entry.outcome),
+    ["failed", "failed"],
+  );
 });
 
 void test("promotion validation happens before any GitHub mutation", () => {

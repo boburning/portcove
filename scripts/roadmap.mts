@@ -3269,6 +3269,21 @@ function repositoryIssueObservation(value: unknown): RepositoryIssueObservation 
     throw new Error("incomplete GitHub inventory: malformed repository issue");
   return value as Record<string, unknown> & RepositoryIssueObservation;
 }
+interface RepositoryIssueSnapshot {
+  before: number;
+  after: number;
+  records: number;
+  highest: number | null;
+}
+class RepositoryIssueSnapshotError extends Error {
+  readonly snapshot: RepositoryIssueSnapshot;
+  constructor(message: string, snapshot: RepositoryIssueSnapshot) {
+    super(message);
+    this.name = "RepositoryIssueSnapshotError";
+    this.snapshot = snapshot;
+  }
+}
+
 export class RoadmapClient {
   readonly config: RoadmapConfig;
   readonly api: GitHubApiClient;
@@ -3571,10 +3586,26 @@ export class RoadmapClient {
       }
       numbers.add(record.number);
     }
-    if (marker() !== highWater)
-      throw new Error("GitHub inventory changed during pagination; retry the read");
+    const after = marker();
+    const snapshot = {
+      before: highWater,
+      after,
+      records: records.length,
+      highest: records.reduce<number | null>(
+        (highest, record) => Math.max(highest ?? 0, record.number),
+        null,
+      ),
+    };
+    if (after !== highWater)
+      throw new RepositoryIssueSnapshotError(
+        "GitHub inventory changed during pagination; retry the read",
+        snapshot,
+      );
     if (highWater > 0 && !numbers.has(highWater))
-      throw new Error("incomplete GitHub inventory: high-water record is missing");
+      throw new RepositoryIssueSnapshotError(
+        "incomplete GitHub inventory: high-water record is missing",
+        snapshot,
+      );
     return records
       .filter((issue) => !issue.pull_request)
       .map((issue) => ({
@@ -4968,6 +4999,36 @@ export function evaluateRoadmapDoctor({
   return { warnings: stage.warnings, diagnostics: stage.diagnostics, readiness };
 }
 
+export interface DoctorRepositoryInventoryAttempt {
+  attempt: number;
+  outcome: "passed" | "failed";
+  issues?: number;
+  error?: string;
+  snapshot?: RepositoryIssueSnapshot;
+}
+
+export function readDoctorRepositoryIssues(
+  client: Pick<RoadmapClient, "repositoryIssues">,
+  attempts: DoctorRepositoryInventoryAttempt[] = [],
+) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const issues = client.repositoryIssues();
+      attempts.push({ attempt, outcome: "passed", issues: issues.length });
+      return { issues, attempts };
+    } catch (error) {
+      attempts.push({
+        attempt,
+        outcome: "failed",
+        error: sanitizeOperationError(error).message,
+        ...(error instanceof RepositoryIssueSnapshotError ? { snapshot: error.snapshot } : {}),
+      });
+      if (attempt === 2 || !(error instanceof RepositoryIssueSnapshotError)) throw error;
+    }
+  }
+  throw new Error("Doctor repository inventory attempt limit exhausted");
+}
+
 export async function runDoctor(
   config: RoadmapConfig,
   clientInput: unknown,
@@ -4975,7 +5036,13 @@ export async function runDoctor(
     quiet = false,
     cache,
     inventory: suppliedInventory,
-  }: { quiet?: boolean; cache?: InventoryCache; inventory?: RoadmapInventory } = {},
+    repositoryIssueInventoryAttempts = [],
+  }: {
+    quiet?: boolean;
+    cache?: InventoryCache;
+    inventory?: RoadmapInventory;
+    repositoryIssueInventoryAttempts?: DoctorRepositoryInventoryAttempt[];
+  } = {},
 ) {
   if (!isDoctorClient(clientInput))
     throw new Error("Roadmap doctor client capabilities are unavailable");
@@ -5009,7 +5076,9 @@ export async function runDoctor(
   });
   const catalog = qualificationCatalogObservation(JSON.parse(await readFile(catalogPath, "utf8")));
   const items = inventory?.items ?? client.itemList(number, { includeDependencies: true, details });
-  const repositoryIssues = inventory?.issues ?? client.repositoryIssues();
+  const repositoryIssues =
+    inventory?.issues ??
+    readDoctorRepositoryIssues(client, repositoryIssueInventoryAttempts).issues;
   const stage = evaluateRoadmapDoctor({
     config,
     catalog,
@@ -5048,6 +5117,7 @@ export async function runDoctor(
     items,
     warnings: stage.warnings,
     diagnostics: stage.diagnostics,
+    repositoryIssueInventoryAttempts,
     inventory,
   };
 }
@@ -5162,6 +5232,7 @@ async function main(argv: readonly string[]) {
         );
       let context;
       let report;
+      const repositoryIssueInventoryAttempts: DoctorRepositoryInventoryAttempt[] = [];
       try {
         const checked = await checkContextualDoctor({
           capture: () => captureCheckoutContext(projectRoot),
@@ -5177,7 +5248,10 @@ async function main(argv: readonly string[]) {
           },
           check: async () => {
             const doctorConfig = await loadConfig({ requireProjectNumber: true });
-            return runDoctor(doctorConfig, new RoadmapClient(doctorConfig), { quiet: true });
+            return runDoctor(doctorConfig, new RoadmapClient(doctorConfig), {
+              quiet: true,
+              repositoryIssueInventoryAttempts,
+            });
           },
         });
         report = {
@@ -5193,6 +5267,7 @@ async function main(argv: readonly string[]) {
           },
           warnings: checked.result.warnings,
           diagnostics: checked.result.diagnostics,
+          repository_issue_inventory: repositoryIssueInventoryAttempts,
         };
       } catch (error) {
         report = {
@@ -5200,6 +5275,7 @@ async function main(argv: readonly string[]) {
           kind: "roadmap-doctor",
           status: "failed",
           context,
+          repository_issue_inventory: repositoryIssueInventoryAttempts,
           errors: (() => {
             const errors = qualificationField(error, "doctorErrors");
             return Array.isArray(errors) &&

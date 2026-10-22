@@ -148,6 +148,16 @@ The provenance generator leaves the previous snapshot intact when enrichment
 fails. A successful traversal is a dated observation, not an atomic snapshot
 of concurrent field edits.
 
+The standalone Roadmap doctor retries the complete repository issue traversal
+once when the before/after newest-record markers differ or a terminal traversal
+omits that marker. It discards rejected records and retains both ordered attempts
+in `repository_issue_inventory` in its JSON receipt, including marker values,
+record count and highest observed number for rejected snapshots. Two inconsistent
+attempts fail. Malformed responses, duplicate identities, stalled pagination and
+transport errors fail immediately. Project reads, supplied validated inventories
+and other collectors retain their existing budgets and behavior; recovery never
+turns partial coverage into a successful inventory.
+
 Repository Node tools execute GitHub requests through the shared
 `scripts/github-api.mts` transport. GraphQL queries and variables are serialized
 as one JSON stdin document rather than shell fields; REST bodies use the same
