@@ -158,6 +158,26 @@ void test("context preserves exact positive u64 numeric tokens above Number prec
   const one = releaseSigningContextBytes(descriptor, "single-owner-one-of-one-v1").toString();
   assert.match(one, /"initial_root_profile":"single-owner-one-of-one-v1"/);
   assert.match(one, /"releases":18446744073709551615/);
+  const online = releaseSigningContextBytes(
+    { ...descriptor, schema_version: 2 },
+    "single-owner-one-of-one-v1",
+    "online-unchanged-authority-v1",
+  ).toString();
+  assert.match(online, /"top_level_targets_profile":"online-unchanged-authority-v1"/);
+  assert.match(online, /"releases":18446744073709551615/);
+  assert.throws(
+    () => releaseSigningContextBytes({ ...descriptor, schema_version: 2 }),
+    /Targets mode/,
+  );
+  assert.throws(
+    () =>
+      releaseSigningContextBytes(
+        { ...descriptor, schema_version: 2 },
+        "legacy-two-of-three-v1",
+        "online-unchanged-authority-v1",
+      ),
+    /single-owner/,
+  );
   assert.throws(
     () => releaseSigningContextBytes(descriptor, "download-selected" as never),
     /Root profile/,
