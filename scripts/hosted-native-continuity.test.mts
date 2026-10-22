@@ -26,7 +26,10 @@ void test("rehearsal receipts bind only the actual allowlisted workflow before n
     const workflow = `.github/workflows/${name}.yml`;
     const result = describe(workflow, `boburning/portcove/${workflow}@refs/heads/reviewed`);
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(JSON.parse(result.stdout).workflow, workflow);
+    assert.deepEqual(JSON.parse(result.stdout), {
+      workflow,
+      scope: "disposable-key installed updater rehearsal only",
+    });
   }
   const wrong = describe(
     ".github/workflows/hosted-native-continuity.yml",
