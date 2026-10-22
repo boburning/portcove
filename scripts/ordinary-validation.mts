@@ -644,6 +644,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-local-worker-tasks.mts", ["scripts/release-local-worker-tasks.test.mts"]],
   ["scripts/release-local-worker-accounts.ps1", ["scripts/release-local-worker-accounts.test.mts"]],
   [
+    "scripts/recover-local-worker-empty-setup.ps1",
+    ["scripts/recover-local-worker-empty-setup.test.mts"],
+  ],
+  [
     "scripts/release-native-account-capability.mts",
     ["scripts/release-native-account-capability.test.mts"],
   ],
@@ -1198,6 +1202,7 @@ const workflowTests = new Map([
 ]);
 
 const releaseContractTests = Object.freeze([
+  "scripts/recover-local-worker-empty-setup.test.mts",
   "scripts/release-native-account-capability.test.mts",
   "scripts/release-local-worker-accounts.test.mts",
   "scripts/release-local-worker-tasks.test.mts",

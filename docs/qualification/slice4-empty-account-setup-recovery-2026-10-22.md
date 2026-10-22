@@ -10,7 +10,7 @@ Fresh GET-only readback verified the protected helper/plan hashes, exact matchin
 
 ## Exact recovery behavior
 
-The [fixed helper](../../scripts/recover-local-worker-empty-setup.ps1), source `627982217b310ab1a0f86849ebe12e888b981856`, is 14,081 bytes, SHA-256 `45e08975488d20af7247241b1b55ef039a4874d3f49d54b238cf17efb7de2910`. It has no caller-selected paths, identities or policy. Execute requires the appointed same-owner SID and elevation. It refuses changed/missing raw records, altered SDDL, unsafe ancestry (including generic replacement rights), reparse/multiply-linked evidence, extra state, any existing recovery marker/archive/result, existing worker accounts/profile paths/registrations, an active account helper or unavailable process evidence.
+The [fixed helper](../../scripts/recover-local-worker-empty-setup.ps1), source `be76cc7838e9d5b53f6ea513b89be082f29f770b`, is 14,125 bytes, SHA-256 `7b045cefa3f18173a2da30e2a37b6f573a888e438855f5bb06119f541c378d92`. It has no caller-selected paths, identities or policy. Execute requires the appointed same-owner SID and elevation. It refuses changed/missing raw records, altered SDDL, unsafe ancestry (including generic replacement rights), reparse/multiply-linked evidence, extra state, any existing recovery marker/archive/result, existing worker accounts/profile paths/registrations, an active account helper or unavailable process evidence.
 
 The sole original root is `C:/ProgramData/PortcoveNativeQualification`. Its exact same-parent retained destination is `C:/ProgramData/PortcoveNativeQualification.retained-20261022-password-bounds`. No original record, folder or profile is deleted. After original-lock acquisition, exact-state and provider readback, the helper creates `empty-setup-recovery-20261022.json.lock` exclusively and writes the CreateNew recovery intent in the protected bootstrap folder. It rechecks the original state and hands off from the original lock to that separate recovery lock immediately before atomic same-volume rename. This lock serializes this recovery only. It does not claim that the old account helper participates in the new lock; a competing create cannot adopt an existing root because the unchanged helper atomically creates it. Any conflict, refusal or ambiguity stops and retains both states without retry.
 
@@ -41,11 +41,11 @@ Use the existing same-owner **elevated PowerShell 7** window. Prepare and retain
     $taskRecoveryClient.MaxResponseContentBufferSize = 65536
     $taskRecoveryDeadline = [Threading.CancellationTokenSource]::new([TimeSpan]::FromSeconds(30))
     try {
-        $taskRecoveryResponse = $taskRecoveryClient.GetAsync('https://raw.githubusercontent.com/boburning/portcove/627982217b310ab1a0f86849ebe12e888b981856/scripts/recover-local-worker-empty-setup.ps1', [Net.Http.HttpCompletionOption]::ResponseContentRead, $taskRecoveryDeadline.Token).GetAwaiter().GetResult()
+        $taskRecoveryResponse = $taskRecoveryClient.GetAsync('https://raw.githubusercontent.com/boburning/portcove/be76cc7838e9d5b53f6ea513b89be082f29f770b/scripts/recover-local-worker-empty-setup.ps1', [Net.Http.HttpCompletionOption]::ResponseContentRead, $taskRecoveryDeadline.Token).GetAwaiter().GetResult()
         try {
             if ($taskRecoveryResponse.StatusCode -ne [Net.HttpStatusCode]::OK -or $taskRecoveryResponse.Content.Headers.ContentEncoding.Count -ne 0) { throw 'Reviewed recovery response differs' }
             $taskRecoveryBytes = $taskRecoveryResponse.Content.ReadAsByteArrayAsync($taskRecoveryDeadline.Token).GetAwaiter().GetResult()
-            if ($taskRecoveryBytes.Length -ne 14081 -or [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($taskRecoveryBytes)).ToLowerInvariant() -cne '45e08975488d20af7247241b1b55ef039a4874d3f49d54b238cf17efb7de2910') { throw 'Reviewed recovery identity differs' }
+            if ($taskRecoveryBytes.Length -ne 14125 -or [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($taskRecoveryBytes)).ToLowerInvariant() -cne '7b045cefa3f18173a2da30e2a37b6f573a888e438855f5bb06119f541c378d92') { throw 'Reviewed recovery identity differs' }
             $taskRecoveryText = [Text.UTF8Encoding]::new($false, $true).GetString($taskRecoveryBytes)
         } finally { $taskRecoveryResponse.Dispose() }
     } finally { $taskRecoveryDeadline.Dispose(); $taskRecoveryClient.Dispose(); $taskRecoveryHandler.Dispose() }
@@ -54,3 +54,5 @@ Use the existing same-owner **elevated PowerShell 7** window. Prepare and retain
 ```
 
 Return the final JSON or the first child error if it stops. Keep the elevated window open for the already planned final-enable step. This is a one-time recovery/setup operation; it does not activate Tasks, Apps, signing, feeds or public execution. #254 stays Done; #315/#534/#246 remain pending; slice 5 is excluded.
+
+The selected PowerShell analyzer initially rejected host-output and dynamic-expression invocation. The corrected helper uses information output and caller-scope execution of the same hash-verified original writer AST; the selected analyzer passed without exclusions beyond the existing workflow policy. A fifth focused Windows test passed for the actual trusted-writer loading statement and its runtime definition. The failing-child case also passed after this change. The first writer test used an incorrect AST-body comparison oracle; that failure remains retained separately. Independent nonwriting review cleared this narrow correction.
