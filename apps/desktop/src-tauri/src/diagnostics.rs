@@ -202,42 +202,48 @@ mod tests {
     #[test]
     fn support_export_uses_host_location_without_a_ready_library() {
         let temporary = tempfile::tempdir().unwrap();
-        let preferences =
-            HostPreferenceStore::new(temporary.path().join("preferences.json")).unwrap();
+        let root = fs::canonicalize(temporary.path()).unwrap();
+        let preferences = HostPreferenceStore::new(root.join("preferences.json")).unwrap();
         let (shared, mut host_guard) = portcove_diagnostics::HostDiagnostics::start_in(
             &preferences.diagnostics_directory(),
             portcove_diagnostics::Surface::Desktop,
             false,
         );
+        let session = shared
+            .session_directory()
+            .unwrap()
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        let subscriber =
+            tracing_subscriber::registry().with(shared.layer().with_filter(shared.filter()));
         let host = HostDiagnostics::from_shared(shared);
-        let directory = host.directory.unwrap();
-        assert_eq!(directory, temporary.path().join("diagnostics"));
+        let directory = host.directory.as_ref().unwrap();
+        assert_eq!(directory, &root.join("diagnostics"));
+        tracing::subscriber::with_default(subscriber, || {
+            tracing::info!(
+                target: "portcove_desktop",
+                message = "startup host log remains available"
+            );
+        });
         shutdown(&mut host_guard);
-        let (producer, mut guard) =
-            RuntimeWriter::start(directory.join(LOG_FILE_NAME), Limits::default()).unwrap();
-        append_fixture(
-            &producer,
-            json!({"fields": {"message": "startup host log remains available"}}),
-        );
-        assert_eq!(
-            guard.shutdown(Duration::from_secs(2)).flush_state,
-            FlushState::Complete
-        );
+        assert_eq!(host.shared.health().flush_state, FlushState::Complete);
         let failure = PortcoveError::state("unavailable library token=startup-canary").report();
         let original = failure.clone();
-        let exported = create_support_bundle(None, Some(&failure), &directory).unwrap();
+        let exported = create_support_bundle(None, Some(&failure), directory).unwrap();
         assert!(!exported.manifest.library_available);
         assert_eq!(failure, original);
         assert!(exported.path.is_file());
         let mut archive = zip::ZipArchive::new(File::open(exported.path).unwrap()).unwrap();
         let mut log = String::new();
         archive
-            .by_name(&format!("logs/{LOG_FILE_NAME}"))
+            .by_name(&format!("logs/{session}/{LOG_FILE_NAME}"))
             .unwrap()
             .read_to_string(&mut log)
             .unwrap();
         assert!(log.contains("startup host log remains available"));
-        assert!(!temporary.path().join("preferences.json").exists());
+        assert!(!root.join("preferences.json").exists());
     }
 
     #[test]
@@ -322,24 +328,51 @@ mod tests {
     #[test]
     fn unsafe_existing_host_log_cannot_be_enabled_for_startup_writes() {
         let temporary = tempfile::tempdir().unwrap();
-        let foreign = temporary.path().join("private-file");
+        let root = fs::canonicalize(temporary.path()).unwrap();
+        let foreign = root.join("private-file");
         fs::write(&foreign, b"preserve foreign data").unwrap();
-        let directory = temporary.path().join("diagnostics");
+        let directory = root.join("diagnostics");
         fs::create_dir(&directory).unwrap();
         fs::hard_link(&foreign, directory.join(LOG_FILE_NAME)).unwrap();
-        assert!(initialize(&directory).is_err());
+        // Root preparation still validates legacy logs before a session slot
+        // is allocated. A foreign alias must never be adopted for writing.
+        let (shared, guard) = portcove_diagnostics::HostDiagnostics::start_in(
+            &directory,
+            portcove_diagnostics::Surface::Desktop,
+            false,
+        );
+        assert!(guard.is_none());
+        assert!(shared.session_directory().is_none());
+        assert_eq!(shared.health().flush_state, FlushState::Unavailable);
+        let host = HostDiagnostics::from_shared(shared);
+        assert!(host.directory.is_err());
         assert_eq!(fs::read(&foreign).unwrap(), b"preserve foreign data");
+        assert_eq!(
+            fs::read(directory.join(LOG_FILE_NAME)).unwrap(),
+            b"preserve foreign data"
+        );
     }
 
     #[cfg(unix)]
     #[test]
     fn unsafe_host_ancestor_cannot_redirect_early_logging() {
         let temporary = tempfile::tempdir().unwrap();
-        let foreign = temporary.path().join("foreign");
+        let root = fs::canonicalize(temporary.path()).unwrap();
+        let foreign = root.join("foreign");
         fs::create_dir(&foreign).unwrap();
-        let alias = temporary.path().join("aliased-host");
+        let alias = root.join("aliased-host");
         std::os::unix::fs::symlink(&foreign, &alias).unwrap();
-        assert!(initialize(&alias.join("diagnostics")).is_err());
+        let (shared, guard) = portcove_diagnostics::HostDiagnostics::start_in(
+            &alias.join("diagnostics"),
+            portcove_diagnostics::Surface::Desktop,
+            false,
+        );
+        assert!(guard.is_none());
+        assert!(shared.session_directory().is_none());
+        assert_eq!(shared.health().flush_state, FlushState::Unavailable);
+        let host = HostDiagnostics::from_shared(shared);
+        assert!(host.directory.is_err());
+        assert_eq!(fs::read_link(alias).unwrap(), foreign);
         assert!(!foreign.join("diagnostics").exists());
     }
 

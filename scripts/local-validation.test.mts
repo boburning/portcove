@@ -815,6 +815,27 @@ void test("bin-only Rust packages do not schedule an invalid doctest command", (
   assert.ok(!ids(plan).includes("rust-docs:portcove-cli"));
 });
 
+void test("shared diagnostics changes retain explicit ownership and complete workspace Rust feedback", () => {
+  const source = "crates/portcove-diagnostics/src/sessions/tests.rs";
+  const changes = [
+    ...["A", "M", "D"].map((status) => change(source, { status })),
+    change("crates/portcove-diagnostics/Cargo.toml"),
+    change("docs/moved-diagnostics.md", { status: "R100", previousPath: source }),
+    change(source, { status: "R100", previousPath: "docs/moved-diagnostics.md" }),
+  ];
+  for (const changed of changes) {
+    const { selection, plan } = planFor([changed]);
+    assert.deepEqual([...selection.unknown], [], changed.path);
+    assert.deepEqual([...selection.packages], ["portcove-diagnostics"], changed.path);
+    assert.equal(selection.rustfmt, true, changed.path);
+    const rust = requiredFixture(plan.find((entry) => entry.id === "rust-workspace-tests"));
+    assert.deepEqual(rust.rustCoverage, ["all()"], changed.path);
+    assert.ok(rust.args.includes("--guard-command"), changed.path);
+  }
+  const unowned = "crates/portcove-diagnostics-other/src/lib.rs";
+  assert.ok(classifyChanges([change(unowned)]).unknown.has(unowned));
+});
+
 void test("doctest capability comes from Cargo target metadata", () => {
   const packages = packagesWithDoctests({
     packages: [

@@ -134,6 +134,7 @@ const durationReporter = "./scripts/test-duration-reporter.mts";
 const packagePrefixes = new Map([
   ["crates/portcove-core/", "portcove-core"],
   ["crates/portcove-cli/", "portcove-cli"],
+  ["crates/portcove-diagnostics/", "portcove-diagnostics"],
   ["crates/portcove-release-tools/", "portcove-release-tools"],
   ["apps/desktop/src-tauri/", "portcove-desktop"],
 ]);
