@@ -26,6 +26,11 @@ identities and limits remain in the [client-author guide](../INTEGRATION-AUTHOR.
 An old executable can still operate its compatible pre-migration library; it
 does not gain permission to interpret newer records by sharing the product name.
 
+The fixed controller catalog-inspection tool is built with its matching Core CLI
+and pins API 80 for the unchanged inert publication report. Exact envelope, byte
+inventory and process-local receipt checks remain required; an imported report
+cannot establish inspection or publication authority.
+
 All database migrations and schema identifiers retain their meanings. Existing
 managed manifests and retained definitions remain authoritative for their own
 runtime/source/persistence behavior. Current catalog route changes do not turn

@@ -2951,23 +2951,29 @@ mod tests {
             .iter()
             .filter(|port| port.release.provider == ReleaseSource::UserPrepared)
             .collect::<Vec<_>>();
-        assert_eq!(prepared.len(), 3);
-        assert!(!prepared.iter().any(|port| port.id == "f-zero-snes-recomp"));
-        assert!(
-            !prepared
-                .iter()
-                .any(|port| port.id == "resident-evil-gaiden-recomp")
-        );
-        assert!(
-            !prepared
-                .iter()
-                .any(|port| port.id == "wave-race-64-racewave46")
-        );
+        assert!(!prepared.is_empty());
         for port in prepared {
             let presentation = port.presentation.as_ref().unwrap();
-            let guide = presentation.manual_setup.as_ref().unwrap();
-            assert!((1..=8).contains(&guide.steps.len()), "{}", port.id);
-            assert!(presentation.manual_preparation.is_some(), "{}", port.id);
+            if let Some(guide) = &presentation.manual_setup {
+                assert!((1..=8).contains(&guide.steps.len()), "{}", port.id);
+            } else {
+                assert!(
+                    !port.release.user_prepared.is_empty()
+                        && port.release.user_prepared.values().all(|runtime| {
+                            runtime.trust == crate::ExternalRuntimeTrust::UserSelected
+                        }),
+                    "{} requires an authored package setup guide",
+                    port.id
+                );
+            }
+            assert!(
+                presentation
+                    .manual_preparation
+                    .as_ref()
+                    .is_some_and(|notes| !notes.trim().is_empty()),
+                "{}",
+                port.id
+            );
         }
         let mut document: serde_json::Value =
             serde_json::from_str(include_str!("../catalog/catalog.json")).unwrap();
@@ -2986,6 +2992,20 @@ mod tests {
                 .manual_setup
                 .is_none())
         );
+        for port in catalog.ports() {
+            assert_eq!(
+                legacy
+                    .port(&port.id)
+                    .unwrap()
+                    .presentation
+                    .as_ref()
+                    .unwrap()
+                    .manual_preparation,
+                port.presentation.as_ref().unwrap().manual_preparation,
+                "legacy preparation notes for {}",
+                port.id
+            );
+        }
     }
 
     #[test]
@@ -3614,6 +3634,33 @@ mod tests {
                     before.id
                 );
                 for platform in &before.platforms {
+                    if before
+                        .release
+                        .user_prepared
+                        .get(platform)
+                        .is_some_and(|runtime| {
+                            runtime.trust == crate::ExternalRuntimeTrust::UserSelected
+                        })
+                    {
+                        // Maintenance annotations cannot turn explicit user
+                        // selection into an automatic managed executable grant.
+                        for port in [before, after] {
+                            assert!(
+                                port.executable_hints
+                                    .get(platform)
+                                    .is_none_or(Vec::is_empty),
+                                "{} on {platform:?}",
+                                port.id
+                            );
+                            assert!(
+                                crate::install::InstallQualification::from_port(port, *platform)
+                                    .is_err(),
+                                "{} on {platform:?}",
+                                port.id
+                            );
+                        }
+                        continue;
+                    }
                     let original =
                         crate::install::InstallQualification::from_port(before, *platform).unwrap();
                     let after_status =

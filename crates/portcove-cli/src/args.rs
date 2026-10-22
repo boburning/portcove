@@ -508,8 +508,11 @@ pub(crate) enum LaunchCommand {
 pub(crate) enum ExternalCommand {
     /// Review an executable you manage yourself, without claiming package authenticity.
     SelectPreview {
+        /// Catalog port ID offering user-selected executable registration.
         port_id: String,
+        /// Existing native game executable or supported native launcher to review.
         executable: PathBuf,
+        /// Existing working directory used when launching the selected executable.
         #[arg(long)]
         working_directory: PathBuf,
         /// One literal argument per occurrence; no shell command is interpreted.
@@ -518,14 +521,20 @@ pub(crate) enum ExternalCommand {
     },
     /// Register the explicitly reviewed executable; all external files stay user-owned.
     Select {
+        /// Catalog port ID from the preceding external select-preview review.
         port_id: String,
+        /// Exact native executable or launcher path shown in the preceding review.
         executable: PathBuf,
+        /// Exact working directory shown in the preceding executable review.
         #[arg(long)]
         working_directory: PathBuf,
+        /// One literal argument per occurrence, matching the reviewed launch details.
         #[arg(long = "arg", allow_hyphen_values = true)]
         arguments: Vec<String>,
+        /// Exact select-preview SHA-256; changed executable, directory or arguments refuse registration.
         #[arg(long)]
         expected_preview: String,
+        /// Confirm execution of the reviewed user-selected executable without prompting.
         #[arg(long)]
         yes: bool,
     },
