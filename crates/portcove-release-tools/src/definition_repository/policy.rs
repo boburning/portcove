@@ -161,6 +161,7 @@ pub(super) fn delegations(root: &Root, top: &Targets) -> Result<()> {
 }
 pub(super) fn ids(context: &Context, role: DefinitionOnlineRole) -> Result<Vec<u8>> {
     let id = match role {
+        DefinitionOnlineRole::Targets => &context.root.signed.roles[&RoleType::Targets].keyids[0],
         DefinitionOnlineRole::Snapshot => &context.root.signed.roles[&RoleType::Snapshot].keyids[0],
         DefinitionOnlineRole::Timestamp => {
             &context.root.signed.roles[&RoleType::Timestamp].keyids[0]

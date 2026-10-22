@@ -15,6 +15,8 @@ import { inspectPublicBuildManifest } from "./release-public-build-inputs.mts";
 import {
   initialRootProfileFields,
   type InitialRootProfile,
+  topLevelTargetsProfileFields,
+  type TopLevelTargetsProfile,
 } from "./release-initial-root-profile.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { reconstructApplicationUpdateRecords } from "./reconstruct-application-update-records.mts";
@@ -114,7 +116,15 @@ export function mergeReleaseRecordBytes(
 export function releaseSigningContextBytes(
   descriptor: Awaited<ReturnType<typeof inspectPreparedMetadataRenewal>>["descriptor"],
   profile: InitialRootProfile = "legacy-two-of-three-v1",
+  targetsProfile: TopLevelTargetsProfile = "offline-pinned-v1",
 ) {
+  if ((descriptor.schema_version === 2) !== (targetsProfile === "online-unchanged-authority-v1"))
+    throw new Error("release context Targets mode differs from prepared descriptor");
+  if (
+    targetsProfile === "online-unchanged-authority-v1" &&
+    profile !== "single-owner-one-of-one-v1"
+  )
+    throw new Error("online Targets requires explicit single-owner profile");
   const versions = Object.fromEntries(
     roles.map((role) => {
       const version = descriptor.next_versions[role];
@@ -126,6 +136,7 @@ export function releaseSigningContextBytes(
   const base = JSON.stringify({
     schema_version: 1,
     ...initialRootProfileFields(profile),
+    ...topLevelTargetsProfileFields(targetsProfile),
     generated_at: descriptor.generated_at,
     trusted_root: "trusted-root.json",
     offline_targets: "offline-targets.json",
@@ -431,7 +442,11 @@ export async function prepareReleaseSigningContext(
   source.set("records/reconstruction-manifest.json", manifest);
   source.set(
     "context.json",
-    releaseSigningContextBytes(prior.descriptor, prior.initial_root_profile),
+    releaseSigningContextBytes(
+      prior.descriptor,
+      prior.initial_root_profile,
+      prior.top_level_targets_profile,
+    ),
   );
   // The unchanged-renewal descriptor is not a description of this new release.
   source.delete("renewal.json");

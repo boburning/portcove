@@ -417,6 +417,228 @@ async fn prove_bootstrap(fixture: Ceremony) {
                 .unwrap();
         assert_eq!(role.signed.version.get(), 2);
         assert_eq!(role.signatures.len(), 1);
+        prove_online_targets(&fixture).await;
+    }
+}
+
+async fn prove_online_targets(fixture: &Ceremony) {
+    let mut previous = "assembled".to_owned();
+    let original_top = fs::read(fixture.root().join("assembled/metadata/1.targets.json")).unwrap();
+    let original_snapshot =
+        fs::read(fixture.root().join("assembled/metadata/1.snapshot.json")).unwrap();
+    for generation in 2..=3 {
+        let prepared = format!("online-{generation}");
+        let generated = fixture
+            .generated
+            .checked_add(Duration::from_secs(generation))
+            .unwrap();
+        let request = fixture.appointed(json!({"schema_version":1,
+            "top_level_targets_profile":"online-unchanged-authority-v1",
+            "generated_at":generated.to_string(),"trusted_root":"root-final.json",
+            "previous_repository":previous,"output":prepared}));
+        let preparation = fixture.config(&format!("{prepared}-request.json"), &request);
+        fixture.success("prepare-tuf-renewal", &preparation);
+        // Identical preparation is readback, not replacement of retained state.
+        fixture.success("prepare-tuf-renewal", &preparation);
+        let descriptor: serde_json::Value = serde_json::from_slice(
+            &fs::read(fixture.root().join(&prepared).join("renewal.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(descriptor["schema_version"], 2);
+        assert_eq!(
+            descriptor["next_versions"]["targets"],
+            generation.to_string()
+        );
+        let envelopes = format!("online-envelopes-{generation}");
+        fs::create_dir(fixture.root().join(&envelopes)).unwrap();
+        let context_path = format!("{prepared}/context.json");
+        let mut context: serde_json::Value =
+            serde_json::from_slice(&fs::read(fixture.root().join(&context_path)).unwrap()).unwrap();
+        let valid_context = context.clone();
+        let refuse_target = |label: &str| {
+            let config = fixture.config(
+                &format!("refused-{generation}-{label}.json"),
+                &json!({
+                "schema_version":1,"context":context_path,"signing_key":"missing-private.der",
+                "output":format!("refused-{generation}-{label}-output.json")}),
+            );
+            let result = fixture
+                .command()
+                .args(["sign-tuf-role", "targets"])
+                .arg(config)
+                .output()
+                .unwrap();
+            assert!(!result.status.success());
+            assert!(!String::from_utf8_lossy(&result.stderr).contains("single role key"));
+            assert!(
+                !fixture
+                    .root()
+                    .join(format!("refused-{generation}-{label}-output.json"))
+                    .exists()
+            );
+        };
+        context
+            .as_object_mut()
+            .unwrap()
+            .remove("top_level_targets_profile");
+        // Legacy may reject the changed version before the explicit mode check;
+        // either way no private key is read and no artifact is produced.
+        fixture.config(&context_path, &context);
+        refuse_target("implicit");
+        for (label, version, expiry) in [
+            (
+                "skipped",
+                generation + 1,
+                valid_context["expires"]["targets"].clone(),
+            ),
+            (
+                "rollback",
+                generation - 1,
+                valid_context["expires"]["targets"].clone(),
+            ),
+            (
+                "nonadvance",
+                generation,
+                descriptor["current_expires"]["targets"].clone(),
+            ),
+            ("beyond-root", generation, json!(fixture.future(366))),
+        ] {
+            context = valid_context.clone();
+            context["versions"]["targets"] = json!(version);
+            context["expires"]["targets"] = expiry;
+            fixture.config(&context_path, &context);
+            refuse_target(label);
+        }
+        context = valid_context.clone();
+        context["initial_root_profile"] = json!("legacy-two-of-three-v1");
+        fixture.config(&context_path, &context);
+        refuse_target("wrong-profile");
+        context = valid_context.clone();
+        context
+            .as_object_mut()
+            .unwrap()
+            .remove("previous_repository");
+        fixture.config(&context_path, &context);
+        refuse_target("missing-prior");
+        fixture.config(&context_path, &valid_context);
+        for (role, index) in [
+            ("targets", 3),
+            ("releases", 6),
+            ("preview", 7),
+            ("stable", 8),
+            ("snapshot", 4),
+            ("timestamp", 5),
+        ] {
+            // Snapshot/Timestamp inputs are immutable public artifacts. Each
+            // signer writes outside that input tree, then hands its output off.
+            let output = format!("online-role-{generation}-{role}.json");
+            let mut config = json!({"schema_version":1,"context":context_path,
+                "signing_key":fixture.keys[index].0,"output":output});
+            if ["snapshot", "timestamp"].contains(&role) {
+                config["signed_roles"] = json!(envelopes);
+            }
+            let config_path = fixture.config(&format!("online-{generation}-{role}.json"), &config);
+            let result = fixture
+                .command()
+                .args(["sign-tuf-role", role])
+                .arg(config_path)
+                .output()
+                .unwrap();
+            assert!(
+                result.status.success(),
+                "{}",
+                String::from_utf8_lossy(&result.stderr)
+            );
+            fs::copy(
+                fixture.root().join(&output),
+                fixture.root().join(&envelopes).join(format!("{role}.json")),
+            )
+            .unwrap();
+        }
+        // A genuinely signed changed authority must still refuse before the
+        // Snapshot signer reads its private key. Restore the exact good bytes.
+        let top_path = fixture.root().join(&envelopes).join("targets.json");
+        let exact_top = fs::read(&top_path).unwrap();
+        let mut changed: Signed<tough::schema::Targets> =
+            serde_json::from_slice(&exact_top).unwrap();
+        changed.signed.delegations.as_mut().unwrap().roles[0].terminating = false;
+        let root: Signed<Root> =
+            serde_json::from_slice(&fs::read(fixture.root().join("root-final.json")).unwrap())
+                .unwrap();
+        let changed = SignedRole::new(
+            changed.signed,
+            &KeyHolder::Root(root.signed),
+            &[fixture.keys[3].source()],
+            &SystemRandom::new(),
+        )
+        .await
+        .unwrap();
+        fs::write(&top_path, changed.buffer()).unwrap();
+        let refusal = fixture.config(
+            &format!("changed-authority-{generation}.json"),
+            &json!({"schema_version":1,
+            "context":context_path,"signed_roles":envelopes,"signing_key":"missing-private.der",
+            "output":format!("changed-authority-{generation}-output.json")}),
+        );
+        let result = fixture
+            .command()
+            .args(["sign-tuf-role", "snapshot"])
+            .arg(&refusal)
+            .output()
+            .unwrap();
+        assert!(!result.status.success());
+        assert!(!String::from_utf8_lossy(&result.stderr).contains("single role key"));
+        fs::write(&top_path, &exact_top).unwrap();
+        let output = format!("online-assembled-{generation}");
+        let assembly = fixture.config(
+            &format!("online-assembly-{generation}.json"),
+            &json!({"schema_version":1,
+            "context":context_path,"signed_roles":envelopes,"output":output}),
+        );
+        fixture.success("assemble-tuf", &assembly);
+        fixture.success("assemble-tuf", &assembly);
+        assert_eq!(
+            fs::read(fixture.root().join(&output).join("metadata/1.targets.json")).unwrap(),
+            original_top
+        );
+        assert_eq!(
+            fs::read(
+                fixture
+                    .root()
+                    .join(&output)
+                    .join("metadata/1.snapshot.json")
+            )
+            .unwrap(),
+            original_snapshot
+        );
+        if generation == 3 {
+            assert_eq!(
+                fs::read(fixture.root().join(&output).join("metadata/2.targets.json")).unwrap(),
+                fs::read(
+                    fixture
+                        .root()
+                        .join(&previous)
+                        .join("metadata/2.targets.json")
+                )
+                .unwrap()
+            );
+        }
+        let repository = RepositoryLoader::new(
+            &fs::read(fixture.root().join("root-final.json")).unwrap(),
+            Url::from_directory_path(fixture.root().join(&output).join("metadata")).unwrap(),
+            Url::from_directory_path(fixture.root().join(&output).join("targets")).unwrap(),
+        )
+        .load()
+        .await
+        .unwrap();
+        assert!(
+            repository
+                .read_target(&TargetName::new("keys/payload.json").unwrap())
+                .await
+                .unwrap()
+                .is_some()
+        );
+        previous = output;
     }
 }
 

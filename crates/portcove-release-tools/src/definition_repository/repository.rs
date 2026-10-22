@@ -201,6 +201,9 @@ pub(super) async fn inspect_prior(context: &Context, path: &Path) -> Result<File
     verify_history(context, &files)?;
     let top: Signed<Targets> = serde_json::from_slice(at(&roles, "targets.json")?)?;
     policy::top(&context.root.signed, &top, context.at)?;
+    if context.online_targets && at(&roles, "targets.json")? != &context.top_bytes {
+        return invalid("catalog online renewal base must equal actual current Targets bytes");
+    }
     if context.top.signed.version == top.signed.version
         && &context.top_bytes != at(&roles, "targets.json")?
     {
@@ -418,10 +421,20 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
         format!("metadata/{}.root.json", context.root.signed.version),
         context.root_bytes.clone(),
     );
-    files.insert(
-        format!("metadata/{}.targets.json", context.top.signed.version),
-        context.top_bytes.clone(),
-    );
+    let selected_top = signing::selected_top(&context, &roles)?;
+    let top_version = context
+        .next_top
+        .as_ref()
+        .unwrap_or(&context.top.signed)
+        .version;
+    let top_name = format!("metadata/{top_version}.targets.json");
+    if files
+        .get(&top_name)
+        .is_some_and(|old| old.as_slice() != selected_top)
+    {
+        return invalid("catalog immutable Targets history replacement");
+    }
+    files.insert(top_name, selected_top.to_vec());
     for role in [
         DefinitionOnlineRole::Definitions,
         DefinitionOnlineRole::Policy,
@@ -460,6 +473,7 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
     {
         return invalid("catalog retained public repository bound exceeded");
     }
+    verify_history(&context, &files)?;
     let logical = authenticate(&context.root_bytes, &files).await?;
     if logical != context.targets {
         return invalid("catalog full Tough readback differs from prepared bundle");
@@ -503,7 +517,7 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
     repository_report(
         &files,
         &context.root_bytes,
-        &context.top_bytes,
+        selected_top,
         &context.index_sha256,
         changed,
     )
@@ -648,7 +662,20 @@ fn verify_history(context: &Context, files: &Files) -> Result<()> {
             "targets.json" => {
                 let signed: Signed<Targets> = serde_json::from_slice(bytes)?;
                 context.root.signed.verify_role(&signed)?;
-                if signed.signed.version > context.top.signed.version
+                if context.online_targets {
+                    let ceiling = context
+                        .next_top
+                        .as_ref()
+                        .unwrap_or(&context.top.signed)
+                        .version;
+                    if signed.signed.version > ceiling {
+                        return invalid("catalog historical Targets exceeds current floor");
+                    }
+                    let mut body = signed.signed;
+                    body.version = context.top.signed.version;
+                    body.expires = context.top.signed.expires;
+                    signing::same(&body, &context.top.signed)?;
+                } else if signed.signed.version > context.top.signed.version
                     || !signed.signed.targets.is_empty()
                     || serde_json::to_value(&signed.signed.delegations)?
                         != serde_json::to_value(&context.top.signed.delegations)?
@@ -659,6 +686,26 @@ fn verify_history(context: &Context, files: &Files) -> Result<()> {
             "snapshot.json" => {
                 let signed: Signed<Snapshot> = serde_json::from_slice(bytes)?;
                 context.root.signed.verify_role(&signed)?;
+                if context.online_targets {
+                    if signed
+                        .signed
+                        .meta
+                        .keys()
+                        .map(String::as_str)
+                        .collect::<BTreeSet<_>>()
+                        != BTreeSet::from([
+                            "targets.json",
+                            "official-definitions.json",
+                            "official-policy.json",
+                        ])
+                    {
+                        return invalid("catalog historical Snapshot inventory differs");
+                    }
+                    for (role, identity) in signed.signed.meta {
+                        let bytes = at(files, &format!("metadata/{}.{}", identity.version, role))?;
+                        signing::same(&identity, &signing::meta(bytes, identity.version)?)?;
+                    }
+                }
             }
             "official-definitions.json" | "official-policy.json" => {
                 let signed: Signed<Targets> = serde_json::from_slice(bytes)?;

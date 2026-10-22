@@ -53,6 +53,7 @@ fn expected(bytes: &[u8], digest: &str) -> Result<()> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DefinitionOnlineRole {
+    Targets,
     Definitions,
     Policy,
     Snapshot,
@@ -61,15 +62,17 @@ pub enum DefinitionOnlineRole {
 impl DefinitionOnlineRole {
     pub fn parse(value: &str) -> Result<Self> {
         match value {
+            "targets" => Ok(Self::Targets),
             "official-definitions" => Ok(Self::Definitions),
             "official-policy" => Ok(Self::Policy),
             "snapshot" => Ok(Self::Snapshot),
             "timestamp" => Ok(Self::Timestamp),
-            _ => invalid("only four catalog online roles are supported"),
+            _ => invalid("unsupported separately authorized catalog role"),
         }
     }
     pub fn name(self) -> &'static str {
         match self {
+            Self::Targets => "targets",
             Self::Definitions => "official-definitions",
             Self::Policy => "official-policy",
             Self::Snapshot => "snapshot",
@@ -78,6 +81,7 @@ impl DefinitionOnlineRole {
     }
     fn index(self) -> usize {
         match self {
+            Self::Targets => 4,
             Self::Definitions => 0,
             Self::Policy => 1,
             Self::Snapshot => 2,
@@ -136,6 +140,8 @@ struct ContextConfig {
     schema_version: u32,
     #[serde(default)]
     initial_root_profile: InitialRootProfile,
+    #[serde(default)]
+    top_level_targets_profile: CatalogTargetsProfile,
     generated_at: String,
     trusted_root: String,
     trusted_root_sha256: String,
@@ -148,11 +154,20 @@ struct ContextConfig {
     versions: Four<u64>,
     expires: Four<String>,
 }
+#[derive(Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum CatalogTargetsProfile {
+    #[default]
+    OfflinePinnedV1,
+    OnlineUnchangedAuthorityV1,
+}
 struct Context {
     root_bytes: Vec<u8>,
     root: Signed<Root>,
     top_bytes: Vec<u8>,
     top: Signed<Targets>,
+    next_top: Option<Targets>,
+    online_targets: bool,
     targets: Files,
     index_sha256: String,
     versions: [NonZeroU64; 4],
@@ -166,6 +181,16 @@ struct Context {
 async fn load_context(path: &Path) -> Result<Context> {
     let config_raw = io::read(path, CONFIG_MAX)?;
     let config: ContextConfig = serde_json::from_slice(&config_raw)?;
+    let online_targets =
+        config.top_level_targets_profile == CatalogTargetsProfile::OnlineUnchangedAuthorityV1;
+    if online_targets
+        && (config.initial_root_profile != InitialRootProfile::SingleOwnerOneOfOneV1
+            || !config.previous_repository.is_string())
+    {
+        return invalid(
+            "catalog online Targets requires explicit single-owner profile and authenticated prior",
+        );
+    }
     let at = policy::generated(config.schema_version, &config.generated_at)?;
     let base = path.parent().unwrap_or(Path::new("."));
     let root_path = io::resolve(base, &config.trusted_root)?;
@@ -236,6 +261,8 @@ async fn load_context(path: &Path) -> Result<Context> {
         root,
         top_bytes,
         top,
+        next_top: None,
+        online_targets,
         targets,
         index_sha256,
         versions,
@@ -265,6 +292,21 @@ async fn load_context(path: &Path) -> Result<Context> {
         return invalid(
             "initial catalog publication requires explicit version one for every online role",
         );
+    }
+    if online_targets {
+        let mut next = context.top.signed.clone();
+        next.version = NonZeroU64::new(next.version.get().checked_add(1).ok_or_else(|| {
+            TufRepositoryError::Invalid("catalog Targets version exhausted".into())
+        })?)
+        .unwrap();
+        next.expires = at
+            .checked_add(Duration::from_secs(90 * 86400))
+            .map_err(|_| TufRepositoryError::Invalid("catalog Targets time overflow".into()))?
+            .min(context.root.signed.expires);
+        if next.expires <= context.top.signed.expires {
+            return invalid("catalog Targets cannot advance within unchanged Root expiry");
+        }
+        context.next_top = Some(next);
     }
     context.inputs = inputs;
     context.trees = trees;

@@ -66,6 +66,18 @@ void test("unknown initial Root profile refuses before any output or verifier in
   );
   assert.deepEqual(await readdir(f.output), []);
 });
+void test("unknown Targets mode and online mode without single-owner selection refuse before outputs", async (t) => {
+  const f = await fixture(t);
+  for (const mode of ["download-selected", "online-unchanged-authority-v1"])
+    await assert.rejects(
+      prepareAuthenticatedMetadataRenewal({
+        ...f.request,
+        top_level_targets_profile: mode as never,
+      }),
+      /Targets|single-owner/,
+    );
+  assert.deepEqual(await readdir(f.output), []);
+});
 void test("wrong actual tool or independently ratified root refuses before creating outputs", async (t) => {
   const f = await fixture(t);
   await assert.rejects(

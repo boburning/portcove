@@ -55,11 +55,15 @@ function expires(raw: unknown): Roles<string> {
   return Object.fromEntries(roles.map((role) => [role, raw[role]])) as Roles<string>;
 }
 export function inspectMetadataRenewalDescriptor(raw: unknown) {
-  exact(
-    raw,
-    "current_expires,current_versions,generated_at,kind,next_expires,next_versions,offline_targets_sha256,prior_repository_sha256,prior_snapshot_sha256,prior_timestamp_sha256,root_sha256,schema_version,unchanged_records_sha256",
-  );
-  if (raw.schema_version !== 1 || raw.kind !== "application-tuf-metadata-renewal")
+  const online = isRecord(raw) && raw.schema_version === 2;
+  const keys =
+    "current_expires,current_versions,generated_at,kind,next_expires,next_versions,offline_targets_sha256,prior_repository_sha256,prior_snapshot_sha256,prior_timestamp_sha256,root_sha256,schema_version,unchanged_records_sha256";
+  exact(raw, online ? `${keys},top_level_targets_profile`.split(",").sort().join(",") : keys);
+  if (
+    (!online && raw.schema_version !== 1) ||
+    raw.kind !== "application-tuf-metadata-renewal" ||
+    (online && raw.top_level_targets_profile !== "online-unchanged-authority-v1")
+  )
     throw new Error("unsupported metadata renewal contract");
   const generated = metadataInstant(raw.generated_at);
   for (const key of [
@@ -76,11 +80,11 @@ export function inspectMetadataRenewalDescriptor(raw: unknown) {
     beforeExpiry = expires(raw.current_expires),
     nextExpiry = expires(raw.next_expires);
   for (const role of roles) {
-    if (role === "targets") {
+    if (role === "targets" && !online) {
       if (current[role] !== next[role] || beforeExpiry[role] !== nextExpiry[role])
         throw new Error("metadata renewal cannot change offline targets");
     } else {
-      const days = role === "timestamp" ? 2 : role === "releases" ? 90 : 7;
+      const days = role === "timestamp" ? 2 : role === "releases" || role === "targets" ? 90 : 7;
       if (
         BigInt(next[role]) !== BigInt(current[role]) + 1n ||
         metadataInstant(nextExpiry[role]) <= metadataInstant(beforeExpiry[role]) ||
@@ -90,7 +94,8 @@ export function inspectMetadataRenewalDescriptor(raw: unknown) {
     }
   }
   return {
-    schema_version: 1 as const,
+    schema_version: online ? (2 as const) : (1 as const),
+    ...(online ? { top_level_targets_profile: "online-unchanged-authority-v1" as const } : {}),
     kind: "application-tuf-metadata-renewal" as const,
     generated_at: String(raw.generated_at),
     root_sha256: raw.root_sha256,
@@ -217,7 +222,10 @@ export function assertMetadataRenewalPublication(rawDescriptor: unknown, rawFact
   const facts = inspectTufPublicationFacts(rawFacts);
   if (
     facts.root_sha256 !== descriptor.root_sha256 ||
-    facts.offline_targets_sha256 !== descriptor.offline_targets_sha256 ||
+    (descriptor.schema_version === 1 &&
+      facts.offline_targets_sha256 !== descriptor.offline_targets_sha256) ||
+    (descriptor.schema_version === 2 &&
+      facts.offline_targets_sha256 === descriptor.offline_targets_sha256) ||
     facts.records_sha256 !== descriptor.unchanged_records_sha256 ||
     digest(facts.versions) !== digest(descriptor.next_versions) ||
     digest(facts.expires) !== digest(descriptor.next_expires)

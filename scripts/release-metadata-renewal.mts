@@ -13,6 +13,9 @@ import {
   inspectInitialRootProfile,
   initialRootProfileFields,
   type InitialRootProfile,
+  inspectTopLevelTargetsProfile,
+  topLevelTargetsProfileFields,
+  type TopLevelTargetsProfile,
 } from "./release-initial-root-profile.mts";
 
 const run = promisify(execFile);
@@ -23,6 +26,7 @@ type Identity = { path: string; bytes: number; sha256: string };
 type Descriptor = ReturnType<typeof inspectMetadataRenewalDescriptor>;
 interface BoundPreparation {
   initial_root_profile: InitialRootProfile;
+  top_level_targets_profile: TopLevelTargetsProfile;
   prepared_root: string;
   context: string;
   descriptor: Descriptor;
@@ -165,6 +169,7 @@ function validateOutput(
     root_sha256: string;
     prior_sha256: string;
     initial_root_profile: InitialRootProfile;
+    top_level_targets_profile: TopLevelTargetsProfile;
   },
 ) {
   const required = (name: string) => {
@@ -175,6 +180,11 @@ function validateOutput(
   const descriptor = inspectMetadataRenewalDescriptor(
     JSON.parse(required("renewal.json").toString("utf8")) as unknown,
   );
+  if (
+    (descriptor.schema_version === 2) !==
+    (expected.top_level_targets_profile === "online-unchanged-authority-v1")
+  )
+    throw new Error("prepared Targets renewal mode differs from appointed configuration");
   if (
     descriptor.generated_at !== expected.generated_at ||
     descriptor.root_sha256 !== expected.root_sha256 ||
@@ -197,6 +207,7 @@ function validateOutput(
       "trusted_root",
       "versions",
       ...Object.keys(initialRootProfileFields(expected.initial_root_profile)),
+      ...Object.keys(topLevelTargetsProfileFields(expected.top_level_targets_profile)),
     ]
       .sort()
       .join(","),
@@ -205,6 +216,8 @@ function validateOutput(
     context.schema_version !== "1" ||
     (expected.initial_root_profile === "single-owner-one-of-one-v1" &&
       context.initial_root_profile !== expected.initial_root_profile) ||
+    (expected.top_level_targets_profile === "online-unchanged-authority-v1" &&
+      context.top_level_targets_profile !== expected.top_level_targets_profile) ||
     context.generated_at !== descriptor.generated_at ||
     context.trusted_root !== "trusted-root.json" ||
     context.offline_targets !== "offline-targets.json" ||
@@ -240,6 +253,7 @@ function validateOutput(
  */
 export async function prepareAuthenticatedMetadataRenewal(request: {
   initial_root_profile?: InitialRootProfile;
+  top_level_targets_profile?: TopLevelTargetsProfile;
   verifier: string;
   verifier_sha256: string;
   trusted_root: string;
@@ -255,7 +269,15 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
     initial_root_profile: inspectInitialRootProfile(
       request.initial_root_profile ?? "legacy-two-of-three-v1",
     ),
+    top_level_targets_profile: inspectTopLevelTargetsProfile(
+      request.top_level_targets_profile ?? "offline-pinned-v1",
+    ),
   };
+  if (
+    selected.top_level_targets_profile === "online-unchanged-authority-v1" &&
+    selected.initial_root_profile !== "single-owner-one-of-one-v1"
+  )
+    throw new Error("online Targets requires explicit single-owner profile");
   const remaining = () => {
     const timeout =
       selected.deadline === undefined
@@ -308,6 +330,7 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
       JSON.stringify({
         schema_version: 1,
         ...initialRootProfileFields(selected.initial_root_profile),
+        ...topLevelTargetsProfileFields(selected.top_level_targets_profile),
         generated_at: selected.generated_at,
         trusted_root: "trusted-root.json",
         previous_repository: "prior",
@@ -342,6 +365,7 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
       fileIdentities = identities(files);
     const descriptor = validateOutput(files, {
       initial_root_profile: selected.initial_root_profile,
+      top_level_targets_profile: selected.top_level_targets_profile,
       generated_at: selected.generated_at,
       root_sha256: selected.trusted_root_sha256,
       prior_sha256: selected.prior_repository_sha256,
@@ -366,6 +390,7 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
       throw new Error("renewal inputs changed during actual verification");
     const inputManifest = digest({
       ...initialRootProfileFields(selected.initial_root_profile),
+      ...topLevelTargetsProfileFields(selected.top_level_targets_profile),
       generated_at: selected.generated_at,
       tool_sha256: selected.verifier_sha256,
       root_sha256: selected.trusted_root_sha256,
@@ -379,6 +404,7 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
     remaining();
     preparations.set(session, {
       initial_root_profile: selected.initial_root_profile,
+      top_level_targets_profile: selected.top_level_targets_profile,
       prepared_root: prepared,
       context: path.join(prepared, "context.json"),
       descriptor,

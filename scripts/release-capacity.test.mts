@@ -24,7 +24,72 @@ import {
   inspectMetadataBootstrapDescriptor,
   assertMetadataBootstrapBinding,
   assertMetadataBootstrapPublication,
+  assertMetadataRenewalPublication,
 } from "./release-metadata-contract.mts";
+
+void test("online Targets renewal explicitly binds a new generation while preserving the base identity", () => {
+  const fixture = metadataFixture();
+  const at = (days: number) =>
+    new Date(Date.parse(fixture.now) + days * 86400000).toISOString().replace(".000Z", "Z");
+  const raw = {
+    ...fixture.descriptor,
+    schema_version: 2,
+    top_level_targets_profile: "online-unchanged-authority-v1",
+    current_expires: { ...fixture.descriptor.current_expires, targets: at(60) },
+    next_expires: { ...fixture.descriptor.next_expires, targets: at(90) },
+    next_versions: { ...fixture.descriptor.next_versions, targets: "2" },
+  };
+  const descriptor = inspectMetadataRenewalDescriptor(raw);
+  assert.equal(descriptor.schema_version, 2);
+  const published = { ...fixture.published, expires: descriptor.current_expires };
+  assertMetadataRenewalBinding(descriptor, published, fixture.now);
+  const facts = {
+    schema_version: 1,
+    root_sha256: descriptor.root_sha256,
+    offline_targets_sha256: "a".repeat(64),
+    repository_sha256: "b".repeat(64),
+    snapshot_sha256: "c".repeat(64),
+    timestamp_sha256: "d".repeat(64),
+    records_sha256: descriptor.unchanged_records_sha256,
+    versions: descriptor.next_versions,
+    expires: descriptor.next_expires,
+  };
+  assertMetadataRenewalPublication(raw, facts);
+  assert.throws(() =>
+    assertMetadataRenewalPublication(raw, {
+      ...facts,
+      offline_targets_sha256: descriptor.offline_targets_sha256,
+    }),
+  );
+  for (const changed of [
+    { schema_version: 1 },
+    { top_level_targets_profile: "unscoped" },
+    { next_versions: { ...raw.next_versions, targets: "3" } },
+    { next_expires: { ...raw.next_expires, targets: at(91) } },
+    { next_expires: { ...raw.next_expires, targets: at(60) } },
+  ])
+    assert.throws(() => inspectMetadataRenewalDescriptor({ ...raw, ...changed }));
+  const { top_level_targets_profile: _mode, ...missing } = raw;
+  void _mode;
+  assert.throws(() => inspectMetadataRenewalDescriptor(missing));
+  // Existing held coordinator still rejects a changed Top authority baseline;
+  // this component cannot silently opt its production callers in.
+  const after = { ...published, ...facts, operation_id: "e".repeat(64) };
+  assert.throws(
+    () =>
+      validatePublishedMetadataTransition(
+        { active_candidate: null, published_metadata: published },
+        { active_candidate: null, published_metadata: after, metadata_renewal: descriptor },
+        {
+          id: after.operation_id,
+          outcome: "succeeded",
+          metadata_renewal: { descriptor_sha256: capacityDigest(descriptor) },
+          completed_effects: [published.publication],
+        },
+      ),
+    /offline anchors/,
+  );
+});
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import { isRecord } from "./runtime-values.mts";
 import { catalogPublicationFixture } from "./fixtures/release-catalog-publication-fixture.mts";

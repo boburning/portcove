@@ -8,6 +8,8 @@ struct RenewalConfig {
     schema_version: u32,
     #[serde(default)]
     initial_root_profile: InitialRootProfile,
+    #[serde(default)]
+    top_level_targets_profile: TargetsProfile,
     generated_at: String,
     trusted_root: String,
     previous_repository: String,
@@ -66,7 +68,10 @@ pub(super) fn authenticated_publication(
     Ok(PublicTufPublication {
         schema_version: 1,
         root_sha256: sha256(&context.root_bytes),
-        offline_targets_sha256: sha256(&context.top_bytes),
+        offline_targets_sha256: sha256(bytes_at(
+            files,
+            &format!("metadata/{}.targets.json", context.versions[0]),
+        )?),
         repository_sha256: sha256(&canonical_bytes(serde_json::to_value(identities(
             &public,
         ))?)?),
@@ -206,6 +211,11 @@ pub async fn prepare_tuf_renewal(config_path: &Path) -> Result<RenewalReport, Tu
     if config.schema_version != 1 {
         return invalid("unsupported renewal configuration schema");
     }
+    let online_targets =
+        config.top_level_targets_profile == TargetsProfile::OnlineUnchangedAuthorityV1;
+    if online_targets && config.initial_root_profile != InitialRootProfile::SingleOwnerOneOfOneV1 {
+        return invalid("online Targets requires explicit single-owner profile");
+    }
     let base = config_path.parent().unwrap_or_else(|| Path::new("."));
     let trusted = resolve(base, &config.trusted_root, "ratified root")?;
     let previous = resolve(base, &config.previous_repository, "published TUF component")?;
@@ -317,6 +327,22 @@ pub async fn prepare_tuf_renewal(config_path: &Path) -> Result<RenewalReport, Tu
     let generated = expiration(&config.generated_at, "frozen renewal generation time")?;
     let mut next_versions = versions;
     let mut next_expires = expires;
+    if online_targets {
+        next_versions[0] = nonzero(
+            versions[0]
+                .get()
+                .checked_add(1)
+                .ok_or_else(|| TufRepositoryError::Invalid("Targets version exhausted".into()))?,
+            "next Targets",
+        )?;
+        next_expires[0] = generated
+            .checked_add(Duration::from_secs(90 * 86400))
+            .map_err(|_| TufRepositoryError::Invalid("Targets renewal time overflow".into()))?
+            .min(root.signed.expires);
+        if next_expires[0] <= expires[0] {
+            return invalid("Targets renewal cannot advance within the unchanged Root expiry");
+        }
+    }
     for (index, days) in [(1, 7), (2, 2), (3, 90), (4, 7), (5, 7)] {
         next_versions[index] = nonzero(
             versions[index].get().checked_add(1).ok_or_else(|| {
@@ -364,6 +390,10 @@ pub async fn prepare_tuf_renewal(config_path: &Path) -> Result<RenewalReport, Tu
     if config.initial_root_profile == InitialRootProfile::SingleOwnerOneOfOneV1 {
         context["initial_root_profile"] = serde_json::to_value(config.initial_root_profile)?;
     }
+    if online_targets {
+        context["top_level_targets_profile"] =
+            serde_json::to_value(config.top_level_targets_profile)?;
+    }
     if !targets.contains_key("keys/payload.json") {
         return invalid("payload registry absent");
     }
@@ -381,7 +411,14 @@ pub async fn prepare_tuf_renewal(config_path: &Path) -> Result<RenewalReport, Tu
             sha256: sha256(bytes),
         })
         .collect();
-    let descriptor = serde_json::json!({"schema_version":1,"kind":"application-tuf-metadata-renewal","generated_at":generated.to_string(),"root_sha256":sha256(&root_bytes),"offline_targets_sha256":sha256(&top_bytes),"prior_repository_sha256":public_prior_digest,"prior_timestamp_sha256":timestamp_sha,"prior_snapshot_sha256":snapshot_sha,"current_versions":string_versions(&versions),"next_versions":string_versions(&next_versions),"current_expires":expiry_values(&expires),"next_expires":expiry_values(&next_expires),"unchanged_records_sha256":sha256(&canonical_bytes(serde_json::to_value(&record_identities)?)?)});
+    let mut descriptor = serde_json::json!({"schema_version":1,"kind":"application-tuf-metadata-renewal","generated_at":generated.to_string(),"root_sha256":sha256(&root_bytes),"offline_targets_sha256":sha256(&top_bytes),"prior_repository_sha256":public_prior_digest,"prior_timestamp_sha256":timestamp_sha,"prior_snapshot_sha256":snapshot_sha,"current_versions":string_versions(&versions),"next_versions":string_versions(&next_versions),"current_expires":expiry_values(&expires),"next_expires":expiry_values(&next_expires),"unchanged_records_sha256":sha256(&canonical_bytes(serde_json::to_value(&record_identities)?)?)});
+    if online_targets {
+        // The old contract pins Targets bytes forever. Never present renewal
+        // of those bytes as an ordinary schema-1 maintenance opportunity.
+        descriptor["schema_version"] = serde_json::json!(2);
+        descriptor["top_level_targets_profile"] =
+            serde_json::to_value(config.top_level_targets_profile)?;
+    }
     prior.insert(
         "repository-manifest.json".into(),
         manifest_bytes(&prior, record_count)?,
