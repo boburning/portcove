@@ -23,6 +23,8 @@ pub struct LibraryMetadata {
     pub application_versions: Vec<InstallRecord>,
     pub port_settings: Vec<LibraryPortSettings>,
     pub launch_history: Vec<LibraryLaunchHistory>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub retained_build_references: Vec<crate::RetainedBuildReference>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artwork: Option<crate::ArtworkMetadata>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -122,6 +124,11 @@ impl Library {
         }
         let port_settings = read_settings(&transaction)?;
         let launch_history = read_launch_history(&transaction)?;
+        let mut retained_build_references = crate::retained_build::references_from(&transaction)?;
+        for reference in &mut retained_build_references {
+            reference.build.selected_executable =
+                PathBuf::from(portable_relative(&reference.build.selected_executable)?);
+        }
         let artwork = crate::artwork_store::snapshot(&transaction)?;
         transaction.commit()?;
         let mut metadata = LibraryMetadata {
@@ -146,6 +153,7 @@ impl Library {
             application_versions,
             port_settings,
             launch_history,
+            retained_build_references,
             artwork: Some(artwork),
             portability_authority: None,
         };
@@ -345,6 +353,13 @@ mod tests {
             !String::from_utf8_lossy(&bytes).contains("synthetic source content is never exported")
         );
         let parsed: LibraryMetadata = serde_json::from_slice(&bytes).unwrap();
+        assert!(parsed.retained_build_references.is_empty());
+        assert!(
+            serde_json::to_value(&parsed)
+                .unwrap()
+                .get("retained_build_references")
+                .is_none()
+        );
         assert_eq!(
             serde_json::to_value(&parsed.source_references).unwrap(),
             serde_json::to_value(&before).unwrap()
@@ -362,6 +377,7 @@ mod tests {
             serde_json::json!({"ignored": true});
         let legacy: LibraryMetadata = serde_json::from_value(legacy_value).unwrap();
         assert!(legacy.source_references[0].observed_identity.is_none());
+        assert!(legacy.retained_build_references.is_empty());
         assert!(service.write_library_metadata(&destination).is_err());
         assert_eq!(fs::read(destination).unwrap(), bytes);
         assert_eq!(fs::read(source).unwrap(), source_bytes);

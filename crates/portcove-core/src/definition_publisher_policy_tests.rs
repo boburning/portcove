@@ -3243,6 +3243,60 @@ async fn curated_installer_fixture(cache_controls: bool, artifact_status: Option
     curated_installer_boundary_fixture(cache_controls, artifact_status, None, None).await;
 }
 
+async fn apply_curated_launch_baseline(
+    fixture: &RepositoryFixture,
+    key: &Key,
+    root: &[u8],
+    library: &Library,
+    catalog: &Catalog,
+    assessment_revision: u64,
+    metadata_version: u64,
+) {
+    let scope = policy::acquisition_scope(library, catalog, ID)
+        .unwrap()
+        .unwrap();
+    let baseline =
+        launch_assessments::assessment_document(&scope.policy_sha256, assessment_revision, vec![]);
+    // Preserve the exact admitted schema-4 grant when publishing its signed
+    // launch baseline; a reconstructed generic grant would change its identity.
+    let exact_policy: String = library
+        .connection()
+        .unwrap()
+        .query_row(
+            "SELECT policy_json FROM definition_publisher_admission WHERE stable_id=?1",
+            [ID],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let bundle = crate::test_fixture::indexed_catalog_bundle_at_revision(
+        catalog,
+        ID,
+        catalog
+            .definition_selection(ID)
+            .unwrap()
+            .definition_revision,
+    );
+    let mut targets = vec![(INDEX_TARGET.to_owned(), bundle.index)];
+    targets.extend(bundle.contents);
+    targets.push((
+        format!("policy/official/{ID}.json"),
+        exact_policy.into_bytes(),
+    ));
+    let accepted = launch_assessments::publish_assessment_for_targets(
+        fixture,
+        key,
+        root,
+        targets,
+        metadata_version,
+        &baseline,
+    )
+    .await
+    .unwrap();
+    library
+        .apply_definition_launch_assessment(&accepted)
+        .unwrap();
+}
+
 #[derive(Clone, Copy)]
 enum CuratedInstallRefusal {
     StaleResolution,
@@ -3624,6 +3678,54 @@ async fn curated_installer_boundary_fixture(
                     .join("curated-v1")
                     .join(format!("{}.asset", record.sha256));
                 assert_eq!(fs::read(&cached).unwrap(), bytes);
+                let before_references = server.requests.lock().unwrap().len();
+                phase("installed reference launch baseline begin");
+                apply_curated_launch_baseline(&fixture, &key, &root, &library, &catalog, 1, 2)
+                    .await;
+                let service = crate::PortcoveService::new(library.clone()).unwrap();
+                let setup_id = "retained-before-transition";
+                let preview = service
+                    .preview_retained_build_binding(ID, setup_id, &installed.id)
+                    .unwrap();
+                let authorization = service
+                    .authorize_retained_build_binding(
+                        ID,
+                        setup_id,
+                        &installed.id,
+                        &preview.preview_sha256,
+                    )
+                    .unwrap();
+                let reference = service
+                    .bind_retained_build(ID, setup_id, &installed.id, &authorization.token)
+                    .unwrap();
+                assert_eq!(reference.build.install_id, installed.id);
+                assert_eq!(reference.build.artifact, installed.artifact);
+                let initial = service.resolve_retained_build(ID, setup_id).unwrap();
+                assert_eq!(initial.reference, reference);
+                assert_eq!(
+                    initial.availability,
+                    crate::RetainedBuildAvailability::Verified
+                );
+                assert_eq!(initial.install.unwrap().id, installed.id);
+                assert!(initial.gap.is_none());
+                assert_eq!(count(&library, "retained_build_references"), 1);
+
+                // A later hold must be checked again when an already reviewed
+                // binding executes, as well as when a new review is requested.
+                let pending_setup_id = "reviewed-before-transition";
+                let pending_preview = service
+                    .preview_retained_build_binding(ID, pending_setup_id, &installed.id)
+                    .unwrap();
+                let pending_authorization = service
+                    .authorize_retained_build_binding(
+                        ID,
+                        pending_setup_id,
+                        &installed.id,
+                        &pending_preview.preview_sha256,
+                    )
+                    .unwrap();
+                drop(service);
+                assert_eq!(server.requests.lock().unwrap().len(), before_references);
                 let transitions = serde_json::json!({"future_acceptance_lost":false, "artifacts":[
                     {"asset_id":record.asset_id,"sha256":record.sha256,"status":status}]});
                 phase("installed transition publication begin");
@@ -3632,7 +3734,7 @@ async fn curated_installer_boundary_fixture(
                     &key,
                     &root,
                     &catalog,
-                    2,
+                    3,
                     Some(transitions),
                 )
                 .await;
@@ -3657,6 +3759,73 @@ async fn curated_installer_boundary_fixture(
                     .unwrap();
                 library.select_definition_candidate(eligible).unwrap();
                 let (current_catalog, _) = library.load_catalog().unwrap();
+                // Bind the baseline to the new policy so withdrawal's retained
+                // use is not mistaken for a missing or stale launch-check hold.
+                apply_curated_launch_baseline(
+                    &fixture,
+                    &key,
+                    &root,
+                    &library,
+                    &current_catalog,
+                    2,
+                    4,
+                )
+                .await;
+                let reopened = crate::PortcoveService::new(library.clone()).unwrap();
+                let retained = reopened.resolve_retained_build(ID, setup_id).unwrap();
+                assert_eq!(retained.reference, reference);
+                if status == "revoked" {
+                    assert_eq!(
+                        retained.availability,
+                        crate::RetainedBuildAvailability::Held
+                    );
+                    assert!(retained.install.is_none());
+                    let gap = retained.gap.unwrap();
+                    assert_eq!(gap.code, crate::ErrorCode::Conflict);
+                    assert!(gap.message.contains("revoked"));
+                    assert_eq!(gap.details.get("sha256"), Some(&record.sha256));
+                    let refused = reopened
+                        .preview_retained_build_binding(ID, pending_setup_id, &installed.id)
+                        .unwrap_err();
+                    assert_eq!(refused.code, crate::ErrorCode::Conflict);
+                    assert!(refused.message.contains("revoked"));
+                    let refused = reopened
+                        .bind_retained_build(
+                            ID,
+                            pending_setup_id,
+                            &installed.id,
+                            &pending_authorization.token,
+                        )
+                        .unwrap_err();
+                    assert_eq!(refused.code, crate::ErrorCode::Conflict);
+                    assert!(refused.message.contains("revoked"));
+                    assert_eq!(refused.details.get("sha256"), Some(&record.sha256));
+                } else {
+                    assert_eq!(
+                        retained.availability,
+                        crate::RetainedBuildAvailability::Verified
+                    );
+                    assert_eq!(retained.install.unwrap().id, installed.id);
+                    assert!(retained.gap.is_none());
+                    let preview = reopened
+                        .preview_retained_build_binding(ID, pending_setup_id, &installed.id)
+                        .unwrap();
+                    assert_eq!(preview.build, reference.build);
+                }
+                assert_eq!(count(&library, "retained_build_references"), 1);
+                assert_eq!(
+                    reopened
+                        .resolve_retained_build(ID, pending_setup_id)
+                        .unwrap_err()
+                        .code,
+                    crate::ErrorCode::NotFound
+                );
+                assert_eq!(
+                    crate::library_transfer::reviewed_tree(&installed.path).unwrap(),
+                    original_tree
+                );
+                assert_eq!(fs::read(&cached).unwrap(), bytes);
+                assert_eq!(server.requests.lock().unwrap().len(), before_references);
                 let mut current_scope = policy::acquisition_scope(&library, &current_catalog, ID)
                     .unwrap()
                     .unwrap();
@@ -3696,6 +3865,27 @@ async fn curated_installer_boundary_fixture(
                     "distribution"
                 }));
                 assert!(!destination.exists());
+                // Releasing a held reference is an explicit metadata-only action;
+                // it must remain available without deleting the installed bytes.
+                let removal = reopened
+                    .preview_retained_build_removal(ID, setup_id)
+                    .unwrap();
+                assert_eq!(removal.reference, reference);
+                let authorization = reopened
+                    .authorize_retained_build_removal(ID, setup_id, &removal.preview_sha256)
+                    .unwrap();
+                let removed = reopened
+                    .remove_retained_build_reference(ID, setup_id, &authorization.token)
+                    .unwrap();
+                assert_eq!(removed, reference);
+                assert_eq!(count(&library, "retained_build_references"), 0);
+                assert_eq!(
+                    reopened
+                        .resolve_retained_build(ID, setup_id)
+                        .unwrap_err()
+                        .code,
+                    crate::ErrorCode::NotFound
+                );
                 assert!(installer.verify(&installed).unwrap().valid);
                 assert_eq!(
                     crate::library_transfer::reviewed_tree(&installed.path).unwrap(),

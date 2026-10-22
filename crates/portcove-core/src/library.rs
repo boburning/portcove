@@ -1832,6 +1832,7 @@ impl Library {
         install: &InstallRecord,
         staged: bool,
     ) -> Result<()> {
+        crate::retained_build::require_unchanged_install(connection, install)?;
         let path = crate::path::unicode(&install.path, "install")?;
         let selected_executable =
             crate::path::unicode(&install.selected_executable, "selected executable")?;
@@ -1916,10 +1917,14 @@ impl Library {
     }
 
     pub(crate) fn update_install_manifest(&self, install: &InstallRecord) -> Result<()> {
+        let mut connection = self.connection()?;
+        let transaction =
+            connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        crate::retained_build::require_unchanged_install(&transaction, install)?;
         let path = crate::path::unicode(&install.path, "install")?;
         let selected_executable =
             crate::path::unicode(&install.selected_executable, "selected executable")?;
-        let changed = self.connection()?.execute(
+        let changed = transaction.execute(
             "UPDATE installs SET
                verified=?1, manifest_sha256=?2, selected_executable=?3, runtime_json=?4
              WHERE id=?5 AND port_id=?6 AND path=?7 AND artifact_sha256=?8",
@@ -1944,6 +1949,7 @@ impl Library {
             )
             .detail("install_id", &install.id));
         }
+        transaction.commit()?;
         Ok(())
     }
 
@@ -2656,6 +2662,7 @@ impl Library {
     pub fn remove_port(&self, port_id: &str) -> Result<Vec<PathBuf>> {
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
+        crate::retained_build::require_no_references(&transaction, port_id)?;
         let paths = {
             let mut statement =
                 transaction.prepare("SELECT path FROM installs WHERE port_id=?1")?;

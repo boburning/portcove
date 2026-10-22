@@ -15,6 +15,7 @@ for current integration development. A local candidate is not a public release.
 | Choose the library and inspect its identity         | [Library selection](#library-selection) and [identity](#library-identity)                                                                                     |
 | Inspect, find or relink original files              | [Game-file tasks](#find-and-relink-game-files)                                                                                                                |
 | Check releases, manage updates and inspect outcomes | [Automation and game management](#idempotent-automation)                                                                                                      |
+| Keep an exact local build for a stable setup        | [Retained builds and setup references](#retained-builds-and-setup-references)                                                                                 |
 | Export metadata and restore copied library content  | [Export and restore](#export-and-restore-a-library)                                                                                                           |
 | Move a library or recover a transfer                | [Move](#move-a-library) and [interrupted transfers](#recover-an-interrupted-transfer)                                                                         |
 | Request cancellation and establish the outcome      | [Cancel work safely](#cancel-work-safely)                                                                                                                     |
@@ -1176,6 +1177,96 @@ they do not install or update game files. Definition refresh keeps policy and
 launch-assessment changes separate from selection and eligibility.
 
 Local-file review does not write library domain state. Explicit HTTPS delivery is anonymous, bounded to 4 MiB and 20 seconds, and rejects redirects, userinfo, fragments, and non-HTTPS URLs. Catalog application supports cross-process cancellation and CLI Ctrl-C/SIGTERM until publication admission; SQLite activation, replay advancement, and the terminal activity outcome commit together. A service command uses the catalog snapshot it opened with; subsequent commands see the new selection. See [SIGNED-CATALOG.md](SIGNED-CATALOG.md) for the exact signing contract and offline publisher utility.
+
+## Retained builds and setup references
+
+A setup reference protects one already accepted local managed build from cleanup.
+Use a stable `SETUP_ID` supplied by the consuming setup or profile; it is separate
+from a display name, game-file profile, installation path, and the currently
+active build. This interface supplies the retention component for later profile
+management. It does not create mod profiles or select a launch target.
+
+Inspect the local inventory and resolve an existing reference:
+
+```text
+portcove --library PATH --json installation retained PORT_ID
+portcove --library PATH --json installation reference PORT_ID SETUP_ID
+```
+
+`installation.retained` returns `RetainedBuildInventory`: registered local build
+records, active/previous flags, setup IDs in `retained_by`, and current resolutions
+of saved references. `installation.reference` returns `RetainedBuildResolution`.
+The saved identity binds the exact install and port IDs, artifact, immutable
+manifest, selected executable, installed contract, target platform, and any
+separately recorded runtime and definition selection. Version labels cannot
+substitute for those identities.
+
+Availability is `verified`, `missing`, `changed`, `held`, or `unavailable`. A
+resolution keeps the saved reference and reports its precise `gap` even when its
+bytes are missing or current policy prevents use. `verified` describes the local
+verification observation; ordinary launch and preparation still apply their
+current checks. Neither inventory nor resolution downloads a replacement or
+substitutes the current active build. Local retention makes no promise that an
+upstream server still offers the release or that it can be downloaded again.
+
+### Review and bind a retained build
+
+Select the exact `INSTALL_ID` from the inventory and review the complete binding:
+
+```text
+portcove --library PATH --json installation reference-plan PORT_ID SETUP_ID INSTALL_ID
+portcove --library PATH --json installation reference-bind PORT_ID SETUP_ID INSTALL_ID --expected-preview SHA256 --yes
+```
+
+`installation.reference-plan` returns `RetainedBuildBindingPreview`, including the
+verified build identity, any previous reference for this setup, and
+`preview_sha256`. Pass that complete fingerprint as `--expected-preview` only
+after reviewing the proposed change. `--yes` confirms the action; it does not
+replace the fingerprint. Without `--yes`, the human CLI asks for confirmation;
+`--non-interactive` refuses an unconfirmed change.
+
+Binding issues and consumes Core's existing one-use authorization within the same
+process. Core rechecks the exact inputs and previous reference under the port
+lock, then publishes the reference atomically. A stale review requires a new
+plan. Each binding advances the saved reference revision, so restoring a prior
+build does not revive an older review. Rebinding a setup changes only its own
+reference. The default installation
+can advance independently while another setup keeps its exact build protected.
+Binding does not activate a build, change source ownership, or copy saved data.
+
+### Review and remove a setup reference
+
+```text
+portcove --library PATH --json installation reference-removal-plan PORT_ID SETUP_ID
+portcove --library PATH --json installation reference-remove PORT_ID SETUP_ID --expected-preview SHA256 --yes
+```
+
+`installation.reference-removal-plan` returns `RetainedBuildRemovalPreview`, which
+binds the complete saved reference and `preview_sha256`. Removal requires the
+same fingerprint and confirmation rules as binding. The success result is the
+removed `RetainedBuildReference` snapshot. Removal releases this setup's cleanup
+protection; it does not delete build files or player data. Other references,
+active sessions, active selection, and unfinished lifecycle work retain their
+existing protections. Missing or held build bytes do not erase the reference or
+prevent its explicit removal when the operation's locking and lifecycle checks
+permit it.
+
+The four inspection/review commands use read-only Core startup and do not advance
+pending recovery. Binding and removal use ordinary recovering startup and accept
+CLI cancellation signals before durable publication. After interruption or lost
+output, read `installation reference` or `installation retained` to establish
+the saved outcome before obtaining another review; do not assume an interrupted
+caller means the reference change was rolled back.
+
+JSON command names are `installation.retained`, `installation.reference`,
+`installation.reference-plan`, `installation.reference-bind`,
+`installation.reference-removal-plan`, and `installation.reference-remove`.
+Each command also supports JSONL's terminal result envelope. `schema export`
+includes `retained_build_inventory`, `retained_build_reference`,
+`retained_build_resolution`, `retained_build_binding_preview`, and
+`retained_build_removal_preview` in both input and output directions. Check the
+selected CLI's capabilities and schemas before using this maintained-source
+contract with a released binary.
 
 ## Reviewed first installation
 

@@ -392,6 +392,10 @@ impl Adapter for StandardAdapter {
             ));
         }
         let executable = selected_executable.to_path_buf();
+        let working_directory = launch_working_directory(self.0, port, install_root, &executable)?;
+        let retained_setup_is_current = self.0 == AdapterKind::UpstreamManagedSetup
+            && !crate::preparation::managed(port)
+            && retain_completed_upstream_setup(request, &working_directory, checkpoint)?;
         if self.0 == AdapterKind::PsxRecompManaged {
             managed_psx_bios(library, port, install_root, checkpoint)?;
         }
@@ -405,7 +409,6 @@ impl Adapter for StandardAdapter {
         if self.0 == AdapterKind::GeneratedCache {
             std::fs::create_dir_all(user_data.join("cache"))?;
         }
-        let working_directory = launch_working_directory(self.0, port, install_root, &executable)?;
         if self.0 == AdapterKind::ReferencedDisc {
             let descriptor = serde_json::json!({
                 "version": 1,
@@ -423,6 +426,7 @@ impl Adapter for StandardAdapter {
         let immutable_managed_psx_source = self.0 == AdapterKind::PsxRecompManaged
             && port.runtime_source_materialization == Some(RuntimeSourceMaterialization::PsxRawSet);
         if !immutable_managed_psx_source
+            && !retained_setup_is_current
             && !crate::preparation::managed(port)
             && let (Some(source), Some(filename)) = (source, &port.runtime_source_filename)
         {
@@ -478,7 +482,10 @@ impl Adapter for StandardAdapter {
                 prepare_managed_psx_runtime_config(&working_directory, &discs)
             })
             .transpose()?;
-        if self.0 == AdapterKind::UpstreamManagedSetup && !crate::preparation::managed(port) {
+        if self.0 == AdapterKind::UpstreamManagedSetup
+            && !retained_setup_is_current
+            && !crate::preparation::managed(port)
+        {
             let source_path = port
                 .runtime_source_filename
                 .as_ref()
@@ -1346,6 +1353,124 @@ struct UpstreamSetupMetadata {
     source_size: u64,
     #[serde(default)]
     manifest_sha256: String,
+}
+
+/// A referenced legacy setup may launch its completed bytes, but cannot enter
+/// preparation. Check before any adapter writes, then skip both materialization
+/// and setup so a later source change cannot turn this observation into a write.
+fn retain_completed_upstream_setup(
+    request: LaunchSpecRequest<'_>,
+    working_directory: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<bool> {
+    let canonical_root = std::fs::canonicalize(request.install_root)?;
+    let connection = request.library.connection()?;
+    let mut retained = None;
+    for install in request
+        .library
+        .all_installs()?
+        .into_iter()
+        .filter(|install| {
+            install.port_id == request.port.id
+                && (install.path == request.install_root
+                    || std::fs::canonicalize(&install.path)
+                        .is_ok_and(|path| path == canonical_root))
+        })
+    {
+        match crate::retained_build::require_unreferenced_install(&connection, &install.id) {
+            Ok(()) => {}
+            Err(error) if error.code == crate::ErrorCode::Conflict => {
+                if retained.is_some() {
+                    return Err(PortcoveError::verification(
+                        "legacy setup has multiple retained installation identities",
+                    ));
+                }
+                retained = Some((install, error));
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    let Some((install, held)) = retained else {
+        return Ok(false);
+    };
+    let identity = crate::install::retained_build_identity_for_install(&install)?;
+    if !install.verified
+        || identity.platform != request.platform
+        || std::fs::canonicalize(install.path.join(&install.selected_executable))?
+            != std::fs::canonicalize(request.selected_executable)?
+        || crate::retained_build::references_from(&connection)?
+            .iter()
+            .filter(|reference| reference.build.install_id == install.id)
+            .any(|reference| reference.build != identity)
+    {
+        return Err(PortcoveError::verification(
+            "legacy setup differs from its retained build identity",
+        ));
+    }
+    if !completed_upstream_setup_matches(request, &install, working_directory, checkpoint)? {
+        return Err(held);
+    }
+    Ok(true)
+}
+
+fn completed_upstream_setup_matches(
+    request: LaunchSpecRequest<'_>,
+    install: &crate::InstallRecord,
+    working_directory: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<bool> {
+    let Some(filename) = request.port.runtime_source_filename.as_ref() else {
+        return Ok(false);
+    };
+    let destination = working_directory.join(filename);
+    if !destination.is_file()
+        || request
+            .port
+            .setup_marker
+            .as_ref()
+            .is_none_or(|marker| !working_directory.join(marker).is_file())
+    {
+        return Ok(false);
+    }
+    // Removing a source registration leaves the completed materialized setup
+    // usable. A selected replacement must still match its preparation receipt.
+    if let Some(source) = request.source {
+        if request
+            .source_record
+            .is_some_and(|record| record.path != source)
+        {
+            return Ok(false);
+        }
+        let materialization = request
+            .port
+            .runtime_source_materialization
+            .unwrap_or(RuntimeSourceMaterialization::N64BigEndian);
+        let expected = runtime_source_marker(source, None, materialization, checkpoint)?;
+        let marker = crate::path::read_bounded_regular(
+            &runtime_source_marker_path(&destination)?,
+            16 * 1024,
+        )
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<RuntimeSourceMarker>(&bytes).ok());
+        if marker.as_ref() != Some(&expected) {
+            return Ok(false);
+        }
+    }
+    let metadata = crate::path::read_bounded_regular(
+        &working_directory.join(UPSTREAM_SETUP_METADATA),
+        16 * 1024,
+    )
+    .ok()
+    .and_then(|bytes| serde_json::from_slice::<UpstreamSetupMetadata>(&bytes).ok());
+    let Some(metadata) = metadata.filter(|metadata| {
+        metadata.schema_version == 1
+            && metadata.manifest_sha256 == install.manifest_sha256
+            && metadata.source_size > 0
+    }) else {
+        return Ok(false);
+    };
+    let (sha256, size) = hash_file_with_checkpoint(&destination, checkpoint)?;
+    Ok(metadata.source_sha256 == sha256 && metadata.source_size == size)
 }
 
 fn run_upstream_setup(
@@ -3339,6 +3464,177 @@ mod tests {
         bind_upstream_setup_manifest(temporary.path(), &manifest).unwrap();
         assert!(!upstream_setup_manifest_needs_refresh(temporary.path(), &manifest).unwrap());
         assert!(upstream_setup_manifest_needs_refresh(temporary.path(), &"3".repeat(64)).unwrap());
+    }
+
+    fn retained_legacy_setup_fixture() -> (
+        tempfile::TempDir,
+        Library,
+        PortDefinition,
+        crate::InstallRecord,
+        SourceRecord,
+    ) {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let platform = Platform::current().unwrap();
+        let mut port = Catalog::embedded()
+            .unwrap()
+            .port("opengoal-jak1")
+            .unwrap()
+            .clone();
+        port.setup_output_paths.clear();
+        port.portable_marker = true;
+        assert!(!crate::preparation::managed(&port));
+        let root = library.versions_dir().join(&port.id).join("retained-setup");
+        std::fs::create_dir_all(&root).unwrap();
+        for relative in [
+            &port.executable_hints[&platform][0],
+            &port.setup_executable_hints[&platform][0],
+        ] {
+            let executable = root.join(relative);
+            std::fs::create_dir_all(executable.parent().unwrap()).unwrap();
+            std::fs::write(
+                &executable,
+                b"inert fixture executable: never a native program",
+            )
+            .unwrap();
+            crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
+        }
+        let source = temporary.path().join("original.iso");
+        std::fs::write(&source, b"accepted synthetic disc").unwrap();
+        let destination = root.join(port.runtime_source_filename.as_ref().unwrap());
+        prepare_runtime_source(
+            &source,
+            &destination,
+            RuntimeSourceMaterialization::Ps2Iso,
+            &BTreeMap::new(),
+            &|| Ok(()),
+        )
+        .unwrap();
+        let marker = root.join(port.setup_marker.as_ref().unwrap());
+        std::fs::create_dir_all(marker.parent().unwrap()).unwrap();
+        std::fs::write(&marker, b"accepted generated setup output").unwrap();
+        std::fs::write(root.join("portable.txt"), b"").unwrap();
+        std::fs::create_dir_all(library.user_dir(&port.id)).unwrap();
+        let artifact = crate::ArtifactIdentity {
+            asset_name: "owned-fixture.zip".into(),
+            sha256: hex::encode(Sha256::digest(b"owned fixture artifact")),
+            size: 22,
+        };
+        let qualification = crate::test_fixture::retained_qualification(&port, platform).unwrap();
+        let installer = crate::Installer::new(library.clone()).unwrap();
+        let (_, selected_executable, runtime) = installer
+            .create_manifest(
+                "retained-setup",
+                &port.id,
+                "fixture",
+                &artifact,
+                &qualification,
+                &root,
+            )
+            .unwrap();
+        // Historical setup metadata must remain outside its own manifest hash.
+        // Capture that accepted exclusion before registering or retaining bytes.
+        let manifest_path = root.join(".portcove-manifest.json");
+        let mut manifest: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&manifest_path).unwrap()).unwrap();
+        manifest["mutable_paths"]
+            .as_array_mut()
+            .unwrap()
+            .push(UPSTREAM_SETUP_METADATA.into());
+        let manifest_bytes = serde_json::to_vec_pretty(&manifest).unwrap();
+        std::fs::write(&manifest_path, &manifest_bytes).unwrap();
+        let manifest_sha256 = hex::encode(Sha256::digest(&manifest_bytes));
+        record_prepared_setup(&root, &destination).unwrap();
+        bind_upstream_setup_manifest(&root, &manifest_sha256).unwrap();
+        let install = crate::InstallRecord {
+            id: "retained-setup".into(),
+            port_id: port.id.clone(),
+            version: "fixture".into(),
+            path: root,
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: false,
+            artifact,
+            runtime,
+            manifest_sha256,
+            selected_executable,
+        };
+        let report = installer.verify_managed(&install, &qualification).unwrap();
+        assert!(report.valid, "{report:?}");
+        library.register_install(&install, true).unwrap();
+        let reference = crate::RetainedBuildReference {
+            id: Uuid::new_v4().to_string(),
+            setup_id: "customized".into(),
+            revision: 1,
+            build: crate::install::retained_build_identity_for_install(&install).unwrap(),
+            created_at: 1,
+            updated_at: 1,
+        };
+        crate::retained_build::restore_references(&library.connection().unwrap(), &[reference])
+            .unwrap();
+        let (sha256, size) = hash_file(&source).unwrap();
+        let source_record = SourceRecord {
+            profile_id: port.source_profile.clone().unwrap(),
+            path: source,
+            storage_sha256: sha256.clone(),
+            storage_size: size,
+            sha256,
+            size,
+            updated_at: 1,
+            observed_identity: None,
+        };
+        (temporary, library, port, install, source_record)
+    }
+
+    #[test]
+    fn retained_legacy_upstream_setup_blocks_regeneration_before_side_effects() {
+        let (_temporary, library, port, install, mut source) = retained_legacy_setup_fixture();
+        let executable = install.path.join(&install.selected_executable);
+        let prepare = |source: Option<&SourceRecord>| {
+            AdapterRegistry
+                .get(AdapterKind::UpstreamManagedSetup)
+                .prepare_launch_with_executable(
+                    LaunchSpecRequest {
+                        library: &library,
+                        port: &port,
+                        platform: Platform::current().unwrap(),
+                        install_root: &install.path,
+                        selected_executable: &executable,
+                        source: source.map(|record| record.path.as_path()),
+                        source_record: source,
+                    },
+                    &|| Ok(()),
+                )
+        };
+        let accepted = launch_fixture_inventory(&install.path);
+        assert_eq!(prepare(Some(&source)).unwrap().executable, executable);
+        assert_eq!(launch_fixture_inventory(&install.path), accepted);
+
+        // Completed retained output remains launchable after registration and
+        // the external original disappear; no source or setup is regenerated.
+        std::fs::remove_file(&source.path).unwrap();
+        assert_eq!(prepare(None).unwrap().executable, executable);
+        assert_eq!(launch_fixture_inventory(&install.path), accepted);
+
+        // A new registered source must not enter materialization, setup, metadata
+        // publication or even the adapter's earlier user-dir/portable writes.
+        std::fs::remove_dir(library.user_dir(&port.id)).unwrap();
+        std::fs::write(install.path.join("portable.txt"), b"existing marker").unwrap();
+        std::fs::write(&source.path, b"different registered disc").unwrap();
+        (source.sha256, source.size) = hash_file(&source.path).unwrap();
+        source.storage_sha256 = source.sha256.clone();
+        source.storage_size = source.size;
+        let before = launch_fixture_inventory(&install.path);
+        let error = prepare(Some(&source)).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(error.details.get("install_id"), Some(&install.id));
+        assert_eq!(
+            error.details.get("setup_id").map(String::as_str),
+            Some("customized")
+        );
+        assert_eq!(launch_fixture_inventory(&install.path), before);
+        assert!(!library.user_dir(&port.id).exists());
     }
 
     #[test]

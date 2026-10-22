@@ -444,13 +444,42 @@ mod tests {
         PortcoveService::new(library).unwrap()
     }
 
+    fn retain_versions(service: &PortcoveService) -> Vec<crate::RetainedBuildReference> {
+        let library = service.library();
+        let installs = library.all_installs().unwrap();
+        let references = [("old", "customized"), ("active", "default")]
+            .into_iter()
+            .map(|(install_id, setup_id)| {
+                let install = installs
+                    .iter()
+                    .find(|install| install.id == install_id)
+                    .unwrap();
+                crate::RetainedBuildReference {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    setup_id: setup_id.into(),
+                    revision: 1,
+                    build: crate::install::retained_build_identity_for_install(install).unwrap(),
+                    created_at: 1,
+                    updated_at: 1,
+                }
+            })
+            .collect::<Vec<_>>();
+        let mut connection = library.connection().unwrap();
+        let transaction = connection.transaction().unwrap();
+        crate::retained_build::restore_references(&transaction, &references).unwrap();
+        transaction.commit().unwrap();
+        crate::retained_build::references_from(&connection).unwrap()
+    }
+
     #[test]
     fn move_preserves_metadata_content_and_manifest_identity_and_redirects_old_handles() {
         let temporary = tempfile::tempdir().unwrap();
         let source = temporary.path().join("source");
         let destination = temporary.path().join("destination");
         let service = fixture(&source);
+        let references = retain_versions(&service);
         let plan = service.plan_library_move(&destination).unwrap();
+        assert_eq!(plan.metadata.schema_version, 5);
         assert_eq!(
             PortcoveService::move_library(&source, &destination, &plan.plan_sha256)
                 .unwrap_err()
@@ -463,6 +492,10 @@ mod tests {
         assert!(moved.completed);
         let library = Library::open(&source).unwrap();
         assert_eq!(library.root(), fs::canonicalize(&destination).unwrap());
+        assert_eq!(
+            crate::retained_build::references_from(&library.connection().unwrap()).unwrap(),
+            references
+        );
         let status = library.status("starship", ReleaseChannel::Stable).unwrap();
         assert_eq!(status.active.unwrap().id, "active");
         assert_eq!(status.previous.unwrap().id, "old");
@@ -522,6 +555,7 @@ mod tests {
         let source = temporary.path().join("source");
         let destination = temporary.path().join("destination");
         let service = fixture(&source);
+        let references = retain_versions(&service);
         let plan = service.plan_library_move(&destination).unwrap();
         drop(service);
         let error = start_move(&source, &destination, &plan.plan_sha256, &|phase| {
@@ -594,6 +628,13 @@ mod tests {
             PortcoveService::resume_library_move(&source)
                 .unwrap()
                 .completed
+        );
+        assert_eq!(
+            crate::retained_build::references_from(
+                &Library::open(&destination).unwrap().connection().unwrap()
+            )
+            .unwrap(),
+            references
         );
         assert!(
             PortcoveService::resume_library_move(&source)
@@ -717,6 +758,26 @@ mod tests {
     #[test]
     fn changed_move_destination_stops_recovery_and_abort_retains_both_copies() {
         assert_changed_move_retained(false);
+    }
+
+    #[test]
+    fn changed_retained_references_invalidate_move_review() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let destination = temporary.path().join("destination");
+        let service = fixture(&source);
+        let plan = service.plan_library_move(&destination).unwrap();
+        retain_versions(&service);
+        let updated = service.plan_library_move(&destination).unwrap();
+        assert_ne!(plan.plan_sha256, updated.plan_sha256);
+        drop(service);
+        assert_eq!(
+            PortcoveService::move_library(&source, &destination, &plan.plan_sha256)
+                .unwrap_err()
+                .code,
+            ErrorCode::Conflict
+        );
+        assert!(!destination.exists());
     }
 
     #[test]

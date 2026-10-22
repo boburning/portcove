@@ -502,6 +502,36 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "retained_build_inventory",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::RetainedBuildInventory>(contract)
+                ),
+            ),
+            (
+                "retained_build_reference",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::RetainedBuildReference>(contract)
+                ),
+            ),
+            (
+                "retained_build_resolution",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::RetainedBuildResolution>(contract)
+                ),
+            ),
+            (
+                "retained_build_binding_preview",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::RetainedBuildBindingPreview,
+                >(contract)),
+            ),
+            (
+                "retained_build_removal_preview",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::RetainedBuildRemovalPreview,
+                >(contract)),
+            ),
+            (
                 "game_update_plan",
                 serde_json::json!(schema_for_contract::<portcove_core::GameUpdatePlan>(
                     contract

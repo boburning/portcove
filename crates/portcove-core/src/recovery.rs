@@ -289,6 +289,10 @@ pub(crate) fn recover_removal(
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
     let mut removal = RemovalOperation::decode(&service.library, operation)?;
+    crate::retained_build::require_no_references(
+        &service.library.connection()?,
+        &operation.port_id,
+    )?;
     for paths in removal.paths(&service.library)? {
         crate::managed_tfe::require_no_recovery_data(&paths.live)?;
         crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
@@ -339,6 +343,10 @@ pub(crate) fn recover_removal(
             .collect::<std::collections::BTreeSet<_>>();
         for cleanup_root in cleanup_roots {
             if cleanup_root.exists() {
+                crate::retained_build::require_no_references(
+                    &service.library.connection()?,
+                    &operation.port_id,
+                )?;
                 for paths in removal.paths(&service.library)? {
                     crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
                 }

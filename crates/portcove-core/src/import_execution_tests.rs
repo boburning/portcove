@@ -285,13 +285,207 @@ fn fixture(root: &Path, export: &Path) -> LibraryMetadata {
     })
 }
 
+fn add_retained_references(
+    root: &Path,
+    export: &Path,
+    bindings: &[(&str, &str)],
+) -> LibraryMetadata {
+    let library = Library::open(root).unwrap();
+    let installs = library.all_installs().unwrap();
+    let references = bindings
+        .iter()
+        .map(|(install_id, setup_id)| {
+            let install = installs
+                .iter()
+                .find(|install| install.id == *install_id)
+                .unwrap();
+            crate::RetainedBuildReference {
+                id: uuid::Uuid::new_v4().to_string(),
+                setup_id: (*setup_id).into(),
+                revision: 1,
+                build: crate::install::retained_build_identity_for_install(install).unwrap(),
+                created_at: 1,
+                updated_at: 1,
+            }
+        })
+        .collect::<Vec<_>>();
+    let mut connection = library.connection().unwrap();
+    let transaction = connection.transaction().unwrap();
+    crate::retained_build::restore_references(&transaction, &references).unwrap();
+    transaction.commit().unwrap();
+    let metadata = PortcoveService::new(library)
+        .unwrap()
+        .export_library_metadata()
+        .unwrap();
+    fs::write(export, serde_json::to_vec_pretty(&metadata).unwrap()).unwrap();
+    metadata
+}
+
+#[test]
+fn import_retained_reference_metadata_rejects_forgery() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("export.json");
+    let destination = temp.path().join("destination");
+    drop(fixture_library(&source, &[("active", false)]));
+    let metadata = add_retained_references(&source, &export, &[("active", "customized")]);
+    PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
+
+    let mut cases = Vec::new();
+    let mut changed = metadata.clone();
+    changed.schema_version = 3;
+    cases.push(("older schema", changed));
+    let mut changed = metadata.clone();
+    changed
+        .retained_build_references
+        .push(changed.retained_build_references[0].clone());
+    cases.push(("duplicate reference", changed));
+    let mut changed = metadata.clone();
+    let mut repeated_setup = changed.retained_build_references[0].clone();
+    repeated_setup.id = uuid::Uuid::new_v4().to_string();
+    changed.retained_build_references.push(repeated_setup);
+    cases.push(("duplicate setup", changed));
+    let mut changed = metadata.clone();
+    changed.retained_build_references[0].build.install_id = "missing-install".into();
+    cases.push(("missing installation", changed));
+    let mut changed = metadata.clone();
+    changed.application_versions[0].verified = false;
+    cases.push(("unaccepted installation", changed));
+    let mut changed = metadata.clone();
+    changed.retained_build_references[0].build.artifact.sha256 = "b".repeat(64);
+    cases.push(("artifact digest", changed));
+    let mut changed = metadata.clone();
+    changed.retained_build_references[0]
+        .build
+        .installed_contract_sha256 = "f".repeat(64);
+    cases.push(("retained contract", changed));
+    let mut changed = metadata.clone();
+    changed.retained_build_references[0].build.platform =
+        if changed.retained_build_references[0].build.platform == Platform::WindowsX86_64 {
+            Platform::LinuxX86_64
+        } else {
+            Platform::WindowsX86_64
+        };
+    cases.push(("manifest platform", changed));
+    let mut changed = metadata.clone();
+    changed.retained_build_references.resize(
+        crate::retained_build::MAX_REFERENCES + 1,
+        metadata.retained_build_references[0].clone(),
+    );
+    cases.push(("reference bound", changed));
+
+    for (case, changed) in cases {
+        fs::write(&export, serde_json::to_vec_pretty(&changed).unwrap()).unwrap();
+        let error =
+            PortcoveService::plan_library_import(&export, &source, &destination).expect_err(case);
+        assert!(error.message.contains("retained build"), "{case}: {error}");
+        assert!(!destination.exists(), "{case}");
+    }
+}
+
+#[test]
+fn import_retained_reference_changes_invalidate_review() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("export.json");
+    let destination = temp.path().join("destination");
+    drop(fixture_library(&source, &[("active", false)]));
+    let mut metadata = add_retained_references(&source, &export, &[("active", "customized")]);
+    let plan = PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
+    metadata.retained_build_references[0].setup_id = "different-setup".into();
+    fs::write(&export, serde_json::to_vec_pretty(&metadata).unwrap()).unwrap();
+    let updated = PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
+    assert_ne!(plan.plan_sha256, updated.plan_sha256);
+    assert_eq!(
+        PortcoveService::import_library(&export, &source, &destination, &plan.plan_sha256)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Conflict
+    );
+    assert!(!destination.exists());
+}
+
+#[test]
+fn import_retained_reference_failure_rolls_back_installation_metadata() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("export.json");
+    drop(fixture_library(&source, &[("active", false)]));
+    let mut metadata = add_retained_references(&source, &export, &[("active", "customized")]);
+    metadata.retained_build_references[0].build.install_id = "missing-install".into();
+    let destination = Library::open(temp.path().join("destination")).unwrap();
+    assert!(restore_metadata(&destination, &metadata).is_err());
+    assert!(destination.all_installs().unwrap().is_empty());
+    assert!(
+        crate::retained_build::references_from(&destination.connection().unwrap())
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        crate::import_journal::metadata_tables_empty(&destination.connection().unwrap()).unwrap()
+    );
+}
+
+#[test]
+fn import_missing_retained_reference_stops_recovery() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("export.json");
+    let destination = temp.path().join("destination");
+    drop(fixture_library(&source, &[("active", false)]));
+    add_retained_references(&source, &export, &[("active", "customized")]);
+    let plan = PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
+    start_import(
+        &export,
+        &source,
+        &destination,
+        &plan.plan_sha256,
+        &|phase| {
+            if phase == TransferPhase::Verified {
+                Err(PortcoveError::state("synthetic reference interruption"))
+            } else {
+                Ok(())
+            }
+        },
+    )
+    .unwrap_err();
+    rusqlite::Connection::open(destination.join("portcove.sqlite3"))
+        .unwrap()
+        .execute("DELETE FROM retained_build_references", [])
+        .unwrap();
+    let error = PortcoveService::resume_library_import(&destination).unwrap_err();
+    assert!(
+        error.message.contains("destination metadata differs"),
+        "{error}"
+    );
+    assert!(Library::open(&destination).is_err());
+    assert_eq!(
+        crate::retained_build::references_from(
+            &Library::open(&source).unwrap().connection().unwrap()
+        )
+        .unwrap()
+        .len(),
+        1
+    );
+}
+
 #[test]
 fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empty_library() {
     let temp = tempfile::tempdir().unwrap();
     let source = temp.path().join("source");
     let export = temp.path().join("export.json");
     let destination = temp.path().join("destination");
-    let expected = fixture(&source, &export);
+    fixture(&source, &export);
+    let expected = add_retained_references(
+        &source,
+        &export,
+        &[
+            ("old", "customized"),
+            ("active", "default"),
+            ("old", "second-customized"),
+        ],
+    );
+    assert_eq!(expected.schema_version, 5);
     let original_identity = Library::open(&source).unwrap().identity_record().unwrap();
     let open = Library::open(&destination).unwrap();
     let destination_identity = open.identity_record().unwrap();
@@ -320,6 +514,10 @@ fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empt
         original_identity
     );
     crate::transfer_copy::verify_metadata(&restored, &expected).unwrap();
+    assert_eq!(
+        crate::retained_build::references_from(&restored.connection().unwrap()).unwrap(),
+        expected.retained_build_references
+    );
     let status = restored.status("starship", ReleaseChannel::Stable).unwrap();
     assert_eq!(status.active.unwrap().id, "active");
     assert_eq!(status.previous.unwrap().id, "old");
@@ -341,6 +539,14 @@ fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empt
     assert!(activity.target_id.is_none());
     assert!(ImportJournal::read(&destination).unwrap().is_none());
     assert!(destination.join("recovery/library-import.json").is_file());
+    assert_eq!(
+        ImportJournal::read_recovery(&destination)
+            .unwrap()
+            .unwrap()
+            .phase,
+        TransferPhase::Complete,
+        "completed import must retain its exact terminal receipt"
+    );
     for tree in ["user", "toolchains"] {
         assert_eq!(
             fs::read(source.join(tree).join("starship/data.bin")).unwrap(),
@@ -375,6 +581,14 @@ fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empt
     drop(restored);
     // Completed import remains idempotent even when the old input is no longer mounted.
     fs::rename(&source, temp.path().join("offline-source")).unwrap();
+    assert_eq!(
+        ImportJournal::read_recovery(&destination)
+            .unwrap()
+            .unwrap()
+            .phase,
+        TransferPhase::Complete,
+        "backup restore must preserve the completed import receipt"
+    );
     assert!(
         test_phase("import recovery: resume", || {
             PortcoveService::resume_library_import(&destination)
@@ -390,7 +604,32 @@ fn admitted_post_client_definition_survives_offline_import_with_its_full_graph()
     let source = temp.path().join("source");
     let export = temp.path().join("successor.json");
     let destination = temp.path().join("destination");
-    let (expected, port_id) = successor_fixture(&source, &export);
+    let (_, port_id) = successor_fixture(&source, &export);
+    let expected = add_retained_references(&source, &export, &[("successor", "customized")]);
+    assert_eq!(expected.schema_version, 5);
+    assert!(expected.portability_authority.is_some());
+    assert!(
+        expected.retained_build_references[0]
+            .build
+            .definition
+            .is_some()
+    );
+
+    let mut forged = expected.clone();
+    forged.retained_build_references[0]
+        .build
+        .definition
+        .as_mut()
+        .unwrap()
+        .definition_revision += 1;
+    fs::write(&export, serde_json::to_vec_pretty(&forged).unwrap()).unwrap();
+    let error = PortcoveService::plan_library_import(&export, &source, &destination).unwrap_err();
+    assert!(
+        error.message.contains("verified installation contract"),
+        "{error}"
+    );
+    assert!(!destination.exists());
+    fs::write(&export, serde_json::to_vec_pretty(&expected).unwrap()).unwrap();
 
     let plan = PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
     PortcoveService::import_library(&export, &source, &destination, &plan.plan_sha256).unwrap();
@@ -726,6 +965,11 @@ fn assert_interrupted_import_recovery(phase: TransferPhase) {
     let export = temp.path().join("export.json");
     let destination = temp.path().join("destination");
     fixture(&source, &export);
+    let expected = add_retained_references(
+        &source,
+        &export,
+        &[("old", "customized"), ("active", "default")],
+    );
     let plan = test_phase("import recovery: plan", || {
         PortcoveService::plan_library_import(&export, &source, &destination)
     })
@@ -765,6 +1009,13 @@ fn assert_interrupted_import_recovery(phase: TransferPhase) {
             b"new save"
         );
     }
+    assert_eq!(
+        crate::retained_build::references_from(
+            &Library::open(&destination).unwrap().connection().unwrap()
+        )
+        .unwrap(),
+        expected.retained_build_references
+    );
 }
 
 #[test]

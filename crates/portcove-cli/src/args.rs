@@ -230,7 +230,7 @@ pub(crate) enum Commands {
         #[arg(long)]
         output_dir: Option<PathBuf>,
     },
-    /// Review or apply the first managed install using separately registered inputs.
+    /// Review managed installs and retain exact local builds for stable setups.
     Installation {
         #[command(subcommand)]
         command: InstallationCommand,
@@ -344,6 +344,57 @@ pub(crate) enum InstallationCommand {
         #[arg(long)]
         acknowledge_shared_preferences: bool,
         /// Confirm this reviewed install without a prompt; the plan check still applies.
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Inspect retained local builds and the setup references protecting them from cleanup.
+    Retained {
+        /// Stable catalog port ID; retained builds are local, not a historical release list.
+        port_id: String,
+    },
+    /// Resolve one setup's exact retained build and its current availability without mutation.
+    Reference {
+        port_id: String,
+        /// Stable setup identity, independent of its display name and source profile.
+        setup_id: String,
+    },
+    /// Review binding a stable setup to one already accepted local install without mutation.
+    ReferencePlan {
+        port_id: String,
+        /// Stable setup identity, independent of its display name and source profile.
+        setup_id: String,
+        /// Exact install ID from `installation retained`; a version label is insufficient.
+        install_id: String,
+    },
+    /// Bind only the exact reviewed local build; existing active selection does not change.
+    ReferenceBind {
+        port_id: String,
+        /// Stable setup identity from the binding review.
+        setup_id: String,
+        /// Exact install ID from the binding review.
+        install_id: String,
+        /// Review SHA-256 from `installation reference-plan`; changed inputs refuse the binding.
+        #[arg(long)]
+        expected_preview: String,
+        /// Confirm the reviewed binding without a prompt; the review check still applies.
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Review removing a setup reference without deleting the retained build or player data.
+    ReferenceRemovalPlan {
+        port_id: String,
+        /// Stable setup identity whose reference should be removed.
+        setup_id: String,
+    },
+    /// Remove only the reviewed setup reference; later cleanup still respects other protections.
+    ReferenceRemove {
+        port_id: String,
+        /// Stable setup identity from the removal review.
+        setup_id: String,
+        /// Review SHA-256 from `installation reference-removal-plan`; changed inputs refuse removal.
+        #[arg(long)]
+        expected_preview: String,
+        /// Confirm the reviewed reference removal without prompting; no build files are deleted.
         #[arg(long)]
         yes: bool,
     },

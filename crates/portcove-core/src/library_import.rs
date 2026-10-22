@@ -30,6 +30,7 @@ impl PortabilityCatalogs {
     }
 
     pub(crate) fn from_root(metadata: &LibraryMetadata, root: &Path) -> Result<Self> {
+        let references = retained_references_by_install(metadata)?;
         let embedded = Catalog::embedded()?;
         let mut installs = BTreeMap::new();
         let mut admissions = Vec::new();
@@ -38,6 +39,18 @@ impl PortabilityCatalogs {
             let relative = validate_install_path(install)?;
             let mut absolute = install.clone();
             absolute.path = root.join(relative);
+            if let Some(references) = references.get(install.id.as_str()) {
+                let identity = crate::install::retained_build_identity_for_install(&absolute)?;
+                if references
+                    .iter()
+                    .any(|reference| reference.build != identity)
+                {
+                    return Err(PortcoveError::verification(
+                        "retained build reference differs from its verified installation contract",
+                    )
+                    .detail("install_id", &install.id));
+                }
+            }
             let retained = crate::install::portability_catalog_for_install(&absolute, &embedded)?;
             if let Some(identity) = retained
                 .as_ref()
@@ -357,7 +370,7 @@ pub(crate) fn validate_metadata(
     metadata: &LibraryMetadata,
     catalogs: &PortabilityCatalogs,
 ) -> Result<()> {
-    if !matches!(metadata.schema_version, 1..=4) {
+    if !matches!(metadata.schema_version, 1..=5) {
         return Err(PortcoveError::unsupported(
             "unsupported library metadata schema",
         ));
@@ -389,7 +402,7 @@ pub(crate) fn validate_metadata(
         _ => artwork_expected.as_slice(),
     };
     match (&metadata.artwork, metadata.schema_version) {
-        (Some(artwork), 3 | 4) => {
+        (Some(artwork), 3..=5) => {
             crate::artwork_store::validate_metadata_with(artwork, |port_id| {
                 catalogs.require_port(port_id)
             })?
@@ -451,6 +464,7 @@ pub(crate) fn validate_metadata(
             ));
         }
     }
+    retained_references_by_install(metadata)?;
     let mut settings = BTreeSet::new();
     for setting in &metadata.port_settings {
         catalogs.require_port(&setting.port_id)?;
@@ -503,6 +517,56 @@ pub(crate) fn validate_metadata(
         }
     }
     Ok(())
+}
+
+fn retained_references_by_install(
+    metadata: &LibraryMetadata,
+) -> Result<BTreeMap<&str, Vec<&crate::RetainedBuildReference>>> {
+    if !metadata.retained_build_references.is_empty() && metadata.schema_version != 5 {
+        return Err(PortcoveError::verification(
+            "retained build references require library metadata schema 5",
+        ));
+    }
+    if metadata.retained_build_references.len() > crate::retained_build::MAX_REFERENCES {
+        return Err(PortcoveError::verification(
+            "library metadata exceeds the retained build reference limit",
+        ));
+    }
+    let installs = metadata
+        .application_versions
+        .iter()
+        .map(|install| (install.id.as_str(), install))
+        .collect::<BTreeMap<_, _>>();
+    let mut ids = BTreeSet::new();
+    let mut setups = BTreeSet::new();
+    let mut references = BTreeMap::<&str, Vec<&crate::RetainedBuildReference>>::new();
+    for reference in &metadata.retained_build_references {
+        crate::retained_build::validate_reference(reference)?;
+        if !ids.insert(reference.id.as_str())
+            || !setups.insert((
+                reference.build.port_id.as_str(),
+                reference.setup_id.as_str(),
+            ))
+        {
+            return Err(PortcoveError::verification(
+                "library metadata repeats a retained build reference or setup binding",
+            ));
+        }
+        if installs
+            .get(reference.build.install_id.as_str())
+            .is_none_or(|install| !install.verified || !reference.build.matches_install(install))
+        {
+            return Err(PortcoveError::verification(
+                "retained build reference does not match an exported installation",
+            )
+            .detail("reference_id", &reference.id));
+        }
+        references
+            .entry(reference.build.install_id.as_str())
+            .or_default()
+            .push(reference);
+    }
+    Ok(references)
 }
 
 fn validate_install_path(install: &crate::InstallRecord) -> Result<String> {

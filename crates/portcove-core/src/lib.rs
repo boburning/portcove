@@ -77,6 +77,7 @@ mod qualification_checkpoint;
 mod recovery;
 mod relative_file_set;
 mod release;
+mod retained_build;
 mod runtime;
 mod runtime_data_policy;
 pub mod runtime_diagnostics;
@@ -221,6 +222,11 @@ pub use release::{
     GithubReleaseProvider, ObservationEvidence, ObservedReleaseIdentity, ObservedResolution,
     ReleaseProvider, UpstreamChannelObservation, UpstreamObservationReport,
     inspect_upstream_observation,
+};
+pub use retained_build::{
+    RetainedBuild, RetainedBuildAvailability, RetainedBuildBindingPreview, RetainedBuildGap,
+    RetainedBuildIdentity, RetainedBuildInventory, RetainedBuildReference,
+    RetainedBuildRemovalPreview, RetainedBuildResolution,
 };
 pub use service::{
     AdoptionCopyFile, AdoptionCopyPlan, AdoptionDestinationPreview, AdoptionPreview,

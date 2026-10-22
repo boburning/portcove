@@ -3776,6 +3776,7 @@ impl PortcoveService {
 
     pub fn preview_removal(&self, port_id: &str) -> Result<PortRemovalPreview> {
         self.catalog.port(port_id)?;
+        crate::retained_build::require_no_references(&self.library.connection()?, port_id)?;
         let mut installs = self
             .library
             .all_installs()?
@@ -3878,6 +3879,7 @@ impl PortcoveService {
             self.faults
                 .check(LifecycleFaultPoint::RemovalMetadataCommitted)?;
             self.faults.check(LifecycleFaultPoint::RemovalCleanup)?;
+            crate::retained_build::require_no_references(&self.library.connection()?, port_id)?;
             for paths in removal.paths(&self.library)? {
                 crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
             }
@@ -5202,6 +5204,14 @@ impl PortcoveService {
     /// a closed runtime compatibility interpretation. Retained source/launch
     /// authority and every recorded immutable byte remain unchanged.
     fn installed_mutability_port(&self, install: &InstallRecord) -> Result<PortDefinition> {
+        self.installed_mutability_port_for_platform(install, Platform::current()?)
+    }
+
+    fn installed_mutability_port_for_platform(
+        &self,
+        install: &InstallRecord,
+        platform: Platform,
+    ) -> Result<PortDefinition> {
         let retained = self.installed_port(install)?;
         let Ok(current) = self.catalog.port(&install.port_id) else {
             return Ok(retained);
@@ -5211,7 +5221,7 @@ impl PortcoveService {
             install,
             &retained,
             current,
-            Platform::current()?,
+            platform,
         )
     }
 
@@ -5219,9 +5229,17 @@ impl PortcoveService {
         &self,
         install: &InstallRecord,
     ) -> Result<InstallQualification> {
+        self.installed_mutability_qualification_for_platform(install, Platform::current()?)
+    }
+
+    pub(crate) fn installed_mutability_qualification_for_platform(
+        &self,
+        install: &InstallRecord,
+        platform: Platform,
+    ) -> Result<InstallQualification> {
         InstallQualification::from_port(
-            &self.installed_mutability_port(install)?,
-            Platform::current()?,
+            &self.installed_mutability_port_for_platform(install, platform)?,
+            platform,
         )
     }
 
@@ -15834,6 +15852,11 @@ fn main() {
         fs::write(active.join(LAUNCH_MARKER), b"1").unwrap();
         let mut service = PortcoveService::new(library.clone()).unwrap();
         assert!(!service.verify(PORT).unwrap().valid);
+        assert!(
+            service
+                .preview_retained_build_binding(PORT, "additive-active", &active_install.id)
+                .is_err()
+        );
 
         let mut document = service.catalog().authoritative_document();
         let current = document
@@ -15849,6 +15872,31 @@ fn main() {
 
         assert!(service.verify(PORT).unwrap().valid);
         assert!(service.prepare_launch(PORT, None).is_ok());
+        let preview = service
+            .preview_retained_build_binding(PORT, "additive-active", &active_install.id)
+            .unwrap();
+        let consent = service
+            .authorize_retained_build_binding(
+                PORT,
+                "additive-active",
+                &active_install.id,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        let active_reference = service
+            .bind_retained_build(PORT, "additive-active", &active_install.id, &consent.token)
+            .unwrap();
+        assert_eq!(
+            active_reference.build.manifest_sha256,
+            active_install.manifest_sha256
+        );
+        assert_eq!(
+            service
+                .resolve_retained_build(PORT, "additive-active")
+                .unwrap()
+                .availability,
+            crate::RetainedBuildAvailability::Verified
+        );
         assert_eq!(
             fs::read(library.user_dir(PORT).join("new-settings.ini")).unwrap(),
             b"player preference"
@@ -15873,9 +15921,49 @@ fn main() {
         );
         assert!(!previous.join("logs/game.log").exists());
         assert!(service.verify(PORT).unwrap().valid);
+        let previous_install = library
+            .status(PORT, ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap();
+        let preview = service
+            .preview_retained_build_binding(PORT, "additive-previous", &previous_install.id)
+            .unwrap();
+        let consent = service
+            .authorize_retained_build_binding(
+                PORT,
+                "additive-previous",
+                &previous_install.id,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        let previous_reference = service
+            .bind_retained_build(
+                PORT,
+                "additive-previous",
+                &previous_install.id,
+                &consent.token,
+            )
+            .unwrap();
         fs::write(previous.join("engine.dll"), b"changed engine").unwrap();
         assert!(!service.verify(PORT).unwrap().valid);
         assert!(service.prepare_launch(PORT, None).is_err());
+        let changed = service
+            .resolve_retained_build(PORT, "additive-previous")
+            .unwrap();
+        assert_eq!(
+            changed.availability,
+            crate::RetainedBuildAvailability::Changed
+        );
+        assert_eq!(changed.reference, previous_reference);
+        assert!(changed.install.is_none());
+        assert_eq!(
+            service
+                .resolve_retained_build(PORT, "additive-active")
+                .unwrap()
+                .reference,
+            active_reference
+        );
     }
 
     #[test]

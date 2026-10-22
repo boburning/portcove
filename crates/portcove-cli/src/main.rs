@@ -29,6 +29,7 @@ use catalog::CatalogCommand;
 mod human;
 mod human_adapters;
 mod progress;
+mod retained_build_human;
 use progress::HumanProgress;
 mod schema;
 
@@ -367,6 +368,15 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         render_about(mode)?;
         return Ok(ExitCode::SUCCESS);
     }
+    if matches!(&cli.command, Commands::Capabilities) {
+        render_read_success(
+            mode,
+            "capabilities",
+            CapabilityDocument::current(),
+            human::capabilities,
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
     if let Commands::Schema {
         command: SchemaCommand::Export { contract },
     } = &cli.command
@@ -491,6 +501,8 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             Commands::Install(_)
                 | Commands::Installation {
                     command: InstallationCommand::Run { .. }
+                        | InstallationCommand::ReferenceBind { .. }
+                        | InstallationCommand::ReferenceRemove { .. }
                 }
                 | Commands::Update(_)
                 | Commands::Ensure(_)
@@ -506,6 +518,128 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
     .then(|| cancellation::CancellationSignals::start(service.clone()))
     .transpose()?;
     match cli.command {
+        Commands::Installation {
+            command: InstallationCommand::Retained { port_id },
+        } => render_read_success(
+            mode,
+            "installation.retained",
+            service.retained_builds(&port_id)?,
+            |value| retained_build_human::inventory(value, service.catalog()),
+        )?,
+        Commands::Installation {
+            command: InstallationCommand::Reference { port_id, setup_id },
+        } => render_read_success(
+            mode,
+            "installation.reference",
+            service.resolve_retained_build(&port_id, &setup_id)?,
+            |value| retained_build_human::resolution(value, service.catalog()),
+        )?,
+        Commands::Installation {
+            command:
+                InstallationCommand::ReferencePlan {
+                    port_id,
+                    setup_id,
+                    install_id,
+                },
+        } => render_read_success(
+            mode,
+            "installation.reference-plan",
+            service.preview_retained_build_binding(&port_id, &setup_id, &install_id)?,
+            |value| retained_build_human::binding_preview(value, service.catalog()),
+        )?,
+        Commands::Installation {
+            command:
+                InstallationCommand::ReferenceBind {
+                    port_id,
+                    setup_id,
+                    install_id,
+                    expected_preview,
+                    yes,
+                },
+        } => {
+            let preview =
+                service.preview_retained_build_binding(&port_id, &setup_id, &install_id)?;
+            if mode == OutputMode::Human {
+                println!(
+                    "{}",
+                    retained_build_human::binding_preview(&preview, service.catalog())
+                );
+            }
+            if preview.preview_sha256 != expected_preview {
+                return Err(PortcoveError::conflict(
+                    "retained build binding changed; review the exact setup and install again",
+                ));
+            }
+            require_confirmation(
+                "Bind this setup to the reviewed local build and protect it from cleanup?",
+                yes,
+                cli.non_interactive,
+            )?;
+            let authorization = service.authorize_retained_build_binding(
+                &port_id,
+                &setup_id,
+                &install_id,
+                &expected_preview,
+            )?;
+            render_read_success(
+                mode,
+                "installation.reference-bind",
+                service.bind_retained_build(
+                    &port_id,
+                    &setup_id,
+                    &install_id,
+                    &authorization.token,
+                )?,
+                |value| retained_build_human::bound(value, service.catalog()),
+            )?;
+        }
+        Commands::Installation {
+            command: InstallationCommand::ReferenceRemovalPlan { port_id, setup_id },
+        } => render_read_success(
+            mode,
+            "installation.reference-removal-plan",
+            service.preview_retained_build_removal(&port_id, &setup_id)?,
+            |value| retained_build_human::removal_preview(value, service.catalog()),
+        )?,
+        Commands::Installation {
+            command:
+                InstallationCommand::ReferenceRemove {
+                    port_id,
+                    setup_id,
+                    expected_preview,
+                    yes,
+                },
+        } => {
+            let preview = service.preview_retained_build_removal(&port_id, &setup_id)?;
+            if mode == OutputMode::Human {
+                println!(
+                    "{}",
+                    retained_build_human::removal_preview(&preview, service.catalog())
+                );
+            }
+            if preview.preview_sha256 != expected_preview {
+                return Err(PortcoveError::conflict(
+                    "retained build reference changed; review its removal again",
+                ));
+            }
+            require_confirmation(
+                "Remove this setup reference and its cleanup protection? Build files and player data stay in place.",
+                yes,
+                cli.non_interactive,
+            )?;
+            let authorization =
+                service.authorize_retained_build_removal(&port_id, &setup_id, &expected_preview)?;
+            render_read_success(
+                mode,
+                "installation.reference-remove",
+                service.remove_retained_build_reference(
+                    &port_id,
+                    &setup_id,
+                    &authorization.token,
+                )?,
+                |value| retained_build_human::removed(value, service.catalog()),
+            )?;
+        }
         Commands::Installation {
             command: InstallationCommand::Plan { port_id },
         } => {
@@ -2019,12 +2153,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             }
             return exec_game(&service, args).await;
         }
-        Commands::Capabilities => render_read_success(
-            mode,
-            "capabilities",
-            CapabilityDocument::current(),
-            human::capabilities,
-        )?,
+        Commands::Capabilities => unreachable!("capabilities exits before opening the library"),
         Commands::Schema {
             command: SchemaCommand::Export { contract },
         } => {
@@ -2827,6 +2956,14 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::About => "about",
         Commands::Plan { .. } => "plan",
         Commands::Installation { command } => match command {
+            InstallationCommand::Retained { .. } => "installation.retained",
+            InstallationCommand::Reference { .. } => "installation.reference",
+            InstallationCommand::ReferencePlan { .. } => "installation.reference-plan",
+            InstallationCommand::ReferenceBind { .. } => "installation.reference-bind",
+            InstallationCommand::ReferenceRemovalPlan { .. } => {
+                "installation.reference-removal-plan"
+            }
+            InstallationCommand::ReferenceRemove { .. } => "installation.reference-remove",
             InstallationCommand::Plan { .. } => "installation.plan",
             InstallationCommand::Run { .. } => "installation.run",
             #[cfg(feature = "qualification-fixtures")]

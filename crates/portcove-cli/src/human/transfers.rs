@@ -337,6 +337,7 @@ mod tests {
             content_roots: vec![],
             source_references: vec![source()],
             application_versions: vec![],
+            retained_build_references: vec![],
             port_settings: vec![],
             launch_history: vec![],
             artwork: None,
