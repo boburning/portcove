@@ -67,6 +67,8 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          ./scripts/prepare-hosted-windows-runtime.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Maintained Windows runtime prerequisite failed' }
           ./scripts/bootstrap-quality-tools.ps1 -Desktop
           if ($LASTEXITCODE -ne 0) { throw 'Pinned native prerequisite failed' }
       - name: Compile the actual qualification feature boundary before packaging
@@ -100,6 +102,10 @@ jobs:
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.json
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.png
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/failure.html
+            work/updater-rehearsal/installer-test/run-*/predecessor-smoke.stdout.log
+            work/updater-rehearsal/installer-test/run-*/predecessor-smoke.stderr.log
+            work/updater-rehearsal/installer-test/run-*/candidate-smoke.stdout.log
+            work/updater-rehearsal/installer-test/run-*/candidate-smoke.stderr.log
             work/updater-rehearsal/linux-appimage-qualification/application-update-evidence.json
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/*.json
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/*.png
