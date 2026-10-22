@@ -947,7 +947,26 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
   assert.equal(desktopScripts["format:check"], "vp -C ../.. fmt --check");
   assert.match(fastRustQuality, /frontend_tools == 'true'/);
   assert.match(fastRust, /key: fast-rust-tests-/);
-  assert.doesNotMatch(fastRustQuality, /cargo clippy|rust-cache/);
+  assert.doesNotMatch(fastRustQuality, /cargo clippy/);
+  assert.ok(isRecord(settings.jobs));
+  const qualityJob = settings.jobs.fast_rust_quality;
+  assert.ok(isRecord(qualityJob) && Array.isArray(qualityJob.steps));
+  const qualityCaches = qualityJob.steps.filter(
+    (step: unknown) =>
+      isRecord(step) &&
+      typeof step.uses === "string" &&
+      step.uses.startsWith("Swatinem/rust-cache@"),
+  );
+  assert.deepEqual(qualityCaches, [
+    {
+      uses: "Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+      if: "contains(fromJSON(needs.classify.outputs.groups_json), 'rust')",
+      with: {
+        "cache-on-failure": true,
+        key: "runtime-diagnostics-linux-${{ hashFiles('Cargo.toml') }}",
+      },
+    },
+  ]);
   assert.match(fastDependencyReview, /actions\/dependency-review-action@/);
   assert.match(fastDependencyReview, /base-ref:/);
   assert.match(fastDependencyReview, /head-ref:/);
