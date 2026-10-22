@@ -42,6 +42,11 @@ extract or execute candidate code.
 
 ## Evidence scope
 
+The approved simpler setup's [schema-2 initial Root profile extension](slice4-single-owner-public-inputs-2026-10-22.md)
+adds an explicit profile to the independently ratified public manifest and generated
+recipe. Schema-1 behavior remains unchanged. This structural transport extension
+does not establish cryptographic, compiler, native or production acceptance.
+
 The implementation branch's focused suite has 102 tests: 98 pass and four
 existing platform/publisher skips. Formatter, type-aware lint, diff checks and
 the maintained indexed test inventory pass. Independent review cleared initial

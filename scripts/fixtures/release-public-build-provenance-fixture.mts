@@ -7,13 +7,17 @@ import { createAuditZip } from "./audit-zip-fixture.mts";
 import { prepareReleasePublicBuildInputs } from "../release-public-build-inputs.mts";
 import { releasePublicBuildArtifactName } from "../release-public-build-provenance.mts";
 import type { ReleaseEvidenceRequest } from "../release-run-evidence.mts";
+import { profiledRoot } from "./release-public-root-fixture.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const json = (value: unknown) => Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
 
 /** Inert schema/provider fixtures only: the root is not cryptographically signed,
  * the packages are text, and no build or native/runtime acceptance is implied. */
-export async function releasePublicBuildProvenanceFixture(t: test.TestContext) {
+export async function releasePublicBuildProvenanceFixture(
+  t: test.TestContext,
+  singleOwner = false,
+) {
   const f = await trustedAssemblyFixture(t, "initial-beta-win-linux");
   const configurationRoot = path.join(f.root, "public-configuration");
   await mkdir(configurationRoot);
@@ -42,8 +46,10 @@ export async function releasePublicBuildProvenanceFixture(t: test.TestContext) {
       new URL("../../apps/desktop/src-tauri/tauri.release-public.conf.json", import.meta.url),
     ),
   };
+  if (singleOwner) material.root = profiledRoot(1);
   const manifest = json({
-    schema_version: 1,
+    schema_version: singleOwner ? 2 : 1,
+    ...(singleOwner ? { initial_root_profile: "single-owner-one-of-one-v1" } : {}),
     repository: "boburning/portcove",
     purpose: "application-release-public-build-inputs",
     metadata_url: "https://boburning.github.io/portcove/application/metadata/",
