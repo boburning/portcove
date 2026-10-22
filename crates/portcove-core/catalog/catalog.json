@@ -20416,8 +20416,8 @@
     },
     {
       "id": "yoshis-cookie-recomp",
-      "name": "YoshisCookieRecomp",
-      "summary": "YoshisCookieRecomp using an existing installation that you manage.",
+      "name": "Yoshi's Cookie NES Recomp",
+      "summary": "Play Yoshi's Cookie with the official Windows runtime and your matching original NES ROM.",
       "project_url": "https://github.com/mstan/YoshisCookieRecomp",
       "support_tier": "beta",
       "channels": [
@@ -20450,13 +20450,13 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use upstream’s setup or build instructions with your own original, then select the resulting executable or supported launcher. Upstream or you replace the runtime; Portcove only registers and launches it. Existing Portcove-built installations retain their original contracts."
+        "manual_preparation": "Download the official Windows x64 ZIP from upstream Releases and extract the entire archive, including its DLLs and assets. Run YoshisCookieRecomp.exe, use Browse For ROM to select your own matching Yoshi's Cookie (USA) NES ROM, then Play and close normally. Return to Portcove, choose that executable and its extracted folder as the working directory, add the original ROM's full path as one argument, and review the launch details before registering. In Desktop, enter that path on one line without surrounding quotes. This also works when upstream's Skip launcher on boot is enabled; leaving arguments empty requires the launcher to remain enabled. You or upstream handle runtime updates. Remove registration only forgets Portcove's reference; the runtime, original, saves and settings stay in place. Existing Portcove-built installations retain their original contracts."
       }
     },
     {
       "id": "dr-mario-nes-recomp",
       "name": "Dr. Mario NES Recomp",
-      "summary": "Dr. Mario NES Recomp using an existing installation that you manage.",
+      "summary": "Play Dr. Mario with the official Windows runtime and your matching original NES ROM.",
       "project_url": "https://github.com/mstan/DrMarioNesRecomp",
       "support_tier": "beta",
       "channels": [
@@ -20490,7 +20490,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use upstream’s setup with your own original, then select the resulting executable or supported launcher. Upstream or you replace the runtime; Portcove only registers and launches it. Existing Portcove-built installations retain their original contracts."
+        "manual_preparation": "Download the official USA Windows x64 ZIP from upstream Releases and extract the entire archive, including its DLLs and assets. Run DrMarioRecomp.exe, use Browse For ROM to select your own matching Dr. Mario (Japan, USA) Rev 1 NES ROM, then Play and close normally. The European package needs its matching European original and is not covered by this USA check. Return to Portcove, choose DrMarioRecomp.exe and its extracted folder as the working directory, add the original ROM's full path as one argument, and review the launch details before registering. In Desktop, enter that path on one line without surrounding quotes. Leaving arguments empty requires upstream's launcher to remain enabled. You or upstream handle runtime updates. Remove registration only forgets Portcove's reference; the runtime, original, saves and settings stay in place. Existing Portcove-built installations retain their original contracts."
       }
     },
     {
