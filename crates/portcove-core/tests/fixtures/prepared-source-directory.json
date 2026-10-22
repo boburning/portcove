@@ -1,0 +1,30 @@
+{
+  "schema_version": 2,
+  "ports": [{
+    "id": "prepared-directory-fixture", "name": "Prepared directory fixture",
+    "summary": "Inert directory binding contract fixture", "project_url": "https://example.invalid/directory",
+    "support_tier": "beta", "channels": ["stable"], "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable", "source_profile": "directory-source",
+    "source_environment": "FIXTURE_SOURCE_DIR", "user_data_environment": "FIXTURE_USER_DIR",
+    "launch_arguments": ["--reviewed"],
+    "executable_hints": {"windows-x86-64": ["game.exe"]},
+    "release": {"provider": "user-prepared", "user_prepared": {"windows-x86-64": {
+      "version": "fixture-v1", "archive_name": "fixture.zip", "archive_size": 1,
+      "archive_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "executable": "game.exe", "immutable_tree_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "source_directory_environment": true, "library_user_data": true
+    }}}
+  }],
+  "source_catalog": {"evidence": [], "validators": [], "qualification": [],
+    "identities": [{"id": "directory-source", "label": "Inert exact directory", "kind": "file-set",
+      "variants": [{"id": "fixture-edition", "title": "Inert fixture", "product_codes": [],
+        "representations": [{"id": "relative-files", "extensions": [], "kind": "relative-file-set",
+          "members": [{"id": "data", "path": "nested/data.bin", "size": 3,
+            "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"}]}]}]}],
+    "contracts": [{"id": "directory-game", "port_id": "prepared-directory-fixture", "role": "game",
+      "profile_id": "directory-source", "admission_mode": "enforced", "supported_variant_ids": ["fixture-edition"],
+      "authority_ref": "inert-fixture", "reviewed_at": "2026-10-22", "immutable_review_url": "https://example.invalid/fixed-fixture",
+      "applicability": [{"upstream_ref": "fixture-v1", "artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]
+    }]
+  }
+}

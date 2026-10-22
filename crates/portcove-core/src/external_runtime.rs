@@ -814,6 +814,7 @@ mod tests {
             executable: "game.exe".into(),
             immutable_tree_sha256: "0".repeat(64),
             source_argument_extension: None,
+            source_directory_environment: false,
             library_user_data: false,
             required_mutable_files: vec![],
             settings_contract: None,

@@ -98,6 +98,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 17,
         });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 18,
+        });
         supported
     }
 }
@@ -334,8 +338,33 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(3));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 18, 18)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 19, 19)).unwrap();
         assert!(!future.compatible);
+    }
+
+    #[test]
+    fn prepared_source_directory_requires_v18_without_changing_previous_versions() {
+        let required = request("staged-source-portable", 18, 18);
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version < 18
+            })
+            .collect();
+        let old = check_with_inventory(&required, &previous).unwrap();
+        assert!(!old.compatible);
+        assert_eq!(old.checks[0].installed_version, Some(17));
+        assert!(check_definition_capabilities(&required).unwrap().compatible);
+        assert!(
+            check_definition_capabilities(&request("staged-source-portable", 17, 17))
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            !check_definition_capabilities(&request("n64-recomp-portable", 18, 18))
+                .unwrap()
+                .compatible
+        );
     }
 
     #[test]

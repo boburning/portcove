@@ -485,6 +485,10 @@ pub struct UserPreparedRuntimeSpec {
     pub immutable_tree_sha256: String,
     #[serde(default)]
     pub source_argument_extension: Option<String>,
+    /// Bind an authenticated relative-file-set directory through source_environment.
+    /// This does not materialize archives or authorize writes to the source.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub source_directory_environment: bool,
     /// Opt in to a library-private directory through the port's reviewed environment binding.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub library_user_data: bool,

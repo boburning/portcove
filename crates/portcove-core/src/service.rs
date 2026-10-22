@@ -1598,6 +1598,23 @@ impl PortcoveService {
         } else {
             None
         };
+        let requires_source_directory = port.release.provider == ReleaseSource::UserPrepared
+            && Platform::current().ok().is_some_and(|platform| {
+                port.release
+                    .user_prepared
+                    .get(&platform)
+                    .is_some_and(|runtime| runtime.source_directory_environment)
+            });
+        if source == Some(SourceHealth::Current)
+            && requires_source_directory
+            && port
+                .source_profile
+                .as_ref()
+                .and_then(|profile| registered_sources.get(profile))
+                .is_some_and(|record| require_prepared_source_directory(&record.path).is_err())
+        {
+            blockers.push(LaunchBlocker::IncompatibleSource);
+        }
         if source == Some(SourceHealth::Current)
             && required_source_extension
                 .as_deref()
@@ -1626,7 +1643,7 @@ impl PortcoveService {
             {
                 blockers.push(LaunchBlocker::MissingRuntime);
             }
-            if required_source_extension.is_some()
+            if (required_source_extension.is_some() || requires_source_directory)
                 && port
                     .source_profile
                     .as_ref()
@@ -4833,6 +4850,7 @@ impl PortcoveService {
             DefinitionOperationContext::observed(DefinitionOperation::Launch, true, true),
         )?;
         let mut arguments = Vec::new();
+        let mut source_directory = None;
         if let Some(profile_id) = retained_port.source_profile.as_deref() {
             let source = if let Some(path) = source_override {
                 crate::source_inspection::inspect(retained_catalog, profile_id, path)?
@@ -4875,6 +4893,18 @@ impl PortcoveService {
                     "external launch source",
                 )?);
             }
+            if spec.source_directory_environment {
+                require_prepared_source_directory(&source.path)?;
+                crate::runtime_path_policy::check_prepared_path(
+                    retained_port,
+                    platform,
+                    &source.path,
+                )?;
+                source_directory = Some(crate::path::unicode(
+                    &source.path,
+                    "external source directory",
+                )?);
+            }
             Self::verify_source_record_with_checkpoint(retained_catalog, &source, &|| {
                 operation.checkpoint()
             })?;
@@ -4909,6 +4939,12 @@ impl PortcoveService {
             &arguments,
         )?;
         let mut environment = retained_port.launch_environment.clone();
+        if let Some(directory) = source_directory {
+            let variable = retained_port.source_environment.as_ref().ok_or_else(|| {
+                PortcoveError::verification("prepared source directory has no retained binding")
+            })?;
+            environment.insert(variable.clone(), directory);
+        }
         if spec.library_user_data {
             let variable = retained_port
                 .user_data_environment
@@ -4930,7 +4966,8 @@ impl PortcoveService {
         Ok(crate::LaunchSpec {
             fixed_arguments_only: spec.shared_preferences
                 == Some(crate::PreparedSharedPreferencesContract::Smb1r11Windows)
-                || retained_port.windows_runtime_path_policy.is_some(),
+                || retained_port.windows_runtime_path_policy.is_some()
+                || spec.source_directory_environment,
             executable: record.executable.clone(),
             install_root: record.path.clone(),
             working_directory,
@@ -5401,6 +5438,16 @@ fn source_path_has_extension(path: &Path, extension: &str) -> bool {
     path.extension()
         .and_then(|value| value.to_str())
         .is_some_and(|actual| actual.eq_ignore_ascii_case(extension))
+}
+
+fn require_prepared_source_directory(path: &Path) -> Result<()> {
+    crate::path::refuse_symlink_ancestors(path)?;
+    if !fs::symlink_metadata(path)?.is_dir() {
+        return Err(PortcoveError::source(
+            "this prepared runtime requires an authenticated original-data directory, not an archive",
+        ));
+    }
+    Ok(())
 }
 
 fn repair_path_identity(path: &Path) -> PathBuf {
@@ -10648,6 +10695,7 @@ fn main() {
             executable: executable.into(),
             immutable_tree_sha256: "0".repeat(64),
             source_argument_extension: None,
+            source_directory_environment: false,
             library_user_data: private,
             required_mutable_files: vec![],
             settings_contract: None,
@@ -10771,6 +10819,124 @@ fn main() {
             None,
             &OperationCoordinator::new("launch", None),
         )
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn prepared_source_directory_binds_retained_source_and_refuses_zip_before_user_data() {
+        // Prepare a LaunchSpec with inert bytes; never spawn a child.
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let external = temporary.path().join("runtime");
+        fs::create_dir(&external).unwrap();
+        fs::write(external.join("game.exe"), b"inert executable").unwrap();
+        let mut document: serde_json::Value = serde_json::from_str(include_str!(
+            "../tests/fixtures/prepared-source-directory.json"
+        ))
+        .unwrap();
+        let runtime_value = &mut document["ports"][0]["release"]["user_prepared"]["windows-x86-64"];
+        let runtime: crate::UserPreparedRuntimeSpec =
+            serde_json::from_value(runtime_value.clone()).unwrap();
+        runtime_value["immutable_tree_sha256"] =
+            crate::external_runtime::inspect(&external, &runtime, library.root())
+                .unwrap_err()
+                .details["actual_tree_sha256"]
+                .clone()
+                .into();
+        let catalog = Catalog::from_json(&document.to_string()).unwrap();
+        let mut service = service_with_release(library.clone(), "v1");
+        service.replace_catalog_for_test(catalog);
+        let id = "prepared-directory-fixture";
+        let preview = service.preview_external_runtime(id, &external).unwrap();
+        let token = service
+            .authorize_external_runtime(id, &external, &preview.preview_sha256)
+            .unwrap();
+        let record = service
+            .register_external_runtime(id, &external, &token.token)
+            .unwrap();
+        let source = temporary.path().join("original");
+        fs::create_dir_all(source.join("nested")).unwrap();
+        fs::write(source.join("nested/data.bin"), b"abc").unwrap();
+        fs::write(source.join("unknown-save"), b"preserve").unwrap();
+        let zipped = temporary.path().join("original.zip");
+        let mut zip = zip::ZipWriter::new(fs::File::create(&zipped).unwrap());
+        zip.start_file("nested/data.bin", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        std::io::Write::write_all(&mut zip, b"abc").unwrap();
+        zip.finish().unwrap();
+        service
+            .register_source("directory-source", &zipped)
+            .unwrap();
+        assert!(!service.status(id).unwrap().readiness.unwrap().launchable);
+        assert!(prepare_external_location_fixture_launch(&service, &record).is_err());
+        assert!(!library.root().join("user").join(id).exists());
+        service
+            .register_source("directory-source", &source)
+            .unwrap();
+        let registered = library.source("directory-source").unwrap().unwrap();
+        let calls = std::cell::Cell::new(0);
+        let cancelled = PortcoveService::verify_source_record_with_checkpoint(
+            service.catalog(),
+            &registered,
+            &|| {
+                calls.set(calls.get() + 1);
+                if calls.get() >= 3 {
+                    Err(PortcoveError::new(
+                        crate::ErrorCode::Cancelled,
+                        "fixture cancellation inside relative inspection",
+                    ))
+                } else {
+                    Ok(())
+                }
+            },
+        )
+        .unwrap_err();
+        assert_eq!(cancelled.code, crate::ErrorCode::Cancelled);
+        assert!(service.status(id).unwrap().readiness.unwrap().launchable);
+        // A current definition cannot disable retained directory/source semantics.
+        document["ports"][0]["release"]["user_prepared"]["windows-x86-64"]["source_directory_environment"] =
+            false.into();
+        document["ports"][0]["source_environment"] = "CHANGED_SOURCE_DIR".into();
+        service.replace_catalog_for_test(Catalog::from_json(&document.to_string()).unwrap());
+        let launch = prepare_external_location_fixture_launch(&service, &record).unwrap();
+        assert!(launch.fixed_arguments_only);
+        assert_eq!(launch.arguments, ["--reviewed"]);
+        let process = launch.process_spec();
+        assert!(
+            crate::ChildProcessPolicy::game_command(&process, &["--source=other".into()]).is_err()
+        );
+        let command = crate::ChildProcessPolicy::game_command(&process, &[]).unwrap();
+        assert_eq!(
+            command.get_args().collect::<Vec<_>>(),
+            [std::ffi::OsStr::new("--reviewed")]
+        );
+        assert_eq!(
+            fs::canonicalize(&launch.environment["FIXTURE_SOURCE_DIR"]).unwrap(),
+            fs::canonicalize(&source).unwrap()
+        );
+        assert!(!launch.environment.contains_key("CHANGED_SOURCE_DIR"));
+        let user = Path::new(&launch.environment["FIXTURE_USER_DIR"]);
+        assert!(user.is_dir());
+        fs::write(user.join("player-save"), b"private save").unwrap();
+        let (_, retained) = library.external_runtime_with_port(id).unwrap().unwrap();
+        assert!(
+            service
+                .prepare_launch_for_external(
+                    &record,
+                    &retained,
+                    Some(&zipped),
+                    &OperationCoordinator::new("launch", None)
+                )
+                .is_err()
+        );
+        fs::write(source.join("nested/data.bin"), b"bad").unwrap();
+        assert!(prepare_external_location_fixture_launch(&service, &record).is_err());
+        assert_eq!(fs::read(source.join("unknown-save")).unwrap(), b"preserve");
+        assert_eq!(fs::read(user.join("player-save")).unwrap(), b"private save");
+        assert_eq!(
+            fs::read(external.join("game.exe")).unwrap(),
+            b"inert executable"
+        );
     }
 
     #[test]
@@ -11743,6 +11909,7 @@ fn main() {
             executable: executable_name.clone(),
             immutable_tree_sha256: "0".repeat(64),
             source_argument_extension: Some("z64".into()),
+            source_directory_environment: false,
             library_user_data: false,
             required_mutable_files: vec![],
             settings_contract: None,
@@ -12301,6 +12468,7 @@ fn main() {
             executable: executable_name.into(),
             immutable_tree_sha256: "0".repeat(64),
             source_argument_extension: None,
+            source_directory_environment: false,
             library_user_data: false,
             required_mutable_files: vec![],
             settings_contract: None,

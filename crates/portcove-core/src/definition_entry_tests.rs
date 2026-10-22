@@ -31,6 +31,30 @@ fn fixture() -> Value {
 }
 
 #[test]
+fn prepared_source_directory_requires_v18_and_preserves_its_projection() {
+    let catalog = crate::Catalog::from_json(include_str!(
+        "../tests/fixtures/prepared-source-directory.json"
+    ))
+    .unwrap();
+    let mut entry = entry_for_port(&catalog.ports()[0]);
+    for minimum in [1, 17] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        entry["required_capabilities"][0]["maximum_version"] = json!(18);
+        assert!(inspect(&entry).unwrap_err().message.contains("version 18"));
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(18);
+    let inspected = inspect(&entry).unwrap();
+    assert!(inspected.capabilities().compatible);
+    assert_eq!(
+        serde_json::to_value(inspected.port()).unwrap(),
+        entry["port"]
+    );
+    entry["port"]["release"]["user_prepared"]["windows-x86-64"]["source_directory_environment"] =
+        json!("true");
+    assert!(inspect(&entry).is_err());
+}
+
+#[test]
 fn runtime_credential_policy_requires_the_exact_new_reader_floor() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("wave-race-64-racewave46").unwrap();

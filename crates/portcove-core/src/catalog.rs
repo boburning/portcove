@@ -789,6 +789,22 @@ impl Catalog {
                         crate::external_runtime::shared_preferences::validate_route(
                             port, *platform, runtime,
                         )?;
+                        if runtime.source_directory_environment
+                            && (port.adapter != AdapterKind::StagedSourcePortable
+                                || port.source_environment.is_none()
+                                || port.source_profile.as_deref().is_none_or(|profile| {
+                                    !self.source_profile(profile).is_ok_and(|profile| {
+                                        profile.kind == crate::SourceKind::RelativeFileSet
+                                    })
+                                })
+                                || runtime.source_argument_extension.is_some()
+                                || runtime.settings_contract.is_some()
+                                || runtime.shared_preferences.is_some())
+                        {
+                            return Err(PortcoveError::usage(
+                                "prepared source directory binding requires staged-source portable, a relative-file-set profile and source environment, without another source selector",
+                            ));
+                        }
                         if runtime.settings_contract.is_some()
                             && (*platform != crate::Platform::WindowsX86_64
                                 || port.runtime_subdirectory.is_some()
@@ -1498,6 +1514,56 @@ fn is_crc32(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn prepared_source_directory_requires_a_single_reviewed_binding() {
+        let input = include_str!("../tests/fixtures/prepared-source-directory.json");
+        let catalog = Catalog::from_json(input).unwrap();
+        assert_eq!(
+            catalog.source_profile("directory-source").unwrap().kind,
+            SourceKind::RelativeFileSet
+        );
+        for (field, value) in [
+            ("source_argument_extension", serde_json::json!("zip")),
+            ("settings_contract", serde_json::json!("tfe122419-windows")),
+            ("shared_preferences", serde_json::json!("smb1r11-windows")),
+            ("source_directory_environment", serde_json::json!("true")),
+        ] {
+            let mut changed: serde_json::Value = serde_json::from_str(input).unwrap();
+            changed["ports"][0]["release"]["user_prepared"]["windows-x86-64"][field] = value;
+            assert!(Catalog::from_json(&changed.to_string()).is_err(), "{field}");
+        }
+        for (field, value) in [
+            ("adapter", serde_json::json!("n64-recomp-portable")),
+            ("source_profile", serde_json::json!(null)),
+            ("source_environment", serde_json::json!(null)),
+            ("source_environment", serde_json::json!("PATH")),
+            ("source_environment", serde_json::json!("FIXTURE_USER_DIR")),
+            (
+                "windows_runtime_path_policy",
+                serde_json::json!("printable-ascii-max-path"),
+            ),
+            (
+                "launch_environment",
+                serde_json::json!({"FIXTURE_SOURCE_DIR":"override"}),
+            ),
+        ] {
+            let mut changed: serde_json::Value = serde_json::from_str(input).unwrap();
+            changed["ports"][0][field] = value;
+            assert!(Catalog::from_json(&changed.to_string()).is_err(), "{field}");
+        }
+        let mut changed: serde_json::Value = serde_json::from_str(input).unwrap();
+        let representation =
+            &mut changed["source_catalog"]["identities"][0]["variants"][0]["representations"][0];
+        *representation = serde_json::json!({"id":"raw","extensions":["bin"],"kind":"raw-file",
+            "identities":[{"scope":"original-file","sha256":"a".repeat(64)}]});
+        changed["source_catalog"]["identities"][0]["kind"] = "file".into();
+        assert!(Catalog::from_json(&changed.to_string()).is_err());
+        changed["ports"][0]["release"]["user_prepared"]["windows-x86-64"]["source_directory_environment"] =
+            false.into();
+        assert!(Catalog::from_json(&changed.to_string()).is_ok());
+    }
+
     #[test]
     fn managed_tfe_requires_complete_relative_data_and_preserves_historical_primary_route() {
         let catalog = Catalog::embedded().unwrap();

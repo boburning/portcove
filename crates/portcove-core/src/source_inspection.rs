@@ -270,8 +270,27 @@ pub(crate) fn inspect(
 }
 
 pub(crate) fn verify_registered(catalog: &Catalog, registered: &SourceRecord) -> Result<()> {
+    verify_registered_with_checkpoint(catalog, registered, &|| Ok(()))
+}
+
+pub(crate) fn verify_registered_with_checkpoint(
+    catalog: &Catalog,
+    registered: &SourceRecord,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
     let profile_id = &registered.profile_id;
-    let actual = inspect(catalog, profile_id, &registered.path)?.require_admitted_record()?;
+    checkpoint()?;
+    let actual = if catalog.source_profile(profile_id)?.kind == SourceKind::RelativeFileSet {
+        crate::path::unicode(&registered.path, "source")?;
+        let absolute = std::path::absolute(&registered.path)?;
+        crate::relative_file_set::inspect_with_checkpoint(
+            catalog, profile_id, &absolute, checkpoint,
+        )?
+    } else {
+        inspect(catalog, profile_id, &registered.path)?
+    }
+    .require_admitted_record()?;
+    checkpoint()?;
     if actual.sha256 != registered.sha256
         || actual.size != registered.size
         || actual.storage_sha256 != registered.storage_sha256
