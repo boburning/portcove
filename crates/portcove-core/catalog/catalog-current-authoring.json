@@ -17738,7 +17738,7 @@
       "persistent_paths": [
         ".runtime"
       ],
-      "runtime_data_policy": "racewave46-v1.0.0-windows",
+      "runtime_data_policy": "version-local-retroachievements-v1",
       "runtime_source_filename": "game.z64",
       "runtime_source_materialization": "n64-big-endian",
       "runtime_source_hashes": {
@@ -19813,7 +19813,7 @@
         ],
         "saves_and_settings": "portcove-managed"
       },
-      "managed_initialization": "tfe-dark-forces-v1.22.420",
+      "managed_initialization": "tfe-dark-forces-portable-v1",
       "launch_from_install_root": true,
       "runtime_source_set": [
         {
@@ -20438,7 +20438,7 @@
     {
       "id": "yoshis-cookie-recomp",
       "name": "YoshisCookieRecomp",
-      "summary": "Native Yoshi's Cookie recompilation built from the exact original with a pinned Windows recipe.",
+      "summary": "YoshisCookieRecomp using an existing installation that you manage.",
       "project_url": "https://github.com/mstan/YoshisCookieRecomp",
       "support_tier": "beta",
       "channels": [
@@ -20451,59 +20451,33 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "github",
+        "provider": "user-prepared",
         "repository": "mstan/YoshisCookieRecomp",
-        "asset_hints": {
-          "windows-x86-64": [
-            "YoshisCookieRecomp-windows-x64.zip"
-          ]
-        },
-        "managed_build": {
-          "windows-x86-64": "yoshis-cookie-nes-cycle-v1.1.0"
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
         }
-      },
-      "source_profile": "yoshis-cookie-nes-usa",
-      "executable_hints": {
-        "windows-x86-64": [
-          "YoshisCookieRecomp.exe"
-        ]
       },
       "presentation": {
         "original_game_title": "Yoshi's Cookie",
-        "installation_method": "managed-recompilation",
-        "source_requirements": [
-          {
-            "role": "game",
-            "profile_id": "yoshis-cookie-nes-usa",
-            "label": "Yoshi's Cookie (USA), exact full NES2 original",
-            "verification": "catalog-identity"
-          }
-        ],
-        "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Register the unchanged exact USA full NES2 original. Core authenticates pinned source/toolchain inputs and builds the fixed v1.1.0 Windows runtime privately. Keep the original header unchanged. Core preserves config.ini, config.ini.tmp, saves/ and root cyc_shot_*.png screenshots. Keep debug.ini absent: it enables an unqualified local TCP interface and is refused before launch. Actual private Core install, verification, old-reader refusal, two startup/ordinary-close/restart cycles, current-release no-change, config backup/restore and consent-bound owned removal passed with the recorded qualification CLI. Another release requires a reviewed compatible recipe; no previous version or successful rollback is qualified. Installed Desktop, protected production delivery, gameplay/save-load, audio/controllers and other platforms remain unqualified. See the owning qualification record for exact evidence scopes."
-      },
-      "launch_environment": {
-        "NESRECOMP_NO_LAUNCHER": "1"
-      },
-      "launch_arguments": [
-        "game.nes"
-      ],
-      "persistent_paths": [
-        "config.ini",
-        "config.ini.tmp",
-        "saves"
-      ],
-      "persistent_file_patterns": [
-        {
-          "prefix": "cyc_shot_",
-          "suffix": ".png"
-        }
-      ]
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use upstream’s setup or build instructions with your own original, then select the resulting executable or supported launcher. Upstream or you replace the runtime; Portcove only registers and launches it. Existing Portcove-built installations retain their original contracts."
+      }
     },
     {
       "id": "dr-mario-nes-recomp",
       "name": "Dr. Mario NES Recomp",
-      "summary": "Native Dr. Mario recompilation with a fixed original-driven Windows build.",
+      "summary": "Dr. Mario NES Recomp using an existing installation that you manage.",
       "project_url": "https://github.com/mstan/DrMarioNesRecomp",
       "support_tier": "beta",
       "channels": [
@@ -20516,55 +20490,29 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "github",
+        "provider": "user-prepared",
         "repository": "mstan/DrMarioNesRecomp",
-        "asset_hints": {
-          "windows-x86-64": [
-            "DrMarioRecomp-usa-windows-x64.zip"
-          ]
-        },
-        "managed_build": {
-          "windows-x86-64": "dr-mario-nes-cycle-v1.3.0-usa"
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
         }
-      },
-      "source_profile": "dr-mario-nes-japan-usa-rev1",
-      "executable_hints": {
-        "windows-x86-64": [
-          "DrMarioRecomp.exe"
-        ]
       },
       "presentation": {
         "original_game_title": "Dr. Mario",
         "variant_label": "NES",
-        "installation_method": "managed-recompilation",
-        "source_requirements": [
-          {
-            "role": "game",
-            "profile_id": "dr-mario-nes-japan-usa-rev1",
-            "label": "Dr. Mario (Japan/USA) Rev 1 NES2 headered full headered NES2 original",
-            "verification": "catalog-identity"
-          }
-        ],
-        "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Register the unchanged exact full Japan/USA Rev1 NES2 original. Core authenticates pinned source/toolchain inputs and builds the fixed USA v1.3.0 Windows runtime privately. Keep the original header unchanged. Core preserves config.ini, config.ini.tmp, saves/ and root cyc_shot_*.png screenshots. Keep debug.ini absent: it enables an unqualified local TCP interface and is refused before launch. Actual private Core install, verification, strict older-reader refusal, two startup/ordinary-close/restart cycles, current-release no-change, config backup/restore and consent-bound owned removal passed with the recorded qualification CLI. Another release requires a reviewed compatible recipe; no previous version or successful rollback is qualified. Installed Desktop, protected production delivery, gameplay/save-load, audio/controllers and other platforms remain unqualified. See the owning qualification record for exact evidence scopes."
-      },
-      "launch_environment": {
-        "NESRECOMP_NO_LAUNCHER": "1"
-      },
-      "launch_arguments": [
-        "game.nes"
-      ],
-      "persistent_paths": [
-        "config.ini",
-        "config.ini.tmp",
-        "saves"
-      ],
-      "persistent_file_patterns": [
-        {
-          "prefix": "cyc_shot_",
-          "suffix": ".png"
-        }
-      ]
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use upstream’s setup with your own original, then select the resulting executable or supported launcher. Upstream or you replace the runtime; Portcove only registers and launches it. Existing Portcove-built installations retain their original contracts."
+      }
     },
     {
       "id": "super-metroid-recomp",
@@ -20792,7 +20740,8 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Choose and check your own exact Resident Evil Gaiden (USA) original. Portcove installs the unchanged official Windows package, creates its local saves folder and manages local saves and settings. Review the resolved Windows account-wide preferences path before installation: the game may overwrite it and discard unknown entries, affecting other copies. Portcove never owns or backs up that shared file. A local runtime_prefs.ini fallback belongs to this managed installation. Existing external copies remain yours to manage. Use printable ASCII paths within Windows MAX_PATH bounds. Gameplay remains untested. MIT and clean-room claims are attributed upstream assertions, not blanket redistribution permission."
       },
-      "managed_shared_preferences": "regaiden041-windows",
+      "managed_shared_preferences": "gbrecompiled-windows-v1",
+      "managed_shared_preferences_save_id": "Resident_Evil_Gaiden__USA_",
       "runtime_source_filename": "game.gbc",
       "runtime_source_materialization": "regaiden-gbc",
       "runtime_source_hashes": {
@@ -20804,7 +20753,7 @@
     {
       "id": "earthbound-recomp",
       "name": "EarthBound Recomp",
-      "summary": "Early EarthBound native-port bring-up with interpreter fallback, privately built from the exact USA original.",
+      "summary": "EarthBound Recomp using an existing installation that you manage.",
       "project_url": "https://github.com/nickclyde/EarthBoundRecomp",
       "support_tier": "beta",
       "channels": [
@@ -20817,65 +20766,28 @@
       "manually_validated_platforms": [],
       "adapter": "staged-source-portable",
       "release": {
-        "provider": "direct-manifest",
+        "provider": "user-prepared",
         "repository": "nickclyde/EarthBoundRecomp",
-        "direct": {
+        "user_prepared": {
           "windows-x86-64": {
-            "version": "source-fe1155dc26ff",
-            "url": "https://github.com/nickclyde/EarthBoundRecomp/archive/fe1155dc26ffc40df36a8003dd0e639e17af3349.zip",
-            "size": 69441,
-            "sha256": "3cb01dc15d769defa1a8c3428b1ef5ce50f9c1cc224e3f0347f751841fc84710",
-            "published_at": null
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
-        },
-        "managed_build": {
-          "windows-x86-64": "earthbound-snes-source-fe1155dc26ff-usa"
         }
-      },
-      "source_profile": "earthbound-snes-usa",
-      "executable_hints": {
-        "windows-x86-64": [
-          "EarthBoundRecomp.exe"
-        ]
       },
       "presentation": {
-        "installation_method": "managed-recompilation",
-        "source_requirements": [
-          {
-            "role": "game",
-            "profile_id": "earthbound-snes-usa",
-            "label": "EarthBound (USA) headerless 3145728-byte SNES original",
-            "verification": "catalog-identity"
-          }
-        ],
-        "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Supply the exact headerless raw USA SNES original. Core builds the pinned early EarthBound prototype privately with the Python HiROM analysis and SDL2 backends; launcher, mods, netplay, tracing and co-simulation are disabled. The owned game.sfc and fixed arguments are required. Remove SDL_DYNAMIC_API before starting Portcove. Configuration/keybindings, rom.cfg and saves use Core persistence; run/coverage/crash diagnostics are mutable outputs. Actual private Core build, 12-file verification, two startup/ordinary-close cycles, pinned current-version maintenance, four-file backup/restore and consent-bound owned removal passed at the recorded qualification CLI. A different source release requires a reviewed compatible recipe. Upstream title/file-select bring-up is not full-game acceptance. Installed Desktop, protected production delivery, binary redistribution, gameplay/save-load, visual/audio/controller and other-platform observations remain unqualified. See docs/qualification/earthbound-fixed-source-2026-10-19.md for exact scopes.",
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "This is an early upstream prototype. Prepare it using upstream’s own instructions and your own original, then select the executable. You manage its runtime and player data. Portcove does not build or repair the engine. Existing Portcove-built installations retain their original contracts.",
         "original_game_title": "EarthBound"
-      },
-      "launch_arguments": [
-        "game.sfc"
-      ],
-      "persistent_paths": [
-        "config.ini",
-        "config.local.ini",
-        "keybinds.ini",
-        "rom.cfg",
-        "saves"
-      ],
-      "runtime_mutable_paths": [
-        "last_run_report.json",
-        "tier2_coverage.json"
-      ],
-      "runtime_mutable_file_patterns": [
-        {
-          "prefix": "crash_report_",
-          "suffix": ".json"
-        },
-        {
-          "prefix": "crash_minidump_",
-          "suffix": ".dmp"
-        }
-      ]
+      }
     },
     {
       "id": "super-mario-bros-remastered",
@@ -20959,7 +20871,7 @@
     {
       "id": "render96ex",
       "name": "Super Mario 64 Render96",
-      "summary": "Play Super Mario 64 through the Render96 engine.",
+      "summary": "Super Mario 64 Render96 using an existing installation that you manage.",
       "project_url": "https://github.com/Render96/Render96ex",
       "support_tier": "beta",
       "channels": [
@@ -20972,40 +20884,27 @@
       "manually_validated_platforms": [],
       "adapter": "staged-source-portable",
       "release": {
-        "provider": "direct-manifest",
+        "provider": "user-prepared",
         "repository": "Render96/Render96ex",
-        "direct": {
+        "user_prepared": {
           "windows-x86-64": {
-            "version": "source-48da5c491c8a",
-            "url": "https://github.com/Render96/Render96ex/archive/48da5c491c8abfb2f5192b59278c1c269411e533.zip",
-            "size": 11615689,
-            "sha256": "43091630151c8023b72e7faa2726c3914376fee2cc3becbfefba30423b71b403",
-            "published_at": null
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
-        },
-        "managed_build": {
-          "windows-x86-64": "render96-us-source-48da5c491c8a"
         }
       },
-      "source_profile": "ghostship-source",
-      "executable_hints": {
-        "windows-x86-64": [
-          "sm64.us.f3dex2e.exe"
-        ]
-      },
       "presentation": {
-        "installation_method": "managed-recompilation",
-        "source_requirements": [
-          {
-            "role": "game",
-            "profile_id": "ghostship-source",
-            "label": "Super Mario 64 (US) source",
-            "verification": "catalog-identity"
-          }
-        ],
-        "saves_and_settings": "portcove-managed",
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
         "original_game_title": "Super Mario 64",
-        "manual_preparation": "Supply the exact raw Super Mario 64 USA 1.0 original as .z64, .n64 or .v64. Extract ZIP inputs before registration. The pinned Windows x64 build uses stock resources and needs a library path containing only ASCII letters, digits, slash, colon, dot, underscore or hyphen. Remove SDL_DYNAMIC_API before starting Portcove. Settings and the binary save file are managed by Portcove. Optional models, texture packs, TAS inputs and runtime overrides are not offered. A different Render96 source release requires a reviewed compatible recipe.",
+        "manual_preparation": "Build Render96 with upstream’s documented instructions and your own original, then select the resulting executable. You manage optional packs, runtime updates, saves and settings. Portcove only registers and launches it. Existing Portcove-built installations retain their original contracts.",
         "artwork": {
           "game_id": 1074,
           "cover_id": 329251,
@@ -21014,15 +20913,7 @@
           "game_slug": "super-mario-64",
           "match_kind": "underlying-game"
         }
-      },
-      "launch_arguments": [
-        "--savepath",
-        "!"
-      ],
-      "persistent_paths": [
-        "sm64config.txt",
-        "sm64_save_file.bin"
-      ]
+      }
     },
     {
       "id": "super-bomberman-recomp",
@@ -21108,7 +20999,7 @@
     {
       "id": "gundam-wing-endless-duel-recomp",
       "name": "Gundam Wing: Endless Duel Recomp",
-      "summary": "Build and play Gundam Wing: Endless Duel from your own Japanese original.",
+      "summary": "Gundam Wing: Endless Duel Recomp using an existing installation that you manage.",
       "project_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
       "support_tier": "beta",
       "channels": [
@@ -21121,56 +21012,28 @@
       "manually_validated_platforms": [],
       "adapter": "staged-source-portable",
       "release": {
-        "provider": "direct-manifest",
+        "provider": "user-prepared",
         "repository": "TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
-        "direct": {
+        "user_prepared": {
           "windows-x86-64": {
-            "version": "source-c7aaaa152192",
-            "url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/archive/c7aaaa152192db5d750db3fb190e8f93b6240c19.zip",
-            "size": 3363589,
-            "sha256": "bfe295943d83d144def7f355ac47f04fd90fb5bd2000ca0217e7874dfc33c2ee",
-            "published_at": null
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
-        },
-        "managed_build": {
-          "windows-x86-64": "gundam-wing-snes-source-c7aaaa152192-japan-offline"
         }
-      },
-      "source_profile": "gundam-wing-endless-duel-snes-japan",
-      "executable_hints": {
-        "windows-x86-64": [
-          "GundamWingEndlessDuelSNESRecomp.exe"
-        ]
       },
       "presentation": {
         "original_game_title": "Shin Kidou Senki Gundam W: Endless Duel",
-        "installation_method": "managed-recompilation",
-        "source_requirements": [
-          {
-            "role": "game",
-            "profile_id": "gundam-wing-endless-duel-snes-japan",
-            "label": "Gundam Wing: Endless Duel (Japan) stock headerless SNES source",
-            "verification": "catalog-identity"
-          }
-        ],
-        "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own stock headerless Japanese original. Portcove builds the fixed offline source recipe with optional mods, setup and netplay disabled. Use a short library path with basic Latin characters. Close the game with its titlebar close button. Your original remains separate from managed settings and saves; gameplay completion and populated save/load remain unverified."
-      },
-      "launch_arguments": [
-        "game.sfc"
-      ],
-      "persistent_paths": [
-        "config.ini",
-        "config.local.ini",
-        "keybinds.ini",
-        "rom.cfg",
-        "saves"
-      ],
-      "runtime_mutable_paths": [
-        ".snesrecomp_write_probe"
-      ],
-      "runtime_mutable_file_patterns": [],
-      "launch_environment": {}
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use upstream’s ROM-free setup pack and your own Japanese original. Its supported launcher performs generation and compilation. Select that launcher or its prepared game executable; upstream or you manage replacement and player data. Portcove only registers and launches it. Existing Portcove-built installations retain their original contracts."
+      }
     },
     {
       "id": "dkc2-recomp",

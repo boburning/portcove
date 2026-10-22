@@ -1085,6 +1085,16 @@
               }
             ]
           },
+          "user_selected": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UserSelectedLaunch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -1597,11 +1607,20 @@
       },
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
-        "enum": [
-          "regaiden041-windows",
-          "smb1r-1.1-stable-windows"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "regaiden041-windows",
+              "smb1r-1.1-stable-windows"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "gbrecompiled-windows-v1",
+            "description": "Reviewed GB Recompiled roaming preferences and installation-local fallback.\nArtifact applicability comes from the retained managed direct release.",
+            "type": "string"
+          }
+        ]
       },
       "RecoveryAction": {
         "enum": [
@@ -2231,6 +2250,22 @@
         "required": [
           "checked_at",
           "check"
+        ],
+        "type": "object"
+      },
+      "UserSelectedLaunch": {
+        "additionalProperties": false,
+        "properties": {
+          "arguments": {
+            "description": "Individual arguments passed directly to the selected native executable.\nNo shell, scripts, environment overrides or hooks are interpreted.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "arguments"
         ],
         "type": "object"
       }
@@ -3590,6 +3625,14 @@
         ],
         "type": "object"
       },
+      "ExternalRuntimeTrust": {
+        "description": "Who admitted the executable bytes. User selection grants execution intent,\nnever curated package authenticity or ownership of the selected files.",
+        "enum": [
+          "accepted-package",
+          "user-selected"
+        ],
+        "type": "string"
+      },
       "IgdbArtwork": {
         "additionalProperties": false,
         "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
@@ -3651,7 +3694,8 @@
       "ManagedInitialization": {
         "description": "Closed initialization recipes, never catalog-supplied scripts or file contents.",
         "enum": [
-          "tfe-dark-forces-v1.22.420"
+          "tfe-dark-forces-v1.22.420",
+          "tfe-dark-forces-portable-v1"
         ],
         "type": "string"
       },
@@ -3838,6 +3882,13 @@
               {
                 "type": "null"
               }
+            ]
+          },
+          "managed_shared_preferences_save_id": {
+            "description": "Reviewed engine save identifier used only to bound managed GB save paths.",
+            "type": [
+              "string",
+              "null"
             ]
           },
           "manually_validated_platforms": {
@@ -4267,11 +4318,20 @@
       },
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
-        "enum": [
-          "regaiden041-windows",
-          "smb1r-1.1-stable-windows"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "regaiden041-windows",
+              "smb1r-1.1-stable-windows"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "gbrecompiled-windows-v1",
+            "description": "Reviewed GB Recompiled roaming preferences and installation-local fallback.\nArtifact applicability comes from the retained managed direct release.",
+            "type": "string"
+          }
+        ]
       },
       "RelativeSourceMemberIdentity": {
         "additionalProperties": false,
@@ -4480,7 +4540,8 @@
       "RuntimeDataPolicy": {
         "description": "Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.",
         "enum": [
-          "racewave46-v1.0.0-windows"
+          "racewave46-v1.0.0-windows",
+          "version-local-retroachievements-v1"
         ],
         "type": "string"
       },
@@ -5503,6 +5564,9 @@
           "source_directory_environment": {
             "description": "Bind an authenticated relative-file-set directory through source_environment.\nThis does not materialize archives or authorize writes to the source.",
             "type": "boolean"
+          },
+          "trust": {
+            "$ref": "#/$defs/ExternalRuntimeTrust"
           },
           "version": {
             "type": "string"
@@ -7849,11 +7913,20 @@
       },
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
-        "enum": [
-          "regaiden041-windows",
-          "smb1r-1.1-stable-windows"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "regaiden041-windows",
+              "smb1r-1.1-stable-windows"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "gbrecompiled-windows-v1",
+            "description": "Reviewed GB Recompiled roaming preferences and installation-local fallback.\nArtifact applicability comes from the retained managed direct release.",
+            "type": "string"
+          }
+        ]
       },
       "SharedPreferencesReview": {
         "additionalProperties": false,
@@ -7879,6 +7952,22 @@
           "present",
           "local_fallback_path",
           "local_fallback_present"
+        ],
+        "type": "object"
+      },
+      "UserSelectedLaunch": {
+        "additionalProperties": false,
+        "properties": {
+          "arguments": {
+            "description": "Individual arguments passed directly to the selected native executable.\nNo shell, scripts, environment overrides or hooks are interpreted.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "arguments"
         ],
         "type": "object"
       }
@@ -7912,6 +8001,16 @@
         "anyOf": [
           {
             "$ref": "#/$defs/SharedPreferencesReview"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "user_selected": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/UserSelectedLaunch"
           },
           {
             "type": "null"
@@ -8076,11 +8175,36 @@
       },
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
-        "enum": [
-          "regaiden041-windows",
-          "smb1r-1.1-stable-windows"
+        "oneOf": [
+          {
+            "enum": [
+              "regaiden041-windows",
+              "smb1r-1.1-stable-windows"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "gbrecompiled-windows-v1",
+            "description": "Reviewed GB Recompiled roaming preferences and installation-local fallback.\nArtifact applicability comes from the retained managed direct release.",
+            "type": "string"
+          }
+        ]
+      },
+      "UserSelectedLaunch": {
+        "additionalProperties": false,
+        "properties": {
+          "arguments": {
+            "description": "Individual arguments passed directly to the selected native executable.\nNo shell, scripts, environment overrides or hooks are interpreted.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "arguments"
         ],
-        "type": "string"
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -8124,6 +8248,16 @@
         "anyOf": [
           {
             "$ref": "#/$defs/AcceptedSharedPreferencesBinding"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "user_selected": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/UserSelectedLaunch"
           },
           {
             "type": "null"
@@ -8206,6 +8340,16 @@
               }
             ]
           },
+          "user_selected": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UserSelectedLaunch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -8224,11 +8368,20 @@
       },
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
-        "enum": [
-          "regaiden041-windows",
-          "smb1r-1.1-stable-windows"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "regaiden041-windows",
+              "smb1r-1.1-stable-windows"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "gbrecompiled-windows-v1",
+            "description": "Reviewed GB Recompiled roaming preferences and installation-local fallback.\nArtifact applicability comes from the retained managed direct release.",
+            "type": "string"
+          }
+        ]
       },
       "SharedPreferencesReview": {
         "additionalProperties": false,
@@ -8254,6 +8407,22 @@
           "present",
           "local_fallback_path",
           "local_fallback_present"
+        ],
+        "type": "object"
+      },
+      "UserSelectedLaunch": {
+        "additionalProperties": false,
+        "properties": {
+          "arguments": {
+            "description": "Individual arguments passed directly to the selected native executable.\nNo shell, scripts, environment overrides or hooks are interpreted.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "arguments"
         ],
         "type": "object"
       }
@@ -10151,11 +10320,20 @@
       },
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
-        "enum": [
-          "regaiden041-windows",
-          "smb1r-1.1-stable-windows"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "regaiden041-windows",
+              "smb1r-1.1-stable-windows"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "gbrecompiled-windows-v1",
+            "description": "Reviewed GB Recompiled roaming preferences and installation-local fallback.\nArtifact applicability comes from the retained managed direct release.",
+            "type": "string"
+          }
+        ]
       },
       "ReleaseAsset": {
         "properties": {
@@ -10735,11 +10913,20 @@
       },
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
-        "enum": [
-          "regaiden041-windows",
-          "smb1r-1.1-stable-windows"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "regaiden041-windows",
+              "smb1r-1.1-stable-windows"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "gbrecompiled-windows-v1",
+            "description": "Reviewed GB Recompiled roaming preferences and installation-local fallback.\nArtifact applicability comes from the retained managed direct release.",
+            "type": "string"
+          }
+        ]
       },
       "ReleaseAsset": {
         "properties": {
@@ -12170,11 +12357,20 @@
       },
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
-        "enum": [
-          "regaiden041-windows",
-          "smb1r-1.1-stable-windows"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "regaiden041-windows",
+              "smb1r-1.1-stable-windows"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "gbrecompiled-windows-v1",
+            "description": "Reviewed GB Recompiled roaming preferences and installation-local fallback.\nArtifact applicability comes from the retained managed direct release.",
+            "type": "string"
+          }
+        ]
       },
       "ReleaseAsset": {
         "properties": {
@@ -16268,6 +16464,14 @@
         ],
         "type": "object"
       },
+      "ExternalRuntimeTrust": {
+        "description": "Who admitted the executable bytes. User selection grants execution intent,\nnever curated package authenticity or ownership of the selected files.",
+        "enum": [
+          "accepted-package",
+          "user-selected"
+        ],
+        "type": "string"
+      },
       "IgdbArtwork": {
         "additionalProperties": false,
         "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
@@ -16329,7 +16533,8 @@
       "ManagedInitialization": {
         "description": "Closed initialization recipes, never catalog-supplied scripts or file contents.",
         "enum": [
-          "tfe-dark-forces-v1.22.420"
+          "tfe-dark-forces-v1.22.420",
+          "tfe-dark-forces-portable-v1"
         ],
         "type": "string"
       },
@@ -16480,11 +16685,20 @@
       },
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
-        "enum": [
-          "regaiden041-windows",
-          "smb1r-1.1-stable-windows"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "regaiden041-windows",
+              "smb1r-1.1-stable-windows"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "gbrecompiled-windows-v1",
+            "description": "Reviewed GB Recompiled roaming preferences and installation-local fallback.\nArtifact applicability comes from the retained managed direct release.",
+            "type": "string"
+          }
+        ]
       },
       "ReleaseAsset": {
         "properties": {
@@ -16666,7 +16880,8 @@
       "RuntimeDataPolicy": {
         "description": "Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.",
         "enum": [
-          "racewave46-v1.0.0-windows"
+          "racewave46-v1.0.0-windows",
+          "version-local-retroachievements-v1"
         ],
         "type": "string"
       },
@@ -16839,6 +17054,9 @@
             "description": "Bind an authenticated relative-file-set directory through source_environment.\nThis does not materialize archives or authorize writes to the source.",
             "type": "boolean"
           },
+          "trust": {
+            "$ref": "#/$defs/ExternalRuntimeTrust"
+          },
           "version": {
             "type": "string"
           }
@@ -16977,6 +17195,13 @@
           {
             "type": "null"
           }
+        ]
+      },
+      "managed_shared_preferences_save_id": {
+        "description": "Reviewed engine save identifier used only to bound managed GB save paths.",
+        "type": [
+          "string",
+          "null"
         ]
       },
       "manually_validated_platforms": {
@@ -20914,6 +21139,14 @@
         ],
         "type": "object"
       },
+      "ExternalRuntimeTrust": {
+        "description": "Who admitted the executable bytes. User selection grants execution intent,\nnever curated package authenticity or ownership of the selected files.",
+        "enum": [
+          "accepted-package",
+          "user-selected"
+        ],
+        "type": "string"
+      },
       "IgdbArtwork": {
         "additionalProperties": false,
         "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
@@ -20975,7 +21208,8 @@
       "ManagedInitialization": {
         "description": "Closed initialization recipes, never catalog-supplied scripts or file contents.",
         "enum": [
-          "tfe-dark-forces-v1.22.420"
+          "tfe-dark-forces-v1.22.420",
+          "tfe-dark-forces-portable-v1"
         ],
         "type": "string"
       },
@@ -21162,6 +21396,13 @@
               {
                 "type": "null"
               }
+            ]
+          },
+          "managed_shared_preferences_save_id": {
+            "description": "Reviewed engine save identifier used only to bound managed GB save paths.",
+            "type": [
+              "string",
+              "null"
             ]
           },
           "manually_validated_platforms": {
@@ -21591,11 +21832,20 @@
       },
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
-        "enum": [
-          "regaiden041-windows",
-          "smb1r-1.1-stable-windows"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "regaiden041-windows",
+              "smb1r-1.1-stable-windows"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "gbrecompiled-windows-v1",
+            "description": "Reviewed GB Recompiled roaming preferences and installation-local fallback.\nArtifact applicability comes from the retained managed direct release.",
+            "type": "string"
+          }
+        ]
       },
       "RelativeSourceMemberIdentity": {
         "additionalProperties": false,
@@ -21804,7 +22054,8 @@
       "RuntimeDataPolicy": {
         "description": "Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.",
         "enum": [
-          "racewave46-v1.0.0-windows"
+          "racewave46-v1.0.0-windows",
+          "version-local-retroachievements-v1"
         ],
         "type": "string"
       },
@@ -22827,6 +23078,9 @@
           "source_directory_environment": {
             "description": "Bind an authenticated relative-file-set directory through source_environment.\nThis does not materialize archives or authorize writes to the source.",
             "type": "boolean"
+          },
+          "trust": {
+            "$ref": "#/$defs/ExternalRuntimeTrust"
           },
           "version": {
             "type": "string"
@@ -35068,6 +35322,16 @@
               }
             ]
           },
+          "user_selected": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UserSelectedLaunch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -35340,11 +35604,20 @@
       },
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
-        "enum": [
-          "regaiden041-windows",
-          "smb1r-1.1-stable-windows"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "regaiden041-windows",
+              "smb1r-1.1-stable-windows"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "gbrecompiled-windows-v1",
+            "description": "Reviewed GB Recompiled roaming preferences and installation-local fallback.\nArtifact applicability comes from the retained managed direct release.",
+            "type": "string"
+          }
+        ]
       },
       "ReleaseAsset": {
         "properties": {
@@ -35966,6 +36239,22 @@
         "required": [
           "checked_at",
           "check"
+        ],
+        "type": "object"
+      },
+      "UserSelectedLaunch": {
+        "additionalProperties": false,
+        "properties": {
+          "arguments": {
+            "description": "Individual arguments passed directly to the selected native executable.\nNo shell, scripts, environment overrides or hooks are interpreted.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "arguments"
         ],
         "type": "object"
       }

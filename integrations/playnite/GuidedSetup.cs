@@ -157,6 +157,21 @@ namespace Portcove.ReferenceClient
     // authority through the ordinary CLI or Playnite launch controller.
     internal sealed class GuidedSetup
     {
+        internal static bool UsesUserSelectedRuntime(object catalog)
+        {
+            object runtimes;
+            if (!Json.TryField(Json.Field(catalog, "release"), "user_prepared", out runtimes)) return false;
+            var selected = false;
+            foreach (var runtime in Json.Object(runtimes).Values)
+            {
+                object trust;
+                if (!Json.TryField(runtime, "trust", out trust)) continue;
+                if (!(trust is string) || !new[] { "accepted-package", "user-selected" }.Contains((string)trust))
+                    throw new InvalidOperationException("Unknown external execution trust. Update the Portcove client before using this route.");
+                selected |= (string)trust == "user-selected";
+            }
+            return selected;
+        }
         private static readonly string[] KnownBlockers =
         {
             "missing_source", "unreadable_source", "changed_source", "incompatible_source", "missing_bios",
@@ -209,6 +224,10 @@ namespace Portcove.ReferenceClient
                     "This game is registered, but Portcove has held launch. Review the action reason above before registering more files or retrying.");
             var external = Json.OptionalObjectField(status, "external_runtime") != null ||
                 Json.Text(Json.Field(catalog, "release"), "provider") == "user-prepared";
+            var selectedRoute = external && UsesUserSelectedRuntime(catalog);
+            if (selectedRoute && !installed)
+                return Step(GuidedStepKind.ReviewProblem, "Choose executable in Portcove",
+                    "Use Portcove Desktop or CLI external select to choose the executable, working directory and arguments. You or the upstream launcher manage setup and updates. This client can launch the registered installation after refresh.");
             var register = actions.FirstOrDefault(value => value.Action == "register_external");
             if (external && !installed && register != null && register.Availability == "held")
                 return Step(GuidedStepKind.ReviewProblem, "Review registration hold",

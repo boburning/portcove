@@ -3,20 +3,30 @@ use std::fs;
 
 #[test]
 fn reviewed_preparation_runs_through_jsonl_and_a_fresh_cli_plays_without_setup() {
-    preparation_roundtrip(false, false);
+    preparation_roundtrip(false, false, None);
 }
 
 #[test]
 fn reviewed_chd_conversion_retains_both_phases_through_fresh_cli_and_play() {
-    preparation_roundtrip(true, false);
+    preparation_roundtrip(true, false, None);
 }
 
 #[test]
 fn lost_preparation_output_is_resolved_by_fresh_public_readback_without_replay() {
-    preparation_roundtrip(false, true);
+    preparation_roundtrip(false, true, None);
 }
 
-fn preparation_roundtrip(chd: bool, lose_output: bool) {
+#[test]
+fn reusable_preparation_qualification_runs_real_cli_iso_case() {
+    preparation_roundtrip(false, false, Some("opengoal-jak1"));
+}
+
+#[test]
+fn reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd() {
+    preparation_roundtrip(true, false, Some("opengoal-jak2"));
+}
+
+fn preparation_roundtrip(chd: bool, lose_output: bool, reuse_port: Option<&str>) {
     let started = std::time::Instant::now();
     let phase = |name: &str| {
         eprintln!(
@@ -30,7 +40,7 @@ fn preparation_roundtrip(chd: bool, lose_output: bool) {
     let original = temporary.path().join("owned-installation");
     fs::create_dir(&original).unwrap();
     let catalog = portcove_core::Catalog::embedded().unwrap();
-    let port = catalog.port("opengoal-jak1").unwrap();
+    let port = catalog.port(reuse_port.unwrap_or("opengoal-jak1")).unwrap();
     let platform = portcove_core::Platform::current().unwrap();
     let executable = compile_native_fixture(temporary.path());
     let preferences = temporary.path().join("preferences.json");
@@ -143,7 +153,71 @@ fn preparation_roundtrip(chd: bool, lose_output: bool) {
         "--yes",
     ];
     phase("preparation-begin");
-    let prepared = if lose_output {
+    let prepared = if reuse_port.is_some() {
+        let case_path = temporary.path().join("preparation-case.json");
+        let plan_path = temporary.path().join("core-plan.json");
+        let report_path = temporary.path().join("qualification-report");
+        fs::write(&plan_path, serde_json::to_vec(&plan["data"]).unwrap()).unwrap();
+        let created = Command::new("node")
+            .args([
+                "--input-type=module",
+                "-e",
+                r#"
+                import fs from 'node:fs';
+                import {createHash} from 'node:crypto';
+                const [cli, plan, output] = process.argv.slice(1);
+                fs.writeFileSync(output, JSON.stringify({format_version:1,evidence_kind:'synthetic',
+                  cli_sha256:createHash('sha256').update(fs.readFileSync(cli)).digest('hex'),
+                  environment:{platform:process.platform,arch:process.arch,node:process.version},
+                  plan:JSON.parse(fs.readFileSync(plan,'utf8'))}), {flag:'wx'});
+            "#,
+            ])
+            .arg(cli_binary())
+            .arg(&plan_path)
+            .arg(&case_path)
+            .output()
+            .unwrap();
+        assert!(created.status.success(), "{created:?}");
+        let script = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../scripts/qualification-report.mts");
+        let observed = Command::new("node")
+            .arg(script)
+            .arg("--cli")
+            .arg(cli_binary())
+            .arg("--library")
+            .arg(&library)
+            .arg("--output")
+            .arg(&report_path)
+            .arg("--preparation-case")
+            .arg(&case_path)
+            .env("PORTCOVE_PREFERENCES", &preferences)
+            .env_remove("PORTCOVE_CHDMAN")
+            .env_remove("PORTCOVE_DOLPHIN_TOOL")
+            .output()
+            .unwrap();
+        assert!(
+            observed.status.success(),
+            "{observed:?}; retained at {report_path:?}"
+        );
+        let receipt: Value =
+            serde_json::from_slice(&fs::read(report_path.join("sequence.json")).unwrap()).unwrap();
+        assert_eq!(receipt["result"], "passed");
+        assert_eq!(receipt["evidence_kind"], "synthetic");
+        assert_eq!(receipt["operation_inputs"], plan["data"]["inputs"]);
+        assert_eq!(receipt["manual_observations"]["gameplay"], Value::Null);
+        let step: Value =
+            serde_json::from_slice(&fs::read(report_path.join("preparation-run.json")).unwrap())
+                .unwrap();
+        let stdout = step["response"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(Value::to_string)
+            .collect::<Vec<_>>()
+            .join("\n")
+            .into_bytes();
+        Output { stdout, ..observed }
+    } else if lose_output {
         portcove_core::ChildProcessPolicy::native_command(
             portcove_core::ChildProcessClass::HostIntegration,
             cli_binary(),

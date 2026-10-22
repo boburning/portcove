@@ -431,6 +431,48 @@ describe("desktop components", () => {
     expect(registered).toContain("Ready to play");
     expect(registered).toContain("It does not copy, update, back up, or delete these files");
   });
+
+  it("describes user-selected setup without accepted-package or unsupported repair promises", () => {
+    const selectedPort = currentCatalogPort("render96ex");
+    const props = { port: selectedPort, sourcePath: "", setSourcePath: vi.fn(), actions };
+    const available = renderToStaticMarkup(<DetailPanel {...props} />);
+    expect(available).toContain("Choose your existing installation");
+    expect(available).toContain("Your existing installation");
+    expect(available).not.toContain("uses the accepted package identity");
+    expect(available).not.toContain("Choose the accepted external folder");
+    expect(available).not.toContain("Archive SHA-256");
+    const unavailable = renderToStaticMarkup(
+      <DetailPanel
+        {...props}
+        status={{
+          ...portStatus(),
+          port_id: selectedPort.id,
+          external_runtime: {
+            id: "selected-registration",
+            port_id: selectedPort.id,
+            path: "C:/Owned game",
+            executable: "C:/Owned game/game.exe",
+            version: "user-managed",
+            platform: "windows-x86-64",
+            archive_sha256: "",
+            immutable_tree_sha256: "",
+            registered_at: 1,
+            user_selected: { arguments: [] },
+          },
+          readiness: {
+            launchable: false,
+            pending_setup: false,
+            blockers: ["invalid_installation"],
+            source: null,
+            bios: null,
+          },
+        }}
+      />,
+    );
+    expect(unavailable).toContain("Existing installation unavailable");
+    expect(unavailable).toContain("remove only this registration");
+    expect(unavailable).not.toContain("Choose Verify installation");
+  });
   it.each(["future_state", "constructor", "__proto__"])(
     "keeps unknown activity and policy labels neutral for %s",
     (value) => {

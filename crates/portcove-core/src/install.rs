@@ -24,10 +24,6 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
 
-#[cfg(test)]
-#[path = "cvlod_download_tests.rs"]
-mod cvlod_download_tests;
-
 #[derive(Debug, Clone)]
 pub struct InstallRequest {
     pub port_id: String,
@@ -51,7 +47,6 @@ pub struct InstallQualification {
     managed_shared_preferences: Option<crate::PreparedSharedPreferencesContract>,
     shared_preferences: Option<crate::managed_shared_preferences::Acceptance>,
     native_build_recipe: Option<crate::CartridgeBuildRecipe>,
-    native_build_preparation: Option<crate::cartridge_build::CartridgeBuildPreparation>,
     acquisition: Option<crate::ScopedResolvedRelease>,
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     platform: Platform,
@@ -87,38 +82,17 @@ impl InstallQualification {
         self.shared_preferences = accepted;
         Ok(self)
     }
-    fn require_cartridge_build_preparation(
-        &self,
-        release: &ResolvedRelease,
-        other_builder: bool,
-    ) -> Result<()> {
-        match (self.native_build_recipe, &self.native_build_preparation) {
-            (Some(recipe), Some(preparation)) if recipe == preparation.recipe && !other_builder => {
-                preparation.verify_release(release)?;
-                crate::cartridge_build::verify_original(
-                    preparation.recipe,
-                    &preparation.source,
-                    &|| Ok(()),
-                )
-            }
-            (None, None) => Ok(()),
-            _ => Err(PortcoveError::verification(
-                "cartridge build has no matching Core source preparation or conflicts with another builder",
-            )),
+    fn require_runtime_creation(&self) -> Result<()> {
+        if self.native_build_recipe.is_some() {
+            return Err(crate::cartridge_build::retired_creation());
         }
+        Ok(())
     }
     pub(crate) fn with_cartridge_build_source(
-        mut self,
-        source: Option<&crate::SourceRecord>,
+        self,
+        _source: Option<&crate::SourceRecord>,
     ) -> Result<Self> {
-        if let Some(recipe) = self.native_build_recipe {
-            let source = source.ok_or_else(|| {
-                PortcoveError::source("cartridge build requires its admitted original")
-            })?;
-            self.native_build_preparation = Some(
-                crate::cartridge_build::CartridgeBuildPreparation::new(recipe, source.clone())?,
-            );
-        }
+        self.require_runtime_creation()?;
         Ok(self)
     }
     pub(crate) fn with_acquisition_resolution(
@@ -182,7 +156,6 @@ impl InstallQualification {
             managed_shared_preferences: port.managed_shared_preferences,
             shared_preferences: None,
             native_build_recipe: port.release.managed_build.get(&platform).copied(),
-            native_build_preparation: None,
             acquisition: None,
             retained_contract: None,
             platform,
@@ -467,86 +440,6 @@ async fn run_managed_install_worker(
     result
 }
 
-async fn run_cvlod_blob_transfer(
-    lifecycle: &mut InstallLifecycle,
-    transfer: impl std::future::Future<Output = (Result<()>, bool)>,
-) -> Result<()> {
-    lifecycle.record.preparation_process_quiesced = Some(false);
-    lifecycle.store.put(&mut lifecycle.record)?;
-    let (result, quiesced) = transfer.await;
-    let mut completed = lifecycle.record.clone();
-    completed.preparation_process_quiesced = Some(quiesced);
-    lifecycle.store.put(&mut completed)?;
-    lifecycle.record = completed;
-    result
-}
-
-struct CvlodBlobWrite {
-    result: Result<u64>,
-    drained: bool,
-}
-
-// Tokio File can queue a blocking write before poll_write returns Ready. Every
-// post-open exit must join that mutation before the lifecycle admits cleanup.
-async fn write_cvlod_blob_stream<S, B, E, W>(
-    mut stream: S,
-    writer: &mut W,
-    asset: &ReleaseAsset,
-    operation: &OperationCoordinator,
-) -> CvlodBlobWrite
-where
-    S: futures_util::Stream<Item = std::result::Result<B, E>> + Unpin,
-    B: AsRef<[u8]>,
-    E: std::fmt::Display,
-    W: tokio::io::AsyncWrite + Unpin,
-{
-    let result = async {
-        let mut completed = 0u64;
-        let mut hash = Sha256::new();
-        while let Some(chunk) = operation
-            .interruptible(async { Ok(stream.next().await) })
-            .await?
-        {
-            let chunk = chunk.map_err(|e| PortcoveError::network(e.to_string()))?;
-            let bytes: &[u8] = chunk.as_ref();
-            completed = completed
-                .checked_add(bytes.len() as u64)
-                .ok_or_else(|| PortcoveError::verification("CVLoD fixed blob size overflow"))?;
-            if completed > asset.size {
-                return Err(PortcoveError::verification(
-                    "CVLoD fixed blob exceeds its exact size",
-                ));
-            }
-            hash.update(bytes);
-            writer.write_all(bytes).await?;
-        }
-        if completed != asset.size || hex::encode(hash.finalize()) != asset.sha256 {
-            return Err(PortcoveError::verification(
-                "CVLoD fixed blob differs from its reviewed Git bytes",
-            ));
-        }
-        operation.checkpoint()?;
-        Ok(completed)
-    }
-    .await;
-    // Deliberately non-interruptible. A failed/ambiguous drain retains the
-    // private journal with false quiescence proof, including the original error.
-    match writer.flush().await {
-        Ok(()) => CvlodBlobWrite {
-            result,
-            drained: true,
-        },
-        Err(drain) => CvlodBlobWrite {
-            result: Err(match result {
-                Err(original) => original.detail("cvlod_blob_drain_error", drain.to_string()),
-                Ok(_) => PortcoveError::install("CVLoD fixed blob write did not drain")
-                    .detail("cvlod_blob_drain_error", drain.to_string()),
-            }),
-            drained: false,
-        },
-    }
-}
-
 // Artifact transfers can legitimately run for hours, so they have no total
 // request deadline. Connection and no-progress intervals remain bounded.
 const DOWNLOAD_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -629,13 +522,8 @@ impl Installer {
         F: FnMut(OperationEvent),
     {
         self.require_acquisition(&request)?;
-        request
-            .qualification
-            .require_cartridge_build_preparation(&request.release, request.managed.is_some())?;
+        request.qualification.require_runtime_creation()?;
         let mut storage_key = artifact_storage_key(&request.release.asset.sha256)?;
-        if let Some(preparation) = &request.qualification.native_build_preparation {
-            storage_key = preparation.storage_identity(&request.release.asset.sha256)?;
-        }
         if let Some(runtime) = &request.qualification.runtime {
             storage_key = hex::encode(Sha256::digest(serde_json::to_vec(&(
                 "Portcove composite installation v1",
@@ -650,12 +538,6 @@ impl Installer {
                 .as_ref()
                 .map_or(0, |runtime| runtime.asset.size),
         );
-        let required_bytes = request
-            .qualification
-            .native_build_recipe
-            .map_or(required_bytes, |recipe| {
-                recipe.temporary_bytes(required_bytes)
-            });
         let prepared_root = crate::output_root::prepare_for_install(
             &self.library,
             &request.port_id,
@@ -780,6 +662,25 @@ impl Installer {
             Some(contract) => contract.catalog(&request.port_id)?,
             None => self.library.load_catalog()?.0,
         };
+        if catalog.port(&request.port_id)?.managed_initialization
+            == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1)
+        {
+            if request.qualification.retained_contract.is_none() {
+                return Err(PortcoveError::verification(
+                    "managed initialization requires its retained catalog before acquisition",
+                ));
+            }
+            crate::managed_tfe::require_artifact(
+                catalog.port(&request.port_id)?,
+                &request.release.version,
+                &ArtifactIdentity {
+                    asset_name: request.release.asset.name.clone(),
+                    sha256: request.release.asset.sha256.clone(),
+                    size: request.release.asset.size,
+                },
+                Some(request.qualification.platform),
+            )?;
+        }
         if request.qualification.managed_shared_preferences.is_some()
             || request
                 .release
@@ -928,9 +829,7 @@ impl Installer {
     where
         F: FnMut(OperationEvent),
     {
-        request
-            .qualification
-            .require_cartridge_build_preparation(&request.release, request.managed.is_some())?;
+        request.qualification.require_runtime_creation()?;
         let scope = self.require_acquisition(&request)?;
         // A retained resolution is provenance, not reusable upstream freshness.
         // Re-observe mutable identities before touching the artifact bytes.
@@ -1019,99 +918,6 @@ impl Installer {
             .await?;
             operation.checkpoint()?;
         }
-        if let Some(preparation) = request.qualification.native_build_preparation.clone() {
-            emit(operation.message(
-                "info",
-                "Building the native runtime from the verified original",
-            ));
-            let work = lifecycle.operation_root.join("cartridge-build");
-            crate::path::refuse_symlink_ancestors(&work)?;
-            fs::create_dir(&work)?;
-            let mut downloader = self.clone();
-            downloader.client = reqwest::Client::builder()
-                .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
-                .connect_timeout(self.network_bounds.0)
-                .read_timeout(self.network_bounds.1)
-                .https_only(true)
-                .redirect(reqwest::redirect::Policy::custom(|attempt| {
-                    let permitted = attempt.url().scheme() == "https"
-                        && matches!(attempt.url().host_str(), Some("github.com" | "codeload.github.com" | "release-assets.githubusercontent.com" | "objects.githubusercontent.com"));
-                    if !permitted || attempt.previous().len() >= 5 {
-                        attempt.error("cartridge recipe archive redirect is outside its fixed HTTPS transport")
-                    } else {
-                        attempt.follow()
-                    }
-                }))
-                .build()
-                .map_err(|error| PortcoveError::network(error.to_string()))?;
-            for archive in preparation.recipe.archives() {
-                let unpacked = work.join(archive.name.trim_end_matches(".zip"));
-                fs::create_dir(&unpacked)?;
-                // These identities/transports are fixed by the client-owned recipe;
-                // they are not inferred from the primary artifact's publisher grant.
-                downloader
-                    .prepare_asset(
-                        &archive.asset(),
-                        &work.join(archive.name),
-                        &unpacked,
-                        operation,
-                        emit,
-                        None,
-                    )
-                    .await?;
-                operation.checkpoint()?;
-            }
-            if preparation.recipe == crate::CartridgeBuildRecipe::CvlodSourceV1 {
-                let client = reqwest::Client::builder()
-                    .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
-                    .connect_timeout(self.network_bounds.0)
-                    .read_timeout(self.network_bounds.1)
-                    .https_only(true)
-                    .redirect(reqwest::redirect::Policy::custom(|attempt| {
-                        if attempt.url().scheme() == "https"
-                            && attempt.url().host_str() == Some("raw.githubusercontent.com")
-                            && attempt.previous().len() < 5
-                        {
-                            attempt.follow()
-                        } else {
-                            attempt
-                                .error("CVLoD fixed blob redirect left its exact HTTPS transport")
-                        }
-                    }))
-                    .build()
-                    .map_err(|error| PortcoveError::network(error.to_string()))?;
-                for blob in crate::cartridge_build::cvlod::blobs()? {
-                    let destination = work.join(blob.relative);
-                    crate::path::refuse_symlink_ancestors(&destination)?;
-                    fs::create_dir_all(destination.parent().expect("fixed blob has a parent"))?;
-                    run_cvlod_blob_transfer(
-                        lifecycle,
-                        self.download_fixed_cvlod_blob(
-                            &client,
-                            &blob.asset,
-                            &destination,
-                            operation,
-                            emit,
-                        ),
-                    )
-                    .await?;
-                    operation.checkpoint()?;
-                }
-            }
-            let payload = payload_root.clone();
-            let library = self.library.clone();
-            run_managed_install_worker(lifecycle, operation, move |checkpoint| {
-                crate::cartridge_build::prepare_install(
-                    &work,
-                    &payload,
-                    &preparation,
-                    &library,
-                    &checkpoint,
-                )
-            })
-            .await?;
-            operation.checkpoint()?;
-        }
         let (manifest_sha256, selected_executable, runtime) = write_manifest(
             &operation_id,
             &request.port_id,
@@ -1170,7 +976,7 @@ impl Installer {
             if lifecycle.record.port_id == "cvlod-recomp"
                 && lifecycle.record.preparation_process_quiesced.is_some()
             {
-                crate::cartridge_build::cvlod::cleanup::unlink_published_private_wininet_junction(
+                crate::legacy_cartridge_cleanup::unlink_published_private_wininet_junction(
                     &self.library,
                     &lifecycle.record,
                     &lifecycle.operation_root,
@@ -1309,69 +1115,6 @@ impl Installer {
     {
         self.download_scoped(asset, destination, operation, emit, None)
             .await
-    }
-
-    /// Only the closed CVLoD recipe supplies these requests. Keep archive
-    /// extraction and publisher-scoped acquisition outside this raw-file path.
-    async fn download_fixed_cvlod_blob<F>(
-        &self,
-        client: &reqwest::Client,
-        asset: &ReleaseAsset,
-        destination: &Path,
-        operation: &OperationCoordinator,
-        emit: &mut F,
-    ) -> (Result<()>, bool)
-    where
-        F: FnMut(OperationEvent),
-    {
-        let mut quiesced = true;
-        let result = async {
-            let url = reqwest::Url::parse(&asset.url)
-                .map_err(|_| PortcoveError::verification("invalid fixed CVLoD blob URL"))?;
-            if url.scheme() != "https"
-                || url.host_str() != Some("raw.githubusercontent.com")
-                || asset.size > 64 * 1024 * 1024
-                || asset.sha256.len() != 64
-            {
-                return Err(PortcoveError::verification(
-                    "CVLoD fixed blob request differs",
-                ));
-            }
-            let response = operation
-                .interruptible(async {
-                    client
-                        .get(url)
-                        .send()
-                        .await
-                        .map_err(|e| PortcoveError::network(e.to_string()))?
-                        .error_for_status()
-                        .map_err(|e| PortcoveError::network(e.to_string()))
-                })
-                .await?;
-            if response
-                .content_length()
-                .is_some_and(|size| size != asset.size)
-            {
-                return Err(PortcoveError::verification(
-                    "CVLoD fixed blob response size differs",
-                ));
-            }
-            crate::path::refuse_symlink_ancestors(destination)?;
-            let mut file = tokio::fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(destination)
-                .await?;
-            let outcome =
-                write_cvlod_blob_stream(response.bytes_stream(), &mut file, asset, operation).await;
-            quiesced = outcome.drained;
-            let completed = outcome.result?;
-            file.sync_all().await?;
-            emit(operation.progress("download", completed, Some(asset.size)));
-            operation.checkpoint()
-        }
-        .await;
-        (result, quiesced)
     }
 
     async fn download_scoped<F>(
@@ -2604,6 +2347,12 @@ fn verified_manifest_with_budget(
             &install.artifact,
             manifest.platform,
         )?;
+        crate::managed_tfe::require_artifact(
+            catalog.port(&install.port_id)?,
+            &install.version,
+            &install.artifact,
+            manifest.platform,
+        )?;
         if contract.preparation_mode() == Some(crate::PreparationMode::Ghostship200Legacy) {
             if manifest.platform != Some(Platform::WindowsX86_64) {
                 return Err(PortcoveError::verification(
@@ -3665,122 +3414,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn cartridge_worker_is_joined_before_cancellation_cleanup() {
-        let temporary = tempfile::tempdir().unwrap();
-        let library = Library::open(temporary.path().join("library")).unwrap();
-        let service = crate::PortcoveService::new(library.clone()).unwrap();
-        let (activity, operation) = service
-            .begin_cancellable_activity(
-                crate::ActivityOperation::Install,
-                crate::ActivityTargetKind::Port,
-                Some("yoshis-cookie-recomp"),
-            )
-            .unwrap();
-        let staging = library.staging_dir().join(&activity.id);
-        fs::create_dir_all(&staging).unwrap();
-        fs::write(staging.join("owned-input"), b"retain until worker joins").unwrap();
-        let original = temporary.path().join("original.nes");
-        fs::write(&original, b"inert original fixture").unwrap();
-        let original_identity = hash_file(&original).unwrap();
-        let mut record = LifecycleOperation::new(
-            &activity.id,
-            LifecycleOperationKind::Install,
-            "yoshis-cookie-recomp",
-        );
-        record.paths.staging = Some(staging.clone());
-        let store = OperationStore::new(library.clone());
-        store.put(&mut record).unwrap();
-        let mut lifecycle = InstallLifecycle {
-            destination: staging.join("unused"),
-            operation_root: staging.clone(),
-            store: store.clone(),
-            record,
-        };
-        let latch = Arc::new((Mutex::new((false, false)), std::sync::Condvar::new()));
-        struct ReleaseOnDrop(Arc<(Mutex<(bool, bool)>, std::sync::Condvar)>);
-        impl Drop for ReleaseOnDrop {
-            fn drop(&mut self) {
-                self.0.0.lock().unwrap().1 = true;
-                self.0.1.notify_all();
-            }
-        }
-        let release = ReleaseOnDrop(latch.clone());
-        let preparation = crate::cartridge_build::CartridgeBuildPreparation {
-            recipe: crate::CartridgeBuildRecipe::YoshisCookieNesCycle110,
-            source: crate::SourceRecord {
-                profile_id: "inert-fixture".into(),
-                path: original.clone(),
-                sha256: original_identity.0.clone(),
-                size: original_identity.1,
-                storage_sha256: original_identity.0.clone(),
-                storage_size: original_identity.1,
-                updated_at: 0,
-                observed_identity: None,
-            },
-            worker_test_latch: Some(latch.clone()),
-        };
-        let worker_library = library.clone();
-        let worker_root = staging.clone();
-        let id = activity.id.clone();
-        let mut pending = tokio::spawn(async move {
-            let result =
-                run_managed_install_worker(&mut lifecycle, &operation, move |checkpoint| {
-                    crate::cartridge_build::prepare_install(
-                        &worker_root.join("cartridge-build"),
-                        &worker_root.join("payload"),
-                        &preparation,
-                        &worker_library,
-                        &checkpoint,
-                    )
-                })
-                .await;
-            (lifecycle, result)
-        });
-        tokio::time::timeout(Duration::from_secs(5), async {
-            while !latch.0.lock().unwrap().0 {
-                tokio::task::yield_now().await;
-            }
-        })
-        .await
-        .unwrap();
-        service.request_cancellation(&id).unwrap();
-        assert!(
-            tokio::time::timeout(Duration::from_millis(25), &mut pending)
-                .await
-                .is_err()
-        );
-        let retained = store.get(&id).unwrap().unwrap();
-        assert_eq!(retained.preparation_process_quiesced, Some(false));
-        assert!(crate::cancellation::discard_private_install(&library, &retained).is_err());
-        assert_eq!(
-            fs::read(staging.join("owned-input")).unwrap(),
-            b"retain until worker joins"
-        );
-        drop(release);
-        let (lifecycle, result) = tokio::time::timeout(Duration::from_secs(5), pending)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.unwrap_err().code, crate::ErrorCode::Cancelled);
-        assert_eq!(lifecycle.record.preparation_process_quiesced, Some(true));
-        assert_eq!(
-            store
-                .get(&id)
-                .unwrap()
-                .unwrap()
-                .preparation_process_quiesced,
-            Some(true)
-        );
-        assert_eq!(hash_file(&original).unwrap(), original_identity);
-        assert!(!lifecycle.destination.exists());
-        crate::cancellation::discard_private_install(&library, &lifecycle.record).unwrap();
-        assert!(!staging.exists());
-        assert!(store.get(&id).unwrap().is_none());
-    }
-
     #[test]
-    fn cartridge_preparation_is_required_before_install_admission() {
+    fn retired_cartridge_creation_is_refused_at_install_admission() {
         let catalog = crate::cartridge_build::tests::fixture_catalog();
         let qualification = InstallQualification::from_catalog(
             &catalog,
@@ -3788,35 +3423,13 @@ mod tests {
             Platform::WindowsX86_64,
         )
         .unwrap();
-        let release = ResolvedRelease {
-            version: "v1.1.0".into(),
-            published_at: None,
-            channel: crate::ReleaseChannel::Stable,
-            asset: ReleaseAsset {
-                name: "YoshisCookieRecomp-windows-x64.zip".into(),
-                url: "https://invalid.example/never-requested".into(),
-                size: 3_919_022,
-                sha256: "3f0b2219479960664312429f464a6c2de2ae155bb112278320e14e94b07bb947".into(),
-            },
-        };
-        assert!(
-            qualification
-                .require_cartridge_build_preparation(&release, false)
-                .is_err()
+        assert_eq!(
+            qualification.require_runtime_creation().unwrap_err().code,
+            crate::ErrorCode::Unsupported
         );
-        assert!(
-            qualification
-                .require_cartridge_build_preparation(&release, true)
-                .is_err()
-        );
-        assert!(
-            qualification
-                .clone()
-                .with_cartridge_build_source(None)
-                .is_err()
-        );
+        assert!(qualification.with_cartridge_build_source(None).is_err());
         InstallQualification::test("game.exe")
-            .require_cartridge_build_preparation(&release, false)
+            .require_runtime_creation()
             .unwrap();
     }
 
@@ -4051,6 +3664,7 @@ mod tests {
                 outside.display()
             ));
             let started = std::time::Instant::now();
+            let mut final_capture = None;
             let result = crate::tool_process::run_tool(
                 &mut command,
                 &|| {
@@ -4062,13 +3676,25 @@ mod tests {
                         Ok(())
                     }
                 },
-                Default::default(),
+                crate::tool_process::ToolProcessObserver {
+                    diagnostics: Some(crate::tool_process::ToolDiagnosticSink {
+                        activity_id: "helper-junction-fixture",
+                        phase: "fixture.junction",
+                        record: &mut |capture| {
+                            final_capture = Some(capture.clone());
+                            Ok(())
+                        },
+                    }),
+                    quiesced: None,
+                },
             )
             .unwrap();
-            assert!(
-                result.status.success() && !result.truncated,
-                "{}",
-                result.output
+            assert!(result.status.success(), "{}", result.output);
+            let captured = final_capture.unwrap();
+            assert!(captured.complete && !captured.stdout.truncated && !captured.stderr.truncated);
+            assert_eq!(
+                captured.stdout.text.len() + 1 + captured.stderr.text.len(),
+                result.output.len()
             );
         }
         assert_eq!(

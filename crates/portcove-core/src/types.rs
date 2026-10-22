@@ -375,6 +375,10 @@ pub enum PreparedRuntimeSettingsContract {
 #[serde(rename_all = "kebab-case")]
 pub enum PreparedSharedPreferencesContract {
     Regaiden041Windows,
+    /// Reviewed GB Recompiled roaming preferences and installation-local fallback.
+    /// Artifact applicability comes from the retained managed direct release.
+    #[serde(rename = "gbrecompiled-windows-v1")]
+    GbRecompiledWindowsV1,
     #[serde(rename = "smb1r-1.1-stable-windows")]
     Smb1r11Windows,
 }
@@ -383,6 +387,7 @@ impl PreparedSharedPreferencesContract {
     pub(crate) const fn minimum_template_version(self) -> u32 {
         match self {
             Self::Regaiden041Windows => 8,
+            Self::GbRecompiledWindowsV1 => 19,
             Self::Smb1r11Windows => 10,
         }
     }
@@ -428,9 +433,13 @@ impl ManagedSharedPreferencesReview {
 
 impl SharedPreferencesReview {
     pub fn write_scope_disclosure(&self) -> Result<String> {
-        use PreparedSharedPreferencesContract::{Regaiden041Windows, Smb1r11Windows};
+        use PreparedSharedPreferencesContract::{
+            GbRecompiledWindowsV1, Regaiden041Windows, Smb1r11Windows,
+        };
         match (self.binding.contract, self.local_fallback_path.as_ref()) {
-            (Regaiden041Windows, Some(fallback)) if !fallback.as_os_str().is_empty() => {
+            (Regaiden041Windows | GbRecompiledWindowsV1, Some(fallback))
+                if !fallback.as_os_str().is_empty() =>
+            {
                 Ok(format!(
                     "This game can rewrite shared preferences at {}, discard unknown entries and affect other runtime copies in this Windows account. If that location is unavailable, it can instead rewrite {}. Portcove does not own, migrate, back up, restore or delete these files.",
                     self.binding.path.display(),
@@ -474,8 +483,37 @@ impl<'de> Deserialize<'de> for SharedPreferencesReview {
     }
 }
 
+/// Who admitted the executable bytes. User selection grants execution intent,
+/// never curated package authenticity or ownership of the selected files.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ExternalRuntimeTrust {
+    #[default]
+    AcceptedPackage,
+    UserSelected,
+}
+
+impl ExternalRuntimeTrust {
+    pub fn is_accepted_package(&self) -> bool {
+        *self == Self::AcceptedPackage
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct UserSelectedLaunch {
+    /// Individual arguments passed directly to the selected native executable.
+    /// No shell, scripts, environment overrides or hooks are interpreted.
+    pub arguments: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct UserPreparedRuntimeSpec {
+    #[serde(
+        default,
+        skip_serializing_if = "ExternalRuntimeTrust::is_accepted_package"
+    )]
+    pub trust: ExternalRuntimeTrust,
     pub version: String,
     pub archive_name: String,
     pub archive_size: u64,
@@ -546,6 +584,8 @@ pub enum WindowsRuntimePathPolicy {
 pub enum ManagedInitialization {
     #[serde(rename = "tfe-dark-forces-v1.22.420")]
     TfeDarkForces122420,
+    #[serde(rename = "tfe-dark-forces-portable-v1")]
+    TfeDarkForcesPortableV1,
 }
 
 /// Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.
@@ -553,6 +593,8 @@ pub enum ManagedInitialization {
 pub enum RuntimeDataPolicy {
     #[serde(rename = "racewave46-v1.0.0-windows")]
     Racewave46V100Windows,
+    #[serde(rename = "version-local-retroachievements-v1")]
+    VersionLocalRetroAchievementsV1,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -599,6 +641,9 @@ pub struct PortDefinition {
     pub runtime_data_policy: Option<RuntimeDataPolicy>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub managed_shared_preferences: Option<PreparedSharedPreferencesContract>,
+    /// Reviewed engine save identifier used only to bound managed GB save paths.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub managed_shared_preferences_save_id: Option<String>,
     #[serde(default)]
     pub source_environment: Option<String>,
     #[serde(default)]
@@ -752,6 +797,8 @@ pub struct InstallRecord {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExternalRuntimeRecord {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_selected: Option<UserSelectedLaunch>,
     pub id: String,
     pub port_id: String,
     pub path: PathBuf,
@@ -1655,6 +1702,7 @@ impl CapabilityDocument {
                 "external".into(),
                 "external.review".into(),
                 "external.relink".into(),
+                "external.select".into(),
                 "source".into(),
                 "source.roots".into(),
                 "source.roots.scan".into(),

@@ -8,6 +8,7 @@ import { BrowsingMatchDetails } from "../features/browsing/BrowsingMatchDetails"
 import type { CatalogQueryResult } from "../features/browsing/catalog-query";
 import { SteamEntryControl } from "./SteamEntry";
 import { ExternalRuntimeControl } from "./ExternalRuntime";
+import { usesUserSelectedRuntime } from "../shared/external-runtime-trust";
 import { ArtworkControls, ArtworkImage, DetailArtwork } from "./Artwork";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
@@ -1261,7 +1262,9 @@ function ProjectReleaseSummary({ port }: { port: PortDefinition }) {
               ? "Portcove uses the pinned release recorded in the catalog."
               : "Portcove uses the release details recorded in the catalog."
             : port.release.provider === "user-prepared"
-              ? "Portcove uses the accepted package identity recorded in the catalog. You prepare the runtime."
+              ? usesUserSelectedRuntime(port)
+                ? "You or the upstream launcher manage setup and updates. Portcove saves your selected launch details without authenticating the files as an official package."
+                : "Portcove uses the accepted package identity recorded in the catalog. You prepare the runtime."
               : "Portcove checks this project for releases."}
         </span>
       </div>
@@ -2508,6 +2511,7 @@ interface DetailStateInput {
   missingRequirement: SelectedRequirement | undefined;
   invalidInstallation: boolean;
   externalRuntime: boolean;
+  userSelectedRuntime: boolean;
 }
 
 function detailState({
@@ -2523,7 +2527,16 @@ function detailState({
   missingRequirement,
   invalidInstallation,
   externalRuntime,
+  userSelectedRuntime,
 }: DetailStateInput): DetailState {
+  if (invalidInstallation && userSelectedRuntime)
+    return {
+      title: "Existing installation unavailable",
+      description:
+        "Check the selected executable and working directory. Complete any upstream setup, or remove only this registration and choose the launch details again. Your external files stay in place.",
+      tone: "setup",
+      icon: AlertTriangle,
+    };
   if (invalidInstallation)
     return {
       title: "Installation needs repair",
@@ -2533,7 +2546,12 @@ function detailState({
       icon: AlertTriangle,
     };
   if (!installed)
-    return availableInstallState(selectedRequirement, missingRequirement, externalRuntime);
+    return availableInstallState(
+      selectedRequirement,
+      missingRequirement,
+      externalRuntime,
+      userSelectedRuntime,
+    );
   if (runtimeNeeded) return runtimeRequirementState(runtimeUpdateAvailable);
   const sourceIssue = sourceHealthState("game", sourceHealth);
   if (sourceIssue) return sourceIssue;
@@ -2604,7 +2622,16 @@ function availableInstallState(
   selectedRequirement?: SelectedRequirement,
   missingRequirement?: SelectedRequirement,
   externalRuntime = false,
+  userSelectedRuntime = false,
 ): DetailState {
+  if (userSelectedRuntime)
+    return {
+      title: "Choose your existing installation",
+      description:
+        "Complete upstream setup, then choose the game executable, working directory and any required arguments. You or the upstream launcher manage setup and updates; Portcove saves these launch details.",
+      tone: "available",
+      icon: Wrench,
+    };
   if (missingRequirement) {
     const requirement =
       missingRequirement === "both"
@@ -2804,6 +2831,7 @@ function presentDetailState({
             status?.readiness?.blockers.includes("invalid_installation"),
           ),
           externalRuntime: port.release.provider === "user-prepared",
+          userSelectedRuntime: usesUserSelectedRuntime(port, status),
         });
 }
 

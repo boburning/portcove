@@ -1289,6 +1289,7 @@ const releaseContractTests = Object.freeze([
   "scripts/reconstruct-application-update-records.test.mts",
   "scripts/release-workflow.test.mts",
   "scripts/windows-qualification-session.test.mts",
+  "scripts/qualification-preparation.test.mts",
 ]);
 
 export function command(

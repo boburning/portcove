@@ -1,4 +1,4 @@
-//! Closed ReGaiden scope review. Account-wide preferences are never owned data.
+//! Reviewed GB Recompiled scope. Account-wide preferences are never owned data.
 use crate::{
     AcceptedSharedPreferencesBinding, ManagedSharedPreferencesReview, PortDefinition,
     PortcoveError, PreparedSharedPreferencesContract, Result,
@@ -17,6 +17,7 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     let Some(contract) = port.managed_shared_preferences else {
         if port.runtime_source_materialization
             == Some(crate::RuntimeSourceMaterialization::RegaidenGbc)
+            || port.managed_shared_preferences_save_id.is_some()
             || (port.release.provider == crate::ReleaseSource::DirectManifest
                 && port
                     .release
@@ -31,26 +32,56 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
         return Ok(());
     };
     let release = port.release.direct.get(&crate::Platform::WindowsX86_64);
-    if contract != PreparedSharedPreferencesContract::Regaiden041Windows
+    let legacy = contract == PreparedSharedPreferencesContract::Regaiden041Windows;
+    let reviewed = contract == PreparedSharedPreferencesContract::GbRecompiledWindowsV1;
+    if reviewed {
+        crate::managed_runtime_policy::artifact(port)?;
+        let save_id = port
+            .managed_shared_preferences_save_id
+            .as_deref()
+            .ok_or_else(|| {
+                PortcoveError::verification(
+                    "managed GB preferences require the reviewed upstream save identifier",
+                )
+            })?;
+        crate::archive::validate_relative_path(save_id, false)?;
+        if save_id.is_empty() || save_id.len() > 128 || save_id.contains('/') || !save_id.is_ascii()
+        {
+            return Err(PortcoveError::verification(
+                "managed GB save identifier must be one bounded portable ASCII name",
+            ));
+        }
+    }
+    if (!legacy && !reviewed)
+        || (!reviewed && port.managed_shared_preferences_save_id.is_some())
         || port.platforms != [crate::Platform::WindowsX86_64]
         || port.adapter != crate::AdapterKind::StagedSourcePortable
         || port.release.provider != crate::ReleaseSource::DirectManifest
         || !port.release.user_prepared.is_empty()
-        || release.is_none_or(|release| {
-            release.version != "v0.4.1" || release.size != 33_085_815 || release.sha256 != SHA
-        })
-        || port.source_profile.as_deref() != Some("resident-evil-gaiden-gbc-usa")
+        || (legacy
+            && release.is_none_or(|release| {
+                release.version != "v0.4.1" || release.size != 33_085_815 || release.sha256 != SHA
+            }))
+        || (legacy && port.source_profile.as_deref() != Some("resident-evil-gaiden-gbc-usa"))
+        || port.source_profile.as_deref().is_none_or(str::is_empty)
         || port.windows_runtime_path_policy
             != Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
         || port.runtime_source_filename.as_deref() != Some("game.gbc")
         || port.runtime_source_materialization
             != Some(crate::RuntimeSourceMaterialization::RegaidenGbc)
         || port.runtime_source_hashes.len() != 1
+        || (legacy
+            && port
+                .runtime_source_hashes
+                .get("game.gbc")
+                .map(String::as_str)
+                != Some(ORIGINAL))
         || port
             .runtime_source_hashes
             .get("game.gbc")
-            .map(String::as_str)
-            != Some(ORIGINAL)
+            .is_none_or(|hash| {
+                hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit())
+            })
         || !port.runtime_source_set.is_empty()
         || port.runtime_subdirectory.is_some()
         || !port.launch_from_install_root
@@ -76,10 +107,16 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
         || port
             .executable_hints
             .get(&crate::Platform::WindowsX86_64)
-            .is_none_or(|hints| hints != &["Resident_Evil_Gaiden__USA_.exe"])
+            .is_none_or(|hints| {
+                if legacy {
+                    hints != &["Resident_Evil_Gaiden__USA_.exe"]
+                } else {
+                    hints.len() != 1 || !hints[0].to_ascii_lowercase().ends_with(".exe")
+                }
+            })
     {
         return Err(PortcoveError::usage(
-            "managed shared preferences require the exact reviewed ReGaiden Windows artifact, local data and fixed launch route",
+            "managed shared preferences require the reviewed GB Recompiled Windows artifact, local data and fixed launch route",
         ));
     }
     Ok(())
@@ -92,6 +129,11 @@ pub(crate) fn require_artifact(
     platform: Option<crate::Platform>,
 ) -> Result<()> {
     validate(port)?;
+    if port.managed_shared_preferences
+        == Some(PreparedSharedPreferencesContract::GbRecompiledWindowsV1)
+    {
+        return crate::managed_runtime_policy::require_artifact(port, version, artifact, platform);
+    }
     if port.managed_shared_preferences.is_some() || artifact.sha256.eq_ignore_ascii_case(SHA) {
         if port.managed_shared_preferences.is_none()
             || version != "v0.4.1"
@@ -118,7 +160,7 @@ pub(crate) fn review(
     }
     crate::path::refuse_symlink_ancestors(root)?;
     let root = crate::path::normalized_absolute(root, "managed ReGaiden installation")?;
-    let scope = crate::external_runtime::shared_preferences::inspect_managed_regaiden(&root)?;
+    let scope = crate::external_runtime::shared_preferences::inspect_managed(&root, port)?;
     Ok(Some(ManagedSharedPreferencesReview {
         binding: scope.binding,
         local_fallback_path: scope
@@ -141,7 +183,11 @@ pub(crate) struct Acceptance {
 impl Acceptance {
     pub(crate) fn validate_for(&self, port: &PortDefinition) -> Result<()> {
         if port.managed_shared_preferences != Some(self.binding.contract)
-            || self.binding.contract != PreparedSharedPreferencesContract::Regaiden041Windows
+            || !matches!(
+                self.binding.contract,
+                PreparedSharedPreferencesContract::Regaiden041Windows
+                    | PreparedSharedPreferencesContract::GbRecompiledWindowsV1
+            )
             || self.binding.account_sid_sha256.len() != 64
             || !self
                 .binding

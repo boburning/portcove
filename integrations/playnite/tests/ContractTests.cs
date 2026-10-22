@@ -264,7 +264,7 @@ internal static class ContractTests
             .Cast<string>().Concat(new[] { "artwork.handoff", "artwork.handoff-bytes" }).ToArray();
         ProtocolStream.Negotiate(artworkAdditive, ConsumerCapability.Library);
         Check(true, "existing library reader accepts optional artwork handoff without consuming it");
-        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79 })
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80 })
         {
             var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             supported["schema_version"] = publicSchema;
@@ -272,7 +272,7 @@ internal static class ContractTests
             ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
             Check(true, "public schema " + publicSchema + " negotiated");
         }
-        foreach (var publicSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79 })
+        foreach (var publicSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80 })
         {
             var relink = Json.Object(Json.Parse(Json.Print(Capabilities())));
             relink["schema_version"] = publicSchema;
@@ -475,12 +475,15 @@ internal static class ContractTests
         Check(true, "runtime path policy keeps launch decisions in Core");
         bad["schema_version"] = 78;
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
-        Check(true, "fixed CVLoD recipe keeps source-build eligibility and execution in Core");
+        Check(true, "historical schema78 keeps retained runtime decisions in Core");
         bad["schema_version"] = 79;
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "prepared source directory keeps verification and environment binding in Core");
         bad["schema_version"] = 80;
-        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond runtime paths rejected");
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "explicit user-selected execution keeps launch decisions in Core");
+        bad["schema_version"] = 81;
+        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond the supported execution contract rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
         bad = Json.Object(Json.Parse(Json.Print(Capabilities())));
@@ -568,10 +571,10 @@ internal static class ContractTests
         {
             var real = new PublicCli(args[0], args[1]); await real.Connect();
             var capabilities = await real.Read("capabilities", "capabilities");
-            Check(real.ApiSchemaVersion == 79 && Json.Array(Json.Field(capabilities, "engine_templates"))
+            Check(real.ApiSchemaVersion == 80 && Json.Array(Json.Field(capabilities, "engine_templates"))
                 .Any(template => Json.Text(template, "template") == "staged-source-portable"
                     && Json.Number(template, "contract_version") == 18),
-                "compiled API79 producer advertises the prepared directory contract through the actual client");
+                "compiled API80 producer advertises the prepared directory contract through the actual client");
             var statuses = Json.Array(await real.Read("status", "status"));
             var catalog = Json.Array(await real.Read("catalog.list", "catalog", "list"));
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
@@ -587,8 +590,9 @@ internal static class ContractTests
                 "compiled current-schema authored setup steps are consumed by the actual client");
             Check(prepared.All(port => SetupInstructions.TechnicalNotes(Json.Field(port, "presentation"))
                     == Json.Text(Json.Field(port, "presentation"), "manual_preparation"))
-                && prepared.All(port => SetupInstructions.HelpUrl(Json.Field(port, "presentation")) == null),
-                "compiled remaining prepared routes retain their technical notes without inventing a preparation link");
+                && prepared.All(port => SetupInstructions.HelpUrl(Json.Field(port, "presentation")) == null ||
+                    new Uri(SetupInstructions.HelpUrl(Json.Field(port, "presentation"))).Scheme == "https"),
+                "compiled prepared routes retain authored technical notes and validated upstream setup links");
             Check(real.ApiSchemaVersion == ProtocolStream.Schema && statuses.All(status =>
                 PortActions.Read(status).Count(value => value.Action == "rollback") == 1 &&
                 PortActions.Read(status).Count(value => value.Action == "update") == 1),
@@ -715,6 +719,9 @@ internal static class ContractTests
             immutable_file_count = 2, preview_sha256 = new string('c', 64)
         }));
         var review = ExternalRuntimeReview.Read(preview, "shape-b", folder);
+        var selectedPreview = Json.Object(Json.Parse(Json.Print(preview)));
+        selectedPreview["user_selected"] = new { arguments = new[] { "--data", @"H:\Original files" } };
+        Reject(() => ExternalRuntimeReview.Read(selectedPreview, "shape-b", folder), "selected execution cannot be presented as an authenticated official package");
         Check(review.Fingerprint == new string('c', 64) && review.Description.Contains("outside managed save protection"),
             "external review binds exact consent and explains non-owning saves");
         Reject(() => ExternalRuntimeReview.Read(preview, "other", folder), "external preview for another port rejected");
@@ -814,7 +821,7 @@ internal static class ContractTests
         capabilities["schema_version"] = 73;
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "shared-directory schema preserves reviewed external flow");
         capabilities["commands"] = new[] { "external", "external.review", "external.relink" };
-        foreach (var supportedRelinkSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79 })
+        foreach (var supportedRelinkSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80 })
         {
             capabilities["schema_version"] = supportedRelinkSchema;
             Check(ProtocolStream.SupportsExternalRelink(capabilities), "known relink schema preserves reviewed folder change");
@@ -1073,6 +1080,12 @@ internal static class ContractTests
         var external = Json.Parse("{\"source_profile\":null,\"bios_source_profile\":null,\"release\":{\"provider\":\"user-prepared\"}}");
         Check(GuidedSetup.Choose(missing, external, "", "", true).Kind == GuidedStepKind.RegisterExternal,
             "user-prepared runtime selects reviewed folder registration without a Desktop handoff");
+        var selectedCatalog = Json.Parse("{\"source_profile\":null,\"bios_source_profile\":null,\"release\":{\"provider\":\"user-prepared\",\"user_prepared\":{\"windows-x86-64\":{\"trust\":\"user-selected\"}}}}");
+        Check(GuidedSetup.Choose(missing, selectedCatalog, "", "", true).Detail.Contains("external select"),
+            "user-selected registration has an explicit supported Desktop or CLI handoff");
+        var unknownTrust = Json.Object(Json.Field(Json.Field(Json.Field(selectedCatalog, "release"), "user_prepared"), "windows-x86-64"));
+        unknownTrust["trust"] = "unknown-execution";
+        Reject(() => GuidedSetup.Choose(missing, selectedCatalog, "", "", true), "unknown execution trust is never treated as accepted-package semantics");
         Check(GuidedSetup.Choose(missing, external, "", "").Kind == GuidedStepKind.ReviewProblem,
             "missing reviewed external capability offers upgrade guidance rather than registration");
         var externalNeedsSource = Json.Object(Json.Parse(Json.Print(external))); externalNeedsSource["source_profile"] = "original";
@@ -1560,35 +1573,6 @@ internal static class ContractTests
         await client.Connect();
         connect.Stop();
         var port = args[3];
-
-        if (mode == "qualification-cvlod-source-plan")
-        {
-            if (args.Length != 4 || port != "cvlod-recomp")
-                throw new ArgumentException("CVLoD plan qualification requires the exact private fixture port.");
-            var before = client.InvocationCount;
-            var value = await client.Read("installation.plan", "installation", "plan", port);
-            var invocations = client.InvocationCount - before;
-            var plan = Json.Field(value, "plan");
-            var inputs = Json.Array(Json.Field(plan, "auxiliary_downloads"));
-            Check(client.ApiSchemaVersion == 79 && inputs.Length == 1490,
-                "compiled API79 producer preserves the complete fixed CVLoD acquisition inventory");
-            var review = InstallationReview.Read(value, port, args[2]);
-            var required = Json.Number(Json.Field(plan, "temporary_space"), "required_bytes");
-            var primaryBytes = Json.Number(Json.Field(Json.Field(plan, "release"), "asset"), "size");
-            Check(review.Description.Contains("Additional fixed inputs: 1490") &&
-                required == checked(primaryBytes + 12884901888L) &&
-                review.Description.Contains("Temporary free-space requirement: " + required + " bytes"),
-                "actual client consumes Core acquisitions and primary-plus-build capacity before confirmation");
-            var arguments = review.InstallationArguments();
-            Check(arguments.Contains(Json.Text(value, "plan_sha256")) && arguments.Contains("--expected-plan") &&
-                !arguments.Contains("--acknowledge-shared-preferences") && invocations == 1 && client.InvocationCount == before + 1,
-                "actual source-build reader binds ordinary plan consent without extra requests or mutation");
-            Console.WriteLine("CVLOD_PLAN " + Json.Print(new { schema = client.ApiSchemaVersion,
-                input_count = inputs.Length, temporary_required_bytes = required, primary_bytes = primaryBytes,
-                request_count = invocations, maximum_caller_concurrency = 1,
-                polling_overlap = false, fingerprint = review.Fingerprint, arguments, mutation_executed = false }));
-            return;
-        }
 
         if (mode == "qualification-shared-external-preview")
         {

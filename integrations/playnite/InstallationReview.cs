@@ -34,7 +34,7 @@ namespace Portcove.ReferenceClient
             var shared = Json.OptionalObjectField(plan, "shared_preferences");
             if (shared == null) return null;
             var binding = Json.Field(shared, "binding");
-            if (RequiredText(binding, "contract") != "regaiden041-windows")
+            if (!new[] { "regaiden041-windows", "gbrecompiled-windows-v1" }.Contains(RequiredText(binding, "contract")))
                 throw new InvalidOperationException("Unsupported managed shared preferences contract.");
             Digest(binding, "account_sid_sha256");
             var sharedPath = RequiredText(binding, "path");

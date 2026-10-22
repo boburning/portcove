@@ -4,13 +4,23 @@
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
+
+function failureMessage(value: unknown): string {
+  if (value instanceof Error) return value.message;
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value) ?? "Unknown failure";
+  } catch {
+    return "Failure with unserializable details";
+  }
+}
 import type { ExecFileOptions } from "node:child_process";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { lstat, mkdir, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
-import { promisify, parseArgs } from "node:util";
+import { promisify, parseArgs, isDeepStrictEqual } from "node:util";
 
 const HELP = `Capture core diagnostics with an existing verified Portcove CLI and prepare an unassessed test checklist.
 
@@ -23,6 +33,8 @@ Required arguments:
   --output DIRECTORY  New report directory; existing output is never replaced.
 
 Options:
+  --preparation-case FILE  Run the reviewed preparation/verification sequence instead
+                           of read-only capture. See docs/CATALOG.md.
   --help               Show this help without executing the CLI or writing a report.
 
 The report retains the selected CLI SHA-256 and core evidence. Gameplay, audio,
@@ -44,6 +56,214 @@ export interface QualificationReportOptions {
   cli: string;
   library: string;
   output: string;
+}
+
+// One repeated sequence, not an interpreter: only Core's reviewed preparation
+// and immutable verification. The caller supplies an exact Core plan, not commands.
+export async function qualifyPreparation(
+  options: QualificationReportOptions & { caseFile: string },
+  execute: QualificationTransport = promisify(execFile),
+) {
+  const cli = resolve(options.cli);
+  const library = resolve(options.library);
+  const output = resolve(options.output);
+  const casePath = resolve(options.caseFile);
+  const caseStat = await lstat(casePath);
+  if (!caseStat.isFile() || caseStat.size > 8 * 1024 * 1024)
+    throw new Error("Preparation case must be a bounded regular file");
+  if (
+    !(await lstat(library)).isDirectory() ||
+    !(await lstat(join(library, "portcove.sqlite3"))).isFile()
+  )
+    throw new Error("Preparation qualification requires an initialized selected library");
+  const caseBytes = await readFile(casePath);
+  const value: unknown = JSON.parse(caseBytes.toString("utf8"));
+  if (
+    !isRecord(value) ||
+    value.format_version !== 1 ||
+    !["synthetic", "actual"].includes(String(value.evidence_kind)) ||
+    !isRecord(value.plan) ||
+    !isRecord(value.environment) ||
+    value.environment.platform !== process.platform ||
+    value.environment.arch !== process.arch ||
+    value.environment.node !== process.version
+  )
+    throw new Error("Unknown preparation case or mismatched execution environment");
+  const cliSha256 = await cliDigest(cli);
+  if (value.cli_sha256 !== cliSha256) throw new Error("Preparation case CLI identity differs");
+  const expected = value.plan;
+  const portId = requiredIdentity(expected.port_id, "case port");
+  const fingerprint = requiredIdentity(expected.plan_sha256, "reviewed preparation plan");
+  if (
+    !/^[a-f0-9]{64}$/.test(fingerprint) ||
+    !isRecord(expected.inputs) ||
+    !isRecord(expected.inputs.install) ||
+    !isRecord(expected.inputs.source) ||
+    !isRecord(expected.inputs.options) ||
+    !isRecord(expected.inputs.setup_tool) ||
+    !isRecord(expected.copy)
+  )
+    throw new Error("Preparation case has incomplete operation inputs");
+  const inputs = expected.inputs;
+  const install = inputs.install;
+  if (!isRecord(install)) throw new Error("Preparation case has no managed installation");
+  requiredIdentity(install.id, "managed installation ID");
+  if (
+    install.port_id !== portId ||
+    !isRecord(install.artifact) ||
+    typeof inputs.definition_sha256 !== "string" ||
+    !isRecord(inputs.source_inspection)
+  )
+    throw new Error("Preparation case has mismatched retained scope");
+  // Preserve the operation's entire retained inputs and inventories. In particular,
+  // a declaration or the capture host never fills absent historical source facts.
+  const environment = { platform: process.platform, arch: process.arch, node: process.version };
+  const steps: Array<{ phase: string; elapsed_ms: number; response?: unknown; error?: string }> =
+    [];
+  let apiVersion: number | undefined;
+  const started = performance.now();
+  await mkdir(output); // Never replace a prior successful or failed attempt.
+  await writeFile(join(output, "preparation-case.json"), caseBytes, { flag: "wx" });
+  let failure: unknown;
+  let failed = false;
+  const capture = async (phase: string, args: string[], jsonl = false) => {
+    const began = performance.now();
+    let response: unknown;
+    let error: unknown;
+    try {
+      if ((await cliDigest(cli)) !== cliSha256) throw new Error("Selected CLI identity changed");
+      const result = await execute(
+        cli,
+        ["--library", library, jsonl ? "--jsonl" : "--json", "--non-interactive", ...args],
+        { windowsHide: true, maxBuffer: 8 * 1024 * 1024, timeout: 600_000 },
+      );
+      response = jsonl
+        ? result.stdout
+            .trim()
+            .split(/\r?\n/)
+            .map((line) => JSON.parse(line) as unknown)
+        : (JSON.parse(result.stdout) as unknown);
+      const envelope: unknown = Array.isArray(response) ? response.at(-1) : response;
+      if (
+        !isRecord(envelope) ||
+        typeof envelope.schema_version !== "number" ||
+        envelope.command !== args.slice(0, args[0] === "preparation" ? 2 : 1).join(".")
+      )
+        throw unsupportedReport(`${phase}: command or schema identity differs`);
+      if (apiVersion !== undefined && envelope.schema_version !== apiVersion)
+        throw new Error("CLI check version changed during qualification");
+      apiVersion = envelope.schema_version;
+      if (envelope.ok !== true) throw new Error(`${phase}: Core operation did not succeed`);
+      if ((await cliDigest(cli)) !== cliSha256) throw new Error("Selected CLI identity changed");
+      return envelope.data;
+    } catch (cause) {
+      error = cause;
+      // Failed subprocesses may still supply the authoritative terminal failure.
+      if (response === undefined && isRecord(cause) && typeof cause.stdout === "string")
+        response = { stdout: cause.stdout };
+      throw cause;
+    } finally {
+      const step = {
+        phase,
+        elapsed_ms: Math.round(performance.now() - began),
+        response,
+        ...(error === undefined ? {} : { error: failureMessage(error) }),
+      };
+      steps.push(step);
+      await writeFile(join(output, `${phase}.json`), JSON.stringify(step, null, 2) + "\n", {
+        flag: "wx",
+      });
+    }
+  };
+  try {
+    const plan = await capture("plan-before", ["preparation", "plan", portId]);
+    if (!isDeepStrictEqual(plan, expected))
+      throw new Error("Reviewed preparation inputs changed; capture and review a new case");
+    const before = await capture("verify-before", ["verify", portId]);
+    if (!isRecord(before) || before.install_id !== install.id || before.valid !== true)
+      throw new Error("Pre-preparation verification belongs to another or invalid installation");
+    const prepared = await capture(
+      "preparation-run",
+      ["preparation", "run", portId, "--expected-plan", fingerprint, "--yes"],
+      true,
+    );
+    if (
+      !isRecord(prepared) ||
+      prepared.port_id !== portId ||
+      !isDeepStrictEqual(prepared.artifact, install.artifact) ||
+      !isDeepStrictEqual(prepared.runtime, install.runtime)
+    )
+      throw new Error("Preparation result changed artifact or runtime scope");
+    requiredIdentity(prepared.id, "prepared installation ID");
+    const after = await capture("verify-after", ["verify", portId]);
+    if (!isRecord(after) || after.install_id !== prepared.id || after.valid !== true)
+      throw new Error("Post-preparation verification belongs to another or invalid installation");
+    const current = await capture("plan-after", ["preparation", "plan", portId]);
+    if (
+      !isRecord(current) ||
+      !isRecord(current.inputs) ||
+      !isRecord(current.inputs.install) ||
+      current.inputs.install.id !== prepared.id ||
+      !isRecord(current.copy)
+    )
+      throw new Error("Post-preparation inventory does not describe the prepared installation");
+    for (const key of ["definition_sha256", "source", "source_inspection", "host", "options"])
+      if (!isDeepStrictEqual(inputs[key], current.inputs[key]))
+        throw new Error(`Post-preparation ${key} scope changed`);
+    for (const key of ["setup_tool", "conversion_tool"]) {
+      const original = inputs[key];
+      const next = current.inputs[key];
+      if (original == null && next == null) continue;
+      if (
+        !isRecord(original) ||
+        !isRecord(next) ||
+        original.sha256 !== next.sha256 ||
+        original.size !== next.size
+      )
+        throw new Error(`Post-preparation ${key} identity changed`);
+    }
+  } catch (error) {
+    failed = true;
+    failure = error;
+  }
+  const report = {
+    report_format: 1,
+    sequence: "reviewed-preparation-and-immutable-verification",
+    result: failed ? "failed" : "passed",
+    evidence_kind: value.evidence_kind,
+    cli,
+    cli_sha256: cliSha256,
+    api_schema_version: apiVersion ?? null,
+    library,
+    environment,
+    case_sha256: createHash("sha256").update(caseBytes).digest("hex"),
+    operation_inputs: inputs,
+    steps,
+    elapsed_ms: Math.round(performance.now() - started),
+    source_validation:
+      "Retained Core source inspection is separate from upstream setup acceptance.",
+    manual_observations: {
+      launch: null,
+      gameplay: null,
+      audio: null,
+      controller: null,
+      save_load: null,
+    },
+    reuse: {
+      production_operations: ["preparation.plan", "verify", "preparation.run"],
+      per_title_commands: false,
+      engineering_effort: null,
+      comparative_baseline: null,
+    },
+    limitations:
+      "Preparation and immutable verification only; inventories come from Core plans. No gameplay, managed update, rollback, backup, deletion or external-file ownership is established.",
+    ...(failed ? { error: failureMessage(failure) } : {}),
+  };
+  await writeFile(join(output, "sequence.json"), JSON.stringify(report, null, 2) + "\n", {
+    flag: "wx",
+  });
+  if (failed) throw failure;
+  return { output, result: "passed", cli_sha256: cliSha256 };
 }
 export type QualificationTransport = (
   file: string,
@@ -322,6 +542,7 @@ if (import.meta.main) {
       cli: { type: "string" },
       library: { type: "string" },
       output: { type: "string" },
+      "preparation-case": { type: "string" },
       help: { type: "boolean" },
     },
   });
@@ -336,10 +557,13 @@ if (import.meta.main) {
       );
   }
   if (!values.cli || !values.library || !values.output) throw new Error("Missing report paths");
-  const result = await captureQualificationReport({
+  const options = {
     cli: values.cli,
     library: values.library,
     output: values.output,
-  });
+  };
+  const result = values["preparation-case"]
+    ? await qualifyPreparation({ ...options, caseFile: values["preparation-case"] })
+    : await captureQualificationReport(options);
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }

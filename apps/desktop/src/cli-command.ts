@@ -1,4 +1,5 @@
 import type { CliCommandContext, PortDefinition, PortStatus, ReleaseChannel } from "./types";
+import { usesUserSelectedRuntime } from "./shared/external-runtime-trust";
 
 type CommandShell = "powershell" | "posix";
 
@@ -17,21 +18,40 @@ export function primaryCliCommand(
   let followUp: { args: string[]; shell: string } | undefined;
   if (status?.active || status?.external_runtime) args.push("exec", port.id, "--");
   else if (port.release.provider === "user-prepared") {
-    const folder = "<game-folder>";
-    missing.push("game-folder");
-    args.push("external", "preview", port.id, folder);
-    const registrationArgs = [
-      "--library",
-      context.library_root,
-      "external",
-      "register",
-      port.id,
-      folder,
-    ];
-    followUp = {
-      args: registrationArgs,
-      shell: shellCommand(executable, registrationArgs, interpreter),
-    };
+    if (usesUserSelectedRuntime(port)) {
+      const selected = [port.id, "<game-executable>", "--working-directory", "<working-directory>"];
+      missing.push("game-executable", "working-directory");
+      args.push("external", "select-preview", ...selected);
+      const registrationArgs = [
+        "--library",
+        context.library_root,
+        "external",
+        "select",
+        ...selected,
+        "--expected-preview",
+        "<review-sha256>",
+      ];
+      followUp = {
+        args: registrationArgs,
+        shell: shellCommand(executable, registrationArgs, interpreter),
+      };
+    } else {
+      const folder = "<game-folder>";
+      missing.push("game-folder");
+      args.push("external", "preview", port.id, folder);
+      const registrationArgs = [
+        "--library",
+        context.library_root,
+        "external",
+        "register",
+        port.id,
+        folder,
+      ];
+      followUp = {
+        args: registrationArgs,
+        shell: shellCommand(executable, registrationArgs, interpreter),
+      };
+    }
   } else {
     args.push("--json", "--non-interactive", "ensure", port.id, "--channel", channel);
     for (const [required, flag, value, label] of [

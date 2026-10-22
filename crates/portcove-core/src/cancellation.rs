@@ -443,7 +443,7 @@ pub(crate) fn discard_private_install_with_faults(
         if operation.port_id == "cvlod-recomp"
             && operation.preparation_process_quiesced == Some(true)
         {
-            crate::cartridge_build::cvlod::cleanup::unlink_private_wininet_junction(expected)?;
+            crate::legacy_cartridge_cleanup::unlink_private_wininet_junction(expected)?;
         }
         std::fs::remove_dir_all(expected)?;
     }
@@ -458,7 +458,7 @@ mod managed_builder_tests {
 
     #[cfg(windows)]
     fn cvlod_junction_fixture(staging: &std::path::Path, target: &std::path::Path) {
-        let cache = staging.join(crate::cartridge_build::cvlod::cleanup::CACHE);
+        let cache = staging.join(crate::legacy_cartridge_cleanup::CACHE);
         fs::create_dir_all(&cache).unwrap();
         fs::create_dir_all(target).unwrap();
         fs::write(target.join("sentinel"), b"preserve target").unwrap();
@@ -496,10 +496,10 @@ mod managed_builder_tests {
     fn cvlod_private_cleanup_unlinks_exact_denied_junction_without_touching_target() {
         let temporary = tempfile::tempdir().unwrap();
         let staging = temporary.path().join("private");
-        let cache = staging.join(crate::cartridge_build::cvlod::cleanup::CACHE);
+        let cache = staging.join(crate::legacy_cartridge_cleanup::CACHE);
         let target = cache.join("IE");
         cvlod_junction_fixture(&staging, &target);
-        crate::cartridge_build::cvlod::cleanup::unlink_private_wininet_junction(&staging).unwrap();
+        crate::legacy_cartridge_cleanup::unlink_private_wininet_junction(&staging).unwrap();
         assert!(fs::symlink_metadata(cache.join("Content.IE5")).is_err());
         assert_eq!(
             fs::read(target.join("sentinel")).unwrap(),
@@ -513,7 +513,7 @@ mod managed_builder_tests {
         for redirected_ancestor in [false, true] {
             let temporary = tempfile::tempdir().unwrap();
             let staging = temporary.path().join("private");
-            let cache = staging.join(crate::cartridge_build::cvlod::cleanup::CACHE);
+            let cache = staging.join(crate::legacy_cartridge_cleanup::CACHE);
             let foreign = temporary.path().join("foreign");
             cvlod_junction_fixture(&staging, &foreign);
             if redirected_ancestor {
@@ -539,8 +539,7 @@ mod managed_builder_tests {
                 assert!(output.status.success(), "ancestor junction: {output:?}");
             }
             assert!(
-                crate::cartridge_build::cvlod::cleanup::unlink_private_wininet_junction(&staging)
-                    .is_err()
+                crate::legacy_cartridge_cleanup::unlink_private_wininet_junction(&staging).is_err()
             );
             assert_eq!(
                 fs::read(foreign.join("sentinel")).unwrap(),
@@ -574,7 +573,7 @@ mod managed_builder_tests {
             let store = OperationStore::new(service.library().clone());
             store.put(&mut journal).unwrap();
             let staging = journal.paths.staging.as_ref().unwrap();
-            let cache = staging.join(crate::cartridge_build::cvlod::cleanup::CACHE);
+            let cache = staging.join(crate::legacy_cartridge_cleanup::CACHE);
             cvlod_junction_fixture(staging, &cache.join("IE"));
             let result = discard_private_install(service.library(), &journal);
             if port == "cvlod-recomp" && quiesced == Some(true) {
@@ -606,7 +605,7 @@ mod managed_builder_tests {
             let library = service.library();
             let staging = journal.paths.staging.clone().unwrap();
             let destination = journal.install.as_ref().unwrap().path.clone();
-            let cache = staging.join(crate::cartridge_build::cvlod::cleanup::CACHE);
+            let cache = staging.join(crate::legacy_cartridge_cleanup::CACHE);
             let store = OperationStore::new(library.clone());
             if recovery {
                 journal.phase = LifecyclePhase::CleanupPending;
@@ -618,7 +617,7 @@ mod managed_builder_tests {
                 assert!(!staging.exists());
                 assert!(store.get(&journal.id).unwrap().is_none());
             } else {
-                crate::cartridge_build::cvlod::cleanup::unlink_published_private_wininet_junction(
+                crate::legacy_cartridge_cleanup::unlink_published_private_wininet_junction(
                     library, &journal, &staging,
                 )
                 .unwrap();
@@ -663,7 +662,7 @@ mod managed_builder_tests {
         ] {
             let (_temporary, service, _worker, mut journal) = published_fixture();
             let staging = journal.paths.staging.clone().unwrap();
-            let cache = staging.join(crate::cartridge_build::cvlod::cleanup::CACHE);
+            let cache = staging.join(crate::legacy_cartridge_cleanup::CACHE);
             // These malformed publication records must refuse before any filesystem mutation.
             match changed {
                 "quiescence" => journal.preparation_process_quiesced = Some(false),
@@ -680,7 +679,7 @@ mod managed_builder_tests {
                 _ => unreachable!(),
             }
             assert!(
-                crate::cartridge_build::cvlod::cleanup::unlink_published_private_wininet_junction(
+                crate::legacy_cartridge_cleanup::unlink_published_private_wininet_junction(
                     service.library(),
                     &journal,
                     &staging,
@@ -736,7 +735,7 @@ mod managed_builder_tests {
         library.register_install(&install, true).unwrap();
         journal.paths.final_path = Some(destination.clone());
         journal.install = Some(install);
-        let cache = staging.join(crate::cartridge_build::cvlod::cleanup::CACHE);
+        let cache = staging.join(crate::legacy_cartridge_cleanup::CACHE);
         cvlod_junction_fixture(&staging, &cache.join("IE"));
         let store = OperationStore::new(library.clone());
         store.put(&mut journal).unwrap();

@@ -1,0 +1,70 @@
+{
+  "id": "cvlod-recomp",
+  "name": "Castlevania: Legacy of Darkness Recompiled",
+  "summary": "Native Castlevania: Legacy of Darkness recompilation.",
+  "project_url": "https://github.com/fliperama86/cvlod_recomp",
+  "support_tier": "beta",
+  "channels": ["stable"],
+  "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+  "automated_tested_platforms": [],
+  "manually_validated_platforms": [],
+  "adapter": "n64-recomp-portable",
+  "release": {
+    "repository": "fliperama86/cvlod_recomp",
+    "asset_hints": {
+      "windows-x86-64": ["windows-x64.zip"],
+      "linux-x86-64": ["linux-x64.tar.gz"],
+      "macos-aarch64": ["macos-arm64.zip"]
+    },
+    "managed_build": {
+      "windows-x86-64": "cvlod-n64-source-cb8548d145a1-ui-lifetime-v1"
+    }
+  },
+  "source_profile": "castlevania-legacy-of-darkness",
+  "executable_hints": {
+    "windows-x86-64": ["LodRecomp.exe"],
+    "linux-x86-64": ["LodRecomp"],
+    "macos-aarch64": ["LodRecomp.app/Contents/MacOS/LodRecomp"]
+  },
+  "persistent_paths": [
+    "rom.z64",
+    "saves",
+    "mods",
+    "mods.json",
+    "mod_config",
+    "graphics.json",
+    "audio.json",
+    "controls.json",
+    "rom_path.txt",
+    "cheats.cfg"
+  ],
+  "runtime_mutable_paths": ["castlevania2.n64.us.z64", "LodRecomp.log"],
+  "portable_marker": true,
+  "runtime_source_filename": "rom.z64",
+  "runtime_source_materialization": "n64-big-endian",
+  "presentation": {
+    "original_game_title": "Castlevania: Legacy of Darkness",
+    "installation_method": "portable-recompilation",
+    "source_requirements": [
+      {
+        "role": "game",
+        "profile_id": "castlevania-legacy-of-darkness",
+        "label": "Castlevania: Legacy of Darkness (North America) source",
+        "verification": "catalog-identity"
+      }
+    ],
+    "saves_and_settings": "portcove-managed",
+    "artwork": {
+      "game_id": 1131,
+      "cover_id": 239526,
+      "image_id": "co54ti",
+      "image_sha256": "eae6b7bce138d1cd5e119746c4c2f495957803de898061b00834d5a5037b4489",
+      "game_slug": "castlevania-legacy-of-darkness",
+      "match_kind": "underlying-game"
+    }
+  },
+  "runtime_source_hashes": {
+    "rom.z64": "89e15df6042defddc48c61f7408f99d06fffdb845e2422cf8b5ba8e73d4d70fb"
+  },
+  "windows_runtime_path_policy": "printable-ascii-max-path"
+}

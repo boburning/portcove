@@ -12,14 +12,15 @@ Do not close #177 on delivery of this slice.
 ## Authority and setup
 
 Read #177, current #1422 and its latest explicit owner amendment at setup;
-retain their body hashes and refresh when changed. The October 14, 2026 approval
-preserves 317 historical records / 316 distinct frozen identities, defers 15
-implementations and retains 301 obligations. #491 and #814 remain retained.
-The deferred issues are #170, #817, #818, #469, #162, #160, #352, #353, #433,
-#474, #463, #484, #324, #815 and #326. These are product deferrals, not
-duplicates, impossibility or completed integrations. A later owner approval
-supersedes this dated baseline. Read explicit reconsideration triggers on the
-affected canonical issues; continue monitoring without reversing deferrals.
+retain their body hashes and refresh when changed. The October 22, 2026
+upstream-first amendment preserves the historical 317 records / 316 distinct
+identities and October 14 deferrals, and replaces the obligation to engineer
+every feasible retained port into full management before Public beta. Apply
+[integration ownership](CATALOG.md#integration-ownership): inspect official
+packages and supported upstream setup before proposing engineering. Monitor
+existing-installation opportunities, upstream dependencies and precise product
+deferrals without reversing them or counting them as delivered integrations.
+Read reconsideration triggers on the affected canonical issues.
 Later intake does not expand Required beta scope. Preserve the approved
 OpenRCT2 #1854 then CorsixTH #1807 sequence and active ownership.
 

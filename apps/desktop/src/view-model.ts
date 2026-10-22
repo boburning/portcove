@@ -1,3 +1,4 @@
+import { usesUserSelectedRuntime } from "./shared/external-runtime-trust";
 import {
   evaluateCatalogQuery,
   type CatalogQuery,
@@ -256,6 +257,7 @@ export const installationMethodLabels: Record<
 };
 
 export function installationMethodLabel(port: PortDefinition) {
+  if (usesUserSelectedRuntime(port)) return "Your existing installation";
   const method = port.presentation?.installation_method;
   return method && Object.hasOwn(installationMethodLabels, method)
     ? installationMethodLabels[method]

@@ -284,6 +284,17 @@ pub(crate) fn cancellation_requested(state: &CancellationState, operation_id: &s
 }
 
 pub(crate) fn external_preview(preview: &ExternalRuntimePreview, catalog: &Catalog) -> String {
+    if let Some(selection) = &preview.user_selected {
+        return format!(
+            "User-managed installation review\nPort: {}\nExecutable: {}\nWorking directory: {}\nArguments: {}\nReview SHA-256: {}\nYou selected this executable. Portcove has not authenticated it as an official package. You or the upstream launcher own setup and updates. Portcove will launch it and can remove the registration; it does not update, back up, restore, roll back or delete its files.\nNext step: Use external select with the same executable, working directory, arguments and --expected-preview {}.",
+            port_name(catalog, &preview.port_id),
+            clean(&preview.executable.display().to_string()),
+            clean(&preview.path.display().to_string()),
+            clean(&serde_json::to_string(&selection.arguments).unwrap_or_default()),
+            clean(&preview.preview_sha256),
+            clean(&preview.preview_sha256)
+        );
+    }
     let mut text = format!(
         "Existing installation review\nPort: {}\nFolder: {}\nExecutable: {}\nVersion: {}\nImmutable files checked: {}\nPackage SHA-256: {}\nImmutable tree SHA-256: {}\nReview SHA-256: {}\nReview only; no installation was registered. Portcove will use the selected folder in place. It does not copy, update, back up or delete its external files.",
         port_name(catalog, &preview.port_id),
@@ -355,6 +366,17 @@ pub(crate) fn external_removal_preview(
 }
 
 pub(crate) fn external_runtime(runtime: &ExternalRuntimeRecord, catalog: &Catalog) -> String {
+    if let Some(selection) = &runtime.user_selected {
+        return format!(
+            "User-managed installation registration saved\nPort: {}\nRegistration: {}\nExecutable: {}\nWorking directory: {}\nArguments: {}\nYou or the upstream launcher manage setup and updates. Portcove has not authenticated these bytes as an official package. External files, saves and settings remain user-owned.\nNext step: Using the same library, run portcove status {} to inspect launch readiness.",
+            port_name(catalog, &runtime.port_id),
+            clean(&runtime.id),
+            clean(&runtime.executable.display().to_string()),
+            clean(&runtime.path.display().to_string()),
+            clean(&serde_json::to_string(&selection.arguments).unwrap_or_default()),
+            clean(&runtime.port_id)
+        );
+    }
     format!(
         "Existing installation registration saved\nPort: {}\nRegistration: {}\nFolder: {}\nExecutable: {}\nVersion: {}\nPlatform: {}\nRegistered: {}\nPackage SHA-256: {}\nImmutable tree SHA-256: {}\nExternal files, saves and settings remain user-owned.\nNext step: Using the same library, run portcove status {} to inspect launch readiness.",
         port_name(catalog, &runtime.port_id),
@@ -745,6 +767,7 @@ mod tests {
     fn external_review_and_result_keep_registered_state_distinct_and_sanitize_controls() {
         let catalog = Catalog::embedded().unwrap();
         let preview = ExternalRuntimePreview {
+            user_selected: None,
             port_id: "starship".into(),
             path: PathBuf::from("/owned/ゲーム\nfolder"),
             executable: PathBuf::from("/owned/ゲーム/game"),

@@ -406,17 +406,26 @@ impl Catalog {
                     port.id
                 )));
             }
-            let executable_contract_is_valid = port.executable_hints.len() == port.platforms.len()
-                && port.platforms.iter().all(|platform| {
-                    let mut hints = HashSet::new();
-                    port.executable_hints.get(platform).is_some_and(|values| {
-                        !values.is_empty()
-                            && values.iter().all(|value| {
-                                is_safe_executable_hint(value, *platform)
-                                    && hints.insert(value.to_ascii_lowercase())
-                            })
-                    })
-                });
+            let user_selected = port.release.provider == ReleaseSource::UserPrepared
+                && !port.release.user_prepared.is_empty()
+                && port
+                    .release
+                    .user_prepared
+                    .values()
+                    .all(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected);
+            let executable_contract_is_valid = (user_selected
+                && port.executable_hints.values().all(Vec::is_empty))
+                || (port.executable_hints.len() == port.platforms.len()
+                    && port.platforms.iter().all(|platform| {
+                        let mut hints = HashSet::new();
+                        port.executable_hints.get(platform).is_some_and(|values| {
+                            !values.is_empty()
+                                && values.iter().all(|value| {
+                                    is_safe_executable_hint(value, *platform)
+                                        && hints.insert(value.to_ascii_lowercase())
+                                })
+                        })
+                    }));
             if !executable_contract_is_valid {
                 return Err(PortcoveError::usage(format!(
                     "{} has an incomplete or unsafe platform executable contract",
@@ -474,7 +483,7 @@ impl Catalog {
                     match profile {
                         Some(profile)
                             if contracts.len() == 1 && contracts[0].profile_id == *profile => {}
-                        None if contracts.is_empty() => {}
+                        None if contracts.is_empty() || user_selected => {}
                         _ => {
                             return Err(PortcoveError::conflict(format!(
                                 "{} has inconsistent schema-2 {:?} source binding",
@@ -776,6 +785,10 @@ impl Catalog {
                                 port.id
                             )));
                         };
+                        if runtime.trust == crate::ExternalRuntimeTrust::UserSelected {
+                            crate::external_runtime::validate_user_selected_route(port, runtime)?;
+                            continue;
+                        }
                         if !runtime.required_mutable_files.is_empty()
                             && port.adapter != AdapterKind::StagedSourcePortable
                         {
@@ -1083,10 +1096,9 @@ impl Catalog {
                     RuntimeSourceMaterialization::RegaidenGbc => {
                         port.adapter == AdapterKind::StagedSourcePortable
                             && source_is_persistent
-                            && port.managed_shared_preferences
-                                == Some(
-                                    crate::PreparedSharedPreferencesContract::Regaiden041Windows,
-                                )
+                            && matches!(port.managed_shared_preferences,
+                                Some(crate::PreparedSharedPreferencesContract::Regaiden041Windows
+                                    | crate::PreparedSharedPreferencesContract::GbRecompiledWindowsV1))
                     }
                     RuntimeSourceMaterialization::Copy => {
                         (port.adapter == AdapterKind::StagedSourcePortable && source_is_persistent)
@@ -1570,7 +1582,7 @@ mod tests {
         let port = catalog.port("the-force-engine-dark-forces").unwrap();
         assert_eq!(
             port.managed_initialization,
-            Some(crate::ManagedInitialization::TfeDarkForces122420)
+            Some(crate::ManagedInitialization::TfeDarkForcesPortableV1)
         );
         assert_eq!(port.runtime_source_set.len(), 48);
         assert_eq!(port.runtime_source_hashes.len(), 48);

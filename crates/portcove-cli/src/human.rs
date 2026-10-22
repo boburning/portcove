@@ -388,6 +388,11 @@ pub(crate) fn catalog_status(status: &CatalogStatus) -> String {
 }
 
 pub(crate) fn catalog_show(port: &PortDefinition) -> String {
+    let user_selected = port
+        .release
+        .user_prepared
+        .values()
+        .any(|runtime| runtime.trust == portcove_core::ExternalRuntimeTrust::UserSelected);
     let mut lines = vec![
         format!("{} ({})", clean(&port.name), clean(&port.id)),
         format!("Support tier: {}", support_tier(port.support_tier)),
@@ -418,7 +423,11 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
     if let Some(presentation) = &port.presentation {
         lines.push(format!(
             "Installation: {}",
-            installation_method(presentation.installation_method)
+            if user_selected {
+                "user-managed existing installation"
+            } else {
+                installation_method(presentation.installation_method)
+            }
         ));
         for requirement in &presentation.source_requirements {
             lines.push(format!(
@@ -449,6 +458,10 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
         && !port.release.user_prepared.is_empty()
     {
         for (platform, runtime) in &port.release.user_prepared {
+            if runtime.trust == portcove_core::ExternalRuntimeTrust::UserSelected {
+                lines.push(format!("Existing installation ({}): select the game executable and working directory after upstream setup", platform_name(*platform)));
+                continue;
+            }
             lines.extend([
                 format!(
                     "Accepted runtime ({}): {}",
@@ -465,13 +478,21 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
                 format!("Executable: {}", clean(&runtime.executable)),
             ]);
         }
-        lines.extend([
+        if user_selected {
+            lines.extend([
+                "Maintenance: you or the upstream launcher manage setup and updates. Portcove has not authenticated selected bytes as an official package; it does not replace, back up, restore, roll back or delete them.".into(),
+                format!("Review launch details: portcove external select-preview {} \"<game-executable>\" --working-directory \"<working-directory>\"", clean(&port.id)),
+                format!("Register the same reviewed details: portcove external select {} \"<game-executable>\" --working-directory \"<working-directory>\" --expected-preview \"<review-sha256>\"", clean(&port.id)),
+            ]);
+        } else {
+            lines.extend([
             "Maintenance: user-owned; Portcove does not download or update this runtime".into(),
             format!(
                 "Return to Portcove on the matching platform for exact-file review: portcove external preview {} \"<extracted-folder>\"",
                 clean(&port.id)
             ),
         ]);
+        }
     }
     lines.extend([
         format!("Project: {}", clean(&port.project_url)),
@@ -3627,6 +3648,7 @@ mod tests {
         let mut external = status_disclosure_fixture();
         external.port_id = "external\tport\n\u{1b}".into();
         external.external_runtime = Some(portcove_core::ExternalRuntimeRecord {
+            user_selected: None,
             id: "fixture-registration".into(),
             port_id: external.port_id.clone(),
             path: external_path.clone(),
@@ -3996,6 +4018,33 @@ mod catalog_detail_tests {
         assert!(output.contains("Presentation details: unavailable in this catalog"));
         assert!(!output.contains("Accepted runtime (Linux"));
         assert_eq!(serde_json::to_value(&port).unwrap(), before);
+    }
+
+    #[test]
+    fn catalog_detail_keeps_user_selection_separate_from_accepted_package_facts() {
+        let catalog = Catalog::embedded().unwrap();
+        let selected: Vec<_> = catalog
+            .ports()
+            .iter()
+            .filter(|port| {
+                port.release.user_prepared.values().any(|runtime| {
+                    runtime.trust == portcove_core::ExternalRuntimeTrust::UserSelected
+                })
+            })
+            .collect();
+        assert!(!selected.is_empty());
+        for port in selected {
+            let output = catalog_show(port);
+            assert!(output.contains("Installation: user-managed existing installation"));
+            assert!(output.contains("you or the upstream launcher manage setup and updates"));
+            assert!(output.contains("external select-preview"));
+            assert!(output.contains("--working-directory"));
+            assert!(output.contains("--expected-preview"));
+            assert!(!output.contains("Accepted runtime ("));
+            assert!(!output.contains("Package SHA-256:"));
+            assert!(!output.contains("external preview "));
+            assert!(!output.contains("Package:  ("));
+        }
     }
 
     #[test]

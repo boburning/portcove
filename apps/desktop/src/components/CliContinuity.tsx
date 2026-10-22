@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Clipboard, ClipboardCheck } from "lucide-react";
 import { desktopApi } from "../api";
 import { primaryCliCommand } from "../cli-command";
+import { usesUserSelectedRuntime } from "../shared/external-runtime-trust";
 import { copyText } from "../clipboard";
 import type { CliCommandContext, PortDefinition, PortStatus, ReleaseChannel } from "../types";
 import { errorText } from "../view-model";
@@ -52,11 +53,14 @@ export function CliContinuity({
   }, [generation, attempt]);
   const installed = Boolean(status?.active || status?.external_runtime);
   const useInPlace = !installed && port.release.provider === "user-prepared";
+  const userSelected = usesUserSelectedRuntime(port, status);
   const title = installed ? "Launch from another app" : "Set up from the command line";
   const copyLabel = installed
     ? "Copy launch command"
     : useInPlace
-      ? "Copy folder-check command"
+      ? userSelected
+        ? "Copy launch-review command"
+        : "Copy folder-check command"
       : "Copy setup command";
   if (!context)
     return (
@@ -127,8 +131,9 @@ export function CliContinuity({
       {command.followUp && (
         <>
           <p>
-            After the folder check passes, review and save this installation. Its files stay where
-            they are.
+            {userSelected
+              ? "After reviewing the executable, working directory and any --arg values, replace review-sha256 with the returned review fingerprint and save the same launch details. All external files stay where they are."
+              : "After the folder check passes, review and save this installation. Its files stay where they are."}
           </p>
           <CopyField
             key={command.followUp.shell}
@@ -141,7 +146,9 @@ export function CliContinuity({
         {installed
           ? "The CLI checks this installation before launching it. This does not install or update the game."
           : useInPlace
-            ? "Prepare the required version yourself. Replace game-folder with its folder path, check it, then save the location after review. Portcove does not download, copy, update, back up, or delete these files."
+            ? userSelected
+              ? "Complete upstream setup, then replace game-executable and working-directory with your selected paths. Add documented arguments with one --arg per argument to both commands. You or the upstream launcher manage setup and updates; Portcove has not authenticated the selected bytes as an official package."
+              : "Prepare the required version yourself. Replace game-folder with its folder path, check it, then save the location after review. Portcove does not download, copy, update, back up, or delete these files."
             : "Running this command can download and install the selected release. Required game files are checked before use."}
       </p>
       {!installed && !useInPlace && channel === "beta" && (

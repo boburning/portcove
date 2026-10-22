@@ -1,0 +1,51 @@
+{
+  "id": "gundam-wing-endless-duel-recomp",
+  "name": "Gundam Wing: Endless Duel Recomp",
+  "summary": "Build and play Gundam Wing: Endless Duel from your own Japanese original.",
+  "project_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
+  "support_tier": "beta",
+  "channels": ["stable"],
+  "platforms": ["windows-x86-64"],
+  "automated_tested_platforms": [],
+  "manually_validated_platforms": [],
+  "adapter": "staged-source-portable",
+  "release": {
+    "provider": "direct-manifest",
+    "repository": "TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
+    "direct": {
+      "windows-x86-64": {
+        "version": "source-c7aaaa152192",
+        "url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/archive/c7aaaa152192db5d750db3fb190e8f93b6240c19.zip",
+        "size": 3363589,
+        "sha256": "bfe295943d83d144def7f355ac47f04fd90fb5bd2000ca0217e7874dfc33c2ee",
+        "published_at": null
+      }
+    },
+    "managed_build": {
+      "windows-x86-64": "gundam-wing-snes-source-c7aaaa152192-japan-offline"
+    }
+  },
+  "source_profile": "gundam-wing-endless-duel-snes-japan",
+  "executable_hints": {
+    "windows-x86-64": ["GundamWingEndlessDuelSNESRecomp.exe"]
+  },
+  "presentation": {
+    "original_game_title": "Shin Kidou Senki Gundam W: Endless Duel",
+    "installation_method": "managed-recompilation",
+    "source_requirements": [
+      {
+        "role": "game",
+        "profile_id": "gundam-wing-endless-duel-snes-japan",
+        "label": "Gundam Wing: Endless Duel (Japan) stock headerless SNES source",
+        "verification": "catalog-identity"
+      }
+    ],
+    "saves_and_settings": "portcove-managed",
+    "manual_preparation": "Select your own stock headerless Japanese original. Portcove builds the fixed offline source recipe with optional mods, setup and netplay disabled. Use a short library path with basic Latin characters. Close the game with its titlebar close button. Your original remains separate from managed settings and saves; gameplay completion and populated save/load remain unverified."
+  },
+  "launch_arguments": ["game.sfc"],
+  "persistent_paths": ["config.ini", "config.local.ini", "keybinds.ini", "rom.cfg", "saves"],
+  "runtime_mutable_paths": [".snesrecomp_write_probe"],
+  "runtime_mutable_file_patterns": [],
+  "launch_environment": {}
+}

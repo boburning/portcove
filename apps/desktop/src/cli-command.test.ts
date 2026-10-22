@@ -109,4 +109,55 @@ describe("GUI to CLI continuity", () => {
   it("rejects null characters instead of producing truncated arguments", () => {
     expect(() => quoteCliArg("bad\0path", "posix")).toThrow(/null/);
   });
+
+  it("copies explicit executable review and fingerprint-bound registration for user-managed setup", () => {
+    const selectedPort: PortDefinition = {
+      ...port,
+      source_profile: null,
+      bios_source_profile: null,
+      release: {
+        ...port.release,
+        provider: "user-prepared",
+        user_prepared: {
+          "windows-x86-64": {
+            trust: "user-selected",
+            version: "user-managed",
+            archive_name: "",
+            archive_size: 0,
+            archive_sha256: "",
+            immutable_tree_sha256: "",
+            executable: "",
+            mutable_paths: [],
+            source_argument_extension: null,
+          },
+        },
+      },
+    };
+    const command = primaryCliCommand(context, selectedPort, undefined, "stable");
+    expect(command.args).toEqual([
+      "--library",
+      context.library_root,
+      "external",
+      "select-preview",
+      port.id,
+      "<game-executable>",
+      "--working-directory",
+      "<working-directory>",
+    ]);
+    expect(command.followUp?.args).toEqual([
+      "--library",
+      context.library_root,
+      "external",
+      "select",
+      port.id,
+      "<game-executable>",
+      "--working-directory",
+      "<working-directory>",
+      "--expected-preview",
+      "<review-sha256>",
+    ]);
+    expect(command.missing).toEqual(["game-executable", "working-directory"]);
+    expect(command.args).not.toContain("preview");
+    expect(command.followUp?.args).not.toContain("register");
+  });
 });

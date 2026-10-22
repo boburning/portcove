@@ -3206,8 +3206,6 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
       platform: "x86_64-apple-darwin",
     },
   ];
-  const hostSdkFilter =
-    "package(portcove-core) & test(/^cartridge_build::cvlod::local_profile::timing_tests::cvlod_host_sdk_stage_timings$/)";
   // Admit only these exact platform/filter identities. Comparing the complete
   // inventory also rejects duplicates without a separately maintained count.
   const outputIdentity = (value: Readonly<Record<string, unknown>>) =>
@@ -3217,39 +3215,10 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     [
       ...windowsLifecycleFilters.map((filter) => ({ platform: "x86_64-pc-windows-msvc", filter })),
       ...publicationFilters,
-      { platform: "cfg(windows)", filter: hostSdkFilter },
     ]
       .map(outputIdentity)
       .sort(),
   );
-  const hostSdk = overrideFor(hostSdkFilter, "cfg(windows)");
-  assert.equal(hostSdk["success-output"], "immediate");
-  assert.deepEqual(hostSdk["slow-timeout"], {
-    period: "30s",
-    "terminate-after": 32,
-    "grace-period": "0s",
-  });
-  for (const field of ["retries", "threads-required", "priority"])
-    assert.equal(hostSdk[field], undefined);
-  const hostSdkSource = await readFile(
-    new URL(
-      "../crates/portcove-core/src/cvlod_build/local_profile_timing_tests.rs",
-      import.meta.url,
-    ),
-    "utf8",
-  );
-  assert.match(
-    hostSdkSource,
-    /^#\[test\]\s*#\[ignore(?:\s*=\s*"[^"]*")?\]\s*fn cvlod_host_sdk_stage_timings\(\)/mu,
-    "The extended host SDK diagnostic must remain excluded from ordinary test execution.",
-  );
-  // Retain the exact diagnostic source/deadline assertions from the release
-  // integration as well as the target's complete platform/filter inventory.
-  assert.match(
-    hostSdkSource,
-    /#\[ignore = "explicit host SDK measurement; retains a fresh private C: copy"\]\s*fn cvlod_host_sdk_stage_timings\(\)/u,
-  );
-  assert.match(hostSdkSource, /Duration::from_secs\(15 \* 60\)/u);
   for (const filter of windowsLifecycleFilters) {
     const override = overrideFor(filter, "x86_64-pc-windows-msvc");
     assert.equal(override.platform, "x86_64-pc-windows-msvc");

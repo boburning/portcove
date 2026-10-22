@@ -506,6 +506,29 @@ pub(crate) enum LaunchCommand {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum ExternalCommand {
+    /// Review an executable you manage yourself, without claiming package authenticity.
+    SelectPreview {
+        port_id: String,
+        executable: PathBuf,
+        #[arg(long)]
+        working_directory: PathBuf,
+        /// One literal argument per occurrence; no shell command is interpreted.
+        #[arg(long = "arg", allow_hyphen_values = true)]
+        arguments: Vec<String>,
+    },
+    /// Register the explicitly reviewed executable; all external files stay user-owned.
+    Select {
+        port_id: String,
+        executable: PathBuf,
+        #[arg(long)]
+        working_directory: PathBuf,
+        #[arg(long = "arg", allow_hyphen_values = true)]
+        arguments: Vec<String>,
+        #[arg(long)]
+        expected_preview: String,
+        #[arg(long)]
+        yes: bool,
+    },
     /// Review a replacement folder against the existing retained runtime contract.
     RelinkPreview {
         /// Catalog port ID; run `portcove catalog list` to find it.

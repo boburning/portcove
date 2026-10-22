@@ -49,6 +49,7 @@ mod ghostship_recovery_execution;
 mod ghostship_safety;
 #[cfg(test)]
 mod shipwright_persistence_tests;
+mod user_selected;
 pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
 #[cfg(any(test, feature = "qualification-fixtures"))]
 mod forbidden_memories_qualification;
@@ -1074,15 +1075,16 @@ impl PortcoveService {
             platform,
             &output_location.effective_output_directory,
         )?;
+        if port.release.managed_build.contains_key(&platform) {
+            return Err(crate::cartridge_build::retired_creation());
+        }
         let release = self
             .resolve_release(port, selected_channel, platform)
             .await?
             .release;
         let action = self.install_plan_action(&status, &release)?;
         let bundled_runtime = port.bundled_runtime.get(&platform).cloned();
-        let recipe = port.release.managed_build.get(&platform).copied();
-        let auxiliary_downloads =
-            recipe.map_or_else(|| Ok(Vec::new()), |recipe| recipe.acquisition_assets())?;
+        let auxiliary_downloads: Vec<crate::ReleaseAsset> = Vec::new();
         let primary_and_runtime_bytes = release.asset.size.saturating_add(
             bundled_runtime
                 .as_ref()
@@ -1094,9 +1096,7 @@ impl PortcoveService {
                 total.saturating_add(asset.size)
             });
         let temporary_space = if action == InstallPlanAction::Download {
-            let required_bytes = recipe.map_or(primary_and_runtime_bytes, |recipe| {
-                recipe.temporary_bytes(primary_and_runtime_bytes)
-            });
+            let required_bytes = primary_and_runtime_bytes;
             let capacity = crate::output_root::assess_destination(
                 &self.library,
                 port_id,
@@ -1174,7 +1174,7 @@ impl PortcoveService {
             return Ok(install.path);
         }
         // The closed route has no bundled runtime, composite build or transformed key.
-        Ok(output.join(crate::managed_shared_preferences::SHA))
+        Ok(output.join(release.asset.sha256.to_ascii_lowercase()))
     }
 
     pub(crate) fn require_installed_shared_preferences(
@@ -2240,6 +2240,7 @@ impl PortcoveService {
         port: &PortDefinition,
     ) -> Result<()> {
         crate::runtime_data_policy::refuse_adoption(port)?;
+        crate::managed_tfe::refuse_adoption(port)?;
         crate::managed_shared_preferences::refuse_scope_transfer(port)?;
         crate::definition_acquisition::refuse_restricted_adoption(catalog, &port.id)?;
         self.require_definition_operation(
@@ -3945,6 +3946,11 @@ impl PortcoveService {
         requested_root: &Path,
         checkpoint: &dyn Fn() -> Result<()>,
     ) -> Result<ExternalRuntimePreview> {
+        if spec.trust != crate::ExternalRuntimeTrust::AcceptedPackage {
+            return Err(PortcoveError::unsupported(
+                "select the executable and working directory explicitly for this user-managed installation",
+            ));
+        }
         let inspected = crate::external_runtime::inspect_with_checkpoint(
             requested_root,
             spec,
@@ -3973,6 +3979,7 @@ impl PortcoveService {
         };
         let preview_sha256 = hex::encode(Sha256::digest(preview_bytes));
         Ok(ExternalRuntimePreview {
+            user_selected: None,
             port_id: port.id.clone(),
             path: inspected.root,
             executable: inspected.executable,
@@ -4071,6 +4078,7 @@ impl PortcoveService {
             )?;
             operation.begin_publication()?;
             let record = ExternalRuntimeRecord {
+                user_selected: None,
                 id: Uuid::new_v4().to_string(),
                 port_id: port_id.to_owned(),
                 path: preview.path,
@@ -4896,6 +4904,38 @@ impl PortcoveService {
             .ok_or_else(|| {
                 PortcoveError::verification("retained external runtime has no platform contract")
             })?;
+        if spec.trust == crate::ExternalRuntimeTrust::UserSelected {
+            if source_override.is_some() {
+                return Err(PortcoveError::usage(
+                    "user-managed setup supplies its own original files; source overrides are not offered",
+                ));
+            }
+            crate::external_runtime::check_user_selected_record(record, spec, self.library.root())?;
+            self.require_definition_identity(
+                record.retained_definition.as_ref(),
+                DefinitionOperationContext::observed(DefinitionOperation::Launch, true, true),
+            )?;
+            operation.checkpoint()?;
+            return Ok(crate::LaunchSpec {
+                executable: record.executable.clone(),
+                install_root: record.path.clone(),
+                working_directory: record.path.clone(),
+                environment: std::collections::BTreeMap::new(),
+                arguments: record
+                    .user_selected
+                    .as_ref()
+                    .expect("checked user intent")
+                    .arguments
+                    .clone(),
+                fixed_arguments_only: true,
+                launch_kind: crate::LaunchKind::Native,
+            });
+        }
+        if record.user_selected.is_some() {
+            return Err(PortcoveError::verification(
+                "selected execution intent has no retained user-selected trust contract",
+            ));
+        }
         if record.version != spec.version
             || !record
                 .archive_sha256
@@ -5899,8 +5939,8 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn cartridge_artifact_reuse_requires_its_retained_build_recipe() {
+    fn retained_cartridge_install_fixture() -> (tempfile::TempDir, Library, Catalog, InstallRecord)
+    {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let catalog = crate::cartridge_build::tests::fixture_catalog();
@@ -5949,6 +5989,13 @@ mod tests {
             runtime,
         };
         library.register_install(&install, true).unwrap();
+        (temporary, library, catalog, install)
+    }
+
+    #[test]
+    fn cartridge_artifact_reuse_requires_its_retained_build_recipe() {
+        let (_temporary, library, catalog, install) = retained_cartridge_install_fixture();
+        let port = catalog.port("yoshis-cookie-recomp").unwrap();
         let mut service = PortcoveService::new(library).unwrap();
         service.catalog = catalog.clone();
         let release = ResolvedRelease {
@@ -5999,6 +6046,183 @@ mod tests {
         );
         // An equal archive digest cannot turn a downloaded runtime into this
         // original-driven build (or vice versa); no publication occurred.
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn retained_custom_runtime_preserves_launch_collection_and_recovery_after_route_change() {
+        // Inert runtime files and synthetic exited-child collection state; no
+        // game runs and no private original is required for these Core contracts.
+        let (temporary, library, legacy, install) = retained_cartridge_install_fixture();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let id = &install.port_id;
+        let current = service.catalog.port(id).unwrap();
+        assert_eq!(current.release.provider, ReleaseSource::UserPrepared);
+        assert!(current.source_profile.is_none());
+        let retained = service.installed_mutability_port(&install).unwrap();
+        assert_eq!(
+            serde_json::to_value(&retained).unwrap(),
+            serde_json::to_value(legacy.port(id).unwrap()).unwrap()
+        );
+        let user = library.user_dir(id);
+        fs::create_dir_all(user.join("saves")).unwrap();
+        fs::write(user.join("config.ini"), b"preexisting config").unwrap();
+        fs::write(user.join("saves/slot"), b"preexisting save").unwrap();
+        let source_before = fs::read(install.path.join("game.nes")).unwrap();
+        let executable_before = fs::read(install.path.join(&install.selected_executable)).unwrap();
+        let spec = service
+            .prepare_launch_for_install(current, &install, None, None)
+            .unwrap();
+        assert_eq!(spec.arguments, ["game.nes"]);
+        assert_eq!(
+            spec.environment
+                .get("NESRECOMP_NO_LAUNCHER")
+                .map(String::as_str),
+            Some("1")
+        );
+        assert_eq!(
+            fs::read(install.path.join("saves/slot")).unwrap(),
+            b"preexisting save"
+        );
+
+        let wrong_source = temporary.path().join("wrong.nes");
+        fs::write(&wrong_source, b"wrong original remains untouched").unwrap();
+        assert!(
+            service
+                .prepare_launch_for_install(current, &install, Some(&wrong_source), None)
+                .is_err()
+        );
+        assert_eq!(
+            fs::read(&wrong_source).unwrap(),
+            b"wrong original remains untouched"
+        );
+        for name in ["game.nes", "YoshisCookieRecomp.exe"] {
+            let path = install.path.join(name);
+            let before = fs::read(&path).unwrap();
+            fs::write(&path, b"changed immutable fixture").unwrap();
+            assert!(
+                service
+                    .prepare_launch_for_install(current, &install, None, None)
+                    .is_err()
+            );
+            fs::write(path, before).unwrap();
+        }
+        let debug = install.path.join("debug.ini");
+        fs::write(&debug, b"unoffered listener control").unwrap();
+        assert!(
+            service
+                .prepare_launch_for_install(current, &install, None, None)
+                .is_err()
+        );
+        assert_eq!(fs::read(&debug).unwrap(), b"unoffered listener control");
+        fs::remove_file(debug).unwrap();
+
+        // Exercise the exact collection entry point used after ordinary exit.
+        fs::write(install.path.join("config.ini"), b"ordinary exit config").unwrap();
+        fs::write(install.path.join("saves/slot"), b"ordinary exit save").unwrap();
+        service
+            .collect_user_data_from_install(id, &install.path)
+            .unwrap();
+        assert_eq!(
+            fs::read(user.join("config.ini")).unwrap(),
+            b"ordinary exit config"
+        );
+        assert_eq!(
+            fs::read(user.join("saves/slot")).unwrap(),
+            b"ordinary exit save"
+        );
+        let foreign = temporary.path().join("external-runtime");
+        fs::create_dir(&foreign).unwrap();
+        fs::write(foreign.join("config.ini"), b"external data").unwrap();
+        assert!(
+            service
+                .collect_user_data_from_install(id, &foreign)
+                .is_err()
+        );
+        assert_eq!(
+            fs::read(foreign.join("config.ini")).unwrap(),
+            b"external data"
+        );
+
+        // Recovery is bound to the recorded install, not today's setup route.
+        let activity = library
+            .begin_activity(
+                ActivityOperation::Launch,
+                ActivityTargetKind::Port,
+                Some(id),
+            )
+            .unwrap();
+        let now = Library::now();
+        library
+            .create_launch_session(&LaunchSessionRecord {
+                id: activity.id.clone(),
+                port_id: id.clone(),
+                install_id: install.id.clone(),
+                install_root: install.path.clone(),
+                owner_kind: crate::LaunchOwnerKind::Managed,
+                supervisor_pid: u32::MAX,
+                supervisor_identity: None,
+                child_pid: None,
+                child_identity: None,
+                phase: LaunchSessionPhase::Collecting,
+                outcome: None,
+                exit_code: None,
+                message: None,
+                started_at: now,
+                updated_at: now,
+                finished_at: None,
+            })
+            .unwrap();
+        fs::write(install.path.join("config.ini"), b"recovered config").unwrap();
+        fs::write(install.path.join("saves/slot"), b"recovered save").unwrap();
+        service.recover_launch_session(&activity.id).unwrap();
+        assert!(
+            library
+                .active_launch_session(&activity.id)
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            fs::read(user.join("config.ini")).unwrap(),
+            b"recovered config"
+        );
+        assert_eq!(
+            fs::read(user.join("saves/slot")).unwrap(),
+            b"recovered save"
+        );
+        let backup = service.create_backup(id).unwrap();
+        assert_eq!(backup.port_id, *id);
+        let status = service.status(id).unwrap();
+        assert_eq!(status.active.as_ref().unwrap().id, install.id);
+        assert!(status.external_runtime.is_none());
+        for action in [PortAction::Update, PortAction::RegisterExternal] {
+            assert_eq!(
+                status
+                    .port_actions
+                    .iter()
+                    .find(|item| item.action == action)
+                    .unwrap()
+                    .availability,
+                PortActionAvailability::NotOffered
+            );
+        }
+        assert_eq!(
+            status
+                .port_actions
+                .iter()
+                .find(|item| item.action == PortAction::RemoveManaged)
+                .unwrap()
+                .availability,
+            PortActionAvailability::Waiting
+        );
+        assert_eq!(
+            fs::read(install.path.join("game.nes")).unwrap(),
+            source_before
+        );
+        assert_eq!(
+            fs::read(install.path.join(&install.selected_executable)).unwrap(),
+            executable_before
+        );
     }
 
     #[test]
@@ -7841,14 +8065,34 @@ mod tests {
                 Ok(())
             }
         };
-        let output =
-            crate::tool_process::run_tool(&mut command, &checkpoint, Default::default()).unwrap();
+        let mut final_capture = None;
+        let output = crate::tool_process::run_tool(
+            &mut command,
+            &checkpoint,
+            crate::tool_process::ToolProcessObserver {
+                diagnostics: Some(crate::tool_process::ToolDiagnosticSink {
+                    activity_id: "adoption-junction-fixture",
+                    phase: "fixture.junction",
+                    record: &mut |capture| {
+                        final_capture = Some(capture.clone());
+                        Ok(())
+                    },
+                }),
+                quiesced: None,
+            },
+        )
+        .unwrap();
         assert!(
             output.status.success(),
             "junction fixture construction failed: {}",
             output.output
         );
-        assert!(!output.truncated);
+        let captured = final_capture.unwrap();
+        assert!(captured.complete && !captured.stdout.truncated && !captured.stderr.truncated);
+        assert_eq!(
+            captured.stdout.text.len() + 1 + captured.stderr.text.len(),
+            output.output.len()
+        );
     }
 
     fn assert_adoption_refuses_destination_link(kind: AdoptionDestinationLink) {
@@ -10770,6 +11014,7 @@ fn main() {
         fs::write(external.join(physical_executable), b"accepted runtime").unwrap();
         let platform = Platform::current().unwrap();
         let mut runtime = crate::UserPreparedRuntimeSpec {
+            trust: crate::ExternalRuntimeTrust::AcceptedPackage,
             version: "probe-v1".into(),
             archive_name: "probe.zip".into(),
             archive_size: 1,
@@ -11984,6 +12229,7 @@ fn main() {
         let executable_name = "game.exe".to_owned();
         fs::write(external.join(&executable_name), b"inert reviewed runtime").unwrap();
         let mut runtime = crate::UserPreparedRuntimeSpec {
+            trust: crate::ExternalRuntimeTrust::AcceptedPackage,
             version: "probe-v1".into(),
             archive_name: "probe.zip".into(),
             archive_size: 1,
@@ -12543,6 +12789,7 @@ fn main() {
 
         let platform = Platform::current().unwrap();
         let mut runtime = crate::UserPreparedRuntimeSpec {
+            trust: crate::ExternalRuntimeTrust::AcceptedPackage,
             version: "probe-v1".into(),
             archive_name: "probe.zip".into(),
             archive_size: 1,

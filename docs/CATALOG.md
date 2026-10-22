@@ -1,5 +1,49 @@
 # Catalog policy
 
+## Integration ownership
+
+The owner adopted this upstream-first boundary on October 22, 2026 in
+[#1422](https://github.com/boburning/portcove/issues/1422). Catalog breadth and
+management depth are separate. Ordinary integration selects an appropriate
+official package, helps supply original game files through upstream conventions,
+invokes supported upstream preparation when needed, and launches the result.
+Upstream owns its engine, game-specific generation/extraction, compilation
+implementation, rendering, audio, codecs, gameplay and bug fixes.
+
+Each installation has one owner for runtime replacement:
+
+| Offered route                  | Runtime replacement and updates    | Portcove's responsibility                                                                                                                                                                                                            |
+| ------------------------------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Managed official package       | Portcove                           | Accepted artifact identity, safe installation, documented input/setup invocation and launch; player-data protection for explicitly owned paths. Offer update, rollback, backup and removal only where established.                   |
+| Supported upstream preparation | Explicitly selected for the output | Delegate the substantive work to upstream's CLI, builder, extractor or setup window. If upstream retains an updater/launcher, use non-owning registration; its mutable runtime cannot also be a Portcove-owned immutable version.    |
+| Existing installation          | Player or upstream launcher        | Explicit selected executable, working directory and bounded arguments; register, launch, and remove the registration while preserving external files. User selection establishes execution intent, not curated package authenticity. |
+| No useful reasonable route     | Unoffered                          | Record the precise upstream dependency or product deferral and reconsideration condition on the canonical issue. Preserve research, patches and failures as evidence.                                                                |
+
+A supported setup window is acceptable. Shared PSX preparation remains useful:
+it invokes upstream generation/rebuild rather than implementing each engine.
+Compilation is permitted; replacing a game's build implementation or repairing
+its engine is an exceptional maintenance commitment, requiring an identified
+consumer and a concrete reason. Mere technical feasibility does not require it.
+
+Before extending behavior, remove unnecessary management promises. Unknown save
+ownership may allow non-destructive launch while withholding replacement,
+backup, rollback or deletion. Qualification follows the operations actually
+offered. Fixtures, actual setup/launch and optional gameplay/device observations
+remain separate; known relevant failures remain visible. A link, catalog
+placeholder, research record or deferral is not a delivered integration.
+
+Ordinary fitting additions use reviewed definition facts and existing behavior.
+Compatible upstream updates normally change artifact facts. Reuse a policy only
+after checking the behavior it relies on; a checksum or filename alone is
+insufficient. New capabilities represent genuinely new behavior and retain
+strict refusal of unknown execution/ownership semantics. Current schema IDs and
+retained installed contracts keep their historical meanings.
+
+See [compatibility and retired creation](reference/upstream-first-compatibility.md)
+for identified consumers and retirement conditions. Preserve installed runtimes,
+originals, saves, settings, backups and recovery independently of whether the
+builder that created them remains an active feature.
+
 ## Catalog author task routes
 
 The machine-readable catalog owns port, platform, source, release and
@@ -47,8 +91,11 @@ successful metadata check does not establish gameplay or authorize publication.
 
 ## Managed ReGaiden shared preferences
 
-The exact v0.4.1 Windows package has a closed consent-bearing managed route.
-`managed_shared_preferences` requires staged-source capability16 and the
+The reviewed v0.4.1 Windows package uses the constrained
+`gbrecompiled-windows-v1` consent-bearing policy. Typed direct-release facts bind
+the artifact; `managed_shared_preferences_save_id` records the reviewed upstream
+save basename independently of the executable name. New declarations require
+staged-source capability 19 and the
 `regaiden-gbc` materialization that older engines cannot parse. Core retains
 explicit review of the Windows account and both shared/local preference paths
 in schema7 installation manifests. Local saves/settings are managed; the
@@ -60,8 +107,9 @@ this route neither migrates them nor establishes gameplay qualification.
 
 ## Managed RaceWave46 sign-in boundary
 
-The exact official Windows v1.0.0 package uses a closed retained runtime-data
-policy requiring staged-source capability 15. Ordinary `.runtime` saves and
+The reviewed official Windows v1.0.0 package uses the reusable
+`version-local-retroachievements-v1` runtime-data policy requiring staged-source
+capability 19. Typed retained direct-release facts bind its artifact. Ordinary `.runtime` saves and
 settings are managed; RetroAchievements credentials stay inside each version.
 They are never opened, hashed or copied. Whole-tree transfer and recovery refuse
 known credential names before reading payloads and again before publication.
@@ -80,9 +128,12 @@ size and caller-budget checks precede member admission. The normalized aggregate
 uses its own versioned SHA-256 protocol, including single-member sets. Existing
 basename file-set identities and aggregates are unchanged.
 
-The closed Windows TFE v1.22.420 initializer requires staged-source capability
-**12** as a minimum, rather than a range admitting an older implementation.
-Transport schema **75** adds the relative source shape and managed initializer;
+The reviewed Windows TFE v1.22.420 package selects the constrained
+`tfe-dark-forces-portable-v1` initializer and requires staged-source capability
+**19**. Artifact/version/executable facts come from the retained direct release;
+its checked complete game-data layout, pilot/settings initialization and recovery
+remain Core behavior. The exact old initializer retains its original meaning for
+persisted consumers. Transport schema **75** originally added the relative source shape and managed initializer;
 older consumers must refuse unsupported semantics. Full source inspection and
 bounded quick filter observations are distinct: the latter returns `NotChecked`
 for this shape. See [managed Dark Forces setup and recovery](reference/managed-tfe.md)
@@ -368,10 +419,13 @@ contract. Unknown saves may coexist with non-destructive launch; they do not
 authorize replacement, cleanup, backup, restore or deletion of unowned bytes.
 Missing gameplay observations, active upstream maintenance, automatic updates,
 complete save mapping, every platform, or a reusable family adapter are not
-universal admission gates. Small title-specific core code may use the existing
-shared acquisition, transaction, persistence and lifecycle owners when catalog
-data or a shared adapter cannot express the useful route. A bare upstream link
-or placeholder is not an integration.
+universal admission gates. Prefer an appropriate official package, supported
+upstream preparation or useful non-owning existing installation before a
+title-specific exception. An exception needs an identified consumer and bounded
+maintenance reason; disproportionate downstream engine repair/build work can
+instead justify a precise upstream dependency or product deferral. Any retained
+glue uses the shared acquisition, transaction, persistence and lifecycle owners.
+A bare upstream link or placeholder is not an integration.
 
 Schema-2 GitHub proposals may carry `release.curated`, keyed by declared platform.
 Each version-1 record binds repository/upstream, canonical original GitHub release
@@ -417,6 +471,25 @@ new mutable declarations. Inventory refuses redirected/unsafe filesystem objects
 and is bounded to 100,000 entries and depth 64. These sequential observations
 provide no filesystem snapshot or execution sandbox. External user-prepared
 inspection remains its separate non-owning route.
+
+API 80 / staged-source version 20 adds an explicit `trust: "user-selected"`
+existing-installation route. The definition supplies identity and useful setup
+instructions; the player selects a native executable, working directory and
+bounded argument array. Core reviews those exact inputs, confirms execution
+intent and retains them for supervised launch. It checks executable/path safety
+and refuses script launchers and library-owned locations. It does not certify an
+official package, require a catalog-pinned immutable tree, inspect unrelated
+external contents or acquire ownership of them. Runtime replacement belongs to
+the player or selected upstream launcher. Only launch and registration removal
+are offered; external installation, save and settings files remain untouched by
+removal. The launched program can make its normal writes; this is no sandbox.
+
+This mode has empty archive/tree/executable-hint/mutable-path declarations and
+cannot combine with source invocation, managed policy, bundled runtime, setup
+or managed-build hooks. Historical source-catalog identities remain preserved
+without an active source binding or a source-validation claim. New retained
+records explicitly distinguish user intent from accepted-package certification
+and make older readers refuse the new meaning. Unknown trust values are refused.
 
 Catalog schema 1/2 supports hosted or exact direct-manifest package installation
 through its existing adapters. The `user-prepared` release route is separate:
@@ -547,29 +620,11 @@ Both ordinary and bounded readers decode the same retained contract. Registratio
 without this opt-in keep their existing encoding; no library-wide schema migration
 or external-file ownership is introduced.
 
-Staged-source version 6 adds the Core-owned `release.managed_build` recipe
-`yoshis-cookie-nes-cycle-v1.1.0` for Windows x64. This exact recipe binds the
-unchanged full USA NES2 original, reviewed game/framework/UI commits, authenticated
-CMake/Clang toolchain archive, one checked missing-header patch, generated
-cartridge/PRG identities and fixed output inventory. It is an original-driven
-build, with a manifest-bound `.portcove-cartridge-build.json` receipt; the
-upstream release executable is retained only as an authenticated input. No
-caller-supplied command, compiler, executable or recipe extension is accepted.
-The ordinary Core install, staging, activation, verification, user-data,
-rollback and recovery paths own the result. Compilation runs in its private
-operation under existing capacity, cancellation and child-quiescence boundaries.
-
-The declaration fixes `YoshisCookieRecomp.exe`, runtime-root CWD, `game.nes`,
-`NESRECOMP_NO_LAUNCHER=1`, and no forwarded arguments. It preserves `config.ini`,
-`config.ini.tmp`, `saves/`, and root files matching prefix `cyc_shot_` and suffix
-`.png`. The screenshot pattern is not constrained to numeric names. Original,
-receipt, executable, libraries, assets and notices remain protected. Undeclared
-launch-sensitive companions, including `debug.ini`, are refused before launch;
-that file can activate an upstream TCP interface despite developer UI being
-disabled. This is sequential verification, not a runtime sandbox. Net, developer
-UI and mods are disabled by the recipe, and the common process policy excludes
-inherited developer controls. New fitting consumers require their own reviewed
-source, build and runtime facts; this enum is not a universal NES builder.
+Custom cartridge creation capabilities 6, 7, 9, 13 and 14 are retired.
+The old N64 v3 CVLoD recipe is also read-only compatibility. New definitions
+cannot offer these builders; retained installed contracts preserve their exact
+historical runtime meanings. See
+[retirement and consumers](reference/upstream-first-compatibility.md).
 
 Staged-source version 8 adds optional prepared-runtime `shared_preferences`
 with the single value `regaiden041-windows`. It is restricted to the exact
@@ -603,181 +658,16 @@ sequential path observations, not filesystem isolation after launch.
 Indexed entries require minimum staged-source version 8; versions 1–7 remain
 available. Older retained readers refuse through the existing strict envelope.
 
-Staged-source version 7 adds the fixed `dr-mario-nes-cycle-v1.3.0-usa` recipe.
-It binds the unchanged full Japan/USA Rev1 NES2 original, Dr. Mario v1.3.0 USA
-release input and exact game source. The engine, UI, toolchain and checked patch
-are shared with Yoshi. Its explicit USA region selects `game-usa.toml`, NTSC and
-the pinned `cyc_seeds.txt`; generated cartridge/PRG identities and the separately
-measured 92-object graph must match. Its executable is `DrMarioRecomp.exe`; the
-ordinary argument, environment, persistence and protected-companion contracts
-above are unchanged. Yoshi retains its 101-object graph and storage identity.
-
-Indexed definitions must require minimum version 6 for Yoshi and 7 for Dr. Mario.
-Versions 1–6 remain advertised. Retained contracts preserve the whole
-recipe declaration; older readers that cannot preserve it must refuse the strict
-projection. Newly supplied plain legacy catalogs may discard unknown fields and
-are not a compatible delivery route. Engine capability implementation alone
-establishes no title admission, native operation acceptance, signed definition
-publication or installed-client delivery.
-
-Staged-source version 9 adds two closed Windows x64 source-only recipes:
-`advance-wars-gba-source-cb3facb53b6b-usa-rev1` and
-`earthbound-snes-source-fe1155dc26ff-usa`. They bind exact game/framework
-source archives, the official SDL2 SDK and the existing authenticated toolchain.
-Catalog data supplies no compiler commands or arbitrary recipe extensions. The
-primary ZIP is source input, not a fabricated upstream runtime release.
-
-Advance Wars requires the raw USA Rev 1 GBA original with SHA1
-`15053499d5b3f49128a941d7f2d84876f5424d0c` within the finite cartridge bound;
-no unverified canonical size is invented. EarthBound requires the headerless
-3,145,728-byte USA SNES original with SHA256
-`a8fe2226728002786d68c27ddddf0b90a894db52e4dfe268fdf72a68cae5f02e`.
-Both bind the observed SHA256 and size into private storage and verify the
-owned original copy before generation and packaging. Advance Wars builds the
-fixed GBA translator before generating C; EarthBound explicitly uses the pinned
-Python HiROM backend and disables launcher, mods, netplay, tracing and co-simulation.
-The existing bounded compiler groups, graph identity checks, supervised worker,
-quiescence proof and publication/recovery authority remain in effect.
-
-These recipes allow only their fixed owned `game.gba` or `game.sfc` argument.
-Core refuses forwarded arguments and nonempty inherited `SDL_DYNAMIC_API` for
-these two recipes. It does not rewrite the host environment. The runtime contains
-the fixed executable, authenticated companions, owned original and notices;
-source-only build receipts confer no binary redistribution grant. EarthBound's
-crash reporter may import `dbghelp.dll`; that allowance does not apply to other
-recipes. Version 9 is required for indexed entries; earlier capabilities and
-NES recipe storage identities remain unchanged. Capability implementation,
-repository title admission, actual operation acceptance, optional gameplay and
-protected installed-client delivery retain their separate evidence requirements.
-
-Staged-source version 13 adds `render96-us-source-48da5c491c8a`, a closed
-Windows x64 source recipe for `render96ex`. It pins Render96 source commit
-`48da5c491c8abfb2f5192b59278c1c269411e533`, SDL2 2.32.10 and the existing
-authenticated toolchain. The selected output is `sm64.us.f3dex2e.exe`, built
-with the US/f3dex2e, D3D11/DXGI and SDL2 settings, external stock resources,
-and text saves, Discord RPC and RMODERN disabled. No optional model or texture
-pack is acquired. Fixed client patches declare the standard I/O header,
-adapt the assembler driver, preserve generated C across compiler batches, extract
-raw sound-player bytecode from the COFF section with exact identity checks, and
-divide extraction/build work into supervised phases. The linker-only plan is
-checked before execution. These patches do not authorize catalogue-supplied code
-or arbitrary executables. The independent version 11 Windows path capability
-retains its existing meaning; the fixed Render96 contract requires that optional
-retained path policy to be absent.
-
-The source contract selects only the USA 1.0 variant of the existing
-`ghostship-source` identity. Building requires an exact 8,388,608-byte raw
-`.z64`, `.n64` or `.v64` file whose canonical big-endian SHA256 is
-`17ce077343c6133f8c9f2d6d6d9a4ab62c8cd2aa57c40aea1f490b4c8bb21d91`.
-Registering a ZIP for another consumer does not make it a build input; extract
-and register its raw original first. Stored bytes and canonical identity are
-verified separately. The private runtime retains an immutable owned canonical
-copy; the external original remains outside removal authority.
-
-Core fixes launch to `--savepath !` from the runtime root, without forwarded
-arguments. Only `sm64config.txt` and `sm64_save_file.bin` are persistent.
-Resources, DLLs, extra roots and `cont.m64` remain immutable; no broad save-folder
-or file-pattern exception is allowed. Nonempty inherited `SDL_DYNAMIC_API` is
-refused. The initial Make recipe requires build paths containing only ASCII
-letters, digits, slash, colon, dot, underscore or hyphen. A different source
-revision or ambiguous path requires a reviewed compatible recipe. Source and
-private build evidence establish no redistribution, signing or publication grant.
-
-Staged-source version 14 adds the closed Windows x64 recipe
-`gundam-wing-snes-source-c7aaaa152192-japan-offline`. It pins the game,
-framework and UI source trees, SDL2 SDK, toolchain and official setup package.
-Only the package-authenticated native analyzer is selected from that kit; the
-setup host and bundled build commands never run. Its directory must contain
-exactly the admitted analyzer, whose imports are checked independently from
-runtime imports. The fixed generator receives its explicit path and cannot
-fall back to a Cargo or network build. Generation and compilation reuse Core's
-supervised worker, finite deadline, compiler batches, quiescence and publication
-fences. The measured larger inputs require a separate 4 GiB temporary allowance.
-
-The recipe requires the headerless 2,097,152-byte Japanese original, SHA256
-`dd94308d822636c6ddf73c5e2644c84f2eb8fb4d9201150fc5f37d44d6f423f1`.
-It generates C with the pinned project's recipe and builds a stock offline
-runtime. Exact preimage-bound patches disable launcher/setup, netplay, optional
-mods and diagnostics, keep the real presentation/state-digest helpers, restrict
-configuration resolution to `config.ini` in the runtime directory, and identify
-the offline build truthfully. Launch takes only the owned `game.sfc`; forwarded
-arguments and inherited `SDL_DYNAMIC_API` are refused. Persistent paths are
-`config.ini`, `config.local.ini`, `keybinds.ini`, `rom.cfg` and `saves`; the
-transient writable-directory probe is the only other declared runtime write.
-Configuration `!include` can read additional data files; this is not a filesystem
-sandbox or ownership of those external files. Four-input Advance Wars and
-EarthBound storage identities remain unchanged. Capability 14 does not imply
-catalog admission, actual offered-operation acceptance or protected delivery.
-
-N64 portable version 3 adds only the Windows x64 recipe
-`cvlod-n64-source-cb8548d145a1-ui-lifetime-v1`. It pins the Legacy of Darkness
-source, dependencies, toolchain, complete CMake package and official SDL/DXC
-packages. Source Git identities and official release-transport acquisitions
-remain distinct in the retained input manifest. The complete installed
-VC 14.44.35207 / Windows SDK 10.0.19041.0 profile is checked and privately copied;
-ambient compiler paths and catalog-provided scripts cannot select build tools.
-The independent staged-source version 11 Windows path requirement remains
-necessary. Linux/macOS retain their existing GitHub release routes.
-
-The recipe accepts only the existing North American original identity, canonical
-SHA256 `89e15df6042defddc48c61f7408f99d06fffdb845e2422cf8b5ba8e73d4d70fb`,
-as a raw `.z64`, `.n64` or `.v64` file. It retains an immutable canonical proof at
-`.portcove-cvlod-build-original.z64`; working `rom.z64` remains persistent and
-is checked/rematerialized through the existing exact runtime-source hash. The
-UI-context lifetime repair is exact-preimage bound. The fixed generated-byte
-oracle, sealed build graphs, process-tree drain and finite 40-minute build
-deadline precede atomic publication. CVLoD uses one clock from private SDK
-preparation through generation, compilation and pre-publication packaging;
-individual commands do not renew it. Other cartridge recipes retain their
-20-minute allowance.
-
-Bounded post-link diagnostics distinguish generated-source verification, full
-input verification, packaging, import inspection, final input verification,
-output inventory and receipt/activation. A failure preserves its original code,
-message and technical context while adding the failing stage, its elapsed time
-and at most seven completed stage timings without overwriting existing details.
-The immutable receipt records completed pre-activation timings only. These
-observations neither extend the clock nor prove accepted output or quiescence.
-An explicitly ignored Windows SDK timing probe separately measures existing
-SDK functions in a fresh private directory; its single uncontrolled-cache run
-does not establish whole-build attribution or cold-cache throughput.
-Cancellation and the separate process-tree closure deadline are unchanged.
-On Windows, successful CVLoD publication and its cleanup retry reuse the exact
-private WinINet junction unlink used by cancellation. The exception requires
-durable builder quiescence, matching committed install metadata and validated
-journal staging and output ownership. It never follows the junction or changes
-its ACL; a changed target or unproven owner retains the staging tree and journal.
-Both captured private SDK inventories must exactly match the compiled profile
-before execution. Existing post-execution checks still rehash every captured
-input and compare its full path, size and hash inventory. The immediately
-following SDK manifest comparison uses that same verified inventory instead of
-rehashing those bytes twice; it is not a new filesystem observation.
-Each invocation preflights at most eight
-pure compiler targets, or two compiler targets when helpers are present, with
-at most eight helpers. RmlUi uses those same bounds after its compiler-options
-correction; the temporary singleton workaround for unintended `-Weverything`
-output is removed. Every closure still receives complete preflight and bounded
-capture; fitting unit output does not waive a grouped command's output limit.
-Ninja still runs only two jobs. The exact pinned RmlUi compiler-options patch forwards its intended
-`-Wall -Wextra -pedantic` through clang-cl's `/clang:` interface for the MSVC
-frontend; bare `-Wall` otherwise enables `-Weverything` and bare `-pedantic` is
-ignored. Other compiler branches and warnings-as-errors stay intact. The
-preimage/postimage hashes bind storage identity and the receipt, before input
-capture. Individual stream and aggregate diagnostic retention limits stay
-unchanged. Oversized closures first
-split compiler dependencies, then request up to eight fixed helpers together.
-Every selected request group passes the same complete dry-run preflight again;
-an unfit group that cannot shrink refuses. Dependency expansion is
-split before execution; complete observed action identities must match the
-reviewed dry-run, and the sealed graph is rechecked around every invocation.
-Shader prerequisites are literal fixed outputs: 55 DXIL files, 56 SPIR-V files
-and one preprocessed header. They are bound to the pinned RT64 and project CMake
-calls and precede the already fixed generated-C outputs. They add no shader-name
-pattern, tool acquisition or larger execution closure. Raw-file cancellation
-also drains queued writes before private cleanup; ambiguous drain
-retains staging and its journal. Original-dependent output stays local. This
-capability establishes neither catalog admission nor actual operation acceptance
-or redistribution permission.
+Existing managed cartridge runtimes retain their original executable, arguments,
+source receipt, mutable paths, protected companions and environment restrictions.
+Preserving those readers does not retain source generation, engine patches,
+compiler/linker orchestration or SDK acquisition. New Yoshi, Dr. Mario NES,
+EarthBound, Render96 and Gundam definitions offer bounded user-managed
+registration. Gundam's own supported setup pack performs generation and builds.
+CVLoD continues to select official upstream packages; a new release does not
+inherit private repaired-runtime or prior shipping-package observations.
+Historical preparation instructions and failure receipts remain linked in the
+[compatibility record](reference/upstream-first-compatibility.md).
 
 Staged-source version 17 extends the printable-ASCII/MAX_PATH policy to a
 Windows-only user-prepared runtime with a positional original-file argument.
@@ -932,6 +822,36 @@ Retain the historical `automated_tested_platforms` and
 this clarification creates no new qualification record or platform support.
 
 ### Qualification evidence preparation
+
+For the repeated managed setup sequence owned by #1742, the existing report tool
+accepts `--preparation-case FILE` together with `--cli`, `--library` and a new
+`--output` directory. This mode performs reviewed preparation; ordinary capture
+remains read-only. A case contains `format_version: 1`, `evidence_kind` (`synthetic`
+or `actual`), the verified `cli_sha256`, an exact `environment` object with Node's
+`platform`, `arch` and `node` values, and `plan`: the unchanged `data` object from
+that CLI's `preparation plan PORT` response. Review the plan and its offered setup
+before running the case.
+
+The one fixed sequence re-reads the plan, refuses changed inputs, verifies the
+original managed install, runs `preparation run` with its exact expected plan,
+verifies the prepared install, and captures the new Core plan/inventory. Core
+performs setup supervision, source checks, generated-output ownership, publication
+and recovery; the report adds no execution language or installer. Artifact,
+runtime, retained-definition, actual source inspection, host/target, setup and
+conversion-tool joins must match. Unknown legacy source identity stays unknown.
+Setup acceptance never promotes a separate source validator or gameplay result.
+
+The new output retains `preparation-case.json`, per-phase raw Core responses and
+`sequence.json`, including failures, elapsed execution and the existing operation
+inputs/inventories. It never overwrites a prior attempt or automatically replays a
+failed operation. Read activity/recovery before a fresh reviewed attempt. External
+registration has no managed preparation operation and cannot acquire management
+scenarios through this tool. Launch, gameplay, audio, input and save/load remain
+unassessed; update/rollback/backup/removal are outside this bounded sequence.
+Compiled production-CLI synthetic cases reuse it for Jak 1 ISO and Jak 2 CHD,
+including the conversion-tool contrast. Actual upstream/game observations remain
+in their existing qualification receipts. Comparative effort and speed baselines
+remain unknown; per-title commands are eliminated for this repeated sequence.
 
 `node scripts/qualification-report.mts --cli <executable> --library <library> --output <new-directory>`
 captures existing versioned core snapshots and a checklist for active managed
