@@ -233,8 +233,12 @@ async function expectReadinessOption(name: string, selected?: boolean) {
   await readiness().click();
   const option = page.getByRole("option", { name, exact: true });
   await expect.element(option).toBeEnabled();
-  if (selected !== undefined)
-    await expect.element(option).toHaveAttribute("aria-selected", String(selected));
+  await expect
+    .element(option)
+    .toHaveAttribute(
+      "aria-selected",
+      String(selected ?? readiness().element().textContent?.includes(name) ?? false),
+    );
   await userEvent.keyboard("{Escape}");
 }
 async function openAdvancedFilters(name: string) {
@@ -261,7 +265,7 @@ it.each(["dark", "light"])(
     await closeFilters();
     await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
     await expect.element(button("Filters (1)")).toHaveFocus();
-    await expect.element(readiness()).toHaveTextContent("Ready (1)");
+    await expect.element(readiness()).toHaveAccessibleName("Readiness Ready (1)");
     await expectReadinessOption("Needs attention (1)", false);
     await chooseReadiness("Needs attention (1)");
     await expect.element(button("Remove Linux filter")).toBeInTheDocument();
@@ -273,7 +277,7 @@ it.each(["dark", "light"])(
     await expect.element(button("Remove Preview filter")).toBeInTheDocument();
     await userEvent.click(button("View details for Linux game Port: Linux game"));
     await userEvent.click(button("Back to library"));
-    await expect.element(readiness()).toHaveTextContent("Ready (1)");
+    await expect.element(readiness()).toHaveAccessibleName("Readiness Ready (1)");
     await userEvent.click(button("Switch section"));
     await expect.element(button("Filters (0)")).toBeInTheDocument();
     await userEvent.click(button("Switch section"));
@@ -281,11 +285,11 @@ it.each(["dark", "light"])(
     flushSync(() => root.unmount());
     root = createRoot(host);
     flushSync(() => root.render(<Fixture />));
-    await expect.element(readiness()).toHaveTextContent("Ready (1)");
+    await expect.element(readiness()).toHaveAccessibleName("Readiness Ready (1)");
     await userEvent.click(button("Switch library"));
-    await expect.element(readiness()).toHaveTextContent("All (3)");
+    await expect.element(readiness()).toHaveAccessibleName("Readiness All (3)");
     await userEvent.click(button("Switch library"));
-    await expect.element(readiness()).toHaveTextContent("Ready (1)");
+    await expect.element(readiness()).toHaveAccessibleName("Readiness Ready (1)");
     await userEvent.click(button("Favorites (1)"));
     await expectReadinessOption("Needs attention (1)");
     await userEvent.fill(
@@ -308,7 +312,7 @@ it.each(["dark", "light"])(
     await userEvent.click(
       page.getByRole("button", { name: "Clear search and filters", exact: true }),
     );
-    await expect.element(readiness()).toHaveTextContent("All (3)");
+    await expect.element(readiness()).toHaveAccessibleName("Readiness All (3)");
     await expect.element(button("Filters (0)")).toBeInTheDocument();
     expect(invoke).not.toHaveBeenCalled();
   },
@@ -344,7 +348,7 @@ it("clears retained Favorites when its facts are unavailable", async () => {
   await expect.element(button("Favorites (unavailable)")).toBeDisabled();
   await userEvent.click(button("Clear search and filters"));
   await expect.element(button("Favorites (unavailable)")).toHaveAttribute("aria-pressed", "false");
-  await expect.element(readiness()).toHaveTextContent("All (3)");
+  await expect.element(readiness()).toHaveAccessibleName("Readiness All (3)");
 });
 it("holds unknown migrated readiness and query separately until correction", async () => {
   flushSync(() => root.render(<Fixture />));
@@ -434,7 +438,7 @@ it("retains specific attention with independent Library readiness, zero counts a
   await userEvent.keyboard("{Enter}");
   await expect.element(button("Filters (0)")).toHaveFocus();
   await userEvent.click(button("Toggle snapshot"));
-  await expect.element(readiness()).toHaveTextContent("Needs attention (1)");
+  await expect.element(readiness()).toHaveAccessibleName("Readiness Needs attention (1)");
   expect(invoke).not.toHaveBeenCalled();
 });
 
@@ -445,7 +449,7 @@ it("keeps playable plus matching staged updates independent from attention with 
   await userEvent.click(button("Matching update staged (1)"));
   await expect.element(button("Available at last check (1)")).toBeEnabled();
   await closeFilters();
-  await expect.element(readiness()).toHaveTextContent("Ready (1)");
+  await expect.element(readiness()).toHaveAccessibleName("Readiness Ready (1)");
   await expectReadinessOption("Needs attention (0)");
   await userEvent.click(button("View details for Windows game Port: Windows game"));
   await userEvent.click(button("Back to library"));
@@ -453,19 +457,19 @@ it("keeps playable plus matching staged updates independent from attention with 
   await userEvent.click(button("Available at last check (1)"));
   await userEvent.click(button("Missing game files (0)"));
   await closeFilters();
-  await expect.element(readiness()).toHaveTextContent("Ready (0)");
+  await expect.element(readiness()).toHaveAccessibleName("Readiness Ready (0)");
   await expect
     .element(
       page.getByText("No ports in your library match your search and filters", { exact: true }),
     )
     .toBeInTheDocument();
   await userEvent.click(button("Remove Missing game files filter"));
-  await expect.element(readiness()).toHaveTextContent("Ready (2)");
+  await expect.element(readiness()).toHaveAccessibleName("Readiness Ready (2)");
   await userEvent.click(button("Toggle snapshot"));
   await expectReadinessOption("Ready (unavailable)");
   await userEvent.click(button("Remove Matching update staged filter"));
   await userEvent.click(button("Remove Available at last check filter"));
   await userEvent.click(button("Toggle snapshot"));
-  await expect.element(readiness()).toHaveTextContent("Ready (2)");
+  await expect.element(readiness()).toHaveAccessibleName("Readiness Ready (2)");
   expect(invoke).not.toHaveBeenCalled();
 });

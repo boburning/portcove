@@ -330,10 +330,10 @@ describe("desktop components", () => {
       expect(review < check).toBe(true);
       const expected =
         state === "available"
-          ? "was available at the saved check"
+          ? "was available at the last check"
           : state === "none"
-            ? "No update was found at the saved check"
-            : "There is no saved update check for this installation and channel";
+            ? "No update was found at the last check"
+            : "No update check is saved for this installation and channel";
       expect(html).toContain(expected);
       expect(html.indexOf(expected)).toBeLessThan(state === "available" ? review : check);
       expect(html).not.toContain(">This update<");
@@ -2693,10 +2693,10 @@ describe("desktop components", () => {
       missingBoth.indexOf('aria-label="Game actions"'),
     );
     expect(missingBoth).toMatch(
-      /<details class="future-setup-disclosure advanced-settings is-deferred[^"]*">/u,
+      /<details class="future-setup-disclosure advanced-settings[^"]*">/u,
     );
     expect(
-      missingBoth.match(/class="future-setup-disclosure advanced-settings is-deferred[^"]*"/gu),
+      missingBoth.match(/class="future-setup-disclosure advanced-settings[^"]*"/gu),
     ).toHaveLength(1);
     expect(missingBoth).toContain("Future update preferences");
     expect(missingBoth).toContain("Folder for a future install");
@@ -2712,14 +2712,14 @@ describe("desktop components", () => {
     expect(sourceFree).not.toContain("Installation and version");
     expect(sourceFree).toContain('data-slot="button"');
     expect(sourceFree).toContain('data-variant="primary"');
-    expect(sourceFree).toMatch(/<details class="future-setup-disclosure" open="">/u);
+    expect(sourceFree).toMatch(/<details class="future-setup-disclosure advanced-settings[^"]*">/u);
     expect(installed).toContain(">Play</button>");
     expect(installed).toContain('class="requirements-disclosure');
     expect(installed).not.toMatch(/<details class="requirements-disclosure[^"]*" open="">/u);
     expect(installed).toMatch(/<button[^>]*data-variant="primary"[^>]*>[^]*?Play<\/button>/u);
     expect(installed).toMatch(/<button[^>]*data-variant="ghost"[^>]*>[^]*?Back<\/button>/u);
     expect(installed).toMatch(
-      /<button[^>]*data-variant="primary"[^>]*>[^]*?Check for updates<\/button>/u,
+      /<button[^>]*data-variant="outline"[^>]*>(?:(?!<\/button>)[^])*?Check for updates<\/button>/u,
     );
     expect(installed).toMatch(
       /<button[^>]*data-variant="destructive"[^>]*aria-label="Delete backup/u,
@@ -2750,7 +2750,7 @@ describe("desktop components", () => {
     expect(installed).toContain("source.z64");
     expect(uninstalled).not.toMatch(/<details class="advanced-settings[^"]*" open="">/u);
     expect(installed).not.toMatch(/<details class="advanced-settings[^"]*" open="">/u);
-    expect(installed).toMatch(/<details class="future-setup-disclosure" open="">/u);
+    expect(installed).toMatch(/<details class="future-setup-disclosure advanced-settings[^"]*">/u);
     expect(installed).toContain("Saves and settings folder");
     expect(installed).toContain("C:/Portcove/user/sample");
     expect(installed).toContain("No legacy platform coverage recorded");

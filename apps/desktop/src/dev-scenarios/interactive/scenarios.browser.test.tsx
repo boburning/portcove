@@ -69,13 +69,13 @@ it("keeps the optional folder editor and artwork behind disclosures without losi
   await click("View details for Harbor Adventure Port: Harbor Adventure");
   const folder = page.getByText("Folder for a future install", { exact: true });
   const input = page.getByRole("textbox", { name: "Folder for future installs", exact: true });
-  await expect.element(input).not.toBeVisible();
+  await expect.element(input).not.toBeInTheDocument();
   expect(document.querySelector(".detail-artwork")).toBeNull();
   await folder.click();
   await expect.element(input).toBeVisible();
   await input.fill("fixture/future-draft");
   await folder.click();
-  await expect.element(input).not.toBeVisible();
+  await expect.element(input).not.toBeInTheDocument();
   await folder.click();
   await expect.element(input).toHaveValue("fixture/future-draft");
   await page.getByText("Change artwork", { exact: true }).click();

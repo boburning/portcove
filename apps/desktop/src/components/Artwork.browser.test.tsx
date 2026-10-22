@@ -134,7 +134,7 @@ describe("local artwork controls", () => {
     expect(container.querySelector(".artwork-image img")).not.toBeNull();
     await render("sample", 8);
     await open();
-    expect(container.querySelector(".artwork-image img")).toBeNull();
+    expect(container.querySelector(".artwork-image:not(.wide-artwork) img")).toBeNull();
     expect(container.textContent).not.toContain("owned-image.png");
     expect(container.textContent).not.toContain("Showing previously loaded artwork.");
     expect(button("cover", "Choose local image").disabled).toBe(true);
@@ -473,15 +473,22 @@ describe("local artwork controls", () => {
   });
 
   it("selects and resets each slot through core and exposes local source information", async () => {
+    const saved = new Map<string, ArtworkState>();
+    vi.mocked(desktopApi.artwork).mockImplementation(
+      async (port, slot) => saved.get(`${port}:${slot}`) ?? artworkState(port, slot),
+    );
+    const save = (port: string, slot: "cover" | "detail", revision: number, selected = false) => {
+      const state = artworkState(port, slot, revision + 1, selected);
+      saved.set(`${port}:${slot}`, state);
+      return state;
+    };
     const choose = vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
     const change = vi
       .spyOn(desktopApi, "importArtwork")
-      .mockImplementation(async (port, slot, _path, revision) =>
-        artworkState(port, slot, revision + 1, true),
-      );
+      .mockImplementation(async (port, slot, _path, revision) => save(port, slot, revision, true));
     const reset = vi
       .spyOn(desktopApi, "resetArtwork")
-      .mockImplementation(async (port, slot, revision) => artworkState(port, slot, revision + 1));
+      .mockImplementation(async (port, slot, revision) => save(port, slot, revision));
     await render();
     await open();
     expect(container.textContent).not.toContain("SteamGridDB");
@@ -510,13 +517,14 @@ describe("local artwork controls", () => {
     expect(change).toHaveBeenLastCalledWith("sample", "detail", "E:/owned.png", 0, 7);
     await click("cover", "Reset to default");
     expect(reset).toHaveBeenCalledWith("sample", "cover", 1, 7);
-    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector(".artwork-image:not(.wide-artwork) img")).toBeNull();
+    expect(container.querySelector(".detail-artwork img")).not.toBeNull();
     expect(
       getComputedStyle(container.querySelector(".artwork-image")!)
         .getPropertyValue("--art-color")
         .trim(),
     ).toBe(getComputedStyle(document.documentElement).getPropertyValue("--color-art-green").trim());
-    expect(container.querySelector(".artwork-image img")).toBeNull();
+    expect(container.querySelector(".artwork-image:not(.wide-artwork) img")).toBeNull();
     expect(container.querySelector(".artwork-image > span")?.textContent).toBe("SF");
     expect(button("detail", "Reset to default").disabled).toBe(false);
     expect(choose).toHaveBeenCalledTimes(2);
@@ -587,7 +595,9 @@ describe("local artwork controls", () => {
   });
 
   it("uses the core fallback if a validated local thumbnail cannot render", async () => {
-    vi.mocked(desktopApi.artwork).mockResolvedValue(artworkState("sample", "cover", 2, true));
+    vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
+      artworkState(port, slot, 2, true),
+    );
     await render();
     await open();
     await expect.poll(() => container.querySelector(".artwork-image img")).not.toBeNull();
@@ -598,7 +608,7 @@ describe("local artwork controls", () => {
         .getPropertyValue("--art-color")
         .trim(),
     ).toBe(getComputedStyle(document.documentElement).getPropertyValue("--color-art-green").trim());
-    expect(container.querySelector(".artwork-image img")).toBeNull();
+    expect(container.querySelector(".artwork-image:not(.wide-artwork) img")).toBeNull();
     expect(container.querySelector(".artwork-image > span")?.textContent).toBe("SF");
     expect(container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource).toBe(
       "generated_fallback",

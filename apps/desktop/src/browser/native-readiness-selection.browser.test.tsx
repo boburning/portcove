@@ -67,7 +67,7 @@ for (const width of [640, 1600]) {
     expect(document.querySelectorAll(".collection-entry").length).toBeLessThan(12);
     await openDetails();
     await page.getByRole("button", { name: "Back to previous workspace" }).click();
-    await expect.element(picker).toHaveTextContent("Ready (");
+    await expect.element(picker).toHaveAccessibleName(/^Readiness Ready \(\d+\)$/);
     picker.element().focus();
     await expect.element(picker).toHaveFocus();
     await userEvent.keyboard("{Enter}");

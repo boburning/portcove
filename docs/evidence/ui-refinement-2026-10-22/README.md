@@ -36,3 +36,18 @@ The ordinary browser demo correctly refuses native WebView zoom; it retains 100%
 During editing, the first local typecheck and browser-bootstrap requests were refused by source-bound admission because files changed while queued. Neither ran or passed. Their terminal evidence remains in the task transcript. Subsequent frozen-source runs are reported separately.
 
 The live app/prototype comparison intentionally has different entries/artwork. It is an interaction/reference comparison with full-size links and simulation labels, not the matched production A/B above. No artwork remapping, automatic cropping, new operation authority or production fixture import was introduced.
+
+## Final focused results
+
+All 17 requested files exist and have passing results across scoped runs (308 unique tests). This is combined coverage, not a claim that the earlier full runs passed. The first run failed 19 tests; the next failed nine. Repairs retained target, action-ordering, draft, filter/count and focus assertions while updating the changed labels/disclosures and making the artwork mock retain each slot's committed selection. A diagnostic capture assertion also incorrectly assumed pure white instead of the actual warm-white token; it was removed.
+
+- 13 unchanged suites passed in the 17-file repair run, including preparation/operation journeys, selection, detail/back, forced colors, layout, transport isolation and static scenario guards.
+- The four remaining suites then passed: **4 requested / 4 discovered / 4 executed, 190 tests**, no skips.
+- The final capture/focus refinement passed: **1 requested / 1 discovered / 1 executed, 8 tests**, no skips. Both enlarged themes use the actual appearance preference owner; fonts, images and deferred layout/theme paint settle before capture. Tagged axe checks returned no violations in these tested Library states.
+- Typecheck passed on `ca17090` (1,106 files). Production presentation/demo source hashes remain unchanged from that reviewed revision; later changes are tests and this evidence. Final exact-head hosted results are recorded on PR #2399.
+
+[Enlarged dark rows](rows-text-200-dark.png) and [light rows](rows-text-200-light.png) use 200% injected browser text at 1366×768. Vertical scrolling is deliberate; the small thumbnail does not grow with the heading. At [1920×1080 dark](rows-text-200-wide-dark.png) and [light](rows-text-200-wide-light.png), readiness occupies its own column without an extra inset or unnecessary wrapping. Long game/port identity and downloaded-update actions remain readable. [Enlarged preparation](preparation-text-200.png) retains full paths and scrollable consequences; its test resizes the open review to 320px, cancels, and checks focus returns to preparation.
+
+Each of these final images was inspected individually at original resolution. [Live comparison](after-live-comparison.png) shows the corrected, labeled side-by-side viewer; its 635×545 panes intentionally exercise compact layouts. Full-size links avoid mistaking a small embedded pane for an ordinary desktop viewport.
+
+Independent Standards and Spec reviews cleared the presentation and test repairs. Target interaction was inspected against subsequent main changes: retained-build authority/contracts and hosted-continuity qualification do not overlap these UI owners or change their consumed status/preparation contracts. Execution on later main remains the responsibility of the final hosted qualification and guarded merge, not an inference from these browser captures.
