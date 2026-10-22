@@ -373,6 +373,51 @@ async fn prove_bootstrap(fixture: Ceremony) {
         fs::read(fixture.root().join("assembled/metadata/1.targets.json")).unwrap(),
         fs::read(fixture.root().join("offline-targets.json")).unwrap()
     );
+    if fixture.profile == InitialRootProfile::SingleOwnerOneOfOneV1 {
+        let mut renewal = json!({"schema_version":1,"generated_at":fixture.generated.to_string(),
+            "trusted_root":"root-final.json","previous_repository":"assembled","output":"implicit-renewal"});
+        fixture.refuse(
+            "prepare-tuf-renewal",
+            renewal.clone(),
+            "implicit-renewal-config.json",
+        );
+        renewal["initial_root_profile"] = json!(fixture.profile);
+        renewal["output"] = json!("renewal");
+        fixture.success(
+            "prepare-tuf-renewal",
+            &fixture.config("renewal-config.json", &renewal),
+        );
+        let renewed: serde_json::Value =
+            serde_json::from_slice(&fs::read(fixture.root().join("renewal/context.json")).unwrap())
+                .unwrap();
+        assert_eq!(renewed["initial_root_profile"], json!(fixture.profile));
+        assert_eq!(
+            fs::read(fixture.root().join("renewal/trusted-root.json")).unwrap(),
+            fs::read(fixture.root().join("root-final.json")).unwrap()
+        );
+        assert_eq!(
+            fs::read(fixture.root().join("renewal/offline-targets.json")).unwrap(),
+            fs::read(fixture.root().join("offline-targets.json")).unwrap()
+        );
+        let config = fixture.config("renewal-release-config.json", &json!({"schema_version":1,
+            "context":"renewal/context.json","signing_key":fixture.keys[6].0,"output":"renewed-release.json"}));
+        let result = fixture
+            .command()
+            .args(["sign-tuf-role", "releases"])
+            .arg(config)
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let role: Signed<tough::schema::Targets> =
+            serde_json::from_slice(&fs::read(fixture.root().join("renewed-release.json")).unwrap())
+                .unwrap();
+        assert_eq!(role.signed.version.get(), 2);
+        assert_eq!(role.signatures.len(), 1);
+    }
 }
 
 #[tokio::test]

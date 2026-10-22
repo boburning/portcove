@@ -7,13 +7,17 @@ import { isDeepStrictEqual } from "node:util";
 import { isRecord } from "./runtime-values.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
+import {
+  inspectInitialRootProfile,
+  type InitialRootProfile as PublicInitialRootProfile,
+} from "./release-initial-root-profile.mts";
+export type { InitialRootProfile as PublicInitialRootProfile } from "./release-initial-root-profile.mts";
 
 const project = fileURLToPath(new URL("..", import.meta.url));
 const files = ["bundle.json", "root.json", "updater-public.key", "packaging.json"].sort();
 const metadataUrl = "https://boburning.github.io/portcove/application/metadata/";
 const targetsUrl = "https://boburning.github.io/portcove/application/targets/";
 const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-export type PublicInitialRootProfile = "legacy-two-of-three-v1" | "single-owner-one-of-one-v1";
 
 function exact(
   value: unknown,
@@ -92,9 +96,9 @@ export function inspectPublicBuildManifest(manifest: unknown) {
     manifest.targets_url !== targetsUrl
   )
     throw new Error("public input scope or application origins differ");
-  const profile = version === 1 ? "legacy-two-of-three-v1" : manifest.initial_root_profile;
-  if (profile !== "legacy-two-of-three-v1" && profile !== "single-owner-one-of-one-v1")
-    throw new Error("public initial Root profile must be explicitly appointed");
+  const profile = inspectInitialRootProfile(
+    version === 1 ? "legacy-two-of-three-v1" : manifest.initial_root_profile,
+  );
   return { manifest, version, profile };
 }
 

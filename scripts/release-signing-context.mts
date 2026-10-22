@@ -11,6 +11,11 @@ import {
 } from "./release-metadata-renewal.mts";
 import type { PreparedMetadataRenewal } from "./release-metadata-renewal.mts";
 import { readVerifiedReleasePublicBuildInputFiles } from "./release-public-build-provenance.mts";
+import { inspectPublicBuildManifest } from "./release-public-build-inputs.mts";
+import {
+  initialRootProfileFields,
+  type InitialRootProfile,
+} from "./release-initial-root-profile.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { reconstructApplicationUpdateRecords } from "./reconstruct-application-update-records.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
@@ -108,6 +113,7 @@ export function mergeReleaseRecordBytes(
 /** Preserve Rust's exact positive-u64 versions without a Number conversion. */
 export function releaseSigningContextBytes(
   descriptor: Awaited<ReturnType<typeof inspectPreparedMetadataRenewal>>["descriptor"],
+  profile: InitialRootProfile = "legacy-two-of-three-v1",
 ) {
   const versions = Object.fromEntries(
     roles.map((role) => {
@@ -119,6 +125,7 @@ export function releaseSigningContextBytes(
   );
   const base = JSON.stringify({
     schema_version: 1,
+    ...initialRootProfileFields(profile),
     generated_at: descriptor.generated_at,
     trusted_root: "trusted-root.json",
     offline_targets: "offline-targets.json",
@@ -312,6 +319,11 @@ export async function prepareReleaseSigningContext(
   }
   if (!source.get("trusted-root.json")?.equals(publicInputs.get("root.json")!))
     throw new Error("candidate and authenticated prior root differ");
+  if (
+    inspectPublicBuildManifest(JSON.parse(publicInputs.get("bundle.json")!.toString("utf8")))
+      .profile !== prior.initial_root_profile
+  )
+    throw new Error("ratified public build and authenticated prior Root profiles differ");
   const registry = JSON.parse(source.get("payload.json")!.toString("utf8")) as unknown;
   const keySha = payload.signatures[0]!.request.public_key_sha256;
   const publicKeyBytes = await readControllerToolFile(payload.public_key.path, 16384);
@@ -417,7 +429,10 @@ export async function prepareReleaseSigningContext(
   for (const name of [...source.keys()]) if (name.startsWith("records/")) source.delete(name);
   for (const [name, bytes] of records) source.set(`records/${name}`, bytes);
   source.set("records/reconstruction-manifest.json", manifest);
-  source.set("context.json", releaseSigningContextBytes(prior.descriptor));
+  source.set(
+    "context.json",
+    releaseSigningContextBytes(prior.descriptor, prior.initial_root_profile),
+  );
   // The unchanged-renewal descriptor is not a description of this new release.
   source.delete("renewal.json");
   const binding = {
