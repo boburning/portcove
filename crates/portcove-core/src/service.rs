@@ -6524,7 +6524,11 @@ mod tests {
             }),
         )
         .unwrap();
-        let mut port = service.catalog.port("dkr-r").unwrap().clone();
+        // The current DKR route delegates replacement to its selected launcher;
+        // this acquisition-authority fixture still exercises the old GitHub route.
+        let historical =
+            Catalog::from_json(include_str!("../catalog/catalog-schema1-fixture.json")).unwrap();
+        let mut port = historical.port("dkr-r").unwrap().clone();
         assert!(
             service
                 .resolve_release(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)

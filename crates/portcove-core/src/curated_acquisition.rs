@@ -854,6 +854,10 @@ mod tests {
 
     #[test]
     fn curated_proposal_inspection_is_inert_and_rejects_misbound_records() {
+        // Exercise the retained GitHub route, not today's non-owning launcher.
+        let retained =
+            crate::Catalog::from_json(include_str!("../catalog/catalog-schema1-fixture.json"))
+                .unwrap();
         let mut value =
             serde_json::to_value(crate::Catalog::embedded().unwrap().document()).unwrap();
         let port = value["ports"]
@@ -862,6 +866,7 @@ mod tests {
             .iter_mut()
             .find(|port| port["id"] == "dkr-r")
             .unwrap();
+        *port = serde_json::to_value(retained.port("dkr-r").unwrap()).unwrap();
         port["release"]["curated"] = serde_json::json!({"windows-x86-64": fixture_record()});
         let root = tempfile::tempdir().unwrap();
         let input = root.path().join("proposal.json");
@@ -912,7 +917,9 @@ mod tests {
     #[tokio::test]
     async fn curated_claims_refuse_github_acquisition_before_network() {
         use crate::ReleaseProvider;
-        let catalog = crate::Catalog::embedded().unwrap();
+        let catalog =
+            crate::Catalog::from_json(include_str!("../catalog/catalog-schema1-fixture.json"))
+                .unwrap();
         let mut port = catalog.port("dkr-r").unwrap().clone();
         assert!(require_runtime_authority(&port).is_ok());
         assert!(

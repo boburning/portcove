@@ -12369,61 +12369,39 @@
     {
       "id": "dkr-r",
       "name": "DKR-R",
-      "summary": "Native Diddy Kong Racing recompilation.",
+      "summary": "Diddy Kong Racing through an upstream-owned DKR-R launcher that you manage.",
       "project_url": "https://github.com/ThatGuyMcd/DKR-R",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
+        "windows-x86-64"
       ],
-      "adapter": "n64-recomp-portable",
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
       "release": {
+        "provider": "user-prepared",
         "repository": "ThatGuyMcd/DKR-R",
-        "asset_hints": {
-          "windows-x86-64": [
-            "Windows-x64"
-          ],
-          "linux-x86-64": [
-            "Linux-x86_64.AppImage"
-          ]
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
         }
       },
-      "source_profile": "diddy-kong-racing",
-      "executable_hints": {
-        "windows-x86-64": [
-          "DKR-R.exe"
-        ],
-        "linux-x86-64": [
-          "DKR-R-1.0.4-Linux-x86_64.AppImage"
-        ]
-      },
-      "persistent_paths": [
-        "dkr-runtime-data",
-        "imgui.ini",
-        "dkr-us-v80.z64"
-      ],
-      "runtime_source_filename": "dkr-us-v80.z64",
-      "launch_arguments": [
-        "--rom",
-        "dkr-us-v80.z64",
-        "--config",
-        "dkr-runtime-data"
-      ],
       "presentation": {
         "original_game_title": "Diddy Kong Racing",
-        "installation_method": "portable-recompilation",
-        "source_requirements": [
-          {
-            "role": "game",
-            "profile_id": "diddy-kong-racing",
-            "label": "Diddy Kong Racing US v1.0 or Rev A/v1.1 source",
-            "verification": "catalog-identity"
-          }
-        ],
-        "saves_and_settings": "portcove-managed",
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
         "artwork": {
           "game_id": 2723,
           "cover_id": 88723,
@@ -12431,7 +12409,8 @@
           "image_sha256": "1a844d513546a07d99461f949c36e7c9d7ececcd0465b618b982b817b23f7391",
           "game_slug": "diddy-kong-racing",
           "match_kind": "underlying-game"
-        }
+        },
+        "manual_preparation": "Extract the complete official Windows package into a folder you manage outside the Portcove library. Use upstream’s launcher to select your own supported Diddy Kong Racing original. Select the top-level DKR-R.exe with that release folder as its working directory; leave libexec and helpers intact. Optional --rom and --config arguments belong to your selected upstream profile. DKR-R or you manage runtime updates, saves, settings and backups. Portcove only registers, launches and removes the registration. Existing Portcove-managed installations keep their retained contracts; do not move their files into this route."
       }
     },
     {

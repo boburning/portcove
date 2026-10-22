@@ -84,6 +84,16 @@ binaries for every candidate.
 
 ## Reusable policies and exact legacy readers
 
+DKR-R's current Windows route registers an upstream-owned launcher. Captured
+managed contracts keep their prior Windows/Linux source, launch, data and
+recovery semantics. Verified pre-contract schema-2-to-5 installs use a dedicated
+read-only snapshot only for the recorded official 1.0.2/1.0.4 Windows/Linux
+artifact identities and selected executables; unknown identities refuse without
+changing files. This reader cannot acquire or update a managed runtime. See the
+[dated qualification](../qualification/dkr-upstream-launcher-2026-10-22.md).
+Retire it only after a supported transition or owner-confirmed retirement
+accounts for installed, backup, export and recovery consumers.
+
 Current definitions use the constrained `tfe-dark-forces-portable-v1`,
 `version-local-retroachievements-v1` and `gbrecompiled-windows-v1` policies,
 requiring staged-source version 19. Retained typed `DirectReleaseSpec` data

@@ -1,0 +1,34 @@
+[
+  {
+    "version": "Version1.0.2",
+    "platform": "windows-x86-64",
+    "asset_name": "DKR-R-1.0.2-Windows-x64.zip",
+    "size": 22425041,
+    "sha256": "e937bd8c49ee9154891ef59c49172aa590d82425158c95a22724f107d8ae00e6",
+    "executable": "DKR-R.exe"
+  },
+  {
+    "version": "Version1.0.2",
+    "platform": "linux-x86-64",
+    "asset_name": "DKR-R-1.0.2-Linux-x86_64.AppImage",
+    "size": 26610168,
+    "sha256": "6ea52c6a53e5d46218187334b91e0d51c4e3e3156d385ad16e417022732113ee",
+    "executable": "DKR-R-1.0.2-Linux-x86_64.AppImage"
+  },
+  {
+    "version": "Version1.0.4",
+    "platform": "windows-x86-64",
+    "asset_name": "DKR-R-1.0.4-Windows-x64.zip",
+    "size": 22429704,
+    "sha256": "0732aa1637f6813f6cce9a23564f53214b2f47b913bbb1ade23298a97a37f728",
+    "executable": "DKR-R.exe"
+  },
+  {
+    "version": "Version1.0.4",
+    "platform": "linux-x86-64",
+    "asset_name": "DKR-R-1.0.4-Linux-x86_64.AppImage",
+    "size": 26614264,
+    "sha256": "9da1e72dd23eaf7b6e096f19bc2bb215065e2ef7c5fd35a2601c9d430fe25ee0",
+    "executable": "DKR-R-1.0.4-Linux-x86_64.AppImage"
+  }
+]

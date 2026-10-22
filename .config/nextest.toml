@@ -7,6 +7,15 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# These selected-runtime fixtures copy a large debug test executable and perform
+# repeated durable registration/status checks. The local two-worker run retained
+# three 30s timeouts. Give only these exact cases finite 90s harness room; keep
+# product/child deadlines, both workers, all assertions, cleanup and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^service::user_selected::tests::user_selected_production_launch_restart_and_removal_preserve_external_bytes$/) | test(/^service::user_selected::tests::user_selected_refuses_known_external_managed_outputs_and_retained_versions$/) | test(/^service::user_selected::tests::user_selected_review_refuses_changed_details_and_managed_or_script_paths$/))'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+
 # CI 39725354018/a1 retained two Windows 30s harness timeouts. The launch
 # fixture returned its second owned probe at 24.84s; rollback reached second
 # reopened status at 28.47s. Keep both complete attempts, assertions, cleanup,

@@ -1860,10 +1860,294 @@ impl Installer {
 pub(crate) fn retained_catalog_for_install(
     install: &InstallRecord,
 ) -> Result<Option<crate::Catalog>> {
-    verified_manifest(install)?
-        .retained_contract
-        .map(|contract| contract.catalog(&install.port_id))
-        .transpose()
+    let manifest = verified_manifest(install)?;
+    catalog_for_verified_manifest(install, &manifest)
+}
+
+#[derive(Deserialize)]
+struct LegacyDkrArtifact {
+    version: String,
+    platform: Platform,
+    asset_name: String,
+    size: u64,
+    sha256: String,
+    executable: String,
+}
+
+fn legacy_dkr_artifact(
+    install: &InstallRecord,
+    manifest: &InstallManifest,
+) -> Result<Option<LegacyDkrArtifact>> {
+    if install.port_id != "dkr-r" || manifest.retained_contract.is_some() {
+        return Ok(None);
+    }
+    // Only verified pre-contract manifests reach here. Never derive historical
+    // launch or persistence from today's non-owning definition or host platform.
+    let artifacts: Vec<LegacyDkrArtifact> =
+        serde_json::from_str(include_str!("legacy_dkr/artifacts.json"))?;
+    let artifact = artifacts.into_iter().find(|artifact| {
+        install.version == artifact.version
+            && install.artifact.asset_name == artifact.asset_name
+            && install.artifact.size == artifact.size
+            && install.artifact.sha256 == artifact.sha256
+            && Path::new(&install.selected_executable).file_name()
+                == Some(std::ffi::OsStr::new(&artifact.executable))
+            && manifest
+                .platform
+                .is_none_or(|platform| platform == artifact.platform)
+            && manifest.runtime.is_none()
+    });
+    artifact.map(Some).ok_or_else(|| PortcoveError::verification(
+        "legacy DKR-R installation is outside the recorded compatibility identities; preserve its files and review its original contract",
+    ))
+}
+
+fn catalog_for_verified_manifest(
+    install: &InstallRecord,
+    manifest: &InstallManifest,
+) -> Result<Option<crate::Catalog>> {
+    if let Some(contract) = &manifest.retained_contract {
+        return contract.catalog(&install.port_id).map(Some);
+    }
+    let Some(artifact) = legacy_dkr_artifact(install, manifest)? else {
+        return Ok(None);
+    };
+    // Frozen local interpretation only. Acquisition still uses the active
+    // catalog and cannot obtain a managed release through this reader.
+    let mut document: crate::CatalogDocument =
+        serde_json::from_str(include_str!("legacy_dkr/catalog.json"))?;
+    if artifact.platform == Platform::LinuxX86_64 {
+        document.ports[0]
+            .executable_hints
+            .insert(artifact.platform, vec![artifact.executable]);
+    }
+    crate::Catalog::from_json(&serde_json::to_string(&document)?).map(Some)
+}
+
+#[cfg(test)]
+mod legacy_dkr_tests {
+    use super::*;
+
+    fn fixture(
+        artifact: &LegacyDkrArtifact,
+        schema: u32,
+    ) -> (tempfile::TempDir, Installer, InstallRecord) {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let root = library.versions_dir().join("dkr-r/legacy");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join(&artifact.executable),
+            b"inert historical runtime fixture",
+        )
+        .unwrap();
+        crate::permissions::normalize_archive_entry(&root.join(&artifact.executable), false, true)
+            .unwrap();
+        let artifact_identity = ArtifactIdentity {
+            asset_name: artifact.asset_name.clone(),
+            size: artifact.size,
+            sha256: artifact.sha256.clone(),
+        };
+        let manifest = InstallManifest {
+            schema_version: schema,
+            retained_contract: None,
+            shared_preferences: None,
+            platform: (schema >= 5).then_some(artifact.platform),
+            install_id: "legacy".into(),
+            port_id: "dkr-r".into(),
+            version: artifact.version.clone(),
+            artifact: artifact_identity.clone(),
+            runtime: None,
+            runtime_root: None,
+            selected_executable: artifact.executable.clone(),
+            mutable_paths: vec![
+                "dkr-runtime-data".into(),
+                "imgui.ini".into(),
+                "dkr-us-v80.z64".into(),
+            ],
+            mutable_file_patterns: vec![],
+            files: vec![ManifestFile {
+                path: artifact.executable.clone(),
+                size: 32,
+                sha256: hex::encode(Sha256::digest(b"inert historical runtime fixture")),
+                critical: true,
+                executable: schema >= 5
+                    && crate::permissions::platform_requires_executable(artifact.platform),
+            }],
+        };
+        let bytes = serde_json::to_vec(&manifest).unwrap();
+        fs::write(root.join(".portcove-manifest.json"), &bytes).unwrap();
+        let install = InstallRecord {
+            id: "legacy".into(),
+            port_id: "dkr-r".into(),
+            version: artifact.version.clone(),
+            path: root,
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: false,
+            artifact: artifact_identity,
+            manifest_sha256: hex::encode(Sha256::digest(bytes)),
+            selected_executable: artifact.executable.clone().into(),
+            runtime: None,
+        };
+        (temporary, Installer::new(library).unwrap(), install)
+    }
+
+    #[test]
+    fn legacy_dkr_manifests_preserve_exact_runtime_source_and_data_contracts() {
+        let artifacts: Vec<LegacyDkrArtifact> =
+            serde_json::from_str(include_str!("legacy_dkr/artifacts.json")).unwrap();
+        for artifact in &artifacts {
+            for schema in 2..=5 {
+                let (_temporary, installer, install) = fixture(artifact, schema);
+                let before = fs::read(install.path.join(".portcove-manifest.json")).unwrap();
+                let (catalog, platform) = retained_query_context(&install).unwrap();
+                assert_eq!(platform, Some(artifact.platform));
+                let catalog = catalog.unwrap();
+                let port = catalog.port("dkr-r").unwrap();
+                assert_eq!(
+                    port.launch_arguments,
+                    ["--rom", "dkr-us-v80.z64", "--config", "dkr-runtime-data"]
+                );
+                assert_eq!(port.source_profile.as_deref(), Some("diddy-kong-racing"));
+                assert_eq!(
+                    port.persistent_paths,
+                    ["dkr-runtime-data", "imgui.ini", "dkr-us-v80.z64"]
+                );
+                let qualification =
+                    InstallQualification::from_catalog(&catalog, "dkr-r", artifact.platform)
+                        .unwrap();
+                installer.verify_critical(&install, &qualification).unwrap();
+                fs::create_dir(install.path.join("dkr-runtime-data")).unwrap();
+                fs::write(
+                    install.path.join("dkr-runtime-data/save"),
+                    b"retained player data",
+                )
+                .unwrap();
+                installer.verify_critical(&install, &qualification).unwrap();
+                assert_eq!(
+                    fs::read(install.path.join(".portcove-manifest.json")).unwrap(),
+                    before
+                );
+                fs::write(install.path.join(&artifact.executable), b"changed runtime").unwrap();
+                assert!(installer.verify_critical(&install, &qualification).is_err());
+            }
+        }
+    }
+
+    #[test]
+    fn legacy_dkr_fallback_refuses_unknown_identity_and_preserves_captured_authority() {
+        let artifacts: Vec<LegacyDkrArtifact> =
+            serde_json::from_str(include_str!("legacy_dkr/artifacts.json")).unwrap();
+        let artifact = &artifacts[2];
+        let (_temporary, installer, mut install) = fixture(artifact, 5);
+        let mut manifest = verified_manifest(&install).unwrap();
+        let historical = catalog_for_verified_manifest(&install, &manifest)
+            .unwrap()
+            .unwrap();
+        for changed in ["digest", "platform", "version", "executable"] {
+            let mut candidate = install.clone();
+            let mut document = manifest.clone();
+            match changed {
+                "digest" => candidate.artifact.sha256 = "a".repeat(64),
+                "platform" => document.platform = Some(Platform::LinuxX86_64),
+                "version" => candidate.version = "Version1.0.8".into(),
+                _ => candidate.selected_executable = "other.exe".into(),
+            }
+            assert!(
+                legacy_dkr_artifact(&candidate, &document).is_err(),
+                "{changed}"
+            );
+        }
+        // Captured contracts remain authoritative even outside the small legacy
+        // artifact fence; no current definition is substituted for their data.
+        install.version = "inert-captured-fixture".into();
+        install.artifact.sha256 = "b".repeat(64);
+        manifest.version.clone_from(&install.version);
+        manifest.artifact = install.artifact.clone();
+        manifest.schema_version = 6;
+        manifest.retained_contract = Some(
+            crate::installed_contract::InstalledContract::capture(&historical, "dkr-r").unwrap(),
+        );
+        let bytes = serde_json::to_vec(&manifest).unwrap();
+        fs::write(install.path.join(".portcove-manifest.json"), &bytes).unwrap();
+        install.manifest_sha256 = hex::encode(Sha256::digest(bytes));
+        assert!(installer.retained_catalog(&install).unwrap().is_some());
+        let current = crate::Catalog::embedded().unwrap();
+        assert!(
+            InstallQualification::from_catalog(&current, "dkr-r", Platform::WindowsX86_64).is_err()
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn legacy_dkr_service_collects_and_rolls_back_without_offering_new_managed_updates() {
+        let artifacts: Vec<LegacyDkrArtifact> =
+            serde_json::from_str(include_str!("legacy_dkr/artifacts.json")).unwrap();
+        let (_temporary, installer, active) = fixture(&artifacts[2], 5);
+        let library = installer.library.clone();
+        let mut prior = active.clone();
+        prior.id = "previous".into();
+        prior.version = artifacts[0].version.clone();
+        prior.artifact = ArtifactIdentity {
+            asset_name: artifacts[0].asset_name.clone(),
+            size: artifacts[0].size,
+            sha256: artifacts[0].sha256.clone(),
+        };
+        prior.path = library.versions_dir().join("dkr-r/previous");
+        fs::create_dir_all(&prior.path).unwrap();
+        fs::copy(
+            active.path.join(&active.selected_executable),
+            prior.path.join(&prior.selected_executable),
+        )
+        .unwrap();
+        let mut manifest = verified_manifest(&active).unwrap();
+        manifest.install_id = prior.id.clone();
+        manifest.version = prior.version.clone();
+        manifest.artifact = prior.artifact.clone();
+        let bytes = serde_json::to_vec(&manifest).unwrap();
+        fs::write(prior.path.join(".portcove-manifest.json"), &bytes).unwrap();
+        prior.manifest_sha256 = hex::encode(Sha256::digest(bytes));
+        library.register_install(&prior, true).unwrap();
+        library.register_install(&active, true).unwrap();
+        let service = crate::PortcoveService::new(library.clone()).unwrap();
+        let retained = service.installed_catalog(&active).unwrap();
+        assert_eq!(
+            retained.port("dkr-r").unwrap().launch_arguments,
+            ["--rom", "dkr-us-v80.z64", "--config", "dkr-runtime-data"]
+        );
+        installer
+            .verify_critical(
+                &active,
+                &service.installed_mutability_qualification(&active).unwrap(),
+            )
+            .unwrap();
+        fs::create_dir(active.path.join("dkr-runtime-data")).unwrap();
+        fs::write(
+            active.path.join("dkr-runtime-data/save"),
+            b"retained ordinary-exit save",
+        )
+        .unwrap();
+        service
+            .collect_user_data_from_install("dkr-r", &active.path)
+            .unwrap();
+        assert_eq!(
+            fs::read(library.user_dir("dkr-r").join("dkr-runtime-data/save")).unwrap(),
+            b"retained ordinary-exit save"
+        );
+        assert_eq!(service.rollback("dkr-r").unwrap().id, prior.id);
+        assert_eq!(
+            fs::read(prior.path.join("dkr-runtime-data/save")).unwrap(),
+            b"retained ordinary-exit save"
+        );
+        assert!(active.path.join(&active.selected_executable).is_file());
+        assert!(prior.path.join(&prior.selected_executable).is_file());
+        let current = crate::Catalog::embedded().unwrap();
+        assert!(
+            InstallQualification::from_catalog(&current, "dkr-r", Platform::WindowsX86_64).is_err()
+        );
+    }
 }
 
 /// Explicit query-context observation. Legacy manifests do not acquire a
@@ -1885,11 +2169,11 @@ pub(crate) fn retained_query_context_with_budget(
         Some(crate::signed_catalog::MAX_CATALOG_BYTES as u64),
         budget,
     )?;
-    let catalog = manifest
-        .retained_contract
-        .map(|contract| contract.catalog(&install.port_id))
-        .transpose()?;
-    Ok((catalog, manifest.platform))
+    let catalog = catalog_for_verified_manifest(install, &manifest)?;
+    let platform = manifest
+        .platform
+        .or(legacy_dkr_artifact(install, &manifest)?.map(|artifact| artifact.platform));
+    Ok((catalog, platform))
 }
 
 pub(crate) fn portability_catalog_for_install(
@@ -3560,12 +3844,12 @@ mod tests {
         fs::write(helpers.join("DKR-R-InputHost.exe"), b"reviewed helper").unwrap();
         fs::write(helpers.join("SDL3.dll"), b"reviewed library").unwrap();
         fs::write(helpers.join("notice.txt"), b"reviewed notice").unwrap();
-        let qualification = InstallQualification::from_catalog(
-            &crate::Catalog::embedded().unwrap(),
-            "dkr-r",
-            Platform::WindowsX86_64,
-        )
-        .unwrap();
+        let retained =
+            crate::Catalog::from_json(include_str!("../catalog/catalog-schema1-fixture.json"))
+                .unwrap();
+        let qualification =
+            InstallQualification::from_catalog(&retained, "dkr-r", Platform::WindowsX86_64)
+                .unwrap();
         let (installer, install) = create_test_install(&root, &qualification);
         (temporary, installer, install, qualification, helpers)
     }
@@ -3820,11 +4104,12 @@ mod tests {
     #[test]
     fn standalone_appimage_versions_keep_artifact_identity_and_verified_manifests() {
         let temporary = tempfile::tempdir().unwrap();
-        let port = crate::Catalog::embedded()
-            .unwrap()
-            .port("dkr-r")
-            .unwrap()
-            .clone();
+        let port =
+            crate::Catalog::from_json(include_str!("../catalog/catalog-schema1-fixture.json"))
+                .unwrap()
+                .port("dkr-r")
+                .unwrap()
+                .clone();
         let qualification =
             crate::test_fixture::retained_qualification(&port, Platform::LinuxX86_64).unwrap();
         let declared = Path::new("DKR-R-1.0.4-Linux-x86_64.AppImage");
