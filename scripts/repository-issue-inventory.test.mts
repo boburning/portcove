@@ -234,6 +234,74 @@ void test("doctor refuses redacted Project items even when all counts agree", as
   );
   assert.equal(f.requests(), 0, "refuse before repository body downloads");
 });
+
+void test("real Project reads and doctor reject malformed content before interpreting absence", async () => {
+  const base = {
+    __typename: "Issue",
+    id: "I_1",
+    number: 1,
+    title: "Fixture",
+    body: "",
+    url: `https://github.com/${repository}/issues/1`,
+    state: "OPEN",
+    updatedAt: "2026-10-17T00:00:00Z",
+  };
+  for (const content of [
+    null,
+    {},
+    { id: "I_1" },
+    { ...base, id: "" },
+    { ...base, __typename: "Unknown" },
+    { ...base, body: null },
+    { ...base, updatedAt: "invalid" },
+    { ...base, number: 2 },
+    { ...base, url: `https://github.com/${repository}/pull/1` },
+    { ...base, state: "UNKNOWN" },
+  ]) {
+    const real = new RoadmapClient(config, () =>
+      JSON.stringify({
+        data: {
+          node: {
+            items: {
+              totalCount: 1,
+              nodes: [
+                {
+                  id: "ITEM",
+                  content,
+                  fieldValues: {
+                    totalCount: 0,
+                    nodes: [],
+                    pageInfo: { hasNextPage: false, endCursor: null },
+                  },
+                },
+              ],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        },
+      }),
+    );
+    assert.throws(() => real.itemList(1, { details: { id: "P" } }), {
+      code: "inventory_incomplete",
+    });
+    const f = readerFixture(0);
+    const client = {
+      ...f.reader,
+      gh: () => "",
+      completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
+      viewList: () => [],
+      projectAudit: () => ({ id: "P", items: { totalCount: 1 }, repositories: { nodes: [] } }),
+      itemList: real.itemList.bind(real),
+      repositoryIssues() {
+        return collectRepositoryIssueInventory(this);
+      },
+    };
+    await assert.rejects(runDoctor(config, client, { quiet: true }), {
+      code: "inventory_incomplete",
+    });
+    assert.equal(f.requests(), 0);
+  }
+});
 void test("intake and normalization never mutate after incomplete collection", () => {
   const f = readerFixture(3, (value, marker) => {
     if (!marker) connection(value).nodes.pop();

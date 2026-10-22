@@ -2472,6 +2472,8 @@ Preserve this contributor text.`;
                       id: "PVTI_form",
                       content: {
                         __typename: "Issue",
+                        id: "I_42",
+                        updatedAt: "2026-10-17T00:00:00Z",
                         number: 42,
                         title: issue().title,
                         body,
@@ -2770,7 +2772,13 @@ void test("move refuses ambiguous item references", () => {
               nodes: [
                 {
                   id: "A",
-                  content: { __typename: "DraftIssue", title: "Same" },
+                  content: {
+                    __typename: "DraftIssue",
+                    id: "DI_same",
+                    updatedAt: "2026-10-17T00:00:00Z",
+                    body: "Draft",
+                    title: "Same",
+                  },
                   fieldValues: {
                     totalCount: 0,
                     nodes: [],
@@ -2779,7 +2787,13 @@ void test("move refuses ambiguous item references", () => {
                 },
                 {
                   id: "B",
-                  content: { __typename: "DraftIssue", title: "Same" },
+                  content: {
+                    __typename: "DraftIssue",
+                    id: "DI_same",
+                    updatedAt: "2026-10-17T00:00:00Z",
+                    body: "Draft",
+                    title: "Same",
+                  },
                   fieldValues: {
                     totalCount: 0,
                     nodes: [],
@@ -2788,7 +2802,13 @@ void test("move refuses ambiguous item references", () => {
                 },
                 {
                   id: "C",
-                  content: { __typename: "DraftIssue", title: "Before" },
+                  content: {
+                    __typename: "DraftIssue",
+                    id: "DI_before",
+                    updatedAt: "2026-10-17T00:00:00Z",
+                    body: "Draft",
+                    title: "Before",
+                  },
                   fieldValues: {
                     totalCount: 0,
                     nodes: [],
@@ -3209,7 +3229,13 @@ void test("GraphQL Project item pagination reads every item with normalized fiel
     const item = after
       ? {
           id: "I2",
-          content: { __typename: "DraftIssue", title: "Second", body: "Draft" },
+          content: {
+            __typename: "DraftIssue",
+            id: "DI_second",
+            updatedAt: "2026-10-17T00:00:00Z",
+            body: "Draft",
+            title: "Second",
+          },
           fieldValues: {
             totalCount: 1,
             nodes: [{ name: "Inbox", field: { name: "Status" } }],
@@ -3220,6 +3246,8 @@ void test("GraphQL Project item pagination reads every item with normalized fiel
           id: "I1",
           content: {
             __typename: "Issue",
+            id: "I_1",
+            updatedAt: "2026-10-17T00:00:00Z",
             number: 1,
             title: "First",
             body: "Issue",
@@ -3270,6 +3298,13 @@ void test("Project item inventory rejects a truncated nested field connection", 
             nodes: [
               {
                 id: "I1",
+                content: {
+                  __typename: "DraftIssue",
+                  id: "DI_1",
+                  title: "Draft",
+                  body: "",
+                  updatedAt: "2026-10-17T00:00:00Z",
+                },
                 fieldValues: {
                   totalCount: 2,
                   nodes: [{ name: "Ready", field: { name: "Status" } }],
@@ -3359,6 +3394,11 @@ void test("set-many validates transitions before one mutation and exact readback
                   id: "PVTI_838",
                   content: {
                     __typename: "Issue",
+                    id: "I_838",
+                    title: "Fixture",
+                    body: "",
+                    state: "OPEN",
+                    updatedAt: "2026-10-17T00:00:00Z",
                     number: 838,
                     url: "https://github.com/boburning/portcove/issues/838",
                   },
@@ -3557,7 +3597,16 @@ void test("set-many resumes already-applied assignments with exact readback and 
 void test("the Project reader preserves full bodies and all pages above the ordinary transport limit", () => {
   const node = (number: number) => ({
     id: `PVTI_${number}`,
-    content: { __typename: "Issue", number, body: "x".repeat(22000) },
+    content: {
+      __typename: "Issue",
+      id: `I_${number}`,
+      title: "Fixture",
+      url: `https://github.com/boburning/portcove/issues/${number}`,
+      state: "OPEN",
+      updatedAt: "2026-10-17T00:00:00Z",
+      number,
+      body: "x".repeat(22000),
+    },
     fieldValues: { totalCount: 0, nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
   });
   const first = Array.from({ length: 50 }, (_, i) => node(i + 1));
@@ -3690,6 +3739,13 @@ void test("GraphQL failures retain provider quota and reset evidence", () => {
 for (const kind of ["items"]) {
   const node = (value: number) => ({
     id: `PVTI_${value}`,
+    content: {
+      __typename: "DraftIssue",
+      id: `DI_${value}`,
+      title: "Draft",
+      body: "",
+      updatedAt: "2026-10-17T00:00:00Z",
+    },
     fieldValues: {
       totalCount: 0,
       nodes: [],

@@ -3265,6 +3265,48 @@ interface RepositoryIssueObservation {
   state?: unknown;
   pull_request?: unknown;
 }
+function completeProjectContent(value: unknown, includeBodies = true): RoadmapIssueItem {
+  if (!isRecord(value))
+    throw new InventoryError(
+      "inventory_incomplete",
+      "Redacted Project content leaves incomplete coverage",
+    );
+  const type = value.__typename ?? value.type;
+  if (
+    !["Issue", "PullRequest", "DraftIssue"].includes(String(type)) ||
+    typeof value.id !== "string" ||
+    !value.id ||
+    typeof value.title !== "string" ||
+    typeof value.updatedAt !== "string" ||
+    !Number.isFinite(Date.parse(value.updatedAt)) ||
+    (includeBodies && typeof value.body !== "string")
+  )
+    throw new InventoryError(
+      "inventory_incomplete",
+      "incomplete GitHub inventory: malformed Project content identity or required fields",
+    );
+  if (type !== "DraftIssue") {
+    const path = type === "Issue" ? "issues" : "pull";
+    if (
+      typeof value.number !== "number" ||
+      !Number.isSafeInteger(value.number) ||
+      value.number < 1 ||
+      typeof value.url !== "string" ||
+      !new RegExp(`^https://github\\.com/[^/]+/[^/]+/${path}/${value.number}$`, "u").test(
+        value.url,
+      ) ||
+      !(type === "Issue" ? ["OPEN", "CLOSED"] : ["OPEN", "CLOSED", "MERGED"]).includes(
+        String(value.state),
+      )
+    )
+      throw new InventoryError(
+        "inventory_incomplete",
+        "incomplete GitHub inventory: malformed Project issue or PR binding",
+      );
+  }
+  return issueObservation(value);
+}
+
 function repositoryIssueObservation(value: unknown): RepositoryIssueObservation {
   if (
     !isRecord(value) ||
@@ -3482,7 +3524,7 @@ export class RoadmapClient {
     ).map((node) => {
       if (!isRecord(node) || typeof node.id !== "string")
         throw new Error("incomplete GitHub inventory: malformed Project item identity");
-      const sourceContent = node.content ? issueObservation(node.content) : null;
+      const sourceContent = completeProjectContent(node.content, includeBodies);
       const content = sourceContent
         ? {
             ...sourceContent,
@@ -4988,11 +5030,7 @@ export async function runDoctor(
   });
   const catalog = qualificationCatalogObservation(JSON.parse(await readFile(catalogPath, "utf8")));
   const items = inventory?.items ?? client.itemList(number, { includeDependencies: true, details });
-  if (items.some((item) => !item.content))
-    throw new InventoryError(
-      "inventory_incomplete",
-      "Redacted Project content leaves incomplete doctor coverage",
-    );
+  for (const item of items) completeProjectContent(item.content);
   if (!inventory) {
     const afterAudit = client.projectAudit(projectId);
     const beforeTotal = nestedGitHubField(rawAudit, "items", "totalCount");

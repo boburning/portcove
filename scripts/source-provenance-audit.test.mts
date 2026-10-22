@@ -989,7 +989,19 @@ function paginatedLiveRunner(
     const size = 50;
     const offset = Number(variables.after ?? 0);
     intercept({ isIssues: false, offset });
-    const nodes = values.slice(offset, offset + size);
+    const nodes = values.slice(offset, offset + size).map((raw) => {
+      const item = fixtureObject(raw),
+        content = fixtureObject(item.content);
+      return {
+        ...item,
+        content: {
+          id: `I_${String(content.number ?? item.id)}`,
+          updatedAt: "2026-10-17T00:00:00Z",
+          body: "",
+          ...content,
+        },
+      };
+    });
     const hasNextPage = offset + nodes.length < values.length;
     const page = {
       nodes,
