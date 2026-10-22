@@ -188,6 +188,7 @@ mod tests {
     };
     use serde_json::{Value, json};
     use std::{
+        collections::BTreeMap,
         fs::{self, File},
         io::Read,
     };

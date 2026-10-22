@@ -196,7 +196,7 @@ impl Health {
         // turn a timed-out flush into successful normal-shutdown evidence.
         let _ = self
             .flush_state
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |old| {
+            .try_update(Ordering::AcqRel, Ordering::Acquire, |old| {
                 (!matches!(
                     FlushState::from_byte(old),
                     FlushState::TimedOut | FlushState::Unavailable
