@@ -60,7 +60,7 @@ qualified at the actual claimed scope. Required foundations include:
   and [useful user-prepared integrations #1169](https://github.com/boburning/portcove/issues/1169).
 - [Repeatable onboarding #254](https://github.com/boburning/portcove/issues/254),
   [curated exact-byte acquisition #315](https://github.com/boburning/portcove/issues/315)
-  where needed, and the **feasible retained frozen cohort after explicit owner-approved product deferrals** in
+  where needed, and the **owner-amended upstream-first frozen rollout** in
   [rollout #1422](https://github.com/boburning/portcove/issues/1422).
   Its historical inventory fixes the discovery boundary; #1422 records the approved execution scope; later discoveries enter continuous
   intake. Pilots prove machinery, not rollout completion.
@@ -102,12 +102,12 @@ A port does not need gameplay verification to be available. It needs a valid,
 useful integration that passes required admission checks. Verification adds
 evidence about how well that same integration works afterward.
 
-| Outcome                                                                      | Completion boundary                                                                                                                                                                                                                                                                 |
-| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Fast onboarding #254](https://github.com/boburning/portcove/issues/254)     | Reusable definition/artwork/evidence preparation, applicable checks and repeated ordinary authoring/maintenance use.                                                                                                                                                                |
-| [Frozen rollout #1422](https://github.com/boburning/portcove/issues/1422)    | Account for all historical 317 records / 316 identities; deliver the feasible retained 301-identity cohort after the explicit 15 product deferrals in #1422, preserving existing integrations and genuine holds/duplicate evidence. Later discoveries do not expand Required scope. |
-| [Compatible delivery #246](https://github.com/boburning/portcove/issues/246) | Its independent new-definition → ordinary-compatible-artifact → compatible-correction journey on unchanged capable clients through protected acceptance/publication; actual provisioning remains [#534](https://github.com/boburning/portcove/issues/534).                          |
-| [Direct qualification #42](https://github.com/boburning/portcove/issues/42)  | The finite risk-based representative runtime/gameplay/audio/control/save-load commitment remains Required 1.0, outside ordinary beta admission.                                                                                                                                     |
+| Outcome                                                                      | Completion boundary                                                                                                                                                                                                                                                                                                                                                          |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Fast onboarding #254](https://github.com/boburning/portcove/issues/254)     | Reusable definition/artwork/evidence preparation, applicable checks and repeated ordinary authoring/maintenance use.                                                                                                                                                                                                                                                         |
+| [Frozen rollout #1422](https://github.com/boburning/portcove/issues/1422)    | Account for the historical 317 records / 316 identities through useful delivered integrations, upstream dependencies, product deferrals, pending work and retained legacy compatibility. Canonical issues own current dispositions; preserve stable identities, previous decisions, failures and duplicate evidence. Later discoveries do not expand that historical cohort. |
+| [Compatible delivery #246](https://github.com/boburning/portcove/issues/246) | Its independent new-definition → ordinary-compatible-artifact → compatible-correction journey on unchanged capable clients through protected acceptance/publication; actual provisioning remains [#534](https://github.com/boburning/portcove/issues/534).                                                                                                                   |
+| [Direct qualification #42](https://github.com/boburning/portcove/issues/42)  | The finite risk-based representative runtime/gameplay/audio/control/save-load commitment remains Required 1.0, outside ordinary beta admission.                                                                                                                                                                                                                              |
 
 Ordinary admission requires attributable project/game/implementation identity,
 an exact platform/architecture and useful route, demonstrated fit with implemented
@@ -129,11 +129,17 @@ gates. Offered operations keep their real safety and explicit acceptance obligat
 Existing-capability additions ordinarily supply facts and parameterized cases
 through existing machinery, without application or bespoke harness changes.
 Actual source/setup/executable/write/release behavior establishes fit, rather than
-engine or console ancestry. Genuinely missing behavior gets the smallest safe
-extension under its existing owner, or isolated title glue where appropriate.
+engine or console ancestry. Prefer official packages and supported upstream
+preparation under the [installation ownership contract](CATALOG.md#integration-ownership).
+Genuinely missing shared behavior may justify a bounded capability extension;
+unsuitable upstream packages or setup may instead require an upstream dependency
+or explicit product deferral on the canonical issue. Technical feasibility alone
+does not require Portcove to own a replacement build pipeline or repair an engine.
 Reuse equivalent coverage; do not invent an abstraction, duplicate tests or require
 a second title for every ordinary addition. Difficult candidates do not stop
-unrelated fitting additions and remain in the feasible-backlog commitment.
+unrelated fitting additions. Catalog breadth and management depth remain distinct;
+neither a research record nor a deferral is a delivered or Supported integration.
+Existing runtime compatibility is preserved separately from new-runtime creation.
 
 Later evidence uses the same port identity, definition lineage and library
 relationship. No separate verified/unverified catalog or reinstall is needed.
@@ -144,13 +150,23 @@ artifact/version, platform, operation, method, result, date and limitations;
 new artifacts never inherit gameplay. Risk, known problems, reports and available
 usage evidence guide later coverage without a universal personal-testing queue.
 
-[Reusable scenario/operation-time evidence #1742](https://github.com/boburning/portcove/issues/1742)
-remains Planned 1.0. Broader optimization, all-family coverage and optional
-verification do not become new Required beta gates. Final rollout consumes its
-owners' required minima; independent authoring, evidence and capability work can
-proceed before protected production execution. Use existing proposal/completion
-reports for reused/new work and observed costs, keeping unknown baselines explicit.
-Intended tooling stays in issue specifications until shipped.
+[Reusable operation evidence #1742](https://github.com/boburning/portcove/issues/1742)
+delivered its owner-amended bounded Core/CLI preparation, inventory and immutable-
+verification sequence through the existing qualification report tool. It reads
+the plan, verifies the original managed install, runs preparation with the exact
+expected plan, verifies the prepared install and captures the resulting plan and
+inventory. Retained identity joins, raw per-phase failures and observed elapsed
+costs remain explicit; unknown historical baselines stay unknown. See
+[the implemented sequence](CATALOG.md#qualification-evidence-preparation).
+Compiled production-CLI fixtures exercise synthetic Jak 1 ISO and Jak 2 CHD cases;
+they are not actual-title setup, launch or gameplay observations.
+
+Supervised persistence collection and broader lifecycle extensions remain
+unimplemented and unclaimed; #1742's closure does not complete its original broader
+scope. Broader optimization, all-family coverage and optional verification do not
+become new Required beta gates. Final rollout consumes its owners' applicable
+minima; independent authoring, evidence and capability work can proceed before
+protected production execution. Canonical issues own further scope and scheduling.
 
 ## Required beta browsing
 

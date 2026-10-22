@@ -532,8 +532,8 @@ delivery authority remains required. #52 and #246 have no reciprocal blocker.
 The #917 design system, #921 development-agility consolidation, #925 domain and
 lifecycle foundations and genuinely required supporting work remain Required
 initial beta. Prioritize changes that improve development speed, explicit
-ownership, deterministic testing and safe iteration. The frozen feasible backlog
-rollout (#1422), repeatable onboarding (#254), truthful operation availability
+ownership, deterministic testing and safe iteration. The owner-amended upstream-first
+frozen rollout (#1422), repeatable onboarding (#254), truthful operation availability
 (#1168/#1169), account-free artwork (#1155/#208/#206), compatible definition
 delivery (#246), reusable public CLI/reference contracts (#30/#243), manual
 plugin-free Desktop Steam route (#290) and shared Linux/controller/storage/process

@@ -93,8 +93,8 @@ an unqualified platform.
 
 The initial beta retains the complete preparation boundary (#31), coherent
 design system (#917), development-agility/domain consolidation (#921/#925),
-structured account-free artwork (#1155/#208/#206), frozen feasible backlog rollout
-(#1422), onboarding and truthful limited routes (#254/#1168/#1169), public CLI and
+structured account-free artwork (#1155/#208/#206), owner-amended upstream-first
+frozen rollout (#1422), onboarding and truthful limited routes (#254/#1168/#1169), public CLI and
 real reference proof (#30/#243), manual Desktop Steam (#290), and independent
 catalog delivery (#245/#397/#398/#246). These are finite outcomes, not optional
 polish. Shared controller/focus/input safety remains with #29/#206/#917.

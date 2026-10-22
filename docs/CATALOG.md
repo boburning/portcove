@@ -655,8 +655,14 @@ registration and removal create no preference or save data. Printable ASCII
 Windows paths and a conservative MAX_PATH allowance for generated transaction
 filenames preserve the selected runtime's narrow-path behavior. These are
 sequential path observations, not filesystem isolation after launch.
-Indexed entries require minimum staged-source version 8; versions 1–7 remain
-available. Older retained readers refuse through the existing strict envelope.
+Indexed entries using this exact shared-preferences contract require minimum
+staged-source version 8. Earlier public versions remain available only for their
+implemented contracts; retired creation versions 6 and 7 are absent from the
+public inventory. Private retained readers preserve their identified historical
+runtime contracts without admitting new builds. Older readers that cannot
+interpret shared preferences refuse through the existing strict envelope. See
+[capability negotiation](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation)
+and the [compatibility record](reference/upstream-first-compatibility.md).
 
 Existing managed cartridge runtimes retain their original executable, arguments,
 source receipt, mutable paths, protected companions and environment restrictions.
