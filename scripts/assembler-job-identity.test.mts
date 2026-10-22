@@ -4,6 +4,7 @@ import test from "node:test";
 import { performance } from "node:perf_hooks";
 import {
   verifyAssemblerJobIdentity,
+  verifyHostedNativeJobIdentity,
   verifyClassificationWriterJobIdentity,
   verifyProductionClassificationWriterJobIdentity,
   verifyProductionClassificationObserverJobIdentity,
@@ -52,6 +53,75 @@ import {
   jwk,
   assemblerIdentityFixture as fixture,
 } from "./fixtures/assembler-identity-fixture.mts";
+
+void test("hosted native identity binds the fixed platform parent without granting native acceptance", async () => {
+  for (const [platform, job, environment, audience] of [
+    [
+      "windows-x86_64",
+      "Qualify hosted Windows installed continuity",
+      "production-native-windows",
+      "portcove-hosted-native-windows-v1",
+    ],
+    [
+      "linux-x86_64",
+      "Qualify hosted Linux installed continuity",
+      "production-native-linux",
+      "portcove-hosted-native-linux-v1",
+    ],
+  ] as const) {
+    const wanted = {
+      ...expected,
+      audience,
+      subject: controllerOidcSubject(expected.controller_ref, environment),
+    };
+    const claims = { aud: audience, sub: wanted.subject, environment };
+    const location = { workflow: productionControllerWorkflow, job };
+    const good = fixture(claims, {}, location);
+    const actual = await verifyHostedNativeJobIdentity(platform, good.token, wanted, good);
+    assert.equal(actual.job_id, 501);
+    assert.equal(actual.check_run_id, "777");
+    assert.equal(actual.platform_label, platform);
+    assert.equal(actual.evidence_scope, "injected-provider");
+    assert.equal(actual.native_acceptance, "not-established");
+    assert.equal(actual.candidate_isolation, "unproven");
+    assert.equal(actual.installed_continuity, "unproven");
+    assert.equal(actual.authority, "none");
+    for (const patch of [
+      { environment: undefined },
+      { sha: "f".repeat(40) },
+      { run_attempt: "3" },
+      { runner_environment: "self-hosted" },
+      {
+        workflow_ref: `boburning/portcove/.github/workflows/hosted-native-continuity.yml@${expected.controller_ref}`,
+      },
+    ]) {
+      const bad = fixture({ ...claims, ...patch }, {}, location);
+      await assert.rejects(verifyHostedNativeJobIdentity(platform, bad.token, wanted, bad));
+      assert.equal(bad.counts().requests, 0);
+    }
+    const wrongJob = fixture(claims, {}, { ...location, job: "Trusted package assembly" });
+    await assert.rejects(
+      verifyHostedNativeJobIdentity(platform, wrongJob.token, wanted, wrongJob),
+      /trusted assembly job/,
+    );
+    const other = platform === "windows-x86_64" ? "linux-x86_64" : "windows-x86_64";
+    await assert.rejects(
+      verifyHostedNativeJobIdentity(other, good.token, wanted, good),
+      /audience\/environment/,
+    );
+    const selectedAudience = fixture({ ...claims, aud: "candidate-selected" }, {}, location);
+    await assert.rejects(
+      verifyHostedNativeJobIdentity(
+        platform,
+        selectedAudience.token,
+        { ...wanted, audience: "candidate-selected" },
+        selectedAudience,
+      ),
+      /audience\/environment/,
+    );
+    assert.equal(selectedAudience.counts().keyReads, 0);
+  }
+});
 
 void test("complete admission binds its protected environment while original read-only reader remains tag bound", async () => {
   const profile = releaseControlPhaseProfile("admission");

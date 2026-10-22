@@ -18,6 +18,8 @@ export type ControllerOidcEnvironment =
   | "production-release-publication"
   | "production-release-classification"
   | "production-release-protection-observer"
+  | "production-native-windows"
+  | "production-native-linux"
   | "production-tuf-releases"
   | "production-tuf-preview"
   | "production-tuf-stable"
@@ -40,6 +42,8 @@ export function controllerOidcSubject(ref: string, environment?: ControllerOidcE
       "production-release-publication",
       "production-release-classification",
       "production-release-protection-observer",
+      "production-native-windows",
+      "production-native-linux",
       "production-tuf-releases",
       "production-tuf-preview",
       "production-tuf-stable",
@@ -494,6 +498,50 @@ const capacityExecutorProfiles = Object.freeze({
   },
 });
 export type CapacityExecutorRole = keyof typeof capacityExecutorProfiles;
+
+const hostedNativeProfiles = Object.freeze({
+  "windows-x86_64": {
+    workflow: productionControllerWorkflow,
+    job: "Qualify hosted Windows installed continuity",
+    environment: "production-native-windows",
+    audience: "portcove-hosted-native-windows-v1",
+  },
+  "linux-x86_64": {
+    workflow: productionControllerWorkflow,
+    job: "Qualify hosted Linux installed continuity",
+    environment: "production-native-linux",
+    audience: "portcove-hosted-native-linux-v1",
+  },
+} satisfies Record<string, JobIdentityProfile & { audience: string }>);
+
+/** Authenticate the fixed parent job, never candidate-authored native results.
+ * This is neither a local Task/account capability nor production admission.
+ * The hosted parent must separately establish candidate OS isolation, source
+ * custody, original-host continuity and direct capture before native credit. */
+export async function verifyHostedNativeJobIdentity(
+  platform: "windows-x86_64" | "linux-x86_64",
+  token: string,
+  rawExpected: unknown,
+  options: IdentityOptions = {},
+) {
+  if (!Object.hasOwn(hostedNativeProfiles, platform))
+    throw new Error("fixed hosted native platform required");
+  const profile = hostedNativeProfiles[platform];
+  const expected = inspectAssemblerIdentityExpectation(rawExpected);
+  if (
+    expected.audience !== profile.audience ||
+    expected.subject !== controllerOidcSubject(expected.controller_ref, profile.environment)
+  )
+    throw new Error("hosted native audience/environment differs from fixed parent");
+  const observed = await verifyJobIdentity(profile, token, expected, options);
+  return {
+    ...observed,
+    platform_label: platform,
+    native_acceptance: "not-established" as const,
+    candidate_isolation: "unproven" as const,
+    installed_continuity: "unproven" as const,
+  };
+}
 
 /** Fixed coordinator/publication profiles; names supplied by a caller cannot
  * appoint another job. Identity verification alone grants no effect authority. */
