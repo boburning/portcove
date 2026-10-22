@@ -78,7 +78,20 @@ backup is planned before replacement. Declining leaves the reviewed data intact.
 `--jsonl` retain their existing output without that document. Core rechecks the
 reviewed contents when executing the authorized action.
 
-An official port that offers a user-prepared runtime uses a separate route:
+For a port offering **Use an existing installation**, choose its native executable
+and working directory explicitly. For example, review
+`portcove external select-preview render96ex C:/Games/Render96/sm64.us.f3dex2e.exe --working-directory C:/Games/Render96 --arg=--savepath --arg=!`.
+Repeat the same details with `external select`, its `--expected-preview` and
+`--yes` to confirm execution intent. Use `--arg=VALUE` once per documented
+argument. `portcove exec render96ex` launches the saved selection; `external
+remove render96ex` removes only Portcove's reference and preserves every external
+file. You or the selected upstream launcher manage setup and updates. Selected
+bytes are not certified as an authenticated official package, and this route
+offers no managed backup, repair, update, rollback or file deletion. The definition
+must offer it for the host platform. Script launchers and library-owned paths
+are refused; use a supported native executable or native upstream launcher.
+
+An official port that offers an exact-package user-prepared runtime uses a separate route:
 prepare the exact accepted package outside Portcove, run `portcove external
 preview PORT_ID PATH` against its extracted folder, then `portcove external
 register PORT_ID PATH` to review and save a non-owning reference. `portcove exec
@@ -1236,16 +1249,17 @@ its exact `--expected-plan` and `--acknowledge-shared-preferences` to
 prepared registrations retain their non-owning contract. Local saves/settings
 remain managed; the resolved account-wide preferences file is never owned or
 included in backup/restore. The reference client accepts public API77 and requires
-explicit confirmation before transmitting acknowledgment; unknown API79 is refused.
+explicit confirmation before transmitting acknowledgment. The current tested reference
+window extends through API80; unknown API81 and unknown consequential semantics are refused.
 
-### Fixed CVLoD source recipe (API 78)
+### Retired custom source creation
 
-API 78 adds the fixed Windows CVLoD source recipe. Installation plans disclose
-its exact archives, raw source files and 12 GiB temporary allowance. Building
-requires the reviewed installed VC/Windows SDK profile and an exact raw original;
-verified installed launch does not require those build tools again. Core owns
-build eligibility, verification and execution. The reference client preserves
-that plan/consent boundary and does not interpret the recipe as arbitrary code.
+New custom cartridge creation is retired, including API78's private CVLoD source
+recipe. Existing managed runtimes retain their original launch, data and recovery
+contracts without requiring the compiler that created them. New Yoshi, Dr. Mario
+NES, EarthBound, Render96 and Gundam routes use explicit existing-installation
+registration. CVLoD continues to offer official upstream packages at its recorded
+qualification scope. See [compatibility and retirement](reference/upstream-first-compatibility.md).
 
 ### Managed Dark Forces
 

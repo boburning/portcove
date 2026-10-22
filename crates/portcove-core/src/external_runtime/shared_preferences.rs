@@ -37,6 +37,11 @@ pub(crate) fn require_scoped_ack(
 }
 
 pub(crate) fn validate(spec: &UserPreparedRuntimeSpec) -> Result<()> {
+    if spec.shared_preferences == Some(PreparedSharedPreferencesContract::GbRecompiledWindowsV1) {
+        return Err(PortcoveError::verification(
+            "reviewed GB Recompiled preferences require a retained managed release",
+        ));
+    }
     if spec.shared_preferences == Some(PreparedSharedPreferencesContract::Smb1r11Windows) {
         return smb1r::validate(spec);
     }
@@ -78,6 +83,11 @@ pub(crate) fn validate_route(
     };
     let expected: &[&str] = match contract {
         PreparedSharedPreferencesContract::Regaiden041Windows => &["--save-dir", "saves"],
+        PreparedSharedPreferencesContract::GbRecompiledWindowsV1 => {
+            return Err(PortcoveError::verification(
+                "managed preference policy cannot authorize an external route",
+            ));
+        }
         PreparedSharedPreferencesContract::Smb1r11Windows => &["--disable-mods"],
     };
     if platform != crate::Platform::WindowsX86_64
@@ -104,18 +114,40 @@ pub(crate) fn inspect(
 ) -> Result<Option<SharedPreferencesReview>> {
     validate(spec)?;
     spec.shared_preferences
-        .map(|contract| resolve(contract, runtime_root, true))
+        .map(|contract| resolve(contract, runtime_root, true, "Resident_Evil_Gaiden__USA_"))
         .transpose()
 }
 
 /// Read-only preview for a future managed destination. Missing owned saves are
 /// permitted here; the accepted installer creates them later in private staging.
-pub(crate) fn inspect_managed_regaiden(runtime_root: &Path) -> Result<SharedPreferencesReview> {
-    resolve(
-        PreparedSharedPreferencesContract::Regaiden041Windows,
-        runtime_root,
-        false,
-    )
+pub(crate) fn inspect_managed(
+    runtime_root: &Path,
+    port: &crate::PortDefinition,
+) -> Result<SharedPreferencesReview> {
+    let contract = port
+        .managed_shared_preferences
+        .ok_or_else(|| PortcoveError::verification("managed preferences have no contract"))?;
+    if !matches!(
+        contract,
+        PreparedSharedPreferencesContract::Regaiden041Windows
+            | PreparedSharedPreferencesContract::GbRecompiledWindowsV1
+    ) {
+        return Err(PortcoveError::verification(
+            "unsupported managed shared preference policy",
+        ));
+    }
+    let save_identifier = if contract == PreparedSharedPreferencesContract::GbRecompiledWindowsV1 {
+        // Upstream's generated main passes this ID independently of argv[0].
+        // Retained catalog review, never an executable filename, owns the fact.
+        port.managed_shared_preferences_save_id
+            .as_deref()
+            .ok_or_else(|| {
+                PortcoveError::verification("managed preferences have no reviewed save identifier")
+            })?
+    } else {
+        "Resident_Evil_Gaiden__USA_"
+    };
+    resolve(contract, runtime_root, false, save_identifier)
 }
 
 /// The selected artifact converts SDL UTF-8 paths into narrow Windows paths.
@@ -223,6 +255,7 @@ fn resolve(
     _contract: PreparedSharedPreferencesContract,
     _runtime_root: &Path,
     _require_saves: bool,
+    _save_identifier: &str,
 ) -> Result<SharedPreferencesReview> {
     Err(PortcoveError::unsupported(
         "this shared preference contract requires Windows",
@@ -234,6 +267,7 @@ fn resolve(
     contract: PreparedSharedPreferencesContract,
     runtime_root: &Path,
     require_saves: bool,
+    save_identifier: &str,
 ) -> Result<SharedPreferencesReview> {
     if contract == PreparedSharedPreferencesContract::Smb1r11Windows {
         return smb1r::resolve();
@@ -282,7 +316,7 @@ fn resolve(
     // during review. The selected artifact uses this fixed save identifier.
     require_narrow_windows_path(
         runtime_root,
-        "\\saves\\Resident_Evil_Gaiden__USA_.state2147483647.tmp-v1",
+        &format!("\\saves\\{save_identifier}.state2147483647.tmp-v1"),
     )?;
     require_narrow_windows_path(&local_fallback_path, "")?;
     let local_fallback_present = check_path(&local_fallback_path, false)?;
@@ -520,6 +554,7 @@ mod tests {
     #[test]
     fn generic_confirmation_and_stale_ack_cannot_accept_shared_scope() {
         let mut preview = crate::ExternalRuntimePreview {
+            user_selected: None,
             port_id: "scope-probe".into(),
             path: "external".into(),
             executable: "game.exe".into(),

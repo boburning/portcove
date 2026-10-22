@@ -314,6 +314,7 @@ mod tests {
             .unwrap();
             command.raw_arg(format!("/D /V:OFF /C mklink /J \"{link}\" \"{target}\""));
             let started = std::time::Instant::now();
+            let mut final_capture = None;
             let output = crate::tool_process::run_tool(
                 &mut command,
                 &|| {
@@ -325,11 +326,26 @@ mod tests {
                         Ok(())
                     }
                 },
-                Default::default(),
+                crate::tool_process::ToolProcessObserver {
+                    diagnostics: Some(crate::tool_process::ToolDiagnosticSink {
+                        activity_id: "cache-junction-fixture",
+                        phase: "fixture.junction",
+                        record: &mut |capture| {
+                            final_capture = Some(capture.clone());
+                            Ok(())
+                        },
+                    }),
+                    quiesced: None,
+                },
             )
             .unwrap();
             assert!(output.status.success(), "{}", output.output);
-            assert!(!output.truncated);
+            let captured = final_capture.unwrap();
+            assert!(captured.complete && !captured.stdout.truncated && !captured.stderr.truncated);
+            assert_eq!(
+                captured.stdout.text.len() + 1 + captured.stderr.text.len(),
+                output.output.len()
+            );
         }
         assert!(regular(&link).is_err());
         assert!(regular(&link.join("artifact.asset")).is_err());

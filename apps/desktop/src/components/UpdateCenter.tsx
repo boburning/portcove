@@ -489,10 +489,10 @@ export function UpdateCenter({
                     <div className="update-versions grid min-w-0 grid-cols-2 gap-3.5 max-[65rem]:grid-cols-1 max-[65rem]:gap-2">
                       <div className="update-version min-w-0">
                         <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
-                          Registered version
+                          {runtime.user_selected ? "Update ownership" : "Registered version"}
                         </small>
                         <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-                          {runtime.version}
+                          {runtime.user_selected ? "You or the upstream launcher" : runtime.version}
                         </span>
                       </div>
                     </div>

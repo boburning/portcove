@@ -670,7 +670,7 @@ jobs:
       - name: Test development storage on Windows
         run: node scripts/dev-storage.mts run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts --test-skip-pattern "pnpm uses|direct just recipes" scripts/dev-storage.test.mts
       - name: Test Windows qualification unit contracts
-        run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/windows-qualification-session.test.mts
+        run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/windows-qualification-session.test.mts scripts/qualification-preparation.test.mts
       - name: Test inert fixed-account setup and capability contracts on Windows
         run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts
       - name: Test Windows CI setup contract

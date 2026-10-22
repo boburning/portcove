@@ -1,21 +1,23 @@
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { FolderOpen } from "lucide-react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import {
   catalogSetupPresentation,
   removalReviewPresentation,
 } from "../features/port-actions/port-action-presentation";
-import { pickInstallFolder } from "../file-picker";
+import { pickInstallFolder, pickHostToolExecutable } from "../file-picker";
 import { LatestRequestGeneration } from "../shared/concurrency-state";
 import type { ExternalRuntimePreview, PortDefinition, PortStatus } from "../types";
 import { useActionReview } from "../use-action-review";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { ExternalLink } from "./ExternalLink";
 import { platformLabel } from "../view-model";
 import { sharedRuntimeDisclosure } from "../shared/external-runtime-disclosure";
+import { usesUserSelectedRuntime } from "../shared/external-runtime-trust";
 
 function ReviewCancelButton({
   pending,
@@ -42,6 +44,7 @@ type ExternalRuntimeControlProps = {
 };
 
 export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
+  if (props.status?.active) return null;
   return (
     <ExternalRuntimeContext
       key={JSON.stringify([props.port.id, props.generation, props.status?.external_runtime?.id])}
@@ -50,15 +53,10 @@ export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
   );
 }
 
-function ExternalPreparationRequirements({ port }: { port: PortDefinition }) {
+function AuthoredPreparationGuidance({ port }: { port: PortDefinition }) {
   const guide = port.presentation?.manual_setup;
   return (
-    <section aria-label="Prepare this port" className="grid gap-4 text-sm leading-relaxed">
-      <h3 className="text-base font-semibold">Set up using your own files</h3>
-      <p>
-        You need your own original game files; the port download does not include them. Prepare the
-        required version, then choose its folder below for a checked review.
-      </p>
+    <>
       {guide ? (
         <>
           {guide.warnings.length > 0 && (
@@ -97,6 +95,19 @@ function ExternalPreparationRequirements({ port }: { port: PortDefinition }) {
       ) : port.presentation?.manual_preparation ? (
         <p>{port.presentation.manual_preparation}</p>
       ) : null}
+    </>
+  );
+}
+
+function ExternalPreparationRequirements({ port }: { port: PortDefinition }) {
+  return (
+    <section aria-label="Prepare this port" className="grid gap-4 text-sm leading-relaxed">
+      <h3 className="text-base font-semibold">Set up using your own files</h3>
+      <p>
+        You need your own original game files; the port download does not include them. Prepare the
+        required version, then choose its folder below for a checked review.
+      </p>
+      <AuthoredPreparationGuidance port={port} />
       <p>
         Portcove checks required files before using the folder and at every launch. You manage this
         installation and its updates. Portcove does not copy, back up, or delete these files.
@@ -133,6 +144,17 @@ function ExternalRuntimeContext({
       requests.begin();
     };
   }, []);
+  if (usesUserSelectedRuntime(port, status)) {
+    return (
+      <UserSelectedRuntimeControl
+        port={port}
+        status={status}
+        generation={generation}
+        busy={busy}
+        onChanged={onChanged}
+      />
+    );
+  }
   if (port.release.provider !== "user-prepared" && !status?.external_runtime) return null;
   const registered = status?.external_runtime;
   const removal = removalReviewPresentation(status, "remove_external");
@@ -205,6 +227,264 @@ function ExternalRuntimeContext({
         />
       )}
     </>
+  );
+}
+
+type SelectedLaunch = { executable: string; workingDirectory: string; arguments: string[] };
+
+function UserSelectedRuntimeControl({
+  port,
+  status,
+  generation,
+  busy,
+  onChanged,
+}: ExternalRuntimeControlProps) {
+  const workingDirectoryId = useId();
+  const [executable, setExecutable] = useState("");
+  const [workingDirectory, setWorkingDirectory] = useState("");
+  const [argumentLines, setArgumentLines] = useState("");
+  const [selected, setSelected] = useState<SelectedLaunch>();
+  const [removing, setRemoving] = useState(false);
+  const pickerRequests = useRef(new LatestRequestGeneration());
+  useLayoutEffect(() => {
+    const requests = pickerRequests.current;
+    return () => {
+      requests.begin();
+    };
+  }, []);
+  const registered = status?.external_runtime;
+  const removal = removalReviewPresentation(status, "remove_external");
+  const { registration, canRegister } = externalRegistration(status);
+  const chooseExecutable = async () => {
+    const request = pickerRequests.current.begin();
+    const path = await pickHostToolExecutable("game", executable);
+    if (pickerRequests.current.isCurrent(request) && typeof path === "string") {
+      setExecutable(path);
+      setWorkingDirectory(path.slice(0, Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"))));
+    }
+  };
+  const chooseDirectory = async () => {
+    const request = pickerRequests.current.begin();
+    const path = await pickInstallFolder(workingDirectory);
+    if (pickerRequests.current.isCurrent(request) && typeof path === "string")
+      setWorkingDirectory(path);
+  };
+  return (
+    <section className="grid gap-3" aria-label="Your existing installation">
+      {registered ? (
+        <>
+          <p>
+            You or the upstream launcher manage this installation and its updates. Portcove launches{" "}
+            <code>{registered.executable}</code> using <code>{registered.path}</code> as its working
+            directory. It does not authenticate it as an official package or manage its files,
+            settings or saves.
+          </p>
+          <Button
+            variant="outline"
+            data-focusable
+            disabled={busy || removal.blocked}
+            onClick={() => setRemoving(true)}
+          >
+            Remove registration
+          </Button>
+          {removal.blocked && <p role="status">{removal.reason}</p>}
+        </>
+      ) : (
+        <>
+          <h3 className="font-semibold">Use your existing installation</h3>
+          <p>
+            Complete the upstream setup with your own game files, then choose the game executable or
+            its supported native launcher. You or the upstream launcher manage setup and updates.
+            Portcove only saves these launch details and starts it.
+          </p>
+          <AuthoredPreparationGuidance port={port} />
+          <Button
+            variant="outline"
+            data-focusable
+            disabled={busy || !canRegister}
+            onClick={() => void chooseExecutable()}
+          >
+            Choose game executable…
+          </Button>
+          {executable && (
+            <p className="[overflow-wrap:anywhere]">
+              Executable: <code>{executable}</code>
+            </p>
+          )}
+          <label className="grid gap-1" htmlFor={workingDirectoryId}>
+            Working directory
+            <Input
+              id={workingDirectoryId}
+              aria-label="Working directory"
+              value={workingDirectory}
+              disabled={busy}
+              onValueChange={setWorkingDirectory}
+            />
+          </label>
+          <p className="text-sm text-pc-muted-foreground">
+            This is the folder the game starts in. Use the folder named in the upstream setup
+            instructions, or keep the executable's folder when no other folder is required.
+          </p>
+          <Button
+            variant="outline"
+            data-focusable
+            disabled={busy}
+            onClick={() => void chooseDirectory()}
+          >
+            Choose working directory…
+          </Button>
+          <label className="grid gap-1">
+            Arguments (one per line, optional)
+            <textarea
+              className="rounded-pc-md border border-pc-input bg-pc-surface p-2"
+              aria-label="Launch arguments"
+              value={argumentLines}
+              disabled={busy}
+              onChange={(event) => setArgumentLines(event.target.value)}
+              rows={3}
+            />
+          </label>
+          <p className="text-sm text-pc-muted-foreground">
+            Enter each argument on a separate line. A path with spaces stays one argument. Leave
+            this empty when the upstream instructions require no arguments.
+          </p>
+          <p>
+            Only choose an executable you trust. Portcove has not authenticated your selected files
+            as an official package. Removing this registration preserves every external file.
+          </p>
+          {!canRegister && <p role="status">{registration?.reason}</p>}
+          <Button
+            data-focusable
+            disabled={busy || !canRegister || !executable || !workingDirectory}
+            onClick={() =>
+              setSelected({
+                executable,
+                workingDirectory,
+                arguments: argumentLines.split(/\r?\n/).filter((argument) => argument.length > 0),
+              })
+            }
+          >
+            Review launch details
+          </Button>
+        </>
+      )}
+      {selected && (
+        <SelectedRuntimeDialog
+          port={port}
+          generation={generation}
+          selected={selected}
+          close={() => setSelected(undefined)}
+          onChanged={onChanged}
+        />
+      )}
+      {removing && (
+        <RemoveExternalDialog
+          port={port}
+          generation={generation}
+          close={() => setRemoving(false)}
+          onChanged={onChanged}
+        />
+      )}
+    </section>
+  );
+}
+
+function SelectedRuntimeDialog({
+  port,
+  generation,
+  selected,
+  close,
+  onChanged,
+}: {
+  port: PortDefinition;
+  generation: number;
+  selected: SelectedLaunch;
+  close: () => void;
+  onChanged?: (() => void) | undefined;
+}) {
+  const cancelButton = useRef<HTMLButtonElement>(null);
+  const { preview, pending, error, review, execute, dismiss } = useActionReview({
+    identity: JSON.stringify([port.id, generation, selected]),
+    retainOnCancel: true,
+    load: () =>
+      desktopApi.previewUserSelectedRuntime(
+        port.id,
+        selected.executable,
+        selected.workingDirectory,
+        selected.arguments,
+        generation,
+      ),
+    apply: async (value) => {
+      const record = await desktopApi.registerUserSelectedRuntime(
+        port.id,
+        selected.executable,
+        selected.workingDirectory,
+        selected.arguments,
+        value.preview_sha256,
+        generation,
+      );
+      if (record) onChanged?.();
+      return record ? true : "cancelled";
+    },
+    close,
+    failureMessage:
+      "Portcove couldn't register these launch details. Review the selected executable and working directory.",
+  });
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) dismiss();
+      }}
+    >
+      <DialogContent
+        initialFocus={cancelButton}
+        showCloseButton={false}
+        aria-describedby="selected-runtime-description"
+      >
+        <DialogTitle>Use this {port.name} installation?</DialogTitle>
+        <DialogDescription id="selected-runtime-description">
+          You selected this executable. Portcove has not authenticated it as an official package.
+          You or the upstream launcher own setup and updates. Portcove will launch it and can remove
+          its registration. It will not replace, back up, restore, roll back or delete its external
+          files.
+        </DialogDescription>
+        <dl className="grid gap-2 [overflow-wrap:anywhere]">
+          <dt>Executable</dt>
+          <dd>{selected.executable}</dd>
+          <dt>Working directory</dt>
+          <dd>{selected.workingDirectory}</dd>
+          <dt>Arguments</dt>
+          <dd>
+            {selected.arguments.length
+              ? selected.arguments.map((argument, index) => (
+                  <code className="block" key={index}>
+                    {argument}
+                  </code>
+                ))
+              : "None"}
+          </dd>
+        </dl>
+        {pending === "review" && <p role="status">Checking executable and paths…</p>}
+        <ActionReviewFailure error={error} />
+        <DialogFooter>
+          <ReviewCancelButton
+            cancelRef={cancelButton}
+            pending={pending === "apply"}
+            dismiss={dismiss}
+          />
+          {preview ? (
+            <Button disabled={Boolean(pending)} onClick={() => void execute()}>
+              Use this installation
+            </Button>
+          ) : (
+            <Button disabled={Boolean(pending)} onClick={() => void review()}>
+              Check again
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -45,6 +45,11 @@ impl PortcoveService {
         let spec = port.release.user_prepared.get(&platform).ok_or_else(|| {
             PortcoveError::verification("retained external runtime has no platform contract")
         })?;
+        if spec.trust == crate::ExternalRuntimeTrust::UserSelected {
+            return Err(PortcoveError::unsupported(
+                "remove only this registration, then select the new executable and working directory; all external files remain in place",
+            ));
+        }
         if record.version != spec.version
             || !record
                 .archive_sha256

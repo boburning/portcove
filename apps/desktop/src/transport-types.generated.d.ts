@@ -82,7 +82,8 @@ export type Platform = "windows-x86-64" | "linux-x86-64" | "macos-x86-64" | "mac
 /**
  * A reviewed shared write scope, never a caller-selected external path.
  */
-export type PreparedSharedPreferencesContract = "regaiden041-windows" | "smb1r-1.1-stable-windows";
+export type PreparedSharedPreferencesContract =
+  ("regaiden041-windows" | "smb1r-1.1-stable-windows") | "gbrecompiled-windows-v1";
 /**
  * A read-only projection of the existing operation guards for client presentation.
  * An `allowed` result is not an authorization token: execution rechecks current
@@ -284,7 +285,7 @@ export type AdapterKind =
 /**
  * Closed initialization recipes, never catalog-supplied scripts or file contents.
  */
-export type ManagedInitialization = "tfe-dark-forces-v1.22.420";
+export type ManagedInitialization = "tfe-dark-forces-v1.22.420" | "tfe-dark-forces-portable-v1";
 /**
  * User-facing installation behavior supplied by the catalog. Adapters remain an
  * implementation detail and must not be translated into product copy by clients.
@@ -315,9 +316,14 @@ export type CartridgeBuildRecipe =
  */
 export type PreparedRuntimeSettingsContract = "tfe-dark-forces-v1.22.420";
 /**
+ * Who admitted the executable bytes. User selection grants execution intent,
+ * never curated package authenticity or ownership of the selected files.
+ */
+export type ExternalRuntimeTrust = "accepted-package" | "user-selected";
+/**
  * Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.
  */
-export type RuntimeDataPolicy = "racewave46-v1.0.0-windows";
+export type RuntimeDataPolicy = "racewave46-v1.0.0-windows" | "version-local-retroachievements-v1";
 export type RuntimeSourceMaterialization =
   | ("n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso" | "stfs-directory")
   | "regaiden-gbc";
@@ -980,6 +986,7 @@ export interface ExternalRuntimeRecord {
   registered_at: number;
   retained_definition?: DefinitionSelectionIdentity | null;
   shared_preferences?: AcceptedSharedPreferencesBinding | null;
+  user_selected?: UserSelectedLaunch | null;
   version: string;
   [k: string]: unknown;
 }
@@ -1016,6 +1023,13 @@ export interface AcceptedSharedPreferencesBinding {
   account_sid_sha256: string;
   contract: PreparedSharedPreferencesContract;
   path: string;
+}
+export interface UserSelectedLaunch {
+  /**
+   * Individual arguments passed directly to the selected native executable.
+   * No shell, scripts, environment overrides or hooks are interpreted.
+   */
+  arguments: string[];
 }
 export interface UpdateSnapshot {
   check: UpdateCheck;
@@ -1317,6 +1331,10 @@ export interface PortDefinition {
   launch_from_install_root: boolean;
   managed_initialization?: ManagedInitialization | null;
   managed_shared_preferences?: PreparedSharedPreferencesContract | null;
+  /**
+   * Reviewed engine save identifier used only to bound managed GB save paths.
+   */
+  managed_shared_preferences_save_id?: string | null;
   manually_validated_platforms: Platform[];
   /**
    * Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.
@@ -1516,6 +1534,7 @@ export interface UserPreparedRuntimeSpec {
    * This does not materialize archives or authorize writes to the source.
    */
   source_directory_environment?: boolean;
+  trust?: ExternalRuntimeTrust;
   version: string;
   [k: string]: unknown;
 }
@@ -1873,6 +1892,7 @@ export interface ExternalRuntimePreview {
   port_id: string;
   preview_sha256: string;
   shared_preferences?: SharedPreferencesReview | null;
+  user_selected?: UserSelectedLaunch | null;
   version: string;
   [k: string]: unknown;
 }

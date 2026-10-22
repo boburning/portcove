@@ -80,7 +80,22 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     let reference = target(contract);
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
-    let version = if typed.managed_shared_preferences.is_some() {
+    let version = if typed
+        .release
+        .user_prepared
+        .values()
+        .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
+    {
+        20
+    } else if typed.managed_initialization
+        == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1)
+        || typed.runtime_data_policy
+            == Some(crate::RuntimeDataPolicy::VersionLocalRetroAchievementsV1)
+        || typed.managed_shared_preferences
+            == Some(crate::PreparedSharedPreferencesContract::GbRecompiledWindowsV1)
+    {
+        19
+    } else if typed.managed_shared_preferences.is_some() {
         16
     } else if typed.runtime_data_policy.is_some() {
         15
@@ -183,9 +198,9 @@ fn render96_and_retained_windows_paths_keep_distinct_capability_floors() {
     let document = projection();
     let contract = serde_json::to_vec(&document).unwrap();
     for (id, version) in [
-        ("resident-evil-gaiden-recomp", 16),
-        ("wave-race-64-racewave46", 15),
-        ("render96ex", 13),
+        ("resident-evil-gaiden-recomp", 19),
+        ("wave-race-64-racewave46", 19),
+        ("render96ex", 20),
         ("f-zero-snes-recomp", 11),
     ] {
         let position = document["catalog"]["ports"]
@@ -262,7 +277,7 @@ fn managed_tfe_cannot_omit_or_widen_its_capability_floor() {
             inspect(&stale, &contract)
                 .unwrap_err()
                 .message
-                .contains("capability version 12")
+                .contains("capability version 19")
         );
     }
 }

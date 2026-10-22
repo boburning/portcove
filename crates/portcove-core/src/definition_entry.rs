@@ -104,6 +104,25 @@ impl DefinitionContentIndex {
         stable_id: &str,
         bytes: &[u8],
     ) -> Result<DefinitionEntryInspection> {
+        self.inspect_entry_mode(namespace, stable_id, bytes, false)
+    }
+
+    pub(crate) fn inspect_retained_entry(
+        &self,
+        namespace: &str,
+        stable_id: &str,
+        bytes: &[u8],
+    ) -> Result<DefinitionEntryInspection> {
+        self.inspect_entry_mode(namespace, stable_id, bytes, true)
+    }
+
+    fn inspect_entry_mode(
+        &self,
+        namespace: &str,
+        stable_id: &str,
+        bytes: &[u8],
+        retained: bool,
+    ) -> Result<DefinitionEntryInspection> {
         let indexed = self
             .definitions()
             .iter()
@@ -131,7 +150,39 @@ impl DefinitionContentIndex {
                 "entry port identity or complete typed projection is invalid",
             ));
         }
+        if !retained && !port.release.managed_build.is_empty() {
+            return Err(crate::cartridge_build::retired_creation());
+        }
         let adapter = serde_json::to_value(port.adapter)?;
+        if port
+            .release
+            .user_prepared
+            .values()
+            .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 20
+            })
+        {
+            return Err(PortcoveError::verification(
+                "user-selected execution requires staged-source capability version 20",
+            ));
+        }
+        if (port.managed_initialization
+            == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1)
+            || port.runtime_data_policy
+                == Some(crate::RuntimeDataPolicy::VersionLocalRetroAchievementsV1)
+            || port.managed_shared_preferences
+                == Some(crate::PreparedSharedPreferencesContract::GbRecompiledWindowsV1))
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 19
+            })
+        {
+            return Err(PortcoveError::verification(
+                "reviewed reusable runtime policies require staged-source capability version 19",
+            ));
+        }
         if port.managed_shared_preferences.is_some()
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "staged-source-portable"
@@ -286,10 +337,15 @@ impl DefinitionContentIndex {
                 "entry omits its adapter capability",
             ));
         }
-        let capabilities = check_definition_capabilities(&DefinitionCapabilityRequest {
+        let request = DefinitionCapabilityRequest {
             capability_contract_schema: 1,
             required_capabilities: document.required_capabilities,
-        })?;
+        };
+        let capabilities = if retained {
+            crate::definition_capabilities::check_retained_definition_capabilities(&request)?
+        } else {
+            check_definition_capabilities(&request)?
+        };
         let inspection = DefinitionEntryInspection {
             bytes: bytes.to_vec(),
             namespace: document.namespace,

@@ -2677,6 +2677,8 @@ pub fn run() -> std::process::ExitCode {
             removal::preview_removal,
             removal::remove_port,
             external_runtime_commands::preview_external_runtime,
+            external_runtime_commands::preview_user_selected_runtime,
+            external_runtime_commands::register_user_selected_runtime,
             external_runtime_commands::preview_external_runtime_relink,
             external_runtime_commands::relink_external_runtime,
             external_runtime_commands::register_external_runtime,

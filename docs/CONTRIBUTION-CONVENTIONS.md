@@ -33,6 +33,14 @@ are exempt. Automated dependency pull requests retain their generated branch,
 body and commit formats, while their pull request titles still follow the title
 contract.
 
+Port additions follow [integration ownership](CATALOG.md#integration-ownership):
+prefer reviewed facts and upstream-supported preparation. A missing official
+binary can justify useful existing-installation support, an upstream dependency
+or product deferral. Preserve the canonical issue and evidence; a deferred route
+is not delivered. When retiring a custom builder, trace and remove its creation
+callers, tool/patch inventories, tests, capabilities and active instructions,
+while preserving identified installed-state and recovery consumers.
+
 ## Branches
 
 Use a descriptive lowercase kebab-case name under one of these prefixes:

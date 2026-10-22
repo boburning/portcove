@@ -431,6 +431,137 @@ describe("desktop components", () => {
     expect(registered).toContain("Ready to play");
     expect(registered).toContain("It does not copy, update, back up, or delete these files");
   });
+
+  it("describes user-selected setup without accepted-package or unsupported repair promises", () => {
+    const selectedPort = currentCatalogPort("render96ex");
+    const props = { port: selectedPort, sourcePath: "", setSourcePath: vi.fn(), actions };
+    const available = renderToStaticMarkup(<DetailPanel {...props} />);
+    expect(available).toContain("Choose your existing installation");
+    expect(available).toContain("Your existing installation");
+    expect(available).not.toContain("uses the accepted package identity");
+    expect(available).not.toContain("Choose the accepted external folder");
+    expect(available).not.toContain("Archive SHA-256");
+    const unavailable = renderToStaticMarkup(
+      <DetailPanel
+        {...props}
+        status={{
+          ...portStatus(),
+          port_id: selectedPort.id,
+          external_runtime: {
+            id: "selected-registration",
+            port_id: selectedPort.id,
+            path: "C:/Owned game",
+            executable: "C:/Owned game/game.exe",
+            version: "user-managed",
+            platform: "windows-x86-64",
+            archive_sha256: "",
+            immutable_tree_sha256: "",
+            registered_at: 1,
+            user_selected: { arguments: [] },
+          },
+          readiness: {
+            launchable: false,
+            pending_setup: false,
+            blockers: ["invalid_installation"],
+            source: null,
+            bios: null,
+          },
+        }}
+      />,
+    );
+    expect(unavailable).toContain("Existing installation unavailable");
+    expect(unavailable).toContain("remove only this registration");
+    expect(unavailable).not.toContain("Choose Verify installation");
+  });
+
+  it.each([false, true])(
+    "preserves retained managed actions after the current route changes (invalid: %s)",
+    (invalid) => {
+      const currentPort = currentCatalogPort("render96ex");
+      const status: PortStatus = {
+        ...portStatus(),
+        port_id: currentPort.id,
+        active: installRecord({ port_id: currentPort.id }),
+        readiness: {
+          launchable: !invalid,
+          pending_setup: false,
+          blockers: invalid ? ["invalid_installation"] : [],
+          source: null,
+          bios: null,
+        },
+        port_actions: [
+          {
+            action: "launch",
+            availability: invalid ? "held" : "allowed",
+            reason: invalid ? "invalid_installation" : "available",
+          },
+          { action: "update", availability: "not_offered", reason: "route_not_offered" },
+          { action: "remove_managed", availability: "waiting", reason: "review_required" },
+        ],
+      };
+      const html = renderToStaticMarkup(
+        <DetailPanel
+          port={currentPort}
+          status={status}
+          sourcePath=""
+          setSourcePath={vi.fn()}
+          actions={actions}
+        />,
+      );
+      expect(html).toContain("Verify installation");
+      expect(html).toContain(`Uninstall ${currentPort.name}`);
+      expect(html).toContain("Managed by Portcove under this installation");
+      expect(html).toContain("Saved data follows this installation");
+      expect(html).not.toContain("No saved data paths declared");
+      expect(html).not.toContain("Game-owned settings and saves in the external runtime");
+      expect(html).not.toContain("Choose game executable");
+      expect(html).not.toContain("Remove registration");
+      expect(html).not.toContain("remove only this registration");
+      expect(html).not.toContain("Check for updates</button>");
+      expect(html).toContain(invalid ? "Installation needs repair" : "data-launch-action");
+    },
+  );
+  it.each([undefined, "activate"])(
+    "preserves retained staged activation after the current route changes (busy: %s)",
+    (busy) => {
+      const currentPort = currentCatalogPort("render96ex");
+      const status: PortStatus = {
+        ...portStatus(),
+        port_id: currentPort.id,
+        active: null,
+        staged: installRecord({ port_id: currentPort.id, version: "retained-staged" }),
+        readiness: {
+          launchable: false,
+          pending_setup: false,
+          blockers: [],
+          source: null,
+          bios: null,
+        },
+        port_actions: [
+          { action: "install", availability: "not_offered", reason: "route_not_offered" },
+        ],
+      };
+      const html = renderToStaticMarkup(
+        <DetailPanel
+          port={currentPort}
+          status={status}
+          sourcePath=""
+          setSourcePath={vi.fn()}
+          busy={busy}
+          actions={actions}
+        />,
+      );
+      const activation = html.match(/<button[^>]*>Use update · retained-staged<\/button>/)?.[0];
+      expect(activation).toBeDefined();
+      expect(/\sdisabled(?:=|\s|>)/.test(activation ?? "")).toBe(Boolean(busy));
+      expect(html).toContain("Managed by Portcove under this installation");
+      expect(html).not.toContain("Choose game executable");
+      expect(html).not.toContain("Remove registration");
+      expect(html).not.toContain("Stored with your external runtime");
+      expect(html).not.toContain("Check for updates</button>");
+      expect(html).not.toContain("data-launch-action");
+    },
+  );
   it.each(["future_state", "constructor", "__proto__"])(
     "keeps unknown activity and policy labels neutral for %s",
     (value) => {

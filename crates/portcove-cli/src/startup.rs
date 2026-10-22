@@ -73,9 +73,11 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
         },
         Commands::External { command } => match command {
             ExternalCommand::Preview { .. }
+            | ExternalCommand::SelectPreview { .. }
             | ExternalCommand::RemovalPreview { .. }
             | ExternalCommand::RelinkPreview { .. } => ReadOnly,
             ExternalCommand::Register { .. }
+            | ExternalCommand::Select { .. }
             | ExternalCommand::Remove { .. }
             | ExternalCommand::Relink { .. } => Recovering,
         },

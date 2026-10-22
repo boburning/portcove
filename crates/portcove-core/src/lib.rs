@@ -47,12 +47,15 @@ mod install;
 mod installed_contract;
 mod installed_mutability;
 mod launch;
+#[cfg(windows)]
+mod legacy_cartridge_cleanup;
 mod library;
 mod library_access;
 mod library_authority;
 mod library_import;
 mod library_move;
 mod library_transfer;
+mod managed_runtime_policy;
 mod managed_shared_preferences;
 mod managed_tfe;
 mod n64_graphics;
@@ -276,7 +279,9 @@ pub use types::*;
 // API74 retains managed Windows path policy; API73 retains external shared directories.
 // Public78 adds the closed CVLoD source-build recipe and N64 template version3.
 // Public79 adds opt-in prepared original-directory environment binding (staged template18).
-pub const API_SCHEMA_VERSION: u32 = 79;
+// Public 80 adds explicit user-selected launch-only trust and reusable managed
+// initialization/data policies. Unknown trust and capability semantics refuse.
+pub const API_SCHEMA_VERSION: u32 = 80;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

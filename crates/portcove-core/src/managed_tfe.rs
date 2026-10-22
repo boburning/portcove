@@ -1,4 +1,4 @@
-//! Closed TFE 1.22.420 initialization. Never imports or replaces player state.
+//! Reviewed TFE portable initialization. Never imports or replaces player state.
 use std::{
     fs,
     io::Write,
@@ -25,6 +25,14 @@ pub(crate) fn validate(port: &crate::PortDefinition) -> Result<()> {
                 && release.sha256
                     == "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac"
         });
+    let reviewed_release = match port.managed_initialization {
+        Some(crate::ManagedInitialization::TfeDarkForces122420) => exact_release,
+        Some(crate::ManagedInitialization::TfeDarkForcesPortableV1) => {
+            crate::managed_runtime_policy::artifact(port)?;
+            true
+        }
+        None => return Ok(()),
+    };
     let sources = port
         .runtime_source_set
         .iter()
@@ -35,7 +43,7 @@ pub(crate) fn validate(port: &crate::PortDefinition) -> Result<()> {
             Some(path.as_str())
         })
         .collect::<std::collections::BTreeSet<_>>();
-    if !exact_release
+    if !reviewed_release
         || port.adapter != crate::AdapterKind::StagedSourcePortable
         || port.release.provider != crate::ReleaseSource::DirectManifest
         || port.platforms != [crate::Platform::WindowsX86_64]
@@ -79,13 +87,18 @@ pub(crate) fn validate(port: &crate::PortDefinition) -> Result<()> {
         || port
             .executable_hints
             .get(&crate::Platform::WindowsX86_64)
-            .is_none_or(|hints| hints != &["TheForceEngine.exe"])
+            .is_none_or(|hints| match port.managed_initialization {
+                Some(crate::ManagedInitialization::TfeDarkForces122420) => {
+                    hints != &["TheForceEngine.exe"]
+                }
+                _ => hints.len() != 1 || !hints[0].to_ascii_lowercase().ends_with(".exe"),
+            })
         || ["settings.ini", "DARKPILO.CFG"]
             .iter()
             .any(|name| !port.persistent_paths.iter().any(|path| path == name))
     {
         return Err(PortcoveError::usage(
-            "managed TFE initialization requires the exact reviewed Windows engine and portable no-argument route",
+            "managed TFE initialization requires its reviewed Windows engine, complete game data and portable no-argument route",
         ));
     }
     Ok(())
@@ -104,6 +117,28 @@ pub(crate) fn staging_root(directory: &Path) -> Result<PathBuf> {
             .detail("recovery_directory", root.display().to_string()));
     }
     Ok(root)
+}
+
+pub(crate) fn require_artifact(
+    port: &crate::PortDefinition,
+    version: &str,
+    artifact: &crate::ArtifactIdentity,
+    platform: Option<crate::Platform>,
+) -> Result<()> {
+    validate(port)?;
+    if port.managed_initialization == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1) {
+        crate::managed_runtime_policy::require_artifact(port, version, artifact, platform)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn refuse_adoption(port: &crate::PortDefinition) -> Result<()> {
+    if port.managed_initialization == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1) {
+        return Err(PortcoveError::unsupported(
+            "this initializer requires its reviewed official package; install it through Portcove instead of copying a runtime folder",
+        ));
+    }
+    Ok(())
 }
 
 /// Deletion protection is rediscovered from the fixed recovery namespace, even

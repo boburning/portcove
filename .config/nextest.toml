@@ -18,13 +18,6 @@ filter = 'package(portcove-core) & (test(/^definition_repository::tests::publish
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
-# Explicitly ignored host SDK diagnostic: fifteen-minute cooperative probe with
-# one minute for its final retained error log. Never changes the product clock.
-[[profile.default.overrides]]
-platform = 'cfg(windows)'
-filter = 'package(portcove-core) & test(/^cartridge_build::cvlod::local_profile::timing_tests::cvlod_host_sdk_stage_timings$/)'
-slow-timeout = { period = "30s", terminate-after = 32, grace-period = "0s" }
-success-output = "immediate"
 
 # Shipwright's complete Windows save lifecycles reached the 30s harness cap.
 # The activation fixture was ready at 14.77s and its second retained installation
@@ -75,8 +68,7 @@ filter = 'package(portcove-core) & test(/^service::tests::external_ownership_ref
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 
 # The second-audit Windows run retained a 30s runtime lifecycle timeout after
-# the first real install, and the two-recipe read-only planning fixture took
-# 27.94s. Keep every install/update/rollback/preservation assertion with finite
+# the first real install. Keep every install/update/rollback/preservation assertion with finite
 # room for observed shared-host filesystem latency. No retries or product
 # deadlines change.
 [[profile.default.overrides]]
@@ -84,10 +76,6 @@ platform = 'cfg(windows)'
 filter = 'package(portcove-core) & test(/^service::runtime_tests::runtime_only_updates_stage_reuse_and_rollback_with_their_exact_bytes$/)'
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 
-[[profile.default.overrides]]
-platform = 'cfg(windows)'
-filter = 'package(portcove-core) & test(/^cartridge_build::tests::ordinary_cartridge_plan_includes_execution_inputs_and_temporary_capacity_read_only$/)'
-slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 
 # These complete Windows import-preservation fixtures timed out at 30s while
 # still creating their backup. Bounded diagnostics completed at 29.4s and 44.6s.
@@ -267,14 +255,6 @@ platform = 'x86_64-apple-darwin'
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_install_published_revocation_preserves_owned_payload$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 
-# Retained CVLoD Windows runs hit the 30s harness cutoff during private fixture
-# setup/copy; the unchanged two-case diagnostic completed in 7.3s and 12.2s.
-# Give only these cases finite 60s headroom. Keep both workers, zero retries,
-# blocking-worker assertions, cleanup and all inner/product deadlines unchanged.
-[[profile.default.overrides]]
-platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & (test(/^cartridge_build::cvlod::pipeline::llvm_copy_tests::cvlod_llvm_preparation_copies_large_exact_members_without_runtime_output_limits$/) | test(/^install::cvlod_download_tests::cvlod_blob_cancel_and_ambiguous_drain_retains_private_state$/))'
-slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 
 # These CLI contracts compare free-space snapshots across child processes.
 # Preserve their existing mutual exclusion across nextest's process boundary.

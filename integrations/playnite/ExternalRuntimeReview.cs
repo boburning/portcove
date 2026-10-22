@@ -114,6 +114,9 @@ namespace Portcove.ReferenceClient
 
         internal static ExternalRuntimeReview Read(object value, string port, string selectedPath, bool removal = false)
         {
+            object userSelected;
+            if (!removal && Json.TryField(value, "user_selected", out userSelected) && userSelected != null)
+                throw new InvalidOperationException("User-selected executable registration requires Portcove Desktop or the CLI external select flow. This client cannot treat selected bytes as an accepted official package.");
             var path = Text(value, "path");
             PublicCli.RequireAbsolute(path);
             if (Text(value, "port_id") != port || (selectedPath != null && !SamePath(path, selectedPath)))

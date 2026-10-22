@@ -20,6 +20,14 @@ Game-port release channels display as **Stable / Preview / Rolling**. Current ga
 
 ## Current ownership and deliverables
 
+Game integrations use the [upstream-first ownership contract](CATALOG.md#integration-ownership).
+Core coordinates accepted package selection, safe installation, supported
+upstream preparation and launch; upstream owns the game engine and its build
+implementation. Each runtime has one replacement owner. Non-owning existing
+registrations preserve external bytes and expose only their offered operations.
+Historical runtime interpretation and recovery survive retirement of new-build
+creation; current catalog facts never reinterpret old installations.
+
 Portcove Core, CLI, and Desktop remain in one repository. Shared core services
 own game-management behavior. CLI and Desktop are independently usable
 interfaces and separately packaged deliverables. Repository separation is not
@@ -2666,78 +2674,25 @@ and process authority remain in the service. All adapter launch-spec branches ar
 observational; explicit preparation and the full service API still perform
 authorized mutations.
 
-### Fixed original-driven cartridge builds
+### Retained cartridge runtime compatibility
 
-The private Core [`cartridge_build`](../crates/portcove-core/src/cartridge_build.rs)
-module owns the checked NES cycle recipes and its private
-[`cartridge_source_build`](../crates/portcove-core/src/cartridge_source_build.rs)
-child owns the fixed GBA/SNES source recipes. Catalog data selects a shipped enum;
-it cannot supply build commands or arbitrary executable identities. The service
-binds the verified original before the installer admits download/build work.
-The recipe reuses bounded archive acquisition/extraction, the common
-`ManagedBuilder` process policy and supervised tool diagnostics. It verifies the
-complete authenticated source/tool trees around compilation, bootstraps the host
-compiler with the same pinned configuration, and produces a fixed runtime plus
-an immutable local-build receipt. It never runs the game during compilation.
+Custom cartridge creation is retired. The small private
+[legacy interpreter](../crates/portcove-core/src/cartridge_build.rs) preserves
+serialized recipes, exact historical source/launch/persistence interpretations,
+immutable original/receipt identity and environment restrictions needed by
+existing development installs, backups and recovery. It cannot generate, compile,
+download tools or create a new runtime. New creation refuses before network or
+staging; public definition capability inventory omits retired creation versions.
+Only retained installed snapshots use the private legacy decoding inventory.
 
-The installer retains its existing private operation, worker-quiescence,
-manifest, publication and recovery authority. A distinct recipe/input storage
-identity and retained-recipe comparison prevent an equal upstream archive digest
-from reusing the official downloaded executable as a locally built runtime.
-Cancellation acknowledgment does not release the private tree while its worker
-is blocked or a compiler child remains unproven. CLI/Tauri add no recipe runner,
-durable state or alternate acquisition authority. [The catalog contract](CATALOG.md)
-owns the exact source, output, persistence and versioned compatibility conditions.
-Private immutable facts distinguish the Yoshi v1.1.0 and Dr. Mario USA v1.3.0
-recipes, including their separate originals, targets, generated identities and
-measured fixed compile graphs (101 and 92 objects). They share the existing
-build mechanism. Dr. Mario requires staged-source v7; Yoshi retains v6, including
-its original storage tuple and configuration. No catalog-supplied build command
-or arbitrary consumer extension is introduced.
-Source/unit fixtures, a compiler run, game operation acceptance and protected
-production delivery remain separate evidence scopes.
-
-Staged-source v9 adds exact Advance Wars USA Rev 1 and EarthBound USA recipes.
-They acquire authenticated game/framework sources, SDL2 SDK and toolchain;
-Core verifies its owned original before generation and packaging. GBA translation
-and the SNES Python HiROM backend use fixed tool invocations and bounded compiler
-groups. These recipes retain the common installer, worker drain and recovery
-authority, require their fixed original argument, and refuse forwarded arguments
-and inherited `SDL_DYNAMIC_API`. EarthBound alone permits the reviewed
-`dbghelp.dll` import. The NES compile graphs and storage identities are unchanged.
-A shipped recipe alone admits neither a catalog title nor a runtime operation.
-
-Staged-source v12 adds the fixed Render96 US source recipe in
-[`render96_build`](../crates/portcove-core/src/render96_build.rs). Its three
-authenticated inputs reuse cartridge acquisition, private install workers,
-supervised tools, cancellation drain, immutable receipts and publication/recovery.
-The internal archive collection supports three inputs without changing earlier
-four-input storage identities. A private closed Make environment uses the pinned
-toolchain, shell, Python and SDL2 SDK; catalogue data cannot supply commands.
-Core bounds original-asset extraction to 32 assets, texture generation to 16
-targets, sound conversion to eight samples, and compilation to two objects per
-supervised invocation. Audio-library compilation has its own complete diagnostic
-phase. LLVM extracts the raw sound-player section into a separate output; exact
-source-derived size/hash checks precede sequence assembly, and packaging verifies
-the fixed table entry. A COFF object wrapper cannot become sequence bytecode.
-The fixed generated C files remain secondary between compiler invocations.
-The 309-object plan is verified before link, with a supervised dry run requiring
-exactly one authenticated linker command from complete stdout. Compiled-object
-hashes are checked before and after link. Core copies the stock resource layout
-directly, avoiding upstream's oversized Windows shell command for its resource
-list. The full immutable manifest also retains the authenticated primary source
-tree. Build work never launches the game.
-
-The recipe accepts only the exact raw USA N64 original, reuses bounded byte-order
-normalization, and verifies canonical bytes separately from stored bytes. ZIP
-inputs receive extraction/registration guidance before any parser runs. Runtime
-launch fixes the root working directory and `--savepath !`, refuses forwarded
-arguments and inherited `SDL_DYNAMIC_API`, and permits only the two exact root
-save/config files. `res`, executable inputs, DLLs and TAS input names remain
-immutable. Recipe implementation, managed producer proof, runtime operation
-acceptance and protected production delivery remain separate evidence scopes.
-Render96 requires no retained Windows runtime path policy; its build-path rule
-is recipe-local. The independent v11 path capability retains its prior meaning.
+CVLoD's exact old staging-junction cleanup remains in
+[legacy cleanup](../crates/portcove-core/src/legacy_cartridge_cleanup.rs), with
+existing journal ownership and proven quiescence. Shared PSX upstream CLI and
+worker supervision remain active. The
+[compatibility record](reference/upstream-first-compatibility.md) identifies actual
+consumers, historical receipts and retirement conditions. Current definitions
+select useful non-owning existing-installation routes or official packages;
+they never reinterpret old managed installations.
 
 ### Setup configuration dispositions
 

@@ -2,14 +2,15 @@ import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
-import { pickInstallFolder } from "../file-picker";
+import { pickInstallFolder, pickHostToolExecutable } from "../file-picker";
 import { failureReport, portDefinition, portStatus } from "../test-fixtures";
 import type { ExternalRuntimeRecord } from "../types";
 import { ExternalRuntimeControl } from "./ExternalRuntime";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 
-vi.mock("../file-picker", () => ({ pickInstallFolder: vi.fn() }));
+vi.mock("../file-picker", () => ({ pickInstallFolder: vi.fn(), pickHostToolExecutable: vi.fn() }));
 
 const port = {
   ...portDefinition(),
@@ -56,6 +57,185 @@ async function click(label: string) {
   expect(button).toBeDefined();
   await act(async () => button?.click());
 }
+
+it("reviews explicit user launch details without accepted-package or file-management claims", async () => {
+  const selectedPort = {
+    ...port,
+    release: {
+      ...port.release,
+      user_prepared: {
+        "windows-x86-64": {
+          trust: "user-selected" as const,
+          version: "user-managed",
+          archive_name: "",
+          archive_size: 0,
+          archive_sha256: "",
+          immutable_tree_sha256: "",
+          executable: "",
+          mutable_paths: [],
+          source_argument_extension: null,
+          library_user_data: false,
+        },
+      },
+    },
+  };
+  const executable = "C:\\Player\\Own game\\launcher.exe";
+  const directory = "C:\\Player\\Own game";
+  vi.mocked(pickHostToolExecutable).mockResolvedValue(executable);
+  const preview = vi.spyOn(desktopApi, "previewUserSelectedRuntime").mockResolvedValue({
+    port_id: record.port_id,
+    executable,
+    path: directory,
+    version: "user-managed",
+    archive_sha256: "",
+    immutable_tree_sha256: "",
+    immutable_file_count: 0,
+    user_selected: { arguments: ["--data", "C:\\Original files"] },
+    preview_sha256: "selected-review",
+    shared_preferences: null,
+  });
+  const apply = vi.spyOn(desktopApi, "registerUserSelectedRuntime").mockResolvedValue({
+    ...record,
+    executable,
+    path: directory,
+    user_selected: { arguments: ["--data", "C:\\Original files"] },
+  });
+  const oldPreview = vi.spyOn(desktopApi, "previewExternalRuntime");
+  const changed = vi.fn();
+  await root.rerender(
+    <ExternalRuntimeControl
+      port={selectedPort}
+      status={portStatus()}
+      generation={7}
+      busy={false}
+      onChanged={changed}
+    />,
+  );
+  await expect
+    .element(page.getByText("Create an empty portable.txt beside the executable.", { exact: true }))
+    .toBeVisible();
+  expect(document.body.textContent).not.toContain("Archive SHA-256");
+  await click("Choose game executable…");
+  await page.getByRole("textbox", { name: "Launch arguments" }).fill("--data\nC:\\Original files");
+  await click("Review launch details");
+  expect(preview).toHaveBeenCalledExactlyOnceWith(
+    port.id,
+    executable,
+    directory,
+    ["--data", "C:\\Original files"],
+    7,
+  );
+  expect(document.body.textContent).toContain(
+    "Portcove has not authenticated it as an official package",
+  );
+  expect(document.body.textContent).toContain("You or the upstream launcher own setup and updates");
+  expect(document.body.textContent).not.toContain("Checked files");
+  expect(apply).not.toHaveBeenCalled();
+  expect(oldPreview).not.toHaveBeenCalled();
+  await click("Use this installation");
+  expect(apply).toHaveBeenCalledExactlyOnceWith(
+    port.id,
+    executable,
+    directory,
+    ["--data", "C:\\Original files"],
+    "selected-review",
+    7,
+  );
+  expect(changed).toHaveBeenCalledOnce();
+});
+
+it("shows authored setup warnings and instructions for a user-managed installation", async () => {
+  const selectedPort = {
+    ...port,
+    release: {
+      ...port.release,
+      user_prepared: {
+        "windows-x86-64": {
+          trust: "user-selected" as const,
+          version: "user-managed",
+          archive_name: "",
+          archive_size: 0,
+          archive_sha256: "",
+          immutable_tree_sha256: "",
+          executable: "",
+          mutable_paths: [],
+          source_argument_extension: null,
+          library_user_data: false,
+        },
+      },
+    },
+    presentation: {
+      ...port.presentation,
+      manual_setup: {
+        warnings: ["Preserve the upstream setup's existing save folder."],
+        steps: [
+          {
+            title: "Complete upstream setup",
+            instruction: "Point the upstream launcher at your own original game files.",
+          },
+        ],
+        help_url: "https://example.com/upstream-setup",
+      },
+    },
+  };
+  await root.rerender(
+    <ExternalRuntimeControl
+      port={selectedPort}
+      status={portStatus()}
+      generation={7}
+      busy={false}
+    />,
+  );
+  await expect
+    .element(page.getByText("Preserve the upstream setup's existing save folder.", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      page.getByText("Point the upstream launcher at your own original game files.", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(page.getByRole("link", { name: "Detailed preparation guide" }))
+    .toHaveAttribute("href", "https://example.com/upstream-setup");
+  expect(document.body.textContent).toContain("Compatibility and technical notes");
+  expect(document.body.textContent).not.toContain("Archive SHA-256");
+  expect(document.body.textContent).not.toContain("Checked files");
+});
+
+it("preserves retained accepted-package controls after the current definition changes trust", async () => {
+  const selectedPort = {
+    ...port,
+    release: {
+      ...port.release,
+      user_prepared: {
+        "windows-x86-64": {
+          trust: "user-selected" as const,
+          version: "user-managed",
+          archive_name: "",
+          archive_size: 0,
+          archive_sha256: "",
+          immutable_tree_sha256: "",
+          executable: "",
+          mutable_paths: [],
+          source_argument_extension: null,
+        },
+      },
+    },
+  };
+  await root.rerender(
+    <ExternalRuntimeControl
+      port={selectedPort}
+      status={{ ...portStatus(), external_runtime: record }}
+      generation={7}
+      busy={false}
+    />,
+  );
+  await expect.element(page.getByRole("button", { name: "Change game folder…" })).toBeVisible();
+  expect(document.body.textContent).toContain(`Portcove uses version ${record.version} in place`);
+  expect(document.body.textContent).not.toContain("Portcove has not authenticated");
+});
 
 it("changes a retained external folder after its current catalog route becomes managed", async () => {
   const replacement = "C:\\Player\\Moved game";

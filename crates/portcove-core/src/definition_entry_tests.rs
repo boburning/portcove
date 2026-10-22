@@ -59,13 +59,20 @@ fn runtime_credential_policy_requires_the_exact_new_reader_floor() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("wave-race-64-racewave46").unwrap();
     let mut entry = entry_for_port(port);
-    assert!(inspect(&entry).unwrap_err().message.contains("version 15"));
+    assert!(inspect(&entry).unwrap_err().message.contains("version 19"));
     entry["required_capabilities"][0]["maximum_version"] = json!(14);
     entry["required_capabilities"][0]["minimum_version"] = json!(14);
-    assert!(inspect(&entry).unwrap_err().message.contains("version 15"));
+    assert!(inspect(&entry).unwrap_err().message.contains("version 19"));
     entry["required_capabilities"][0]["maximum_version"] = json!(15);
-    assert!(inspect(&entry).unwrap_err().message.contains("version 15"));
+    assert!(inspect(&entry).unwrap_err().message.contains("version 19"));
     entry["required_capabilities"][0]["minimum_version"] = json!(15);
+    assert!(inspect(&entry).unwrap_err().message.contains("version 19"));
+    entry["required_capabilities"][0]["minimum_version"] = json!(19);
+    entry["required_capabilities"][0]["maximum_version"] = json!(19);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    entry["port"]["runtime_data_policy"] = json!("racewave46-v1.0.0-windows");
+    entry["required_capabilities"][0]["minimum_version"] = json!(15);
+    entry["required_capabilities"][0]["maximum_version"] = json!(15);
     assert!(inspect(&entry).unwrap().capabilities().compatible);
 }
 
@@ -172,13 +179,24 @@ fn initial_renderer_requires_an_entry_window_that_excludes_v1() {
 fn managed_shared_preferences_require_a_window_excluding_older_readers() {
     let catalog = crate::Catalog::embedded().unwrap();
     let mut entry = entry_for_port(catalog.port("resident-evil-gaiden-recomp").unwrap());
-    assert!(inspect(&entry).unwrap_err().message.contains("version 16"));
+    assert!(inspect(&entry).unwrap_err().message.contains("version 19"));
     entry["required_capabilities"][0]["maximum_version"] = json!(15);
     entry["required_capabilities"][0]["minimum_version"] = json!(15);
-    assert!(inspect(&entry).unwrap_err().message.contains("version 16"));
+    assert!(inspect(&entry).unwrap_err().message.contains("version 19"));
     entry["required_capabilities"][0]["maximum_version"] = json!(16);
-    assert!(inspect(&entry).unwrap_err().message.contains("version 16"));
+    assert!(inspect(&entry).unwrap_err().message.contains("version 19"));
     entry["required_capabilities"][0]["minimum_version"] = json!(16);
+    assert!(inspect(&entry).unwrap_err().message.contains("version 19"));
+    entry["required_capabilities"][0]["maximum_version"] = json!(19);
+    entry["required_capabilities"][0]["minimum_version"] = json!(19);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    entry["port"]["managed_shared_preferences"] = json!("regaiden041-windows");
+    entry["port"]
+        .as_object_mut()
+        .unwrap()
+        .remove("managed_shared_preferences_save_id");
+    entry["required_capabilities"][0]["minimum_version"] = json!(16);
+    entry["required_capabilities"][0]["maximum_version"] = json!(16);
     assert!(inspect(&entry).unwrap().capabilities().compatible);
 }
 
@@ -191,7 +209,22 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if port.managed_shared_preferences.is_some() {
+        let version = if port
+            .release
+            .user_prepared
+            .values()
+            .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
+        {
+            20
+        } else if port.managed_initialization
+            == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1)
+            || port.runtime_data_policy
+                == Some(crate::RuntimeDataPolicy::VersionLocalRetroAchievementsV1)
+            || port.managed_shared_preferences
+                == Some(crate::PreparedSharedPreferencesContract::GbRecompiledWindowsV1)
+        {
+            19
+        } else if port.managed_shared_preferences.is_some() {
             16
         } else if port.runtime_data_policy.is_some() {
             15
