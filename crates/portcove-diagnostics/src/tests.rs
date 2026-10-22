@@ -264,8 +264,7 @@ fn recreated_layers_share_the_host_session_monotonic_clock() {
 #[test]
 fn blocked_bootstrap_returns_unavailable_and_late_preparation_cannot_start_a_writer() {
     let temp = tempfile::tempdir().unwrap();
-    let root = temp.path().join("diagnostics");
-    let worker_root = root.clone();
+    let worker_root = temp.path().join("diagnostics");
     let (entered, observe) = mpsc::sync_channel(1);
     let (release, wait) = mpsc::sync_channel(1);
     let started = Instant::now();
@@ -274,7 +273,10 @@ fn blocked_bootstrap_returns_unavailable_and_late_preparation_cannot_start_a_wri
             let directory = portcove_core::prepare_support_log_directory(&worker_root).unwrap();
             let prepared = HostDiagnostics::prepare_session(directory, session, surface);
             assert!(prepared.allocation.is_some());
-            entered.send(()).unwrap();
+            // The caller must probe the actual canonical namespace, not reconstruct it.
+            entered
+                .send(prepared.allocation.as_ref().unwrap().directory.clone())
+                .unwrap();
             // Models a diagnostic OS call held after acquisition of the session
             // lease. The caller's receive deadline must not join or release it.
             wait.recv_timeout(Duration::from_secs(5)).unwrap();
@@ -291,9 +293,7 @@ fn blocked_bootstrap_returns_unavailable_and_late_preparation_cannot_start_a_wri
     assert!(host.directory().is_none());
     assert!(host.session_directory().is_none());
     assert_eq!(host.health().flush_state, writer::FlushState::Unavailable);
-    observe.recv_timeout(Duration::from_secs(2)).unwrap();
-
-    let session = root.join(SLOT_NAMES[0]);
+    let session = observe.recv_timeout(Duration::from_secs(2)).unwrap();
     let lease = writer::open_owned(&session.join(writer::WRITER_LOCK_NAME), false).unwrap();
     let error: io::Error = lease.try_lock().unwrap_err().into();
     assert_eq!(error.kind(), io::ErrorKind::WouldBlock);

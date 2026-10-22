@@ -148,6 +148,8 @@ fn held_session_lease_outlives_a_timed_out_guard() {
     let temp = tempfile::tempdir().unwrap();
     let (allocation, _, _) = allocate(temp.path(), uuid::Uuid::new_v4(), Surface::Desktop);
     let allocation = allocation.unwrap();
+    // Strict readers need the allocator's canonical path, including the Windows prefix.
+    let session_directory = allocation.directory.clone();
     let slot = allocation
         .directory
         .file_name()
@@ -188,7 +190,7 @@ fn held_session_lease_outlives_a_timed_out_guard() {
             }
         }
     }
-    let marker = read_marker(&temp.path().join(slot)).unwrap().unwrap();
+    let marker = read_marker(&session_directory).unwrap().unwrap();
     assert!(!marker.complete);
 }
 
