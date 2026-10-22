@@ -112,6 +112,33 @@ void test("validation consumers share the exact mapping and keep Node wrappers a
   assert.ok(selectedPrerequisites({ id: "playnite-contract" }, "linux").includes("windows-host"));
 });
 
+void test("Windows driver-only preparation excludes broad development installation and checks its own pins", async () => {
+  const plan = await developmentCapabilityPlan("native-drivers", { platform: "win32" });
+  assert.deepEqual(plan.capabilities, ["node", "rustc", "cargo", "tauri-driver", "native-driver"]);
+  assert.deepEqual(plan.setup, {
+    frontend: false,
+    rust: true,
+    aqua: false,
+    native: true,
+    cargo_tools: [],
+  });
+  for (const platform of ["linux", "darwin"])
+    assert.throws(() => profileCapabilities("native-drivers", { platform }), /requires Windows/);
+  const result = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("./development-capabilities.mts", import.meta.url)),
+      "--profile",
+      "native-drivers",
+      "--platform",
+      "win32",
+    ],
+    { encoding: "utf8", timeout: 15000 },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), plan);
+});
+
 function bootstrapFixture(t: TestContext) {
   const directory = mkdtempSync(path.join(os.tmpdir(), "portcove capability spaces "));
   t.after(() => rmSync(directory, { recursive: true, force: true }));

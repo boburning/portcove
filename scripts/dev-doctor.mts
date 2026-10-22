@@ -953,7 +953,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const args = process.argv.slice(2);
   if (args.includes("--help")) {
     console.log(
-      "usage: dev-doctor.mts [--json] [--profile standard|desktop|frontend|core|daily|native-desktop] [--help]",
+      "usage: dev-doctor.mts [--json] [--profile standard|desktop|frontend|core|daily|native-desktop|native-drivers] [--help]",
     );
     process.exit(0);
   }
@@ -967,7 +967,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       profile = nextProfile;
     } else
       throw new Error(
-        "usage: dev-doctor.mts [--json] [--profile standard|desktop|frontend|core|daily|native-desktop] [--help]",
+        "usage: dev-doctor.mts [--json] [--profile standard|desktop|frontend|core|daily|native-desktop|native-drivers] [--help]",
       );
   }
   const report = await collectDoctor({ profile });

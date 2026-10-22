@@ -69,7 +69,7 @@ jobs:
         run: |
           ./scripts/prepare-hosted-windows-runtime.ps1
           if ($LASTEXITCODE -ne 0) { throw 'Maintained Windows runtime prerequisite failed' }
-          ./scripts/bootstrap-quality-tools.ps1 -Desktop
+          ./scripts/bootstrap-quality-tools.ps1 -Profile native-drivers
           if ($LASTEXITCODE -ne 0) { throw 'Pinned native prerequisite failed' }
       - name: Compile the actual qualification feature boundary before packaging
         run: cargo check --locked -p portcove-desktop --lib --features application-update-qualification,native-compatibility-qualification --jobs 2
