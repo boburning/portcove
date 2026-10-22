@@ -34,6 +34,7 @@ import { parseRawDiff } from "./select-ci-plan.mts";
 import { collectSelectedPrerequisites, selectedPrerequisites } from "./dev-doctor.mts";
 import { runCheckedGit } from "./checked-git.mts";
 import { collectResourceStatus } from "./resource-status.mts";
+import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 import {
   hostedLocalCheckAuthorityPaths,
   isHostedLocalCheckScriptAuthority,
@@ -453,6 +454,9 @@ function localStageDomains(entry: ValidationCommand): ValidationDomain[] {
     const domains = new Set<ValidationDomain>();
     for (const file of entry.args.filter((argument) => /\.test\.[cm]?[jt]s$/u.test(argument))) {
       for (const domain of domainsForPath(file).domains) domains.add(domain);
+      if (file === "scripts/release-native-source-contract.test.mts")
+        for (const source of nativeCompatibilitySourcePaths)
+          for (const domain of domainsForPath(source).domains) domains.add(domain);
     }
     return [...domains].sort();
   }

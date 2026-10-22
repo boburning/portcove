@@ -16,6 +16,7 @@ import {
   validationOwnershipForPath,
 } from "./validation-plan.mts";
 import { discoverCiPlan } from "./select-ci-plan.mts";
+import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 const sha = (c: string) => c.repeat(40);
 const change = (file: string, values: Partial<ValidationChangeInput> = {}) => ({
   status: "M",
@@ -39,6 +40,30 @@ const plan = (
     ...values,
   });
 const redigest = <Plan extends object>(p: Plan) => ({ ...p, digest: digestValidationPlan(p) });
+
+void test("native source declaration ownership follows additions, deletions and both rename sides", () => {
+  for (const source of nativeCompatibilitySourcePaths) {
+    for (const input of [
+      change(source),
+      change(source, { status: "A", oldMode: "000000" }),
+      change(source, { status: "D", newMode: "000000" }),
+      change(source, { status: "R100", newPath: "docs/moved-source.md" }),
+      change(source, { status: "R100", oldPath: "docs/moved-source.md" }),
+    ]) {
+      const selected = plan([input]);
+      assert.equal(selected.mode, "fast", `${input.status} ${source}`);
+      assert.ok(selected.groups.includes("catalog"), `${input.status} ${source}`);
+      assert.ok(selected.groups.includes("rust"), `${input.status} ${source}`);
+      assert.ok(
+        selected.paths
+          .find((entry) => entry.path === source)
+          ?.reasons.includes("native-source-declaration"),
+      );
+    }
+  }
+  const unrelated = plan([change("crates/portcove-core/src/source_report.rs")]);
+  assert.deepEqual(unrelated.groups, ["rust", "rust-quality"]);
+});
 
 void test("qualification profile is digest-bound and cannot satisfy a different expected profile", () => {
   const beta = discoverCiPlan({
@@ -183,7 +208,8 @@ void test("coordinator state and remote transport retain protected release quali
 void test("ordinary layers select the minimum baseline and union mixed changes", () => {
   for (const [file, groups] of [
     ["apps/desktop/src/App.tsx", ["frontend", "rust-quality"]],
-    ["crates/portcove-core/src/lib.rs", ["rust", "rust-quality"]],
+    ["crates/portcove-core/src/lib.rs", ["catalog", "rust", "rust-quality"]],
+    ["crates/portcove-core/src/source_report.rs", ["rust", "rust-quality"]],
     ["Cargo.lock", ["dependency-review", "rust", "rust-quality"]],
     ["apps/desktop/package.json", ["dependency-review", "frontend", "rust-quality"]],
     ["docs/QUALITY.md", ["catalog", "rust-quality"]],

@@ -24,6 +24,8 @@ void test("actual maintained source recipe supplies declarations without runtime
     db = nativeCompatibilitySourcePaths[1],
     catalog = nativeCompatibilitySourcePaths[2],
     windows = nativeCompatibilitySourcePaths[3];
+  const schemaDeclaration = `pub(crate) const CURRENT_SCHEMA_VERSION: i64 = ${result.library.write_schema};`;
+  const minimumDeclaration = `pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = ${result.library.read.min};`;
   // This is a source-derived protocol, not a second pin to update on every API
   // revision. Bind the reported value and receipts to the actual input bytes.
   assert.equal(
@@ -32,6 +34,16 @@ void test("actual maintained source recipe supplies declarations without runtime
       .filter((line) => line === apiDeclaration).length,
     1,
   );
+  for (const [name, declaration] of [
+    [db, schemaDeclaration],
+    [lib, minimumDeclaration],
+  ] as const)
+    assert.equal(
+      files[name]!.toString("utf8")
+        .split(/\r?\n/u)
+        .filter((line) => line === declaration).length,
+      1,
+    );
   assert.deepEqual(
     result.files,
     nativeCompatibilitySourcePaths.map((name) => ({
@@ -59,10 +71,39 @@ void test("actual maintained source recipe supplies declarations without runtime
   }
   assert.deepEqual(result.catalog_formats, [2]);
   assert.deepEqual(result.library, {
-    read: { min: 1, max: 38 },
-    write_schema: 38,
+    read: { min: 1, max: result.library.write_schema },
+    write_schema: result.library.write_schema,
     lock_protocol: "library-lock-v1",
   });
+  assert.ok(Number.isSafeInteger(result.library.write_schema) && result.library.write_schema > 0);
+  // The database declaration owns the current schema. Independently chosen
+  // ranges and a future increment exercise decoding without another version pin.
+  for (const [minimum, current] of [
+    [1, 17],
+    [7, 821],
+    [1, result.library.write_schema + 1],
+  ] as const) {
+    const revised = {
+      ...files,
+      [lib]: Buffer.from(
+        files[lib]!.toString("utf8").replace(
+          minimumDeclaration,
+          `pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = ${minimum};`,
+        ),
+      ),
+      [db]: Buffer.from(
+        files[db]!.toString("utf8").replace(
+          schemaDeclaration,
+          `pub(crate) const CURRENT_SCHEMA_VERSION: i64 = ${current};`,
+        ),
+      ),
+    };
+    assert.deepEqual(inspectNativeCompatibilitySources(revised).library, {
+      read: { min: minimum, max: current },
+      write_schema: current,
+      lock_protocol: "library-lock-v1",
+    });
+  }
   assert.equal(result.authority, "none");
   assert.equal(result.files.length, 4);
   for (const changed of [
@@ -79,8 +120,35 @@ void test("actual maintained source recipe supplies declarations without runtime
       ...files,
       [db]: Buffer.from(
         files[db]!.toString().replace(
-          "CURRENT_SCHEMA_VERSION: i64 = 38",
-          "CURRENT_SCHEMA_VERSION: i64 = 0",
+          schemaDeclaration,
+          "pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 0;",
+        ),
+      ),
+    },
+    { ...files, [db]: Buffer.from("invalid source") },
+    { ...files, [db]: Buffer.concat([files[db]!, Buffer.from(`\n${schemaDeclaration}\n`)]) },
+    {
+      ...files,
+      [db]: Buffer.concat([
+        files[db]!,
+        Buffer.from("\npub(crate) const CURRENT_SCHEMA_VERSION: i64 = 17;\n"),
+      ]),
+    },
+    {
+      ...files,
+      [lib]: Buffer.from(
+        files[lib]!.toString("utf8").replace(
+          minimumDeclaration,
+          `pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = ${result.library.write_schema + 1};`,
+        ),
+      ),
+    },
+    {
+      ...files,
+      [lib]: Buffer.from(
+        files[lib]!.toString("utf8").replace(
+          "pub const LIBRARY_SCHEMA_VERSION: u32 = database::CURRENT_SCHEMA_VERSION as u32;",
+          "pub const LIBRARY_SCHEMA_VERSION: u32 = 999;",
         ),
       ),
     },

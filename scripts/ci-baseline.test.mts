@@ -10,6 +10,7 @@ import { buildValidationPlan } from "./validation-plan.mts";
 import { discoverCiPlan } from "./select-ci-plan.mts";
 import { buildPlan, classifyChanges } from "./local-validation.mts";
 import { windowsHelperChecksRequired } from "./windows-helper-checks.mts";
+import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 import {
   baselineContractTests,
   baselineFrontendPlan,
@@ -91,6 +92,35 @@ void test("shared diagnostics inputs keep hosted frontend and quality plans runn
     );
     assert.doesNotThrow(() => baselineLintPlan(mixed), file);
   }
+});
+
+void test("native source declarations start their cheap hosted consumer without release qualification", () => {
+  const contract = "scripts/release-native-source-contract.test.mts";
+  for (const source of nativeCompatibilitySourcePaths) {
+    const plan = make([source]);
+    assert.ok(plan.groups.includes("catalog"), source);
+    assert.ok(plan.groups.includes("rust"), source);
+    assert.equal(baselineContractTests(plan).filter((file) => file === contract).length, 1, source);
+  }
+  for (const source of [
+    "crates/portcove-core/src/database.rs",
+    "crates/portcove-core/src/lib.rs",
+  ]) {
+    const plan = make([source]);
+    assert.deepEqual(plan.groups, ["catalog", "rust", "rust-quality"]);
+    assert.equal(plan.mode, "fast");
+    assert.equal(plan.qualification_required, false);
+    assert.equal(plan.areas.includes("release-security"), false);
+    assert.equal(
+      baselineRequiresRust(plan),
+      false,
+      "source declaration contracts do not compile Rust",
+    );
+  }
+  assert.equal(
+    baselineContractTests(make(["crates/portcove-core/src/source_report.rs"])).includes(contract),
+    false,
+  );
 });
 
 void test("storage metadata contracts provision pinned Rust for direct and indirect selection", () => {

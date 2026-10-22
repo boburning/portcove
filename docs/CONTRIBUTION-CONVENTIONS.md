@@ -66,6 +66,14 @@ ready candidates carry final evidence in one current description. The advisory
 
 ## Review and merge
 
+At pickup, identify the available routes for publishing source, editing the PR,
+reading checks/logs, observing complete closing relationships, performing an
+expected-head merge and reading back its result. Local CLI installation or
+authentication describes that transport only. If it is unavailable, inspect the
+connected GitHub capabilities before declaring delivery blocked or requesting
+owner intervention. Use existing scoped authorization; a tool inventory does
+not grant missing permissions or protected authority.
+
 For manually requested workflow qualification, complete substantive review and
 the affected ordinary hosted jobs on the candidate before dispatching the full
 run. Repair setup/producer failures first and repeat only invalidated work.
@@ -187,6 +195,24 @@ prevent arbitrary GitHub UI/API edits, and GitHub supplies no atomic relationshi
 precondition alongside the merge SHA guard. Hosted conventions remain advisory;
 existing acceptance, review, current-target/composed-tree and merge authority
 requirements remain separate.
+
+### Connector delivery
+
+When authenticated `gh` is unavailable, the supported GitHub connector can
+publish a branch/PR and perform the authorized expected-head squash merge. Use
+`pr-delivery.mts prepare-merge` and `verify-merge` to validate the supplied
+observations through the same check/job, candidate-message and closure predicates
+used by the CLI. The commands are offline validators; they never contact GitHub,
+merge, retry, approve review or establish permissions. The
+[connector operation](DEVELOPMENT-TOOLS.md#connector-delivery-observations)
+describes collection, independent expectations and readback.
+
+Keep actual review, acceptance, live repository rules and CI checkout provenance
+separate from snapshot validation. Refresh relevant target interactions only;
+retain unchanged evidence and the existing inspector/watcher reference format.
+If a mutation reports an error, inspect remote state before deciding what remains.
+A mismatched postmerge observation is an unknown outcome requiring reconciliation,
+never permission to repeat the mutation.
 
 Repository auto-merge capability remains enabled for an explicitly justified
 deferred merge, but enrollment is not the routine path. Do not describe it as

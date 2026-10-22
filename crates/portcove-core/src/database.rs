@@ -715,6 +715,219 @@ fn database_path(root: &Path) -> PathBuf {
     root.join("portcove.sqlite3")
 }
 
+/// Project an owned current fixture onto the real schema-33 migration history.
+/// Callers must close SQLite connections first; a Library lease may remain live
+/// so the fixture can exercise the normal refusal to upgrade beneath a client.
+#[cfg(test)]
+pub(crate) fn recreate_schema_33_fixture(root: &Path) -> Result<()> {
+    // This is the supported historical payload, not a second schema definition.
+    // The real migrations still create every table, index and constraint.
+    const TABLES: &[(&str, &str)] = &[
+        (
+            "sources",
+            "profile_id,path,sha256,size,updated_at,storage_sha256,storage_size,observed_identity_json",
+        ),
+        (
+            "installs",
+            "id,port_id,version,path,channel,installed_at,verified,staged,artifact_name,artifact_sha256,artifact_size,manifest_sha256,selected_executable,runtime_json",
+        ),
+        (
+            "port_settings",
+            "port_id,channel,update_policy,active_install_id,previous_install_id,output_directory",
+        ),
+        (
+            "github_http_cache",
+            "url,etag,last_modified,body,updated_at",
+        ),
+        (
+            "launch_history",
+            "port_id,last_launched_at,successful_launches",
+        ),
+        (
+            "activity_history",
+            "id,operation,target_kind,target_id,status,message,started_at,finished_at,cancellation_phase,cancel_requested,cancellation_owner,failure_json,import_receipt_sha256",
+        ),
+        ("update_snapshots", "port_id,check_json,checked_at"),
+        (
+            "lifecycle_operations",
+            "id,kind,port_id,phase,staging_path,final_path,quarantine_path,install_json,original_paths_json,activate,last_error,created_at,updated_at,relocation_json,source_import_json,preparation_json,preparation_process_quiesced",
+        ),
+        ("catalog_trust", "key_id,public_key"),
+        (
+            "catalog_state",
+            "singleton,revision,highest_sequence,enabled,active,previous",
+        ),
+        (
+            "launch_sessions",
+            "id,port_id,install_id,install_root,supervisor_pid,supervisor_identity,child_pid,child_identity,phase,outcome,exit_code,message,started_at,updated_at,finished_at,owner_kind",
+        ),
+        ("library_identity", "singleton,id"),
+        (
+            "output_roots",
+            "path,port_id,marker_id,volume_identity,created_at",
+        ),
+        (
+            "activity_diagnostics",
+            "activity_id,phase,payload,updated_at,payload_bytes",
+        ),
+        ("artwork_assets", "sha256,payload,byte_size"),
+        ("artwork_choices", "port_id,slot,revision,asset_sha256"),
+        (
+            "artwork_thumbnails",
+            "asset_sha256,format_version,sha256,byte_size",
+        ),
+        (
+            "definition_publisher_policy",
+            "namespace,stable_id,root_sha256,policy_revision,grant_id,status",
+        ),
+        (
+            "definition_selection_state",
+            "singleton,revision,replay_floor_json,active_json,previous_json",
+        ),
+        ("game_file_roots", "id,path,path_key,created_at,updated_at"),
+        ("game_file_scan_state", "singleton,snapshot_json"),
+        (
+            "external_runtime_registrations",
+            "port_id,record_json,retained_catalog_json,registered_at",
+        ),
+        (
+            "definition_publisher_authority",
+            "anchor_sha256,trusted_root_json,replay_floor_json",
+        ),
+        (
+            "definition_publisher_admission",
+            "namespace,stable_id,anchor_sha256,policy_json,provenance_json",
+        ),
+    ];
+    fn quote_identifier(value: &str) -> String {
+        format!("\"{}\"", value.replace('"', "\"\""))
+    }
+
+    let historical = tempfile::tempdir_in(root)?;
+    std::fs::create_dir_all(historical.path().join("locks"))?;
+    migrate_to(historical.path(), 33)?;
+    let mut connection = connect(historical.path())?;
+    connection.pragma_update(None, "journal_mode", "DELETE")?;
+    connection.execute(
+        "ATTACH DATABASE ?1 AS fixture_source",
+        [database_path(root).to_string_lossy().into_owned()],
+    )?;
+    let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    transaction.pragma_update(None, "defer_foreign_keys", "ON")?;
+    let source_tables = transaction
+        .prepare(
+            "SELECT name FROM fixture_source.sqlite_master
+             WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name!='schema_migrations'",
+        )?
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    for table in source_tables {
+        let quoted_table = quote_identifier(&table);
+        let columns = transaction
+            .prepare(&format!("PRAGMA fixture_source.table_info({quoted_table})"))?
+            .query_map([], |row| row.get::<_, String>(1))?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        let Some((_, historical_columns)) = TABLES.iter().find(|(name, _)| *name == table) else {
+            // Migration 36 installs this empty-history sentinel on every fresh
+            // database. Nonzero counters are meaningful unsupported state.
+            let condition = if table == "curated_artifact_history"
+                && columns
+                    == [
+                        "singleton",
+                        "admission_count",
+                        "transition_count",
+                        "scope_count",
+                    ] {
+                "singleton!=1 OR admission_count!=0 OR transition_count!=0 OR scope_count!=0"
+            } else {
+                "1"
+            };
+            let populated: bool = transaction.query_row(
+                &format!(
+                    "SELECT EXISTS(SELECT 1 FROM fixture_source.{quoted_table} WHERE {condition})"
+                ),
+                [],
+                |row| row.get(0),
+            )?;
+            if populated {
+                return Err(PortcoveError::state(format!(
+                    "schema-33 fixture cannot discard populated table {table}"
+                )));
+            }
+            continue;
+        };
+        for column in columns {
+            if historical_columns.split(',').any(|name| name == column) {
+                continue;
+            }
+            let quoted_column = quote_identifier(&column);
+            let condition = match (table.as_str(), column.as_str()) {
+                // Schema 33 had no evidence of earlier authorization continuity.
+                ("definition_publisher_admission", "retained_launch_revision_floor") => continue,
+                ("definition_publisher_admission", "launch_assessment_revision") => {
+                    format!("{quoted_column}!=0")
+                }
+                ("lifecycle_operations", "ghostship_recovery_json" | "backup_deletion_json") => {
+                    format!("{quoted_column} IS NOT NULL")
+                }
+                _ => "1".to_owned(),
+            };
+            let populated: bool = transaction.query_row(
+                &format!(
+                    "SELECT EXISTS(SELECT 1 FROM fixture_source.{quoted_table} WHERE {condition})"
+                ),
+                [],
+                |row| row.get(0),
+            )?;
+            if populated {
+                return Err(PortcoveError::state(format!(
+                    "schema-33 fixture cannot discard column {table}.{column}"
+                )));
+            }
+        }
+    }
+    for (table, columns) in TABLES {
+        let actual_columns = table_columns(&transaction, table)?;
+        if actual_columns
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+            != columns.split(',').collect::<Vec<_>>()
+        {
+            return Err(PortcoveError::state(format!(
+                "schema-33 fixture column declaration differs for {table}"
+            )));
+        }
+        transaction.execute_batch(&format!(
+            "DELETE FROM main.{table};
+             INSERT INTO main.{table}({columns}) SELECT {columns} FROM fixture_source.{table};"
+        ))?;
+    }
+    let invalid_foreign_keys: bool = transaction.query_row(
+        "SELECT EXISTS(SELECT 1 FROM pragma_foreign_key_check)",
+        [],
+        |row| row.get(0),
+    )?;
+    if invalid_foreign_keys {
+        return Err(PortcoveError::state(
+            "schema-33 fixture contains invalid historical foreign keys",
+        ));
+    }
+    for migration in MIGRATIONS.iter().take(33) {
+        (migration.verify)(&transaction)?;
+    }
+    transaction.commit()?;
+    connection.close().map_err(|(_, error)| error)?;
+
+    // Both files must be self-contained before replacing the fixture database.
+    // This also removes the current database's WAL sidecars on Windows.
+    let source = connect(root)?;
+    source.pragma_update(None, "journal_mode", "DELETE")?;
+    source.close().map_err(|(_, error)| error)?;
+    std::fs::rename(database_path(historical.path()), database_path(root))?;
+    Ok(())
+}
+
 fn recorded_versions(connection: &Connection) -> Result<Vec<i64>> {
     let mut statement =
         connection.prepare("SELECT version FROM schema_migrations ORDER BY version")?;
@@ -2178,6 +2391,154 @@ mod tests {
             .collect::<std::result::Result<Vec<_>, _>>()
             .unwrap();
         hex::encode(Sha256::digest(rows.join("\n").as_bytes()))
+    }
+
+    #[test]
+    fn schema_33_fixture_accepts_empty_future_tables_and_preserves_historical_state() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate(root).unwrap();
+        let connection = connect(root).unwrap();
+        insert_alpha_one_install(
+            &connection,
+            "historical-install",
+            "v1",
+            &root.join("versions/starship/v1"),
+            false,
+        );
+        connection
+            .execute_batch(
+                "CREATE TABLE future_fixture_state(payload TEXT NOT NULL);
+                 INSERT INTO port_settings(port_id,channel,update_policy,active_install_id)
+                   VALUES('starship','stable','notify','historical-install');
+                 UPDATE schema_migrations SET applied_at=0;",
+            )
+            .unwrap();
+        let identity: String = connection
+            .query_row("SELECT id FROM library_identity", [], |row| row.get(0))
+            .unwrap();
+        drop(connection);
+
+        recreate_schema_33_fixture(root).unwrap();
+
+        let reference = tempdir().unwrap();
+        prepare_root(reference.path());
+        migrate_to(reference.path(), 33).unwrap();
+        let connection = connect(root).unwrap();
+        assert_eq!(
+            schema_fingerprint(&connection),
+            schema_fingerprint(&connect(reference.path()).unwrap())
+        );
+        assert_eq!(
+            recorded_versions(&connection).unwrap(),
+            (1..=33).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            connection
+                .query_row(
+                    "SELECT count(*) FROM schema_migrations WHERE applied_at=0",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap(),
+            0,
+            "the historical ledger must come from the real forward migrations"
+        );
+        assert_eq!(
+            connection
+                .query_row(
+                    "SELECT installs.id,port_settings.active_install_id,library_identity.id
+                     FROM installs,port_settings,library_identity",
+                    [],
+                    |row| Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?
+                    )),
+                )
+                .unwrap(),
+            (
+                "historical-install".into(),
+                "historical-install".into(),
+                identity
+            )
+        );
+    }
+
+    #[test]
+    fn schema_33_fixture_refuses_incompatible_state_without_replacing_source() {
+        for (newer_state, expected) in [
+            (
+                "CREATE TABLE future_fixture_state(payload TEXT NOT NULL);
+                 INSERT INTO future_fixture_state VALUES('retained future payload');",
+                "populated table future_fixture_state",
+            ),
+            (
+                "ALTER TABLE installs ADD COLUMN future_payload TEXT;
+                 UPDATE installs SET future_payload='retained future payload';",
+                "column installs.future_payload",
+            ),
+            (
+                "UPDATE curated_artifact_history SET admission_count=1;",
+                "populated table curated_artifact_history",
+            ),
+            (
+                "INSERT INTO lifecycle_operations(id,kind,port_id,phase,created_at,updated_at,ghostship_recovery_json)
+                 VALUES('retained-operation','restore','starship','preparing',1,1,'{}');",
+                "column lifecycle_operations.ghostship_recovery_json",
+            ),
+        ] {
+            let temporary = tempdir().unwrap();
+            let root = temporary.path();
+            prepare_root(root);
+            migrate(root).unwrap();
+            let connection = connect(root).unwrap();
+            insert_alpha_one_install(
+                &connection,
+                "retained-install",
+                "v1",
+                &root.join("versions/starship/v1"),
+                false,
+            );
+            connection.execute_batch(newer_state).unwrap();
+            connection.pragma_update(None, "journal_mode", "DELETE").unwrap();
+            drop(connection);
+            let before = fs::read(database_path(root)).unwrap();
+
+            let error = recreate_schema_33_fixture(root).unwrap_err();
+
+            assert!(error.to_string().contains(expected), "{error}");
+            assert_eq!(fs::read(database_path(root)).unwrap(), before);
+        }
+    }
+
+    #[test]
+    fn schema_33_fixture_refuses_invalid_historical_foreign_keys() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate(root).unwrap();
+        let connection = connect(root).unwrap();
+        connection
+            .execute_batch(
+                "PRAGMA foreign_keys=OFF;
+                 INSERT INTO port_settings(port_id,channel,update_policy,active_install_id)
+                   VALUES('starship','stable','notify','missing-install');
+                 PRAGMA journal_mode=DELETE;",
+            )
+            .unwrap();
+        drop(connection);
+        let before = fs::read(database_path(root)).unwrap();
+
+        let error = recreate_schema_33_fixture(root).unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("invalid historical foreign keys")
+        );
+        assert_eq!(fs::read(database_path(root)).unwrap(), before);
     }
 
     fn insert_alpha_one_install(

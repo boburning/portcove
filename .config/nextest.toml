@@ -272,7 +272,14 @@ test-group = 'capacity-sensitive'
 filter = 'package(portcove-core) & test(output_relocation::tests::)'
 threads-required = 2
 
-# CLI contracts launch real processes which initialize complete catalogs.
+# Argument/help contracts only construct the command tree. Run their existing
+# tests early instead of hiding metadata failures behind full Core lifecycles.
+# This changes ordering only; the CLI's two-slot reservation still applies.
+[[profile.default.overrides]]
+filter = 'package(portcove-cli) & test(/^args::tests::/)'
+priority = 100
+
+# CLI lifecycle contracts launch real processes which initialize complete catalogs.
 # Avoid overlapping their startup work on the default two-core test budget, and
 # run them after default-priority tests so post-build host work does not compound
 # their repeated process launches at the start of an exhaustive workspace run.

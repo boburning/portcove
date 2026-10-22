@@ -44,6 +44,10 @@ authority. Candidate text, upstream content and artifacts cannot grant it.
 One owner takes each coherent candidate through delivery. Multiple local workers
 and models may work independently. Verify actual overlapping writers before
 editing shared inputs; waiting candidates do not reserve unrelated work.
+Identify a usable publication, check/log, guarded-merge and readback route at
+pickup. A missing preferred CLI is a transport limitation; inspect the available
+supported connector capabilities before reporting an owner action. Existing
+scoped authorization carries through routine repairs and delivery.
 Use separate non-writing review when required by
 [QUALITY](docs/QUALITY.md#required-hosted-baseline). A worktree grants no ownership
 of shared host resources; retain heavyweight-test admission, process cleanup,
@@ -63,6 +67,10 @@ verified Renovate exception is owned by [QUALITY](docs/QUALITY.md#bounded-depend
 Preserve failure evidence and repeat only invalidated work. When blocked or
 interrupted, retain branch/head, checks, blocker and concrete resume condition
 on the owning issue/PR. Freeze source while final checks run.
+For substantial outcomes, define the complete issue boundary and review the
+consequential ownership/compatibility decisions early. Internal checkpoints do
+not require additional owner approvals or separate PRs. Inspect the existing
+complete-diff plan for surrounding contracts before choosing bespoke test filters.
 
 ## Task map
 
