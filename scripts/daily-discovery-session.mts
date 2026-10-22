@@ -144,19 +144,37 @@ const discoveryMaterial = (v: ReturnType<typeof investigateDiscoveryUpstream>) =
   });
 const material = discoveryMaterial;
 export function discoveryInventoryCost(inventory: RoadmapInventory) {
+  const items = [...inventory.items, ...inventory.archivedItems];
+  const ids = new Set(inventory.issues.map((issue) => issue.id));
+  const foreign = items.flatMap((item) =>
+    item.content && !ids.has(item.content.id) ? [item.content] : [],
+  );
+  const dependencyPages = items.reduce((sum, item) => {
+    const blockers = item.content?.blockedBy;
+    return (
+      sum +
+      (isRecord(blockers) && typeof blockers.totalCount === "number" && blockers.totalCount > 10
+        ? Math.ceil(blockers.totalCount / 100)
+        : 0)
+    );
+  }, 0);
   const pages =
-    Math.ceil(inventory.issues.length / 100) +
-    Math.ceil((inventory.items.length + inventory.archivedItems.length) / 100) +
+    Math.max(1, Math.ceil(inventory.issues.length / 100)) +
+    Math.max(1, Math.ceil(items.length / 100)) +
+    Math.ceil(foreign.length / 10) +
+    dependencyPages +
     9; // Five repository markers, two Project revision reads, details and fields.
   const thin =
     Buffer.byteLength(
       JSON.stringify(
-        [...inventory.items, ...inventory.archivedItems].map((i) => ({
+        items.map((i) => ({
           ...i,
           content: i.content ? { ...i.content, body: undefined } : null,
         })),
       ),
-    ) + Buffer.byteLength(JSON.stringify(inventory.issues.map((i) => ({ ...i, body: undefined }))));
+    ) +
+    Buffer.byteLength(JSON.stringify(inventory.issues.map((i) => ({ ...i, body: undefined })))) +
+    Buffer.byteLength(JSON.stringify(foreign.map((issue) => issue.body)));
   return { requests: pages, bytes: thin };
 }
 export function discoveryDeliveryCost(

@@ -86,12 +86,21 @@ export function collectRoadmapInventory(
   repositoryIdentity = before.id;
   if (cache?.repository_node_id && cache.repository_node_id !== before.id)
     throw new Error("Repository provider identity changed; preserve the historical baseline");
-  const enumerate = () =>
-    collectRepositoryIssueInventory(client, { bodies: false }).issues.map(
-      (row): RoadmapIssueItem => ({ ...row }),
-    );
+  const enumerate = () => {
+    const inventory = collectRepositoryIssueInventory(client, { bodies: false });
+    if (inventory.repository_node_id !== repositoryIdentity)
+      throw new Error("Repository provider identity changed during inventory collection");
+    return inventory.issues.map((row): RoadmapIssueItem => ({ ...row }));
+  };
   let rows = enumerate();
   const cached = new Map<string, RoadmapIssueItem>();
+  const sameRevision = (a: RoadmapIssueItem, b: RoadmapIssueItem) =>
+    a.id === b.id &&
+    a.url === b.url &&
+    a.number === b.number &&
+    a.title === b.title &&
+    a.state === b.state &&
+    a.updatedAt === b.updatedAt;
   if (cache?.format === 1 && cache.repository === repository && Array.isArray(cache.issues)) {
     for (const issue of cache.issues) {
       if (
@@ -115,7 +124,13 @@ export function collectRoadmapInventory(
     )
       throw new Error("Malformed repository issue revision or binding");
     const old = cached.get(row.id);
-    if (old?.updatedAt === row.updatedAt && old.url === row.url && old.number === row.number)
+    // GitHub timestamps have second precision: a cache observed in that same second
+    // cannot distinguish two edits. Rehydrate that boundary instead of trusting it.
+    if (
+      old &&
+      sameRevision(old, row) &&
+      Date.parse(String(row.updatedAt)) < Math.floor(Date.parse(cache!.observed_at) / 1000) * 1000
+    )
       row.body = old.body;
     else needs.push(row);
   }
@@ -126,7 +141,7 @@ export function collectRoadmapInventory(
       const batch = wanted.slice(offset, offset + 10);
       const data = object(
         client.graphql(
-          `query($ids:[ID!]!){nodes(ids:$ids){__typename ... on Issue{id number title state url updatedAt body} ... on PullRequest{id number title state url updatedAt body} ... on DraftIssue{id updatedAt body}}}`,
+          `query($ids:[ID!]!){nodes(ids:$ids){__typename ... on Issue{id number title state url updatedAt body} ... on PullRequest{id number title state merged url updatedAt body} ... on DraftIssue{id title updatedAt body}}}`,
           { ids: batch.map((i) => i.id) },
         ),
       );
@@ -141,20 +156,31 @@ export function collectRoadmapInventory(
       }
       for (const row of batch) {
         const node = found.get(String(row.id));
+        const kind = row.type ?? row.__typename;
         if (
           !node ||
+          node.__typename !== kind ||
           typeof node.body !== "string" ||
           node.url !== row.url ||
           node.number !== row.number
         )
           throw new Error(`Hydrated identity mismatch for issue #${row.number} (${row.id})`);
-        if (node.updatedAt !== row.updatedAt) {
+        if (
+          node.updatedAt !== row.updatedAt ||
+          node.title !== row.title ||
+          node.state !== row.state ||
+          (kind === "PullRequest" && node.merged !== row.merged)
+        ) {
           if (
             !reconcile ||
             typeof node.updatedAt !== "string" ||
             !Number.isFinite(Date.parse(node.updatedAt)) ||
             typeof node.title !== "string" ||
-            (node.state !== "OPEN" && node.state !== "CLOSED")
+            (kind !== "DraftIssue" &&
+              !(
+                kind === "PullRequest" ? ["OPEN", "CLOSED", "MERGED"] : ["OPEN", "CLOSED"]
+              ).includes(String(node.state))) ||
+            (kind === "PullRequest" && typeof node.merged !== "boolean")
           )
             throw new Error(
               `Issue #${row.number} changed during body hydration: ${String(row.updatedAt)} -> ${String(node.updatedAt)}`,
@@ -162,7 +188,8 @@ export function collectRoadmapInventory(
           // Adopt the whole atomic issue observation, then verify its membership/revision below.
           row.updatedAt = node.updatedAt;
           row.title = node.title;
-          row.state = node.state;
+          if (kind !== "DraftIssue" && typeof node.state === "string") row.state = node.state;
+          if (kind === "PullRequest") row.merged = node.merged;
           hydrationMoved = true;
         }
         row.body = node.body;
@@ -173,9 +200,104 @@ export function collectRoadmapInventory(
   hydrate(needs, true);
   let stableMarker = before;
   const afterHydration = marker();
-  if (hydrationMoved || observationHash(afterHydration) !== observationHash(before)) {
+  // Read the whole Project view before deciding whether the one reconciliation is needed.
+  // Issue updatedAt also moves on comment edits, including edits during this read.
+  let projectIdentity: string | undefined;
+  const collectProject = (reconcileForeign = false) => {
+    client._completeProjectContext = undefined;
+    client._projectContext = undefined;
+    const context = client.completeProjectContext();
+    client._projectContext = context;
+    if (!context.details.id) throw new Error("Missing Project identity");
+    if (projectIdentity !== undefined && projectIdentity !== context.details.id)
+      throw new Error("Project identity changed during inventory reconciliation");
+    projectIdentity = context.details.id;
+    const projectMarker = () => {
+      const value = object(
+        object(
+          client.graphql(
+            `query($id:ID!){projectRevision:node(id:$id){... on ProjectV2{id updatedAt items(first:1,archivedStates:[ARCHIVED,NOT_ARCHIVED]){totalCount}}}}`,
+            { id: context.details.id },
+          ),
+        ).projectRevision,
+      );
+      if (
+        value.id !== context.details.id ||
+        typeof value.updatedAt !== "string" ||
+        !Number.isFinite(Date.parse(value.updatedAt))
+      )
+        throw new Error("Project revision binding is invalid");
+      const total = object(value.items).totalCount;
+      if (typeof total !== "number" || !Number.isSafeInteger(total) || total < 0)
+        throw new Error("Project revision coverage count is invalid");
+      return value;
+    };
+    const before = projectMarker();
+    const items = client.itemList(client.config.project.number, {
+      includeBodies: false,
+      includeDependencies: true,
+      details: context.details,
+      includeArchived: true,
+      pageSize: 100,
+    });
+    if (items.length !== object(before.items).totalCount)
+      throw new Error("Project inventory count mismatch with independent revision observation");
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    for (const item of items) {
+      if (typeof item.isArchived !== "boolean") throw new Error("Unknown Project archive scope");
+      const content = item.content;
+      if (!content) throw new Error("Redacted Project content leaves incomplete coverage");
+      const local = byId.get(content.id);
+      if (local && (content.url !== local.url || content.number !== local.number))
+        throw new Error(`Project/repository identity mismatch for #${local.number}`);
+      if (
+        local &&
+        (typeof content.updatedAt !== "string" || !Number.isFinite(Date.parse(content.updatedAt)))
+      )
+        throw new Error(`Project/repository issue revision mismatch for #${local.number}`);
+      const blockers = content.blockedBy;
+      if (
+        isRecord(blockers) &&
+        Array.isArray(blockers.nodes) &&
+        typeof blockers.totalCount === "number" &&
+        blockers.nodes.length < blockers.totalCount
+      ) {
+        const nodes = connection(
+          client,
+          `query($id:ID!,$after:String){node(id:$id){... on Issue{blockedBy(first:100,after:$after){totalCount nodes{id number title url state} pageInfo{hasNextPage endCursor}}}}}`,
+          { id: content.id },
+          (v) => object(object(v).node).blockedBy,
+        );
+        content.blockedBy = { nodes, totalCount: nodes.length };
+      }
+    }
+    // Keep foreign content within the same Project revision bracket too.
+    const ids = new Set(rows.map((row) => row.id));
+    hydrate(
+      items.flatMap((item) => (ids.has(item.content!.id) ? [] : [item.content!])),
+      reconcileForeign,
+    );
+    if (observationHash(projectMarker()) !== observationHash(before))
+      throw new Error("Project changed during inventory collection");
+    return { items, projectId: context.details.id };
+  };
+  let project = collectProject(true);
+  const afterProject = marker();
+  const revisions = new Map(rows.map((row) => [row.id, row]));
+  const projectMoved = new Set(
+    project.items.flatMap((item) => {
+      const local = revisions.get(item.content!.id);
+      return local && !sameRevision(local, item.content!) ? [local.id] : [];
+    }),
+  );
+  if (
+    hydrationMoved ||
+    projectMoved.size > 0 ||
+    observationHash(afterHydration) !== observationHash(before) ||
+    observationHash(afterProject) !== observationHash(before)
+  ) {
     // One semantic reconciliation pass; failed requests and a second drift are never retried.
-    stableMarker = afterHydration;
+    stableMarker = afterProject;
     const refreshed = enumerate();
     const prior = new Map(rows.map((row) => [row.id, row]));
     if (refreshed.length !== rows.length)
@@ -193,7 +315,7 @@ export function collectRoadmapInventory(
         throw new Error(
           `Repository identity changed during reconciliation for issue #${row.number}`,
         );
-      if (old.updatedAt === row.updatedAt) row.body = old.body;
+      if (sameRevision(old, row) && !projectMoved.has(row.id)) row.body = old.body;
       else changed.push(row);
     }
     hydrate(changed);
@@ -202,44 +324,13 @@ export function collectRoadmapInventory(
         "Repository changed during the single inventory reconciliation; resume on a later run",
       );
     rows = refreshed;
+    // Discard the entire first Project observation, including dependencies and fields.
+    project = collectProject();
+    if (observationHash(marker()) !== observationHash(stableMarker))
+      throw new Error("Repository changed during inventory collection");
   }
-  client._completeProjectContext = undefined;
-  client._projectContext = undefined;
-  const context = client.completeProjectContext();
-  client._projectContext = context;
-  if (!context.details.id) throw new Error("Missing Project identity");
-  const projectMarker = () => {
-    const value = object(
-      object(
-        client.graphql(
-          `query($id:ID!){projectRevision:node(id:$id){... on ProjectV2{id updatedAt items(first:1,archivedStates:[ARCHIVED,NOT_ARCHIVED]){totalCount}}}}`,
-          { id: context.details.id },
-        ),
-      ).projectRevision,
-    );
-    if (
-      value.id !== context.details.id ||
-      typeof value.updatedAt !== "string" ||
-      !Number.isFinite(Date.parse(value.updatedAt))
-    )
-      throw new Error("Project revision binding is invalid");
-    const total = object(value.items).totalCount;
-    if (typeof total !== "number" || !Number.isSafeInteger(total) || total < 0)
-      throw new Error("Project revision coverage count is invalid");
-    return value;
-  };
-  const projectBefore = projectMarker();
-  const allItems = client.itemList(client.config.project.number, {
-    includeBodies: false,
-    includeDependencies: true,
-    details: context.details,
-    includeArchived: true,
-    pageSize: 100,
-  });
-  if (allItems.length !== object(projectBefore.items).totalCount)
-    throw new Error("Project inventory count mismatch with independent revision observation");
+  const { items: allItems, projectId } = project;
   const byId = new Map(rows.map((i) => [i.id, i]));
-  const foreign: RoadmapIssueItem[] = [];
   for (const item of allItems) {
     const content = item.content;
     if (!content) throw new Error("Redacted Project content leaves incomplete coverage");
@@ -248,34 +339,16 @@ export function collectRoadmapInventory(
       if (
         content.url !== local.url ||
         content.number !== local.number ||
+        content.title !== local.title ||
+        content.state !== local.state ||
         content.updatedAt !== local.updatedAt
       )
         throw new Error(
           `Project/repository issue revision mismatch for #${local.number}: ${String(local.updatedAt)} -> ${String(content.updatedAt)}`,
         );
       content.body = local.body;
-    } else foreign.push(content);
-    const blockers = content.blockedBy;
-    if (
-      isRecord(blockers) &&
-      Array.isArray(blockers.nodes) &&
-      typeof blockers.totalCount === "number" &&
-      blockers.nodes.length < blockers.totalCount
-    ) {
-      const nodes = connection(
-        client,
-        `query($id:ID!,$after:String){node(id:$id){... on Issue{blockedBy(first:100,after:$after){totalCount nodes{id number title url state} pageInfo{hasNextPage endCursor}}}}}`,
-        { id: content.id },
-        (v) => object(object(v).node).blockedBy,
-      );
-      content.blockedBy = { nodes, totalCount: nodes.length };
     }
   }
-  hydrate(foreign);
-  if (observationHash(projectMarker()) !== observationHash(projectBefore))
-    throw new Error("Project changed during inventory collection");
-  if (observationHash(marker()) !== observationHash(stableMarker))
-    throw new Error("Repository changed during inventory collection");
   for (const row of rows) {
     row.type = "Issue";
     row.node_id = row.id;
@@ -287,7 +360,7 @@ export function collectRoadmapInventory(
     repository,
     repository_node_id: before.id,
     observed_at: new Date().toISOString(),
-    projectId: context.details.id,
+    projectId,
     issues: rows,
     items: allItems.filter((i) => i.isArchived === false),
     archivedItems: allItems.filter((i) => i.isArchived === true),
