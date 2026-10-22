@@ -354,12 +354,14 @@ pub(crate) enum InstallationCommand {
     },
     /// Resolve one setup's exact retained build and its current availability without mutation.
     Reference {
+        /// Catalog port ID owning the setup reference; run `portcove catalog list` to find it.
         port_id: String,
         /// Stable setup identity, independent of its display name and source profile.
         setup_id: String,
     },
     /// Review binding a stable setup to one already accepted local install without mutation.
     ReferencePlan {
+        /// Catalog port ID owning the retained install; run `portcove catalog list` to find it.
         port_id: String,
         /// Stable setup identity, independent of its display name and source profile.
         setup_id: String,
@@ -368,6 +370,7 @@ pub(crate) enum InstallationCommand {
     },
     /// Bind only the exact reviewed local build; existing active selection does not change.
     ReferenceBind {
+        /// Catalog port ID used in the preceding `installation reference-plan` review.
         port_id: String,
         /// Stable setup identity from the binding review.
         setup_id: String,
@@ -382,12 +385,14 @@ pub(crate) enum InstallationCommand {
     },
     /// Review removing a setup reference without deleting the retained build or player data.
     ReferenceRemovalPlan {
+        /// Catalog port ID owning the reference to remove; run `portcove catalog list` to find it.
         port_id: String,
         /// Stable setup identity whose reference should be removed.
         setup_id: String,
     },
     /// Remove only the reviewed setup reference; later cleanup still respects other protections.
     ReferenceRemove {
+        /// Catalog port ID used in the preceding `installation reference-removal-plan` review.
         port_id: String,
         /// Stable setup identity from the removal review.
         setup_id: String,

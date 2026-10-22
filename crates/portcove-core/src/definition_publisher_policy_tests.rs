@@ -5151,6 +5151,7 @@ async fn managed_historical_admission_upgrade_preserves_retained_installation_an
     assert_eq!(count(&library, "ghostship_legacy_qualifications"), 0);
     assert_eq!(count(&library, "ghostship_qualified_backups"), 0);
     assert_eq!(count(&library, "ghostship_runtime_safety"), 0);
+    assert_eq!(count(&library, "retained_build_references"), 0);
     assert_eq!(
         library
             .connection()
@@ -5185,6 +5186,7 @@ async fn managed_historical_admission_upgrade_preserves_retained_installation_an
          DROP TABLE ghostship_runtime_safety;
          DROP TABLE ghostship_qualified_backups;
          DROP TABLE ghostship_legacy_qualifications;
+         DROP TABLE retained_build_references;
          ALTER TABLE lifecycle_operations DROP COLUMN ghostship_recovery_json;
          ALTER TABLE lifecycle_operations DROP COLUMN backup_deletion_json;
          DELETE FROM schema_migrations WHERE version>33;
@@ -5225,6 +5227,7 @@ async fn managed_historical_admission_upgrade_preserves_retained_installation_an
     assert_eq!(marker, 0);
     assert_eq!(count(&upgraded, "definition_launch_assessments"), 0);
     assert_eq!(count(&upgraded, "definition_launch_decisions"), 0);
+    assert_eq!(count(&upgraded, "retained_build_references"), 0);
     assert_eq!(
         upgraded
             .assess_definition_operation(
