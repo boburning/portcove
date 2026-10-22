@@ -13,6 +13,7 @@ export function ChoiceSelect<T extends string>({
   onOpenChangeComplete,
   triggerId,
   description,
+  inline = false,
 }: {
   label: string;
   value: T;
@@ -24,6 +25,7 @@ export function ChoiceSelect<T extends string>({
   onOpenChangeComplete?: (open: boolean) => void;
   triggerId?: string;
   description?: string;
+  inline?: boolean;
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
@@ -34,10 +36,14 @@ export function ChoiceSelect<T extends string>({
 
   return (
     <Field
-      label={<span id={labelId}>{label}</span>}
+      label={
+        <span id={labelId} className={inline ? "sr-only" : undefined}>
+          {label}
+        </span>
+      }
       description={description}
       disabled={disabled}
-      className="w-full max-w-sm"
+      className={inline ? "w-full max-w-sm gap-0" : "w-full max-w-sm"}
     >
       <Select
         open={open}
@@ -104,6 +110,11 @@ export function ChoiceSelect<T extends string>({
           aria-labelledby={`${labelId} ${valueId}`}
           className="w-full gap-3"
         >
+          {inline && (
+            <span aria-hidden="true" className="text-pc-muted-foreground">
+              {label}
+            </span>
+          )}
           <SelectValue id={valueId} className="text-start font-semibold">
             {selected?.label ?? "Unavailable"}
           </SelectValue>

@@ -1,0 +1,42 @@
+{
+  "baseline": "43980db13626379bb070eca895e778690ee66fd3",
+  "kind": "browser App renderer with simulated transport",
+  "sources": [
+    {
+      "path": "apps/desktop/src/components/PortBrowser.tsx",
+      "sha256": "fedcf51355b4c0032112664a7353b49cd607e35cf608ee5d2d497a64fb864a02"
+    },
+    {
+      "path": "apps/desktop/src/components/ChoiceSelect.tsx",
+      "sha256": "82206ac04f90e08c73d517cadd4f1e662be69f000f4ecea6ee5b108aba85f188"
+    },
+    {
+      "path": "apps/desktop/src/components/DetailPanel.tsx",
+      "sha256": "4405d272c27e09644976938095ca1efbaf441abd49a8e6c2d0ad505369475db4"
+    },
+    {
+      "path": "apps/desktop/src/components/Artwork.tsx",
+      "sha256": "30f5216e8a0f87c48c12cdc31cd005516c8539cdcd163fd5632de126f6fda40e"
+    },
+    {
+      "path": "apps/desktop/src/components/Preparation.tsx",
+      "sha256": "4facd6b38c70ac3d52eb5e2f35a1b8e9473d61efbb5065761744ff5dd1bbc208"
+    },
+    {
+      "path": "apps/desktop/src/styles/collection.css",
+      "sha256": "820e0b8dd12b0c5eb3369e8a738e89fcaf569b8bd33a694304a0abc9f395d339"
+    },
+    {
+      "path": "apps/desktop/src/dev-scenarios/interactive/entry.tsx",
+      "sha256": "4b6520ffc90867d7522f4123ffe30529815b78fea90f272deb5dc2b586c9cb67"
+    },
+    {
+      "path": "apps/desktop/src/dev-scenarios/scenarios.css",
+      "sha256": "388816d00a0228b0ec3bd7f0b0bd3a99ef7768497671d259035488d3d09484b3"
+    },
+    {
+      "path": "apps/desktop/scenarios.html",
+      "sha256": "c09a32295fd64a0bd630c94d9148e9df65187596cf49fa99683c145e8047c4a4"
+    }
+  ]
+}

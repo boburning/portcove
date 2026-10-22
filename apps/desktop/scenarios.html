@@ -6,17 +6,18 @@
     <title>Portcove development scenarios</title>
   </head>
   <body>
-    <header class="scenario-controls">
+    <details class="scenario-controls" open>
+      <summary>Review desk</summary>
       <h1>Development scenarios</h1>
-      <p>
+      <p id="scenario-description">
         Static component previews. Controls inside previews are inert; no application actions run.
         The selected scenario stays in the URL for exact reviewer handoff.
       </p>
       <label for="scenario">Scenario</label>
       <select id="scenario" class="scenario-fixture-control"></select>
       <p id="scenario-limitation"></p>
-    </header>
-    <main id="scenario-preview" class="scenario-preview" inert></main>
+    </details>
+    <div id="scenario-preview" class="scenario-preview" inert></div>
     <script type="module" src="/src/dev-scenarios/entry.ts"></script>
   </body>
 </html>

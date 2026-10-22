@@ -321,8 +321,9 @@ export function PortBrowser({
         aria-label={view === "library" ? "Library filters" : "Release channel filters"}
       >
         {composedLibrary && (
-          <div className="collection-readiness-compact max-w-full min-w-0">
+          <div className="collection-readiness max-w-full min-w-0">
             <ChoiceSelect
+              inline
               label="Readiness"
               value={libraryReadiness}
               options={filterOptions(view).map((item) => ({
@@ -333,43 +334,32 @@ export function PortBrowser({
             />
           </div>
         )}
-        <div
-          className={
-            composedLibrary ? "collection-readiness-wide flex-wrap gap-1" : "flex flex-wrap gap-1"
-          }
-        >
-          {filterOptions(view).map((item) => (
-            <Button
-              data-focusable
-              aria-pressed={
-                composedLibrary ? libraryReadiness === item : filterSelected(filter, item)
-              }
-              key={item}
-              variant={
-                (composedLibrary ? libraryReadiness === item : filterSelected(filter, item))
-                  ? "selected"
-                  : "outline"
-              }
-              size="sm"
-              disabled={!composedLibrary && unresolvedFilter && item !== "all"}
-              onClick={() =>
-                composedLibrary
-                  ? setLibraryReadiness?.(item)
-                  : setFilter((current) =>
-                      view === "catalog" ? toggleCatalogChannel(current, item, queryContext) : item,
-                    )
-              }
-            >
-              {filterLabel(item)}
-              {composedLibrary && ` (${readinessCount(item as "all" | "ready" | "setup")})`}
-            </Button>
-          ))}
-        </div>
+        {!composedLibrary && (
+          <div className="flex flex-wrap gap-1">
+            {filterOptions(view).map((item) => (
+              <Button
+                data-focusable
+                aria-pressed={filterSelected(filter, item)}
+                key={item}
+                variant={filterSelected(filter, item) ? "selected" : "outline"}
+                size="sm"
+                disabled={unresolvedFilter && item !== "all"}
+                onClick={() =>
+                  setFilter((current) =>
+                    view === "catalog" ? toggleCatalogChannel(current, item, queryContext) : item,
+                  )
+                }
+              >
+                {filterLabel(item)}
+              </Button>
+            ))}
+          </div>
+        )}
         {favorites && (
           <Button
             data-focusable
             size="sm"
-            variant={favorites.only ? "selected" : "outline"}
+            variant={favorites.only ? "selected" : "ghost"}
             ref={filterButton}
             data-favorites-filter
             aria-pressed={favorites.only}
@@ -467,7 +457,7 @@ export function PortBrowser({
           {renderSort()}
           {view === "library" && !firstUseEmpty && (
             <div
-              className="collection-tools ms-auto flex flex-wrap items-center gap-3"
+              className="collection-tools flex basis-full flex-wrap items-center gap-3"
               data-focus-group
             >
               {onBrowseCatalog && overview.installed > 0 && (
@@ -480,13 +470,19 @@ export function PortBrowser({
                   Add games
                 </Button>
               )}
+              {renderSteamBatch()}
               {setCollectionLayout && (
-                <div role="group" aria-label="Collection view" className="flex flex-wrap gap-1">
+                <div
+                  role="group"
+                  aria-label="Collection view"
+                  className="ms-auto flex flex-wrap gap-1"
+                >
                   <span className="self-center text-xs text-pc-muted-foreground">View</span>
                   {(["covers", "rows"] as const).map((layout) => (
                     <Button
                       key={layout}
-                      variant={collectionLayout === layout ? "selected" : "outline"}
+                      variant={collectionLayout === layout ? "selected" : "ghost"}
+                      size="sm"
                       aria-pressed={collectionLayout === layout}
                       data-focusable
                       onClick={() => setCollectionLayout(layout)}
@@ -505,7 +501,6 @@ export function PortBrowser({
               )}
             </div>
           )}
-          {renderSteamBatch()}
         </div>
       )}
       {view === "library" && !firstUseEmpty && (constrained || query.trim()) && (
@@ -1080,7 +1075,7 @@ function LibraryEntry({
         <span
           className={cn(
             `readiness ${state.tone} inline-flex items-start gap-1.5 font-medium`,
-            "[&.ready]:text-pc-muted-foreground [&.setup]:text-pc-warning-foreground [&.staged]:text-pc-interactive-foreground",
+            "[&.ready]:text-pc-success-foreground [&.setup]:text-pc-warning-foreground [&.staged]:text-pc-interactive-foreground",
           )}
         >
           <Icon glyph={state.tone === "ready" ? CheckCircle2 : Wrench} size="sm" />
@@ -1181,7 +1176,7 @@ function PortCardContents({
       <span
         className={cn(
           `readiness ${state.tone} inline-flex min-h-8 items-center gap-[6px] text-xs font-semibold text-[var(--color-text-secondary)]`,
-          "[&.ready]:text-pc-muted-foreground [&.setup]:text-[var(--color-warning-text)] [&.staged]:text-[var(--color-interactive-text-strong)]",
+          "[&.ready]:text-pc-success-foreground [&.setup]:text-[var(--color-warning-text)] [&.staged]:text-[var(--color-interactive-text-strong)]",
         )}
       >
         <i className="size-[6px] rounded-full border border-current bg-current" />

@@ -833,6 +833,23 @@ before overlapping work. Preserve failures and use the smallest discriminating
 reproduction. An unchanged retry is not a repair. Historical operation evidence
 is [conditional](reference/validation-operations-history.md).
 
+#### Interactive app comparison
+
+Open `scenarios.html?mode=interactive&journey=collection` for a 12-entry mixed
+collection or `journey=collection-large` for 60 entries. This mounts the actual
+App with disposable in-memory transport; game/file actions are simulated and
+unsupported actions visibly refuse. Expand the labeled demo review desk to change
+journey, reset, or settle fixture preparation. It is not the real first-use state.
+
+The app preview tracks the available viewport and retains the real workspace
+scroll owner. For a labeled comparison frame, append `&embed=1`; this hides review
+controls without changing application layout. Keep an explicit simulation label
+in the parent and provide full-size links. Different populations or artwork in a
+reference prototype must be labeled, never presented as a controlled A/B. Capture
+matched production before/after views with the same fixtures, artwork, viewport,
+theme and scale; a corrected reviewer wrapper can be shared by both conditions
+when its difference from the original baseline is stated.
+
 #### Static component scenarios
 
 From the checkout root, run

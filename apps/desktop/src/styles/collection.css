@@ -2,20 +2,6 @@
   .collection-tools {
     align-items: center;
   }
-  .collection-readiness-compact {
-    display: none;
-  }
-  .collection-readiness-wide {
-    display: flex;
-  }
-  @container library-query (max-width: 46em) {
-    .collection-readiness-wide {
-      display: none;
-    }
-    .collection-readiness-compact {
-      display: block;
-    }
-  }
   .library-query-tools .search {
     flex: 1 1 17rem;
     max-width: 22rem;
@@ -67,7 +53,7 @@
     width: min(100%, var(--collection-art-limit));
   }
   .collection-cover .collection-state {
-    min-height: 3rem;
+    min-height: 1.5rem;
   }
   .catalog-card .card-content {
     width: min(100%, var(--collection-art-limit));
@@ -145,6 +131,11 @@
     .collection-project {
       white-space: normal;
       overflow: visible;
+    }
+  }
+  @media (height <= 800px) {
+    .collection-covers {
+      --collection-art-limit: 180px;
     }
   }
   @media (height <= 680px) {

@@ -1121,6 +1121,12 @@ export async function preparationScenarios({
     assert.equal(preparationHierarchy.firstAction, "Review game preparation");
     assert.equal(preparationHierarchy.disabledPlaceholder, false);
     assert.ok(preparationHierarchy.owner?.startsWith(`${port.id}:`));
+    await clickVisible(
+      browser,
+      await browser.findElement(
+        By.xpath('//summary[normalize-space(.)="Folder for a future install"]'),
+      ),
+    );
     const outputLocationInput = await browser.findElement(By.id(`output-location-path-${port.id}`));
     const reviewedOutput = path.join(output, "reviewed-future-output");
     await clickVisible(browser, outputLocationInput);
@@ -2140,8 +2146,7 @@ export async function preparationScenarios({
           });
           assert.deepEqual(facts.items, [
             ["Installed version", readyStatus.active.version],
-            ["Selected channel", "Stable"],
-            ["Installed channel", "Stable"],
+            ["Release channel", "Stable"],
             ["Latest available for your settings", "No current check"],
             ["Installed folder", readyStatus.active.path],
           ]);
@@ -2195,7 +2200,7 @@ export async function preparationScenarios({
         port.name,
       );
       const readiness = await browser.findElement(
-        By.css('.collection-readiness-compact [role="combobox"]'),
+        By.css('.collection-readiness [role="combobox"]'),
       );
       await clickVisible(browser, readiness);
       const ready = await browser.wait(
@@ -2286,7 +2291,7 @@ export async function preparationScenarios({
           const workspace = document.querySelector('main[data-focus-region="workspace"]');
           const search = document.querySelector<HTMLInputElement>("#port-search");
           const ready = document.querySelector(
-            '.collection-readiness-compact [role="combobox"] [data-slot="select-value"]',
+            '.collection-readiness [role="combobox"] [data-slot="select-value"]',
           );
           const card = element.closest("article.port-card");
           const bounds = card?.getBoundingClientRect();

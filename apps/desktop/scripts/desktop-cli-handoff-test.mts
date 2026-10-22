@@ -165,7 +165,7 @@ export async function cliHandoffScenario({
       .findElement(By.css('[aria-label="Installation and release versions"]'))
       .getText();
     assert.match(versionSummary, /Installed version/);
-    assert.match(versionSummary, /Selected channel/);
+    assert.match(versionSummary, /Release channel|Selected channel/);
     assert.match(versionSummary, /Latest available for your settings/);
     const launch = By.css('[aria-label="Launch from another app"]');
     await browser.wait(until.elementLocated(By.css('[aria-label="Copy launch command"]')), 10_000);
