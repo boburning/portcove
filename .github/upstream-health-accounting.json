@@ -413,7 +413,7 @@
     },
     {
       "port_id": "wave-race-64-racewave46",
-      "port_contract_sha256": "1191af25646c79f8c0f5ffec7013e95739fd2b3b526e78ccb51148d8d7cf3daf",
+      "port_contract_sha256": "eafaca09ef9cb9ab56ae113e2ec15ba7a21dfb05f0036f8714358c8489568bf4",
       "platform": "windows-x86-64",
       "url": "https://github.com/DomazinUS/RaceWave46/releases/download/v1.0.0/RaceWave46-Windows-x64-v1.0.0.zip",
       "size": 35768574,
@@ -515,7 +515,7 @@
     },
     {
       "port_id": "the-force-engine-dark-forces",
-      "port_contract_sha256": "ad87e8d4cd155c85fc4b3cd9c1fe146bcc358e9ed4b33de3733f588533dfbca6",
+      "port_contract_sha256": "398077825e9faba9af09ac605559398af97b656423ac7f9667ebacc6e1131b82",
       "platform": "windows-x86-64",
       "url": "https://github.com/TheForceEngine/TheForceEngine/releases/download/v1.22.420/TheForceEngine-v1.22.420.zip",
       "size": 10561878,
@@ -566,7 +566,7 @@
     },
     {
       "port_id": "resident-evil-gaiden-recomp",
-      "port_contract_sha256": "774419134bd441656eed48910643b3c70cd63f0538382fd23d6f5b3ab3d5f32e",
+      "port_contract_sha256": "2ce80b761b2af18ab47e2d92224a52b8909ef27d315679363c9e252ef1ce020c",
       "platform": "windows-x86-64",
       "url": "https://github.com/sergiomanzur/regaiden-recomp/releases/download/v0.4.1/Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip",
       "size": 33085815,
