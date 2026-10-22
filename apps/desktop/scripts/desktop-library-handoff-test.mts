@@ -31,6 +31,7 @@ import {
   assertPrimaryReviewAction,
   captureAccessibilityReport,
   reviewControls,
+  selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
 
 export async function libraryHandoffScenario({
@@ -162,7 +163,7 @@ export async function libraryHandoffScenario({
       );
     };
     await browser.navigate().refresh();
-    await click(By.xpath('//nav//button[contains(., "Settings")]'));
+    await selectPrimaryNavigation(browser, "Settings");
     await click(button("Library and storage"));
     await click(By.xpath('//summary[normalize-space(.)="Prepare a recovery copy"]'));
     const guide = await browser.findElement(By.css(".library-recovery")).getText();
@@ -344,7 +345,7 @@ export async function libraryHandoffScenario({
     await rename(originalSource, offlineOriginal);
     assert.equal((await fileIdentity(offlineOriginal)).sha256, originalSourceIdentity.sha256);
     await browser.navigate().refresh();
-    await click(By.xpath('//nav//button[contains(., "Settings")]'));
+    await selectPrimaryNavigation(browser, "Settings");
     await click(button("Library and storage"));
     const restoreTrigger = button("Restore from a library copy");
     const restoreDialog = By.css('[aria-labelledby="import-library-title"]');
@@ -474,7 +475,7 @@ export async function libraryHandoffScenario({
       Buffer.alloc(256 * 1024 * 1024, 0x5a),
     );
     await browser.navigate().refresh();
-    await click(By.xpath('//nav//button[contains(., "Settings")]'));
+    await selectPrimaryNavigation(browser, "Settings");
     await click(button("Library and storage"));
     await click(button("Change library location"));
     await browser.findElement(By.id("library-destination")).sendKeys(recoveryDestination);

@@ -6,7 +6,8 @@ import { capabilityRequirement } from "../../../scripts/native-readiness.mts";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
-import { By, WebDriver } from "selenium-webdriver";
+import { WebDriver } from "selenium-webdriver";
+import { selectPrimaryNavigation } from "./desktop-review-controls.mts";
 
 interface LayoutCounts {
   getClientRects: number;
@@ -66,7 +67,7 @@ export async function controllerScenario({
     );
     // A newly restarted window may be behind the host. Establish native input
     // focus with an ordinary navigation click before injecting the pad fixture.
-    await browser.findElement(By.css('nav[aria-label="Primary navigation"] button')).click();
+    await selectPrimaryNavigation(browser, "Library");
     const result: unknown = await browser.executeAsyncScript<unknown>(observeInjectedController);
     const report = path.join(output, "controller-layout-profile.json");
     const serialized = JSON.stringify(result, null, 2);

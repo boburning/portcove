@@ -271,6 +271,7 @@ function useGameUpdateControl({
 }
 
 export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>[0]) {
+  const heading = useRef<HTMLHeadingElement>(null);
   const actionRegion = useRef<HTMLElement>(null);
   const {
     activate,
@@ -305,7 +306,6 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
         gameUpdateActionLabel(plan) ? (
           <Button
             data-focusable
-            data-autofocus
             variant="primary"
             disabled={busy || pending || !perform}
             onClick={() => void apply()}
@@ -316,7 +316,6 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
       ) : (
         <Button
           data-focusable
-          data-autofocus
           variant="primary"
           disabled={busy || pending}
           onClick={() => void review()}
@@ -352,6 +351,7 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
         }}
       >
         <DialogContent
+          initialFocus={heading}
           className="@container/update-review"
           showCloseButton={false}
           finalFocus={() => {
@@ -364,7 +364,7 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
           data-game-update-review
           aria-describedby={descriptionId}
         >
-          <DialogTitle id={titleId} className="mb-2 text-xl">
+          <DialogTitle ref={heading} tabIndex={-1} id={titleId} className="mb-2 text-xl">
             {gameName ? `${gameName} update` : "Review game update"}
           </DialogTitle>
           <DialogDescription id={descriptionId} className="mb-4 leading-relaxed">

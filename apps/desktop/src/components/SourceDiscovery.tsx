@@ -20,6 +20,7 @@ import { NavigationHints } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
+import { Field } from "./ui/field";
 
 const scanLimits: SourceDiscoveryLimits = {
   max_entries: 10_000,
@@ -506,6 +507,7 @@ function SourceDiscoveryDialog({
   onAdded?: (() => Promise<unknown>) | undefined;
   close: () => void;
 }) {
+  const heading = useRef<HTMLHeadingElement>(null);
   const workflow = useSourceDiscoveryWorkflow(onAdded);
   const [profileSelectOpen, setProfileSelectOpen] = useState(false);
   const profileSelectOpenRef = useRef(false);
@@ -544,6 +546,7 @@ function SourceDiscoveryDialog({
       }}
     >
       <DialogContent
+        initialFocus={heading}
         showCloseButton={false}
         reviewSize="wide"
         aria-describedby="source-discovery-description"
@@ -551,7 +554,12 @@ function SourceDiscoveryDialog({
         <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
           REQUIRED FILES
         </p>
-        <DialogTitle id="source-discovery-title" className="mb-2 text-xl">
+        <DialogTitle
+          ref={heading}
+          tabIndex={-1}
+          id="source-discovery-title"
+          className="mb-2 text-xl"
+        >
           Find required files
         </DialogTitle>
         <DialogDescription id="source-discovery-description" className="mb-2 leading-relaxed">
@@ -609,32 +617,28 @@ function SourceDiscoveryDialog({
             Search game-file folder
           </Button>
         </div>
-        <label
-          className="mb-2 block text-xs font-bold text-pc-muted-foreground"
-          htmlFor="source-search-root"
-        >
-          Search folder
-        </label>
-        <div className="flex items-stretch gap-2 [&_input]:min-w-0">
-          <Input
-            data-focusable
-            id="source-search-root"
-            value={root}
-            disabled={Boolean(busy)}
-            onChange={(event) => workflow.updateRoot(event.target.value)}
-            placeholder="Folder containing the required files"
-          />
-          <Button
-            data-focusable
-            variant="outline"
-            disabled={Boolean(busy)}
-            onClick={() => {
-              void workflow.chooseRoot();
-            }}
-          >
-            Choose folder
-          </Button>
-        </div>
+        <Field label="Search folder">
+          <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
+            <Input
+              data-focusable
+              id="source-search-root"
+              value={root}
+              disabled={Boolean(busy)}
+              onChange={(event) => workflow.updateRoot(event.target.value)}
+              placeholder="Folder containing the required files"
+            />
+            <Button
+              data-focusable
+              variant="outline"
+              disabled={Boolean(busy)}
+              onClick={() => {
+                void workflow.chooseRoot();
+              }}
+            >
+              Choose folder
+            </Button>
+          </div>
+        </Field>
         {busy && <p role="status">{busy}</p>}
         {notice && <p role="status">{notice}</p>}
         {operationId && (

@@ -188,16 +188,19 @@ export async function seedPublicFavorite(browser: WebDriver, platform: "win32" |
 
 /** Ordinary Settings interaction shared by both packaged platform harnesses. */
 export async function selectPublicLightTheme(browser: WebDriver) {
+  const { selectPrimaryNavigation } = await import("./desktop-review-controls.mts");
   const { By } = await import("selenium-webdriver");
-  await browser
-    .findElement(By.xpath('//nav//button[.//span[normalize-space(.)="Settings"]]'))
-    .click();
+  await selectPrimaryNavigation(browser, "Settings");
   await browser
     .findElement(
-      By.xpath('//*[@aria-label="Settings sections"]//button[normalize-space(.)="Appearance"]'),
+      By.css('nav[aria-label="Settings categories"] button[aria-controls="settings-appearance"]'),
     )
     .click();
   await browser
-    .findElement(By.xpath('//*[@aria-label="Color theme"]//button[normalize-space(.)="Light"]'))
+    .findElement(
+      By.xpath(
+        '//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="Light"]',
+      ),
+    )
     .click();
 }

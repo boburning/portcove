@@ -8,6 +8,7 @@ import { failureReport } from "../test-fixtures";
 import { initializeLocalization, LocalizationProvider } from "../localization";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { controlledAct } from "../../test/controlled-react-act";
+import { navigateTo } from "../../test/primary-navigation";
 import "../styles/index.css";
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
@@ -191,7 +192,7 @@ it("does not revive a departed Library anchor after a route change with connecte
   const running = await startControlledLaunch();
   const workspaceHeader = document.querySelector('main[data-focus-region="workspace"] header');
   expect(workspaceHeader).not.toBeNull();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await navigateTo("Settings");
   await expect
     .element(page.getByRole("heading", { name: "Interface size", exact: true }))
     .toBeVisible();

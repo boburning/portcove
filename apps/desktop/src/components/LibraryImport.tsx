@@ -1,5 +1,5 @@
 import { reloadWorkspace } from "../reload-workspace";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { pickInstallFolder, pickMetadataImportPath } from "../file-picker";
 import type { LibraryImportPlan } from "../types";
@@ -36,6 +36,7 @@ export function LibraryImportButton({
 }
 
 function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; close: () => void }) {
+  const metadataInput = useRef<HTMLInputElement>(null);
   const [metadata, setMetadata] = useState("");
   const [content, setContent] = useState("");
   const [plan, setPlan] = useState<LibraryImportPlan>();
@@ -79,6 +80,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
       }}
     >
       <DialogContent
+        initialFocus={metadataInput}
         showCloseButton={false}
         reviewSize="large"
         aria-describedby="import-library-description"
@@ -109,7 +111,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
         <label htmlFor="import-metadata">Library metadata file</label>
         <div className="grid min-w-0 gap-2 min-[48rem]:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
           <Input
-            data-autofocus
+            ref={metadataInput}
             data-focusable
             id="import-metadata"
             value={metadata}

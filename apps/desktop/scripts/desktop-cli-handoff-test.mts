@@ -16,13 +16,14 @@ import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { realpath, writeFile } from "node:fs/promises";
-import { By, Key, until } from "selenium-webdriver";
+import { By, Key, until, type WebElement } from "selenium-webdriver";
 import {
   reviewControls,
   assertCompactReview,
   captureAccessibilityReport,
   openCatalogPortAfterRefresh,
   clickVisible,
+  selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
 
 export async function cliHandoffScenario({
@@ -64,17 +65,67 @@ export async function cliHandoffScenario({
       if (view === "Find games") await openCatalogPortAfterRefresh(browser, port);
       else {
         await browser.navigate().refresh();
-        await click(By.xpath('//nav//button[contains(., "Library")]'));
+        await selectPrimaryNavigation(browser, "Library");
         const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
         await search.sendKeys(
           Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
           Key.BACK_SPACE,
         );
-        await click(
-          By.xpath(
-            '//div[@aria-label="Library filters"]//button[starts-with(normalize-space(.),"All (")]',
-          ),
+        const filters = await browser.wait(
+          until.elementLocated(By.css('[aria-label="Library filters"]')),
+          15_000,
         );
+        const allButtons = await filters.findElements(
+          By.xpath('.//button[not(@role="combobox")][starts-with(normalize-space(.),"All (")]'),
+        );
+        let wideAll: WebElement | undefined;
+        for (const candidate of allButtons) if (await candidate.isDisplayed()) wideAll = candidate;
+        if (wideAll) await clickVisible(browser, wideAll);
+        else {
+          const picker = await filters.findElement(By.css('[role="combobox"]'));
+          assert.match(await picker.getAccessibleName(), /^Readiness\s/u);
+          await clickVisible(browser, picker);
+          await browser.wait(
+            async () => Boolean(await picker.getAttribute("aria-controls")),
+            5_000,
+          );
+          const listId = await picker.getAttribute("aria-controls");
+          assert.ok(listId, "The readiness picker must name its owned listbox");
+          const list = await browser.wait(until.elementLocated(By.id(listId)), 5_000);
+          assert.equal(await list.getAttribute("role"), "listbox");
+          await clickVisible(
+            browser,
+            await list.findElement(
+              By.xpath('.//*[@role="option"][starts-with(normalize-space(.),"All (")]'),
+            ),
+          );
+          await browser.wait(
+            async () =>
+              (await picker.getAttribute("aria-expanded")) === "false" &&
+              (await executeBrowserScript(
+                browser,
+                (id) => {
+                  const list = document.getElementById(id);
+                  if (!list) return true;
+                  const popup = list.closest('[data-slot="select-content"]');
+                  const shield = popup?.parentElement?.previousElementSibling;
+                  const blocked =
+                    shield?.hasAttribute("data-base-ui-inert") &&
+                    !shield.hasAttribute("inert") &&
+                    shield.getClientRects().length > 0 &&
+                    getComputedStyle(shield).pointerEvents !== "none";
+                  return Boolean(
+                    popup?.hasAttribute("data-closed") &&
+                    list.getClientRects().length === 0 &&
+                    !blocked,
+                  );
+                },
+                listId,
+              )),
+            5_000,
+            "The readiness listbox must finish closing before workspace interaction",
+          );
+        }
         for (const favorite of await browser.findElements(
           By.css('[data-favorites-filter][aria-pressed="true"]'),
         ))

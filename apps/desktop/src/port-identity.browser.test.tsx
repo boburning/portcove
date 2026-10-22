@@ -36,7 +36,7 @@ it.each(["catalog", "library"] as const)(
       />,
     );
     const prefix = view === "library" ? "View details for " : "";
-    const separator = view === "library" ? " Port: " : " ";
+    const separator = " Port: ";
     const first = page.getByRole("button", {
       name: new RegExp(
         `^${prefix}A Familiar Adventure${separator}Cobalt Project${view === "library" ? " · US edition" : ""}`,

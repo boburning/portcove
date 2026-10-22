@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { reloadWorkspace } from "../reload-workspace";
 import { join } from "@tauri-apps/api/path";
 import { desktopApi } from "../api";
@@ -9,6 +9,7 @@ import { NavigationHints } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
+import { Field } from "./ui/field";
 
 export function LibraryMoveButton({ disabled }: { disabled: boolean }) {
   const [open, setOpen] = useState(false);
@@ -30,6 +31,7 @@ export function LibraryMoveButton({ disabled }: { disabled: boolean }) {
 }
 
 function LibraryMoveDialog({ close }: { close: () => void }) {
+  const destinationInput = useRef<HTMLInputElement>(null);
   const [destination, setDestination] = useState("");
   const [plan, setPlan] = useState<LibraryMovePlan>();
   const [busy, setBusy] = useState("");
@@ -71,6 +73,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
       }}
     >
       <DialogContent
+        initialFocus={destinationInput}
         showCloseButton={false}
         reviewSize="wide"
         aria-describedby="move-library-description"
@@ -88,31 +91,35 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
           locations available.
         </DialogDescription>
         <NavigationHints />
-        <label htmlFor="library-destination">New library folder</label>
-        <div className="grid min-w-0 gap-2 min-[48rem]:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
-          <Input
-            data-autofocus
-            data-focusable
-            id="library-destination"
-            value={destination}
-            disabled={Boolean(busy) || Boolean(recoveryRoot)}
-            onChange={(event) => {
-              setDestination(event.target.value);
-              setPlan(undefined);
-            }}
-            placeholder="Full path to a new folder"
-          />
-          <Button
-            data-focusable
-            variant="outline"
-            disabled={Boolean(busy) || Boolean(recoveryRoot)}
-            onClick={() => {
-              void browse();
-            }}
-          >
-            Choose parent folder
-          </Button>
-        </div>
+        <Field
+          label="New library folder"
+          description="Choose a new folder with enough space for the verified copy."
+        >
+          <div className="grid min-w-0 gap-2 min-[48rem]:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
+            <Input
+              ref={destinationInput}
+              data-focusable
+              id="library-destination"
+              value={destination}
+              disabled={Boolean(busy) || Boolean(recoveryRoot)}
+              onChange={(event) => {
+                setDestination(event.target.value);
+                setPlan(undefined);
+              }}
+              placeholder="Full path to a new folder"
+            />
+            <Button
+              data-focusable
+              variant="outline"
+              disabled={Boolean(busy) || Boolean(recoveryRoot)}
+              onClick={() => {
+                void browse();
+              }}
+            >
+              Choose parent folder
+            </Button>
+          </div>
+        </Field>
         {plan && (
           <LibraryCopySummary
             plan={plan}

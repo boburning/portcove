@@ -329,13 +329,7 @@ function PreparationCleanupDialog({
         )}
         <ActionReviewFailure error={error} />
         <DialogFooter className="mt-4">
-          <Button
-            data-autofocus
-            data-focusable
-            variant="outline"
-            disabled={pending === "apply"}
-            onClick={dismiss}
-          >
+          <Button data-focusable variant="outline" disabled={pending === "apply"} onClick={dismiss}>
             {inspecting ? "Close" : emptyReview ? "Cancel" : "Keep files"}
           </Button>
           {!preview && (

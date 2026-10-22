@@ -14,6 +14,7 @@ import type {
 } from "../../types";
 import { errorText } from "../../view-model";
 import { Button } from "../../components/ui/button";
+import { Checkbox } from "../../components/ui/checkbox";
 import { focusAndReveal } from "../../focus";
 import type { Perform } from "../operations/use-operation-state";
 
@@ -1197,29 +1198,32 @@ export function ApplicationUpdateSettings(
           </p>
         </section>
 
-        <div className="application-update-pause flex cursor-pointer items-start gap-3 rounded-pc-md bg-[var(--color-bg-subtle)] p-3">
-          <input
+        <label
+          htmlFor="pause-application-updates"
+          className="application-update-pause flex min-h-10 cursor-pointer items-start gap-3 rounded-pc-md bg-[var(--color-bg-subtle)] p-3"
+        >
+          <Checkbox
             data-focusable
-            className="mt-[3px] w-auto"
+            className="mt-0.5"
             id="pause-application-updates"
-            type="checkbox"
+            aria-labelledby="pause-application-updates-label"
             aria-describedby="pause-application-updates-description"
             checked={draft.paused}
             disabled={unavailable}
-            onChange={(event) => setDraft((value) => ({ ...value, paused: event.target.checked }))}
+            onCheckedChange={(paused) => setDraft((value) => ({ ...value, paused }))}
           />
           <span className="grid gap-0.5">
-            <label
-              htmlFor="pause-application-updates"
+            <span
+              id="pause-application-updates-label"
               className="cursor-pointer font-bold text-pc-foreground"
             >
               Pause application update activity
-            </label>
+            </span>
             <small id="pause-application-updates-description" className={updateMutedCopyClass}>
               Stop automatic checks and all downloads until resumed. Manual checks remain available.
             </small>
           </span>
-        </div>
+        </label>
 
         <p className={updateDisclosureClass}>Saving these settings does not start an update.</p>
         <div className="flex flex-wrap gap-2">

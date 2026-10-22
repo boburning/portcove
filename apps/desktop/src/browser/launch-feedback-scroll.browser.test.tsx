@@ -188,7 +188,13 @@ for (const layout of ["Covers", "Compact rows"] as const) {
           expect(returned.focused, facts).toBe(true);
           expect(returned.query, facts).toBe(before.query);
           expect(returned.filter, facts).toBe(before.filter);
-          expect(Math.abs(returned.scroll - before.scroll), facts).toBeLessThanOrEqual(2);
+          // Completion keeps visible feedback above the collection. Compensate
+          // its document offset while retaining the same visible pixels.
+          const contentShift = returned.originDocumentTop - before.originDocumentTop;
+          expect(
+            Math.abs(returned.scroll - before.scroll - contentShift),
+            facts,
+          ).toBeLessThanOrEqual(2);
           expect(Math.abs(returned.originTop - before.originTop), facts).toBeLessThanOrEqual(2);
           expect(launch).toHaveBeenCalledOnce();
         });

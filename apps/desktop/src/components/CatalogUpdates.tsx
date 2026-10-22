@@ -124,6 +124,7 @@ function CatalogUpdatesDialog({
   close: () => void;
   onChanged?: (() => Promise<unknown>) | undefined;
 }) {
+  const heading = useRef<HTMLHeadingElement>(null);
   const [status, setStatus] = useState<CatalogStatus>();
   const [busy, setBusy] = useState("Loading catalog settings…");
   const [error, setError] = useState<string>();
@@ -193,6 +194,7 @@ function CatalogUpdatesDialog({
       }}
     >
       <DialogContent
+        initialFocus={heading}
         showCloseButton={false}
         reviewSize="wide"
         className="catalog-update-dialog"
@@ -201,7 +203,7 @@ function CatalogUpdatesDialog({
         <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
           CATALOG
         </p>
-        <DialogTitle id="catalog-update-title" className="mb-2 text-xl">
+        <DialogTitle ref={heading} tabIndex={-1} id="catalog-update-title" className="mb-2 text-xl">
           Manage catalog updates
         </DialogTitle>
         <DialogDescription id="catalog-update-description" className="mb-4 leading-relaxed">
@@ -309,7 +311,6 @@ function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
       <div className="flex items-stretch gap-2 [&_input]:min-w-0">
         <Input
           data-focusable
-          data-autofocus={status.trusted_keys.length === 0 || undefined}
           id="catalog-public-key"
           autoComplete="off"
           value={publicKey}
@@ -390,7 +391,6 @@ function CatalogReview({
       <div className="flex items-stretch gap-2 [&_input]:min-w-0">
         <Input
           data-focusable
-          data-autofocus={status.trusted_keys.length > 0 || undefined}
           id="catalog-update-location"
           value={location}
           disabled={Boolean(busy)}

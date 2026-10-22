@@ -138,6 +138,7 @@ import {
   captureAccessibilityReport,
   clickVisible,
   chooseGameUpdateDisposition,
+  selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
 import { readinessScenario } from "./desktop-readiness-test.mts";
 import { steamEntryScenario } from "./desktop-steam-entry-test.mts";
@@ -217,31 +218,35 @@ const updateReviewWindows = [
 ];
 
 async function openUpdateTheme(browser: WebDriver, theme: string) {
-  await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+  await selectPrimaryNavigation(browser, "Settings");
   await browser
     .findElement(
       By.css('nav[aria-label="Settings categories"] button[aria-controls="settings-appearance"]'),
     )
     .click();
   await browser
-    .findElement(By.xpath(`//button[normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`))
+    .findElement(
+      By.xpath(
+        `//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`,
+      ),
+    )
     .click();
   assert.equal(
     await executeBrowserScript(browser, () => document.documentElement.dataset.theme),
     theme,
   );
-  await browser
-    .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Activity"]]'))
-    .click();
+  await selectPrimaryNavigation(browser, "Activity");
   await selectActivitySection(browser, "Updates");
 }
 
 async function selectActivitySection(browser: WebDriver, label: "Updates" | "Tasks & history") {
   const button = await browser.findElement(
-    By.xpath(`//nav[@aria-label="Activity sections"]//button[normalize-space(.)="${label}"]`),
+    By.xpath(
+      `//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and normalize-space(.)="${label}"]`,
+    ),
   );
   await clickVisible(browser, button);
-  await browser.wait(async () => (await button.getAttribute("aria-pressed")) === "true", 5000);
+  await browser.wait(async () => (await button.getAttribute("aria-selected")) === "true", 5000);
 }
 
 async function assertIndividualUpdateFailure({
@@ -1014,32 +1019,78 @@ export async function preparationScenarios({
       15_000,
     );
     await dismissApplicationUpdateChoice();
-    await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
+    await selectPrimaryNavigation(browser, "Library");
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await search.sendKeys(
       Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
       Key.BACK_SPACE,
     );
-    await clickVisible(
-      browser,
-      await browser.wait(
-        until.elementLocated(
-          By.xpath(
-            '//div[@aria-label="Library filters"]//button[starts-with(normalize-space(.),"All (")]',
-          ),
-        ),
-        15_000,
-      ),
+    const filters = await browser.wait(
+      until.elementLocated(By.css('[aria-label="Library filters"]')),
+      15_000,
     );
+    const allButtons = await filters.findElements(
+      By.xpath('.//button[not(@role="combobox")][starts-with(normalize-space(.),"All (")]'),
+    );
+    let visibleAll: WebElement | undefined;
+    for (const candidate of allButtons) if (await candidate.isDisplayed()) visibleAll = candidate;
+    if (visibleAll) await clickVisible(browser, visibleAll);
+    else {
+      const { picker, list, listId } = await openReadinessOptions(filters);
+      const all = await list.findElement(
+        By.xpath('.//*[@role="option"][starts-with(normalize-space(.),"All (")]'),
+      );
+      await clickVisible(browser, all);
+      await waitReadinessClosed(picker, listId);
+    }
     for (const favorite of await browser.findElements(
       By.css('[data-favorites-filter][aria-pressed="true"]'),
     ))
       await clickVisible(browser, favorite);
     const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);
     await browser.wait(until.elementLocated(card), 15_000);
-    await browser.findElement(card).click();
+    await clickVisible(browser, await browser.findElement(card));
     if (waitForPreparation)
       await browser.wait(until.elementLocated(button("Review game preparation")), 15_000);
+  }
+  async function openReadinessOptions(filters: WebElement) {
+    const picker = await filters.findElement(By.css('[role="combobox"]'));
+    assert.match(await picker.getAccessibleName(), /^Readiness\s/u);
+    await clickVisible(browser, picker);
+    await browser.wait(async () => Boolean(await picker.getAttribute("aria-controls")), 5_000);
+    const listId = await picker.getAttribute("aria-controls");
+    assert.ok(listId, "The readiness picker must name its owned listbox");
+    const list = await browser.wait(until.elementLocated(By.id(listId)), 5_000);
+    assert.equal(await list.getAttribute("role"), "listbox");
+    return { picker, list, listId };
+  }
+  async function waitReadinessClosed(picker: WebElement, listId: string) {
+    // Base UI may retain a hidden item collection for typeahead. Require its
+    // owned popup to finish closing and its sibling shield to stop intercepting.
+    await browser.wait(
+      async () =>
+        (await picker.getAttribute("aria-expanded")) === "false" &&
+        (await executeBrowserScript(
+          browser,
+          (id) => {
+            const list = document.getElementById(id);
+            if (!list) return true;
+            const popup = list.closest('[data-slot="select-content"]');
+            const shield = popup?.parentElement?.previousElementSibling;
+            const blocked =
+              shield?.hasAttribute("data-base-ui-inert") &&
+              !shield.hasAttribute("inert") &&
+              shield.getClientRects().length > 0 &&
+              getComputedStyle(shield).pointerEvents !== "none";
+            return Boolean(
+              popup?.hasAttribute("data-closed") && list.getClientRects().length === 0 && !blocked,
+            );
+          },
+          listId,
+        )),
+      5_000,
+      "The readiness listbox must finish closing before workspace interaction",
+    );
   }
   async function status(portId: string) {
     const result = await invoke("get_statuses");
@@ -1072,6 +1123,7 @@ export async function preparationScenarios({
     assert.ok(preparationHierarchy.owner?.startsWith(`${port.id}:`));
     const outputLocationInput = await browser.findElement(By.id(`output-location-path-${port.id}`));
     const reviewedOutput = path.join(output, "reviewed-future-output");
+    await clickVisible(browser, outputLocationInput);
     await outputLocationInput.sendKeys(
       Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
       reviewedOutput,
@@ -1388,15 +1440,28 @@ export async function preparationScenarios({
       (item) => item.active || item.external_runtime,
     ).length;
     const libraryFilters = await browser.findElement(By.css('[aria-label="Library filters"]'));
+    const readinessButtons = await libraryFilters.findElements(
+      By.xpath('.//button[not(@role="combobox")][starts-with(normalize-space(.),"All (")]'),
+    );
+    const wideReadiness = (
+      await Promise.all(readinessButtons.map((filter) => filter.isDisplayed()))
+    ).some(Boolean);
+    const compactReadiness = wideReadiness ? undefined : await openReadinessOptions(libraryFilters);
     for (const label of [
       `All (${installedCount})`,
       `Ready (${installedCount})`,
       "Needs attention (0)",
     ]) {
-      const filter = await libraryFilters.findElement(
-        By.xpath(`.//button[normalize-space(.)="${label}"]`),
-      );
+      const filter = compactReadiness
+        ? await compactReadiness.list.findElement(
+            By.xpath(`.//*[@role="option"][normalize-space(.)="${label}"]`),
+          )
+        : await libraryFilters.findElement(By.xpath(`.//button[normalize-space(.)="${label}"]`));
       assert.equal(await filter.isDisplayed(), true, label);
+    }
+    if (compactReadiness) {
+      await browser.actions().sendKeys(Key.ESCAPE).perform();
+      await waitReadinessClosed(compactReadiness.picker, compactReadiness.listId);
     }
     const card = await browser.wait(
       until.elementLocated(By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`)),

@@ -34,6 +34,25 @@ export async function interfaceSizeScenario(context: Context) {
         preference: localStorage.getItem("portcove.appearance.interface-size"),
       }));
     const observations: (Awaited<ReturnType<typeof measure>> & { size: number })[] = [];
+    const sizePicker = async () => {
+      const candidates = await context.browser().findElements(By.css('[role="combobox"]'));
+      const matches: WebElement[] = [];
+      for (const candidate of candidates) {
+        if (
+          (await candidate.isDisplayed()) &&
+          /^Interface size \d+%$/u.test(
+            (await candidate.getAccessibleName()).replace(/\s+/gu, " ").trim(),
+          )
+        )
+          matches.push(candidate);
+      }
+      assert.equal(
+        matches.length,
+        1,
+        "Exactly one visible combobox must be labelled Interface size with its selected percentage",
+      );
+      return matches[0]!;
+    };
     let attemptedSize = 100;
     const browser = context.browser();
     const originalWindow = await browser.manage().window().getRect();
@@ -63,9 +82,7 @@ export async function interfaceSizeScenario(context: Context) {
     };
     const select = async (size: number) => {
       attemptedSize = size;
-      const picker = await context
-        .browser()
-        .findElement(By.xpath('//*[@role="combobox"][contains(.,"Interface size")]'));
+      const picker = await sizePicker();
       await executeBrowserScript(
         context.browser(),
         (element) => {
@@ -74,16 +91,25 @@ export async function interfaceSizeScenario(context: Context) {
         picker,
       );
       await picker.click();
-      await context.browser().wait(until.elementLocated(By.css('[role="listbox"]')), 5000);
-      await context.browser().wait(
-        () =>
-          executeBrowserScript(context.browser(), () => {
-            const list = document.querySelector('[role="listbox"]');
-            return !!list?.contains(document.activeElement);
-          }),
-        5000,
-        "Interface-size popup must own focus before keyboard selection",
-      );
+      await context
+        .browser()
+        .wait(async () => Boolean(await picker.getAttribute("aria-controls")), 5000);
+      const listId = await picker.getAttribute("aria-controls");
+      assert.ok(listId, "Interface-size control must identify its popup");
+      const list = await context.browser().wait(until.elementLocated(By.id(listId)), 5000);
+      assert.equal(await list.getAttribute("role"), "listbox");
+      await context
+        .browser()
+        .wait(
+          () =>
+            executeBrowserScript(
+              context.browser(),
+              (element) => element.contains(document.activeElement),
+              list,
+            ),
+          5000,
+          "Interface-size popup must own focus before keyboard selection",
+        );
       await context.browser().actions().sendKeys(Key.HOME).perform();
       const highlighted = (expected: number) =>
         context
@@ -92,10 +118,11 @@ export async function interfaceSizeScenario(context: Context) {
             () =>
               executeBrowserScript(
                 context.browser(),
-                (label) =>
-                  document
+                (element, label) =>
+                  element
                     .querySelector('[role="option"][data-highlighted]')
                     ?.textContent?.trim() === label,
+                list,
                 `${expected}%`,
               ),
             5000,
@@ -112,9 +139,7 @@ export async function interfaceSizeScenario(context: Context) {
       return settled(size);
     };
     const capturePicker = async (name: string) => {
-      const picker = await context
-        .browser()
-        .findElement(By.xpath('//*[@role="combobox"][contains(.,"Interface size")]'));
+      const picker = await sizePicker();
       await context.captureTarget(name, picker);
     };
     try {
@@ -127,16 +152,18 @@ export async function interfaceSizeScenario(context: Context) {
           if (size === 300) await capturePicker(`interface-size-${theme}-300-320css`);
         }
         const enlarged = await settled(400);
-        const lines = await executeBrowserScript(context.browser(), () => {
-          const picker = [...document.querySelectorAll('[role="combobox"]')].find((element) =>
-            element.textContent?.includes("Interface size"),
-          )!;
-          const value = picker.querySelector('[data-slot="select-value"]')!;
-          const text = document.createTreeWalker(value, NodeFilter.SHOW_TEXT).nextNode()!;
-          const range = document.createRange();
-          range.selectNodeContents(text);
-          return { text: value.textContent, lines: range.getClientRects().length };
-        });
+        const picker = await sizePicker();
+        const lines = await executeBrowserScript(
+          context.browser(),
+          (element) => {
+            const value = element.querySelector('[data-slot="select-value"]')!;
+            const text = document.createTreeWalker(value, NodeFilter.SHOW_TEXT).nextNode()!;
+            const range = document.createRange();
+            range.selectNodeContents(text);
+            return { text: value.textContent, lines: range.getClientRects().length };
+          },
+          picker,
+        );
         assert.deepEqual(lines, { text: "400%", lines: 1 });
         assert.ok(enlarged.width <= 240 && enlarged.height <= 160, JSON.stringify(enlarged));
         await capturePicker(`interface-size-${theme}-400-minimum-window`);

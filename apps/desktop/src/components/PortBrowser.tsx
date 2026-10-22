@@ -53,6 +53,7 @@ import type { NativeSourceDragState } from "../native-source-drop";
 import { ArtworkImage, ArtworkFrame, artworkDisplayNotice } from "./Artwork";
 import { useArtwork, useArtworkVisibility } from "../artwork";
 import { Button } from "./ui/button";
+import { Tooltip } from "./ui/tooltip";
 import { Menu } from "@base-ui/react/menu";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { SteamBatchEntryDialog } from "./SteamEntry";
@@ -662,7 +663,7 @@ function BrowserResults({
       className={
         view === "library"
           ? `port-grid collection-${layout} @container/collection grid w-full ${layout === "rows" ? "gap-0" : "gap-4"}`
-          : "port-grid @container/collection grid w-full grid-cols-[repeat(auto-fill,minmax(min(100%,12.5rem),13.75rem))] gap-4"
+          : "port-grid collection-covers @container/collection grid w-full"
       }
       aria-label={view === "library" ? "Library entries" : "Find games entries"}
       data-focus-group
@@ -912,7 +913,7 @@ function PortCard({
   const dropEligible = nativeSourceDrag.active && Boolean(port.source_profile);
   const dropTarget = dropEligible && nativeSourceDrag.targetPortId === port.id;
   const detailOrigin = `${view}:card:${port.id}`;
-  const className = `port-card @container/card relative isolate flex min-w-0 flex-col overflow-hidden rounded-pc-lg border border-pc-border bg-pc-surface p-0 text-start text-pc-foreground shadow-(--shadow-control) transition-[border-color,box-shadow,background-color] duration-(--duration-slow) ease-(--ease-emphasized) hover:border-[var(--color-interactive-border)] hover:shadow-(--shadow-raised) focus-within:border-[var(--color-interactive-border)] motion-reduce:transition-none ${view === "catalog" ? "port-card-selectable cursor-pointer" : "port-card-library"}${dropEligible ? " source-drop-eligible border-[var(--color-interactive-border)]" : ""}${dropTarget ? " source-drop-targeted outline-3 outline-solid outline-pc-ring outline-offset-2" : ""}`;
+  const className = `port-card catalog-card collection-cover @container/card relative isolate flex min-w-0 flex-col p-0 text-start text-pc-foreground transition-colors duration-(--duration-fast) hover:text-pc-interactive-foreground motion-reduce:transition-none ${view === "catalog" ? "port-card-selectable cursor-pointer" : "port-card-library"}${dropEligible ? " source-drop-eligible" : ""}${dropTarget ? " source-drop-targeted outline-3 outline-solid outline-pc-ring outline-offset-2" : ""}`;
   const contents = (
     <PortCardContents
       {...{
@@ -936,26 +937,30 @@ function PortCard({
   );
   const renderFavoriteToggle = () =>
     favorites && (
-      <Button
-        data-focusable
-        variant={favorites.ids?.has(port.id) ? "selected" : "outline"}
-        size="icon-sm"
-        className={cn(
-          view === "library" ? "shrink-0" : "absolute end-4 bottom-4 z-10 bg-pc-surface",
-        )}
-        aria-label={`Favorite ${gameIdentityLabel(port)}`}
-        aria-pressed={favorites.ids?.has(port.id) ?? false}
-        disabled={!favorites.ids}
-        aria-disabled={favorites.busy}
-        onClick={(event) => onFavoriteToggle(port.id, event.currentTarget)}
-      >
-        <span className={favorites.ids?.has(port.id) ? "[&_.icon]:fill-current" : undefined}>
-          <Icon glyph={Star} size="sm" />
-        </span>
-        <span className="sr-only">
-          {favorites.ids?.has(port.id) ? "Remove favorite" : "Add favorite"}
-        </span>
-      </Button>
+      <Tooltip label={favorites.ids?.has(port.id) ? "Remove favorite" : "Add favorite"}>
+        <Button
+          data-focusable
+          variant={favorites.ids?.has(port.id) ? "selected" : "outline"}
+          size="icon-sm"
+          className={cn(
+            view === "library"
+              ? "shrink-0"
+              : "absolute [inset-inline-start:calc(min(100%,var(--collection-art-limit))_-_2rem)] bottom-0 z-10 bg-pc-surface",
+          )}
+          aria-label={`Favorite ${gameIdentityLabel(port)}`}
+          aria-pressed={favorites.ids?.has(port.id) ?? false}
+          disabled={!favorites.ids}
+          aria-disabled={favorites.busy}
+          onClick={(event) => onFavoriteToggle(port.id, event.currentTarget)}
+        >
+          <span className={favorites.ids?.has(port.id) ? "[&_.icon]:fill-current" : undefined}>
+            <Icon glyph={Star} size="sm" />
+          </span>
+          <span className="sr-only">
+            {favorites.ids?.has(port.id) ? "Remove favorite" : "Add favorite"}
+          </span>
+        </Button>
+      </Tooltip>
     );
   const favoriteToggle = renderFavoriteToggle();
   if (view === "library")
@@ -984,10 +989,7 @@ function PortCard({
       <button
         data-focusable
         data-detail-origin={detailOrigin}
-        className={cn(
-          `${className} h-full w-full`,
-          "active:[transform:translateY(1px)] active:bg-[var(--color-bg-hover)] active:shadow-[var(--shadow-pressed)]",
-        )}
+        className={cn(`${className} h-full w-full`, controlFocus)}
         aria-describedby={setup || input ? setupDescriptionId : undefined}
         onClick={() => onSelect(port.id, detailOrigin)}
         data-source-drop-port-id={dropEligible ? port.id : undefined}
@@ -1001,7 +1003,7 @@ function PortCard({
 }
 
 const cardBadgeClass =
-  "rounded-full bg-[var(--color-bg-subtle-hover)] px-[7px] py-1 text-[length:var(--text-2xs)] text-[var(--color-text-secondary)]";
+  "rounded-full bg-[var(--color-bg-subtle-hover)] px-2 py-1 text-xs text-[var(--color-text-secondary)]";
 
 function LibraryEntry({
   port,
@@ -1078,7 +1080,7 @@ function LibraryEntry({
         <span
           className={cn(
             `readiness ${state.tone} inline-flex items-start gap-1.5 font-medium`,
-            "[&.ready]:text-pc-success-foreground [&.setup]:text-pc-warning-foreground [&.staged]:text-pc-interactive-foreground",
+            "[&.ready]:text-pc-muted-foreground [&.setup]:text-pc-warning-foreground [&.staged]:text-pc-interactive-foreground",
           )}
         >
           <Icon glyph={state.tone === "ready" ? CheckCircle2 : Wrench} size="sm" />
@@ -1169,17 +1171,17 @@ function PortCardContents({
 }) {
   const renderTitle = () => (
     <div className="flex items-start justify-between gap-2">
-      <h2 className="m-0 text-base leading-[1.2]">
+      <h2 className="collection-title text-base leading-snug font-semibold wrap-anywhere">
         <span>{gameTitle(port)}</span>
       </h2>
     </div>
   );
   const renderStateLabel = () => (
-    <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="collection-state flex flex-wrap items-center justify-between gap-2">
       <span
         className={cn(
           `readiness ${state.tone} inline-flex min-h-8 items-center gap-[6px] text-xs font-semibold text-[var(--color-text-secondary)]`,
-          "[&.ready]:text-[var(--color-success-text-raised)] [&.setup]:text-[var(--color-warning-text)] [&.staged]:text-[var(--color-interactive-text-strong)]",
+          "[&.ready]:text-pc-muted-foreground [&.setup]:text-[var(--color-warning-text)] [&.staged]:text-[var(--color-interactive-text-strong)]",
         )}
       >
         <i className="size-[6px] rounded-full border border-current bg-current" />
@@ -1216,15 +1218,15 @@ function PortCardContents({
       <ArtworkImage
         port={port}
         quietFallback
-        className="card-art relative mx-auto aspect-2/3 w-full max-w-[160px] shrink-0 overflow-hidden @max-[60rem]/collection:max-w-[120px]"
+        className="card-art collection-art relative shrink-0 overflow-hidden"
       />
-      <div className="card-content flex min-w-0 flex-1 flex-col gap-2 p-4 wrap-anywhere">
+      <div className="card-content flex min-w-0 flex-1 flex-col gap-2 wrap-anywhere">
         {renderTitle()}
         <p
-          className="m-0 min-h-[1.5em] text-xs leading-normal text-pc-muted-foreground"
+          className="collection-project m-0 min-h-[1.5em] text-sm leading-normal text-pc-muted-foreground"
           title={gameProjectLabel(port) ? port.name : undefined}
         >
-          <span>{gameProjectLabel(port) ? port.name : undefined}</span>
+          <span>Port: {gameProjectLabel(port) ?? port.name}</span>
         </p>
         {stateLabel}
         {setup && (
@@ -1289,7 +1291,7 @@ function PortCardContents({
               {port.platforms.map((platform) => (
                 <span
                   key={platform}
-                  className="rounded-pc-sm bg-[var(--color-bg-subtle-hover)] px-[6px] py-[3px] text-[length:var(--text-2xs)] text-[var(--color-text-secondary)]"
+                  className="rounded-pc-sm bg-[var(--color-bg-subtle-hover)] px-1.5 py-1 text-xs text-[var(--color-text-secondary)]"
                 >
                   {platformLabel(platform)}
                 </span>
@@ -1384,19 +1386,21 @@ function PortCardStatus({
           )}
           {favoriteToggle}
           <Menu.Root>
-            <Menu.Trigger
-              render={
-                <Button
-                  data-focusable
-                  data-detail-origin={overflowOrigin}
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`More actions for ${gameIdentityLabel(port)}`}
-                >
-                  <Icon glyph={MoreHorizontal} size="sm" />
-                </Button>
-              }
-            />
+            <Tooltip label="More actions">
+              <Menu.Trigger
+                render={
+                  <Button
+                    data-focusable
+                    data-detail-origin={overflowOrigin}
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`More actions for ${gameIdentityLabel(port)}`}
+                  >
+                    <Icon glyph={MoreHorizontal} size="sm" />
+                  </Button>
+                }
+              />
+            </Tooltip>
             <Menu.Portal>
               <Menu.Positioner
                 side="bottom"

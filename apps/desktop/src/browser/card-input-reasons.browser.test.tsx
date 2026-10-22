@@ -123,6 +123,11 @@ afterEach(() => {
   host.remove();
   delete document.documentElement.dataset.theme;
 });
+function gameCard(view: "library" | "catalog", name: string) {
+  return page.getByRole(view === "library" ? "article" : "button").filter({
+    has: page.getByRole("heading", { name, exact: true }),
+  });
+}
 it("keeps a legacy required-input card unconfirmed when health and assessment are absent", async () => {
   const port = { ...portDefinition(), source_profile: "original" };
   const status = {
@@ -163,11 +168,10 @@ it.each([
     document.documentElement.dataset.theme = theme;
     flushSync(() => root.render(<Fixture view={view} />));
     for (const [name, label, , reason] of cases) {
-      const card = page.getByRole(view === "library" ? "article" : "button", {
-        name: new RegExp(
-          view === "library" ? `^${name}\\. ${label}\\.` : `^${name}\\s+${label}\\b`,
-        ),
-      });
+      const card = gameCard(view, name);
+      await expect.element(card).toHaveAccessibleName(new RegExp(`^${name}\\b`));
+      await expect.element(card).toHaveAccessibleName(new RegExp(`\\b${label}\\b`));
+      expect(card.element().querySelector(".readiness")?.textContent?.trim()).toBe(label);
       await expect.element(card).toMatchTextContent(reason);
       await expect.element(card).toHaveAccessibleDescription(new RegExp(reason));
       await expect.element(card).toMatchTextContent("Release channel: Preview");
@@ -190,21 +194,11 @@ it.each([
       await userEvent.click(page.getByRole("button", { name: "Back to cards", exact: true }));
     }
     await expect
-      .element(
-        page.getByRole(view === "library" ? "article" : "button", {
-          name:
-            view === "library"
-              ? /^Unknown\. Readiness unavailable\./
-              : /^Unknown\s+Readiness unavailable\b/,
-        }),
-      )
-      .toBeInTheDocument();
+      .element(gameCard(view, "Unknown"))
+      .toHaveAccessibleName(/\bReadiness unavailable\b/);
     for (const name of ["Ready", "Staged ready"]) {
-      const card = page.getByRole(view === "library" ? "article" : "button", {
-        name: new RegExp(
-          view === "library" ? `^${name}\\. Ready to play\\.` : `^${name}\\s+Ready to play\\b`,
-        ),
-      });
+      const card = gameCard(view, name);
+      expect(card.element().querySelector(".readiness")?.textContent?.trim()).toBe("Ready to play");
       await expect.element(card).not.toHaveAccessibleDescription();
       const play = card.getByRole("button", { name: "Play", exact: true });
       await expect

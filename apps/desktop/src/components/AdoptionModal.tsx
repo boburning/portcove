@@ -36,6 +36,7 @@ export function AdoptionModal({
     if (!applying) close();
   };
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const pathInput = useRef<HTMLInputElement>(null);
   const portIdentityRef = useRef<HTMLParagraphElement>(null);
   const pendingCandidate = useRef<{ path: string; id: string } | null>(null);
   useEffect(() => {
@@ -60,6 +61,7 @@ export function AdoptionModal({
       }}
     >
       <DialogContent
+        initialFocus={() => (preview || busy || applying ? titleRef.current : pathInput.current)}
         showCloseButton={false}
         reviewSize="compact"
         aria-describedby="adopt-description"
@@ -92,7 +94,7 @@ export function AdoptionModal({
         <label htmlFor="adopt-path">Existing installation folder</label>
         <div className="flex items-stretch gap-2 [&_input]:min-w-0">
           <Input
-            data-autofocus
+            ref={pathInput}
             data-focusable
             id="adopt-path"
             value={path}

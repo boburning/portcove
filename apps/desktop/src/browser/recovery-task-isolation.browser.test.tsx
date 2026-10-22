@@ -7,6 +7,7 @@ import { installInteractiveTransport } from "../dev-scenarios/interactive/transp
 import { doctor, preparation } from "../dev-scenarios/interactive/scenarios";
 import { initializeLocalization, LocalizationProvider } from "../localization";
 import type { PreparationCleanupPreview } from "../types";
+import { navigateTo } from "../../test/primary-navigation";
 import "../styles/index.css";
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
@@ -111,7 +112,7 @@ it("keeps another port's retained cleanup identity through cancelled review and 
     retained.logs_path,
   ];
   const openRetained = async () => {
-    await page.getByRole("button", { name: /^Activity/ }).click();
+    await navigateTo("Activity");
     const summary = page.getByText("Orchard Quest · Unfinished setup files", { exact: true });
     if (!summary.element().closest("details")?.open) await summary.click();
     expect(
@@ -138,7 +139,7 @@ it("keeps another port's retained cleanup identity through cancelled review and 
     return dialog;
   };
   const openOther = async () => {
-    await page.getByRole("button", { name: /^Library/ }).click();
+    await navigateTo("Library");
     await page
       .getByRole("button", {
         name: "View details for Harbor Adventure Port: Harbor Adventure",

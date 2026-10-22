@@ -2,6 +2,7 @@ import { controlledAct as act } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../../api";
 import { portDefinition, portStatus } from "../../test-fixtures";
 import type { DesktopError, GameUpdatePlan, InstallRecord } from "../../types";
@@ -139,7 +140,7 @@ it("edits locally until Save and never reviews or runs an update when saving", a
   const review = vi.spyOn(desktopApi, "planGameUpdate");
   const apply = vi.spyOn(desktopApi, "applyGameUpdate");
   await root.rerender(<UpdatePolicyControl policy="notify" busy={false} save={save} />);
-  await click("Game update behavior", true);
+  await page.getByRole("combobox", { name: /^Game update behavior/ }).click();
   await click("Install when I run updates");
   expect(save).not.toHaveBeenCalled();
   await click("Save update settings");
@@ -152,7 +153,7 @@ it("edits locally until Save and never reviews or runs an update when saving", a
 it("does not report a settings save as successful after failure", async () => {
   const save = vi.fn().mockRejectedValue(new Error("Library changed"));
   await root.rerender(<UpdatePolicyControl policy="notify" busy={false} save={save} />);
-  await click("Game update behavior", true);
+  await page.getByRole("combobox", { name: /^Game update behavior/ }).click();
   await click("Keep update for later");
   await click("Save update settings");
   expect(container.textContent).toContain("Library changed");
@@ -171,14 +172,14 @@ it("reviews without execution and submits the exact download-only plan on confir
       perform={perform}
     />,
   );
-  await click("What would you like to do?", true);
+  await page.getByRole("combobox", { name: /^What would you like to do\?/ }).click();
   await click("Download for later");
   await click("Review game update");
   expect(apply).not.toHaveBeenCalled();
   expect(desktopApi.planGameUpdate).toHaveBeenCalledExactlyOnceWith("sample", false, 9);
   expect(dialog()?.textContent).toContain("to download");
   expect(dialog()?.textContent).toContain("current version stays unchanged");
-  expect(document.activeElement?.textContent).toBe("Download update for later");
+  expect(document.activeElement).toBe(dialog()?.querySelector('[data-slot="dialog-title"]'));
   await click("Download update for later");
   expect(apply).toHaveBeenCalledExactlyOnceWith(
     "sample",
@@ -495,7 +496,7 @@ it("requires another review when the chosen action changes and binds activation 
   );
   expect(container.textContent).not.toContain("This update");
   expect(document.body.textContent).not.toContain("Review install now");
-  await click("What would you like to do?", true);
+  await page.getByRole("combobox", { name: /^What would you like to do\?/ }).click();
   await click("Download for later");
   await click("Review game update");
   expect(dialog()?.textContent).toContain("2.0");

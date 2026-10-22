@@ -37,18 +37,23 @@ it("announces repeated task outcomes without creating duplicate landmarks", asyn
   }
   try {
     await act(async () => root.render(<Fixture />));
+    const announcedIds = new Set<string>();
     for (let attempt = 0; attempt < 2; attempt++) {
       await act(async () => {
         await state.perform("review install", async () => undefined);
       });
+      const announcements = [...host.querySelectorAll('[role="status"]')];
+      expect(announcements).toHaveLength(1);
+      expect(announcements[0]?.textContent).toContain("finished");
+      const id = announcements[0]
+        ?.closest("[data-invocation-id]")
+        ?.getAttribute("data-invocation-id");
+      expect(id).toBeTruthy();
+      expect(announcedIds.has(id!)).toBe(false);
+      announcedIds.add(id!);
     }
     expect(host.querySelectorAll('[data-invocation-id][role="group"]').length).toBe(2);
-    const announcements = [...host.querySelectorAll('[role="status"]')];
-    expect(announcements).toHaveLength(2);
-    expect(announcements.map((node) => node.textContent)).toEqual([
-      expect.stringContaining("finished"),
-      expect.stringContaining("finished"),
-    ]);
+    expect(announcedIds.size).toBe(2);
     const report = await axe.run(host, {
       runOnly: { type: "rule", values: ["landmark-unique"] },
     });

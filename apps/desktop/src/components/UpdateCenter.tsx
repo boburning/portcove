@@ -7,6 +7,7 @@ import { focusAndReveal } from "../focus";
 import { gameIdentityLabel, gameTitle, gameProjectLabel } from "../port-identity";
 import { controlFocus } from "./ui/control-style";
 import { cn } from "cn";
+import { Tabs } from "@base-ui/react/tabs";
 import type { DetailDestination } from "../view-model";
 import {
   activityHistoryPreview,
@@ -164,7 +165,6 @@ export function UpdateCenter({
   const operationOwner = useOperationPresentation();
   const [localSection, setLocalSection] = useState<"tasks" | "updates">("tasks");
   const selectedSection = section ?? localSection;
-  const panelId = useId();
   const earlierBatch =
     batchRead !== undefined && ["pending", "failed", "cancelled"].includes(batchRead.status);
   const [nowSeconds, setNowSeconds] = useState(initialActivityNowSeconds);
@@ -241,34 +241,33 @@ export function UpdateCenter({
     </div>
   );
   return (
-    <section className="update-center">
-      <nav aria-label="Activity sections" className="mb-4 flex flex-wrap gap-2">
+    <Tabs.Root
+      render={<section className="update-center" />}
+      value={selectedSection}
+      onValueChange={(value: unknown) => {
+        if (value !== "tasks" && value !== "updates") return;
+        setLocalSection(value);
+        onSectionChange?.(value);
+      }}
+    >
+      <Tabs.List aria-label="Activity sections" className="mb-4 flex flex-wrap gap-2">
         {(
           [
             ["tasks", "Tasks & history"],
             ["updates", "Updates"],
           ] as const
         ).map(([value, label]) => (
-          <Button
+          <Tabs.Tab
             key={value}
+            value={value}
             data-focusable
-            variant={selectedSection === value ? "selected" : "outline"}
-            aria-pressed={selectedSection === value}
-            aria-controls={`${panelId}-${value}`}
-            onClick={() => {
-              setLocalSection(value);
-              onSectionChange?.(value);
-            }}
+            render={<Button variant={selectedSection === value ? "selected" : "outline"} />}
           >
             {label}
-          </Button>
+          </Tabs.Tab>
         ))}
-      </nav>
-      <section
-        id={`${panelId}-updates`}
-        aria-label="Game updates"
-        hidden={selectedSection !== "updates"}
-      >
+      </Tabs.List>
+      <Tabs.Panel value="updates" keepMounted aria-label="Game updates">
         <h2 className="mb-3 text-xl">Updates</h2>
         <div
           className="update-toolbar mb-3.5 flex flex-wrap items-stretch justify-between gap-5 max-[75rem]:flex-col max-[75rem]:items-start"
@@ -407,7 +406,7 @@ export function UpdateCenter({
                       <small className="block text-xs text-pc-muted-foreground">
                         {gameProjectLabel(port)}
                       </small>
-                      <small className="mt-1 block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
+                      <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
                         {releaseChannelPresentation(status.channel).label} ·{" "}
                         {policyLabel(status.update_policy)}
                       </small>
@@ -483,7 +482,7 @@ export function UpdateCenter({
                       <small className="block text-xs text-pc-muted-foreground">
                         {gameProjectLabel(port)}
                       </small>
-                      <small className="mt-1 block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
+                      <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
                         Registered user-prepared runtime
                       </small>
                     </div>
@@ -506,12 +505,8 @@ export function UpdateCenter({
             </div>
           </section>
         )}
-      </section>
-      <section
-        id={`${panelId}-tasks`}
-        aria-label="Tasks and history"
-        hidden={selectedSection !== "tasks"}
-      >
+      </Tabs.Panel>
+      <Tabs.Panel value="tasks" keepMounted aria-label="Tasks and history">
         <h2 className="mb-3 text-xl">Tasks &amp; history</h2>
         <RecoveryReview
           generation={generation}
@@ -542,8 +537,8 @@ export function UpdateCenter({
           nowSeconds={nowSeconds}
           reviewedActivityId={onReviewActivity ? reviewedActivityId : reviewedActivity?.id}
         />
-      </section>
-    </section>
+      </Tabs.Panel>
+    </Tabs.Root>
   );
 }
 
@@ -807,7 +802,7 @@ function ActivityRow({
         </span>
       </div>
       <span
-        className="activity-time text-end text-[length:var(--text-2xs)] whitespace-nowrap text-pc-muted-foreground max-[65rem]:hidden"
+        className="activity-time text-end text-xs text-pc-muted-foreground max-[65rem]:col-start-2 max-[65rem]:row-start-2 max-[65rem]:text-start"
         title={
           activity.finished_at ? `Finished ${formatActivityTime(activity.finished_at)}` : undefined
         }
@@ -815,7 +810,7 @@ function ActivityRow({
         {presentation.time}
       </span>
       <span
-        className={`activity-status justify-self-end text-xs font-medium whitespace-nowrap max-[65rem]:whitespace-normal ${tone?.status ?? "text-pc-muted-foreground"}`}
+        className={`activity-status justify-self-end text-xs font-medium whitespace-nowrap max-[65rem]:col-start-3 max-[65rem]:row-start-1 max-[65rem]:whitespace-normal ${tone?.status ?? "text-pc-muted-foreground"}`}
       >
         {presentation.label}
       </span>

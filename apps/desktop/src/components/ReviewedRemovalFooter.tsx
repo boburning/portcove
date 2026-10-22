@@ -12,6 +12,7 @@ export function ReviewedRemovalFooter({
   applyLabel,
   applyingLabel,
   canApply = true,
+  cancelRef,
 }: {
   hasPreview: boolean;
   pending?: "review" | "apply" | undefined;
@@ -23,11 +24,12 @@ export function ReviewedRemovalFooter({
   applyLabel: string;
   applyingLabel: string;
   canApply?: boolean | undefined;
+  cancelRef?: React.Ref<HTMLButtonElement>;
 }) {
   return (
     <DialogFooter className="mt-4">
       <Button
-        data-autofocus
+        ref={cancelRef}
         data-focusable
         variant="outline"
         disabled={pending === "apply"}

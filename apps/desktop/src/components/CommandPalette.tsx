@@ -100,7 +100,6 @@ function OpenCommandPalette({
           <input
             className="min-h-[3.25rem] w-full border-0 bg-[var(--color-transparent)] p-0 text-[length:var(--text-md)] text-[var(--color-text)] [outline:0]"
             ref={searchInput}
-            data-autofocus
             data-focusable
             role="combobox"
             aria-expanded={filtered.length > 0}

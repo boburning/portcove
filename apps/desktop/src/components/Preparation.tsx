@@ -166,7 +166,6 @@ export function PreparationControl({
               ref={reviewTitle}
               id="preparation-review-title"
               tabIndex={-1}
-              data-autofocus
               className="mb-2 text-xl"
             >
               Prepare game data

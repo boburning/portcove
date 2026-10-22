@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import type { PortDefinition, PortStatus, SourceRecord, SourceInspectionReport } from "../types";
 import { preliminarySelectionRecord } from "./PreliminarySourceSelections";
 import { Button } from "./ui/button";
+import { Checkbox } from "./ui/checkbox";
 
 export function GameFileSetupReviews({
   ports,
@@ -86,14 +87,16 @@ export function GameFileSetupReviews({
         review; selecting a port does not register files or install anything.
       </p>
       {available.map((port) => (
-        <label key={port.id} className="block">
-          <input
-            type="checkbox"
+        <label
+          key={port.id}
+          className="flex min-h-10 cursor-pointer flex-wrap items-center gap-3 py-2"
+        >
+          <Checkbox
             data-focusable
             data-setup-review-port={port.id}
             checked={selected.includes(port.id)}
             disabled={!selected.includes(port.id) && selected.length >= maxSetupReviewSelection}
-            onChange={() => toggle(port.id)}
+            onCheckedChange={() => toggle(port.id)}
           />
           {port.name} <span className="text-pc-muted-foreground">({port.id})</span>
           {(preliminaryProfiles.has(port.source_profile ?? "") ||

@@ -98,7 +98,13 @@ it.each(["dark", "light"])(
     await expect
       .element(page.getByRole("button", { name: "Favorites (1)", exact: true }))
       .toHaveAttribute("aria-pressed", "true");
-    await userEvent.click(page.getByRole("button", { name: /^One independent port\s+Setup\b/ }));
+    const details = page.getByRole("button").filter({
+      has: page.getByRole("heading", { name: "One independent port", exact: true }),
+    });
+    await expect
+      .element(details)
+      .toHaveAccessibleName(/^One independent port Port: One independent port Setup\b/);
+    await userEvent.click(details);
     await userEvent.click(page.getByRole("button", { name: "Back to ports", exact: true }));
     await expect
       .element(page.getByRole("button", { name: "Favorite One independent port", exact: true }))

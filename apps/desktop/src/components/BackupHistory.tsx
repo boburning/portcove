@@ -241,7 +241,7 @@ export function BackupHistory({
         <span ref={heading} role="heading" aria-level={3} tabIndex={-1}>
           Backups
         </span>
-        <small className="text-[length:var(--text-2xs)] text-[var(--color-text-muted)]">
+        <small className="text-xs text-[var(--color-text-muted)]">
           {backupSummary(backups.length, problems.length, state, readState)}
         </small>
       </div>
@@ -261,7 +261,7 @@ export function BackupHistory({
               <strong className="overflow-hidden text-[length:var(--text-xs)] text-ellipsis whitespace-nowrap">
                 {createdLabel}
               </strong>
-              <small className="mt-[3px] text-[length:var(--text-2xs)] text-[var(--color-text-muted)]">
+              <small className="mt-[3px] text-xs text-[var(--color-text-muted)]">
                 {backup.file_count} {backup.file_count === 1 ? "file" : "files"} ·{" "}
                 {formatBytes(backup.size)}
               </small>
@@ -273,7 +273,7 @@ export function BackupHistory({
               >
                 Technical details
               </summary>
-              <small className="backup-checksum mt-[3px] font-mono text-[length:var(--text-2xs)] [overflow-wrap:anywhere] text-[var(--color-text-muted)]">
+              <small className="backup-checksum mt-[3px] font-mono text-xs [overflow-wrap:anywhere] text-[var(--color-text-muted)]">
                 SHA-256 {backup.sha256}
               </small>
             </details>

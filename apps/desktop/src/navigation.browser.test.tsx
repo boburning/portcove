@@ -5,6 +5,10 @@ import { portStatus } from "./test-fixtures";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { ChoiceSelect } from "./components/ChoiceSelect";
+import { SearchChoice } from "./components/ui/combobox";
+import { RadioGroup } from "@base-ui/react/radio-group";
+import { Radio } from "@base-ui/react/radio";
+import { Tabs } from "@base-ui/react/tabs";
 import { ExternalLink } from "./components/ExternalLink";
 import { Dialog, DialogContent } from "./components/ui/dialog";
 import { desktopApi } from "./api";
@@ -161,6 +165,119 @@ afterEach(async () => {
 });
 
 describe("controller and modal integration", () => {
+  it("uses real virtual-focus combobox navigation and confirmation without changing physical text arrows", async () => {
+    const back = vi.fn();
+    const select = vi.fn();
+    function CompositeFixture() {
+      useGamepadNavigation(back);
+      const [query, setQuery] = useState("");
+      const [value, setValue] = useState("");
+      return (
+        <SearchChoice
+          label="Choose game"
+          options={[
+            { id: "first", label: "First game" },
+            { id: "second", label: "Second game" },
+          ]}
+          query={query}
+          onQueryChange={setQuery}
+          value={value}
+          onChange={(id) => {
+            setValue(id);
+            select(id);
+          }}
+        />
+      );
+    }
+    await root.rerender(<CompositeFixture />);
+    const input = document.querySelector<HTMLInputElement>("[data-controller-combobox]")!;
+    input.focus();
+    const arrow = new KeyboardEvent("keydown", {
+      key: "ArrowRight",
+      bubbles: true,
+      cancelable: true,
+    });
+    input.dispatchEvent(arrow);
+    expect(document.activeElement).toBe(input);
+    expect(arrow.defaultPrevented).toBe(false);
+    await frame([0]);
+    await frame();
+    expect(input.getAttribute("aria-expanded")).toBe("true");
+    expect(document.activeElement).toBe(input);
+    expect(
+      document.getElementById(input.getAttribute("aria-activedescendant")!)?.textContent,
+    ).toContain("First game");
+    await frame([13]);
+    await frame();
+    expect(document.activeElement).toBe(input);
+    expect(
+      document.getElementById(input.getAttribute("aria-activedescendant")!)?.textContent,
+    ).toContain("Second game");
+    await frame([0]);
+    await frame();
+    expect(select).toHaveBeenCalledExactlyOnceWith("second");
+    expect(input.getAttribute("aria-expanded")).toBe("false");
+    expect(document.documentElement.dataset.inputMode).toBe("controller");
+    await frame([0]);
+    await frame();
+    expect(input.getAttribute("aria-expanded")).toBe("true");
+    await frame([1]);
+    await frame();
+    expect(input.getAttribute("aria-expanded")).toBe("false");
+    expect(back).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(input);
+  });
+
+  it("reaches unchecked radio and inactive tab controls with D-pad and confirms them with A", async () => {
+    function ChoiceFixture() {
+      useGamepadNavigation(() => undefined);
+      const [choice, setChoice] = useState("first");
+      return (
+        <>
+          <RadioGroup value={choice} onValueChange={setChoice} aria-label="Theme">
+            <Radio.Root value="first" data-x="0" data-y="0">
+              First
+            </Radio.Root>
+            <Radio.Root value="second" data-x="150" data-y="0">
+              Second
+            </Radio.Root>
+            <Radio.Root value="disabled" disabled data-x="110" data-y="0">
+              Disabled
+            </Radio.Root>
+          </RadioGroup>
+          <Tabs.Root defaultValue="first">
+            <Tabs.List aria-label="Panels">
+              <Tabs.Tab value="first" data-x="0" data-y="100">
+                First panel
+              </Tabs.Tab>
+              <Tabs.Tab value="second" data-x="150" data-y="100">
+                Second panel
+              </Tabs.Tab>
+            </Tabs.List>
+          </Tabs.Root>
+        </>
+      );
+    }
+    await root.rerender(<ChoiceFixture />);
+    const radios = [...document.querySelectorAll<HTMLElement>("[role=radio]")];
+    radios[0]!.focus();
+    await frame([15]);
+    await frame();
+    expect(document.activeElement).toBe(radios[1]);
+    await frame([0]);
+    await frame();
+    expect(radios[1]!.getAttribute("aria-checked")).toBe("true");
+    expect(radios[2]!.getAttribute("aria-checked")).toBe("false");
+    const tabs = [...document.querySelectorAll<HTMLElement>("[role=tab]")];
+    tabs[0]!.focus();
+    await frame([15]);
+    await frame();
+    expect(document.activeElement).toBe(tabs[1]);
+    await frame([0]);
+    await frame();
+    expect(tabs[1]!.getAttribute("aria-selected")).toBe("true");
+  });
+
   it("keeps keyboard navigation and later controller input after an absent Gamepad API", async () => {
     const available = navigator;
     vi.stubGlobal("navigator", {});

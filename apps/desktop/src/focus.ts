@@ -5,7 +5,10 @@ const regionFocus = new WeakMap<HTMLElement, HTMLElement>();
 
 function visibleControl(item: HTMLElement) {
   return (
-    (item.tabIndex >= 0 || item.matches("[role=option], [role=menuitem]")) &&
+    (item.tabIndex >= 0 ||
+      item.matches("[role=option], [role=menuitem]") ||
+      (item.matches("[role=radio], [role=tab]") &&
+        Boolean(item.closest("[role=radiogroup], [role=tablist]")))) &&
     !item.matches(":disabled, [aria-disabled=true]") &&
     !item.closest("[inert], [hidden], [aria-hidden=true]") &&
     item.getClientRects().length > 0 &&
@@ -38,19 +41,26 @@ export function focusRegion(name: "sidebar" | "workspace") {
   const region = document.querySelector<HTMLElement>(`[data-focus-region=${name}]`);
   if (!region) return false;
   const previous = regionFocus.get(region);
+  const controls = focusableControls(region);
   const target =
-    previous && region.contains(previous) && visibleControl(previous)
+    previous && controls.includes(previous)
       ? previous
-      : (region.querySelector<HTMLElement>("[aria-current=page]") ?? focusableControls(region)[0]);
+      : (controls.find((item) => item.getAttribute("aria-current") === "page") ?? controls[0]);
   focusAndReveal(target);
   return Boolean(target);
 }
 
-export function cyclePrimaryNavigation(offset: number) {
+export function cyclePrimaryNavigation(offset: number, navigate?: (offset: number) => void) {
   if (navigationScope() !== document) return;
   const navigation = document.querySelector<HTMLElement>("nav[aria-label='Primary navigation']");
   if (!navigation) return;
   const items = focusableControls(navigation);
+  // Compact navigation exposes a dialog trigger instead of visible destination
+  // controls. Its owning app changes routes through the same callback as clicks.
+  if (items.length === 0) {
+    navigate?.(offset);
+    return;
+  }
   const current = items.findIndex((item) => item.getAttribute("aria-current") === "page");
   const target = items[(current + offset + items.length) % items.length];
   if (target) {
@@ -61,7 +71,9 @@ export function cyclePrimaryNavigation(offset: number) {
 
 export function fieldOwnsArrows(target: HTMLElement | null) {
   return Boolean(
-    target?.closest("input, textarea, select, [contenteditable=true], [role=combobox]"),
+    target?.closest(
+      "input, textarea, select, [contenteditable=true], [role=combobox], [role=radio], [role=tab], [role=menuitem]",
+    ),
   );
 }
 

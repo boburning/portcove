@@ -34,6 +34,7 @@ for (const theme of ["dark", "light"]) {
         <App />
       </LocalizationProvider>,
     );
+    await page.getByRole("button", { name: "Open navigation", exact: true }).click();
     const library = page.getByRole("button", { name: /^Library/ }).element();
     const label = [...library.querySelectorAll("span")].find(
       (item) => item.textContent === "Library",
@@ -47,8 +48,8 @@ for (const theme of ["dark", "light"]) {
     await page.viewport(240, 160);
     for (const name of ["System", "Dark", "Light"]) {
       const button = page
-        .getByRole("group", { name: "Color theme", exact: true })
-        .getByRole("button", { name, exact: true });
+        .getByRole("radiogroup", { name: "Color theme", exact: true })
+        .getByRole("radio", { name, exact: true });
       const text = document.createTreeWalker(button.element(), NodeFilter.SHOW_TEXT).nextNode()!;
       const range = document.createRange();
       range.selectNodeContents(text);
@@ -141,7 +142,7 @@ for (const theme of ["dark", "light"]) {
     }
     await page.getByRole("button", { name: /^Activity/ }).click();
     await expect.element(page.getByRole("heading", { name: "Activity", level: 1 })).toBeVisible();
-    await page.getByRole("button", { name: "Updates", exact: true }).click();
+    await page.getByRole("tab", { name: "Updates", exact: true }).click();
     await expect.poll(() => document.querySelectorAll(".update-row").length).toBeGreaterThan(0);
     for (const width of [320, 240]) {
       await page.viewport(width, 800);
@@ -167,6 +168,7 @@ for (const theme of ["dark", "light"]) {
           <App />
         </LocalizationProvider>,
       );
+      await page.getByRole("button", { name: "Open navigation", exact: true }).click();
       await page.getByRole("button", { name: "Settings", exact: true }).click();
       await expect
         .element(page.getByRole("heading", { name: "Interface size", exact: true }))

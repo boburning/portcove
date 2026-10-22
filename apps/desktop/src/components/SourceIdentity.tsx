@@ -114,7 +114,7 @@ export function SourceIdentityPanel({
       </p>
       <MetadataGrid className="source-identity-summary @max-[30rem]/source:grid-cols-[1fr]">
         <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-          <dt className="m-0 text-[length:var(--text-2xs)] tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
+          <dt className="m-0 text-xs tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
             Selected
           </dt>
           <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">
@@ -124,7 +124,7 @@ export function SourceIdentityPanel({
           </dd>
         </div>
         <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-          <dt className="m-0 text-[length:var(--text-2xs)] tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
+          <dt className="m-0 text-xs tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
             Format
           </dt>
           <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">
@@ -132,7 +132,7 @@ export function SourceIdentityPanel({
           </dd>
         </div>
         <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-          <dt className="m-0 text-[length:var(--text-2xs)] tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
+          <dt className="m-0 text-xs tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
             Edition
           </dt>
           <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">
@@ -158,7 +158,7 @@ export function SourceIdentityPanel({
         <div className="grid gap-4 [&_h4]:mt-3 [&_h4]:mb-2">
           <MetadataGrid className="source-identity-summary @max-[30rem]/source:grid-cols-[1fr]">
             <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-              <dt className="m-0 text-[length:var(--text-2xs)] tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
+              <dt className="m-0 text-xs tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
                 Admission
               </dt>
               <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">{admissionLabel(report)}</dd>

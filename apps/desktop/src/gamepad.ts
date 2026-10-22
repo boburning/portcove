@@ -159,18 +159,48 @@ class ControllerInput {
   }
 }
 
-function controllerButton(buttons: Set<number>, back: () => void) {
+// Editable comboboxes use virtual focus: their options must not take DOM focus.
+// Opt in only the maintained SearchChoice; command palette and Select retain
+// their existing controller contracts.
+function controllerCombobox() {
+  const input = document.activeElement;
+  return input instanceof HTMLInputElement &&
+    input.matches('[data-controller-combobox][role="combobox"]') &&
+    !input.disabled &&
+    !input.readOnly
+    ? input
+    : undefined;
+}
+
+function controllerComboboxKey(input: HTMLInputElement, key: string) {
+  input.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+  // The shared keyboard capture records this synthetic event synchronously.
+  document.documentElement.dataset.inputMode = "controller";
+}
+
+function controllerButton(
+  buttons: Set<number>,
+  back: () => void,
+  navigate: (offset: number) => void,
+) {
   if (buttons.has(1)) {
     if (!dismissActiveDialog()) back();
   } else if (buttons.has(0)) {
-    activateFocusedControl();
-  } else if (buttons.has(4)) cyclePrimaryNavigation(-1);
-  else if (buttons.has(5)) cyclePrimaryNavigation(1);
+    const input = controllerCombobox();
+    if (input)
+      controllerComboboxKey(
+        input,
+        input.getAttribute("aria-expanded") === "true" ? "Enter" : "ArrowDown",
+      );
+    else activateFocusedControl();
+  } else if (buttons.has(4)) cyclePrimaryNavigation(-1, navigate);
+  else if (buttons.has(5)) cyclePrimaryNavigation(1, navigate);
 }
 
-export function useGamepadNavigation(onBack: () => void) {
+export function useGamepadNavigation(onBack: () => void, onNavigate?: (offset: number) => void) {
   const [controller, setController] = useState<string>();
   const back = useEffectEvent(onBack);
+  const navigate = useEffectEvent((offset: number) => onNavigate?.(offset));
   useEffect(() => {
     let frame = 0;
     const input = new ControllerInput();
@@ -184,8 +214,16 @@ export function useGamepadNavigation(onBack: () => void) {
       if (!document.hasFocus()) return;
       if (state.active && document.documentElement.dataset.inputMode !== "controller")
         document.documentElement.dataset.inputMode = "controller";
-      if (state.move) moveFocus(state.move);
-      controllerButton(state.buttons, back);
+      if (state.move) {
+        const input = controllerCombobox();
+        if (input?.getAttribute("aria-expanded") === "true") {
+          const key = { up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight" }[
+            state.move
+          ];
+          controllerComboboxKey(input, key);
+        } else moveFocus(state.move);
+      }
+      controllerButton(state.buttons, back, navigate);
     };
     const keydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing) return;

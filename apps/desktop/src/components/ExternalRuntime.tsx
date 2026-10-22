@@ -17,9 +17,17 @@ import { ExternalLink } from "./ExternalLink";
 import { platformLabel } from "../view-model";
 import { sharedRuntimeDisclosure } from "../shared/external-runtime-disclosure";
 
-function ReviewCancelButton({ pending, dismiss }: { pending: boolean; dismiss: () => void }) {
+function ReviewCancelButton({
+  pending,
+  dismiss,
+  cancelRef,
+}: {
+  pending: boolean;
+  dismiss: () => void;
+  cancelRef: React.Ref<HTMLButtonElement>;
+}) {
   return (
-    <Button data-autofocus data-focusable variant="outline" disabled={pending} onClick={dismiss}>
+    <Button ref={cancelRef} data-focusable variant="outline" disabled={pending} onClick={dismiss}>
       Cancel
     </Button>
   );
@@ -215,6 +223,7 @@ function RegisterExternalDialog({
   close: () => void;
   onChanged?: (() => void) | undefined;
 }) {
+  const cancelButton = useRef<HTMLButtonElement>(null);
   const { preview, pending, error, review, execute, dismiss } = useActionReview({
     identity: JSON.stringify([mode, port.id, path, generation]),
     retainOnCancel: true,
@@ -252,7 +261,11 @@ function RegisterExternalDialog({
         if (!open) dismiss();
       }}
     >
-      <DialogContent showCloseButton={false} aria-describedby="external-register-description">
+      <DialogContent
+        initialFocus={cancelButton}
+        showCloseButton={false}
+        aria-describedby="external-register-description"
+      >
         <DialogTitle>
           {mode === "relink"
             ? `Change game folder for ${port.name}?`
@@ -298,7 +311,11 @@ function RegisterExternalDialog({
         )}
         <ActionReviewFailure error={error} />
         <DialogFooter>
-          <ReviewCancelButton pending={pending === "apply"} dismiss={dismiss} />
+          <ReviewCancelButton
+            cancelRef={cancelButton}
+            pending={pending === "apply"}
+            dismiss={dismiss}
+          />
           {!preview && (
             <Button data-focusable disabled={Boolean(pending)} onClick={() => void review()}>
               Check again
@@ -330,6 +347,7 @@ function RemoveExternalDialog({
   close: () => void;
   onChanged?: (() => void) | undefined;
 }) {
+  const cancelButton = useRef<HTMLButtonElement>(null);
   const { preview, pending, error, review, execute, dismiss } = useActionReview({
     identity: `${port.id}:${generation}`,
     load: () => desktopApi.previewExternalRemoval(port.id, generation),
@@ -353,7 +371,11 @@ function RemoveExternalDialog({
         if (!open) dismiss();
       }}
     >
-      <DialogContent showCloseButton={false} aria-describedby="external-remove-description">
+      <DialogContent
+        initialFocus={cancelButton}
+        showCloseButton={false}
+        aria-describedby="external-remove-description"
+      >
         <DialogTitle>Stop using this {port.name} installation?</DialogTitle>
         <DialogDescription id="external-remove-description">
           This removes only Portcove's saved location. The files stay where they are, including
@@ -367,7 +389,11 @@ function RemoveExternalDialog({
         )}
         <ActionReviewFailure error={error} />
         <DialogFooter>
-          <ReviewCancelButton pending={pending === "apply"} dismiss={dismiss} />
+          <ReviewCancelButton
+            cancelRef={cancelButton}
+            pending={pending === "apply"}
+            dismiss={dismiss}
+          />
           {!preview && (
             <Button data-focusable disabled={Boolean(pending)} onClick={() => void review()}>
               Check again

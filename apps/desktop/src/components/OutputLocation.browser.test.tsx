@@ -144,9 +144,14 @@ describe("per-game install folder", () => {
     const reset = vi.spyOn(desktopApi, "resetOutputLocation");
     const move = vi.spyOn(desktopApi, "relocateOutput");
     await render(<OutputLocationControl portId="sample" generation={7} />);
-    const note = document.getElementById("output-location-note-sample");
-    expect(note?.textContent).toContain("Portcove will check whether this folder can be used.");
-    expect(note?.textContent).toContain("Checking does not create or move files.");
+    const input = document.getElementById("output-location-path-sample")!;
+    const note = input
+      .getAttribute("aria-describedby")!
+      .split(/\s+/)
+      .map((id) => document.getElementById(id)?.textContent)
+      .join(" ");
+    expect(note).toContain("Portcove will check whether this folder can be used.");
+    expect(note).toContain("Checking does not create or move files.");
     expect(document.body.textContent).toContain(label);
     await changePath("F:/Games/Sample");
     await click("Review future folder");
@@ -387,7 +392,13 @@ describe("per-game install folder", () => {
     expect(container.querySelector(`label[for="${input.id}"]`)?.textContent).toContain(
       "Folder for future installs",
     );
-    expect(input.getAttribute("aria-describedby")).toBe("output-location-note-sample");
+    const description = input
+      .getAttribute("aria-describedby")!
+      .split(/\s+/)
+      .map((id) => document.getElementById(id)?.textContent)
+      .join(" ");
+    expect(description).toContain("Portcove will check whether this folder can be used.");
+    expect(description).toContain("Checking does not create or move files.");
     expect(button("Review future folder").hasAttribute("data-focusable")).toBe(true);
 
     await changePath("F:/Games/Sample");
@@ -443,6 +454,7 @@ describe("per-game install folder", () => {
     expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
     expect(document.body.textContent).toContain("Use library default for future installs");
     expect(document.body.textContent).toContain("Future placement only");
+    await expect.poll(() => document.activeElement?.id).toBe("output-location-review-title");
     await pressEscape();
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
     expect(document.activeElement).toBe(trigger);
@@ -688,6 +700,7 @@ describe("per-game install folder", () => {
     await click("Review moving existing versions");
     expect(reviewMove).toHaveBeenCalledWith("sample", "F:/Games/Sample", 14);
     expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+    await expect.poll(() => document.activeElement?.id).toBe("output-relocation-review-title");
     await pressEscape();
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
     expect(document.activeElement).toBe(trigger);

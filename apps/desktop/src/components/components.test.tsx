@@ -1778,14 +1778,21 @@ describe("desktop components", () => {
         }}
       />,
     );
-    expect(html).toContain("THEME");
+    expect(html).toContain('role="radiogroup"');
     expect(html).toContain('aria-label="Color theme"');
     expect(html).toContain("Following system · currently Light");
-    expect(html).toMatch(
-      /<button[^>]*data-variant="selected"[^>]*aria-pressed="true"[^>]*>System<\/button>/u,
+    const radios = [
+      ...html.matchAll(
+        /(<span\b[^>]*role="radio"[^>]*>)((?:(?!<span\b[^>]*role="radio")[\s\S])*?)(?=<span\b[^>]*role="radio"|$)/gu,
+      ),
+    ];
+    expect(radios).toHaveLength(3);
+    expect(radios.filter((radio) => /aria-checked="true"/u.test(radio[1] ?? ""))).toHaveLength(1);
+    expect(radios.find((radio) => /System<\/span>/u.test(radio[2] ?? ""))?.[1]).toContain(
+      'aria-checked="true"',
     );
-    expect(html).toMatch(
-      /<button[^>]*data-variant="ghost"[^>]*aria-pressed="false"[^>]*>Dark<\/button>/u,
+    expect(radios.find((radio) => /Dark<\/span>/u.test(radio[2] ?? ""))?.[1]).toContain(
+      'aria-checked="false"',
     );
   });
 

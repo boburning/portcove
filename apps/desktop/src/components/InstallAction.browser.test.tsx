@@ -345,7 +345,7 @@ it("presents the reviewed installation in a dismissible dialog and restores trig
   );
   expect(document.body.textContent).toContain("Install folder");
   expect(document.body.textContent).toContain("E:/Portcove/versions/sample");
-  expect(document.activeElement?.textContent).toContain("Install · 64.0 MiB");
+  expect(document.activeElement).toBe(document.querySelector("#install-review-title"));
   await pressEscape();
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   expect(document.activeElement?.textContent).toContain("Review installation");
@@ -660,7 +660,7 @@ it("describes an unchecked local copy and keeps installation blocked", async () 
   );
   expect(document.body.textContent).toContain("Local copy needs checking");
   expect(button("Verify or replace the local copy before installing").disabled).toBe(true);
-  expect(document.activeElement?.textContent).toBe("Cancel review");
+  expect(document.activeElement).toBe(document.querySelector("#install-review-title"));
 });
 
 it.each(["future_action", "constructor", "__proto__"])(

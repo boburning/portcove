@@ -343,9 +343,11 @@ describe("Catalog channel controls", () => {
     await click("stable");
     await act(async () => shell.setView("library"));
     const libraryButton = (name: string) =>
-      [...host.querySelectorAll<HTMLButtonElement>('[aria-label="Library filters"] button')].find(
-        (item) => item.textContent?.startsWith(`${name} (`),
-      )!;
+      [
+        ...host.querySelectorAll<HTMLButtonElement>(
+          '[aria-label="Library filters"] button[aria-pressed]',
+        ),
+      ].find((item) => item.textContent?.startsWith(`${name} (`))!;
     await act(async () => libraryButton("Ready").click());
     expect(
       [...host.querySelectorAll("article.port-card")].map(

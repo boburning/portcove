@@ -4,7 +4,7 @@ import { gameIdentityLabel } from "../port-identity";
 import { useSetupReviewSelection } from "../features/game-file-discovery/setup-review-selection";
 import { GameFileLibraries } from "./GameFileLibraries";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
+import { SearchChoice } from "./ui/combobox";
 import { FolderInput, FolderSearch, Gamepad2 } from "lucide-react";
 import { Icon } from "./ui";
 
@@ -65,6 +65,14 @@ export function AddGames({
         Start with a game, a folder of original files, or an installation you already have. Portcove
         checks what is supported before you confirm any changes.
       </p>
+      <ol
+        aria-label="Add games stages"
+        className="my-4 flex flex-wrap gap-x-6 gap-y-2 ps-5 text-sm text-pc-muted-foreground [&_[aria-current=step]]:font-semibold [&_[aria-current=step]]:text-pc-foreground"
+      >
+        <li aria-current={!port ? "step" : undefined}>Choose a game or files</li>
+        <li aria-current={port ? "step" : undefined}>Check requirements</li>
+        <li>Review changes before preparing</li>
+      </ol>
       <div
         className="my-6 grid gap-3 min-[75rem]:grid-cols-3"
         role="group"
@@ -159,33 +167,20 @@ export function AddGames({
           File checks use the chosen port’s requirements. Folder search can recognize multiple
           games; an unknown file or an ambiguous match stays unconfirmed.
         </p>
-        <label htmlFor={active && mode === "files" ? "port-search" : undefined}>
-          Find a game or port
-        </label>
-        <Input
+        <SearchChoice
+          label="Game and port"
           id={active && mode === "files" ? "port-search" : undefined}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-        <label className="mt-3 block" htmlFor="add-games-port">
-          Game and port
-        </label>
-        <select
-          id="add-games-port"
-          className="my-2 min-h-10 w-full max-w-full rounded-pc-md border border-pc-border bg-pc-surface p-2 text-pc-foreground"
+          options={ports.map((candidate) => ({
+            id: candidate.id,
+            label: gameIdentityLabel(candidate),
+            description: `Port project: ${candidate.name} · ${candidate.id}`,
+          }))}
+          query={query}
+          onQueryChange={setQuery}
           value={selected}
-          onChange={(event) => setSelected(event.target.value)}
-        >
-          <option value="">Choose a port</option>
-          {port && !candidates.includes(port) && (
-            <option value={port.id}>{gameIdentityLabel(port)} (selected; outside search)</option>
-          )}
-          {candidates.map((candidate) => (
-            <option key={candidate.id} value={candidate.id}>
-              {gameIdentityLabel(candidate)}
-            </option>
-          ))}
-        </select>
+          onChange={setSelected}
+          disabled={ports.length === 0}
+        />
         {candidates.length === 0 && (
           <p role="status">
             No game or port matches this search. Change the search or browse Find games.
@@ -194,6 +189,11 @@ export function AddGames({
         {port && (
           <>
             <p className="font-semibold">{gameIdentityLabel(port)}</p>
+            {!candidates.includes(port) && (
+              <p className="text-sm text-pc-muted-foreground">
+                Selected game retained outside this search.
+              </p>
+            )}
             {profile ? (
               <Button
                 id="add-games-check-files"

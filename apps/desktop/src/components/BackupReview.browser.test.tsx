@@ -71,7 +71,7 @@ it("reviews exact paths and safety-backup behavior before a bound restore", asyn
   );
   expect(document.body.textContent).toContain("game must be stopped");
   expect(document.body.textContent).toContain("retains recovery data");
-  expect(document.body.querySelector("[data-autofocus]")?.textContent).toBe("Cancel");
+  await expect.poll(() => document.activeElement?.textContent).toBe("Cancel");
   await click("Restore this backup");
   expect(apply).toHaveBeenCalledWith(review.preview.backup, "reviewed-data");
   expect(close).toHaveBeenCalledOnce();

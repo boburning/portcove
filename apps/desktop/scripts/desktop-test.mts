@@ -98,7 +98,11 @@ import {
   historyDriverStillOwned,
   waitHistorySessionExit,
 } from "./desktop-qualification-history-test.mts";
-import { assertCompactReview, captureAccessibilityReport } from "./desktop-review-controls.mts";
+import {
+  assertCompactReview,
+  captureAccessibilityReport,
+  selectPrimaryNavigation,
+} from "./desktop-review-controls.mts";
 import { createInstallFixture } from "./desktop-install-fixture.mts";
 import {
   createExternalRuntimeFixture,
@@ -886,7 +890,7 @@ async function verifySettingsRows() {
     await browser
       .findElement(
         By.xpath(
-          '//*[@role="group" and @aria-label="Color theme"]//button[normalize-space(.)="System"]',
+          '//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="System"]',
         ),
       )
       .click();
@@ -1014,17 +1018,13 @@ async function refreshSettings(category?: string) {
   const browser = driverBrowser();
   await browser.navigate().refresh();
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
-  await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+  await selectPrimaryNavigation(browser, "Settings");
   if (category) await selectSettingsCategory(category);
 }
 
 async function selectSettingsCategory(id: string) {
   const browser = driverBrowser();
-  await browser
-    .findElement(
-      By.xpath('//nav[@aria-label="Primary navigation"]//button[contains(., "Settings")]'),
-    )
-    .click();
+  await selectPrimaryNavigation(browser, "Settings");
   const category = By.css(
     `nav[aria-label="Settings categories"] button[aria-controls="settings-${id}"]`,
   );
@@ -1350,7 +1350,7 @@ async function selectSettingsTheme(theme: string) {
   await browser
     .findElement(
       By.xpath(
-        `//*[@role="group" and @aria-label="Color theme"]//button[normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`,
+        `//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`,
       ),
     )
     .click();
@@ -3181,7 +3181,7 @@ try {
     assert.equal(path.resolve(required(original.library_root)), library);
     const alternate = path.join(output, "browsing-alternate-library");
     await mkdir(alternate);
-    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
+    await selectPrimaryNavigation(browser, "Find games");
     let search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     const catalog = await invoke("get_catalog");
     assert.ok(catalog.ok);
@@ -3296,7 +3296,7 @@ try {
     await browser.actions().keyDown(Key.CONTROL).sendKeys("4").keyUp(Key.CONTROL).perform();
     await browser.wait(until.elementLocated(By.css(".diagnostics-card")), 15_000);
     const switchTo = async (target: string, artifactName: string, previousGeneration: number) => {
-      await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+      await selectPrimaryNavigation(browser, "Settings");
       await browser.wait(
         async () => {
           const diagnostics = await browser.findElement(By.css(".diagnostics-card"));
@@ -3403,7 +3403,7 @@ try {
       );
     };
     await switchTo(alternate, "library-picker-select-alternate", original.generation);
-    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
+    await selectPrimaryNavigation(browser, "Find games");
     const alternateSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     assert.equal(await alternateSearch.getAttribute("value"), "");
     const alternateBeta = await browser.findElement(
@@ -3415,7 +3415,7 @@ try {
     assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "false");
     const alternateStatus = success(await invoke("get_bootstrap_status"));
     await switchTo(library, "library-picker-select-original", alternateStatus.generation);
-    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
+    await selectPrimaryNavigation(browser, "Find games");
     const restoredSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     assert.equal(await restoredSearch.getAttribute("value"), "zelda");
     const restoredBeta = await browser.findElement(
@@ -3466,26 +3466,28 @@ try {
     );
     const verifySidebarLabels = async () => {
       const labels = await executeBrowserScript(browser, () =>
-        [...document.querySelectorAll(".sidebar nav .nav-item")].map((button) => {
-          const label = button.querySelector("span:not(.icon)");
-          if (!(button instanceof HTMLElement) || !(label instanceof HTMLElement))
-            throw new Error("Primary navigation label is missing");
-          const labelStyle = getComputedStyle(label);
-          const icon = button.querySelector(".icon");
-          const iconRect = icon?.getBoundingClientRect();
-          return {
-            text: label.textContent,
-            compactLabel:
-              labelStyle.position === "absolute" &&
-              labelStyle.clipPath === "inset(50%)" &&
-              label.clientWidth === 1 &&
-              label.clientHeight === 1,
-            iconVisible: Boolean(iconRect && iconRect.width > 0 && iconRect.height > 0),
-            widthFits: label.scrollWidth <= label.clientWidth + 1,
-            heightFits: label.scrollHeight <= label.clientHeight + 1,
-            buttonFits: button.scrollHeight <= button.clientHeight + 1,
-          };
-        }),
+        [...document.querySelectorAll('nav[aria-label="Primary navigation"] .nav-item')]
+          .filter((button) => button.getClientRects().length > 0)
+          .map((button) => {
+            const label = button.querySelector("span:not(.icon)");
+            if (!(button instanceof HTMLElement) || !(label instanceof HTMLElement))
+              throw new Error("Primary navigation label is missing");
+            const labelStyle = getComputedStyle(label);
+            const icon = button.querySelector(".icon");
+            const iconRect = icon?.getBoundingClientRect();
+            return {
+              text: label.textContent,
+              compactLabel:
+                labelStyle.position === "absolute" &&
+                labelStyle.clipPath === "inset(50%)" &&
+                label.clientWidth === 1 &&
+                label.clientHeight === 1,
+              iconVisible: Boolean(iconRect && iconRect.width > 0 && iconRect.height > 0),
+              widthFits: label.scrollWidth <= label.clientWidth + 1,
+              heightFits: label.scrollHeight <= label.clientHeight + 1,
+              buttonFits: button.scrollHeight <= button.clientHeight + 1,
+            };
+          }),
       );
       assert.deepEqual(
         labels.map((label) => label.text),
@@ -3507,8 +3509,15 @@ try {
       await browser.findElement(By.css(".sidebar nav")),
     );
     await browser.manage().window().setRect({ width: 640, height: 640 });
+    await browser.findElement(By.css('button[aria-label="Open navigation"]')).click();
+    await browser.wait(
+      until.elementIsVisible(
+        await browser.wait(until.elementLocated(By.css(".navigation-sheet")), 5_000),
+      ),
+      5_000,
+    );
     await verifySidebarLabels();
-    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    await selectPrimaryNavigation(browser, "Settings");
     await browser.wait(until.elementLocated(By.css('[data-settings-group="appearance"]')), 15_000);
     const visibleGroups: { name: string; columns: number }[] = [];
     for (const id of [
@@ -3683,7 +3692,7 @@ try {
       "Application update settings did not receive focus",
     );
 
-    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
+    await selectPrimaryNavigation(browser, "Find games");
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     const selectedFilter = await browser.findElement(By.css('.filter-row [aria-pressed="true"]'));
     assert.equal(await selectedFilter.getAttribute("data-slot"), "button");
@@ -3948,7 +3957,7 @@ try {
       await browser.manage().window().setRect({ width: 960, height: 640 });
       await verifySidebarLabels();
       for (const theme of ["dark", "light"]) {
-        await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+        await selectPrimaryNavigation(browser, "Settings");
         await selectSettingsTheme(theme);
         await verifySettingsIndexTheme(theme);
         const gameFileCards = await browser.findElements(
@@ -3998,7 +4007,7 @@ try {
           }
         }
         await browser.manage().window().setRect({ width: 960, height: 640 });
-        await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
+        await selectPrimaryNavigation(browser, "Find games");
         await browser.wait(
           async () => (await browser.findElements(By.css(".port-card"))).length > 2,
           15_000,
@@ -4450,7 +4459,7 @@ try {
     const accessibility = path.join(output, "native-localization-accessibility.json");
     await captureAccessibilityReport(browser, accessibility, artifacts);
 
-    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    await selectPrimaryNavigation(browser, "Settings");
     const rtlTrigger = await browser.wait(
       until.elementLocated(By.css(".language-card button")),
       15_000,

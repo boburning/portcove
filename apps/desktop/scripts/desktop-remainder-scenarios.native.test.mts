@@ -150,14 +150,13 @@ void test("native remainder controller attributes unrelated layout reads and res
 
 void test("native remainder controller retains exact control count and rejects unattributed reads", async () => {
   const original = await controllerObservation();
+  const navigation: WebDriver[] = [];
   class WebDriver {
     executeScript() {
       return { outcome: "api-present-no-controller" };
     }
-    findElement() {
-      return { click: async () => undefined };
-    }
     executeAsyncScript() {
+      assert.equal(navigation.at(-1), this, "Navigate before injecting the controller probe");
       return profile;
     }
   }
@@ -171,7 +170,11 @@ void test("native remainder controller retains exact control count and rejects u
         path,
         writeFile: async () => undefined,
         WebDriver,
-        By: { css: (value: string) => value },
+        selectPrimaryNavigation: async (browser: WebDriver, label: string) => {
+          assert.ok(browser instanceof WebDriver);
+          assert.equal(label, "Library");
+          navigation.push(browser);
+        },
         observeGamepadCapability: () => undefined,
         observeInjectedController: () => undefined,
       },
@@ -186,6 +189,7 @@ void test("native remainder controller retains exact control count and rejects u
     },
   };
   await run(context);
+  assert.deepEqual(navigation, [context.browser]);
   const damaged: unknown = JSON.parse(JSON.stringify(original));
   assert.ok(isRecord(damaged) && Array.isArray(damaged.samples));
   const direction: unknown = damaged.samples[3];
@@ -199,6 +203,7 @@ void test("native remainder controller retains exact control count and rejects u
     async () => run(context),
     /Every layout read must retain its receiver attribution/,
   );
+  assert.deepEqual(navigation, [context.browser, context.browser, context.browser]);
 });
 
 void test("native remainder palette walks explicit commands and restores renderer after a failed assertion", async () => {
