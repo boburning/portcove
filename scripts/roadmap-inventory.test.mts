@@ -129,7 +129,9 @@ function fixture(count = 2, bodySize = 32) {
     } else if (query.includes("nodes(ids:")) {
       assert.ok(Array.isArray(vars.ids));
       bodyReads += vars.ids.length;
-      value = { nodes: vars.ids.map((id) => rows.find((r) => r.id === id)) };
+      value = {
+        nodes: vars.ids.map((id) => ({ __typename: "Issue", ...rows.find((r) => r.id === id) })),
+      };
     } else throw new Error("Unexpected inventory query");
     requests++;
     bytes += Buffer.byteLength(JSON.stringify(value));
@@ -781,6 +783,7 @@ void test("foreign issue comment drift is reconciled only once with a fresh whol
     const f = fixture(1);
     const foreign = {
       ...f.rows[0]!,
+      type: "Issue",
       id: "FOREIGN",
       number: 7,
       url: "https://github.com/other/repo/issues/7",
@@ -808,7 +811,7 @@ void test("foreign issue comment drift is reconciled only once with a fresh whol
       ) {
         if (++hydrations === 1 || alwaysMove)
           foreign.updatedAt = `2026-10-17T0${hydrations}:00:00Z`;
-        return { nodes: [{ ...foreign }] };
+        return { nodes: [{ __typename: "Issue", ...foreign }] };
       }
       return graphql(query, vars);
     };
@@ -823,7 +826,7 @@ void test("foreign issue comment drift is reconciled only once with a fresh whol
 });
 
 void test("comment recovery is charged under 200 requests and a failed replacement preserves the last complete cache", async (t) => {
-  for (const prior of [140, 180])
+  for (const prior of [140, 160])
     await t.test(String(prior), async (t) => {
       const f = fixture(891);
       const previous = collectRoadmapInventory(f.client);
@@ -867,8 +870,13 @@ void test("comment recovery is charged under 200 requests and a failed replaceme
         }
         return result;
       };
-      if (prior === 180) {
+      if (prior === 160) {
         assert.throws(() => session.refresh(), /budget cannot admit/);
+        assert.equal(reads, 1, "first Project view completed and replacement metadata was charged");
+        assert.ok(
+          session.budget.usage.requests > 190,
+          "refusal must occur within replacement, not the first view",
+        );
         assert.equal(session.inventory, previous);
         assert.equal(readFileSync(path.join(state, "inventory.json"), "utf8"), retained);
       } else {
@@ -890,6 +898,66 @@ void test("comment recovery is charged under 200 requests and a failed replaceme
       );
       assert.equal(session.wrote, false);
     });
+});
+
+void test("stable drafts and merged PRs retain their kind-specific fields through bounded hydration", () => {
+  for (const kind of ["DraftIssue", "PullRequest"] as const)
+    for (const changes of [0, 1, 2]) {
+      const f = fixture(1);
+      const foreign: RoadmapIssueItem = {
+        id: "FOREIGN",
+        type: kind,
+        title: "Foreign content",
+        body: "body",
+        updatedAt: "2026-10-17T00:00:00Z",
+        ...(kind === "PullRequest"
+          ? {
+              number: 7,
+              url: "https://github.com/other/repo/pull/7",
+              state: "MERGED",
+              merged: true,
+            }
+          : {}),
+      };
+      f.project.push({
+        id: "PF",
+        isArchived: false,
+        content: { ...foreign, body: undefined },
+        fieldValues: [],
+      });
+      const graphql = f.client.graphql.bind(f.client);
+      const items = f.client.itemList.bind(f.client);
+      let reads = 0,
+        hydrations = 0;
+      f.client.itemList = (number, options) => {
+        reads++;
+        f.project[1]!.content!.updatedAt = foreign.updatedAt;
+        return items(number, options);
+      };
+      f.client.graphql = (query, vars) => {
+        if (
+          query.includes("nodes(ids:") &&
+          Array.isArray(vars?.ids) &&
+          vars.ids.includes("FOREIGN")
+        ) {
+          if (++hydrations <= changes) foreign.updatedAt = `2026-10-17T0${hydrations}:00:00Z`;
+          return { nodes: [{ __typename: kind, ...foreign }] };
+        }
+        return graphql(query, vars);
+      };
+      if (changes === 2)
+        assert.throws(() => collectRoadmapInventory(f.client), /changed during body hydration/);
+      else {
+        const got = collectRoadmapInventory(f.client);
+        assert.equal(reads, changes + 1);
+        assert.equal(got.items.at(-1)?.content?.type, kind);
+        assert.equal(got.items.at(-1)?.content?.body, "body");
+        if (kind === "PullRequest") {
+          assert.equal(got.items.at(-1)?.content?.state, "MERGED");
+          assert.equal(got.items.at(-1)?.content?.merged, true);
+        }
+      }
+    }
 });
 
 void test("a second comment change in the replacement Project read refuses the entire observation", () => {

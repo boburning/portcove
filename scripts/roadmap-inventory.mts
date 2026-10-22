@@ -141,7 +141,7 @@ export function collectRoadmapInventory(
       const batch = wanted.slice(offset, offset + 10);
       const data = object(
         client.graphql(
-          `query($ids:[ID!]!){nodes(ids:$ids){__typename ... on Issue{id number title state url updatedAt body} ... on PullRequest{id number title state url updatedAt body} ... on DraftIssue{id updatedAt body}}}`,
+          `query($ids:[ID!]!){nodes(ids:$ids){__typename ... on Issue{id number title state url updatedAt body} ... on PullRequest{id number title state merged url updatedAt body} ... on DraftIssue{id title updatedAt body}}}`,
           { ids: batch.map((i) => i.id) },
         ),
       );
@@ -156,8 +156,10 @@ export function collectRoadmapInventory(
       }
       for (const row of batch) {
         const node = found.get(String(row.id));
+        const kind = row.type ?? row.__typename;
         if (
           !node ||
+          node.__typename !== kind ||
           typeof node.body !== "string" ||
           node.url !== row.url ||
           node.number !== row.number
@@ -166,14 +168,19 @@ export function collectRoadmapInventory(
         if (
           node.updatedAt !== row.updatedAt ||
           node.title !== row.title ||
-          node.state !== row.state
+          node.state !== row.state ||
+          (kind === "PullRequest" && node.merged !== row.merged)
         ) {
           if (
             !reconcile ||
             typeof node.updatedAt !== "string" ||
             !Number.isFinite(Date.parse(node.updatedAt)) ||
             typeof node.title !== "string" ||
-            (node.state !== "OPEN" && node.state !== "CLOSED")
+            (kind !== "DraftIssue" &&
+              !(
+                kind === "PullRequest" ? ["OPEN", "CLOSED", "MERGED"] : ["OPEN", "CLOSED"]
+              ).includes(String(node.state))) ||
+            (kind === "PullRequest" && typeof node.merged !== "boolean")
           )
             throw new Error(
               `Issue #${row.number} changed during body hydration: ${String(row.updatedAt)} -> ${String(node.updatedAt)}`,
@@ -181,7 +188,8 @@ export function collectRoadmapInventory(
           // Adopt the whole atomic issue observation, then verify its membership/revision below.
           row.updatedAt = node.updatedAt;
           row.title = node.title;
-          row.state = node.state;
+          if (kind !== "DraftIssue" && typeof node.state === "string") row.state = node.state;
+          if (kind === "PullRequest") row.merged = node.merged;
           hydrationMoved = true;
         }
         row.body = node.body;
