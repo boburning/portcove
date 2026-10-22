@@ -3547,7 +3547,8 @@ export class RoadmapClient {
     });
   }
 
-  repositoryIssues() {
+  repositoryIssues({ useGraphql = false } = {}) {
+    if (useGraphql) return this.repositoryIssueConnection();
     const marker = () => {
       const response = this.api.request(
         "GET",
@@ -3616,6 +3617,111 @@ export class RoadmapClient {
         state: diagnosticText(issue.state ?? "").toUpperCase(),
         type: "Issue",
       }));
+  }
+
+  repositoryIssueConnection() {
+    const [owner, name] = this.config.repository.split("/");
+    const markerQuery = `query RepositoryIssueMarker($owner:String!,$name:String!){repository(owner:$owner,name:$name){id nameWithOwner issues(first:1,orderBy:{field:CREATED_AT,direction:DESC}){totalCount nodes{id number}}}}`;
+    let repositoryId: string | undefined;
+    const repository = (data: unknown) => {
+      const value = qualificationField(data, "repository");
+      if (
+        !isRecord(value) ||
+        typeof value.id !== "string" ||
+        !value.id ||
+        typeof value.nameWithOwner !== "string" ||
+        value.nameWithOwner.toLowerCase() !== this.config.repository.toLowerCase() ||
+        (repositoryId !== undefined && value.id !== repositoryId)
+      )
+        throw new Error(
+          "incomplete GitHub inventory: repository identity changed or is unavailable",
+        );
+      repositoryId = value.id;
+      return value;
+    };
+    const marker = () => {
+      const connection = qualificationField(
+        repository(this.graphql(markerQuery, { owner, name })),
+        "issues",
+      );
+      const count = qualificationField(connection, "totalCount");
+      const nodes = qualificationField(connection, "nodes");
+      if (
+        typeof count !== "number" ||
+        !Number.isSafeInteger(count) ||
+        count < 0 ||
+        !Array.isArray(nodes) ||
+        nodes.length !== (count === 0 ? 0 : 1)
+      )
+        throw new Error("incomplete GitHub inventory: invalid repository issue marker");
+      const id = count === 0 ? null : qualificationField(nodes[0], "id");
+      const number = count === 0 ? 0 : qualificationField(nodes[0], "number");
+      if (
+        (id !== null && (typeof id !== "string" || !id)) ||
+        typeof number !== "number" ||
+        !Number.isSafeInteger(number) ||
+        (count > 0 && number < 1)
+      )
+        throw new Error("incomplete GitHub inventory: invalid repository issue marker");
+      return { count, id, number };
+    };
+    const before = marker();
+    const query = `query RepositoryIssueInventory($owner:String!,$name:String!,$after:String){repository(owner:$owner,name:$name){id nameWithOwner issues(first:100,after:$after,orderBy:{field:CREATED_AT,direction:ASC}){totalCount nodes{id number title body url state} pageInfo{hasNextPage endCursor}}}}`;
+    const records = this.readInventory(
+      query,
+      { owner, name },
+      (data) => repository(data).issues,
+      (node) => qualificationField(node, "id"),
+    ).map((node) => {
+      if (
+        !isRecord(node) ||
+        typeof node.id !== "string" ||
+        !node.id ||
+        typeof node.title !== "string" ||
+        typeof node.body !== "string" ||
+        (node.state !== "OPEN" && node.state !== "CLOSED")
+      )
+        throw new Error("incomplete GitHub inventory: malformed repository issue");
+      const issue = repositoryIssueObservation({ ...node, node_id: node.id, html_url: node.url });
+      if (
+        issue.html_url.toLowerCase() !==
+        `https://github.com/${this.config.repository}/issues/${issue.number}`.toLowerCase()
+      )
+        throw new Error("incomplete GitHub inventory: wrong repository issue binding");
+      return {
+        ...issue,
+        title: node.title,
+        body: node.body,
+        state: node.state,
+        url: issue.html_url,
+        type: "Issue",
+      };
+    });
+    const after = marker();
+    if (
+      before.count !== records.length ||
+      before.count !== after.count ||
+      before.id !== after.id ||
+      before.number !== after.number ||
+      (after.id !== null &&
+        !records.some((record) => record.node_id === after.id && record.number === after.number))
+    )
+      throw new RepositoryIssueSnapshotError(
+        "GitHub inventory changed during pagination; retry the read",
+        {
+          before: before.number,
+          after: after.number,
+          records: records.length,
+          highest: records.reduce<number | null>(
+            (highest, record) => Math.max(highest ?? 0, record.number),
+            null,
+          ),
+        },
+      );
+    const numbers = new Set(records.map((record) => record.number));
+    if (numbers.size !== records.length)
+      throw new Error("incomplete GitHub inventory: duplicate issue number");
+    return records;
   }
 
   repositoryIssue(number: number) {
@@ -5001,6 +5107,7 @@ export function evaluateRoadmapDoctor({
 
 export interface DoctorRepositoryInventoryAttempt {
   attempt: number;
+  source: "rest" | "graphql";
   outcome: "passed" | "failed";
   issues?: number;
   error?: string;
@@ -5012,13 +5119,15 @@ export function readDoctorRepositoryIssues(
   attempts: DoctorRepositoryInventoryAttempt[] = [],
 ) {
   for (let attempt = 1; attempt <= 2; attempt++) {
+    const source = attempt === 1 ? "rest" : "graphql";
     try {
-      const issues = client.repositoryIssues();
-      attempts.push({ attempt, outcome: "passed", issues: issues.length });
+      const issues = client.repositoryIssues({ useGraphql: source === "graphql" });
+      attempts.push({ attempt, source, outcome: "passed", issues: issues.length });
       return { issues, attempts };
     } catch (error) {
       attempts.push({
         attempt,
+        source,
         outcome: "failed",
         error: sanitizeOperationError(error).message,
         ...(error instanceof RepositoryIssueSnapshotError ? { snapshot: error.snapshot } : {}),
