@@ -2630,9 +2630,14 @@ void test("doctor requires count-verified inventory even when truncated REST inc
     return included([restIssue(3)]);
   });
   const result = readDoctorRepositoryIssues(client);
-  assert.deepEqual(result.issues.map((issue) => issue.number), [1, 2, 3]);
+  assert.deepEqual(
+    result.issues.map((issue) => issue.number),
+    [1, 2, 3],
+  );
   assert.equal(restReads, 0);
-  assert.deepEqual(result.attempts, [{ attempt: 1, source: "graphql", outcome: "passed", issues: 3 }]);
+  assert.deepEqual(result.attempts, [
+    { attempt: 1, source: "graphql", outcome: "passed", issues: 3 },
+  ]);
 });
 
 void test("doctor retains a failed GraphQL observation without a retry", () => {
@@ -2652,7 +2657,8 @@ void test("doctor retains a failed GraphQL observation without a retry", () => {
 void test("doctor records one complete empty GraphQL observation", () => {
   const client = new RoadmapClient(config, (_args, input) => issueConnectionResponse(input, []));
   assert.deepEqual(readDoctorRepositoryIssues(client), {
-    issues: [], attempts: [{ attempt: 1, source: "graphql", outcome: "passed", issues: 0 }],
+    issues: [],
+    attempts: [{ attempt: 1, source: "graphql", outcome: "passed", issues: 0 }],
   });
 });
 
@@ -2664,16 +2670,27 @@ void test("runDoctor retains an incomplete GraphQL observation for its CLI recei
     return issueConnectionResponse(input, [1], 3);
   });
   const attempts: Parameters<typeof readDoctorRepositoryIssues>[1] = [];
-  await assert.rejects(runDoctor(config, {
-    gh: () => "",
-    completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
-    viewList: () => [],
-    projectAudit: () => ({ repositories: { nodes: [] } }),
-    itemList: () => [],
-    repositoryIssues: (options: Parameters<RoadmapClient["repositoryIssues"]>[0]) => client.repositoryIssues(options),
-  }, { quiet: true, repositoryIssueInventoryAttempts: attempts }), /record count does not match total/);
+  await assert.rejects(
+    runDoctor(
+      config,
+      {
+        gh: () => "",
+        completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
+        viewList: () => [],
+        projectAudit: () => ({ repositories: { nodes: [] } }),
+        itemList: () => [],
+        repositoryIssues: (options: Parameters<RoadmapClient["repositoryIssues"]>[0]) =>
+          client.repositoryIssues(options),
+      },
+      { quiet: true, repositoryIssueInventoryAttempts: attempts },
+    ),
+    /record count does not match total/,
+  );
   assert.equal(traversals, 1);
-  assert.deepEqual(attempts.map((entry) => entry.outcome), ["failed"]);
+  assert.deepEqual(
+    attempts.map((entry) => entry.outcome),
+    ["failed"],
+  );
   assert.equal(fixtureValue(attempts[0]).source, "graphql");
 });
 void test("GraphQL repository inventory reads all pages and binds the repository and latest issue", () => {
