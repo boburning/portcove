@@ -2616,6 +2616,29 @@ mod tests {
         paper_mario.project_url = "https://github.com/SMCGames/Paper-Mario-ReCut-Deprecated".into();
         paper_mario.release.repository = "SMCGames/Paper-Mario-ReCut-Deprecated".into();
         paper_mario.upstream_status = crate::UpstreamStatus::Retired;
+        // New DKR registrations delegate runtime replacement to upstream. The
+        // historical managed definition/profile remain frozen reader inputs.
+        let dkr = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "dkr-r")
+            .unwrap();
+        dkr.platforms = vec![Platform::WindowsX86_64];
+        dkr.adapter = crate::AdapterKind::StagedSourcePortable;
+        dkr.release.provider = ReleaseSource::UserPrepared;
+        dkr.release.asset_hints.clear();
+        dkr.release.user_prepared = serde_json::from_value(serde_json::json!({
+            "windows-x86-64": {
+                "trust": "user-selected", "version": "user-managed",
+                "archive_name": "", "archive_size": 0, "archive_sha256": "",
+                "immutable_tree_sha256": "", "executable": "", "mutable_paths": []
+            }
+        }))
+        .unwrap();
+        dkr.source_profile = None;
+        dkr.executable_hints.clear();
+        dkr.persistent_paths.clear();
+        dkr.runtime_source_filename = None;
+        dkr.launch_arguments.clear();
         for (id, hint) in [
             ("zelda64-recomp", "Linux-X64.zip"),
             ("banjo-recomp", "Linux-X64."),
@@ -4347,25 +4370,44 @@ mod tests {
     }
 
     #[test]
-    fn dkr_r_uses_the_active_cross_platform_upstream_contract() {
+    fn dkr_r_registers_upstream_owned_launchers_without_replacing_managed_state() {
         let catalog = Catalog::embedded().expect("catalog should load");
         let port = catalog.port("dkr-r").expect("DKR-R should exist");
 
         assert_eq!(port.channels, vec![crate::ReleaseChannel::Stable]);
         assert_eq!(port.release.repository, "ThatGuyMcd/DKR-R");
         assert_eq!(port.project_url, "https://github.com/ThatGuyMcd/DKR-R");
-        assert_eq!(
-            port.platforms,
-            vec![crate::Platform::WindowsX86_64, crate::Platform::LinuxX86_64]
+        assert_eq!(port.platforms, vec![crate::Platform::WindowsX86_64]);
+        assert_eq!(port.adapter, crate::AdapterKind::StagedSourcePortable);
+        let runtime = &port.release.user_prepared[&crate::Platform::WindowsX86_64];
+        assert_eq!(runtime.trust, crate::ExternalRuntimeTrust::UserSelected);
+        assert!(port.executable_hints.is_empty());
+        assert!(port.source_profile.is_none());
+        assert!(port.persistent_paths.is_empty());
+        assert!(port.launch_arguments.is_empty());
+        assert!(
+            crate::InstallQualification::from_catalog(
+                &catalog,
+                &port.id,
+                crate::Platform::WindowsX86_64,
+            )
+            .is_err()
         );
-        assert_eq!(
-            port.executable_hints[&crate::Platform::WindowsX86_64],
-            vec!["DKR-R.exe"]
+
+        // A changed new-install route must not reinterpret existing managed
+        // libraries. Keep using the frozen, published source/runtime contract.
+        let retained =
+            Catalog::from_json(include_str!("../catalog/catalog-schema1-fixture.json")).unwrap();
+        let retained_port = retained.port("dkr-r").unwrap();
+        assert!(
+            crate::InstallQualification::from_catalog(
+                &retained,
+                &retained_port.id,
+                crate::Platform::WindowsX86_64,
+            )
+            .is_ok()
         );
-        assert_eq!(
-            port.executable_hints[&crate::Platform::LinuxX86_64],
-            vec!["DKR-R-1.0.4-Linux-x86_64.AppImage"]
-        );
+        assert_eq!(retained_port.adapter, crate::AdapterKind::N64RecompPortable);
         let profile = catalog
             .source_profile("diddy-kong-racing")
             .expect("DKR source profile should exist");
@@ -4377,13 +4419,19 @@ mod tests {
             ]
         );
         assert!(
-            port.persistent_paths
+            retained_port
+                .persistent_paths
                 .iter()
                 .any(|path| path == "dkr-runtime-data")
         );
-        assert!(port.persistent_paths.iter().any(|path| path == "imgui.ini"));
+        assert!(
+            retained_port
+                .persistent_paths
+                .iter()
+                .any(|path| path == "imgui.ini")
+        );
         assert_eq!(
-            port.launch_arguments,
+            retained_port.launch_arguments,
             ["--rom", "dkr-us-v80.z64", "--config", "dkr-runtime-data"]
         );
         assert!(port.automated_tested_platforms.is_empty());

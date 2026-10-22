@@ -2549,7 +2549,11 @@ mod tests {
 
     #[tokio::test]
     async fn dkr_numbered_beta_does_not_replace_the_stable_release() {
-        let catalog = crate::Catalog::embedded().unwrap();
+        // Existing managed DKR-R definitions retain their release semantics;
+        // the current user-selected route offers no managed acquisition.
+        let catalog =
+            crate::Catalog::from_json(include_str!("../catalog/catalog-schema1-fixture.json"))
+                .unwrap();
         let port = catalog.port("dkr-r").unwrap();
         for platform in [Platform::WindowsX86_64, Platform::LinuxX86_64] {
             let asset = |version: &str| match platform {
