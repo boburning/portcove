@@ -776,7 +776,7 @@ function StatusActionsGroup({
       </section>
     );
   }
-  if (!installed && actionPresentation.blocked)
+  if (!installed && !stagedVersion && actionPresentation.blocked)
     return (
       <section aria-label="Game actions" className="grid gap-3">
         <RetiredNotice port={port} />
@@ -1313,7 +1313,7 @@ function SavesAndSettingsSummary({
     <div className="metadata grid grid-cols-[1fr_1fr] gap-[10px]">
       <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
         <small className="mb-[5px] block text-[var(--color-text-muted)]">Saved data handling</small>
-        {status?.active && port.release.provider === "user-prepared"
+        {(status?.active || status?.staged) && port.release.provider === "user-prepared"
           ? "Managed by Portcove under this installation's retained contract"
           : port.presentation?.saves_and_settings === "portcove-managed"
             ? "Managed by Portcove for backup and restore"
@@ -1567,7 +1567,7 @@ function TechnicalDetails({
               <small className="mb-[5px] block text-[var(--color-text-muted)]">
                 Saved data patterns
               </small>
-              {status?.active && port.release.provider === "user-prepared"
+              {(status?.active || status?.staged) && port.release.provider === "user-prepared"
                 ? "Saved data follows this installation's retained contract."
                 : persistentFiles || "No saved data paths declared"}
             </span>
@@ -1861,7 +1861,11 @@ function PrimaryActions({
       </>
     );
   if (!installed)
-    return (
+    return stagedVersion ? (
+      <div className="actions primary-actions mt-[16px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
+        <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />
+      </div>
+    ) : (
       <InstallAction
         cancellations={installCancellations}
         ready={launchReady}

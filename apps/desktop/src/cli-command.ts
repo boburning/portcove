@@ -17,6 +17,7 @@ export function primaryCliCommand(
   const args = ["--library", context.library_root];
   let followUp: { args: string[]; shell: string } | undefined;
   if (status?.active || status?.external_runtime) args.push("exec", port.id, "--");
+  else if (status?.staged) args.push("activate", port.id);
   else if (port.release.provider === "user-prepared") {
     if (usesUserSelectedRuntime(port)) {
       const selected = [port.id, "<game-executable>", "--working-directory", "<working-directory>"];

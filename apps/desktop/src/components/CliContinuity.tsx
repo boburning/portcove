@@ -52,16 +52,23 @@ export function CliContinuity({
     };
   }, [generation, attempt]);
   const installed = Boolean(status?.active || status?.external_runtime);
-  const useInPlace = !installed && port.release.provider === "user-prepared";
+  const stagedOnly = !installed && Boolean(status?.staged);
+  const useInPlace = !installed && !stagedOnly && port.release.provider === "user-prepared";
   const userSelected = usesUserSelectedRuntime(port, status);
-  const title = installed ? "Launch from another app" : "Set up from the command line";
+  const title = installed
+    ? "Launch from another app"
+    : stagedOnly
+      ? "Activate staged version"
+      : "Set up from the command line";
   const copyLabel = installed
     ? "Copy launch command"
-    : useInPlace
-      ? userSelected
-        ? "Copy launch-review command"
-        : "Copy folder-check command"
-      : "Copy setup command";
+    : stagedOnly
+      ? "Copy activation command"
+      : useInPlace
+        ? userSelected
+          ? "Copy launch-review command"
+          : "Copy folder-check command"
+        : "Copy setup command";
   if (!context)
     return (
       <section
@@ -145,13 +152,15 @@ export function CliContinuity({
       <p>
         {installed
           ? "The CLI checks this installation before launching it. This does not install or update the game."
-          : useInPlace
-            ? userSelected
-              ? "Complete upstream setup, then replace game-executable and working-directory with your selected paths. Add documented arguments with one --arg per argument to both commands. You or the upstream launcher manage setup and updates; Portcove has not authenticated the selected bytes as an official package."
-              : "Prepare the required version yourself. Replace game-folder with its folder path, check it, then save the location after review. Portcove does not download, copy, update, back up, or delete these files."
-            : "Running this command can download and install the selected release. Required game files are checked before use."}
+          : stagedOnly
+            ? "The CLI checks the retained staged version before making it active. This does not download a new release or register an external installation."
+            : useInPlace
+              ? userSelected
+                ? "Complete upstream setup, then replace game-executable and working-directory with your selected paths. Add documented arguments with one --arg per argument to both commands. You or the upstream launcher manage setup and updates; Portcove has not authenticated the selected bytes as an official package."
+                : "Prepare the required version yourself. Replace game-folder with its folder path, check it, then save the location after review. Portcove does not download, copy, update, back up, or delete these files."
+              : "Running this command can download and install the selected release. Required game files are checked before use."}
       </p>
-      {!installed && !useInPlace && channel === "beta" && (
+      {!installed && !stagedOnly && !useInPlace && channel === "beta" && (
         <p>
           This command uses the compatible beta spelling: beta selects Preview. The selected CLI's
           preview input support has not been verified, so the copied command retains beta for

@@ -73,6 +73,25 @@ describe("GUI to CLI continuity", () => {
     expect(command.shell).toContain("'<portcove-executable>'");
   });
 
+  it.each(["github", "user-prepared"] as const)(
+    "activates the retained staged version without following the current %s setup route",
+    (provider) => {
+      const currentPort = { ...port, release: { ...port.release, provider } };
+      const status = { ...portStatus(), staged: { id: "staged" } } as PortStatus;
+      const command = primaryCliCommand(context, currentPort, status, "beta");
+      expect(command.args).toEqual(["--library", context.library_root, "activate", port.id]);
+      expect(command.missing).toEqual([]);
+      expect(command.followUp).toBeUndefined();
+      const active = primaryCliCommand(
+        context,
+        currentPort,
+        { ...status, active: { id: "active" } } as PortStatus,
+        "beta",
+      );
+      expect(active.args).toEqual(["--library", context.library_root, "exec", port.id, "--"]);
+    },
+  );
+
   it("uses the exact external folder preview and registration route for a user-prepared port", () => {
     const prepared = {
       ...port,

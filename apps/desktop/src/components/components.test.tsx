@@ -521,6 +521,47 @@ describe("desktop components", () => {
       expect(html).toContain(invalid ? "Installation needs repair" : "data-launch-action");
     },
   );
+  it.each([undefined, "activate"])(
+    "preserves retained staged activation after the current route changes (busy: %s)",
+    (busy) => {
+      const currentPort = currentCatalogPort("render96ex");
+      const status: PortStatus = {
+        ...portStatus(),
+        port_id: currentPort.id,
+        active: null,
+        staged: installRecord({ port_id: currentPort.id, version: "retained-staged" }),
+        readiness: {
+          launchable: false,
+          pending_setup: false,
+          blockers: [],
+          source: null,
+          bios: null,
+        },
+        port_actions: [
+          { action: "install", availability: "not_offered", reason: "route_not_offered" },
+        ],
+      };
+      const html = renderToStaticMarkup(
+        <DetailPanel
+          port={currentPort}
+          status={status}
+          sourcePath=""
+          setSourcePath={vi.fn()}
+          busy={busy}
+          actions={actions}
+        />,
+      );
+      const activation = html.match(/<button[^>]*>Use update · retained-staged<\/button>/)?.[0];
+      expect(activation).toBeDefined();
+      expect(activation?.includes("disabled")).toBe(Boolean(busy));
+      expect(html).toContain("Managed by Portcove under this installation");
+      expect(html).not.toContain("Choose game executable");
+      expect(html).not.toContain("Remove registration");
+      expect(html).not.toContain("Stored with your external runtime");
+      expect(html).not.toContain("Check for updates</button>");
+      expect(html).not.toContain("data-launch-action");
+    },
+  );
   it.each(["future_state", "constructor", "__proto__"])(
     "keeps unknown activity and policy labels neutral for %s",
     (value) => {

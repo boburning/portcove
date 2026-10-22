@@ -289,7 +289,7 @@ internal static class ContractTests
         var stream73 = new ProtocolStream("status");
         stream73.Line(Json.Print(result73));
         Check(Json.Array(stream73.Finish(0)).Length == 0, "schema 73 result crosses the actual protocol reader");
-        foreach (var privateSchema in new[] { 58, 59, 64, 80 })
+        foreach (var privateSchema in new[] { 58, 59, 64, 81 })
         {
             var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             unsupported["schema_version"] = privateSchema;
@@ -866,7 +866,7 @@ internal static class ContractTests
         biosReadiness["blockers"] = new object[0];
         Reject(() => PortActions.ValidateStatus(biosStatus, 69), "legacy recovery schema independently rejects the new BIOS action reason");
         Reject(() => PortActions.ValidateStatus(biosStatus, 68), "schema68 rejects the new BIOS action reason even without new readiness fields");
-        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 80 })
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 81 })
         {
             capabilities["schema_version"] = unsupported;
             Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);
