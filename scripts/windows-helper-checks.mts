@@ -57,6 +57,7 @@ const helperPaths = new Set([
   "scripts/release-local-worker-accounts.ps1",
   "scripts/release-local-worker-accounts.test.mts",
   "scripts/recover-local-worker-empty-setup.ps1",
+  "scripts/resume-local-worker-profile.ps1",
   "scripts/recover-local-worker-empty-setup.test.mts",
   "scripts/release-native-account-capability.mts",
   "scripts/release-native-account-capability.test.mts",

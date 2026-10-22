@@ -270,6 +270,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-local-worker-tasks.mts",
   "scripts/release-local-worker-accounts.ps1",
   "scripts/recover-local-worker-empty-setup.ps1",
+  "scripts/resume-local-worker-profile.ps1",
   "scripts/recover-local-worker-empty-setup.test.mts",
   "scripts/release-native-account-capability.mts",
   "scripts/read-native-scheduler.ps1",
