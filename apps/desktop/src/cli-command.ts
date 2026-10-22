@@ -1,5 +1,5 @@
 import type { CliCommandContext, PortDefinition, PortStatus, ReleaseChannel } from "./types";
-import { usesUserSelectedRuntime } from "./shared/external-runtime-trust";
+import { usesUserSelectedRuntime } from "./shared/external-runtime-trust.ts";
 
 type CommandShell = "powershell" | "posix";
 
