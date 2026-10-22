@@ -1,5 +1,7 @@
 use super::*;
 use policy::provisioning::{apply_fixture, review_fixture};
+use policy::provisioning::{apply_single_owner_fixture, review_single_owner_fixture};
+use tough::schema::Signed;
 
 pub(super) fn separated_fixture() -> RepositoryFixture {
     let mut fixture = RepositoryFixture::new();
@@ -9,6 +11,71 @@ pub(super) fn separated_fixture() -> RepositoryFixture {
         Key::new(fixture._directory.path()),
     ]);
     fixture
+}
+
+async fn single_owner_root(fixture: &RepositoryFixture) -> Vec<u8> {
+    let original: Signed<Root> = serde_json::from_slice(&fixture.root(true).await).unwrap();
+    let mut root = original.signed;
+    let roots = root.roles.get_mut(&RoleType::Root).unwrap();
+    for id in roots.keyids.drain(1..) {
+        root.keys.remove(&id);
+    }
+    roots.threshold = nz(1);
+    SignedRole::new(
+        root.clone(),
+        &KeyHolder::Root(root),
+        &[fixture.offline[0].source()],
+        &SystemRandom::new(),
+    )
+    .await
+    .unwrap()
+    .buffer()
+    .clone()
+}
+
+#[tokio::test]
+async fn explicit_single_owner_bootstrap_preserves_legacy_and_existing_anchor_refusals() {
+    let root = single_owner_root(&separated_fixture()).await;
+    let legacy_root = separated_fixture().root(true).await;
+    let (_directory, library) = library();
+    let observer = library.connection().unwrap();
+    let before = data_version(&observer);
+    assert!(review_fixture(&library, &root).is_err());
+    assert!(review_single_owner_fixture(&library, &legacy_root).is_err());
+    let mut unsigned: Signed<Root> = serde_json::from_slice(&root).unwrap();
+    unsigned.signatures.clear();
+    assert!(
+        review_single_owner_fixture(&library, &serde_json::to_vec(&unsigned).unwrap()).is_err()
+    );
+    assert_eq!(data_version(&observer), before);
+
+    let plan = review_single_owner_fixture(&library, &root).unwrap();
+    let applied = apply_single_owner_fixture(&library, &root, &plan.expected_plan).unwrap();
+    assert!(applied.changed);
+    assert!(
+        !apply_single_owner_fixture(&library, &root, &plan.expected_plan)
+            .unwrap()
+            .changed
+    );
+    let installed = data_version(&observer);
+    let foreign = single_owner_root(&separated_fixture()).await;
+    assert!(review_single_owner_fixture(&library, &foreign).is_err());
+    assert!(apply_single_owner_fixture(&library, &foreign, &applied.review.expected_plan).is_err());
+    assert_eq!(data_version(&observer), installed);
+
+    let (_old_directory, old_library) = super::library();
+    let old_observer = old_library.connection().unwrap();
+    let old_plan = review_fixture(&old_library, &legacy_root).unwrap();
+    apply_fixture(&old_library, &legacy_root, &old_plan.expected_plan).unwrap();
+    let old_version = data_version(&old_observer);
+    assert!(review_single_owner_fixture(&old_library, &root).is_err());
+    assert!(apply_single_owner_fixture(&old_library, &root, &old_plan.expected_plan).is_err());
+    assert_eq!(data_version(&old_observer), old_version);
+    assert!(
+        review_fixture(&old_library, &legacy_root)
+            .unwrap()
+            .installed
+    );
 }
 
 fn data_version(connection: &rusqlite::Connection) -> i64 {

@@ -13,6 +13,16 @@ struct Fixture {
 }
 impl Fixture {
     async fn new() -> Self {
+        Self::new_with_profile(InitialRootProfile::LegacyTwoOfThreeV1).await
+    }
+
+    async fn new_with_profile(profile: InitialRootProfile) -> Self {
+        let appointed = |mut value: serde_json::Value| {
+            if profile == InitialRootProfile::SingleOwnerOneOfOneV1 {
+                value["initial_root_profile"] = json!(profile);
+            }
+            value
+        };
         let directory = tempfile::tempdir().unwrap();
         let root = directory.path();
         let at = Timestamp::now().to_string();
@@ -34,16 +44,20 @@ impl Fixture {
         let prepare = json_file(
             root,
             "prepare-root.json",
-            json!({"schema_version":1,"generated_at":at,"expires":expires,"root_public_keys":public[..3],"targets_public_key":public[3],"snapshot_public_key":public[4],"timestamp_public_key":public[5],"output":"root-unsigned.json"}),
+            appointed(
+                json!({"schema_version":1,"generated_at":at,"expires":expires,"root_public_keys":public[..profile.root_keys()],"targets_public_key":public[3],"snapshot_public_key":public[4],"timestamp_public_key":public[5],"output":"root-unsigned.json"}),
+            ),
         );
         let proposal = offline::prepare_initial_root(&prepare).unwrap();
         let mut previous = "root-unsigned.json".to_owned();
-        for index in 0..2 {
+        for index in 0..profile.threshold() {
             let output = format!("root-signed-{index}.json");
             let config = json_file(
                 root,
                 &format!("root-sign-{index}.json"),
-                json!({"schema_version":1,"generated_at":at,"root":previous,"signed_body_sha256":proposal.signed_body_sha256,"signing_key":format!("key-{index}/private.pk8"),"output":output}),
+                appointed(
+                    json!({"schema_version":1,"generated_at":at,"root":previous,"signed_body_sha256":proposal.signed_body_sha256,"signing_key":format!("key-{index}/private.pk8"),"output":output}),
+                ),
             );
             offline::sign_initial_root(&config).await.unwrap();
             previous = output;
@@ -51,14 +65,18 @@ impl Fixture {
         let config = json_file(
             root,
             "final-root.json",
-            json!({"schema_version":1,"generated_at":at,"root":previous,"signed_body_sha256":proposal.signed_body_sha256,"output":"root.json"}),
+            appointed(
+                json!({"schema_version":1,"generated_at":at,"root":previous,"signed_body_sha256":proposal.signed_body_sha256,"output":"root.json"}),
+            ),
         );
         offline::finalize_initial_root(&config).unwrap();
         let root_bytes = fs::read(root.join("root.json")).unwrap();
         let top_config = json_file(
             root,
             "top-config.json",
-            json!({"schema_version":1,"generated_at":at,"trusted_root":"root.json","trusted_root_sha256":sha(&root_bytes),"delegated_public_keys":{"definitions":public[6],"policy":public[7]},"version":1,"expires":expires,"signing_key":"key-3/private.pk8","output":"targets.json"}),
+            appointed(
+                json!({"schema_version":1,"generated_at":at,"trusted_root":"root.json","trusted_root_sha256":sha(&root_bytes),"delegated_public_keys":{"definitions":public[6],"policy":public[7]},"version":1,"expires":expires,"signing_key":"key-3/private.pk8","output":"targets.json"}),
+            ),
         );
         sign_offline_definition_targets(&top_config).await.unwrap();
         let bundle = root.join("bundle");
@@ -84,7 +102,9 @@ impl Fixture {
         let context = json_file(
             root,
             "context.json",
-            json!({"schema_version":1,"generated_at":at,"trusted_root":"root.json","trusted_root_sha256":sha(&root_bytes),"offline_targets":"targets.json","offline_targets_sha256":sha(&top_bytes),"prepared_bundle":"bundle","inspection":"inspection.json","inspection_sha256":sha(&fs::read(manifest).unwrap()),"previous_repository":null,"versions":{"definitions":1,"policy":1,"snapshot":1,"timestamp":1},"expires":{"definitions":expires,"policy":expires,"snapshot":expires,"timestamp":expires}}),
+            appointed(
+                json!({"schema_version":1,"generated_at":at,"trusted_root":"root.json","trusted_root_sha256":sha(&root_bytes),"offline_targets":"targets.json","offline_targets_sha256":sha(&top_bytes),"prepared_bundle":"bundle","inspection":"inspection.json","inspection_sha256":sha(&fs::read(manifest).unwrap()),"previous_repository":null,"versions":{"definitions":1,"policy":1,"snapshot":1,"timestamp":1},"expires":{"definitions":expires,"policy":expires,"snapshot":expires,"timestamp":expires}}),
+            ),
         );
         let roles = root.join("roles");
         fs::create_dir(&roles).unwrap();
@@ -140,6 +160,49 @@ impl Fixture {
         fs::write(&self.context, serde_json::to_vec(&value).unwrap()).unwrap()
     }
 }
+#[tokio::test]
+async fn appointed_single_owner_catalog_signs_assembles_and_verifies_without_implicit_downgrade() {
+    let fixture = Fixture::new_with_profile(InitialRootProfile::SingleOwnerOneOfOneV1).await;
+    let context = fixture.context_value();
+    let mut implicit = context.clone();
+    implicit
+        .as_object_mut()
+        .unwrap()
+        .remove("initial_root_profile");
+    fixture.set_context(implicit);
+    assert!(
+        sign_definition_role(
+            DefinitionOnlineRole::Definitions,
+            &fixture.sign_config(DefinitionOnlineRole::Definitions)
+        )
+        .await
+        .is_err()
+    );
+    assert!(!fixture.roles.join("official-definitions.json").exists());
+    fixture.set_context(context);
+    fixture.sign_all().await;
+    let assembled = assemble_definition_repository(&fixture.assembly("published"))
+        .await
+        .unwrap();
+    let mut verification = json!({
+        "schema_version":1,
+        "trusted_root":"root.json","trusted_root_sha256":assembled.root_sha256,
+        "offline_targets":"targets.json","offline_targets_sha256":assembled.offline_targets_sha256,
+        "repository":"published"
+    });
+    let path = json_file(
+        fixture.root(),
+        "verify-single-owner.json",
+        verification.clone(),
+    );
+    assert!(verify_definition_repository(&path).await.is_err());
+    verification["initial_root_profile"] = json!(InitialRootProfile::SingleOwnerOneOfOneV1);
+    json_file(fixture.root(), "verify-single-owner.json", verification);
+    let verified = verify_definition_repository(&path).await.unwrap();
+    assert_eq!(verified.repository_sha256, assembled.repository_sha256);
+    assert!(!verified.changed);
+}
+
 #[tokio::test]
 async fn catalog_four_isolated_roles_and_zero_key_assembly_have_exact_tough_readback() {
     let fixture = Fixture::new().await;
@@ -459,9 +522,13 @@ async fn physical_root_key_alias_cannot_supply_a_second_catalog_quorum_member() 
     root.signatures=serde_json::from_value(json!([{"keyid":hex::encode(original.as_ref()),"sig":sig},{"keyid":hex::encode(alias_id.as_ref()),"sig":sig}])).unwrap();
     // Control: ordinary signature verification sees two distinct valid TUF IDs.
     root.signed.verify_role(&root).unwrap();
-    let error = policy::root(&root, Timestamp::now())
-        .unwrap_err()
-        .to_string();
+    let error = policy::root(
+        &root,
+        Timestamp::now(),
+        InitialRootProfile::LegacyTwoOfThreeV1,
+    )
+    .unwrap_err()
+    .to_string();
     assert!(error.contains("without aliases"), "{error}");
 }
 #[tokio::test]

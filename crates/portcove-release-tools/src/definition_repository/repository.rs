@@ -568,6 +568,8 @@ fn repository_report(
 #[serde(deny_unknown_fields)]
 struct VerificationConfig {
     schema_version: u32,
+    #[serde(default)]
+    initial_root_profile: InitialRootProfile,
     trusted_root: String,
     trusted_root_sha256: String,
     offline_targets: String,
@@ -595,7 +597,7 @@ pub async fn verify_definition_repository(path: &Path) -> Result<DefinitionRepos
     let root: Signed<Root> = serde_json::from_slice(&root_bytes)?;
     let top: Signed<Targets> = serde_json::from_slice(&top_bytes)?;
     let now = Timestamp::now();
-    policy::root(&root, now)?;
+    policy::root(&root, now, config.initial_root_profile)?;
     policy::top(&root.signed, &top, now)?;
     let files = io::tree(&repository_path, 65536, 128 * 1024 * 1024)?;
     validate_public_paths(&files)?;

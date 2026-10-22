@@ -76,6 +76,7 @@ pub(super) fn validate_root_contract(
     generated_at: Timestamp,
     now: Timestamp,
     signing_key_ids: &[Vec<u8>; 6],
+    profile: InitialRootProfile,
 ) -> Result<(), TufRepositoryError> {
     if !root.consistent_snapshot {
         return Err(TufRepositoryError::Invalid(
@@ -94,9 +95,30 @@ pub(super) fn validate_root_contract(
         .get(&RoleType::Root)
         .ok_or_else(|| TufRepositoryError::Invalid("trusted root omits the root role".into()))?;
     let root_keys: BTreeSet<_> = root_role.keyids.iter().collect();
-    if root_role.threshold.get() != 2 || root_keys.len() < 3 {
+    let valid_count = match profile {
+        InitialRootProfile::LegacyTwoOfThreeV1 => root_keys.len() >= 3,
+        InitialRootProfile::SingleOwnerOneOfOneV1 => {
+            root_keys.len() == 1 && root_role.keyids.len() == 1
+        }
+    };
+    if root_role.threshold.get() != profile.threshold() || !valid_count {
         return Err(TufRepositoryError::Invalid(
-            "trusted root needs at least three keys and a two-signature quorum".into(),
+            "trusted root differs from the explicitly configured initial Root profile".into(),
+        ));
+    }
+    if profile == InitialRootProfile::SingleOwnerOneOfOneV1
+        && (root.spec_version != "1.0.0"
+            || !root._extra.is_empty()
+            || root.roles.len() != 4
+            || root.keys.len() != 4
+            || root.roles.values().any(|role| !role._extra.is_empty())
+            || root.keys.iter().any(|(id, key)| {
+                !matches!(key, tough::schema::key::Key::Ed25519 { .. })
+                    || !key.key_id().is_ok_and(|actual| actual == *id)
+            }))
+    {
+        return Err(TufRepositoryError::Invalid(
+            "single-owner root requires four exact separated Ed25519 role keys".into(),
         ));
     }
     let mut online_keys = BTreeSet::new();

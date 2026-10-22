@@ -13,6 +13,7 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::initial_root_profile::InitialRootProfile;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use futures_util::TryStreamExt;
 use jiff::Timestamp;
@@ -60,6 +61,8 @@ impl From<tough::error::Error> for TufRepositoryError {
 #[serde(deny_unknown_fields)]
 struct RepositoryConfig {
     schema_version: u32,
+    #[serde(default)]
+    initial_root_profile: InitialRootProfile,
     generated_at: String,
     trusted_root: String,
     reconstructed_records: String,
@@ -364,7 +367,13 @@ pub async fn build_tuf_repository(
     ] {
         expiry_window(generated_at, now, expires, maximum, label)?;
     }
-    validate_root_contract(&signed_root.signed, generated_at, now, &signing_key_ids)?;
+    validate_root_contract(
+        &signed_root.signed,
+        generated_at,
+        now,
+        &signing_key_ids,
+        config.initial_root_profile,
+    )?;
     let offline_targets = offline_path
         .as_ref()
         .map(|path| {
