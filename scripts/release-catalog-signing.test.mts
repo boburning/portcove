@@ -19,6 +19,7 @@ import {
   catalogSigningAdmissionDigest,
   catalogSigningContextBytes,
   inspectCatalogSigningFacts,
+  inspectCatalogSigningBinding,
   inspectCatalogContextPaths,
   inspectIsolatedCatalogRoleRequest,
   catalogRoleDependencies,
@@ -603,6 +604,81 @@ void test("catalog role dependencies stay separate from app and reject missing o
       })),
     }),
   );
+});
+
+void test("catalog profiles remain exact context bytes and require independent binding selection", () => {
+  const f = fixture();
+  assert(!f.context.includes(Buffer.from("initial_root_profile")));
+  const facts = inspectCatalogSigningFacts({
+    ...f.facts,
+    initial_root_profile: "single-owner-one-of-one-v1",
+  });
+  const context = catalogSigningContextBytes(facts);
+  assert.match(context.toString(), /"initial_root_profile":"single-owner-one-of-one-v1"/);
+  assert.match(context.toString(), /"definitions":9007199254740993/);
+  assert.deepEqual(inspectCatalogContextPaths(context), { bootstrap: true });
+  const binding = { ...f.binding, context_sha256: hash(context) };
+  assert.throws(
+    () => inspectCatalogSigningBinding(facts, binding, facts.descriptor.prior),
+    /independently selected authority/,
+  );
+  assert.equal(
+    inspectCatalogSigningBinding(facts, binding, facts.descriptor.prior, {
+      initial_root_profile: "single-owner-one-of-one-v1",
+    }).binding.context_sha256,
+    hash(context),
+  );
+  for (const changed of [
+    { initial_root_profile: "download-selected" },
+    { top_level_targets_profile: "unknown" },
+    { top_level_targets_profile: "online-unchanged-authority-v1" },
+  ])
+    assert.throws(() => inspectCatalogSigningFacts({ ...f.facts, ...changed }));
+  assert.throws(
+    () =>
+      inspectCatalogSigningFacts({
+        ...facts,
+        top_level_targets_profile: "online-unchanged-authority-v1",
+      }),
+    /authenticated prior/,
+  );
+  const prior = {
+    ...facts.descriptor.prior,
+    catalog_repository_sha256: "a".repeat(64),
+    site_generation_sha256: "b".repeat(64),
+  };
+  const online = inspectCatalogSigningFacts({
+    ...facts,
+    top_level_targets_profile: "online-unchanged-authority-v1",
+    descriptor: { ...facts.descriptor, prior },
+    semantic_opportunity: {
+      ...facts.semantic_opportunity,
+      baseline: { ...facts.semantic_opportunity.baseline, ...prior },
+      classification: { ...facts.semantic_opportunity.classification, change: "update" },
+    },
+  });
+  const onlineContext = catalogSigningContextBytes(online);
+  assert.match(
+    onlineContext.toString(),
+    /"top_level_targets_profile":"online-unchanged-authority-v1"/,
+  );
+  assert.deepEqual(inspectCatalogContextPaths(onlineContext), { bootstrap: false });
+  const onlineBinding = {
+    ...binding,
+    descriptor_sha256: digest(online.descriptor),
+    context_sha256: hash(onlineContext),
+  };
+  assert.throws(
+    () =>
+      inspectCatalogSigningBinding(online, onlineBinding, prior, {
+        initial_root_profile: "single-owner-one-of-one-v1",
+      }),
+    /independently selected authority/,
+  );
+  inspectCatalogSigningBinding(online, onlineBinding, prior, {
+    initial_root_profile: "single-owner-one-of-one-v1",
+    top_level_targets_profile: "online-unchanged-authority-v1",
+  });
 });
 void test("catalog job clocks derive from original fixed provider start and refuse app purpose, drift and exhaustion", () => {
   const now = Date.parse("2026-10-21T00:00:00.000Z"),

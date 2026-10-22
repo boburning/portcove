@@ -1,0 +1,9 @@
+# Slice 4 catalog context profile preparation
+
+Owner: #534. The approved simpler setup's separate catalog Root and online Targets remain distinct from application authority.
+
+Catalog facts and exact-u64 context serialization now retain the closed, explicitly selected initial Root and top-level Targets profiles. Omission preserves the existing legacy/offline bytes. Unknown profiles refuse; online unchanged-authority Targets requires the single-owner profile and a real prior catalog subject. Initial bootstrap cannot select online renewal. The structural path checker consumes the extra fields without treating them as appointment or cryptographic verification.
+
+Binding additionally requires an independently supplied expected profile tuple. Its default stays legacy/offline, so every existing protected consumer, imported archive and current factory remains held against unsolicited single-owner/online facts. A supplied Root or context cannot choose its own expected authority. Actual replacement factories must pass the profiles from their ratified protected configuration; the current seven-App configurations do not acquire those selections. The schema/progression helpers grant no publisher authority or semantic acceptance.
+
+Focused regression source checks exact single-owner and online context fields, positive-u64 numeric tokens above Number precision, initial/online incompatibility, unknown profiles and refusal when the expected initial or Targets profile differs. An explicit matching expected tuple permits the data binding; actual issuer/semantic/configuration provenance and Rust/Tough verification remain separate. This does not complete catalog fifth-role transport, durable anchor transitions, current two-App configuration or protected execution. Actual hosted same-client proof stays the first setup gate, and all prior issue/custody/capacity restrictions remain.
