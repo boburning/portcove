@@ -90,3 +90,17 @@ void test(
  $refused=$false;try{Assert-NoWorkerAccountsOrProfiles}catch{if($_.Exception.Message -cne 'Worker profile registration exists'){throw};$refused=$true};if(-not $refused){throw 'Profile registration admitted'};'provider-refusal-cases-complete';`);
   },
 );
+
+void test(
+  "actual trusted-writer dot-source defines the original receipt writer in caller scope",
+  windows,
+  () => {
+    run(`$expectedDefinition=(Get-Command Write-NewJson -CommandType Function).Definition;Remove-Item Function:\\Write-NewJson;
+  $dot=@($tree.FindAll({param($n)$n -is [Management.Automation.Language.CommandAst] -and $n.InvocationOperator -eq [Management.Automation.Language.TokenKind]::Dot -and $n.Extent.Text.Contains('$writer.Extent.Text')},$true));
+  if($dot.Count -ne 1){throw 'Trusted writer statement missing or duplicated'};
+  Invoke-Expression $dot[0].Extent.Text;
+  $actual=Get-Command Write-NewJson -CommandType Function -ErrorAction Stop;
+  if($actual.Definition -cne $expectedDefinition){throw 'Original writer definition differs'};
+  'trusted-writer-scope-pass';`);
+  },
+);

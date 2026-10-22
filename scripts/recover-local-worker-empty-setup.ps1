@@ -114,7 +114,7 @@ function Invoke-FreshAccountSetup([string]$Helper,[string]$Plan,[string]$Bootstr
     # Preserve the child outcome even in a caller that treats native exits as errors.
     $PSNativeCommandUseErrorActionPreference=$false
     Assert-RecoveryAbsent (Join-Path $Bootstrap 'empty-setup-recovery-result-20261022.json')
-    Write-Host 'Previous failed attempt retained. Enter a new password at each prompt; typing is hidden. An empty entry is refused. Each password must contain 1-256 characters and satisfy Windows policy.'
+    Write-Information 'Previous failed attempt retained. Enter a new password at each prompt; typing is hidden. An empty entry is refused. Each password must contain 1-256 characters and satisfy Windows policy.' -InformationAction Continue
     & "$PSHOME\pwsh.exe" -NoProfile -File $Helper -Mode create -Plan $Plan -PlanSha256 67c28f511ddb23f6826d7025e8bc012727608b8b7d3df9beaab3b0e282e3467b
     $childExit=$LASTEXITCODE
     Write-NewJson (Join-Path $Bootstrap 'empty-setup-recovery-result-20261022.json') @{schema_version=1;archive=$Archive;child_exit=$childExit;automatic_retry=$false;backing_records_retained=$true}
@@ -140,7 +140,7 @@ $tree=[Management.Automation.Language.Parser]::ParseInput([Text.UTF8Encoding]::n
 if($errors.Count){throw 'Verified helper parse failed'}
 $writer=$tree.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Write-NewJson'},$true)
 if(-not $writer){throw 'Verified receipt writer missing'}
-Invoke-Expression $writer.Extent.Text
+. ([scriptblock]::Create($writer.Extent.Text))
 Add-Type @'
 using System;
 using System.ComponentModel;
