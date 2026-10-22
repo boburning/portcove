@@ -22,7 +22,7 @@ pub(super) struct ManagedLaunchInputs {
 }
 
 impl PortcoveService {
-    pub(super) fn managed_launch_context(
+    pub(crate) fn managed_launch_context(
         &self,
         identity: Option<&crate::DefinitionSelectionIdentity>,
         active: &InstallRecord,

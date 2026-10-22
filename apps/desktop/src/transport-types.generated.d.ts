@@ -570,6 +570,7 @@ export type OutputDestinationOwnership =
   | "invalid"
   | "unknown";
 export type ReconcileAction = "up_to_date" | "notify" | "staged" | "activated";
+export type RetainedBuildAvailability = "verified" | "missing" | "changed" | "held" | "unavailable";
 export type SourceImportMode = "copy" | "move" | "use_current_location";
 export type SourceImportOutcome =
   "copied" | "moved" | "reused_existing" | "registered_current_location" | "copied_original_retained";
@@ -703,6 +704,11 @@ export interface TransportOutputs {
   reconcile_batch_outcome: OutputReconcileBatchOutcome;
   reconcile_result: ReconcileResult;
   restore_result: OutputRestoreResult;
+  retained_build_binding_preview: OutputRetainedBuildBindingPreview;
+  retained_build_inventory: OutputRetainedBuildInventory;
+  retained_build_reference: RetainedBuildReference;
+  retained_build_removal_preview: OutputRetainedBuildRemovalPreview;
+  retained_build_resolution: RetainedBuildResolution;
   signed_catalog_envelope: OutputSignedCatalogEnvelope;
   signed_catalog_payload: OutputSignedCatalogPayload;
   source: SourceRecord;
@@ -2310,6 +2316,7 @@ export interface LibraryMetadata {
   original_root: string;
   port_settings: LibraryPortSettings[];
   portability_authority?: PortabilityAuthority | null;
+  retained_build_references?: RetainedBuildReference[];
   schema_version: number;
   source_references: SourceRecord[];
   [k: string]: unknown;
@@ -2349,6 +2356,38 @@ export interface PortabilityAdmission {
   port_id: string;
   role: string;
   selection_sha256: string;
+}
+/**
+ * One binding per (port, setup). The caller supplies a stable opaque setup ID,
+ * never its display name, source-contract ID, installation path, or active slot.
+ */
+export interface RetainedBuildReference {
+  build: RetainedBuildIdentity;
+  created_at: number;
+  id: string;
+  /**
+   * Monotonic binding revision, including same-build rebindings. Wall-clock
+   * timestamps alone cannot invalidate approvals after an A-to-B-to-A change.
+   */
+  revision: number;
+  setup_id: string;
+  updated_at: number;
+}
+/**
+ * Immutable identity only. Paths, version labels, and active selection are not keys.
+ * `runtime: None` means no separately identified bundled loader/runtime; the
+ * selected executable and installed contract still bind an integrated loader.
+ */
+export interface RetainedBuildIdentity {
+  artifact: ArtifactIdentity1;
+  definition: DefinitionSelectionIdentity | null;
+  install_id: string;
+  installed_contract_sha256: string;
+  manifest_sha256: string;
+  platform: Platform;
+  port_id: string;
+  runtime: RuntimeIdentity | null;
+  selected_executable: string;
 }
 export interface LibraryMetadataFile {
   path: string;
@@ -2652,6 +2691,53 @@ export interface ReconcileResult {
 export interface OutputRestoreResult {
   restored_backup: BackupRecord;
   safety_backup: BackupRecord | null;
+  [k: string]: unknown;
+}
+export interface OutputRetainedBuildBindingPreview {
+  build: RetainedBuildIdentity;
+  preview_sha256: string;
+  previous: RetainedBuildReference | null;
+  setup_id: string;
+  [k: string]: unknown;
+}
+export interface OutputRetainedBuildInventory {
+  builds: RetainedBuild[];
+  port_id: string;
+  references: RetainedBuildResolution[];
+  [k: string]: unknown;
+}
+export interface RetainedBuild {
+  active: boolean;
+  availability: RetainedBuildAvailability;
+  gap: RetainedBuildGap | null;
+  identity: RetainedBuildIdentity | null;
+  install: InstallRecord;
+  previous: boolean;
+  retained_by: string[];
+  [k: string]: unknown;
+}
+export interface RetainedBuildGap {
+  code: ErrorCode;
+  details: {
+    [k: string]: string;
+  };
+  message: string;
+  [k: string]: unknown;
+}
+/**
+ * A verified observation, not permission to launch. Consumers must use the
+ * ordinary locked launch/preparation paths and recheck their current holds.
+ */
+export interface RetainedBuildResolution {
+  availability: RetainedBuildAvailability;
+  gap: RetainedBuildGap | null;
+  install: InstallRecord | null;
+  reference: RetainedBuildReference;
+  [k: string]: unknown;
+}
+export interface OutputRetainedBuildRemovalPreview {
+  preview_sha256: string;
+  reference: RetainedBuildReference;
   [k: string]: unknown;
 }
 export interface OutputSignedCatalogEnvelope {

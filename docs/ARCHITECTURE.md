@@ -1677,6 +1677,56 @@ library/
 
 ### Database and migrations
 
+Schema 38 adds exact retained-build references to the existing library database.
+`retained_build.rs` owns their Core interface; the installation verifier continues
+to own artifact, manifest, immutable-file and retained-contract checks. Each
+reference has a stable UUID and a caller-supplied stable setup ID, unique within
+its port, plus a monotonic binding revision. The captured build identity contains
+the stable installation and port IDs, exact artifact identity, manifest digest,
+selected executable, retained-contract digest, actual definition admission when
+present, platform, and bundled runtime identity when present. Legacy retained
+contracts do not acquire invented successor admission. A missing separate runtime
+identity means no separately identified loader; an integrated loader remains bound
+by the executable and manifest. Display names, release labels, source-contract IDs,
+mutable paths and active/previous selection do not identify a reference.
+
+Binding or rebinding verifies existing local bytes and current local-use policy,
+then consumes a single-use, action/target/state-bound approval under the ordinary
+port lock. Removal consumes the same kind of reviewed approval but does not require
+missing or held bytes to become usable first. Both mutations refuse active launch
+sessions and unfinished port lifecycle work, and publish their metadata in one
+SQLite transaction. Cancellation or interruption before commit leaves the previous
+binding intact; acknowledgement failure after commit reports committed state and
+readback supplies the durable outcome. No payload copy or parallel recovery journal
+is needed. The revision changes on every binding publication, preventing old
+approval from becoming valid again after a same-second or A-to-B-to-A rebind.
+
+References protect inactive as well as active builds. Whole-port removal, its
+authorization recheck, the SQLite deletion boundary and every resumed removal
+phase refuse referenced builds, including already quarantined paths. A restrictive
+foreign key reinforces metadata deletion. Existing install writers cannot replace
+a referenced identity, and setup-manifest refresh refuses before rewriting bytes.
+Legacy in-place preparation checks reference protection before materializing a
+source or running setup; a proven completed same-source setup can still launch.
+Explicit reference removal deletes only the reference; it never deletes game files.
+A normal update may advance active selection without changing any reference.
+Resolution reports missing, changed, held or unavailable exact state and preserves
+the reference; it never substitutes another build with the same display version.
+A verified resolution is an observation, not launch authorization or a guarantee
+that the build remains obtainable from an upstream server.
+
+Owned output relocation preserves the installation ID and reference while updating
+its path. Whole-library moves and imports preserve references and their revisions,
+check their complete identity against the retained manifest, and include them in
+review and recovery verification. Metadata exports with references use format 5;
+older supported formats imply an empty reference set, and older readers refuse
+format 5 rather than silently discard retention protection. Imports restore
+references atomically with installation metadata and preserve the existing
+same-host definition-admission authority. These primitives are consumable by
+future setup/profile controls; they do not select per-input original game files,
+retain mod packages, isolate saved data, browse historical releases, or acquire
+new download authority.
+
 SQLite stores source references, settings, install records, active/previous version pointers, successful launch history, timestamped successful update-check snapshots, a typed activity ledger, durable launch requests, and the small set of incomplete cross-store lifecycle operations. An install record keeps its human-readable display version separately from the asset name, verified asset SHA-256 and size, manifest SHA-256, selected executable, and exact concrete path. Database opening takes a library-scoped operating-system migration lock before checking or changing the schema. Migrations are contiguous, postcondition-checked steps. When the database is absent under the migration lock and its new ledger is empty, all pending steps and their history publish in one transaction; a failed step rolls the whole initial schema back. Existing database files retain one transaction per pending version, including empty ledgers left by an interrupted first initialization. A gap, a recorded partial step, or a schema newer than the running build fails with the affected versions instead of guessing. WAL and the busy timeout remain ordinary concurrency aids, not migration locks. Schema-8 migration leaves pre-identity installs explicitly unqualified rather than inventing provenance; they fail current-integrity gates until replaced or re-adopted. Schema 9 introduced active launch sessions. Schema 13 evolves them into retained request records with exact supervisor/child process-start identities, active phase, terminal outcome, child exit code, explanation, and timestamps; migrated sessions without start identity remain blocked for manual review rather than trusting a PID. Schema 14 adds an optional normalized absolute output directory to each port's settings. Core resolves a request override, then that saved setting, then the existing `versions/<port-id>` default. This preference controls future placement only; current installs, central user data, backups, sources, and shared tools keep their recorded locations. Schema 15 assigns the movable library a stable identity and records every claimed external game-output root with its port, marker identity, and filesystem-volume identity. The root marker and SQLite record must agree before core stages or publishes there. External installation preparation lives under that root's private `.staging` directory so verified publication remains a same-filesystem rename; missing or replaced volumes fail instead of falling back to the library drive.
 
 Migration-lock acquisition retries contention for at most ten seconds using a monotonic clock and intervals of at most 50 milliseconds. A timeout returns a busy conflict with retry guidance before SQLite is opened or the schema is changed. The acquisition deadline does not interrupt a migration that has already acquired the exclusive lock. While holding that unchanged lock, Core also attempts to atomically publish `locks/migration.owner.json` so diagnostics can be read on Windows, where the locked file itself cannot be read by another process. This retained record is advisory and may be stale: only the fixed `database_migration` operation and a positive 32-bit PID are reported after a bounded 1 KiB read. The shared stable metadata reader validates the opened regular file and its identity, using a nonblocking, no-follow open on Unix. Missing, invalid, symlinked, oversized, changing or inaccessible metadata is reported as unavailable; failure to publish it does not prevent migration. The OS lock remains the only serialization authority. Owner metadata never authorizes process termination, lock deletion or recovery, and an available lock can be acquired despite a stale record.

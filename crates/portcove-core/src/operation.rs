@@ -488,6 +488,8 @@ pub(crate) enum LifecycleFaultPoint {
     RemovalQuarantined,
     RemovalMetadataCommitted,
     RemovalCleanup,
+    RetainedBuildBeforeCommit,
+    RetainedBuildCommitted,
     RestorePrepared,
     RestorePublished,
     RestoreVersionSynchronized,

@@ -285,6 +285,21 @@ pub(crate) fn ensure_empty_destination(root: &Path) -> Result<()> {
 }
 
 pub(crate) fn metadata_tables_empty(connection: &rusqlite::Connection) -> Result<bool> {
+    let has_retained_build_references: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='retained_build_references')",
+        [],
+        |row| row.get(0),
+    )?;
+    if has_retained_build_references {
+        let occupied: bool = connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM retained_build_references)",
+            [],
+            |row| row.get(0),
+        )?;
+        if occupied {
+            return Ok(false);
+        }
+    }
     let has_artwork: bool = connection.query_row(
         "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='artwork_assets')",
         [],

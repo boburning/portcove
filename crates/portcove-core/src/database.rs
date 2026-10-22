@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 37;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 38;
 
 struct Migration {
     version: i64,
@@ -246,7 +246,21 @@ const MIGRATIONS: &[Migration] = &[
         apply: crate::ghostship_data_store::migrate,
         verify: verify_migration_37,
     },
+    Migration {
+        version: 38,
+        name: "exact retained build references",
+        apply: crate::retained_build::migrate,
+        verify: verify_migration_38,
+    },
 ];
+
+fn verify_migration_38(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "retained_build_references",
+        &["id", "port_id", "setup_id", "install_id", "reference_json"],
+    )
+}
 
 fn verify_migration_37(connection: &Connection) -> Result<()> {
     require_columns(
@@ -2081,6 +2095,45 @@ mod tests {
     }
 
     #[test]
+    fn retained_build_reference_upgrade_preserves_installs_and_waits_for_schema_37_clients() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 37).unwrap();
+        insert_alpha_one_install(
+            &connect(root).unwrap(),
+            "retained-before-upgrade",
+            "v1",
+            &root.join("versions/starship/v1"),
+            false,
+        );
+        let previous = crate::library_access::LibraryLease::acquire(root).unwrap();
+        assert_eq!(
+            crate::Library::open(root).unwrap_err().code,
+            crate::ErrorCode::Conflict
+        );
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap().last(),
+            Some(&37)
+        );
+        drop(previous);
+        let current = crate::Library::open(root).unwrap();
+        assert_eq!(
+            current.all_installs().unwrap()[0].id,
+            "retained-before-upgrade"
+        );
+        assert!(
+            crate::retained_build::references_from(&current.connection().unwrap())
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap().last(),
+            Some(&CURRENT_SCHEMA_VERSION)
+        );
+    }
+
+    #[test]
     fn admission_writer_protocol_waits_for_schema_26_clients() {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
@@ -2256,6 +2309,7 @@ mod tests {
         schema_34: 34,
         schema_35: 35,
         schema_36: 36,
+        schema_37: 37,
     }
 
     #[test]

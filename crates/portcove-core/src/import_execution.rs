@@ -178,7 +178,9 @@ fn continue_import(
     {
         return Err(PortcoveError::conflict(
             "import activity reached a different terminal outcome; finish aborting the import",
-        ));
+        )
+        .detail("import_phase", format!("{:?}", journal.phase))
+        .detail("activity_status", status.to_string()));
     }
     if journal.phase == TransferPhase::Published {
         // The matching successful activity was checked while reading the journal. The restored
@@ -310,6 +312,7 @@ fn restore_metadata(target: &Library, metadata: &LibraryMetadata) -> Result<()> 
         install.path = target.root().join(&install.path);
         Library::write_install(&transaction, &install, install.staged)?;
     }
+    crate::retained_build::restore_references(&transaction, &metadata.retained_build_references)?;
     for settings in &metadata.port_settings {
         transaction.execute("INSERT INTO port_settings(port_id, channel, update_policy, active_install_id, previous_install_id, output_directory) VALUES (?1, ?2, ?3, ?4, ?5, ?6)", rusqlite::params![settings.port_id, settings.channel.to_string(), settings.update_policy.to_string(), settings.active_install_id, settings.previous_install_id, settings.output_directory.as_deref().map(|path| crate::path::unicode(path, "port output directory")).transpose()?])?;
     }

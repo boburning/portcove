@@ -59,8 +59,8 @@ void test("actual maintained source recipe supplies declarations without runtime
   }
   assert.deepEqual(result.catalog_formats, [2]);
   assert.deepEqual(result.library, {
-    read: { min: 1, max: 37 },
-    write_schema: 37,
+    read: { min: 1, max: 38 },
+    write_schema: 38,
     lock_protocol: "library-lock-v1",
   });
   assert.equal(result.authority, "none");
@@ -79,7 +79,7 @@ void test("actual maintained source recipe supplies declarations without runtime
       ...files,
       [db]: Buffer.from(
         files[db]!.toString().replace(
-          "CURRENT_SCHEMA_VERSION: i64 = 37",
+          "CURRENT_SCHEMA_VERSION: i64 = 38",
           "CURRENT_SCHEMA_VERSION: i64 = 0",
         ),
       ),

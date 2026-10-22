@@ -129,8 +129,14 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | ExternalCommand::Relink { .. } => Recovering,
         },
         Commands::Installation { command } => match command {
-            InstallationCommand::Plan { .. } => ReadOnly,
-            InstallationCommand::Run { .. } => Recovering,
+            InstallationCommand::Plan { .. }
+            | InstallationCommand::Retained { .. }
+            | InstallationCommand::Reference { .. }
+            | InstallationCommand::ReferencePlan { .. }
+            | InstallationCommand::ReferenceRemovalPlan { .. } => ReadOnly,
+            InstallationCommand::Run { .. }
+            | InstallationCommand::ReferenceBind { .. }
+            | InstallationCommand::ReferenceRemove { .. } => Recovering,
             #[cfg(feature = "qualification-fixtures")]
             InstallationCommand::QualificationUpdatePlan { .. } => ReadOnly,
             #[cfg(feature = "qualification-fixtures")]
@@ -213,6 +219,42 @@ fn apply_mode(apply: bool) -> StartupMode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn retained_build_reads_preserve_recovery_and_writes_require_a_review_digest() {
+        for arguments in [
+            "installation retained port",
+            "installation reference port setup",
+            "installation reference-plan port setup install",
+            "installation reference-removal-plan port setup",
+        ] {
+            let cli = Cli::try_parse_from(
+                std::iter::once("portcove").chain(arguments.split_whitespace()),
+            )
+            .unwrap();
+            assert_eq!(startup_mode(&cli.command), StartupMode::ReadOnly);
+        }
+        for arguments in [
+            "installation reference-bind port setup install",
+            "installation reference-remove port setup",
+        ] {
+            let args = std::iter::once("portcove")
+                .chain(arguments.split_whitespace())
+                .collect::<Vec<_>>();
+            assert_eq!(
+                Cli::try_parse_from(args.iter().copied())
+                    .unwrap_err()
+                    .kind(),
+                clap::error::ErrorKind::MissingRequiredArgument
+            );
+            let cli = Cli::try_parse_from(
+                args.into_iter()
+                    .chain(["--expected-preview", "reviewed-digest"]),
+            )
+            .unwrap();
+            assert_eq!(startup_mode(&cli.command), StartupMode::Recovering);
+        }
+    }
 
     #[test]
     fn legacy_recovery_plan_is_read_only_and_application_can_resume_its_journal() {

@@ -1778,6 +1778,12 @@ impl Installer {
         install: &InstallRecord,
         qualification: &InstallQualification,
     ) -> Result<InstallRecord> {
+        // Refuse before touching the manifest, not after an irreversible identity
+        // change is already visible to profiles or a concurrent observer.
+        crate::retained_build::require_unreferenced_install(
+            &self.library.connection()?,
+            &install.id,
+        )?;
         let qualification = self.retained_qualification(install, qualification)?;
         let (manifest_sha256, selected_executable, runtime) = write_manifest(
             &install.id,
@@ -1855,6 +1861,38 @@ impl Installer {
             ..original.clone()
         })
     }
+}
+
+/// Exact metadata from the already registered manifest. This does not confer
+/// trust or prove current payload integrity; callers retain those existing checks.
+pub(crate) fn retained_build_identity_for_install(
+    install: &InstallRecord,
+) -> Result<crate::RetainedBuildIdentity> {
+    let manifest = verified_manifest(install)?;
+    let contract = manifest.retained_contract.ok_or_else(|| {
+        PortcoveError::unsupported("installation has no retained exact definition contract")
+    })?;
+    let catalog = contract.catalog(&install.port_id)?;
+    // Canonical object order is independent of Rust declaration order and the
+    // workspace's serde_json preserve_order feature unification. The registered
+    // manifest digest separately binds the original exact on-disk bytes.
+    let mut contract_value = serde_json::to_value(&contract)?;
+    contract_value.sort_all_objects();
+    Ok(crate::RetainedBuildIdentity {
+        install_id: install.id.clone(),
+        port_id: install.port_id.clone(),
+        artifact: install.artifact.clone(),
+        manifest_sha256: install.manifest_sha256.clone(),
+        selected_executable: install.selected_executable.clone(),
+        runtime: install.runtime.clone(),
+        installed_contract_sha256: hex::encode(Sha256::digest(serde_json::to_vec(
+            &contract_value,
+        )?)),
+        definition: catalog.definition_selection(&install.port_id).cloned(),
+        platform: manifest.platform.ok_or_else(|| {
+            PortcoveError::verification("retained build has no recorded platform")
+        })?,
+    })
 }
 
 pub(crate) fn retained_catalog_for_install(
