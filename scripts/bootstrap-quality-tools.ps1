@@ -122,6 +122,8 @@ if ($wantsAqua -or ($capabilityPlan -and $capabilityPlan.setup.frontend) -or $Ca
         throw "Node $requiredNodeVersion is required for development setup"
     }
     Remove-LegacyRuntimeShims
+}
+if ($wantsAqua -or ($capabilityPlan -and $capabilityPlan.setup.frontend)) {
     $pnpmVersion = ([string]$toolPaths.pins.packageManager).Split('@')[1]
     $providedPnpm = Get-Command pnpm -ErrorAction SilentlyContinue
     if (-not $providedPnpm -or (& pnpm --version) -ne $pnpmVersion -or $LASTEXITCODE -ne 0) {

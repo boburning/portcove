@@ -390,6 +390,46 @@ void test(
 );
 
 void test(
+  "PowerShell driver-only setup reaches its scoped installer without pnpm or broad tools",
+  { skip: process.platform !== "win32" },
+  (t) => {
+    const fixture = bootstrapFixture(t);
+    const result = fixture.run(
+      "pwsh",
+      [
+        "-NoProfile",
+        "-File",
+        path.join(fixture.project, "scripts/bootstrap-quality-tools.ps1"),
+        "-Profile",
+        "native-drivers",
+      ],
+      {},
+      fixture.caller,
+    );
+    // The controlled cargo stub creates no driver executable. This deliberate
+    // refusal occurs before registry/network acquisition, never native readiness.
+    assert.notEqual(result.status, 0);
+    assert.doesNotMatch(result.stderr, /Provide pnpm/);
+    assert.match(result.stderr, /tauri-driver installation did not produce/);
+    const calls = fixture.calls();
+    assert.ok(
+      calls.some(
+        (call) =>
+          call[0] === "cargo" &&
+          call.some((arg) => arg === "tauri-driver" || arg === "tauri-driver@2.0.6"),
+      ),
+      JSON.stringify({ calls, stderr: result.stderr }),
+    );
+    assert.ok(
+      !calls.some(
+        (call) => ["pnpm", "hooks", "aqua"].includes(call[0] ?? "") || call.includes("nextest"),
+      ),
+    );
+    assert.equal(readFileSync(fixture.marker, "utf8"), "verified prior state\n");
+  },
+);
+
+void test(
   "frontend pin drift fails before dependency acquisition and preserves previous state",
   { skip: process.platform === "win32" },
   (t) => {
