@@ -327,7 +327,7 @@ void test("retry admission requires fresh totals, known quota and the existing d
           fields: { totalCount: 22 },
           views: { totalCount: 10 },
         },
-        rateLimit: { cost: 1, remaining, resetAt: "2026-10-22T20:00:00Z" },
+        rateLimit: { cost: 1, remaining, resetAt: new Date(Date.now() + 60000).toISOString() },
       }),
     };
     assert.equal(admitDoctorReadRetry(reader, "P", 1000), remaining === 1000);
