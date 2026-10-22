@@ -1,3 +1,4 @@
+import { fixtureIssueInventory } from "./repository-issue-inventory.fixture.mts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -39,7 +40,7 @@ void test("catalog-ID direct intake recovery keeps its existing catalog identity
     }),
   );
   client.repositoryIssue = () => issue;
-  client.repositoryIssues = () => [];
+  client.repositoryIssues = () => fixtureIssueInventory(client, []);
   client.itemList = () => [];
   client.ensureIssueItem = () => ({ id: "ITEM43" });
   client.setItemFields = () => {};
@@ -78,18 +79,21 @@ void test("captured issue identity survives failed Project intake and neutral no
   });
   const client = new RoadmapClient(config, api);
   client.repositoryIssues = () =>
-    state.issue
-      ? [
-          {
-            ...state.issue,
-            title: state.issue.title,
-            body: state.issue.body ?? "",
-            state: "OPEN",
-            url: state.issue.html_url,
-            type: "Issue",
-          },
-        ]
-      : [];
+    fixtureIssueInventory(
+      client,
+      state.issue
+        ? [
+            {
+              ...state.issue,
+              title: state.issue.title,
+              body: state.issue.body ?? "",
+              state: "OPEN",
+              url: state.issue.html_url,
+              type: "Issue",
+            },
+          ]
+        : [],
+    );
   client.ensureIssueItem = () => {
     throw new Error("Project access failed");
   };

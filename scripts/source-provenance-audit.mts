@@ -1,3 +1,4 @@
+import { requireRepositoryIssueInventory } from "./repository-issue-inventory.mts";
 import type { RoadmapIssueItem } from "./roadmap.mts";
 import type {
   PortSourceContract,
@@ -861,7 +862,7 @@ export function readLiveSourceProvenance({
       },
     );
     phase = "reading the issue inventory";
-    const issues = client.repositoryIssues();
+    const issues = requireRepositoryIssueInventory(client.repositoryIssues(), client).issues;
     phase = "reading the Project inventory";
     const projectItems = client.itemList(projectNumber);
     phase = "discovering active PR references";

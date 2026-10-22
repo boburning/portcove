@@ -73,7 +73,18 @@ function fixture(count = 2, bodySize = 32) {
     let value: unknown;
     if (query.includes("projectRevision"))
       value = { projectRevision: { id: "PROJECT", updatedAt: "2026-10-17T00:00:00Z" } };
-    else if (query.includes("UPDATED_AT")) {
+    else if (query.includes("RepositoryIssueMarker")) {
+      value = {
+        repository: {
+          id: "REPO",
+          nameWithOwner: config.repository,
+          issues: {
+            totalCount: rows.length,
+            nodes: rows.slice(-1).map(({ id, number }) => ({ id, number })),
+          },
+        },
+      };
+    } else if (query.includes("UPDATED_AT")) {
       marker++;
       value = {
         repository: {
@@ -95,6 +106,8 @@ function fixture(count = 2, bodySize = 32) {
       const nodes = rows.slice(after, after + 100).map(({ body: _body, ...r }) => r);
       value = alterPage({
         repository: {
+          id: "REPO",
+          nameWithOwner: config.repository,
           issues: {
             nodes,
             totalCount: rows.length,
@@ -405,13 +418,13 @@ void test("charged final recollection fits the scheduled budget and refuses genu
         session.inventory,
       );
       assert.equal(session.inventory.items.length + session.inventory.archivedItems.length, 891);
-      assert.equal(session.budget.usage.requests, 183);
+      assert.equal(session.budget.usage.requests, 187);
       assert.equal(
         session.budget.usage.requests,
         session.budget.usage.attempts.reduce((sum, a) => sum + a.requests, 0),
       );
       assert.match(JSON.stringify(session.journal.notes), /"status":"complete"/);
-      assert.match(JSON.stringify(session.journal.notes), /"requests_after":158/);
+      assert.match(JSON.stringify(session.journal.notes), /"requests_after":160/);
     });
 });
 void test("one complete recollection replaces Project count drift without joining abandoned pages", async (t) => {
@@ -704,20 +717,25 @@ void test("incomplete, duplicate, racing and redacted observations never become 
   const malformed = fixture();
   malformed.alter(() => ({
     repository: {
+      id: "REPO",
+      nameWithOwner: config.repository,
       issues: { nodes: [], totalCount: 1, pageInfo: { hasNextPage: false, endCursor: null } },
     },
   }));
-  assert.throws(() => collectRoadmapInventory(malformed.client), /count mismatch/);
+  assert.throws(
+    () => collectRoadmapInventory(malformed.client),
+    /record count does not match total/,
+  );
   const duplicate = fixture();
   duplicate.rows[1]!.id = duplicate.rows[0]!.id;
-  assert.throws(() => collectRoadmapInventory(duplicate.client), /duplicate opaque/);
+  assert.throws(() => collectRoadmapInventory(duplicate.client), /duplicate record identity/);
   const cursor = fixture(101);
   cursor.alter((v) => {
     const value = v as { repository: { issues: { pageInfo: { endCursor: null } } } };
     value.repository.issues.pageInfo.endCursor = null;
     return value;
   });
-  assert.throws(() => collectRoadmapInventory(cursor.client), /cursor/);
+  assert.throws(() => collectRoadmapInventory(cursor.client), /pagination/);
   const race = fixture();
   race.race();
   assert.throws(() => collectRoadmapInventory(race.client), /changed during/);
@@ -752,7 +770,10 @@ void test("1000 issue, 16 MiB corpus fits cold and warm two-candidate delivery r
   const ordinary = new DiscoveryBudget("ordinary");
   ordinary.charge("GET", "fixture warm inventory", delta.requests, delta.bytes, "200");
   ordinary.reserveDelivery(cost.requests, cost.bytes);
-  assert.ok(ordinary.remaining().requests >= 20);
+  assert.ok(
+    ordinary.remaining().requests >= 20,
+    JSON.stringify({ remaining: ordinary.remaining(), delta, cost }),
+  );
   assert.ok(ordinary.remaining().bytes > 10 * 1024 * 1024);
   assert.deepEqual(
     cold.issues.map((i) => i.body),

@@ -2,6 +2,7 @@ import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-enviro
 import { errorCode, errorMessage, isRecord } from "./runtime-values.mts";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   coordinatorCommandTimeout,
   checkCoordinatorDeadline,
@@ -28,6 +29,7 @@ interface GitHubErrorDetails {
   operation?: string | null;
   status?: number | null;
   rateLimit?: GitHubRateLimit | null;
+  retryAfter?: string | null;
 }
 export type GitHubRunner = (args: readonly string[], input?: string) => string;
 export type OperationStatus = "planned" | "succeeded" | "partial" | "unknown" | "failed";
@@ -52,6 +54,7 @@ export class GitHubApiError extends Error {
   readonly operation: string | null;
   readonly status: number | null;
   readonly rateLimit: GitHubRateLimit | null;
+  readonly retryAfter: string | null;
   constructor(code: string, message: string, details: GitHubErrorDetails = {}) {
     super(message, details.cause ? { cause: details.cause } : undefined);
     this.name = "GitHubApiError";
@@ -59,6 +62,7 @@ export class GitHubApiError extends Error {
     this.operation = details.operation ?? null;
     this.status = details.status ?? null;
     this.rateLimit = details.rateLimit ?? null;
+    this.retryAfter = details.retryAfter ?? null;
   }
 }
 
@@ -289,6 +293,17 @@ function responseError(error: unknown, operation: string) {
 
 export class GitHubApiClient {
   readonly run: GitHubRunner;
+  readonly observations: {
+    operation: string;
+    query_sha256?: string;
+    status: number | null;
+    request_id: string | null;
+    date: string | null;
+    bytes: number;
+    elapsed_ms: number;
+    rate: GitHubRateLimit | null;
+    failure?: string;
+  }[] = [];
   constructor(run: GitHubRunner = createGitHubRunner()) {
     this.run = run;
   }
@@ -297,7 +312,32 @@ export class GitHubApiClient {
     return this.run(args, input);
   }
 
+  private observe(
+    operation: string,
+    started: number,
+    response?: IncludedResponse,
+    error?: unknown,
+    query?: string,
+  ) {
+    this.observations.push({
+      operation,
+      ...(query ? { query_sha256: createHash("sha256").update(query).digest("hex") } : {}),
+      status: response?.status ?? (error instanceof GitHubApiError ? error.status : null),
+      request_id: response?.headers.get("x-github-request-id") ?? null,
+      date: response?.headers.get("date") ?? null,
+      bytes: response ? Buffer.byteLength(JSON.stringify(response.body)) : 0,
+      elapsed_ms: Date.now() - started,
+      rate: response
+        ? rateLimitFromResponse(response)
+        : error instanceof GitHubApiError
+          ? error.rateLimit
+          : null,
+      ...(error ? { failure: sanitizeOperationError(error).code } : {}),
+    });
+  }
+
   request(method: string, endpoint: string, body: unknown = null) {
+    const started = Date.now();
     const operation = `${method} ${endpoint}`;
     const input = body === null ? undefined : `${JSON.stringify(body)}\n`;
     let response;
@@ -316,12 +356,15 @@ export class GitHubApiClient {
         ),
       );
     } catch (error) {
+      this.observe(operation, started, undefined, error);
       throw responseError(error, operation);
     }
+    this.observe(operation, started, response);
     return { ...response, rateLimit: rateLimitFromResponse(response) };
   }
 
   graphql(query: string, variables: Readonly<Record<string, unknown>> = {}) {
+    const started = Date.now();
     const operation = "POST graphql";
     let response;
     try {
@@ -332,22 +375,41 @@ export class GitHubApiClient {
         ),
       );
     } catch (error) {
+      this.observe(operation, started, undefined, error, query);
       throw responseError(error, operation);
     }
     const rateLimit = rateLimitFromResponse(response);
     const errors = isRecord(response.body) ? response.body.errors : undefined;
     if (Array.isArray(errors) && errors.length) {
+      const limited =
+        rateLimit.remaining === 0 ||
+        response.status === 429 ||
+        response.headers.has("retry-after") ||
+        errors.some(
+          (entry: unknown) =>
+            isRecord(entry) &&
+            (entry.type === "RATE_LIMITED" ||
+              (isRecord(entry.extensions) && entry.extensions.code === "RATE_LIMITED")),
+        );
       const message = errors
         .map((error: unknown) =>
           isRecord(error) && typeof error.message === "string" ? error.message : "unknown error",
         )
         .join("; ");
-      throw new GitHubApiError(
-        "graphql_error",
+      const error = new GitHubApiError(
+        limited ? "rate_limited" : "graphql_error",
         `${message}${rateLimit.remaining !== null ? ` (${githubRateLimitMessage(rateLimit)})` : ""}`,
-        { operation, status: response.status ?? null, rateLimit },
+        {
+          operation,
+          status: response.status ?? null,
+          rateLimit,
+          retryAfter: response.headers.get("retry-after") ?? null,
+        },
       );
+      this.observe(operation, started, response, error, query);
+      throw error;
     }
+    this.observe(operation, started, response, undefined, query);
     if (!response.body || typeof response.body !== "object" || !("data" in response.body)) {
       throw new GitHubApiError("invalid_response", "GitHub GraphQL response omitted data", {
         operation,

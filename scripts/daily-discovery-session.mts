@@ -147,7 +147,7 @@ export function discoveryInventoryCost(inventory: RoadmapInventory) {
   const pages =
     Math.ceil(inventory.issues.length / 100) +
     Math.ceil((inventory.items.length + inventory.archivedItems.length) / 100) +
-    8;
+    9; // Five repository markers, two Project revision reads, details and fields.
   const thin =
     Buffer.byteLength(
       JSON.stringify(

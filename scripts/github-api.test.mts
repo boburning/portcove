@@ -166,7 +166,7 @@ void test("GraphQL errors retain safe provider quota evidence", () => {
     () => client.graphql("query { viewer { login } }"),
     (error) =>
       error instanceof GitHubApiError &&
-      error.code === "graphql_error" &&
+      error.code === "rate_limited" &&
       error.rateLimit?.remaining === 0 &&
       !error.message.includes("viewer"),
   );
