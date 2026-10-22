@@ -2909,7 +2909,7 @@ void test("GraphQL repository markers reject null IDs for a nonempty inventory",
 
 void test("non-CLI doctors preserve single-attempt collection without an evidence sink", async () => {
   let traversals = 0;
-  const client = new RoadmapClient(config, (args, input) => {
+  const client = new RoadmapClient(config, (args) => {
     if (args[1] === "graphql") throw new Error("unexpected fallback");
     if (fixtureElement(args, 2).includes("direction=desc")) return included([restIssue(3)]);
     traversals++;
