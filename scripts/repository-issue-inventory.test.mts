@@ -253,6 +253,50 @@ void test("doctor discards reverse membership proof on a changed or missing Proj
   }
 });
 
+void test("a slow full-Project fallback cannot promote a stale repository observation", async () => {
+  const f = membershipFixture();
+  const now = Date.now;
+  const client = {
+    ...f.reader,
+    gh: () => "",
+    completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
+    viewList: () => [],
+    projectAudit: () => ({
+      id: "P",
+      updatedAt: "2026-10-22T00:00:00Z",
+      items: { totalCount: 3 },
+      repositories: { nodes: [] },
+    }),
+    repositoryIssues(options?: { projectMemberships?: boolean }) {
+      return collectRepositoryIssueInventory(this, options);
+    },
+    itemList: () => {
+      Date.now = () => now() + 120001;
+      return [1, 2, 3].map((number) => ({
+        id: `ITEM_${number}`,
+        content: {
+          __typename: "Issue",
+          id: `I_${number}`,
+          number,
+          title: "Fixture",
+          body: "",
+          state: "OPEN",
+          url: `https://github.com/${repository}/issues/${number}`,
+          updatedAt: "2026-10-22T00:00:00Z",
+        },
+      }));
+    },
+  };
+  try {
+    await assert.rejects(
+      runDoctor(config, client, { quiet: true }),
+      (error) => error instanceof InventoryError && /fresh collector-verified/.test(error.message),
+    );
+  } finally {
+    Date.now = now;
+  }
+});
+
 void test("shared collector covers empty and exact pagination boundaries with bounded field selection", () => {
   for (const count of [0, 1, 50, 51, 100, 101, 1001]) {
     for (const bodies of [false, true]) {

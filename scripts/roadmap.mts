@@ -5124,6 +5124,8 @@ export async function runDoctor(
       );
   }
   const repositoryIssues = inventory?.issues ?? repositoryRead!.issues;
+  if (inventory) requireRoadmapInventory(inventory, config.repository, clientInput);
+  else requireRepositoryIssueInventory(repositoryRead!.inventory, client);
   const stage = evaluateRoadmapDoctor({
     config,
     catalog,
