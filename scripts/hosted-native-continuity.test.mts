@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { mkdtemp, mkdir, copyFile, writeFile, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { isRecord } from "./runtime-values.mts";
 import test from "node:test";
 
 const script = fileURLToPath(new URL("./rehearse-updater-artifacts.ps1", import.meta.url));
@@ -128,12 +129,13 @@ if ($LASTEXITCODE -ne 0) { throw 'Actual successful helper left a stale native e
       },
     );
     assert.equal(result.status, 0, result.stderr);
-    const receipt = JSON.parse(
+    const receipt: unknown = JSON.parse(
       await readFile(
         path.join(root, "work/hosted-continuity-evidence/windows-runtime.json"),
         "utf8",
       ),
     );
+    assert.ok(isRecord(receipt));
     assert.equal(receipt.stage, "ready-existing");
     assert.equal(receipt.installed, false);
     assert.deepEqual(receipt.after, ["155.0.4283.62"]);
