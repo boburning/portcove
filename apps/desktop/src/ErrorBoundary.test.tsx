@@ -3,6 +3,25 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import { AppErrorBoundary } from "./ErrorBoundary";
 
 describe("top-level render recovery", () => {
+  it("keeps recovery available when a reporter throws or rejects and reports only once", async () => {
+    for (const report of [
+      vi.fn(() => {
+        throw new Error("reporter failed");
+      }),
+      vi.fn(() => Promise.reject(new Error("IPC reporting failed"))),
+    ]) {
+      const error = new Error("original render failure");
+      const boundary = new AppErrorBoundary({ children: <p>workspace</p>, report });
+      boundary.state = AppErrorBoundary.getDerivedStateFromError(error);
+      expect(() => boundary.componentDidCatch(error, {})).not.toThrow();
+      boundary.componentDidCatch(error, {});
+      await Promise.resolve();
+      expect(report).toHaveBeenCalledTimes(1);
+      expect(renderToStaticMarkup(boundary.render())).toContain("original render failure");
+      expect(renderToStaticMarkup(boundary.render())).toContain("Reload Portcove");
+    }
+  });
+
   it("turns an injected render failure into a controlled recovery surface", () => {
     const error = new Error("injected render failure");
     const report = vi.fn();

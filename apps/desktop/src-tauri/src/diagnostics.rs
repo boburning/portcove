@@ -285,16 +285,13 @@ mod tests {
             assert_eq!(complete["phase"], "complete");
             assert_eq!(complete.len(), 6);
             assert_eq!(complete["request_id"], start["request_id"]);
-            assert_eq!(
-                complete["success"],
-                if pair_index == 0 { "true" } else { "false" }
-            );
+            assert_eq!(complete["success"], pair_index == 0);
             assert_eq!(
                 complete["code"],
                 if pair_index == 0 {
-                    "None"
+                    Value::Null
                 } else {
-                    "Some(Network)"
+                    json!("network")
                 }
             );
         }

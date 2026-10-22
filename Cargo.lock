@@ -3585,6 +3585,7 @@ dependencies = [
 name = "portcove-cli"
 version = "0.1.0-alpha.2"
 dependencies = [
+ "async-trait",
  "clap",
  "portcove-core",
  "rpassword",
@@ -3680,6 +3681,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "uuid",
  "webview2-com",
  "windows",
  "windows-sys 0.61.2",

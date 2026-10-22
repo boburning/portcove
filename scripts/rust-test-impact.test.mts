@@ -78,15 +78,23 @@ void test("workspace impact preserves package qualification and broad fallback b
   const artwork = selectWorkspaceRustImpact(workspacePlan(["crates/portcove-core/src/artwork.rs"]));
   assert.ok(artwork.some((g) => g.packageName === "portcove-cli"));
 });
-void test("runtime diagnostics preserve the exact CLI fixture across Desktop and fixture changes", () => {
+void test("runtime diagnostics preserve the complete fixture binary across Desktop, Core and fixture changes", () => {
   const fixture = "crates/portcove-cli/tests/runtime_diagnostics.rs";
-  const expected = "package(=portcove-cli) & (test(/^runtime_diagnostics_/))";
+  // Select the binary, including nested module unit tests without this name prefix.
+  const expected = "package(=portcove-cli) & (binary(=runtime_diagnostics))";
   for (const file of [
     "apps/desktop/src-tauri/src/diagnostics.rs",
     "apps/desktop/src-tauri/src/diagnostics_writer.rs",
     "apps/desktop/src-tauri/src/diagnostics_writer_tests.rs",
     "apps/desktop/src-tauri/src/diagnostics_events.rs",
     "apps/desktop/src-tauri/src/diagnostics_events_tests.rs",
+    "apps/desktop/src-tauri/src/frontend_diagnostics.rs",
+    "crates/portcove-core/src/runtime_diagnostics.rs",
+    "crates/portcove-core/src/support_bundle.rs",
+    "crates/portcove-core/src/operation.rs",
+    "crates/portcove-core/src/service.rs",
+    "crates/portcove-core/src/preparation_execution.rs",
+    "crates/portcove-core/src/tool_process.rs",
     fixture,
   ]) {
     const groups = selectWorkspaceRustImpact(workspacePlan([file]));
@@ -97,7 +105,7 @@ void test("runtime diagnostics preserve the exact CLI fixture across Desktop and
     );
     assert.equal(
       groups.some((group) => group.packageName === "portcove-desktop"),
-      file !== fixture,
+      file.startsWith("apps/desktop/src-tauri/"),
     );
   }
   const combined = selectWorkspaceRustImpact(

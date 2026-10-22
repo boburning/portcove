@@ -154,6 +154,7 @@ impl PortcoveService {
                 &reviewed.plan_sha256,
             )?;
             let status = self.status(port_id)?;
+            operation.observe_release(&reviewed.plan.release.version, None);
             self.record_update_check(port_id, &status, &reviewed.plan.release)?;
             let mut reporter = OperationReporter {
                 operation: &operation,

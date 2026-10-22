@@ -3,7 +3,7 @@ import { Button } from "./components/ui/button";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
-  report?: (error: Error, info: ErrorInfo) => void;
+  report?: (error: Error, info: ErrorInfo) => void | Promise<void>;
 }
 
 interface ErrorBoundaryState {
@@ -12,13 +12,22 @@ interface ErrorBoundaryState {
 
 export class AppErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = {};
+  private reported = false;
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { error };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    this.props.report?.(error, info);
+    if (this.reported) return;
+    this.reported = true;
+    try {
+      // Diagnostics have no recovery authority. A synchronous callback failure
+      // or an IPC rejection must not replace the original display fallback.
+      void Promise.resolve(this.props.report?.(error, info)).catch(() => {});
+    } catch {
+      // No recursive report, console forwarding, or second error owner.
+    }
   }
 
   render() {

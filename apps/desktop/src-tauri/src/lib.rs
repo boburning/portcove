@@ -41,6 +41,7 @@ mod diagnostics_events;
 mod diagnostics_writer;
 mod external_runtime_commands;
 mod favorite_commands;
+mod frontend_diagnostics;
 mod game_updates;
 mod library_selection;
 mod library_transfer;
@@ -453,7 +454,6 @@ async fn confirm_destructive(
 }
 
 fn emit_operation(app: &tauri::AppHandle, event: OperationEvent) {
-    diagnostics_events::record_operation_event(&event);
     let _ =
         emit_desktop_event::<portcove_core::OperationEvent>(app, DESKTOP_EVENT_OPERATION, event);
 }
@@ -2165,13 +2165,11 @@ async fn export_library_metadata(
 }
 
 #[tauri::command]
-fn report_frontend_error(message: String, component_stack: String) -> DesktopResult<()> {
-    tracing::error!(
-        operation_id = "frontend-render",
-        message = message.as_str(),
-        component_stack = component_stack.as_str(),
-        context = "frontend render failed"
-    );
+fn report_frontend_error(
+    reports: tauri::State<'_, frontend_diagnostics::FrontendReports>,
+    report: frontend_diagnostics::FrontendFailureReport,
+) -> DesktopResult<()> {
+    reports.report(report);
     Ok(())
 }
 
@@ -2559,6 +2557,7 @@ pub fn run() -> std::process::ExitCode {
     let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
     let application = builder
         .manage(host_diagnostics)
+        .manage(frontend_diagnostics::FrontendReports::default())
         .manage(application_update_commands::configured_state())
         .manage(application_update_preferences::configured_state())
         .manage(application_update_status::configured_state())

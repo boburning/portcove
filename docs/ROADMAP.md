@@ -245,11 +245,12 @@ semantic errors, truthful committed/unknown/recovery outcomes and its finite
 remaining acceptance. These new diagnostics enhancements do not defer that
 acceptance or silently add beta requirements. Live Project fields own scheduling.
 
-The desktop bounded writer, independent health readback and finite exit flush
-are implemented in the [runtime diagnostics contract](ARCHITECTURE.md#runtime-diagnostic-writer).
-Shared CLI policy, isolated sessions and approved typed span enrichment retain
-their separate owners below. Runtime writing and activity-capture durability
-remain distinct.
+The desktop bounded writer, independent health readback, finite exit flush,
+versioned typed operation/span observations and bounded frontend reports are
+implemented in the [runtime diagnostics contract](ARCHITECTURE.md#runtime-diagnostic-writer).
+Shared CLI host policy and isolated session files retain their separate owner
+below. Runtime writing and activity-capture durability remain distinct; a
+diagnostic session ID does not imply isolated files.
 
 ### Policy and planned coverage
 

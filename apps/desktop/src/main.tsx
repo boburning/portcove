@@ -4,6 +4,7 @@ import ReactDOM from "react-dom/client";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import App from "./App";
 import { AppErrorBoundary } from "./ErrorBoundary";
+import { frontendFailureReport } from "./frontend-diagnostics";
 import { desktopApi } from "./api";
 import { initializeTheme } from "./theme";
 import { initializeLocalization, LocalizationProvider } from "./localization";
@@ -30,9 +31,9 @@ if (import.meta.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE === "1") {
     <React.StrictMode>
       <LocalizationProvider api={desktopApi}>
         <AppErrorBoundary
-          report={(error, info) => {
-            void desktopApi.reportFrontendError(error.message, info.componentStack ?? "");
-          }}
+          report={(error, info) =>
+            desktopApi.reportFrontendError(frontendFailureReport(error, info))
+          }
         >
           <App />
         </AppErrorBoundary>

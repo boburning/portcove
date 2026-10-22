@@ -120,9 +120,9 @@
         },
         {
           "id": "runtime-diagnostics",
-          "reason": "the exact Desktop runtime writer and event layer preserve committed Core outcomes and public CLI machine readback under injected failures",
+          "reason": "the complete runtime fixture binary covers the Desktop writer, typed events, frontend report admission, shared Core privacy policy, and committed outcomes under injected failures",
           "paths": ["crates/portcove-cli/tests/runtime_diagnostics.rs"],
-          "filter": "test(/^runtime_diagnostics_/)"
+          "filter": "binary(=runtime_diagnostics)"
         }
       ]
     }

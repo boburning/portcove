@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { flushSync } from "react-dom";
 import App from "../../App";
 import { AppErrorBoundary } from "../../ErrorBoundary";
+import { frontendFailureReport } from "../../frontend-diagnostics";
 import { desktopApi } from "../../api";
 import { initializeLocalization, LocalizationProvider } from "../../localization";
 import { initializeTheme } from "../../theme";
@@ -66,9 +67,9 @@ export function startInteractiveScenarios() {
       <React.StrictMode>
         <LocalizationProvider api={desktopApi}>
           <AppErrorBoundary
-            report={(error, info) => {
-              void desktopApi.reportFrontendError(error.message, info.componentStack ?? "");
-            }}
+            report={(error, info) =>
+              desktopApi.reportFrontendError(frontendFailureReport(error, info))
+            }
           >
             <App />
           </AppErrorBoundary>
