@@ -25,6 +25,7 @@ jobs:
       pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
       CARGO_BUILD_JOBS: "2"
       CARGO_NET_RETRY: "0"
+      PORTCOVE_HOSTED_PLATFORM: ${{ inputs.platform }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -71,7 +72,7 @@ jobs:
       - name: Exercise the maintained installed updater on this one machine
         shell: pwsh
         run: |
-          ./scripts/rehearse-updater-artifacts.ps1 -PlatformLabel '${{ inputs.platform }}' -TransitionProfile preview-final -EvidenceWorkflow .github/workflows/hosted-native-continuity.yml
+          ./scripts/rehearse-updater-artifacts.ps1 -PlatformLabel $env:PORTCOVE_HOSTED_PLATFORM -TransitionProfile preview-final -EvidenceWorkflow .github/workflows/hosted-native-continuity.yml
           if ($LASTEXITCODE -ne 0) { throw 'Installed prerequisite failed; preserve its original result' }
       - name: Read back the original host and actual native result
         if: always()
