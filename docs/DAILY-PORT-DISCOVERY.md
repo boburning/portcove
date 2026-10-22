@@ -221,17 +221,30 @@ produce the in-process validated inventory accepted by capture/normalization
 and doctor. Changed bodies are fetched once and shared by opaque identity;
 the doctor's established rules and active-item policy scope are preserved.
 
-If an issue revision moves during hydration or the repository revision marker
-moves before Project collection, perform one bounded reconciliation: enumerate
+If an issue revision moves during hydration, the complete Project view disagrees
+with a repository issue revision, or the repository marker moves anywhere through
+that first Project read, perform one bounded reconciliation: enumerate
 the complete thin issue set again, require identical opaque membership, hydrate
 only changed bodies and bind title/state/revision/body to the same observation.
-A stable repository marker must bracket that pass, followed by a fresh complete
-Project enumeration and exact Project/repository revision agreement. This is
+A stable repository marker must bracket that pass. Discard the entire first
+Project observation, including fields, dependencies, archive classification and
+foreign content, then collect fresh Project context and a complete replacement
+view. Require exact identity, number, URL, title, state and revision agreement.
+An unrelated comment edit can advance an issue's `updatedAt`; it gets the same
+bounded fresh read, never an exemption from revision checks. Foreign issue/PR
+hydration drift also consumes this single allowance. This is
 semantic reconciliation within one run, not a failed-request retry. A further
 change, identity mismatch, malformed page, membership change, redaction or
 archive uncertainty blocks without validating or replacing the cached inventory.
 All reconciliation reads consume the existing budget; failure retains the issue
 number and revisions where available for diagnosis on a later admitted run.
+Body reuse also requires matching title/state/identity and a verified body hash.
+A cache observed within the issue revision's timestamp second cannot distinguish
+same-second body edits and is rehydrated. These are dated observations, not an
+atomic snapshot. The reservation includes another complete thin inventory;
+known foreign-body hydration and dependency pagination are included in its cost.
+Unexpected changed-body reads still consume the original hard budget and refuse
+when it cannot fit; neither reconciliation allowance expands those limits.
 
 Separately, a changing `totalCount` between successful Project connection pages
 produces a typed `inventory_changed` refusal. Once per foreground session, the

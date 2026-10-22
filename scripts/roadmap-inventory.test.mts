@@ -17,7 +17,11 @@ import { GitHubApiError } from "./github-api.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
 import { readDiscoveryCache } from "./discovery-cache.mts";
-import { discoveryDeliveryCost, DiscoverySession } from "./daily-discovery-session.mts";
+import {
+  discoveryDeliveryCost,
+  discoveryInventoryCost,
+  DiscoverySession,
+} from "./daily-discovery-session.mts";
 const config = validateConfig(
   JSON.parse(readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8")),
 );
@@ -98,12 +102,13 @@ function fixture(count = 2, bodySize = 32) {
           nameWithOwner: config.repository,
           issues: {
             totalCount: rows.length,
-            nodes: [
-              {
-                id: rows.at(-1)?.id,
-                updatedAt: mutateMarker && marker > 1 ? `changed-${marker}` : "unchanged",
-              },
-            ],
+            nodes: rows
+              .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+              .slice(0, 1)
+              .map(({ id, updatedAt }) => ({
+                id,
+                updatedAt: mutateMarker && marker > 1 ? `changed-${marker}` : updatedAt,
+              })),
           },
         },
       };
@@ -639,6 +644,7 @@ void test("quiet rotation yields a continuation at its reserved floor and cannot
       upstream: "https://github.com/example/fixture-" + row.number,
       portKey: "fixture-" + row.number,
     });
+    Object.assign(f.project[row.number - 1]!.content!, row, { body: undefined });
   }
   session.inventory = collectRoadmapInventory(f.client);
   session.budget.reserveDelivery(session.budget.limits.requests, 0);
@@ -697,6 +703,243 @@ void test("one hydration revision change reconciles the whole issue before fresh
   assert.equal(got.issues[0]?.body, "new body");
   assert.equal(got.items[0]?.content?.body, "new body");
   assert.equal(requireRoadmapInventory(got, config.repository, f.client), got);
+});
+
+void test("a comment edit during the Project window discards that entire view and rehydrates only its changed issue", () => {
+  for (const timing of ["items", "project-after", "hydration"] as const) {
+    const f = fixture(101);
+    const warm = collectRoadmapInventory(f.client);
+    const graphql = f.client.graphql.bind(f.client);
+    const items = f.client.itemList.bind(f.client);
+    let traversals = 0,
+      projectMarkers = 0,
+      moved = false;
+    const edit = () => {
+      moved = true;
+      f.rows[0]!.updatedAt = "2026-10-17T03:00:00Z";
+      f.project[0]!.content!.updatedAt = f.rows[0]!.updatedAt;
+      f.project[0]!.fieldValues = [{ name: "fresh second view" }];
+    };
+    f.client.itemList = (number, options) => {
+      traversals++;
+      const result = items(number, options);
+      if (timing === "items" && !moved) edit();
+      return result;
+    };
+    f.client.graphql = (query, vars) => {
+      const result = graphql(query, vars);
+      if (timing === "project-after" && query.includes("projectRevision") && ++projectMarkers === 2)
+        edit();
+      if (timing === "hydration" && query.includes("UPDATED_AT") && !moved && traversals === 0) {
+        // The first marker is the preimage; move on the post-hydration marker.
+        if (++projectMarkers === 2) edit();
+      }
+      return result;
+    };
+    const got = collectRoadmapInventory(f.client, warm);
+    assert.equal(traversals, 2, timing);
+    assert.equal(got.body_reads, 1, timing);
+    assert.equal(got.items[0]?.content?.updatedAt, f.rows[0]!.updatedAt);
+    assert.equal(got.items[0]?.content?.body, warm.issues[0]?.body);
+    assert.deepEqual(got.items[0]?.fieldValues, [{ name: "fresh second view" }]);
+    assert.equal(requireRoadmapInventory(got, config.repository, f.client), got);
+  }
+});
+
+void test("same-second semantic changes force fresh bodies and fresh Project metadata", () => {
+  const f = fixture();
+  const previous = collectRoadmapInventory(f.client);
+  const items = f.client.itemList.bind(f.client);
+  let reads = 0;
+  f.client.itemList = (number, options) => {
+    if (++reads === 1) {
+      Object.assign(f.rows[0]!, { title: "Renamed", state: "CLOSED", body: "new canonical key" });
+      Object.assign(f.project[0]!.content!, f.rows[0], { body: undefined });
+    }
+    return items(number, options);
+  };
+  const got = collectRoadmapInventory(f.client, previous);
+  assert.equal(reads, 2);
+  assert.equal(got.body_reads, 1);
+  assert.equal(got.issues[0]?.body, "new canonical key");
+  assert.equal(got.items[0]?.content?.title, "Renamed");
+  assert.equal(got.items[0]?.content?.state, "CLOSED");
+});
+
+void test("a cache observed in the revision's second cannot hide another body edit", () => {
+  const f = fixture(1);
+  const previous = collectRoadmapInventory(f.client);
+  const cache = { ...previous, observed_at: f.rows[0]!.updatedAt };
+  f.rows[0]!.body = "a later edit in the same timestamp second";
+  const got = collectRoadmapInventory(f.client, cache);
+  assert.equal(got.body_reads, 1);
+  assert.equal(got.issues[0]?.body, f.rows[0]!.body);
+});
+
+void test("foreign issue comment drift is reconciled only once with a fresh whole Project view", () => {
+  for (const alwaysMove of [false, true]) {
+    const f = fixture(1);
+    const foreign = {
+      ...f.rows[0]!,
+      id: "FOREIGN",
+      number: 7,
+      url: "https://github.com/other/repo/issues/7",
+    };
+    f.project.push({
+      id: "PF",
+      isArchived: false,
+      content: { ...foreign, body: undefined },
+      fieldValues: [],
+    });
+    const graphql = f.client.graphql.bind(f.client);
+    const items = f.client.itemList.bind(f.client);
+    let reads = 0,
+      hydrations = 0;
+    f.client.itemList = (number, options) => {
+      reads++;
+      f.project[1]!.content!.updatedAt = foreign.updatedAt;
+      return items(number, options);
+    };
+    f.client.graphql = (query, vars) => {
+      if (
+        query.includes("nodes(ids:") &&
+        Array.isArray(vars?.ids) &&
+        vars.ids.includes("FOREIGN")
+      ) {
+        if (++hydrations === 1 || alwaysMove)
+          foreign.updatedAt = `2026-10-17T0${hydrations}:00:00Z`;
+        return { nodes: [{ ...foreign }] };
+      }
+      return graphql(query, vars);
+    };
+    if (alwaysMove)
+      assert.throws(() => collectRoadmapInventory(f.client), /changed during body hydration/);
+    else {
+      const got = collectRoadmapInventory(f.client);
+      assert.equal(reads, 2);
+      assert.equal(got.items.at(-1)?.content?.updatedAt, foreign.updatedAt);
+    }
+  }
+});
+
+void test("comment recovery is charged under 200 requests and a failed replacement preserves the last complete cache", async (t) => {
+  for (const prior of [140, 180])
+    await t.test(String(prior), async (t) => {
+      const f = fixture(891);
+      const previous = collectRoadmapInventory(f.client);
+      const { session, state } = await temporarySession(t, {
+        ...previous,
+        baseline_completed_at: new Date().toISOString(),
+      });
+      session.inventory = previous;
+      session.inventoryStarted = true;
+      session.budget.delivery = true;
+      session.budget.charge("GET", "prior collection", prior, 3500000, "200");
+      const retained = readFileSync(path.join(state, "inventory.json"), "utf8");
+      session.client.graphql = (query, vars) => {
+        session.budget.admit(1, 1);
+        const result = f.client.graphql(query, vars);
+        session.budget.charge(
+          "POST",
+          "fixture GraphQL",
+          1,
+          Buffer.byteLength(JSON.stringify(result)),
+          "200",
+        );
+        return result;
+      };
+      session.client.completeProjectContext = f.client.completeProjectContext;
+      let reads = 0;
+      session.client.itemList = (number, options) => {
+        const pages = Math.ceil(f.project.length / 100);
+        session.budget.admit(pages, 1);
+        const result = f.client.itemList(number, options);
+        session.budget.charge(
+          "POST",
+          "fixture Project pages",
+          pages,
+          Buffer.byteLength(JSON.stringify(result)),
+          "200",
+        );
+        if (++reads === 1) {
+          f.rows[0]!.updatedAt = "2026-10-17T03:00:00Z";
+          f.project[0]!.content!.updatedAt = f.rows[0]!.updatedAt;
+        }
+        return result;
+      };
+      if (prior === 180) {
+        assert.throws(() => session.refresh(), /budget cannot admit/);
+        assert.equal(session.inventory, previous);
+        assert.equal(readFileSync(path.join(state, "inventory.json"), "utf8"), retained);
+      } else {
+        session.refresh();
+        assert.equal(reads, 2);
+        assert.equal(session.inventory.body_reads, 1);
+        assert.ok(session.budget.usage.requests > prior + 40);
+        assert.ok(session.budget.usage.requests <= 200);
+        assert.equal(
+          session.inventoryRecollections,
+          0,
+          "semantic reconciliation must not nest session recovery",
+        );
+      }
+      assert.equal(session.budget.limits.requests, 200);
+      assert.equal(
+        session.budget.usage.requests,
+        session.budget.usage.attempts.reduce((sum, a) => sum + a.requests, 0),
+      );
+      assert.equal(session.wrote, false);
+    });
+});
+
+void test("a second comment change in the replacement Project read refuses the entire observation", () => {
+  const f = fixture();
+  const warm = collectRoadmapInventory(f.client);
+  const items = f.client.itemList.bind(f.client);
+  let reads = 0;
+  f.client.itemList = (number, options) => {
+    const result = items(number, options);
+    f.rows[0]!.updatedAt = `2026-10-17T0${++reads}:00:00Z`;
+    f.project[0]!.content!.updatedAt = f.rows[0]!.updatedAt;
+    return result;
+  };
+  assert.throws(() => collectRoadmapInventory(f.client, warm), /Repository changed during/);
+  assert.equal(reads, 2);
+});
+
+void test("inventory estimates include terminal pages, foreign hydration batches and expanded dependencies", () => {
+  const empty = collectRoadmapInventory(fixture(0).client);
+  assert.equal(discoveryInventoryCost(empty).requests, 11);
+  const inventory = collectRoadmapInventory(fixture(1).client);
+  const base = discoveryInventoryCost(inventory);
+  const foreign = Array.from({ length: 11 }, (_, index) => ({
+    id: `PF${index}`,
+    isArchived: false,
+    content: {
+      id: `IF${index}`,
+      body: "foreign".repeat(2000),
+      blockedBy: { totalCount: 101, nodes: [] },
+    },
+  }));
+  inventory.items.push(...foreign);
+  const expanded = discoveryInventoryCost(inventory);
+  assert.equal(expanded.requests - base.requests, 2 + 11 * 2);
+  assert.ok(expanded.bytes - base.bytes >= 11 * 14000);
+});
+
+void test("same-timestamp Project title disagreement cannot reuse an old body or consume unlimited reconciliation", () => {
+  const f = fixture();
+  const warm = collectRoadmapInventory(f.client);
+  const items = f.client.itemList.bind(f.client);
+  let reads = 0;
+  f.client.itemList = (number, options) => {
+    reads++;
+    const result = items(number, options);
+    result[0]!.content!.title = "unconfirmed Project title";
+    return result;
+  };
+  assert.throws(() => collectRoadmapInventory(f.client, warm), /revision mismatch/);
+  assert.equal(reads, 2);
 });
 void test("hydration identity mismatch remains fatal and identifies the affected issue", () => {
   const f = fixture();
