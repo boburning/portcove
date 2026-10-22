@@ -329,6 +329,7 @@ export function inspectCatalogSigningBinding(
     top_level_targets_profile?: TopLevelTargetsProfile;
   } = {},
 ) {
+  exact(expectedProfiles, catalogProfileKeys(expectedProfiles).sort().join(","));
   const facts = inspectCatalogSigningFacts(rawFacts);
   if (digest(catalogProfileFields(facts)) !== digest(catalogProfileFields(expectedProfiles)))
     throw new Error("catalog context profile differs from independently selected authority");
@@ -404,9 +405,15 @@ function catalogProfileKeys(raw: unknown) {
   );
 }
 function catalogProfileFields(raw: Record<string, unknown>) {
-  const root = inspectInitialRootProfile(raw.initial_root_profile ?? "legacy-two-of-three-v1");
+  const root = inspectInitialRootProfile(
+    Object.hasOwn(raw, "initial_root_profile")
+      ? raw.initial_root_profile
+      : "legacy-two-of-three-v1",
+  );
   const targets = inspectTopLevelTargetsProfile(
-    raw.top_level_targets_profile ?? "offline-pinned-v1",
+    Object.hasOwn(raw, "top_level_targets_profile")
+      ? raw.top_level_targets_profile
+      : "offline-pinned-v1",
   );
   if (targets === "online-unchanged-authority-v1" && root !== "single-owner-one-of-one-v1")
     throw new Error("online catalog Targets requires explicit single-owner profile");

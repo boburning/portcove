@@ -630,10 +630,34 @@ void test("catalog profiles remain exact context bytes and require independent b
   );
   for (const changed of [
     { initial_root_profile: "download-selected" },
+    { initial_root_profile: null },
+    { top_level_targets_profile: null },
     { top_level_targets_profile: "unknown" },
     { top_level_targets_profile: "online-unchanged-authority-v1" },
   ])
     assert.throws(() => inspectCatalogSigningFacts({ ...f.facts, ...changed }));
+  const wire: unknown = JSON.parse(context.toString());
+  assert.ok(isRecord(wire));
+  for (const field of ["initial_root_profile", "top_level_targets_profile"])
+    assert.throws(
+      () => inspectCatalogContextPaths(Buffer.from(JSON.stringify({ ...wire, [field]: null }))),
+      /profile/,
+    );
+  assert.throws(
+    () =>
+      inspectCatalogSigningBinding(facts, binding, facts.descriptor.prior, {
+        initial_root_profile: null,
+      } as never),
+    /profile/,
+  );
+  assert.throws(
+    () =>
+      inspectCatalogSigningBinding(facts, binding, facts.descriptor.prior, {
+        initial_root_profile: "single-owner-one-of-one-v1",
+        unexpected: true,
+      } as never),
+    /schema/,
+  );
   assert.throws(
     () =>
       inspectCatalogSigningFacts({
