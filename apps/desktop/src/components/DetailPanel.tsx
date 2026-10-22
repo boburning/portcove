@@ -8,7 +8,10 @@ import { BrowsingMatchDetails } from "../features/browsing/BrowsingMatchDetails"
 import type { CatalogQueryResult } from "../features/browsing/catalog-query";
 import { SteamEntryControl } from "./SteamEntry";
 import { ExternalRuntimeControl } from "./ExternalRuntime";
-import { usesUserSelectedRuntime } from "../shared/external-runtime-trust";
+import {
+  usesExternalRuntimeRoute,
+  usesUserSelectedRuntime,
+} from "../shared/external-runtime-trust";
 import { ArtworkControls, ArtworkImage, DetailArtwork } from "./Artwork";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
@@ -522,7 +525,7 @@ function DetailBody({
   openLibraryStorage?: (() => void) | undefined;
 }) {
   const managedPreparation = needsManagedPreparation(port, installed);
-  const external = port.release.provider === "user-prepared" || Boolean(status?.external_runtime);
+  const external = usesExternalRuntimeRoute(port, status);
   return (
     <div className="detail-body pb-10">
       <div className="detail-summary">
@@ -582,7 +585,7 @@ function DetailBody({
         <summary className="cursor-pointer py-2 text-sm font-medium">File matching details</summary>
         {observations}
       </details>
-      {!external && (
+      {!external && port.release.provider !== "user-prepared" && (
         <UpdatesGroup
           perform={perform}
           port={port}
@@ -723,7 +726,7 @@ function StatusActionsGroup({
     Boolean(
       selectedSourceRequirement(sources.source, sources.sourcePath, sources.bios, sources.biosPath),
     );
-  if (port.release.provider === "user-prepared" || status?.external_runtime) {
+  if (usesExternalRuntimeRoute(port, status)) {
     return (
       <section aria-label="Game actions" className="grid gap-3">
         <RetiredNotice port={port} />
@@ -1057,7 +1060,7 @@ function SavesStorageGroup({
   return (
     <DetailGroup title="Saves and storage" headingRef={heading}>
       <TrustStrip status={status} />
-      <SavesAndSettingsSummary port={port} />
+      <SavesAndSettingsSummary port={port} status={status} />
       <StorageSummary status={status} />
       <FutureSetupDisclosure
         deferred={deferSetupChoices}
@@ -1299,16 +1302,24 @@ function RequirementsSummary({ port }: { port: PortDefinition }) {
   );
 }
 
-function SavesAndSettingsSummary({ port }: { port: PortDefinition }) {
+function SavesAndSettingsSummary({
+  port,
+  status,
+}: {
+  port: PortDefinition;
+  status?: PortStatus | undefined;
+}) {
   return (
     <div className="metadata grid grid-cols-[1fr_1fr] gap-[10px]">
       <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
         <small className="mb-[5px] block text-[var(--color-text-muted)]">Saved data handling</small>
-        {port.presentation?.saves_and_settings === "portcove-managed"
-          ? "Managed by Portcove for backup and restore"
-          : port.presentation?.saves_and_settings === "external-user-owned"
-            ? "Stored with your external runtime; Portcove does not back up or remove it"
-            : "Unavailable in this catalog"}
+        {status?.active && port.release.provider === "user-prepared"
+          ? "Managed by Portcove under this installation's retained contract"
+          : port.presentation?.saves_and_settings === "portcove-managed"
+            ? "Managed by Portcove for backup and restore"
+            : port.presentation?.saves_and_settings === "external-user-owned"
+              ? "Stored with your external runtime; Portcove does not back up or remove it"
+              : "Unavailable in this catalog"}
       </span>
     </div>
   );
@@ -1530,7 +1541,7 @@ function TechnicalDetails({
   sources: SourceControls;
   actions: DetailActions;
 }) {
-  const includeManagement = port.release.provider !== "user-prepared" && !status?.external_runtime;
+  const includeManagement = !usesExternalRuntimeRoute(port, status);
   const persistentFiles = [
     ...port.persistent_paths,
     ...(port.persistent_file_patterns ?? []).map(
@@ -1556,7 +1567,9 @@ function TechnicalDetails({
               <small className="mb-[5px] block text-[var(--color-text-muted)]">
                 Saved data patterns
               </small>
-              {persistentFiles || "No saved data paths declared"}
+              {status?.active && port.release.provider === "user-prepared"
+                ? "Saved data follows this installation's retained contract."
+                : persistentFiles || "No saved data paths declared"}
             </span>
           </div>
         )}
@@ -2830,7 +2843,7 @@ function presentDetailState({
           invalidInstallation: Boolean(
             status?.readiness?.blockers.includes("invalid_installation"),
           ),
-          externalRuntime: port.release.provider === "user-prepared",
+          externalRuntime: usesExternalRuntimeRoute(port, status),
           userSelectedRuntime: usesUserSelectedRuntime(port, status),
         });
 }

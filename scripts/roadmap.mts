@@ -3269,6 +3269,21 @@ function repositoryIssueObservation(value: unknown): RepositoryIssueObservation 
     throw new Error("incomplete GitHub inventory: malformed repository issue");
   return value as Record<string, unknown> & RepositoryIssueObservation;
 }
+interface RepositoryIssueSnapshot {
+  before: number;
+  after: number;
+  records: number;
+  highest: number | null;
+}
+class RepositoryIssueSnapshotError extends Error {
+  readonly snapshot: RepositoryIssueSnapshot;
+  constructor(message: string, snapshot: RepositoryIssueSnapshot) {
+    super(message);
+    this.name = "RepositoryIssueSnapshotError";
+    this.snapshot = snapshot;
+  }
+}
+
 export class RoadmapClient {
   readonly config: RoadmapConfig;
   readonly api: GitHubApiClient;
@@ -3532,7 +3547,8 @@ export class RoadmapClient {
     });
   }
 
-  repositoryIssues() {
+  repositoryIssues({ useGraphql = false } = {}) {
+    if (useGraphql) return this.repositoryIssueConnection();
     const marker = () => {
       const response = this.api.request(
         "GET",
@@ -3571,10 +3587,26 @@ export class RoadmapClient {
       }
       numbers.add(record.number);
     }
-    if (marker() !== highWater)
-      throw new Error("GitHub inventory changed during pagination; retry the read");
+    const after = marker();
+    const snapshot = {
+      before: highWater,
+      after,
+      records: records.length,
+      highest: records.reduce<number | null>(
+        (highest, record) => Math.max(highest ?? 0, record.number),
+        null,
+      ),
+    };
+    if (after !== highWater)
+      throw new RepositoryIssueSnapshotError(
+        "GitHub inventory changed during pagination; retry the read",
+        snapshot,
+      );
     if (highWater > 0 && !numbers.has(highWater))
-      throw new Error("incomplete GitHub inventory: high-water record is missing");
+      throw new RepositoryIssueSnapshotError(
+        "incomplete GitHub inventory: high-water record is missing",
+        snapshot,
+      );
     return records
       .filter((issue) => !issue.pull_request)
       .map((issue) => ({
@@ -3585,6 +3617,111 @@ export class RoadmapClient {
         state: diagnosticText(issue.state ?? "").toUpperCase(),
         type: "Issue",
       }));
+  }
+
+  repositoryIssueConnection() {
+    const [owner, name] = this.config.repository.split("/");
+    const markerQuery = `query RepositoryIssueMarker($owner:String!,$name:String!){repository(owner:$owner,name:$name){id nameWithOwner issues(first:1,orderBy:{field:CREATED_AT,direction:DESC}){totalCount nodes{id number}}}}`;
+    let repositoryId: string | undefined;
+    const repository = (data: unknown) => {
+      const value = qualificationField(data, "repository");
+      if (
+        !isRecord(value) ||
+        typeof value.id !== "string" ||
+        !value.id ||
+        typeof value.nameWithOwner !== "string" ||
+        value.nameWithOwner.toLowerCase() !== this.config.repository.toLowerCase() ||
+        (repositoryId !== undefined && value.id !== repositoryId)
+      )
+        throw new Error(
+          "incomplete GitHub inventory: repository identity changed or is unavailable",
+        );
+      repositoryId = value.id;
+      return value;
+    };
+    const marker = () => {
+      const connection = qualificationField(
+        repository(this.graphql(markerQuery, { owner, name })),
+        "issues",
+      );
+      const count = qualificationField(connection, "totalCount");
+      const nodes = qualificationField(connection, "nodes");
+      if (
+        typeof count !== "number" ||
+        !Number.isSafeInteger(count) ||
+        count < 0 ||
+        !Array.isArray(nodes) ||
+        nodes.length !== (count === 0 ? 0 : 1)
+      )
+        throw new Error("incomplete GitHub inventory: invalid repository issue marker");
+      const id = count === 0 ? null : qualificationField(nodes[0], "id");
+      const number = count === 0 ? 0 : qualificationField(nodes[0], "number");
+      if (
+        (count > 0 && (typeof id !== "string" || !id)) ||
+        typeof number !== "number" ||
+        !Number.isSafeInteger(number) ||
+        (count > 0 && number < 1)
+      )
+        throw new Error("incomplete GitHub inventory: invalid repository issue marker");
+      return { count, id, number };
+    };
+    const before = marker();
+    const query = `query RepositoryIssueInventory($owner:String!,$name:String!,$after:String){repository(owner:$owner,name:$name){id nameWithOwner issues(first:100,after:$after,orderBy:{field:CREATED_AT,direction:ASC}){totalCount nodes{id number title body url state} pageInfo{hasNextPage endCursor}}}}`;
+    const records = this.readInventory(
+      query,
+      { owner, name },
+      (data) => repository(data).issues,
+      (node) => qualificationField(node, "id"),
+    ).map((node) => {
+      if (
+        !isRecord(node) ||
+        typeof node.id !== "string" ||
+        !node.id ||
+        typeof node.title !== "string" ||
+        typeof node.body !== "string" ||
+        (node.state !== "OPEN" && node.state !== "CLOSED")
+      )
+        throw new Error("incomplete GitHub inventory: malformed repository issue");
+      const issue = repositoryIssueObservation({ ...node, node_id: node.id, html_url: node.url });
+      if (
+        issue.html_url.toLowerCase() !==
+        `https://github.com/${this.config.repository}/issues/${issue.number}`.toLowerCase()
+      )
+        throw new Error("incomplete GitHub inventory: wrong repository issue binding");
+      return {
+        ...issue,
+        title: node.title,
+        body: node.body,
+        state: node.state,
+        url: issue.html_url,
+        type: "Issue",
+      };
+    });
+    const after = marker();
+    if (
+      before.count !== records.length ||
+      before.count !== after.count ||
+      before.id !== after.id ||
+      before.number !== after.number ||
+      (after.id !== null &&
+        !records.some((record) => record.node_id === after.id && record.number === after.number))
+    )
+      throw new RepositoryIssueSnapshotError(
+        "GitHub inventory changed during pagination; retry the read",
+        {
+          before: before.number,
+          after: after.number,
+          records: records.length,
+          highest: records.reduce<number | null>(
+            (highest, record) => Math.max(highest ?? 0, record.number),
+            null,
+          ),
+        },
+      );
+    const numbers = new Set(records.map((record) => record.number));
+    if (numbers.size !== records.length)
+      throw new Error("incomplete GitHub inventory: duplicate issue number");
+    return records;
   }
 
   repositoryIssue(number: number) {
@@ -4968,6 +5105,39 @@ export function evaluateRoadmapDoctor({
   return { warnings: stage.warnings, diagnostics: stage.diagnostics, readiness };
 }
 
+export interface DoctorRepositoryInventoryAttempt {
+  attempt: number;
+  source: "rest" | "graphql";
+  outcome: "passed" | "failed";
+  issues?: number;
+  error?: string;
+  snapshot?: RepositoryIssueSnapshot;
+}
+
+export function readDoctorRepositoryIssues(
+  client: Pick<RoadmapClient, "repositoryIssues">,
+  attempts: DoctorRepositoryInventoryAttempt[] = [],
+) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const source = attempt === 1 ? "rest" : "graphql";
+    try {
+      const issues = client.repositoryIssues({ useGraphql: source === "graphql" });
+      attempts.push({ attempt, source, outcome: "passed", issues: issues.length });
+      return { issues, attempts };
+    } catch (error) {
+      attempts.push({
+        attempt,
+        source,
+        outcome: "failed",
+        error: sanitizeOperationError(error).message,
+        ...(error instanceof RepositoryIssueSnapshotError ? { snapshot: error.snapshot } : {}),
+      });
+      if (attempt === 2 || !(error instanceof RepositoryIssueSnapshotError)) throw error;
+    }
+  }
+  throw new Error("Doctor repository inventory attempt limit exhausted");
+}
+
 export async function runDoctor(
   config: RoadmapConfig,
   clientInput: unknown,
@@ -4975,7 +5145,13 @@ export async function runDoctor(
     quiet = false,
     cache,
     inventory: suppliedInventory,
-  }: { quiet?: boolean; cache?: InventoryCache; inventory?: RoadmapInventory } = {},
+    repositoryIssueInventoryAttempts,
+  }: {
+    quiet?: boolean;
+    cache?: InventoryCache;
+    inventory?: RoadmapInventory;
+    repositoryIssueInventoryAttempts?: DoctorRepositoryInventoryAttempt[];
+  } = {},
 ) {
   if (!isDoctorClient(clientInput))
     throw new Error("Roadmap doctor client capabilities are unavailable");
@@ -5009,7 +5185,11 @@ export async function runDoctor(
   });
   const catalog = qualificationCatalogObservation(JSON.parse(await readFile(catalogPath, "utf8")));
   const items = inventory?.items ?? client.itemList(number, { includeDependencies: true, details });
-  const repositoryIssues = inventory?.issues ?? client.repositoryIssues();
+  const repositoryIssues =
+    inventory?.issues ??
+    (repositoryIssueInventoryAttempts
+      ? readDoctorRepositoryIssues(client, repositoryIssueInventoryAttempts).issues
+      : client.repositoryIssues());
   const stage = evaluateRoadmapDoctor({
     config,
     catalog,
@@ -5048,6 +5228,7 @@ export async function runDoctor(
     items,
     warnings: stage.warnings,
     diagnostics: stage.diagnostics,
+    repositoryIssueInventoryAttempts,
     inventory,
   };
 }
@@ -5162,6 +5343,7 @@ async function main(argv: readonly string[]) {
         );
       let context;
       let report;
+      const repositoryIssueInventoryAttempts: DoctorRepositoryInventoryAttempt[] = [];
       try {
         const checked = await checkContextualDoctor({
           capture: () => captureCheckoutContext(projectRoot),
@@ -5177,7 +5359,10 @@ async function main(argv: readonly string[]) {
           },
           check: async () => {
             const doctorConfig = await loadConfig({ requireProjectNumber: true });
-            return runDoctor(doctorConfig, new RoadmapClient(doctorConfig), { quiet: true });
+            return runDoctor(doctorConfig, new RoadmapClient(doctorConfig), {
+              quiet: true,
+              repositoryIssueInventoryAttempts,
+            });
           },
         });
         report = {
@@ -5193,6 +5378,7 @@ async function main(argv: readonly string[]) {
           },
           warnings: checked.result.warnings,
           diagnostics: checked.result.diagnostics,
+          repository_issue_inventory: repositoryIssueInventoryAttempts,
         };
       } catch (error) {
         report = {
@@ -5200,6 +5386,7 @@ async function main(argv: readonly string[]) {
           kind: "roadmap-doctor",
           status: "failed",
           context,
+          repository_issue_inventory: repositoryIssueInventoryAttempts,
           errors: (() => {
             const errors = qualificationField(error, "doctorErrors");
             return Array.isArray(errors) &&

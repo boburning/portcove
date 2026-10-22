@@ -473,6 +473,54 @@ describe("desktop components", () => {
     expect(unavailable).toContain("remove only this registration");
     expect(unavailable).not.toContain("Choose Verify installation");
   });
+
+  it.each([false, true])(
+    "preserves retained managed actions after the current route changes (invalid: %s)",
+    (invalid) => {
+      const currentPort = currentCatalogPort("render96ex");
+      const status: PortStatus = {
+        ...portStatus(),
+        port_id: currentPort.id,
+        active: installRecord({ port_id: currentPort.id }),
+        readiness: {
+          launchable: !invalid,
+          pending_setup: false,
+          blockers: invalid ? ["invalid_installation"] : [],
+          source: null,
+          bios: null,
+        },
+        port_actions: [
+          {
+            action: "launch",
+            availability: invalid ? "held" : "allowed",
+            reason: invalid ? "invalid_installation" : "available",
+          },
+          { action: "update", availability: "not_offered", reason: "route_not_offered" },
+          { action: "remove_managed", availability: "waiting", reason: "review_required" },
+        ],
+      };
+      const html = renderToStaticMarkup(
+        <DetailPanel
+          port={currentPort}
+          status={status}
+          sourcePath=""
+          setSourcePath={vi.fn()}
+          actions={actions}
+        />,
+      );
+      expect(html).toContain("Verify installation");
+      expect(html).toContain(`Uninstall ${currentPort.name}`);
+      expect(html).toContain("Managed by Portcove under this installation");
+      expect(html).toContain("Saved data follows this installation");
+      expect(html).not.toContain("No saved data paths declared");
+      expect(html).not.toContain("Game-owned settings and saves in the external runtime");
+      expect(html).not.toContain("Choose game executable");
+      expect(html).not.toContain("Remove registration");
+      expect(html).not.toContain("remove only this registration");
+      expect(html).not.toContain("Check for updates</button>");
+      expect(html).toContain(invalid ? "Installation needs repair" : "data-launch-action");
+    },
+  );
   it.each(["future_state", "constructor", "__proto__"])(
     "keeps unknown activity and policy labels neutral for %s",
     (value) => {

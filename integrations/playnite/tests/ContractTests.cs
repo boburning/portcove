@@ -826,7 +826,7 @@ internal static class ContractTests
             capabilities["schema_version"] = supportedRelinkSchema;
             Check(ProtocolStream.SupportsExternalRelink(capabilities), "known relink schema preserves reviewed folder change");
         }
-        foreach (var unsupportedRelinkSchema in new[] { 71, 80 })
+        foreach (var unsupportedRelinkSchema in new[] { 71, 81 })
         {
             capabilities["schema_version"] = unsupportedRelinkSchema;
             Check(!ProtocolStream.SupportsExternalRelink(capabilities), "older and unknown relink schemas are refused");

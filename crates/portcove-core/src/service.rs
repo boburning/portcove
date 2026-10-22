@@ -1793,11 +1793,15 @@ impl PortcoveService {
                 .ok_or_else(|| {
                     PortcoveError::state("external runtime platform contract is missing")
                 })?;
-            crate::external_runtime::check_registered_location(
-                published,
-                spec,
-                self.library.root(),
-            )?;
+            if spec.trust == crate::ExternalRuntimeTrust::UserSelected {
+                self.check_user_selected_runtime_record(published, spec)?;
+            } else {
+                crate::external_runtime::check_registered_location(
+                    published,
+                    spec,
+                    self.library.root(),
+                )?;
+            }
             return Ok(Some(catalog));
         }
         Ok(None)
@@ -4376,16 +4380,22 @@ impl PortcoveService {
                             "retained external runtime has no platform contract",
                         )
                     })?;
-                let inspected = crate::external_runtime::inspect_with_checkpoint(
-                    &record.path,
-                    accepted,
-                    self.library.root(),
-                    &|| operation.checkpoint(),
-                )?;
-                if inspected.root != spec.install_root || inspected.executable != spec.executable {
-                    return Err(PortcoveError::verification(
-                        "external runtime changed before launch",
-                    ));
+                if accepted.trust == crate::ExternalRuntimeTrust::UserSelected {
+                    self.check_user_selected_runtime_record(record, accepted)?;
+                } else {
+                    let inspected = crate::external_runtime::inspect_with_checkpoint(
+                        &record.path,
+                        accepted,
+                        self.library.root(),
+                        &|| operation.checkpoint(),
+                    )?;
+                    if inspected.root != spec.install_root
+                        || inspected.executable != spec.executable
+                    {
+                        return Err(PortcoveError::verification(
+                            "external runtime changed before launch",
+                        ));
+                    }
                 }
             }
             operation.begin_publication()?;
@@ -4421,10 +4431,16 @@ impl PortcoveService {
                                 "retained external runtime has no platform contract",
                             )
                         })?;
-                    crate::external_runtime::shared_preferences::check_record(record, accepted)?;
-                    crate::external_runtime::shared_preferences::require_original(
-                        record, accepted,
-                    )?;
+                    if accepted.trust == crate::ExternalRuntimeTrust::UserSelected {
+                        self.check_user_selected_runtime_record(record, accepted)?;
+                    } else {
+                        crate::external_runtime::shared_preferences::check_record(
+                            record, accepted,
+                        )?;
+                        crate::external_runtime::shared_preferences::require_original(
+                            record, accepted,
+                        )?;
+                    }
                 }
                 if let Some(install) = active.as_ref() {
                     Installer::new(self.library.clone())?.require_curated_operation(
@@ -4910,7 +4926,7 @@ impl PortcoveService {
                     "user-managed setup supplies its own original files; source overrides are not offered",
                 ));
             }
-            crate::external_runtime::check_user_selected_record(record, spec, self.library.root())?;
+            self.check_user_selected_runtime_record(record, spec)?;
             self.require_definition_identity(
                 record.retained_definition.as_ref(),
                 DefinitionOperationContext::observed(DefinitionOperation::Launch, true, true),

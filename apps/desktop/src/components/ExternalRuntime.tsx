@@ -44,6 +44,7 @@ type ExternalRuntimeControlProps = {
 };
 
 export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
+  if (props.status?.active) return null;
   return (
     <ExternalRuntimeContext
       key={JSON.stringify([props.port.id, props.generation, props.status?.external_runtime?.id])}
