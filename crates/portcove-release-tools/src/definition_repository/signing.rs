@@ -222,7 +222,7 @@ pub(super) fn targets(context: &Context, role: DefinitionOnlineRole) -> Result<T
         _extra: Default::default(),
     })
 }
-fn meta(bytes: &[u8], version: NonZeroU64) -> Result<Metafile> {
+pub(super) fn meta(bytes: &[u8], version: NonZeroU64) -> Result<Metafile> {
     Ok(serde_json::from_value(
         serde_json::json!({"version":version,"length":bytes.len(),"hashes":{"sha256":sha(bytes)}}),
     )?)
@@ -231,7 +231,14 @@ pub(super) fn snapshot(context: &Context, roles: &Files) -> Result<Snapshot> {
     let mut value = Snapshot::new("1.0.0".into(), context.versions[2], context.expires[2]);
     value.meta.insert(
         "targets.json".into(),
-        meta(&context.top_bytes, context.top.signed.version)?,
+        meta(
+            selected_top(context, roles)?,
+            context
+                .next_top
+                .as_ref()
+                .unwrap_or(&context.top.signed)
+                .version,
+        )?,
     );
     for role in [
         DefinitionOnlineRole::Definitions,
@@ -247,6 +254,16 @@ pub(super) fn snapshot(context: &Context, roles: &Files) -> Result<Snapshot> {
     }
     Ok(value)
 }
+pub(super) fn selected_top<'a>(context: &'a Context, roles: &'a Files) -> Result<&'a [u8]> {
+    if context.next_top.is_some() {
+        roles
+            .get("targets.json")
+            .map(Vec::as_slice)
+            .ok_or_else(|| TufRepositoryError::Invalid("catalog signed Targets missing".into()))
+    } else {
+        Ok(&context.top_bytes)
+    }
+}
 pub(super) fn timestamp(context: &Context, roles: &Files) -> Result<TufTimestamp> {
     let mut value = TufTimestamp::new("1.0.0".into(), context.versions[3], context.expires[3]);
     value.meta.insert(
@@ -260,20 +277,24 @@ pub(super) fn timestamp(context: &Context, roles: &Files) -> Result<TufTimestamp
     );
     Ok(value)
 }
-fn same<T: Serialize>(actual: &T, want: &T) -> Result<()> {
+pub(super) fn same<T: Serialize>(actual: &T, want: &T) -> Result<()> {
     if serde_json::to_value(actual)? != serde_json::to_value(want)? {
         return invalid("catalog signed body differs from exact independently expected role");
     }
     Ok(())
 }
 pub(super) fn roles(context: &Context, path: &Path, through: usize) -> Result<Files> {
-    let values = io::tree(path, 4, 4 * ROLE_MAX)?;
-    let allowed = [
+    let count = if context.next_top.is_some() { 5 } else { 4 };
+    let values = io::tree(path, count, count as u64 * ROLE_MAX)?;
+    let mut allowed = vec![
         "official-definitions.json",
         "official-policy.json",
         "snapshot.json",
         "timestamp.json",
     ];
+    if context.next_top.is_some() {
+        allowed.push("targets.json");
+    }
     if values.keys().any(|v| !allowed.contains(&v.as_str())) {
         return invalid("catalog role directory contains private/unexpected input");
     }
@@ -285,6 +306,15 @@ pub(super) fn roles(context: &Context, path: &Path, through: usize) -> Result<Fi
         through
     };
     let mut verified = Files::new();
+    if let Some(expected) = &context.next_top {
+        let bytes = values
+            .get("targets.json")
+            .ok_or_else(|| TufRepositoryError::Invalid("catalog signed Targets missing".into()))?;
+        let signed: Signed<Targets> = serde_json::from_slice(bytes)?;
+        policy::top(&context.root.signed, &signed, context.at)?;
+        same(&signed.signed, expected)?;
+        verified.insert("targets.json".into(), bytes.clone());
+    }
     for role in [
         DefinitionOnlineRole::Definitions,
         DefinitionOnlineRole::Policy,
@@ -341,7 +371,8 @@ pub(super) fn roles(context: &Context, path: &Path, through: usize) -> Result<Fi
     }
     Ok(verified)
 }
-/// One invocation reads exactly the selected catalog role key. No Root/Targets key is accepted here.
+/// One invocation reads exactly the selected catalog role key. Root is excluded;
+/// Targets requires explicit unchanged-authority renewal with authenticated prior.
 pub async fn sign_definition_role(
     role: DefinitionOnlineRole,
     path: &Path,
@@ -353,6 +384,9 @@ pub async fn sign_definition_role(
     let base = path.parent().unwrap_or(Path::new("."));
     let context_path = io::resolve(base, &config.context)?;
     let context = load_context(&context_path).await?;
+    if role == DefinitionOnlineRole::Targets && context.next_top.is_none() {
+        return invalid("catalog Targets signing requires explicit online renewal mode");
+    }
     let mut inputs = context.inputs.clone();
     inputs.push(path.to_path_buf());
     let required = matches!(
@@ -384,6 +418,11 @@ pub async fn sign_definition_role(
     io::no_overlap(&output, &inputs)?;
     // Refuse equal-version changed content before reading this sole private key.
     let unsigned = match role {
+        DefinitionOnlineRole::Targets => {
+            serde_json::to_value(context.next_top.as_ref().ok_or_else(|| {
+                TufRepositoryError::Invalid("catalog next Targets absent".into())
+            })?)?
+        }
         DefinitionOnlineRole::Snapshot => serde_json::to_value(snapshot(&context, &prior)?)?,
         DefinitionOnlineRole::Timestamp => serde_json::to_value(timestamp(&context, &prior)?)?,
         _ => serde_json::to_value(targets(&context, role)?)?,
@@ -397,6 +436,18 @@ pub async fn sign_definition_role(
     let rng = SystemRandom::new();
     let root_holder = KeyHolder::Root(context.root.signed.clone());
     let bytes = match role {
+        DefinitionOnlineRole::Targets => SignedRole::new(
+            context
+                .next_top
+                .clone()
+                .ok_or_else(|| TufRepositoryError::Invalid("catalog next Targets absent".into()))?,
+            &root_holder,
+            &[key],
+            &rng,
+        )
+        .await?
+        .buffer()
+        .to_vec(),
         DefinitionOnlineRole::Snapshot => {
             SignedRole::new(snapshot(&context, &prior)?, &root_holder, &[key], &rng)
                 .await?

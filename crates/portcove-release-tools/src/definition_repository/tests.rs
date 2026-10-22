@@ -17,6 +17,9 @@ impl Fixture {
     }
 
     async fn new_with_profile(profile: InitialRootProfile) -> Self {
+        Self::with_root_lifetime(profile, 3600).await
+    }
+    async fn with_root_lifetime(profile: InitialRootProfile, root_seconds: u64) -> Self {
         let appointed = |mut value: serde_json::Value| {
             if profile == InitialRootProfile::SingleOwnerOneOfOneV1 {
                 value["initial_root_profile"] = json!(profile);
@@ -28,6 +31,10 @@ impl Fixture {
         let at = Timestamp::now().to_string();
         let expires = Timestamp::now()
             .checked_add(Duration::from_secs(3600))
+            .unwrap()
+            .to_string();
+        let root_expires = Timestamp::now()
+            .checked_add(Duration::from_secs(root_seconds))
             .unwrap()
             .to_string();
         let mut public = vec![];
@@ -45,7 +52,7 @@ impl Fixture {
             root,
             "prepare-root.json",
             appointed(
-                json!({"schema_version":1,"generated_at":at,"expires":expires,"root_public_keys":public[..profile.root_keys()],"targets_public_key":public[3],"snapshot_public_key":public[4],"timestamp_public_key":public[5],"output":"root-unsigned.json"}),
+                json!({"schema_version":1,"generated_at":at,"expires":root_expires,"root_public_keys":public[..profile.root_keys()],"targets_public_key":public[3],"snapshot_public_key":public[4],"timestamp_public_key":public[5],"output":"root-unsigned.json"}),
             ),
         );
         let proposal = offline::prepare_initial_root(&prepare).unwrap();
@@ -119,6 +126,7 @@ impl Fixture {
     }
     fn sign_config(&self, role: DefinitionOnlineRole) -> PathBuf {
         let index = match role {
+            DefinitionOnlineRole::Targets => 3,
             DefinitionOnlineRole::Definitions => 6,
             DefinitionOnlineRole::Policy => 7,
             DefinitionOnlineRole::Snapshot => 4,
@@ -263,6 +271,139 @@ async fn catalog_four_isolated_roles_and_zero_key_assembly_have_exact_tough_read
         roles.iter().map(|v| v.name.as_str()).collect::<Vec<_>>(),
         ["official-definitions", "official-policy"]
     );
+}
+
+#[tokio::test]
+async fn catalog_online_targets_two_renewals_preserve_authority_history_and_require_explicit_prior()
+{
+    let mut fixture =
+        Fixture::with_root_lifetime(InitialRootProfile::SingleOwnerOneOfOneV1, 300 * 86400).await;
+    let original_context = fixture.context_value();
+    let refused = sign_definition_role(
+        DefinitionOnlineRole::Targets,
+        &fixture.sign_config(DefinitionOnlineRole::Targets),
+    )
+    .await
+    .unwrap_err();
+    assert!(refused.to_string().contains("explicit online renewal"));
+    let mut invalid = original_context.clone();
+    invalid["top_level_targets_profile"] = json!("online-unchanged-authority-v1");
+    fixture.set_context(invalid);
+    assert!(
+        sign_definition_role(
+            DefinitionOnlineRole::Targets,
+            &fixture.sign_config(DefinitionOnlineRole::Targets)
+        )
+        .await
+        .unwrap_err()
+        .to_string()
+        .contains("authenticated prior")
+    );
+    fixture.set_context(original_context.clone());
+    fixture.sign_all().await;
+    assemble_definition_repository(&fixture.assembly("generation-1"))
+        .await
+        .unwrap();
+    let old_top = fs::read(fixture.root().join("generation-1/metadata/1.targets.json")).unwrap();
+    let old_snapshot =
+        fs::read(fixture.root().join("generation-1/metadata/1.snapshot.json")).unwrap();
+    let start = original_context["generated_at"]
+        .as_str()
+        .unwrap()
+        .parse::<Timestamp>()
+        .unwrap();
+    let mut base_top = "targets.json".to_owned();
+    for version in 2..=3 {
+        let mut context = original_context.clone();
+        let at = start.checked_add(Duration::from_secs(version)).unwrap();
+        context["generated_at"] = json!(at.to_string());
+        context["top_level_targets_profile"] = json!("online-unchanged-authority-v1");
+        context["previous_repository"] = json!(format!("generation-{}", version - 1));
+        context["offline_targets"] = json!(base_top);
+        context["offline_targets_sha256"] =
+            json!(sha(&fs::read(fixture.root().join(&base_top)).unwrap()));
+        for role in ["definitions", "policy", "snapshot", "timestamp"] {
+            context["versions"][role] = json!(version);
+            context["expires"][role] = json!(
+                at.checked_add(Duration::from_secs(3600))
+                    .unwrap()
+                    .to_string()
+            );
+        }
+        fixture.set_context(context);
+        fixture.roles = fixture.root().join(format!("roles-{version}"));
+        fs::create_dir(&fixture.roles).unwrap();
+        sign_definition_role(
+            DefinitionOnlineRole::Targets,
+            &fixture.sign_config(DefinitionOnlineRole::Targets),
+        )
+        .await
+        .unwrap();
+        // A correctly signed but altered delegation is not a renewal.
+        let top_path = fixture.roles.join("targets.json");
+        let exact = fs::read(&top_path).unwrap();
+        let mut changed: Signed<Targets> = serde_json::from_slice(&exact).unwrap();
+        changed.signed.delegations.as_mut().unwrap().roles[0].terminating = false;
+        let root: Signed<Root> =
+            serde_json::from_slice(&fs::read(fixture.root().join("root.json")).unwrap()).unwrap();
+        let private: Box<dyn tough::key_source::KeySource> =
+            Box::new(tough::key_source::LocalKeySource {
+                path: fixture.root().join("key-3/private.pk8"),
+            });
+        let signed = tough::editor::signed::SignedRole::new(
+            changed.signed,
+            &tough::schema::KeyHolder::Root(root.signed),
+            &[private],
+            &aws_lc_rs::rand::SystemRandom::new(),
+        )
+        .await
+        .unwrap();
+        fs::write(&top_path, signed.buffer()).unwrap();
+        assert!(
+            signing::roles(
+                &load_context(&fixture.context).await.unwrap(),
+                &fixture.roles,
+                2
+            )
+            .unwrap_err()
+            .to_string()
+            .contains("delegation")
+        );
+        fs::write(&top_path, &exact).unwrap();
+        fixture.sign_all().await;
+        let output = format!("generation-{version}");
+        let report = assemble_definition_repository(&fixture.assembly(&output))
+            .await
+            .unwrap();
+        assert_eq!(report.versions["targets"], version.to_string());
+        assert_eq!(report.offline_targets_sha256, sha(&exact));
+        let readback = assemble_definition_repository(&fixture.assembly(&output))
+            .await
+            .unwrap();
+        assert!(!readback.changed);
+        assert_eq!(readback.repository_sha256, report.repository_sha256);
+        assert_eq!(
+            fs::read(fixture.root().join(&output).join("metadata/1.targets.json")).unwrap(),
+            old_top
+        );
+        assert_eq!(
+            fs::read(
+                fixture
+                    .root()
+                    .join(&output)
+                    .join("metadata/1.snapshot.json")
+            )
+            .unwrap(),
+            old_snapshot
+        );
+        if version == 3 {
+            assert_eq!(
+                fs::read(fixture.root().join(&output).join("metadata/2.targets.json")).unwrap(),
+                fs::read(fixture.root().join("generation-2/metadata/2.targets.json")).unwrap()
+            );
+        }
+        base_top = format!("{output}/metadata/{version}.targets.json");
+    }
 }
 
 #[tokio::test]
@@ -441,7 +582,6 @@ fn catalog_role_parser_rejects_application_roles_and_public_paths_refuse_travers
         "releases",
         "preview",
         "stable",
-        "targets",
         "root",
         "official-definitions/../root",
     ] {
