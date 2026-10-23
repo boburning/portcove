@@ -100,7 +100,10 @@ signing, publication or destructive operations.
 
 Use `just test-ui FILES` for literal test files. It validates every path before
 execution and reconciles requested files with Vitest's executed report. A successful
-partial match is a failure; skip counts are reported separately. Use
+partial match or an unexpectedly wholly skipped file is a failure. Individual
+skipped tests are reported separately. The disabled intentional browser-failure
+probe has one explicit file-level skip reason; enabling the probe removes that
+permission, and a selection with no runnable tests always fails. Use
 `just test-ui-related FILES` for source files and import-graph coverage instead.
 Both routes retain the existing isolation, timing and resource contracts.
 Use the literal-file wrapper rather than direct Vitest filename filters, which

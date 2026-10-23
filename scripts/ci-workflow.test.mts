@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { requireNodeTestInventory } from "./node-test-inventory.mts";
+import { createBrowserTraceRun } from "./browser-traces.ts";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import type {
   SpawnOptions,
@@ -2357,6 +2358,48 @@ void test("full frontend qualification provisions browser artifacts before compo
     assert.match(upload, /include-hidden-files: true/);
     assert.match(upload, /retention-days: 7/);
     assert.doesNotMatch(upload, /^ +work\/bt\r?$/m);
+  }
+});
+
+void test("browser uploads select the actual trace and screenshot output layout", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-browser-upload-layout-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const run = createBrowserTraceRun(root);
+  await mkdir(run.screenshotDirectory, { recursive: true });
+  const trace = path.join(run.directory, "failure.trace.zip");
+  const screenshot = path.join(run.screenshotDirectory, "failure.png");
+  await writeFile(trace, "owned layout fixture, not an executed browser trace");
+  await writeFile(screenshot, "owned screenshot layout fixture");
+  const files = [trace, screenshot].map((file) => path.relative(root, file).replaceAll("\\", "/"));
+  const document = parseDocument(workflow, { uniqueKeys: true });
+  assert.deepEqual(document.errors, []);
+  const parsed: unknown = document.toJS();
+  assert.ok(isRecord(parsed) && isRecord(parsed.jobs));
+  for (const id of ["fast_frontend", "frontend_full", "frontend_portability"]) {
+    const job = parsed.jobs[id];
+    assert.ok(isRecord(job) && Array.isArray(job.steps));
+    const upload: unknown = job.steps.find(
+      (step: unknown) =>
+        isRecord(step) &&
+        isRecord(step.with) &&
+        typeof step.with.name === "string" &&
+        step.with.name.startsWith("browser-traces-"),
+    );
+    assert.ok(isRecord(upload) && isRecord(upload.with) && typeof upload.with.path === "string");
+    const patterns = upload.with.path
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    for (const file of files)
+      assert.ok(
+        patterns.some((pattern) => path.posix.matchesGlob(file, pattern)),
+        `${id} does not upload the actual output ${file}`,
+      );
+    const withoutScreenshots = patterns.filter(
+      (pattern) => !path.posix.matchesGlob(files[1]!, pattern),
+    );
+    assert.ok(withoutScreenshots.some((pattern) => path.posix.matchesGlob(files[0]!, pattern)));
+    assert.ok(!withoutScreenshots.some((pattern) => path.posix.matchesGlob(files[1]!, pattern)));
   }
 });
 

@@ -398,6 +398,7 @@ jobs:
           name: browser-traces-fast-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             work/bt/**/*.trace.zip
+            work/bt/**/screenshots/**/*.png
             .vitest/attachments/failure-screenshots/**/*.png
             apps/desktop/.vitest/attachments/failure-screenshots/**/*.png
             .vitest/attachments/**/*.json
@@ -1047,6 +1048,7 @@ jobs:
           name: browser-traces-full-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             work/bt/**/*.trace.zip
+            work/bt/**/screenshots/**/*.png
             .vitest/attachments/failure-screenshots/**/*.png
             apps/desktop/.vitest/attachments/failure-screenshots/**/*.png
             .vitest/attachments/**/*.json
@@ -1221,6 +1223,7 @@ jobs:
           name: browser-traces-contributor-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             work/bt/**/*.trace.zip
+            work/bt/**/screenshots/**/*.png
             .vitest/attachments/failure-screenshots/**/*.png
             apps/desktop/.vitest/attachments/failure-screenshots/**/*.png
           include-hidden-files: true

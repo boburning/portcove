@@ -4,7 +4,11 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { resolveUiSelection, reconcileUiSelection } from "./ui-test-selection.mts";
+import {
+  resolveUiSelection,
+  reconcileUiSelection,
+  allowedUiSkippedFiles,
+} from "./ui-test-selection.mts";
 import type { UiModuleObservation, UiRunObservation } from "./ui-test-selection.mts";
 
 void test("literal UI paths reject omissions, ambiguous filters and outside files before execution", () => {
@@ -55,7 +59,10 @@ void test("nonempty successful partial matches cannot claim the requested select
   assert.throws(() => reconcileUiSelection(report([suite(one)]), [one, two]), /did not run/);
   assert.throws(() => reconcileUiSelection(report([suite(two)]), [one]), /Unexpected/);
   assert.throws(() => reconcileUiSelection(report([suite(one), suite(one)]), [one]), /duplicate/);
-  assert.throws(() => reconcileUiSelection(report([suite(one, "skipped")]), [one]), /no runnable/);
+  assert.throws(
+    () => reconcileUiSelection(report([suite(one, "skipped")]), [one]),
+    /wholly skipped/,
+  );
   assert.throws(() => reconcileUiSelection(report([suite(one, "failed")]), [one]), /failed/);
   assert.throws(
     () =>
@@ -72,12 +79,43 @@ void test("nonempty successful partial matches cannot claim the requested select
 });
 
 void test("complete selections distinguish observed suites, executed suites and skipped tests", () => {
-  const result = reconcileUiSelection(report([suite(one), suite(two, "skipped")]), [one, two]);
+  const selected = report([suite(one), suite(two, "skipped")]);
+  assert.throws(() => reconcileUiSelection(selected, [one, two]), /wholly skipped/);
+  const result = reconcileUiSelection(selected, [one, two], new Map([[two, "Owned diagnostic"]]));
   assert.deepEqual(result.requested_files, [one, two]);
   assert.deepEqual(result.discovered_files, [one, two]);
   assert.deepEqual(result.executed_files, [one]);
   assert.equal(result.passed, 1);
   assert.equal(result.skipped, 1);
+  assert.deepEqual(result.skipped_files, [{ file: two, reason: "Owned diagnostic" }]);
+  assert.throws(
+    () => reconcileUiSelection(selected, [one, two], new Map([[two, " "]])),
+    /Invalid UI skipped-file permission/,
+  );
+  assert.throws(
+    () => reconcileUiSelection(report([suite(one)]), [one], new Map([[two, "Foreign"]])),
+    /Invalid UI skipped-file permission/,
+  );
+  assert.throws(
+    () =>
+      reconcileUiSelection(report([suite(two, "skipped")]), [two], new Map([[two, "Diagnostic"]])),
+    /no runnable/,
+  );
+});
+
+void test("only the exact disabled browser diagnostic receives an explicit skip reason", () => {
+  const root = path.resolve("desktop");
+  const probe = path.join(root, "src/browser/failure-probe.browser.test.tsx");
+  const ordinary = path.join(root, "src/browser/ordinary.browser.test.tsx");
+  const foreign = path.resolve("other/src/browser/failure-probe.browser.test.tsx");
+  assert.deepEqual([...allowedUiSkippedFiles([ordinary, foreign], root, {})], []);
+  assert.deepEqual(
+    [...allowedUiSkippedFiles([probe], root, { VITE_PORTCOVE_BROWSER_TRACE_PROBE: "1" })],
+    [],
+  );
+  const permissions = allowedUiSkippedFiles([probe, ordinary, foreign], root, {});
+  assert.equal(permissions.size, 1);
+  assert.match(permissions.get(probe) ?? "", /diagnostic/);
 });
 
 void test("exact wrapper rejects a mixed valid/missing request before invoking its runner", () => {
