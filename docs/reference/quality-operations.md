@@ -544,6 +544,30 @@ dependency on the runner it must outlive.
 
 ## Test latency and reliability
 
+The eight maintained Python unittest suites run through
+`scripts/python-test-results.py`, using the existing isolated `-I -S -B`
+interpreter route and finite outer deadlines. Direct Python execution still
+works. Node wrappers retain human unittest output and emit `Python case:` JSON
+diagnostics joined to the outer test name, exact suite digest and platform.
+`Python inventory:` distinguishes selected method identities from tests run;
+class/module setup failures can leave selected methods unexecuted. A skipped
+method is a reported unittest result, not executed behavior. Subtests have their
+own identities and outcomes, with a null duration because unittest has no
+subtest-start callback. Fixture callbacks also have unavailable timing. They do
+not inflate the method count.
+
+Reports retain assertion/error reasons, expected failures, unexpected successes,
+fixture errors and secondary teardown failures. A failed inner suite keeps the
+outer test failed. Empty, malformed, contradictory or source-mismatched reports
+fail visibly with the original process status; reporting cannot establish a
+pass after an incomplete invocation. Callback limits preserve bounded partial
+records and the original suite status, then fail the outer invocation after
+emitting the retained cases. Reports are limited to 2 MiB and 2,048
+records, with 4 KiB reasons and bounded secondary outcomes. The subprocess
+capture is capped at 3 MiB per stream. These inert/control suites establish
+their stated contracts; platform skips retain their actual reason and Linux
+wrappers still require their POSIX cases to run there.
+
 Use `just ci-health` to inspect the latest 20 main CI runs, including every rerun
 attempt. GitHub CLI authentication with read access to Actions is required.
 This is an on-demand report, not another required CI job or a planning authority.
