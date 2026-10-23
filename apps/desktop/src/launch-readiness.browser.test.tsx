@@ -144,7 +144,7 @@ it.each([undefined, portStatus(), { ...portStatus(), port_actions: [] }])(
         actions={actions}
       />,
     );
-    expect(host.querySelector(".hero-state")?.textContent).toBe("Setup status unknown");
+    expect(host.querySelector("[data-detail-readiness]")?.textContent).toBe("Setup status unknown");
     expect(host.textContent).not.toContain("Available to install");
     expect(host.textContent).not.toContain("Unsupported");
   },
@@ -187,7 +187,7 @@ it("preserves known missing inputs when managed setup has no action assessment",
       actions={actions}
     />,
   );
-  expect(host.querySelector(".hero-state")?.textContent).toBe("Game files needed");
+  expect(host.querySelector("[data-detail-readiness]")?.textContent).toBe("Game files needed");
   expect(host.textContent).not.toContain("Available to install");
 });
 
@@ -205,7 +205,7 @@ it("preserves external runtime preparation without a managed setup assessment", 
       actions={actions}
     />,
   );
-  expect(host.querySelector(".hero-state")?.textContent).toBe("Prepare your runtime");
+  expect(host.querySelector("[data-detail-readiness]")?.textContent).toBe("Prepare your runtime");
   expect(host.textContent).not.toContain("Setup status unknown");
 });
 

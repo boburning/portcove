@@ -2,17 +2,13 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import { focusAndReveal, focusRegion } from "../../focus";
 import { scrollWorkspaceTo, workspaceScrollTop } from "../../workspace-scroll";
 import type { DetailDestination } from "../../view-model";
+import type { DetailOpening } from "../game-details/detail-sections";
 
 type DetailReturn = {
   portId: string;
   originKey: string | undefined;
   scrollTop: number;
   token: number;
-};
-
-const destinationHeading: Record<DetailDestination, string> = {
-  updates: "detail-updates",
-  saves: "detail-saves-and-storage",
 };
 
 export function useDetailWorkspaceNavigation(
@@ -22,7 +18,8 @@ export function useDetailWorkspaceNavigation(
 ) {
   const sequence = useRef(0);
   const current = useRef<DetailReturn | undefined>(undefined);
-  const [openingToken, setOpeningToken] = useState<number>();
+  const [opening, setOpening] = useState<DetailOpening>();
+  const openingToken = opening?.token;
 
   const open = useCallback(
     (portId: string, originKey?: string, destination?: DetailDestination) => {
@@ -33,19 +30,9 @@ export function useDetailWorkspaceNavigation(
         scrollTop: workspaceScrollTop(workspace.current),
         token,
       };
-      setOpeningToken(token);
+      scrollWorkspaceTo(workspace.current, 0);
+      setOpening({ token, destination });
       setSelectedId(portId);
-      window.requestAnimationFrame(() => {
-        if (current.current?.token !== token) return;
-        scrollWorkspaceTo(workspace.current, 0);
-        const target = destination
-          ? document.getElementById(destinationHeading[destination])
-          : undefined;
-        if (target) {
-          target.scrollIntoView({ block: "start" });
-          target.focus({ preventScroll: true });
-        } else focusAndReveal(document.querySelector<HTMLElement>(".detail-back"));
-      });
     },
     [setSelectedId, workspace],
   );
@@ -56,7 +43,7 @@ export function useDetailWorkspaceNavigation(
       if (!origin || origin.token !== expectedToken) return;
       const transition = ++sequence.current;
       current.current = undefined;
-      setOpeningToken(undefined);
+      setOpening(undefined);
       setSelectedId(undefined);
       window.requestAnimationFrame(() => {
         if (sequence.current !== transition || current.current) return;
@@ -99,9 +86,9 @@ export function useDetailWorkspaceNavigation(
     const origin = current.current;
     ++sequence.current;
     current.current = undefined;
-    setOpeningToken(undefined);
+    setOpening(undefined);
     return origin;
   }, []);
 
-  return { close, invalidate, open };
+  return { close, invalidate, open, opening };
 }

@@ -21,6 +21,7 @@ import { filterPorts, summarizeLibrary } from "../view-model";
 import { CatalogDownloadControl } from "./CatalogDownload";
 import { PortBrowser } from "./PortBrowser";
 import { SelfServiceSetup } from "./SelfServiceSetup";
+import { ListingDetailPanel } from "./ListingDetailPanel";
 
 vi.mock("../file-picker", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../file-picker")>()),
@@ -163,6 +164,62 @@ it("shows Core's refusal and does not turn observed assets into download permiss
   expect(document.body.textContent).not.toContain("Review download");
   expect(pickInstallFolder).not.toHaveBeenCalled();
   expect(desktopApi.previewCatalogDownload).not.toHaveBeenCalled();
+  expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+});
+
+it("keeps the listing download selection through all four production detail tabs", async () => {
+  await root.rerender(
+    <ListingDetailPanel
+      entry={entry}
+      status={status}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+      close={vi.fn()}
+    />,
+  );
+  await click("Set up game");
+  await vi.waitFor(() =>
+    expect(desktopApi.catalogDownloadCandidates).toHaveBeenCalledExactlyOnceWith(entry.id, 9),
+  );
+  await click("Choose download folder…");
+  await page.getByRole("tab", { name: "Saved data", exact: true }).click();
+  await expect
+    .element(page.getByRole("button", { name: "Back up data", exact: true }))
+    .not.toBeInTheDocument();
+  await page.getByRole("tab", { name: "Versions", exact: true }).click();
+  await expect
+    .element(page.getByRole("button", { name: "Check for updates", exact: true }))
+    .not.toBeInTheDocument();
+  await page.getByRole("tab", { name: "Overview", exact: true }).click();
+  await expect.element(page.getByText(listing.summary, { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "Files", exact: true }).click();
+  await click("Review download");
+  expect(desktopApi.previewCatalogDownload).toHaveBeenCalledExactlyOnceWith(selection, 9);
+  expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+});
+
+it("reveals pending setup through the header without restarting the download", async () => {
+  await root.rerender(
+    <ListingDetailPanel
+      entry={{ ...entry, pendingSetup: saved }}
+      status={status}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+      close={vi.fn()}
+    />,
+  );
+  await page.getByRole("button", { name: "Continue setup", exact: true }).first().click();
+  await expect
+    .element(page.getByRole("heading", { name: "Launch details", exact: true }))
+    .toBeVisible();
+  await page.getByRole("tab", { name: "Versions", exact: true }).click();
+  await page.getByRole("tab", { name: "Files", exact: true }).click();
+  await expect
+    .element(page.getByRole("heading", { name: "Launch details", exact: true }))
+    .toBeVisible();
+  expect(desktopApi.catalogDownloadCandidates).not.toHaveBeenCalled();
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
 });
 

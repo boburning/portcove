@@ -8,6 +8,38 @@ import { writeFile } from "node:fs/promises";
 import axe from "axe-core";
 import { By, Key, until } from "selenium-webdriver";
 
+/** Reveal the real panel through its tab; scrolling cannot reveal hidden content. */
+export async function revealDetailSection(
+  browser: WebDriver,
+  label: "Overview" | "Files" | "Saved data" | "Versions",
+) {
+  const tab = await browser.wait(
+    until.elementLocated(
+      By.xpath(`//*[@data-detail-workspace]//*[@role="tab"][normalize-space(.)="${label}"]`),
+    ),
+    15_000,
+  );
+  if ((await tab.getAttribute("aria-selected")) !== "true") await clickVisible(browser, tab);
+  await browser.wait(
+    async () => {
+      if ((await tab.getAttribute("aria-selected")) !== "true") return false;
+      const panelId = await tab.getAttribute("aria-controls");
+      if (!panelId) return false;
+      const panel = await browser.findElement(By.id(panelId));
+      return (
+        (await panel.isDisplayed()) &&
+        (await executeBrowserScript(
+          browser,
+          (element) => !element.hasAttribute("hidden") && !element.hasAttribute("inert"),
+          panel,
+        ))
+      );
+    },
+    5_000,
+    `The ${label} detail panel must be visible and interactive`,
+  );
+}
+
 export async function openCatalogPortAfterRefresh(
   browser: WebDriver,
   port: Pick<PortDefinition, "id">,

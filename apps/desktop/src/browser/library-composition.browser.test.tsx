@@ -172,13 +172,12 @@ it("keeps compatibility facts visible while disclosing project history on detail
     .getByRole("button", { name: "View details for Super Mario 64 Port: sm64-port", exact: true })
     .click();
   await expect.element(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
-  const disclosure = page.getByText("Project and compatibility details", { exact: true });
+  const disclosure = page.getByText("Project status and release information", { exact: true });
   expect(disclosure.element().closest("details")?.open).toBe(false);
   await disclosure.click();
   await expect.element(page.getByText("Upstream project", { exact: true })).toBeVisible();
-  await expect
-    .element(page.getByRole("heading", { name: "Recorded checks", exact: true }))
-    .toBeVisible();
+  await page.getByText("Recorded checks", { exact: true }).click();
+  await expect.element(page.getByText(/^Recorded history, not a fresh check/)).toBeVisible();
   expect(document.body.textContent).not.toContain("No current check");
 });
 

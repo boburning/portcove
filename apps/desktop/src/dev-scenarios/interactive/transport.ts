@@ -183,7 +183,11 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     launch_port: (args) => {
       const status = workspace(journey).statuses.find((item) => item.port_id === args?.portId);
       if (
-        !status?.active ||
+        (!status?.active && !status?.external_runtime) ||
+        (status?.external_runtime &&
+          !workspace(journey)
+            .listing_statuses?.find((item) => item.port_id === args?.portId)
+            ?.actions.some((action) => action.action === "launch" && action.allowed)) ||
         (status.readiness?.launchable === false && !status.readiness.pending_setup) ||
         (status.readiness?.pending_setup && !prepared) ||
         args?.source !== null ||
@@ -408,6 +412,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       if (!workspace(journey).catalog.ports.some((port) => port.id === args?.portId))
         return unsupported("get_backups");
       requireArgs("get_backups", args, { portId: args?.portId });
+      if (journey === "details" && args?.portId === "details-backup-error")
+        throw new Error(
+          "Disposable fixture: backup history could not be read. The game's saved data is untouched.",
+        );
       return {
         port_id: String(args?.portId),
         restore_assessment: {
@@ -427,7 +435,12 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     },
     get_artwork: (args) => {
       if (
-        !workspace(journey).catalog.ports.some((port) => port.id === args?.portId) ||
+        !(
+          workspace(journey).catalog.ports.some((port) => port.id === args?.portId) ||
+          workspace(journey).listing_catalog?.listings.some(
+            (listing) => listing.id === args?.portId,
+          )
+        ) ||
         !["cover", "detail"].includes(String(args?.slot))
       )
         return unsupported("get_artwork");

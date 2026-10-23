@@ -1,3 +1,9 @@
+import { DetailLayout } from "./DetailLayout";
+import {
+  initialDetailSection,
+  detailWorkSection,
+  type DetailOpening,
+} from "../features/game-details/detail-sections";
 import { GameFileObservationSummary } from "../features/browsing/GameFileObservationSummary";
 import { usePreparationCompletionFocus } from "../features/preparation/use-preparation-completion-focus";
 import { gameTitle, gameProjectLabel, gameIdentityLabel } from "../port-identity";
@@ -12,14 +18,13 @@ import {
   usesExternalRuntimeRoute,
   usesUserSelectedRuntime,
 } from "../shared/external-runtime-trust";
-import { ArtworkControls, ArtworkImage } from "./Artwork";
+import { ArtworkControls } from "./Artwork";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
 import { useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
 import {
   type LucideIcon,
   AlertTriangle,
-  ArrowLeft,
   ArchiveX,
   CheckCircle2,
   ChevronDown,
@@ -107,6 +112,9 @@ export interface DetailActions {
 type AsyncAction = () => void | Promise<unknown>;
 
 interface DetailPanelProps {
+  opening?: DetailOpening | undefined;
+  extraFiles?: ReactNode;
+  openActivity?: (() => void) | undefined;
   perform?: Perform | undefined;
   prepare?: RunPreparation | undefined;
   cancellableActivities?: ActivityRecord[] | undefined;
@@ -202,10 +210,6 @@ export function DetailPanel(props: DetailPanelProps) {
   const selectedRequirement = selectedSourceRequirement(source, sourcePath, bios, biosPath);
   const missingRequirement: SelectedRequirement | undefined =
     !sourceReady && !biosReady ? "both" : !sourceReady ? "game" : !biosReady ? "bios" : undefined;
-  const missingSourceLabels = [
-    !sourceReady && port.source_profile && (sourceProfile?.label ?? "Game files"),
-    !biosReady && port.bios_source_profile && (biosProfile?.label ?? "Required BIOS file"),
-  ].filter((label): label is string => typeof label === "string");
   const runtimeUpdateAvailable = currentUpdateSnapshot(status)?.check.update_available === true;
   const installReviewVisible = Boolean(
     installPlan &&
@@ -282,15 +286,11 @@ export function DetailPanel(props: DetailPanelProps) {
       ));
   const renderDetailBody = () => (
     <DetailBody
-      header={(action) => (
-        <DetailHero
-          port={port}
-          state={state}
-          missingSourceLabels={!installed ? missingSourceLabels : []}
-        >
-          {action}
-        </DetailHero>
-      )}
+      state={state}
+      opening={props.opening}
+      extraFiles={props.extraFiles}
+      openActivity={props.openActivity}
+      cancellations={renderCancellations()}
       observations={
         <>
           {!props.browsingMatch && (
@@ -348,28 +348,7 @@ export function DetailPanel(props: DetailPanelProps) {
       openLibraryStorage={props.openLibraryStorage}
     />
   );
-  return (
-    <section
-      className="detail-panel @container/detail relative w-full max-w-[64rem] min-w-0 motion-reduce:[animation:none]"
-      aria-labelledby="port-detail-title"
-      data-detail-workspace
-      data-detail-port-id={port.id}
-    >
-      <Button
-        data-focusable
-        className="detail-back mb-4"
-        variant="ghost"
-        size="sm"
-        aria-label="Back to previous workspace"
-        onClick={actions.close}
-      >
-        <Icon glyph={ArrowLeft} />
-        Back
-      </Button>
-      {renderCancellations()}
-      {renderDetailBody()}
-    </section>
-  );
+  return renderDetailBody();
 }
 
 interface DetailState {
@@ -380,81 +359,12 @@ interface DetailState {
   updateAttention?: string;
 }
 
-function DetailHero({
-  port,
-  state,
-  missingSourceLabels,
-  children,
-}: {
-  port: PortDefinition;
-  state: DetailState;
-  missingSourceLabels: string[];
-  children: ReactNode;
-}) {
-  return (
-    <div className="detail-hero flex items-start gap-4 @min-[32rem]/detail:gap-5">
-      <ArtworkImage
-        port={port}
-        quietFallback
-        className="detail-cover aspect-2/3 w-12 flex-none rounded-pc-md border border-pc-border bg-[var(--art-color)] @min-[20rem]/detail:w-16 @min-[32rem]/detail:w-24"
-      />
-      <div className="w-full min-w-0 flex-1 [overflow-wrap:anywhere] @min-[32rem]/detail:self-center">
-        <p className="mb-1 text-xs text-[var(--color-text-secondary)]">
-          {port.platforms.map((platform) => platformLabel(platform)).join(" · ")}
-        </p>
-        <h1
-          className="detail-title mb-0 text-[length:var(--text-2xl)] text-[var(--color-text)]"
-          id="port-detail-title"
-        >
-          {gameTitle(port)}
-        </h1>
-        {gameProjectLabel(port) && (
-          <p className="m-0 mt-1 text-sm text-pc-muted-foreground">
-            Port project: {gameProjectLabel(port)}
-          </p>
-        )}
-        <span
-          className={cn(
-            `hero-state mt-[10px] inline-flex items-center gap-2 text-[length:var(--text-xs)] font-[750] text-[var(--color-text)] ${state.tone}`,
-            "[&.ready]:text-pc-success-foreground [&.setup]:text-[var(--color-warning-text)] [&.staged]:text-[var(--color-interactive-text)]",
-          )}
-        >
-          <Icon glyph={state.icon} size="sm" />
-          {state.title}
-        </span>
-        {state.tone !== "ready" && (
-          <p className="hero-reason m-[var(--space-2)_0_0] max-w-[65ch] text-[length:var(--text-sm)] leading-[var(--leading-normal)] text-[var(--color-text-secondary)]">
-            {state.description}
-          </p>
-        )}
-        {"updateAttention" in state && (
-          <p className="mt-2 text-sm text-pc-muted-foreground" data-update-attention>
-            {state.updateAttention}
-          </p>
-        )}
-        {missingSourceLabels.length > 0 && (
-          <p className="hero-requirement m-[var(--space-2)_0_0] max-w-[65ch] text-[length:var(--text-xs)] leading-[var(--leading-normal)] text-[var(--color-text-secondary)]">
-            Required for setup:{" "}
-            <strong className="font-[600] [overflow-wrap:anywhere] text-[var(--color-text)]">
-              {missingSourceLabels.join(" · ")}
-            </strong>
-          </p>
-        )}
-        <div
-          className={cn(
-            "detail-current-action mt-4",
-            state.tone === "ready" ? "max-w-80" : "max-w-xl",
-          )}
-        >
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function DetailBody({
-  header,
+  state,
+  opening,
+  extraFiles,
+  openActivity,
+  cancellations,
   observations,
   installCancellations,
   perform,
@@ -489,7 +399,11 @@ function DetailBody({
   actions,
   openLibraryStorage,
 }: {
-  header: (action: ReactNode) => ReactNode;
+  state: DetailState;
+  opening?: DetailOpening | undefined;
+  extraFiles?: ReactNode;
+  openActivity?: (() => void) | undefined;
+  cancellations: ReactNode;
   observations: ReactNode;
   installCancellations?: ActivityRecord[] | undefined;
   perform?: Perform | undefined;
@@ -526,153 +440,374 @@ function DetailBody({
 }) {
   const managedPreparation = needsManagedPreparation(port, installed);
   const external = usesExternalRuntimeRoute(port, status);
+  const initialSection = initialDetailSection({
+    destination: opening?.destination,
+    needsFiles:
+      !installed ||
+      !status?.readiness ||
+      !status.readiness.launchable ||
+      pendingSetup ||
+      !sourceReady ||
+      !biosReady,
+    hasUpdate: runtimeUpdateAvailable || Boolean(stagedVersion),
+  });
   return (
-    <div className="detail-body pb-10">
-      <div className="detail-summary">
-        {header(
-          <StatusActionsGroup
-            installCancellations={installCancellations}
-            port={port}
-            status={status}
-            stagedVersion={stagedVersion}
-            sources={sources}
-            installed={installed}
-            sourceReady={sourceReady}
-            biosReady={biosReady}
+    <DetailLayout
+      port={port}
+      projectUrl={port.project_url}
+      opening={opening}
+      initialSection={initialSection}
+      close={actions.close}
+      steam={!external}
+      readiness={
+        <span
+          className={cn(
+            "inline-flex items-center gap-2",
+            state.tone === "ready" ? "text-pc-success-foreground" : "text-pc-warning-foreground",
+          )}
+        >
+          <Icon glyph={state.icon} />
+          {state.title}
+        </span>
+      }
+      installation={
+        status?.external_runtime
+          ? "Registered external installation"
+          : status?.active
+            ? "Managed installation · " + status.active.version
+            : "Not installed"
+      }
+      action={(reveal) =>
+        installed && launchReady ? (
+          <InstalledPlayActions
+            compact
+            trial={
+              hasUnconfirmedLaunchInput(status, port) ||
+              Boolean(
+                selectedSourceRequirement(
+                  sources.source,
+                  sources.sourcePath,
+                  sources.bios,
+                  sources.biosPath,
+                ),
+              )
+            }
+            preparationRequired={false}
             launchReady={launchReady}
             pendingSetup={pendingSetup}
-            runtimeUpdateAvailable={runtimeUpdateAvailable}
-            managedPreparation={managedPreparation}
-            prepare={prepare}
-            installPlan={installPlan}
+            stagedVersion={undefined}
             busy={busy}
-            libraryGeneration={libraryGeneration}
-            onChanged={externalRuntimeChanged}
             actions={actions}
-            openLibraryStorage={openLibraryStorage}
-          />,
-        )}
-      </div>
-      {status?.active && (
-        <DetailGroup title="Installation and version">
-          <InstallationVersionSummary status={status} selectedChannel={selectedChannel} />
-        </DetailGroup>
-      )}
-      {status?.external_runtime && (
-        <DetailGroup title="Existing installation">
-          <dl className="m-0 grid gap-4 text-sm [&_dd]:m-0 [&_dd]:mt-1 [&_dd]:[overflow-wrap:anywhere] [&_dt]:text-pc-muted-foreground">
-            <div>
-              <dt>Folder</dt>
-              <dd>{status.external_runtime.path}</dd>
-            </div>
-            <div>
-              <dt>Who maintains it</dt>
-              <dd>You maintain this folder and its updates.</dd>
-            </div>
-          </dl>
-        </DetailGroup>
-      )}
-      <RequirementsGroup
-        key={`requirements:${port.id}:${libraryGeneration}`}
-        port={port}
-        installed={installed}
-        sources={sources}
-        managedPreparation={managedPreparation}
-        pendingSetup={pendingSetup}
-        busy={busy}
-      />
-      <details className="my-4">
-        <summary className="cursor-pointer py-2 text-sm font-medium">File matching details</summary>
-        {observations}
-      </details>
-      {!external && port.release.provider !== "user-prepared" && (
-        <UpdatesGroup
-          perform={perform}
-          port={port}
-          status={status}
-          installed={installed}
-          deferSetupChoices={deferSetupChoices}
-          selectedChannel={selectedChannel}
-          policy={policy}
-          libraryGeneration={libraryGeneration}
-          busy={busy}
-          actions={actions}
-        />
-      )}
-      {external ? (
-        <DetailGroup title="Saves and storage">
-          <section aria-label="Saved-data coverage">
-            <p>
-              This installation’s saves and settings stay outside Portcove’s managed backups,
-              updates and removal. Follow the port’s instructions to copy them separately.
+          />
+        ) : (
+          <Button
+            data-focusable
+            variant="primary"
+            size="lg"
+            onClick={() =>
+              reveal(
+                "files",
+                "detail-game-actions",
+                external
+                  ? undefined
+                  : ".primary-actions button:not(:disabled):not([aria-disabled=true]), .preparation-control button:not(:disabled)",
+              )
+            }
+          >
+            {installed ? "Review game files" : "Set up game"}
+          </Button>
+        )
+      }
+      attention={(reveal) => (
+        <>
+          {cancellations}
+          {busy ? (
+            <p role="status">
+              Working: {busy}.{" "}
+              <Button variant="link" onClick={() => reveal(detailWorkSection(busy))}>
+                View work
+              </Button>
             </p>
-          </section>
-        </DetailGroup>
-      ) : (
-        <SavesStorageGroup
-          port={port}
-          status={status}
-          installed={installed}
-          deferSetupChoices={deferSetupChoices}
-          backups={backups}
-          backupProblems={backupProblems}
-          backupState={backupState}
-          backupCreateAssessment={backupCreateAssessment}
-          backupRestoreAssessment={backupRestoreAssessment}
-          backupReadState={backupReadState}
-          retryBackupRead={retryBackupRead}
-          libraryGeneration={libraryGeneration}
-          busy={busy}
-          outputExternalBusy={outputExternalBusy}
-          outputLocationChanged={outputLocationChanged}
-          outputApplying={outputApplying}
-          actions={actions}
-        />
+          ) : state.tone !== "ready" ? (
+            <p>
+              <span data-detail-reason>{state.description}</span>{" "}
+              <Button variant="link" onClick={() => reveal("files")}>
+                Review files
+              </Button>
+            </p>
+          ) : null}
+          {(runtimeUpdateAvailable || stagedVersion) && (
+            <p data-update-attention>
+              {stagedVersion
+                ? "Update saved for later · " + stagedVersion
+                : (state.updateAttention ?? "An update was available at the last check.")}{" "}
+              <Button variant="link" onClick={() => reveal("versions")}>
+                Review version
+              </Button>
+            </p>
+          )}
+        </>
       )}
-      <DetailGroup title="About this port">
-        <p className="m-0 max-w-[72ch] leading-[var(--leading-relaxed)] text-pc-muted-foreground">
-          {port.summary}
-        </p>
-        <CompatibilitySummary port={port} />
-        {port.upstream_status === "retired" && (
-          <p className="m-0 text-pc-warning-foreground">Upstream project is retired.</p>
-        )}
-        <details>
-          <summary data-focusable className="cursor-pointer py-2 text-sm font-medium">
-            Project and compatibility details
-          </summary>
-          <div className="grid gap-4 pt-3">
-            <ProjectReleaseSummary port={port} />
-            <h3 className="m-0 text-sm font-semibold">Recorded checks</h3>
-            <DetailQualificationSummary
+    >
+      {(reveal) => ({
+        overview: (
+          <>
+            <div className="detail-overview">
+              <div>
+                <p className="m-0 max-w-prose leading-relaxed text-pc-muted-foreground">
+                  {port.summary}
+                </p>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <Button variant="link" onClick={() => reveal("files")}>
+                    Game files and setup
+                  </Button>
+                  <Button variant="link" onClick={() => reveal("versions")}>
+                    Versions and updates
+                  </Button>
+                  <Button variant="link" onClick={() => reveal("saves")}>
+                    Saved data and backups
+                  </Button>
+                  {openActivity && (
+                    <Button variant="link" onClick={openActivity}>
+                      Activity and history
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <section aria-label="At a glance">
+                <h3 className="mb-4 text-base">At a glance</h3>
+                <dl className="detail-facts">
+                  <div>
+                    <dt>Project / variant</dt>
+                    <dd>{gameProjectLabel(port) ?? port.name}</dd>
+                  </div>
+                  <div>
+                    <dt>Platform</dt>
+                    <dd>{port.platforms.map(platformLabel).join(" · ")}</dd>
+                  </div>
+                  <div>
+                    <dt>Installation method</dt>
+                    <dd>{installationMethodLabel(port)}</dd>
+                  </div>
+                  <div>
+                    <dt>Channel</dt>
+                    <dd>{releaseChannelPresentation(selectedChannel).label}</dd>
+                  </div>
+                  <div>
+                    <dt>Catalog designation (not a test result)</dt>
+                    <dd>{supportTierPresentation[port.support_tier]}</dd>
+                  </div>
+                </dl>
+              </section>
+            </div>
+            <details className="mt-6">
+              <summary data-focusable>Project status and release information</summary>
+              <ProjectReleaseSummary port={port} />
+            </details>
+            <details className="mt-4">
+              <summary data-focusable>Compatibility qualifications</summary>
+              <CompatibilitySummary port={port} />
+            </details>
+            <details className="mt-4">
+              <summary data-focusable>Recorded checks</summary>
+              <DetailQualificationSummary
+                port={port}
+                sourceInspection={sources.sourceInspection}
+                biosInspection={sources.biosInspection}
+              />
+            </details>
+          </>
+        ),
+        files: (
+          <>
+            {status?.external_runtime && (
+              <DetailGroup title="Existing installation">
+                <dl className="m-0 grid gap-4 text-sm [&_dd]:m-0 [&_dd]:mt-1 [&_dd]:[overflow-wrap:anywhere] [&_dt]:text-pc-muted-foreground">
+                  <div>
+                    <dt>Folder</dt>
+                    <dd>{status.external_runtime.path}</dd>
+                  </div>
+                  <div>
+                    <dt>Who maintains it</dt>
+                    <dd>You maintain this folder and its updates.</dd>
+                  </div>
+                </dl>
+              </DetailGroup>
+            )}
+
+            {status?.active && (
+              <DetailGroup title="Installation location">
+                <p className="[overflow-wrap:anywhere]">{status.active.path}</p>
+                <p>
+                  Portcove manages this installation. Saved data has its own coverage in Saved data.
+                </p>
+              </DetailGroup>
+            )}
+            <RequirementsGroup
+              key={`requirements:${port.id}:${libraryGeneration}`}
               port={port}
-              sourceInspection={sources.sourceInspection}
-              biosInspection={sources.biosInspection}
+              installed={installed}
+              sources={sources}
+              managedPreparation={managedPreparation}
+              pendingSetup={pendingSetup}
+              busy={busy}
             />
-          </div>
-        </details>
-      </DetailGroup>
-      <DetailGroup title="Artwork">
-        <ArtworkControls key={`controls:${port.id}:${libraryGeneration}`} port={port} />
-      </DetailGroup>
-      <NavigationHints />
-      {(!external || hasRecordedChecks(port, sources)) && (
-        <TechnicalDetails
-          libraryGeneration={libraryGeneration}
-          port={port}
-          status={status}
-          selectedChannel={selectedChannel}
-          installed={installed}
-          busy={busy}
-          sources={sources}
-          actions={actions}
-        />
-      )}
-    </div>
+            <details className="my-4">
+              <summary className="cursor-pointer py-2 text-sm font-medium">
+                File matching details
+              </summary>
+              {observations}
+            </details>
+
+            <StatusActionsGroup
+              hidePlay={installed && launchReady}
+
+              installCancellations={installCancellations}
+              port={port}
+              status={status}
+              stagedVersion={undefined}
+              sources={sources}
+              installed={installed}
+              sourceReady={sourceReady}
+              biosReady={biosReady}
+              launchReady={launchReady}
+              pendingSetup={pendingSetup}
+              runtimeUpdateAvailable={runtimeUpdateAvailable}
+              managedPreparation={managedPreparation}
+              prepare={prepare}
+              installPlan={installPlan}
+              busy={busy}
+              libraryGeneration={libraryGeneration}
+              onChanged={externalRuntimeChanged}
+              actions={actions}
+              openLibraryStorage={openLibraryStorage}
+            />
+            {!external && (
+              <DetailGroup title="Installation folder">
+                <FutureSetupDisclosure
+                  title="Folder for a future install"
+                  description="Choosing an output folder does not move or install a game."
+                >
+                  <OutputLocationControl
+                    gameName={gameIdentityLabel(port)}
+                    key={port.id + ":" + libraryGeneration}
+                    portId={port.id}
+                    generation={libraryGeneration}
+                    busy={outputExternalBusy}
+                    onChanged={outputLocationChanged}
+                    onApplying={outputApplying}
+                  />
+                </FutureSetupDisclosure>
+              </DetailGroup>
+            )}
+            <DetailGroup title="Artwork">
+              <ArtworkControls key={`controls:${port.id}:${libraryGeneration}`} port={port} />
+            </DetailGroup>
+            {extraFiles}
+            {(!external || hasRecordedChecks(port, sources)) && (
+              <TechnicalDetails
+                libraryGeneration={libraryGeneration}
+                port={port}
+                status={status}
+                selectedChannel={selectedChannel}
+                installed={installed}
+                busy={busy}
+                sources={sources}
+                actions={actions}
+              />
+            )}
+            <NavigationHints />
+          </>
+        ),
+        saves: (
+          <>
+            {external ? (
+              <DetailGroup title="Saves and storage">
+                <section aria-label="Saved-data coverage">
+                  <p>
+                    This installation’s saves and settings stay outside Portcove’s managed backups,
+                    updates and removal. Follow the port’s instructions to copy them separately.
+                  </p>
+                </section>
+              </DetailGroup>
+            ) : (
+              <SavesStorageGroup
+                port={port}
+                status={status}
+                installed={installed}
+                deferSetupChoices={deferSetupChoices}
+                backups={backups}
+                backupProblems={backupProblems}
+                backupState={backupState}
+                backupCreateAssessment={backupCreateAssessment}
+                backupRestoreAssessment={backupRestoreAssessment}
+                backupReadState={backupReadState}
+                retryBackupRead={retryBackupRead}
+                libraryGeneration={libraryGeneration}
+                busy={busy}
+                outputExternalBusy={outputExternalBusy}
+                outputLocationChanged={outputLocationChanged}
+                outputApplying={outputApplying}
+                actions={actions}
+              />
+            )}
+          </>
+        ),
+        versions: (
+          <>
+            {status?.external_runtime ? (
+              <dl className="detail-facts">
+                <div>
+                  <dt>Current installation</dt>
+                  <dd>Registered external installation · {status.external_runtime.version}</dd>
+                </div>
+                <div>
+                  <dt>Updates</dt>
+                  <dd>Maintained by you or the upstream launcher</dd>
+                </div>
+              </dl>
+            ) : (
+              <InstallationVersionSummary status={status} selectedChannel={selectedChannel} />
+            )}
+            {status?.previous && <p>Previous version · {status.previous.version}</p>}
+            {!external && port.release.provider !== "user-prepared" && (
+              <UpdatesGroup
+                perform={perform}
+                port={port}
+                status={status}
+                installed={installed}
+                deferSetupChoices={deferSetupChoices}
+                selectedChannel={selectedChannel}
+                policy={policy}
+                libraryGeneration={libraryGeneration}
+                busy={busy}
+                actions={actions}
+              />
+            )}
+
+            {!external && (
+              <>
+                <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />
+                {installed && (
+                  <VersionRollback status={status} busy={busy} rollback={actions.rollback} />
+                )}
+              </>
+            )}
+            {(external || port.release.provider === "user-prepared") && (
+              <p className="mt-4">
+                You or the upstream launcher manage updates for this installation.{" "}
+                <ProjectLink href={port.project_url}>Open upstream project</ProjectLink>
+              </p>
+            )}
+          </>
+        ),
+      })}
+    </DetailLayout>
   );
 }
 
 function StatusActionsGroup({
+  hidePlay = false,
   installCancellations,
   port,
   status,
@@ -693,6 +828,7 @@ function StatusActionsGroup({
   actions,
   openLibraryStorage,
 }: {
+  hidePlay?: boolean;
   installCancellations?: ActivityRecord[] | undefined;
   port: PortDefinition;
   status?: PortStatus | undefined;
@@ -729,7 +865,12 @@ function StatusActionsGroup({
     );
   if (usesExternalRuntimeRoute(port, status)) {
     return (
-      <section aria-label="Game actions" className="grid gap-3">
+      <section
+        id="detail-game-actions"
+        tabIndex={-1}
+        aria-label="Game actions"
+        className="grid gap-3"
+      >
         <RetiredNotice port={port} />
         {status?.external_runtime && actionPresentation.blocked && (
           <p role="status">{actionPresentation.reason}</p>
@@ -749,7 +890,7 @@ function StatusActionsGroup({
               up or delete this shared directory.
             </p>
           )}
-        {status?.external_runtime && (
+        {status?.external_runtime && !hidePlay && (
           <PrimaryActions
             trial={trial}
             sources={sources}
@@ -779,7 +920,12 @@ function StatusActionsGroup({
   }
   if (!installed && !stagedVersion && actionPresentation.blocked)
     return (
-      <section aria-label="Game actions" className="grid gap-3">
+      <section
+        id="detail-game-actions"
+        tabIndex={-1}
+        aria-label="Game actions"
+        className="grid gap-3"
+      >
         <RetiredNotice port={port} />
         <p role="status">{actionPresentation.reason}</p>
         <div className="actions primary-actions mt-[16px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
@@ -802,6 +948,8 @@ function StatusActionsGroup({
   return (
     <section
       ref={gameActions}
+      id="detail-game-actions"
+      tabIndex={-1}
       data-task-owner={`${port.id}:${libraryGeneration}`}
       aria-label="Game actions"
       className="grid gap-3"
@@ -831,25 +979,29 @@ function StatusActionsGroup({
           />
         </>
       )}
-      <PrimaryActions
-        trial={trial}
-        installCancellations={installCancellations}
-        sources={sources}
-        invalidInstallation={Boolean(status?.readiness?.blockers.includes("invalid_installation"))}
-        preparationRequired={managedPreparation && pendingSetup}
-        runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))}
-        runtimeUpdateAvailable={runtimeUpdateAvailable}
-        stagedVersion={stagedVersion}
-        installed={installed}
-        sourceReady={sourceReady}
-        biosReady={biosReady}
-        launchReady={launchReady}
-        pendingSetup={pendingSetup}
-        plan={installPlan}
-        busy={busy}
-        actions={actions}
-        openLibraryStorage={openLibraryStorage}
-      />
+      {!hidePlay && (
+        <PrimaryActions
+          trial={trial}
+          installCancellations={installCancellations}
+          sources={sources}
+          invalidInstallation={Boolean(
+            status?.readiness?.blockers.includes("invalid_installation"),
+          )}
+          preparationRequired={managedPreparation && pendingSetup}
+          runtimeNeeded={Boolean(status?.readiness?.blockers.includes("missing_runtime"))}
+          runtimeUpdateAvailable={runtimeUpdateAvailable}
+          stagedVersion={stagedVersion}
+          installed={installed}
+          sourceReady={sourceReady}
+          biosReady={biosReady}
+          launchReady={launchReady}
+          pendingSetup={pendingSetup}
+          plan={installPlan}
+          busy={busy}
+          actions={actions}
+          openLibraryStorage={openLibraryStorage}
+        />
+      )}
     </section>
   );
 }
@@ -1009,7 +1161,6 @@ function SavesStorageGroup({
   port,
   status,
   installed,
-  deferSetupChoices,
   backups,
   backupProblems,
   backupState,
@@ -1019,9 +1170,6 @@ function SavesStorageGroup({
   retryBackupRead,
   libraryGeneration,
   busy,
-  outputExternalBusy,
-  outputLocationChanged,
-  outputApplying,
   actions,
 }: {
   port: PortDefinition;
@@ -1048,28 +1196,11 @@ function SavesStorageGroup({
     backups.length > 0 ||
     backupProblems.length > 0 ||
     (backupReadState !== undefined && backupReadState.status !== "idle");
-  const outputLocation = (
-    <OutputLocationControl
-      key={`${port.id}:${libraryGeneration}`}
-      portId={port.id}
-      gameName={gameIdentityLabel(port)}
-      generation={libraryGeneration}
-      busy={outputExternalBusy}
-      onChanged={outputLocationChanged}
-      onApplying={outputApplying}
-    />
-  );
   return (
     <DetailGroup title="Saves and storage" headingRef={heading}>
       <TrustStrip status={status} />
       <SavesAndSettingsSummary port={port} status={status} />
       <StorageSummary status={status} />
-      <FutureSetupDisclosure
-        title="Folder for a future install"
-        description={`${deferSetupChoices ? "Game files are still required before installation. " : ""}Choosing a future folder does not move or install a game. Review any change before applying it.`}
-      >
-        {outputLocation}
-      </FutureSetupDisclosure>
       <DataActions
         busy={busy}
         actions={actions}
@@ -1131,10 +1262,7 @@ function DetailGroup({
 }) {
   const headingId = `detail-${title.toLowerCase().replaceAll(" ", "-")}`;
   return (
-    <section
-      className="detail-group mt-7 grid gap-4 border-t border-pc-border pt-6 first:mt-0 first:border-t-0 first:pt-0"
-      aria-labelledby={headingId}
-    >
+    <section className="detail-group mt-7 grid gap-4 first:mt-0" aria-labelledby={headingId}>
       <h2 ref={headingRef} id={headingId} tabIndex={-1} className="m-0 text-base">
         {title}
       </h2>
@@ -1153,7 +1281,7 @@ function InstallationVersionSummary({
   const checked = currentUpdateSnapshot(status)?.check;
   return (
     <dl
-      className="installation-facts m-0 grid grid-cols-[repeat(auto-fit,_minmax(min(100%,_9.25rem),_1fr))] rounded-pc-md border border-pc-border bg-[var(--color-bg-subtle)] [&_dd]:m-0 [&_dd]:mt-1 [&_dd]:[overflow-wrap:anywhere] [&_dt]:text-xs [&_dt]:text-pc-muted-foreground [&>div]:min-w-0 [&>div]:px-3 [&>div]:py-2.5"
+      className="installation-facts m-0 grid grid-cols-[repeat(auto-fit,_minmax(min(100%,_9.25rem),_1fr))] [&_dd]:m-0 [&_dd]:mt-1 [&_dd]:[overflow-wrap:anywhere] [&_dt]:text-xs [&_dt]:text-pc-muted-foreground [&>div]:min-w-0 [&>div]:px-3 [&>div]:py-2.5"
       aria-label="Installation and release versions"
     >
       <div>
@@ -1197,7 +1325,7 @@ function InstallationVersionSummary({
 function StorageSummary({ status }: { status?: PortStatus | undefined }) {
   return (
     <div className="metadata grid grid-cols-[1fr_1fr] gap-[10px]">
-      <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+      <span className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
         <small className="mb-[5px] block text-[var(--color-text-muted)]">
           Saves and settings folder
         </small>
@@ -1210,18 +1338,18 @@ function StorageSummary({ status }: { status?: PortStatus | undefined }) {
 function CompatibilitySummary({ port }: { port: PortDefinition }) {
   return (
     <div className="metadata grid grid-cols-[1fr_1fr] gap-[10px]">
-      <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+      <span className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
         <small className="mb-[5px] block text-[var(--color-text-muted)]">Platforms</small>
         {port.platforms.map((value) => platformLabel(value)).join(" · ")}
       </span>
       {port.platforms.includes("linux-x86-64") && (
-        <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+        <span className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
           <small className="mb-[5px] block text-[var(--color-text-muted)]">Steam Deck</small>
           Not tested. Linux availability does not show whether this game works on SteamOS or in
           Gaming Mode.
         </span>
       )}
-      <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+      <span className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
         <small className="mb-[5px] block text-[var(--color-text-muted)]">Installation method</small>
         {installationMethodLabel(port)}
       </span>
@@ -1233,17 +1361,17 @@ function ProjectReleaseSummary({ port }: { port: PortDefinition }) {
   return (
     <>
       <div className="metadata grid grid-cols-[1fr_1fr] gap-[10px]">
-        <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+        <span className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
           <small className="mb-[5px] block text-[var(--color-text-muted)]">Upstream project</small>
           {upstreamStatusPresentation[port.upstream_status]}
         </span>
-        <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+        <span className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
           <small className="mb-[5px] block text-[var(--color-text-muted)]">
             Catalog designation (not a test result)
           </small>
           {supportTierPresentation[port.support_tier]}
         </span>
-        <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+        <span className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
           <small className="mb-[5px] block text-[var(--color-text-muted)]">
             Available release channels
           </small>
@@ -1286,7 +1414,7 @@ function RequirementsSummary({ port }: { port: PortDefinition }) {
     >
       {port.presentation.source_requirements.map((requirement) => (
         <span
-          className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]"
+          className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]"
           key={requirement.role}
         >
           <small className="mb-[5px] block text-[var(--color-text-muted)]">
@@ -1318,7 +1446,7 @@ function SavesAndSettingsSummary({
   ];
   return (
     <div className="grid min-w-0 gap-3 text-sm wrap-anywhere">
-      <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+      <span className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
         <small className="mb-[5px] block text-[var(--color-text-muted)]">Saved data handling</small>
         {retained
           ? "Managed by Portcove using this installation’s recorded saved-data rules"
@@ -1599,7 +1727,7 @@ function TechnicalDetails({
         {includeManagement && (
           <div className="metadata grid grid-cols-[1fr_1fr] gap-[10px]">
             <span
-              className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]"
+              className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]"
               title={persistentFiles}
             >
               <small className="mb-[5px] block text-[var(--color-text-muted)]">
@@ -1643,6 +1771,7 @@ function TechnicalDetails({
         )}
         {includeManagement && (
           <div className="actions maintenance-actions mt-[18px] flex flex-wrap gap-[8px] pt-[18px] [border-top:1px_solid_var(--color-border)] [&.compact]:mt-[14px]">
+            <span id="detail-steam" tabIndex={-1} />
             <SteamEntryControl
               key={`steam:${port.id}:${libraryGeneration}`}
               port={port}
@@ -1725,7 +1854,7 @@ function SourceField({
       >
         {heading} · {profile?.label ?? profileId}
       </label>
-      <div className="flex items-stretch gap-2 [&_input]:min-w-0">
+      <div className="flex flex-wrap items-stretch gap-2 [&_input]:min-w-0">
         <Input
           data-focusable
           id={inputId}
@@ -1965,6 +2094,7 @@ function PrimaryActions({
 }
 
 function InstalledPlayActions({
+  compact = false,
   trial = false,
   preparationRequired,
   launchReady,
@@ -1973,6 +2103,7 @@ function InstalledPlayActions({
   busy,
   actions,
 }: {
+  compact?: boolean;
   trial?: boolean;
   preparationRequired: boolean;
   launchReady: boolean;
@@ -1984,12 +2115,12 @@ function InstalledPlayActions({
   if (preparationRequired)
     return <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />;
   return (
-    <div className="actions primary-actions mt-[16px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
+    <div className={cn("actions primary-actions flex flex-wrap gap-2", !compact && "mt-4")}>
       <Button
         data-focusable
         data-launch-action
         data-confirmed-play={launchReady && !trial && !pendingSetup ? "" : undefined}
-        className="wide flex-1"
+        className={compact ? undefined : "wide flex-1"}
         variant="primary"
         size="lg"
         title={
@@ -2424,10 +2555,42 @@ function usesLibraryOutput(plan: InstallPlan) {
   );
 }
 
+function VersionRollback({
+  status,
+  busy,
+  rollback: apply,
+}: {
+  status?: PortStatus | undefined;
+  busy?: string | undefined;
+  rollback: AsyncAction;
+}) {
+  const rollback = portActionPresentation(status, "rollback");
+  const canRollback = Boolean(status?.previous);
+  return (
+    <>
+      <Button
+        data-focusable
+        variant="outline"
+        disabled={!canRollback || rollback.blocked || Boolean(busy)}
+        onClick={() => {
+          void apply();
+        }}
+      >
+        <Icon glyph={RotateCcw} />
+        Restore previous version
+      </Button>
+      {rollback.blocked && (
+        <p role="status" data-rollback-assessment>
+          {rollback.reason}
+        </p>
+      )}
+    </>
+  );
+}
+
 function MaintenanceActions({
   port,
   libraryGeneration,
-  canRollback,
   status,
   verificationPrimary,
   busy,
@@ -2441,7 +2604,6 @@ function MaintenanceActions({
   busy?: string | undefined;
   actions: DetailActions;
 }) {
-  const rollback = portActionPresentation(status, "rollback");
   return (
     <div className="actions maintenance-actions mt-[18px] flex flex-wrap gap-[8px] pt-[18px] [border-top:1px_solid_var(--color-border)] [&.compact]:mt-[14px]">
       {!verificationPrimary && (
@@ -2456,22 +2618,6 @@ function MaintenanceActions({
           <Icon glyph={ShieldCheck} />
           Verify installation
         </Button>
-      )}
-      <Button
-        data-focusable
-        variant="outline"
-        disabled={!canRollback || rollback.blocked || Boolean(busy)}
-        onClick={() => {
-          void actions.rollback();
-        }}
-      >
-        <Icon glyph={RotateCcw} />
-        Restore previous version
-      </Button>
-      {rollback.blocked && (
-        <p role="status" data-rollback-assessment>
-          {rollback.reason}
-        </p>
       )}
       <RemovalControl
         key={`${port.id}:${libraryGeneration}`}

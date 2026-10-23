@@ -11,6 +11,7 @@ function Owner({
   trial = false,
   modal = false,
   identity = "sample:1",
+  hidden = false,
   onCapture,
 }: {
   busy: boolean;
@@ -18,6 +19,7 @@ function Owner({
   trial?: boolean;
   modal?: boolean;
   identity?: string;
+  hidden?: boolean;
   onCapture?: (callback: () => void) => void;
 }) {
   const owner = useRef<HTMLElement>(null);
@@ -29,7 +31,7 @@ function Owner({
   return (
     <>
       <button>Another game</button>
-      <section ref={owner} data-task-owner={identity}>
+      <section ref={owner} data-task-owner={identity} hidden={hidden} inert={hidden}>
         <h2 ref={heading} tabIndex={-1}>
           Next step
         </h2>
@@ -82,6 +84,19 @@ it("retains deliberate navigation while readback settles", async () => {
   await page.getByRole("button", { name: "Another game" }).click();
   await screen.rerender(<Owner busy={false} prepared />);
   await expect.element(page.getByRole("button", { name: "Another game" })).toHaveFocus();
+});
+
+it("discards completion focus when its mounted Files panel becomes inactive", async () => {
+  const screen = await render(<Owner busy />);
+  await page.getByRole("button", { name: "Complete owned preparation" }).click();
+  await screen.rerender(<Owner busy prepared hidden />);
+  await page.getByRole("button", { name: "Another game" }).click();
+  await screen.rerender(<Owner busy={false} prepared hidden />);
+  await new Promise(requestAnimationFrame);
+  await screen.rerender(<Owner busy={false} prepared />);
+  await new Promise(requestAnimationFrame);
+  await expect.element(page.getByRole("button", { name: "Another game" })).toHaveFocus();
+  await expect.element(page.getByRole("button", { name: "Play" })).not.toHaveFocus();
 });
 it("does not hand an outgoing library's completion to its replacement", async () => {
   const screen = await render(<Owner busy />);
