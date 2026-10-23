@@ -4,7 +4,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { errorMessage, isRecord } from "./runtime-values.mts";
 import { workflowJobs, workflowDefinition } from "./qualification-coverage.mts";
-import { annotatedNodeCommands, parseNodeTestSuites, nodeTestPath } from "./node-test-suites.mts";
+import {
+  annotatedNodeCommands,
+  commandTokens,
+  parseNodeTestSuites,
+  nodeTestPath,
+} from "./node-test-suites.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const nodeTest = nodeTestPath;
@@ -39,13 +44,27 @@ export function requireNodeTestInventory(
   const defaults = (value: unknown) => (isRecord(value) && isRecord(value.run) ? value.run : {});
   const workflowDefaults = defaults(workflowDefinition(required).defaults);
   const straightLine = (body: string) =>
-    !body
-      .split(/\r?\n/u)
-      .some((line) =>
-        /^\s*(?:if\b|elif\b|else\b|fi\b|for\b|while\b|case\b|function\b|exit\b|return\b|#!)/u.test(
-          line,
-        ),
-      );
+    body.split(/\r?\n/u).every((line) => {
+      let command = line.trim();
+      if (!command || (command.startsWith("#") && !command.startsWith("#!"))) return true;
+      if (wrapper.test(command)) return true;
+      // The maintained Just host refusal is a literal child program, not shell control flow.
+      if (
+        command ===
+        `node -e "if (process.platform !== 'win32') { console.error('windows-qualification-check requires Windows'); process.exit(1) }"`
+      )
+        return true;
+      if (command.startsWith("{{storage}} ")) command = command.slice("{{storage}} ".length);
+      try {
+        const tokens = commandTokens(command);
+        return (
+          ["node", "pnpm", "cargo"].includes(tokens[0] ?? "") &&
+          tokens.every((token) => !/[{}]/u.test(token))
+        );
+      } catch {
+        return false;
+      }
+    });
   for (const job of Object.values(workflowJobs(required))) {
     if (!Array.isArray(job.steps)) continue;
     const steps: unknown[] = job.steps;

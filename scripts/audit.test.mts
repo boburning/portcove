@@ -6,7 +6,15 @@ import type { ValidationPlan, ValidationChange } from "./validation-plan.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+  cpSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -240,6 +248,7 @@ void test("mixed, unknown and audit authority changes retain the complete transi
     ".github/workflows/release.yml",
     "scripts/ci-result-gate.mts",
     "scripts/qualification-coverage.mts",
+    "scripts/validation-platforms.mts",
     "scripts/qualification-coverage.test.mts",
     ".github/qualification-coverage.json",
     "unknown.txt",
@@ -270,6 +279,14 @@ void test("candidate coverage constants cannot authorize their own reduced trans
   const root = temporaryDirectory(t);
   mkdirSync(path.join(root, "scripts"));
   mkdirSync(path.join(root, ".github/workflows"), { recursive: true });
+  // The preserved validator now parses YAML. Copy its pinned runtime dependency,
+  // while keeping the mutated policy and expected refusal independent of it.
+  mkdirSync(path.join(root, "node_modules"));
+  cpSync(
+    path.dirname(fileURLToPath(import.meta.resolve("yaml/package.json"))),
+    path.join(root, "node_modules/yaml"),
+    { recursive: true, errorOnExist: true },
+  );
   for (const filename of [
     "scripts/audit.mts",
     "scripts/audit-contract.mts",
@@ -287,6 +304,7 @@ void test("candidate coverage constants cannot authorize their own reduced trans
     "scripts/development-evidence.mts",
     "scripts/retained-evidence.mts",
     "scripts/qualification-coverage.mts",
+    "scripts/validation-platforms.mts",
     ".github/qualification-coverage.json",
     ".github/workflows/ci.yml",
   ]) {

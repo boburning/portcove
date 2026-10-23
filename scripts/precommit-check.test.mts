@@ -77,6 +77,7 @@ function fixture(context: TestContext) {
     "node-test-inventory.mts",
     "node-test-suites.mts",
     "qualification-coverage.mts",
+    "validation-platforms.mts",
     "runtime-values.mts",
     "catalog-staged-check.mts",
     "catalog-authoring.mts",

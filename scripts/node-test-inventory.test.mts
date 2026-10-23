@@ -187,6 +187,48 @@ void test("the Windows payload counts only through active callers and its review
     assert.throws(() => requireNodeTestInventory([file], workflow, local, altered, registry));
 });
 
+void test("shell text, directory changes and unsupported statements never grant executable coverage", () => {
+  const { workflow, local, registry } = surfaces();
+  const command =
+    "# node-suite: contracts\nnode --test --test-timeout=30000 scripts/first.test.mts";
+  const indent = (body: string, spaces: number) =>
+    body
+      .split("\n")
+      .map((line) => " ".repeat(spaces) + line)
+      .join("\n");
+  for (const [before, after] of [
+    ["cd apps/desktop\n", ""],
+    [": <<'NO_EXEC'\n", "\nNO_EXEC"],
+    ["<#\n", "\n#>"],
+    ["function node { :; }\n", ""],
+    ["node scripts/check.mts | cat\n", ""],
+  ]) {
+    const body = `${before}${command}${after}`;
+    assert.throws(
+      () =>
+        requireNodeTestInventory(
+          [first],
+          workflow.replace(indent(command, 10), indent(body, 10)),
+          local,
+          "",
+          registry,
+        ),
+      /required CI/,
+    );
+    assert.throws(
+      () =>
+        requireNodeTestInventory(
+          [first],
+          workflow,
+          local.replace(indent(command, 4), indent(body, 4)),
+          "",
+          registry,
+        ),
+      /local quality/,
+    );
+  }
+});
+
 void test("generation preserves literal quoting, wrappers and exact ordered arguments", () => {
   assert.deepEqual(commandTokens('node --test-name-pattern="Windows reader sharing"'), [
     "node",

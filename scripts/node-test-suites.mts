@@ -58,6 +58,7 @@ export function commandTokens(command: string): string[] {
   let quote: string | null = null;
   let started = false;
   for (const character of command) {
+    if (!quote && character === "|") throw new Error("Nonliteral Node suite pipeline");
     if (/[`$;&<>\r\n]/u.test(character)) throw new Error("Nonliteral Node suite command");
     if (character === quote) quote = null;
     else if (!quote && (character === '"' || character === "'")) quote = character;
