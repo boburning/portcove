@@ -92,7 +92,7 @@ void test("cancelled, failed and running attempts remain visible outside success
   });
 });
 
-void test("cancelled work retains executed cost and producer failures without inferring supersession", () => {
+void test("cancelled work retains executed cost and job failures without inferring supersession", () => {
   const canceled = summarizeAttempt(run({ conclusion: "cancelled" }), [
     job({ name: "failed producer", conclusion: "failure", completed_at: stamp(40) }),
     job({
@@ -115,10 +115,32 @@ void test("cancelled work retains executed cost and producer failures without in
     observedRunnerSeconds: 60,
     missingRunnerTimings: 1,
     unmeasuredJobs: 1,
-    failedProducerAttempts: 1,
+    failedJobAttempts: 1,
     cause: "unclassified",
   });
   assert.equal(summary.failureLeads[0]?.job, "failed producer");
+});
+
+void test("aggregate-only failure remains a failed job without claiming producer identity", () => {
+  const attempts = [
+    summarizeAttempt(run({ conclusion: "cancelled" }), [
+      job({ name: "catalog", conclusion: "failure" }),
+    ]),
+  ];
+  const summary = summarizeHistory(attempts);
+  assert.equal(summary.canceledWork.failedJobAttempts, 1);
+  assert.equal(summary.failureLeads[0]?.job, "catalog");
+  const text = renderReport({
+    repository: "example/repo",
+    branch: "main",
+    event: "push",
+    generatedAt: stamp(300),
+    requestedRuns: 1,
+    attempts,
+    summary,
+  });
+  assert.match(text, /1 containing failed jobs/u);
+  assert.doesNotMatch(text, /containing failed producers/u);
 });
 
 void test("rerun recovery retains the failed jobs and requires the same run and commit", () => {

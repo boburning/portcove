@@ -646,7 +646,7 @@ checks have separate phases. Measurement does not add an acceptance gate.
 
 Use `node scripts/ci-metrics.mts summarize DIRECTORY` for downloaded reports.
 CI health reports cancelled attempts' observed summed runner seconds and failed
-producers separately from successful-duration cohorts. Missing runner timings
+jobs separately from successful-duration cohorts. Missing runner timings
 and unmeasured non-skipped jobs remain explicit. Observed runner time is not a
 billing total, and an API cancellation does not establish supersession or
 flakiness; its cause remains unclassified.
