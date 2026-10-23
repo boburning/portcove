@@ -623,8 +623,13 @@ bounded job summaries. `PORTCOVE_CI_METRICS_DIR` enables versioned per-phase JSO
 without it the helper writes nothing. Reports retain source/checkout, run/attempt,
 job/runner, selected test counts and observed cache outcomes. Setup action timings
 remain in the saved job step inventory. Rust's first inventory includes workspace
-compilation; filter discovery, selected tests and live transport checks have
-separate phases. Measurement does not add another compilation or acceptance gate.
+compilation. Multi-group impact selections prepare the pinned nextest binary list
+and Cargo metadata once in `rust-inventory-metadata`, then independently list the
+complete scope, each group and their union from those private snapshots. The
+snapshots are checked for mutation and removed when that invocation settles;
+actual test execution retains normal compilation. Single-group selections retain
+their original listing path. Filter discovery, selected tests and live transport
+checks have separate phases. Measurement does not add an acceptance gate.
 
 Use `node scripts/ci-metrics.mts summarize DIRECTORY` for downloaded reports.
 The delivery watcher records initial queue delay separately from workflow start
