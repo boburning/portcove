@@ -166,7 +166,7 @@ void test("narrowed token inventory never establishes installation-wide scope or
 for (const role of ["semantic", "protection_observer"] as const) {
   void test(`${role} setup refuses broader App authority even with a narrowed installation`, () => {
     const f = hostedAppReadback(role);
-    f.app.permissions = { ...f.app.permissions, contents: "write" } as typeof f.app.permissions;
+    f.values.app = { ...f.app, permissions: { ...f.app.permissions, contents: "write" } };
     assert.throws(() => observeHostedReleaseApp(role, f.expected, f.clients), /boundary differs/u);
   });
   void test(`${role} setup refuses wrong issuer, owner, events, repository scope or suspension`, () => {
