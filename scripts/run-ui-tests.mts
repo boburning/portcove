@@ -1,7 +1,11 @@
 import { resourceEntrypoint } from "./resource-command.mts";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { resolveUiSelection, reconcileUiSelection } from "./ui-test-selection.mts";
+import {
+  resolveUiSelection,
+  reconcileUiSelection,
+  allowedUiSkippedFiles,
+} from "./ui-test-selection.mts";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const mode = process.argv[2];
 if (mode !== "exact" && mode !== "related")
@@ -42,7 +46,10 @@ process.exitCode = await resourceEntrypoint("browser", async () => {
     const coverage = reconcileUiSelection(
       await runner.runTestSpecifications(specifications),
       expectedFiles,
+      allowedUiSkippedFiles(expectedFiles, path.join(root, "apps/desktop")),
     );
+    for (const skipped of coverage.skipped_files)
+      console.log(`UI file skipped: ${skipped.file}; ${skipped.reason}`);
     console.log(
       `UI files: requested ${coverage.requested_files.length}, discovered ${coverage.discovered_files.length}, executed ${coverage.executed_files.length}; passed ${coverage.passed}, skipped ${coverage.skipped}`,
     );

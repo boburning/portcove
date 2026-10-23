@@ -23,6 +23,7 @@ export function createBrowserTraceRun(root: string, requestedNamespace?: string)
   )
     throw new Error("Browser trace namespace must be an owned run below the trace root");
   const directory = path.join(parent, `run-${randomUUID()}`);
+  const screenshotDirectory = path.join(directory, "screenshots");
   const physicalDirectory = path.join(physicalParent, path.basename(directory));
   if (existsSync(directory)) throw new Error("Browser trace namespace already exists");
   const reporter = {
@@ -89,5 +90,5 @@ export function createBrowserTraceRun(root: string, requestedNamespace?: string)
       rmSync(directory, { recursive: true });
     },
   } satisfies Reporter;
-  return { directory, reporter };
+  return { directory, screenshotDirectory, reporter };
 }
