@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { FolderInput, FolderOpen, ShieldCheck, X } from "lucide-react";
 import { formatBytes } from "../view-model";
+import { gameIdentityLabel } from "../port-identity";
 import { Icon, NavigationHints } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
@@ -284,10 +285,10 @@ function AdoptionActions({
 }
 
 function adoptionPortIdentity(preview: AdoptionPreview, ports: readonly PortDefinition[]) {
-  const presentation = (id: string) => ({
-    id,
-    name: ports.find((port) => port.id === id)?.name,
-  });
+  const presentation = (id: string) => {
+    const port = ports.find((candidate) => candidate.id === id);
+    return { id, name: port ? gameIdentityLabel(port) : undefined };
+  };
   if (preview.selected_port_id)
     return { kind: "selected" as const, ports: [presentation(preview.selected_port_id)] };
   if (preview.detected_port_ids.length > 0)

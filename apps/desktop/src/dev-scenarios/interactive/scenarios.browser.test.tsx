@@ -384,12 +384,41 @@ it("reviews preparation, preserves progress until cancellation, and shows contro
   await click("Prepare game data");
   expect(document.body.textContent).toContain("Fixture preparation is waiting");
   await click("Cancel preparation");
+  expect(document.body.textContent).toContain("Cancellation requested");
+  expect((await desktopApi.activities()).records[0]?.status).toBe("running");
+  await click("Settle fixture cancellation");
   expect(document.body.textContent).toContain("Preparation did not complete");
   await click("Review game preparation");
   await click("Prepare game data");
   await click("Fail fixture preparation");
-  expect(document.body.textContent).toContain("Controlled fixture preparation failure");
+  expect(document.body.textContent).toContain("The demo setup did not finish");
   expect(document.body.textContent).not.toContain("Game data is prepared");
+});
+
+it("revisits the original running task after browsing another game and records its exact completion", async () => {
+  await mount("activity");
+  await click("View details for Harbor Adventure Port: Harbor Adventure");
+  await click("Review game preparation");
+  await click("Prepare game data");
+  const retained = await desktopApi.previewPreparationCleanup("fixture-retained-orchard", 1);
+  await click("Back to previous workspace");
+  await click("View details for Orchard Quest Port: Orchard Quest");
+  await click("Back to previous workspace");
+  await navigateTo("Activity");
+  const row = () => document.querySelector('[data-activity-id="fixture-preparation"]');
+  await expect.poll(() => row()?.textContent).toContain("In progress");
+  expect(row()?.textContent).toContain("Harbor Adventure");
+  expect(row()?.textContent).not.toContain("Orchard Quest");
+  expect(await desktopApi.previewPreparationCleanup("fixture-retained-orchard", 1)).toEqual(
+    retained,
+  );
+  await click("Complete fixture preparation");
+  await expect.poll(() => row()?.textContent).toContain("Completed");
+  expect(row()?.textContent).toContain("Harbor Adventure");
+  expect(
+    (await desktopApi.activities()).records.find((item) => item.id === "fixture-preparation"),
+  ).toMatchObject({ target_id: "sample", status: "succeeded" });
+  expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
 });
 
 it("shows recovery choices, accepts the platform-default choice, and resets to the original recovery state", async () => {
