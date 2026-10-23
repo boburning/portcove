@@ -418,8 +418,38 @@ export function createSemanticSnapshotRpc(raw: FrozenSemanticSnapshot) {
       initialized &&
       request.method === "tools/call" &&
       isRecord(request.params) &&
-      Object.keys(request.params).sort().join(",") === "arguments,name"
+      ["arguments,name", "_meta,arguments,name"].includes(
+        Object.keys(request.params).sort().join(","),
+      )
     ) {
+      const meta = request.params._meta;
+      if (meta !== undefined) {
+        // Codex's pinned RMCP transport attaches tracing/read-only metadata.
+        // These bounded transport hints grant no reader or execution authority.
+        if (
+          !isRecord(meta) ||
+          Object.keys(meta).some(
+            (key) =>
+              !["traceparent", "tracestate", "progressToken", "openai/readOnly"].includes(key),
+          ) ||
+          (meta.traceparent !== undefined &&
+            (typeof meta.traceparent !== "string" ||
+              !/^00-[a-f0-9]{32}-[a-f0-9]{16}-[a-f0-9]{2}$/u.test(meta.traceparent))) ||
+          (meta.tracestate !== undefined &&
+            (typeof meta.tracestate !== "string" ||
+              !/^[\x20-\x7e]{1,512}$/u.test(meta.tracestate))) ||
+          (meta.progressToken !== undefined &&
+            !(
+              Number.isSafeInteger(meta.progressToken) ||
+              (typeof meta.progressToken === "string" &&
+                meta.progressToken.length > 0 &&
+                Buffer.byteLength(meta.progressToken) <= 128 &&
+                !meta.progressToken.includes("\0"))
+            )) ||
+          (meta["openai/readOnly"] !== undefined && meta["openai/readOnly"] !== true)
+        )
+          throw new Error("unsupported frozen-reader transport metadata");
+      }
       const value = read(request.params.name, request.params.arguments);
       result = { content: [{ type: "text", text: JSON.stringify(value) }], isError: false };
     } else throw new Error("unauthorized reader protocol operation");

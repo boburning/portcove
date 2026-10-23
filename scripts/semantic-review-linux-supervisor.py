@@ -579,14 +579,17 @@ class ProviderTunnel:
         self.thread = threading.Thread(target=self.accept, daemon=True)
         self.thread.start()
 
-    def record_failure(self, stage, kind):
+    def record_failure(self, stage, kind, cause=None):
         # Fixed enums only: never retain destinations, headers, TLS bytes,
         # exception messages or authentication contents.
         require(stage in ("admission", "headers", "dns", "connect", "forward", "shutdown"), "fixed tunnel failure stage required")
         require(kind in ("policy", "transport", "internal"), "fixed tunnel failure kind required")
+        require(cause in (None, "target", "ascii", "header-bound", "partial-header", "header-fields", "dns", "byte-bound", "other"), "fixed tunnel failure cause required")
         with self.lock:
             self.failure = True
             row = {"stage": stage, "kind": kind}
+            if cause is not None:
+                row["cause"] = cause
             if row not in self.failures and len(self.failures) < 8:
                 self.failures.append(row)
 
@@ -656,7 +659,19 @@ class ProviderTunnel:
         except Exception as error:
             # Do not retain URLs, headers, TLS bytes or tokens in diagnostics.
             kind = "policy" if isinstance(error, Refusal) else "transport" if isinstance(error, OSError) else "internal"
-            self.record_failure("shutdown" if self.stop.is_set() else stage, kind)
+            cause = None
+            if isinstance(error, Refusal):
+                cause = {
+                    "provider host is not allowlisted": "target",
+                    "ASCII CONNECT required": "ascii",
+                    "bounded CONNECT header required": "header-bound",
+                    "CONNECT header exceeded bound": "header-bound",
+                    "CONNECT ended prematurely": "partial-header",
+                    "folded or malformed proxy header refused": "header-fields",
+                    "provider DNS observation refused": "dns",
+                    "provider tunnel byte bound exceeded": "byte-bound",
+                }.get(str(error), "other")
+            self.record_failure("shutdown" if self.stop.is_set() else stage, kind, cause)
         finally:
             with self.lock:
                 for current in (peer, remote):
@@ -987,6 +1002,10 @@ def codex_arguments(index_hash, mode):
         'cli_auth_credentials_store="file"',
         "--config",
         'forced_login_method="chatgpt"',
+        "--config",
+        "analytics.enabled=false",
+        "--config",
+        "feedback.enabled=false",
         "--config",
         'model_catalog_json="/runtime/semantic-review-model-catalog.json"',
         "--config",

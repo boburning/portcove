@@ -51,6 +51,8 @@ class SupervisorContract(unittest.TestCase):
         self.assertIn('features.code_mode_host=false', args)
         self.assertIn('mcp_servers.portcove_frozen_bundle.omit_tools_from=["deferred","code_mode"]', args)
         self.assertIn('mcp_servers.portcove_frozen_bundle.required=true', args)
+        self.assertIn('analytics.enabled=false', args)
+        self.assertIn('feedback.enabled=false', args)
         self.assertEqual(args[args.index("--model") + 1], "gpt-6.1-sol")
 
     def test_unused_proxy_preconnection_has_no_remote_effect_but_partial_header_refuses(self):
@@ -70,7 +72,7 @@ class SupervisorContract(unittest.TestCase):
             peer.close.assert_called_once()
             self.assertEqual(tunnel.sockets, set())
             self.assertEqual(tunnel.failure, failed)
-            self.assertEqual(tunnel.failures, [{"stage": "headers", "kind": "policy"}] if failed else [])
+            self.assertEqual(tunnel.failures, [{"stage": "headers", "kind": "policy", "cause": "partial-header"}] if failed else [])
 
     def test_network_failure_diagnostics_are_bounded_enums_and_preserve_hold(self):
         tunnel = supervisor.ProviderTunnel.__new__(supervisor.ProviderTunnel)
