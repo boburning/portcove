@@ -22,6 +22,13 @@ Keep that foreground session open
 through collection, research, separate review, delivery and explicit `finish`.
 Use the structured protocol and completion criteria in the contract; `status`
 reads the latest receipt. Recover retained candidate identities before new intake.
+`collect` includes complementary lead searches; use `discover` to inspect their
+retained queue and continuation. Research at least two distinct noncanonical
+queued upstreams (or all when fewer remain) before quiet `recheck`. Prioritize
+observed runtime packages and supported setup over source-only tooling. Finish
+with explicit `lead-dispose` reasons and resume conditions for held research;
+unprocessed leads and partial search windows survive into the next run. A runner
+completion does not prove complete discovery or current runtime eligibility.
 Ordinary delivery uses scoped affected-issue checks. An unchanged finish retains
 the complete inventory guards and records doctor `not_run`, scope `none`; neither
 receipt proves a historical full-doctor acceptance requirement. Full doctor is
