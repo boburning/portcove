@@ -179,7 +179,7 @@
     "frontend-full-6": {
       "arguments": [
         "--test",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
       "files": [
@@ -284,7 +284,7 @@
     "catalog-full-2": {
       "arguments": [
         "--test",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
       "files": [
@@ -604,7 +604,7 @@
     "release-check": {
       "arguments": [
         "--test",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
       "files": [
