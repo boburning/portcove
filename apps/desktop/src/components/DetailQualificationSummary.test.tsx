@@ -90,7 +90,7 @@ function details(
       biosInspection={biosInspection}
     />,
   );
-  return markup.split("Compatibility and testing")[1]?.split("Project and release")[0] ?? "";
+  return markup.split(">Recorded checks</h3>")[1]?.split(">Artwork</h2>")[0] ?? "";
 }
 
 describe("detail qualification history", () => {

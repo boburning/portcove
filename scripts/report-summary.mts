@@ -315,6 +315,7 @@ export function summarizeReport(kind: string, report: unknown, reference: string
     return renderBoundedSummary(
       `Roadmap doctor: ${diagnosticString(report.status)}`,
       [
+        `Scope: ${diagnosticString(optionalFields(report.scope).kind ?? "global")}; coverage: ${diagnosticString(report.coverage ?? "unknown")}; global health: ${diagnosticString(report.global_health ?? "unknown")}`,
         `Checkout: ${diagnosticString(context.root)}; HEAD: ${diagnosticString(context.head)}; branch: ${diagnosticString(context.branch)}`,
         `Catalog: ${diagnosticString(context.catalog)}; SHA-256: ${diagnosticString(context.catalog_sha256)}; modified inputs: ${diagnosticString(context.input_dirty)}`,
         ...Object.entries(optionalFields(report.counts)).map(
@@ -322,6 +323,9 @@ export function summarizeReport(kind: string, report: unknown, reference: string
         ),
         ...rows(report.errors ?? []).map(diagnosticString),
         ...rows(report.warnings ?? []).map(diagnosticString),
+        ...(optionalFields(report.diagnosis).recovery_condition
+          ? [`Recovery: ${diagnosticString(optionalFields(report.diagnosis).recovery_condition)}`]
+          : []),
       ],
       { reference },
     );

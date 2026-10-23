@@ -1013,9 +1013,6 @@ function SourceHealth({
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   return (
     <SettingsRow className="source-health col-span-full min-h-0" data-focus-group>
-      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-        SAVED FILES
-      </p>
       <div className="settings-title flex items-center justify-between gap-[12px]">
         <h2 className="m-0 flex items-center gap-2">Game files and BIOS</h2>
         <Button
@@ -1391,9 +1388,6 @@ function AboutCard() {
         />
       </div>
       <div className="self-center">
-        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-          ABOUT &amp; CREDITS
-        </p>
         <h2 className="mb-2 text-xl">About Portcove</h2>
         <p className="leading-relaxed text-pc-muted-foreground">
           Install, update, and play native game ports. Portcove keeps track of your library,
@@ -1455,9 +1449,6 @@ function DiagnosticsCard({
 }) {
   return (
     <SettingsRow className="diagnostics-card" data-focus-group>
-      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-        DIAGNOSTICS
-      </p>
       <h2 className="flex items-center gap-2">
         <Icon glyph={ShieldCheck} />
         Create support bundle
@@ -1717,9 +1708,6 @@ export function SettingsView({
         hasSnapshot={Boolean(doctor)}
       />
       <SettingsRow className="privacy-card">
-        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-          PRIVACY
-        </p>
         <h2>Original game files stay local</h2>
         <p>
           Portcove checks game files locally and does not upload them or collect telemetry. Use
@@ -1925,9 +1913,7 @@ export function LibrarySelectionCard({
           : "Selection unavailable";
   return (
     <SettingsRow className="" data-focus-group>
-      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-        WHOLE PORTCOVE LIBRARY
-      </p>
+      <p className="m-0 text-sm text-pc-muted-foreground">Entire library</p>
       <h2>Library at startup</h2>
       <code className="mb-[15px] block rounded-pc-md bg-[var(--color-bg-inset)] p-2.5 [overflow-wrap:anywhere] text-[var(--color-interactive-text)]">
         {selection?.root ?? "Unavailable"}
@@ -2050,9 +2036,7 @@ function HostReadiness({
 }) {
   return (
     <SettingsRow className="col-span-full min-h-0">
-      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-        HOST
-      </p>
+      <p className="m-0 text-sm text-pc-muted-foreground">On this device</p>
       <h2 className="flex items-center gap-2" id="disc-tools-heading" tabIndex={-1}>
         <Icon glyph={Wrench} />
         Disc tools
@@ -2314,9 +2298,7 @@ function StorageCard({
     available <= total;
   return (
     <SettingsRow className="storage-card" data-focus-group>
-      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-        CURRENT LIBRARY
-      </p>
+      <p className="m-0 text-sm text-pc-muted-foreground">Current library</p>
       <h2 className="flex items-center gap-2">
         <Icon glyph={HardDrive} />
         Files and capacity

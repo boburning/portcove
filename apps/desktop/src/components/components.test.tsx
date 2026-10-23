@@ -1195,7 +1195,9 @@ describe("desktop components", () => {
       !difference.startsWith("stale ");
     expect(
       html.includes(
-        view === "library" ? "Another update available at last check" : "Update available</span>",
+        view === "library"
+          ? "Another update available at last check"
+          : "Update available at last check</span>",
       ),
     ).toBe(expectedAvailable);
   });
@@ -1458,7 +1460,7 @@ describe("desktop components", () => {
     expect(html).toContain("C:/Portcove");
     expect(html).toContain("width:50%");
     expect(html).toContain("/brand/icons/portcove-mascot-head-256.png");
-    expect(html).toContain("ABOUT &amp; CREDITS");
+    expect(html).toContain("About Portcove");
     expect(html).toContain("Install, update, and play native game ports.");
     expect(html).toContain("/brand/logo/portcove-logo-v2-transparent.png");
   });
@@ -1669,7 +1671,7 @@ describe("desktop components", () => {
     expect(html).toContain("Opening another library does not move your files");
     expect(html).toContain("The library you open uses its own game install folder settings");
     expect(html).toContain("Library and storage");
-    expect(html).toContain("WHOLE PORTCOVE LIBRARY");
+    expect(html).toContain("Entire library");
     expect(html).toContain("Use default library");
     expect(html).toContain("Each game’s install folder is reviewed separately");
     expect(html).toMatch(
@@ -3187,8 +3189,8 @@ describe("desktop components", () => {
     expect(cards).toContain("Setup status unknown");
     expect(cards).toContain("Installation status unknown");
     expect(cards).toContain("Windows");
-    expect(cards).toContain(port.summary);
-    expect(cards).toContain(">Windows</span>");
+    expect(cards).not.toContain(port.summary);
+    expect(cards).not.toContain("Stable channel");
     expect(cards).not.toContain('<span class="badge stable">Stable</span>');
     expect(cards).not.toContain("staged-source-portable");
     expect(empty).toContain("No ports match these filters");
@@ -3381,8 +3383,8 @@ describe("desktop components", () => {
       "Updates",
       "Saves and storage",
       "About this port",
-      "Compatibility and testing",
-      "Project and release",
+      "Project and compatibility details",
+      "Recorded checks",
       "Technical details",
     ];
     let previous = -1;
@@ -3395,7 +3397,7 @@ describe("desktop components", () => {
     expect(html.indexOf("Installation and version")).toBeLessThan(html.indexOf(port.summary));
     expect(html).toContain("Installed folder");
     expect(html).toContain(install.path);
-    expect(html).toContain("Latest available for your settings");
+    expect(html).toContain("Latest version at last check");
     expect(html).toContain("2.0");
     expect(html).toContain("E:/Portcove/user/sample");
     expect(html.indexOf("Back up data")).toBeLessThan(html.indexOf("Technical details"));
@@ -3443,7 +3445,7 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Selected channel");
     expect(html).toContain("Preview");
-    expect(html).toContain("No current check");
+    expect(html).not.toContain("Latest version at last check");
     expect(html).not.toContain("9.9-stale");
   });
 
@@ -3486,7 +3488,7 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("<dt>Installed version</dt><dd>1.1</dd>");
-    expect(html).toContain("No current check");
+    expect(html).not.toContain("Latest version at last check");
     expect(html).not.toContain("9.9-stale");
   });
 

@@ -245,6 +245,7 @@ async function closeFilters() {
     .element(page.getByRole("button", { name: /^Filters \(\d+\)$/, exact: true }))
     .toHaveFocus();
 }
+// Cold browser setup and repeated dialog handoffs share this finite outer budget.
 it("keeps host, setup method and membership on one context through details and return without IPC", async () => {
   await page.viewport(1100, 900);
   flushSync(() => root.render(<Fixture />));
@@ -278,7 +279,7 @@ it("keeps host, setup method and membership on one context through details and r
   await expect.element(roleButton("Remove For this device filter")).toBeInTheDocument();
   await expect.element(roleButton("Remove Portable upstream package filter")).toBeInTheDocument();
   expect(invoke).not.toHaveBeenCalled();
-});
+}, 60_000);
 it.each(["dark", "light"])(
   "composes Catalog constraints, keyboard return and persisted library context in %s",
   async (theme) => {

@@ -13,71 +13,56 @@ Other destructive reviews retain their own consent contracts.
 
 ## Library covers and compact rows
 
-Library defaults to covers; Compact rows presents the same entries and action
-selector. The heading counts entries, including separate ports of one original
-game. Search, readiness, Favorites and declared filters share the retrieval area;
-Favorites is independent of readiness. View and Add games sit alongside them.
-Filtered results state the visible and total entry counts with one reset action.
-Below 46em of collection width, a named Readiness choice replaces the wide
-readiness button group; Favorites remains independent. The hidden presentation
-does not add duplicate keyboard stops. Both presentations use the same query owner.
-First-use Library omits retrieval controls. Last played is a disclosure; Collection
-commands states that Steam selection includes entries hidden by filters.
+Library defaults to Covers; Compact rows uses the same entries and authoritative
+local actions. Counts describe entries, including separate ports for one game.
+Search, named Readiness, independent Favorites and declared filters share the
+retrieval area. On narrow layouts Favorites and Filters can share a wrapped row;
+no hidden duplicate controls or second query owner are introduced. Active filter
+chips, counts and reset stay with the existing browsing projection. First use
+omits retrieval controls. Add games and the labeled view choice remain visible.
+Collection commands retains its explicit selection scope, including filtered-out
+entries in supported Steam commands.
 
-Library and Find games share columns derived from usable space, with a 14rem
-preferred minimum (shrinking to the available width). Fixed 2:3 frames contain
-the complete image on a neutral stage. Artwork caps at 220 CSS pixels, or 160 pixels
-in windows at most 680 pixels high; narrow covers also cap at 160 pixels below 28em of collection width.
-Unclassified and user artwork retain intrinsic padding and proportions; no logo
-crop classification is inferred. Missing artwork uses a quiet icon. Failed/stale
-feedback remains outside the identity button. Cover titles show two lines and
-port labels wrap in full at ordinary widths. Titles expand on keyboard focus. At an effective
-collection width below 40em, identity wraps in full. Details and rows always expose
-the full distinguishing identity. Artwork geometry does not depend on title height.
+Covers use content-driven columns with a 14rem preferred minimum, 12rem when the
+window is at most 800px high and 11rem at most 680px high, always limited by the
+available width. Whole-image 2:3 artwork caps at 220, 180 and 160 CSS pixels at
+those respective heights. Narrow artwork still caps at 160px below 28em of
+collection width. Titles reserve two ordinary lines and expand on focus; port
+labels wrap completely. Full identity wraps below 40em. The action follows each
+entry's state instead of being pushed away by the tallest neighboring exception.
+No fixed column count, crop inference or provider mapping is implied.
 
-Compact rows use 32×48px contained thumbnails (up to 40×60px with text enlargement),
-10px block padding and 20px column gaps: approximately 69px for ordinary identity.
-The list caps at max(840px, 52.5rem), keeping actions near identity while allowing
-reading-size growth. Titles and port labels wrap without clipping. Below 46em,
-readiness stacks under identity with thumbnail alignment indentation; readiness
-in its own column has no indentation. Below 28em actions follow readiness.
+Library entries have separate identity, Play/review and More actions controls.
+Favorite choices live in More actions alongside the existing update/activity and
+saved-data destinations. They use the same preference owner, failure handling
+and focus return when a filtered entry disappears. Discovery retains its separate
+Favorite control. Checked Ready to play uses semantic success green in both
+themes; selection remains blue and focus retains its distinct indicator. A
+playable current installation keeps Play when a downloaded candidate is present.
+The candidate has a separate review action.
 
-One details button owns artwork/title/port identity. Favorite, Play/review,
-update review and menus are siblings, never nested controls. Routine Stable and
-maintenance facts stay out of ordinary entries. Play remains beside a secondary
-downloaded-update review link. Steam bulk selection uses its existing chooser.
-The Ready to play checkmark and label use the quiet semantic muted foreground in
-both covers and rows, without an additional badge background. Text and icon
-continue to convey readiness independently of color.
-Counts are library entries, including separate ports for one game. Details put
-current update decisions after identity/readiness/actions; Future update
-preferences are disclosed and saving them does not execute an update.
+Compact rows keep 32x48px contained thumbnails (up to 40x60px with text enlargement),
+10px block padding, full wrapping identity and a bounded action span. The list
+caps at max(840px, 52.5rem). Below 46em readiness stacks beneath identity with
+thumbnail alignment indentation; its separate column has no indentation. Below
+28em actions follow readiness. Artwork loading, stale/failed notices and user
+precedence remain with the existing artwork owner.
 
-Geist remains bundled. Initial body/secondary roles are 15/13px, page headings
-28px, compact controls 36px and ordinary controls 40px. Dimensions are
-content-driven minima, not clipping limits. Enlargement/text spacing may grow
-controls. Both themes share semantic roles. This supersedes earlier Library
-card-density assumptions; Find games retains its discovery composition and
-dated audit/reference evidence remains retained.
+Find games keeps its actual catalog filters, sorting and route semantics. Cards
+show game/project identity, meaningful readiness/attention, concise platform and
+neutral release-channel facts, then their local details affordance. Summaries
+and detailed project facts remain in Detail; the distinguishing variant is not
+repeated as another badge. Whole-card activation uses the lean visible
+identity, readiness, platform/channel and action text as its natural accessible
+name. Do not replace that label with a shorter conflicting aria-label. Visually
+hidden setup/input explanations are linked as descriptions rather than repeated
+inside the name. Legacy records without a separate original-game identity show
+the project name once. Exact-port navigation/return is preserved. Decorative
+artwork is not part of the name. A channel is not a support or readiness rating.
 
-Find games currently uses a whole-card details button. Its accessible name comes
-from its content, including the visible game/port, state and action; do not
-replace it with a shorter synthesized label that omits visible card text.
-Decorative artwork remains hidden from the accessibility tree. Library keeps
-its separate identity and action controls. The discovery card's longer natural
-name is a consequence of that composition, not a reason to hide meaningful
-content or give it a conflicting speech-input label.
-
-The workspace remains the full available width. The desktop main element owns
-vertical scrolling; narrow navigation retains the existing document scroll owner.
-Below an effective workspace width of 80em, desktop navigation becomes
-a named icon rail. Below 48rem of viewport width, a compact header shows the current
-destination and a named Navigation trigger. The existing Base UI Dialog supplies
-the navigation sheet, focus containment, Escape and focus return; resizing to
-desktop closes it and returns focus to the visible destination. Query, view, selection,
-detail-return and operation eligibility retain their existing owners. This Library
-slice reuses the existing interface-size controller and does not establish new
-native enlargement acceptance.
+Geist, semantic tokens, the existing controls and the one persisted/native sizing
+authority remain shared. Enlarged text may wrap and scroll; it never authorizes
+shrinking essential text, hiding consequences or replacing the domain projections.
 
 ## Game details
 
@@ -103,6 +88,14 @@ Missing hero artwork uses the existing quiet gamepad fallback, without repeating
 the title. Failure/stale artwork notices and all image precedence/cache behavior
 remain with the existing artwork owner. This presentation adds no crop inference
 or provider/asset mapping.
+
+Less frequent project/release facts and recorded qualification history share the
+Project and compatibility details disclosure under About this port. Platform and
+installation-method facts remain visible; retired upstream projects retain an
+attention notice. Unknown update checks are explained once in Updates; known
+release observations remain labeled as the latest version at the last check.
+Settings uses plain headings, retaining quiet context labels where device/current
+library scope matters. Add games says Review before continuing across routes.
 
 ## Activity and contextual task feedback
 
@@ -572,7 +565,7 @@ compact count and state line, shows setup and downloaded-update counts only when
 actionable, and leaves game cards and their Play or Details actions as the main
 visual targets.
 
-Keep the sidebar stable and quiet: identity plus Library, Port Catalog, Updates,
+Keep the sidebar stable and quiet: identity plus Library, Find games, Activity,
 and Settings are primary. Contextual Library actions such as copying an existing
 installation need not occupy permanent navigation chrome. Shortcut hints remain
 discoverable without dominating every visit. Repeated page headers should be
@@ -703,7 +696,7 @@ the owning issues rather than maintaining a second backlog here.
 
 Storage capacity, recovery and startup library selection are separate Settings
 rows. Recovery has a disclosed three-step manual-copy guide, then independently
-labeled Restore and Move actions. Preserve exact LTR-isolated paths and six
+labeled Restore and Change library location actions. Preserve exact LTR-isolated paths and six
 current export content categories. Export success acknowledges metadata only;
 manual copy remains unverified until corresponding restore observations succeed.
 Use existing reviewed backup/import controls and native restore consent. Do not

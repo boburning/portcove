@@ -153,7 +153,7 @@ export function PortBrowser({
       owner.closed = true;
     };
   }, []);
-  const restoreAfter = async (button: HTMLButtonElement, action: () => Promise<boolean>) => {
+  const restoreAfter = async (button: HTMLElement, action: () => Promise<boolean>) => {
     const owner = browserOwner.current;
     const ownedFocus = document.activeElement === button;
     const accepted = await action();
@@ -169,7 +169,7 @@ export function PortBrowser({
         browserRoot.current?.querySelector<HTMLButtonElement>("[data-focusable]:not([disabled])")
       )?.focus();
   };
-  const onFavoriteToggle = (portId: string, button: HTMLButtonElement) => {
+  const onFavoriteToggle = (portId: string, button: HTMLElement) => {
     if (favorites) void restoreAfter(button, () => favorites.toggle(portId));
   };
   const resolveLibraryFilters = () => {
@@ -382,6 +382,7 @@ export function PortBrowser({
             Clear search and filters
           </Button>
         )}
+        {composedLibrary && renderDeclaredFilters()}
         <span
           className={cn(
             "ml-auto text-xs text-pc-muted-foreground",
@@ -460,7 +461,7 @@ export function PortBrowser({
             <PortSearch query={query} setQuery={setQuery} library />
           )}
           {renderFilters()}
-          {renderDeclaredFilters()}
+          {!composedLibrary && renderDeclaredFilters()}
           {renderSort()}
           {view === "library" && !firstUseEmpty && (
             <div
@@ -639,7 +640,7 @@ function BrowserResults({
 }: {
   layout: CollectionLayout;
   favorites?: ReturnType<typeof useFavorites> | undefined;
-  onFavoriteToggle: (portId: string, button: HTMLButtonElement) => void;
+  onFavoriteToggle: (portId: string, button: HTMLElement) => void;
   view: View;
   ports: CatalogEntry[];
   installedCount: number;
@@ -882,7 +883,7 @@ type CardState = {
 
 type PortCardProps = {
   layout: CollectionLayout;
-  onFavoriteToggle: (portId: string, button: HTMLButtonElement) => void;
+  onFavoriteToggle: (portId: string, button: HTMLElement) => void;
   favorites?: ReturnType<typeof useFavorites> | undefined;
   port: CatalogEntry;
   status?: PortStatus | undefined;
@@ -982,7 +983,20 @@ function PortCard({
         </Button>
       </Tooltip>
     );
-  const favoriteToggle = renderFavoriteToggle();
+  const favoriteToggle = view === "catalog" ? renderFavoriteToggle() : undefined;
+  const favoriteMenu = favorites && (
+    <Menu.Item
+      disabled={!favorites.ids || favorites.busy}
+      className={cn(
+        controlFocus,
+        "flex cursor-default items-center gap-2 rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground",
+      )}
+      onClick={(event) => onFavoriteToggle(port.id, event.currentTarget)}
+    >
+      <Icon glyph={Star} size="sm" />
+      {favorites.ids?.has(port.id) ? "Remove from favorites" : "Add to favorites"}
+    </Menu.Item>
+  );
   if (view === "library")
     return (
       <LibraryEntry
@@ -1000,7 +1014,7 @@ function PortCard({
           channel,
           dropEligible,
           dropTarget,
-          favoriteToggle,
+          favoriteMenu,
         }}
       />
     );
@@ -1022,9 +1036,6 @@ function PortCard({
   );
 }
 
-const cardBadgeClass =
-  "rounded-full bg-[var(--color-bg-subtle-hover)] px-2 py-1 text-xs text-[var(--color-text-secondary)]";
-
 function LibraryEntry({
   port,
   status,
@@ -1039,7 +1050,7 @@ function LibraryEntry({
   channel,
   dropEligible,
   dropTarget,
-  favoriteToggle,
+  favoriteMenu,
 }: Pick<PortCardProps, "port" | "status" | "layout" | "onSelect" | "onLaunch"> & {
   state: CardState;
   detailOrigin: string;
@@ -1049,7 +1060,7 @@ function LibraryEntry({
   channel: ReturnType<typeof releaseChannelPresentation> | undefined;
   dropEligible: boolean;
   dropTarget: boolean;
-  favoriteToggle: ReactNode;
+  favoriteMenu: ReactNode;
 }) {
   const { element: artworkElement, visible } = useArtworkVisibility();
   const { display: artwork } = useArtwork(port.id, "cover", visible);
@@ -1142,7 +1153,7 @@ function LibraryEntry({
         state={state}
         layout={layout}
         hasFavorite={false}
-        favoriteToggle={favoriteToggle}
+        favoriteMenu={favoriteMenu}
         detailOrigin={detailOrigin}
         onSelect={onSelect}
         onLaunch={onLaunch}
@@ -1189,47 +1200,11 @@ function PortCardContents({
   hasFavorite: boolean;
   detailOrigin: string;
 }) {
-  const renderTitle = () => (
-    <div className="flex items-start justify-between gap-2">
-      <h2 className="collection-title text-base leading-snug font-semibold wrap-anywhere">
-        <span>{gameTitle(port)}</span>
-      </h2>
-    </div>
-  );
-  const renderStateLabel = () => (
-    <div className="collection-state flex flex-wrap items-center justify-between gap-2">
-      <span
-        className={cn(
-          `readiness ${state.tone} inline-flex min-h-8 items-center gap-[6px] text-xs font-semibold text-[var(--color-text-secondary)]`,
-          "[&.ready]:text-pc-success-foreground [&.setup]:text-[var(--color-warning-text)] [&.staged]:text-[var(--color-interactive-text-strong)]",
-        )}
-      >
-        <i className="size-[6px] rounded-full border border-current bg-current" />
-        {state.label}
-      </span>
-      {port.presentation?.variant_label && (
-        <span className="card-variant max-w-full text-xs leading-normal wrap-anywhere text-pc-muted-foreground">
-          {port.presentation.variant_label}
-        </span>
-      )}
-      {channel && (
-        <span
-          className={cn(
-            `badge ${channel.tone} ${cardBadgeClass}`,
-            "[&.beta]:bg-[var(--color-interactive-subtle)] [&.beta]:text-[var(--color-interactive-text)] [&.retired]:bg-[var(--color-bg-raised)] [&.retired]:text-[var(--color-text-secondary)] [&.rolling]:bg-[var(--color-warning-subtle)] [&.rolling]:text-[var(--color-warning-text)] [&.stable]:bg-[var(--color-success-subtle)] [&.stable]:text-[var(--color-success-text)] [&.update]:bg-[var(--color-highlight)] [&.update]:text-[var(--color-text-on-highlight)]",
-          )}
-        >
-          Release channel: {channel.label}
-        </span>
-      )}
-    </div>
-  );
-  const stateLabel = renderStateLabel();
   return (
     <>
       {dropEligible && (
         <span
-          className="source-drop-target pointer-events-none absolute inset-3 z-1 grid place-items-center rounded-pc-md border-2 border-dashed border-[var(--color-interactive-border)] bg-pc-interactive/90 p-4 text-center text-sm font-bold text-pc-action-foreground"
+          className="source-drop-target pointer-events-none absolute inset-3 z-1 grid place-items-center rounded-pc-md border-2 border-dashed border-pc-interactive bg-pc-interactive/90 p-4 text-center text-sm font-bold text-pc-action-foreground"
           aria-hidden="true"
         >
           {dropTarget ? "Release to check" : "Drop to check for this game"}
@@ -1241,84 +1216,53 @@ function PortCardContents({
         className="card-art collection-art relative shrink-0 overflow-hidden"
       />
       <div className="card-content flex min-w-0 flex-1 flex-col gap-2 wrap-anywhere">
-        {renderTitle()}
-        <p
-          className="collection-project m-0 min-h-[1.5em] text-sm leading-normal text-pc-muted-foreground"
-          title={gameProjectLabel(port) ? port.name : undefined}
-        >
-          <span>Port: {gameProjectLabel(port) ?? port.name}</span>
-        </p>
-        {stateLabel}
-        {setup && (
-          <div id={setupDescriptionId} className="sr-only">
-            {setup.routes.map((route) => (
-              <p key={route.action} className="m-0 mt-[9px]">
+        <h2 className="collection-title text-base leading-snug font-semibold wrap-anywhere">
+          {gameTitle(port)}
+        </h2>
+        {gameProjectLabel(port) && (
+          <p className="collection-project m-0 text-sm leading-normal text-pc-muted-foreground">
+            {gameProjectLabel(port)}
+          </p>
+        )}
+        <div className="collection-state flex flex-col items-start gap-1 text-sm">
+          <span
+            className={cn(
+              `readiness ${state.tone} inline-flex items-start gap-1.5 font-medium`,
+              "text-pc-muted-foreground [&.ready]:text-pc-success-foreground [&.setup]:text-pc-warning-foreground [&.staged]:text-pc-interactive-foreground",
+            )}
+          >
+            <Icon glyph={state.tone === "ready" ? CheckCircle2 : Wrench} size="sm" />
+            {state.label}
+          </span>
+          {status?.staged && (
+            <span className="text-xs text-pc-interactive-foreground">Update downloaded</span>
+          )}
+          {updateAvailable && (
+            <span className="text-xs text-pc-interactive-foreground">
+              Update available at last check
+            </span>
+          )}
+          {port.upstream_status === "retired" && (
+            <span className="text-xs text-pc-warning-foreground">Retired upstream</span>
+          )}
+        </div>
+        {(setup || input) && (
+          <div id={setupDescriptionId} className="sr-only" aria-hidden="true">
+            {setup?.routes.map((route) => (
+              <p key={route.action}>
                 <strong>{route.route}: </strong>
                 {route.reason}
               </p>
             ))}
-          </div>
-        )}
-        {input && (
-          <div id={setupDescriptionId} className="sr-only">
-            {input.reasons.map((reason) => (
-              <p key={reason} className="m-0 mt-[9px]">
-                {reason}
-              </p>
+            {input?.reasons.map((reason) => (
+              <p key={reason}>{reason}</p>
             ))}
           </div>
         )}
-        {(status?.staged || updateAvailable || port.upstream_status === "retired") && (
-          <div className="flex min-h-[18px] flex-wrap gap-[5px]">
-            {status?.staged && (
-              <span
-                className={cn(
-                  `badge update ${cardBadgeClass}`,
-                  "[&.beta]:bg-[var(--color-interactive-subtle)] [&.beta]:text-[var(--color-interactive-text)] [&.retired]:bg-[var(--color-bg-raised)] [&.retired]:text-[var(--color-text-secondary)] [&.rolling]:bg-[var(--color-warning-subtle)] [&.rolling]:text-[var(--color-warning-text)] [&.stable]:bg-[var(--color-success-subtle)] [&.stable]:text-[var(--color-success-text)] [&.update]:bg-[var(--color-highlight)] [&.update]:text-[var(--color-text-on-highlight)]",
-                )}
-              >
-                Update downloaded
-              </span>
-            )}
-            {updateAvailable && (
-              <span
-                className={cn(
-                  `badge update ${cardBadgeClass}`,
-                  "[&.beta]:bg-[var(--color-interactive-subtle)] [&.beta]:text-[var(--color-interactive-text)] [&.retired]:bg-[var(--color-bg-raised)] [&.retired]:text-[var(--color-text-secondary)] [&.rolling]:bg-[var(--color-warning-subtle)] [&.rolling]:text-[var(--color-warning-text)] [&.stable]:bg-[var(--color-success-subtle)] [&.stable]:text-[var(--color-success-text)] [&.update]:bg-[var(--color-highlight)] [&.update]:text-[var(--color-text-on-highlight)]",
-                )}
-              >
-                Update available
-              </span>
-            )}
-            {port.upstream_status === "retired" && (
-              <span
-                className={cn(
-                  `badge retired self-start ${cardBadgeClass}`,
-                  "[&.beta]:bg-[var(--color-interactive-subtle)] [&.beta]:text-[var(--color-interactive-text)] [&.retired]:bg-[var(--color-bg-raised)] [&.retired]:text-[var(--color-text-secondary)] [&.rolling]:bg-[var(--color-warning-subtle)] [&.rolling]:text-[var(--color-warning-text)] [&.stable]:bg-[var(--color-success-subtle)] [&.stable]:text-[var(--color-success-text)] [&.update]:bg-[var(--color-highlight)] [&.update]:text-[var(--color-text-on-highlight)]",
-                )}
-              >
-                Retired upstream
-              </span>
-            )}
-          </div>
-        )}
-        {view === "catalog" && (
-          <>
-            <p className="mt-[9px] mb-[11px] line-clamp-2 min-h-8 text-xs leading-[var(--leading-normal)] text-[var(--color-text-secondary)]">
-              {port.summary}
-            </p>
-            <div className="flex flex-wrap gap-[5px]">
-              {port.platforms.map((platform) => (
-                <span
-                  key={platform}
-                  className="rounded-pc-sm bg-[var(--color-bg-subtle-hover)] px-1.5 py-1 text-xs text-[var(--color-text-secondary)]"
-                >
-                  {platformLabel(platform)}
-                </span>
-              ))}
-            </div>
-          </>
-        )}
+        <p className="m-0 text-xs leading-normal text-pc-muted-foreground">
+          {port.platforms.map(platformLabel).join(" · ")}
+          {channel && ` · ${channel.label} channel`}
+        </p>
         <PortCardStatus
           inputDescriptionId={input ? setupDescriptionId : undefined}
           {...{ port, status, state, hasFavorite, detailOrigin, onSelect, onLaunch, view }}
@@ -1330,7 +1274,7 @@ function PortCardContents({
 
 function PortCardStatus({
   layout,
-  favoriteToggle,
+  favoriteMenu,
   inputDescriptionId,
   port,
   status,
@@ -1344,7 +1288,7 @@ function PortCardStatus({
   inputDescriptionId?: string | undefined;
   state: CardState;
   hasFavorite: boolean;
-  favoriteToggle?: ReactNode;
+  favoriteMenu?: ReactNode;
   layout?: CollectionLayout;
   detailOrigin: string;
 }) {
@@ -1362,7 +1306,7 @@ function PortCardStatus({
   return (
     <div
       className={cn(
-        `collection-actions flex min-h-11 flex-wrap items-center gap-2 text-xs ${layout === "rows" ? "mt-0 pt-0" : "mt-auto pt-2"} ${view === "library" ? "justify-between" : "justify-between border-t border-pc-border"}`,
+        `collection-actions flex min-h-11 flex-wrap items-center gap-2 text-xs ${layout === "rows" ? "mt-0 pt-0" : view === "library" ? "mt-0 pt-2" : "mt-auto pt-2"} ${view === "library" ? "justify-between" : "justify-between border-t border-pc-border"}`,
         hasFavorite && (view === "library" ? "ps-8" : "pe-9"),
       )}
     >
@@ -1410,7 +1354,6 @@ function PortCardStatus({
                   : "Play"}
             </Button>
           )}
-          {favoriteToggle}
           <Menu.Root>
             <Tooltip label="More actions">
               <Menu.Trigger
@@ -1442,6 +1385,7 @@ function PortCardStatus({
                     "max-h-(--available-height) min-w-48 origin-(--transform-origin) overflow-y-auto rounded-pc-md border border-pc-border bg-pc-surface p-1 text-pc-foreground shadow-(--shadow-floating)",
                   )}
                 >
+                  {favoriteMenu}
                   <Menu.Item
                     className={cn(
                       controlFocus,

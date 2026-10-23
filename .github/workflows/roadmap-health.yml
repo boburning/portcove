@@ -1,0 +1,58 @@
+name: Roadmap scoped checks and diagnostics
+
+on:
+  issues:
+    types: [opened, edited, reopened, closed]
+  push:
+    branches: [main]
+    paths:
+      - .github/roadmap.json
+      - .github/linux-beta-risk-706.json
+      - crates/portcove-core/catalog/catalog.json
+      - scripts/roadmap.mts
+      - scripts/roadmap-scoped.mts
+      - scripts/repository-issue-inventory.mts
+      - .github/workflows/roadmap-health.yml
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: "Issue number for a scoped check; leave empty for substantial-change or release-readiness audit"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: roadmap-health-${{ github.event.issue.number || inputs.issue || 'global' }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Verify the affected scope and retain failure diagnostics
+        run: node scripts/roadmap-health.mts
+        env:
+          GH_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: roadmap-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/roadmap-health/
+            work/roadmap-doctor/
+            work/roadmap-diagnostics/
+          if-no-files-found: warn
+          retention-days: 30

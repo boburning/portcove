@@ -19,7 +19,11 @@ alone is not a blocker. Before rewriting a specification, preserve its old body
 in dated linked history, refresh the preimage and reject concurrent changes.
 
 Mutations: use authorized scoped `set`, `move` or intake, read back exact issue
-and Project state, and finish the applicable `doctor`. REST issue reads cannot
+and Project state, and finish `doctor --issue <number>` for affected records.
+Full doctor is for batches over ten items, release/commitment or schema changes,
+and release readiness; no periodic audit is required. Scoped success never proves
+global coverage. Commands retain typed failure diagnostics and recovery conditions.
+REST issue reads cannot
 prove Project fields. Reconcile the task, finite parent and directly affected
 relationships on completion/material scope changes. Routine updates need targeted
 reads; migrations and release/readiness claims need complete inventories.

@@ -5,7 +5,7 @@ import {
 } from "./desktop-scenario-state.mts";
 import type { ScenarioContext, ScenarioInvoke } from "./desktop-scenario-context.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
-import { transportValue } from "./transport-values.mts";
+import { transportValue, transportValues } from "./transport-values.mts";
 interface CliHandoffContext extends ScenarioContext {
   invoke: ScenarioInvoke;
   cli: string;
@@ -156,8 +156,6 @@ export async function cliHandoffScenario({
         "Updates",
         "Saves and storage",
         "About this port",
-        "Compatibility and testing",
-        "Project and release",
         "Artwork",
       ],
     );
@@ -166,7 +164,22 @@ export async function cliHandoffScenario({
       .getText();
     assert.match(versionSummary, /Installed version/);
     assert.match(versionSummary, /Release channel|Selected channel/);
-    assert.match(versionSummary, /Latest available for your settings/);
+    const installedStatus = required(
+      transportValues("status", success(await invoke("get_statuses"))).find(
+        (status) => status.port_id === "zelda64-recomp",
+      ),
+    );
+    assert.equal(
+      installedStatus.last_update_check,
+      null,
+      "The adopted handoff fixture has not checked for updates",
+    );
+    assert.ok(versionSummary.includes(required(installedStatus.active).version));
+    assert.doesNotMatch(versionSummary, /Latest version at last check/);
+    assert.match(
+      await browser.findElement(By.css("#detail-updates")).findElement(By.xpath("..")).getText(),
+      /No update check is saved for this installation and channel/,
+    );
     const launch = By.css('[aria-label="Launch from another app"]');
     await browser.wait(until.elementLocated(By.css('[aria-label="Copy launch command"]')), 10_000);
     await click(By.xpath('//summary[normalize-space(.)="Separate program and arguments"]'));

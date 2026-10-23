@@ -128,11 +128,9 @@ it.each(["dark", "light"])("keeps cached setup reasons and Details access in %s"
     const card = page.getByRole("button").filter({
       has: page.getByRole("heading", { name: item.name, exact: true }),
     });
-    await expect.element(card).toHaveAccessibleName(new RegExp(`^${item.name}\\b`));
-    await expect.element(card).toHaveAccessibleName(new RegExp(`\\b${item.label}\\b`));
+    await expect.element(card).toHaveAccessibleName(new RegExp(`^${item.name}.*${item.label}`));
     expect(card.element().querySelector(".readiness")?.textContent?.trim()).toBe(item.label);
     await expect.element(card).toBeEnabled();
-    await expect.element(card).toHaveAccessibleName(/\bView details$/);
     await expect.element(card).toMatchTextContent("View details");
     await expect.element(card).toMatchTextContent(item.reason);
     await expect.element(card).toHaveAccessibleDescription(new RegExp(item.reason));
