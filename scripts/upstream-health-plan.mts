@@ -136,7 +136,8 @@ export async function selectUpstreamHealthScope(
   }
   const selected = headInputs.ports.filter(
     (entry) =>
-      !old.has(entry.port.id) || observationHash(old.get(entry.port.id)) !== observationHash(entry) ||
+      !old.has(entry.port.id) ||
+      observationHash(old.get(entry.port.id)) !== observationHash(entry) ||
       changedLineage.has(entry.port.id),
   );
   if (!changes.length && selected.length)
@@ -156,7 +157,9 @@ export async function selectUpstreamHealthScope(
 const authoringJson = /^crates\/portcove-core\/catalog\/ports\/[^/]+\.json$/u;
 const maximumAuthoringFiles = 4096;
 function authoringPortId(filename: string): string | undefined {
-  return /^crates\/portcove-core\/catalog\/ports\/([a-z0-9]+(?:-[a-z0-9]+)*)\.json$/u.exec(filename)?.[1];
+  return /^crates\/portcove-core\/catalog\/ports\/([a-z0-9]+(?:-[a-z0-9]+)*)\.json$/u.exec(
+    filename,
+  )?.[1];
 }
 function lineageMap(records: unknown[], catalog: SelectionCatalog) {
   if (!Array.isArray(records) || records.length > maximumAuthoringFiles)
@@ -177,8 +180,15 @@ function lineageMap(records: unknown[], catalog: SelectionCatalog) {
 
 const maximumAuthoringBytes = 1024 * 1024;
 async function readWorkingAuthoring(relativePath: string): Promise<string> {
-  const filename = await assertOwnedUnlinkedPath(root, path.join(root, relativePath), "health lineage readback");
-  const handle = await open(filename, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  const filename = await assertOwnedUnlinkedPath(
+    root,
+    path.join(root, relativePath),
+    "health lineage readback",
+  );
+  const handle = await open(
+    filename,
+    constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+  );
   try {
     const stat = await handle.stat();
     if (!stat.isFile() || stat.size > maximumAuthoringBytes)
@@ -190,7 +200,8 @@ async function readWorkingAuthoring(relativePath: string): Promise<string> {
       if (!result.bytesRead) break;
       size += result.bytesRead;
     }
-    if (size > maximumAuthoringBytes) throw new Error("Unbounded health lineage authoring readback");
+    if (size > maximumAuthoringBytes)
+      throw new Error("Unbounded health lineage authoring readback");
     return new TextDecoder("utf-8", { fatal: true }).decode(buffer.subarray(0, size));
   } finally {
     await handle.close();
@@ -288,16 +299,21 @@ export async function discoverUpstreamHealthScope(
       throw new Error("Unbounded health lineage authoring input");
     const value: unknown = JSON.parse(text);
     const inputs = healthLineageInputs(value);
-    if (inputs.listing.id !== expectedId) throw new Error("Lineage authoring path differs from its port identity");
+    if (inputs.listing.id !== expectedId)
+      throw new Error("Lineage authoring path differs from its port identity");
     return inputs;
   };
   for (const change of changes) {
     const id = authoringPortId(change.newPath);
     // Uncertain, deleted and renamed authoring takes the conservative full path.
     // Do not read nonregular working paths while discovering that applicability.
-    if (!id || (!baseIds.has(id) && !checkoutIds.has(id)) ||
+    if (
+      !id ||
+      (!baseIds.has(id) && !checkoutIds.has(id)) ||
       !["100644", "100755"].includes(String(change.newMode)) ||
-      (change.status !== "A" && change.status !== "M")) continue;
+      (change.status !== "A" && change.status !== "M")
+    )
+      continue;
     if (change.status === "M") {
       if (!["100644", "100755"].includes(String(change.oldMode))) continue;
       if (baseIds.has(id))

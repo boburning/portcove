@@ -468,7 +468,8 @@ export function validateGithubPinMetadata(
 ) {
   const facts = validateGithubDeclaredPinMetadata(repository, release, assets, expected);
   requireFact(
-    facts.repository.id === expected.repository_id && facts.repository.archived === expected.archived,
+    facts.repository.id === expected.repository_id &&
+      facts.repository.archived === expected.archived,
     "repository-identity",
     "configured repository identity or archive state changed",
   );

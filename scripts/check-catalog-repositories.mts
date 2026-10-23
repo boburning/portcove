@@ -169,7 +169,8 @@ function isPriorReport(
 ): value is PriorReport {
   return (
     isRecord(value) &&
-    ((value.format_version === 2 && value.catalog_sha256 === catalogHash) || value.format_version === 3) &&
+    ((value.format_version === 2 && value.catalog_sha256 === catalogHash) ||
+      value.format_version === 3) &&
     Array.isArray(value.observations) &&
     value.observations.length <= PRIOR_REPORT_ENTRIES &&
     value.observations.every(
@@ -177,7 +178,8 @@ function isPriorReport(
         isRecord(entry) &&
         typeof entry.provider === "string" &&
         typeof entry.repository === "string" &&
-        (value.format_version === 2 || isHealthObservationHistory(entry, Date.parse(String(value.completed_at)))),
+        (value.format_version === 2 ||
+          isHealthObservationHistory(entry, Date.parse(String(value.completed_at)))),
     ) &&
     Array.isArray(value.port_health) &&
     value.port_health.length <= count &&
@@ -187,8 +189,11 @@ function isPriorReport(
         Array.isArray(port.canonical_incidents) &&
         port.canonical_incidents.length <= PRIOR_REPORT_ENTRIES &&
         port.canonical_incidents.every(
-          (entry: unknown) => isRecord(entry) && typeof entry.key === "string" &&
-            (value.format_version === 2 || isHealthIncidentHistory(entry, Date.parse(String(value.completed_at)))),
+          (entry: unknown) =>
+            isRecord(entry) &&
+            typeof entry.key === "string" &&
+            (value.format_version === 2 ||
+              isHealthIncidentHistory(entry, Date.parse(String(value.completed_at)))),
         ),
     ) &&
     typeof value.completed_at === "string" &&
@@ -301,12 +306,17 @@ export async function readHealthLineage(
   for (const port of input.ports) {
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(port.id))
       throw new Error("Invalid lineage authoring port identity");
-    const filename = await assertOwnedUnlinkedPath(projectRoot,
+    const filename = await assertOwnedUnlinkedPath(
+      projectRoot,
       path.join(projectRoot, "crates/portcove-core/catalog/ports", `${port.id}.json`),
-      "Lineage authoring record");
+      "Lineage authoring record",
+    );
     let handle;
     try {
-      handle = await open(filename, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+      handle = await open(
+        filename,
+        constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0),
+      );
     } catch (error) {
       // Legacy catalogs and isolated fixtures need not carry authoring history.
       if (errorCode(error) === "ENOENT") continue;
@@ -315,7 +325,8 @@ export async function readHealthLineage(
     try {
       const stat = await handle.stat();
       const bound = 1024 * 1024;
-      if (!stat.isFile() || stat.size > bound) throw new Error("Unbounded lineage authoring record");
+      if (!stat.isFile() || stat.size > bound)
+        throw new Error("Unbounded lineage authoring record");
       const buffer = Buffer.alloc(bound + 1);
       let size = 0;
       while (size < buffer.length) {
@@ -328,7 +339,9 @@ export async function readHealthLineage(
       if (!isRecord(record) || !isRecord(record.listing) || record.listing.id !== port.id)
         throw new Error("Lineage authoring identity differs from catalog");
       if (record.upstream_lineage !== undefined) records.push(record);
-    } finally { await handle.close(); }
+    } finally {
+      await handle.close();
+    }
   }
   return records;
 }
@@ -338,16 +351,33 @@ function assessedLineage(catalog: HealthCatalog, records: unknown[]) {
     throw new Error("Unbounded lineage authoring inputs");
   const assessments = new Map<string, ReturnType<typeof assessUpstreamLineage>>();
   for (const record of records) {
-    if (!isRecord(record) || !isRecord(record.listing) || typeof record.listing.id !== "string" ||
-      typeof record.listing.project_url !== "string") throw new Error("Invalid lineage authoring input");
+    if (
+      !isRecord(record) ||
+      !isRecord(record.listing) ||
+      typeof record.listing.id !== "string" ||
+      typeof record.listing.project_url !== "string"
+    )
+      throw new Error("Invalid lineage authoring input");
     const authorListing = record.listing;
     const port = catalog.ports.find((entry) => entry.id === authorListing.id);
     if (!port || assessments.has(port.id) || port.project_url !== record.listing.project_url)
       throw new Error("Lineage authoring identity differs from catalog");
-    const listing = { id: port.id, project_url: record.listing.project_url,
-      ...(typeof record.listing.issue_number === "number" ? { issue_number: record.listing.issue_number } : {}) };
-    assessments.set(port.id, assessUpstreamLineage({ listing,
-      ...(record.upstream_lineage === undefined ? {} : { upstream_lineage: record.upstream_lineage as UpstreamLineage }) }));
+    const listing = {
+      id: port.id,
+      project_url: record.listing.project_url,
+      ...(typeof record.listing.issue_number === "number"
+        ? { issue_number: record.listing.issue_number }
+        : {}),
+    };
+    assessments.set(
+      port.id,
+      assessUpstreamLineage({
+        listing,
+        ...(record.upstream_lineage === undefined
+          ? {}
+          : { upstream_lineage: record.upstream_lineage as UpstreamLineage }),
+      }),
+    );
   }
   return assessments;
 }
@@ -398,12 +428,16 @@ function assertHealthAccountingPolicy(policy: unknown): asserts policy is Health
     !(objectKeys(policy, rootKeys) || objectKeys(policy, [...rootKeys, "source_archives"])) ||
     (policy.format_version !== 1 && policy.format_version !== 2) ||
     (version2 && policy.input_version !== HEALTH_INPUTS_VERSION) ||
-    typeof policy.authority !== "string" || !policy.authority ||
-    typeof policy.decision !== "string" || !policy.decision ||
-    !Array.isArray(policy.pins) || !Array.isArray(policy.original_conditions) ||
+    typeof policy.authority !== "string" ||
+    !policy.authority ||
+    typeof policy.decision !== "string" ||
+    !policy.decision ||
+    !Array.isArray(policy.pins) ||
+    !Array.isArray(policy.original_conditions) ||
     (Object.hasOwn(policy, "source_archives") && !Array.isArray(policy.source_archives)) ||
     policy.original_conditions.length > 64 ||
-    policy.pins.length + (Array.isArray(policy.source_archives) ? policy.source_archives.length : 0) >
+    policy.pins.length +
+      (Array.isArray(policy.source_archives) ? policy.source_archives.length : 0) >
       (version2 ? 8192 : 64 - policy.original_conditions.length)
   )
     throw new Error("Invalid reviewed health accounting policy");
@@ -508,7 +542,7 @@ function assertHealthAccountingPolicy(policy: unknown): asserts policy is Health
         "resume_condition",
         ...(version2 ? ["role"] : []),
       ]) ||
-      (version2 && !["project", "acquisition"].includes(String(condition.role))) ||
+      (version2 && condition.role !== "project" && condition.role !== "acquisition") ||
       !port(condition.port_id) ||
       !hash(condition.port_contract_sha256) ||
       condition.provider !== "github" ||
@@ -530,7 +564,8 @@ function assertHealthAccountingPolicy(policy: unknown): asserts policy is Health
       !condition.resume_condition
     )
       throw new Error("Invalid reviewed original-location scope");
-    const key = `original:${condition.port_id}:${condition.provider}:${condition.repository}:${condition.role ?? "project"}`;
+    const role = condition.role === "acquisition" ? "acquisition" : "project";
+    const key = `original:${condition.port_id}:${condition.provider}:${condition.repository}:${role}`;
     if (identities.has(key)) throw new Error("Duplicate reviewed original-location scope");
     identities.add(key);
   }
@@ -568,86 +603,165 @@ const resume = {
 };
 
 function historyText(value: unknown, maximum = 2048): value is string {
-  return typeof value === "string" && value.length > 0 && value.length <= maximum && !/\p{Cc}/u.test(value);
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= maximum &&
+    !/\p{Cc}/u.test(value)
+  );
 }
 function historyHash(value: unknown): value is string {
   return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
 }
 function historyIdentity(value: unknown): value is number | null {
-  return value === null || typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+  return value === null || (typeof value === "number" && Number.isSafeInteger(value) && value > 0);
 }
 function historyClock(value: unknown, latest = 8.64e15): value is string {
-  return historyText(value, 40) && Number.isFinite(Date.parse(value)) && Date.parse(value) <= latest;
+  return (
+    historyText(value, 40) && Number.isFinite(Date.parse(value)) && Date.parse(value) <= latest
+  );
 }
 function historyStatus(value: unknown): boolean {
-  return value === null || typeof value === "number" && Number.isInteger(value) && value >= 100 && value <= 599;
+  return (
+    value === null ||
+    (typeof value === "number" && Number.isInteger(value) && value >= 100 && value <= 599)
+  );
 }
 function historyPortId(value: unknown): value is string {
   return historyText(value, 128) && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(value);
 }
 function historyProvider(value: unknown): boolean {
-  return typeof value === "string" && ["github", "gitlab", "direct-manifest", "project-page", "unlocated-historical"].includes(value);
+  return (
+    typeof value === "string" &&
+    ["github", "gitlab", "direct-manifest", "project-page", "unlocated-historical"].includes(value)
+  );
 }
 function historyReason(value: unknown): boolean {
-  return value === null || typeof value === "string" && Object.hasOwn(resume, value);
+  return value === null || (typeof value === "string" && Object.hasOwn(resume, value));
 }
 function historyAssessment(value: unknown, archive: boolean): boolean {
   if (value === null) return true;
   if (!isRecord(value)) return false;
   if (value.status === "unknown")
-    return historyReason(value.reason) || value.reason === (archive ? "invalid-or-changed-commit-metadata" : "invalid-or-changed-pin-metadata");
-  if (!historyIdentity(value.repository_id) || value.repository_id === null ||
-    value.destination_availability !== "unknown" || value.accepted_bytes !== "unverified" ||
-    !historyHash(value.accounting_scope_sha256)) return false;
-  if (archive) return value.status === "provider-reported-commit-present" &&
-    typeof value.commit_sha === "string" && /^[a-f0-9]{40}$/u.test(value.commit_sha) &&
-    typeof value.tree_sha === "string" && /^[a-f0-9]{40}$/u.test(value.tree_sha) && historyHash(value.commit_facts_sha256);
-  return ((value.status === "provider-reported-pin-present" && value.identity_binding === "reviewed") ||
-    (value.status === "provider-reported-pin-observed" && value.identity_binding === "unbound-observation")) &&
-    historyIdentity(value.release_id) && value.release_id !== null &&
-    historyIdentity(value.asset_id) && value.asset_id !== null && historyHash(value.asset_facts_sha256) &&
-    (value.provider_digest === null || typeof value.provider_digest === "string" && /^sha256:[a-f0-9]{64}$/u.test(value.provider_digest));
+    return (
+      historyReason(value.reason) ||
+      value.reason ===
+        (archive ? "invalid-or-changed-commit-metadata" : "invalid-or-changed-pin-metadata")
+    );
+  if (
+    !historyIdentity(value.repository_id) ||
+    value.repository_id === null ||
+    value.destination_availability !== "unknown" ||
+    value.accepted_bytes !== "unverified" ||
+    !historyHash(value.accounting_scope_sha256)
+  )
+    return false;
+  if (archive)
+    return (
+      value.status === "provider-reported-commit-present" &&
+      typeof value.commit_sha === "string" &&
+      /^[a-f0-9]{40}$/u.test(value.commit_sha) &&
+      typeof value.tree_sha === "string" &&
+      /^[a-f0-9]{40}$/u.test(value.tree_sha) &&
+      historyHash(value.commit_facts_sha256)
+    );
+  return (
+    ((value.status === "provider-reported-pin-present" && value.identity_binding === "reviewed") ||
+      (value.status === "provider-reported-pin-observed" &&
+        value.identity_binding === "unbound-observation")) &&
+    historyIdentity(value.release_id) &&
+    value.release_id !== null &&
+    historyIdentity(value.asset_id) &&
+    value.asset_id !== null &&
+    historyHash(value.asset_facts_sha256) &&
+    (value.provider_digest === null ||
+      (typeof value.provider_digest === "string" &&
+        /^sha256:[a-f0-9]{64}$/u.test(value.provider_digest)))
+  );
 }
 
 /** Retained comparison data is untrusted input; a malformed ID must never become a new baseline. */
-export function isHealthObservationHistory(value: unknown, completed: number): value is HealthObservation {
-  if (!isRecord(value) || !historyProvider(value.provider) || !historyText(value.repository) ||
-    !historyHash(value.observation_contract_sha256) || !historyClock(value.observed_at, completed) ||
-    !Array.isArray(value.port_ids) || value.port_ids.length > 4096 || !value.port_ids.every(historyPortId) ||
+export function isHealthObservationHistory(
+  value: unknown,
+  completed: number,
+): value is HealthObservation {
+  if (
+    !isRecord(value) ||
+    !historyProvider(value.provider) ||
+    !historyText(value.repository) ||
+    !historyHash(value.observation_contract_sha256) ||
+    !historyClock(value.observed_at, completed) ||
+    !Array.isArray(value.port_ids) ||
+    value.port_ids.length > 4096 ||
+    !value.port_ids.every(historyPortId) ||
     new Set(value.port_ids).size !== value.port_ids.length ||
     (value.release_ref !== undefined && !historyText(value.release_ref, 200)) ||
-    !["reachable", "unknown"].includes(String(value.status)) || !historyReason(value.reason) ||
+    !["reachable", "unknown"].includes(String(value.status)) ||
+    !historyReason(value.reason) ||
     (value.status === "reachable" && value.reason !== null) ||
-    !historyIdentity(value.baseline_repository_id) || !historyIdentity(value.observed_repository_id) ||
+    !historyIdentity(value.baseline_repository_id) ||
+    !historyIdentity(value.observed_repository_id) ||
     !historyIdentity(value.observed_redirect_repository_id) ||
-    !historyStatus(value.http_status) || !historyStatus(value.comparison_http_status) ||
-    (value.comparison_observed_at !== null && !historyClock(value.comparison_observed_at, Date.parse(value.observed_at))) ||
+    !historyStatus(value.http_status) ||
+    !historyStatus(value.comparison_http_status) ||
+    (value.comparison_observed_at !== null &&
+      !historyClock(value.comparison_observed_at, Date.parse(value.observed_at))) ||
     (value.retry_at !== null && !historyClock(value.retry_at)) ||
     (value.archived !== null && typeof value.archived !== "boolean") ||
-    typeof value.attempted !== "boolean" || typeof value.metadata_reused !== "boolean" ||
-    typeof value.accounted_for !== "boolean" || !historyText(value.classification, 256) ||
+    typeof value.attempted !== "boolean" ||
+    typeof value.metadata_reused !== "boolean" ||
+    typeof value.accounted_for !== "boolean" ||
+    !historyText(value.classification, 256) ||
     (value.resume_condition !== null && !historyText(value.resume_condition, 4096)) ||
     (value.reviewed_condition_sha256 !== null && !historyHash(value.reviewed_condition_sha256)) ||
-    !historyAssessment(value.pin_assessment, false) || !historyAssessment(value.source_archive_assessment, true)) return false;
-  return (value.observed_release_id === undefined || historyIdentity(value.observed_release_id)) &&
-    (value.observed_size === undefined || value.observed_size === null || typeof value.observed_size === "number" && Number.isSafeInteger(value.observed_size) && value.observed_size >= 0) &&
-    (value.observed_asset_digests === undefined || Array.isArray(value.observed_asset_digests) && value.observed_asset_digests.length < 100 &&
-      value.observed_asset_digests.every((digest: unknown) => typeof digest === "string" && /^sha256:[a-f0-9]{64}$/u.test(digest)));
+    !historyAssessment(value.pin_assessment, false) ||
+    !historyAssessment(value.source_archive_assessment, true)
+  )
+    return false;
+  return (
+    (value.observed_release_id === undefined || historyIdentity(value.observed_release_id)) &&
+    (value.observed_size === undefined ||
+      value.observed_size === null ||
+      (typeof value.observed_size === "number" &&
+        Number.isSafeInteger(value.observed_size) &&
+        value.observed_size >= 0)) &&
+    (value.observed_asset_digests === undefined ||
+      (Array.isArray(value.observed_asset_digests) &&
+        value.observed_asset_digests.length < 100 &&
+        value.observed_asset_digests.every(
+          (digest: unknown) => typeof digest === "string" && /^sha256:[a-f0-9]{64}$/u.test(digest),
+        )))
+  );
 }
 
 export function isHealthIncidentHistory(value: unknown, completed: number): value is PriorIncident {
-  return isRecord(value) && historyHash(value.key) && historyHash(value.material_sha256) &&
-    historyHash(value.observation_contract_sha256) && historyPortId(value.port_id) &&
-    historyProvider(value.provider) && historyText(value.location) &&
+  return (
+    isRecord(value) &&
+    historyHash(value.key) &&
+    historyHash(value.material_sha256) &&
+    historyHash(value.observation_contract_sha256) &&
+    historyPortId(value.port_id) &&
+    historyProvider(value.provider) &&
+    historyText(value.location) &&
     (value.release_ref === null || historyText(value.release_ref, 200)) &&
-    value.operation === "observe-availability" && historyReason(value.rule) && value.rule !== null &&
-    typeof value.notify === "boolean" && typeof value.accounted_for === "boolean" && historyText(value.classification, 256) &&
-    historyClock(value.observed_at, completed) && historyClock(value.first_seen, Date.parse(value.observed_at)) &&
-    typeof value.occurrences === "number" && Number.isSafeInteger(value.occurrences) && value.occurrences > 0 &&
-    historyStatus(value.http_status) && historyStatus(value.comparison_http_status) &&
-    (value.comparison_observed_at === null || historyClock(value.comparison_observed_at, Date.parse(value.observed_at))) &&
+    value.operation === "observe-availability" &&
+    historyReason(value.rule) &&
+    value.rule !== null &&
+    typeof value.notify === "boolean" &&
+    typeof value.accounted_for === "boolean" &&
+    historyText(value.classification, 256) &&
+    historyClock(value.observed_at, completed) &&
+    historyClock(value.first_seen, Date.parse(value.observed_at)) &&
+    typeof value.occurrences === "number" &&
+    Number.isSafeInteger(value.occurrences) &&
+    value.occurrences > 0 &&
+    historyStatus(value.http_status) &&
+    historyStatus(value.comparison_http_status) &&
+    (value.comparison_observed_at === null ||
+      historyClock(value.comparison_observed_at, Date.parse(value.observed_at))) &&
     (value.retry_at === null || historyClock(value.retry_at)) &&
-    (value.resume_condition === null || historyText(value.resume_condition, 4096));
+    (value.resume_condition === null || historyText(value.resume_condition, 4096))
+  );
 }
 
 function recordOriginalMembership(record: LocationRecord, portId: string, releaseProvider: string) {
@@ -944,7 +1058,11 @@ async function metadata(
   }
 }
 
-function prepareHealthCollection(input: unknown, portIds: string[] | null, accountingInput: unknown) {
+function prepareHealthCollection(
+  input: unknown,
+  portIds: string[] | null,
+  accountingInput: unknown,
+) {
   assertHealthCatalog(input);
   const catalog = input;
   const reviewedAccounting = validateHealthAccountingPolicy(accountingInput);
@@ -966,7 +1084,8 @@ function prepareHealthCollection(input: unknown, portIds: string[] | null, accou
   );
   if (portIds !== null) {
     const order = new Map(portIds.map((id, index) => [id, index]));
-    const rank = (record: LocationRecord) => Math.min(...record.port_ids.map((id) => order.get(id) ?? Infinity));
+    const rank = (record: LocationRecord) =>
+      Math.min(...record.port_ids.map((id) => order.get(id) ?? Infinity));
     records.sort((left, right) => rank(left) - rank(right));
   }
   const directPorts = completeInventory.directPorts.filter(
@@ -981,37 +1100,62 @@ function prepareHealthCollection(input: unknown, portIds: string[] | null, accou
     endpoint?: { role: "project" | "acquisition"; provider: string; repository: string },
   ) => {
     const port = requiredValue(catalog.ports.find((entry) => entry.id === id));
-    const hash = reviewedAccounting.format_version === 1 ? portContract(port)
-      : platform !== undefined ? healthArtifactHash(port, platform)
-        : endpoint ? healthEndpointHash(port, endpoint.role, endpoint.provider, endpoint.repository)
-          : null;
+    const hash =
+      reviewedAccounting.format_version === 1
+        ? portContract(port)
+        : platform !== undefined
+          ? healthArtifactHash(port, platform)
+          : endpoint
+            ? healthEndpointHash(port, endpoint.role, endpoint.provider, endpoint.repository)
+            : null;
     return rule.port_id === id && rule.port_contract_sha256 === hash;
   };
   const pinRules = (record: LocationRecord) => {
     if (record.provider !== "direct-manifest") return [];
     const rules = requiredValue(record.artifact_identities).map((identity) =>
-      reviewedAccounting.pins.find((rule) =>
-        contractMatches(rule, identity.port_id, identity.platform) &&
-        rule.platform === identity.platform && rule.url === record.repository &&
-        rule.size === identity.size && rule.sha256 === identity.sha256));
+      reviewedAccounting.pins.find(
+        (rule) =>
+          contractMatches(rule, identity.port_id, identity.platform) &&
+          rule.platform === identity.platform &&
+          rule.url === record.repository &&
+          rule.size === identity.size &&
+          rule.sha256 === identity.sha256,
+      ),
+    );
     // A new unbound declaration can share an endpoint with a reviewed one. The
     // reviewed identity is still checked; it never disappears into the generic path.
     return reviewedAccounting.format_version === 2
       ? rules.filter((rule) => rule !== undefined)
-      : rules.every((rule) => rule !== undefined) ? rules : [];
+      : rules.every((rule) => rule !== undefined)
+        ? rules
+        : [];
   };
   const pinBindingConflict = (record: LocationRecord) =>
-    record.provider === "direct-manifest" && requiredValue(record.artifact_identities).some((identity) =>
-      reviewedAccounting.pins.some((rule) => rule.port_id === identity.port_id &&
-        rule.platform === identity.platform && rule.url === record.repository &&
-        (!contractMatches(rule, identity.port_id, identity.platform) ||
-          rule.size !== identity.size || rule.sha256 !== identity.sha256)));
+    record.provider === "direct-manifest" &&
+    requiredValue(record.artifact_identities).some((identity) =>
+      reviewedAccounting.pins.some(
+        (rule) =>
+          rule.port_id === identity.port_id &&
+          rule.platform === identity.platform &&
+          rule.url === record.repository &&
+          (!contractMatches(rule, identity.port_id, identity.platform) ||
+            rule.size !== identity.size ||
+            rule.sha256 !== identity.sha256),
+      ),
+    );
   const declaredPins = (record: LocationRecord) => {
     if (reviewedAccounting.format_version !== 2 || record.provider !== "direct-manifest") return [];
     let parsed;
-    try { parsed = githubDirectPin(record.repository); } catch { return []; }
+    try {
+      parsed = githubDirectPin(record.repository);
+    } catch {
+      return [];
+    }
     return requiredValue(record.artifact_identities).map((identity) => ({
-      ...parsed, url: record.repository, size: identity.size, sha256: identity.sha256,
+      ...parsed,
+      url: record.repository,
+      size: identity.size,
+      sha256: identity.sha256,
     }));
   };
   const networkRecords = records.filter((record) => record.provider !== "unlocated-historical");
@@ -1029,13 +1173,16 @@ function prepareHealthCollection(input: unknown, portIds: string[] | null, accou
     );
     return rules.every((rule) => rule !== undefined) ? rules : [];
   };
-  const pinnedRecords = records.filter((record) => pinRules(record).length || declaredPins(record).length);
+  const pinnedRecords = records.filter(
+    (record) => pinRules(record).length || declaredPins(record).length,
+  );
   const archiveRecords = records.filter((record) => archiveRules(record).length);
   const conditionalPinRequests = pinnedRecords.length * 3;
   const conditionalArchiveRequests = archiveRecords.length * 2;
   const conservativeRequests =
     networkRecords.length + conditionalPinRequests + conditionalArchiveRequests;
-  const overflow = conservativeRequests > HARD_REQUEST_CEILING || records.length > PRIOR_REPORT_ENTRIES;
+  const overflow =
+    conservativeRequests > HARD_REQUEST_CEILING || records.length > PRIOR_REPORT_ENTRIES;
   const requestPlan = Object.freeze({
     method: "validated selected inventory; no speculative reuse credit",
     network_records: networkRecords.length,
@@ -1048,8 +1195,8 @@ function prepareHealthCollection(input: unknown, portIds: string[] | null, accou
         [...pinnedRecords, ...archiveRecords].some(
           (pin) =>
             records.indexOf(pin) < index &&
-            requiredValue(pinRules(pin)[0] ?? declaredPins(pin)[0] ?? archiveRules(pin)[0]).repository ===
-              record.repository,
+            requiredValue(pinRules(pin)[0] ?? declaredPins(pin)[0] ?? archiveRules(pin)[0])
+              .repository === record.repository,
         ),
     ).length,
     conservative_requests: conservativeRequests,
@@ -1058,8 +1205,20 @@ function prepareHealthCollection(input: unknown, portIds: string[] | null, accou
     observation_ceiling: PRIOR_REPORT_ENTRIES,
     status: overflow ? "overflow" : "admitted",
   });
-  return { catalog, reviewedAccounting, selectedPorts, records, directPorts, contractMatches,
-    pinRules, pinBindingConflict, declaredPins, archiveRules, overflow, requestPlan };
+  return {
+    catalog,
+    reviewedAccounting,
+    selectedPorts,
+    records,
+    directPorts,
+    contractMatches,
+    pinRules,
+    pinBindingConflict,
+    declaredPins,
+    archiveRules,
+    overflow,
+    requestPlan,
+  };
 }
 
 /** Pure validated upper bound used by the rotating monitor before any request. */
@@ -1086,9 +1245,20 @@ export async function collectRepositoryHealth(
     lineageRecords = [],
   }: HealthOptions = {},
 ) {
-  const { catalog, reviewedAccounting, selectedPorts, records, directPorts, contractMatches,
-    pinRules, pinBindingConflict, declaredPins, archiveRules, overflow, requestPlan } =
-    prepareHealthCollection(input, portIds, accountingInput);
+  const {
+    catalog,
+    reviewedAccounting,
+    selectedPorts,
+    records,
+    directPorts,
+    contractMatches,
+    pinRules,
+    pinBindingConflict,
+    declaredPins,
+    archiveRules,
+    overflow,
+    requestPlan,
+  } = prepareHealthCollection(input, portIds, accountingInput);
   const limits = Object.freeze({
     ...resourceLimits,
     requests: overflow ? 0 : requestPlan.conservative_requests,
@@ -1102,7 +1272,8 @@ export async function collectRepositoryHealth(
   if (isRecord(previousReport) && previousReport.format_version === 3 && previous === null)
     throw new Error("Invalid historical health comparison; refusing to reset retained identities");
   const previousUsable =
-    previous !== null && (isRecord(previousReport) && previousReport.format_version === 3 ||
+    previous !== null &&
+    ((isRecord(previousReport) && previousReport.format_version === 3) ||
       started - Date.parse(previous.completed_at) <= 24 * 60 * 60 * 1000);
   const priorObservations = previous?.observations ?? [];
   const priorIncidents = new Map<string, PriorIncident>(
@@ -1125,28 +1296,56 @@ export async function collectRepositoryHealth(
     const rules = record.port_ids.map((id) =>
       reviewedAccounting.original_conditions.find((rule) => {
         const role = rule.role ?? "project";
-        const members = role === "project" ? record.original_upstream_port_ids : record.acquisition_port_ids;
-        return members?.includes(id) && contractMatches(rule, id, undefined,
-          { role, provider: record.provider, repository: record.repository }) &&
-          rule.provider === record.provider && rule.repository === record.repository;
-      }));
+        const members =
+          role === "project" ? record.original_upstream_port_ids : record.acquisition_port_ids;
+        return (
+          members?.includes(id) &&
+          contractMatches(rule, id, undefined, {
+            role,
+            provider: record.provider,
+            repository: record.repository,
+          }) &&
+          rule.provider === record.provider &&
+          rule.repository === record.repository
+        );
+      }),
+    );
     return rules.every((rule) => rule !== undefined) ? rules : [];
   };
-  const observationContract = (record: LocationRecord) => observationHash({
-    format_version: HEALTH_INPUTS_VERSION,
-    provider: record.provider, repository: record.repository, release_ref: record.release_ref ?? null,
-    artifacts: [...(record.artifact_identities ?? [])].sort((a, b) => observationHash(a).localeCompare(observationHash(b))),
-    historical: [...(record.historical_artifact_identities ?? [])].sort((a, b) => observationHash(a).localeCompare(observationHash(b))),
-    endpoints: record.port_ids.toSorted().map((id) => ({
-      port_id: id,
-      reviewed_project_identity: record.original_upstream_port_ids?.includes(id)
-        ? lineage.get(id)?.current.repository ?? null : null,
-      roles: (["project", "acquisition"] as const).filter((role) =>
-        (role === "project" ? record.original_upstream_port_ids : record.acquisition_port_ids)?.includes(id))
-        .map((role) => healthEndpointHash(requiredValue(catalog.ports.find((port) => port.id === id)),
-          role, record.provider, record.repository)),
-    })),
-  });
+  const observationContract = (record: LocationRecord) =>
+    observationHash({
+      format_version: HEALTH_INPUTS_VERSION,
+      provider: record.provider,
+      repository: record.repository,
+      release_ref: record.release_ref ?? null,
+      artifacts: [...(record.artifact_identities ?? [])].sort((a, b) =>
+        observationHash(a).localeCompare(observationHash(b)),
+      ),
+      historical: [...(record.historical_artifact_identities ?? [])].sort((a, b) =>
+        observationHash(a).localeCompare(observationHash(b)),
+      ),
+      endpoints: record.port_ids.toSorted().map((id) => ({
+        port_id: id,
+        reviewed_project_identity: record.original_upstream_port_ids?.includes(id)
+          ? (lineage.get(id)?.current.repository ?? null)
+          : null,
+        roles: (["project", "acquisition"] as const)
+          .filter((role) =>
+            (role === "project"
+              ? record.original_upstream_port_ids
+              : record.acquisition_port_ids
+            )?.includes(id),
+          )
+          .map((role) =>
+            healthEndpointHash(
+              requiredValue(catalog.ports.find((port) => port.id === id)),
+              role,
+              record.provider,
+              record.repository,
+            ),
+          ),
+      })),
+    });
   const readGithubMetadata = async (endpoint: string) => {
     const remaining = deadline - now();
     if (
@@ -1288,7 +1487,8 @@ export async function collectRepositoryHealth(
       continue;
     }
     if (
-      previousUsable && comparisonMatches &&
+      previousUsable &&
+      comparisonMatches &&
       priorLocation?.reason === "rate-limit" &&
       typeof priorLocation.retry_at === "string" &&
       Number.isFinite(Date.parse(priorLocation.retry_at)) &&
@@ -1370,17 +1570,35 @@ export async function collectRepositoryHealth(
             if (pinBindingConflict(record)) throw new HealthFailure("identity-mismatch");
             const pin = requiredValue(pins[0] ?? declarations[0]);
             const repo = await readGithubMetadata(pin.repository);
-            const release = await readGithubMetadata(`${pin.repository}/releases/tags/${encodeURIComponent(pin.tag)}`);
-            if (!isRecord(release) || typeof release.id !== "number" || !Number.isSafeInteger(release.id) || release.id <= 0)
+            const release = await readGithubMetadata(
+              `${pin.repository}/releases/tags/${encodeURIComponent(pin.tag)}`,
+            );
+            if (
+              !isRecord(release) ||
+              typeof release.id !== "number" ||
+              !Number.isSafeInteger(release.id) ||
+              release.id <= 0
+            )
               throw new HealthFailure("invalid-metadata");
-            if (!isRecord(repo) || typeof repo.id !== "number" || !Number.isSafeInteger(repo.id) || repo.id <= 0)
+            if (
+              !isRecord(repo) ||
+              typeof repo.id !== "number" ||
+              !Number.isSafeInteger(repo.id) ||
+              repo.id <= 0
+            )
               throw new HealthFailure("invalid-metadata");
             result.observed_repository_id = repo.id;
             result.baseline_repository_id ??= pins[0]?.repository_id ?? repo.id;
-            if (result.baseline_repository_id !== repo.id ||
-              pins.some((scope) => scope.repository_id !== repo.id || scope.release_id !== release.id))
+            if (
+              result.baseline_repository_id !== repo.id ||
+              pins.some(
+                (scope) => scope.repository_id !== repo.id || scope.release_id !== release.id,
+              )
+            )
               throw new HealthFailure("identity-mismatch");
-            const assets = await readGithubMetadata(`${pin.repository}/releases/${release.id}/assets?per_page=100`);
+            const assets = await readGithubMetadata(
+              `${pin.repository}/releases/${release.id}/assets?per_page=100`,
+            );
             let facts;
             for (const declaration of declarations)
               facts = validateGithubDeclaredPinMetadata(repo, release, assets, declaration);
@@ -1405,7 +1623,8 @@ export async function collectRepositoryHealth(
           } catch (error) {
             result.pin_assessment = {
               status: "unknown",
-              reason: error instanceof HealthFailure ? error.reason : "invalid-or-changed-pin-metadata",
+              reason:
+                error instanceof HealthFailure ? error.reason : "invalid-or-changed-pin-metadata",
             };
             result.resume_condition =
               "Reassess exact declared pin metadata; changed, unavailable, ambiguous or incomplete facts remain visible. Reviewed numeric identities are retained. No redirect destination or bytes were inspected.";
@@ -1553,11 +1772,21 @@ export async function collectRepositoryHealth(
         continue;
       }
       const reviewedIds = new Set([
-        ...reviewedAccounting.pins.filter((pin) => github && pin.repository.toLowerCase() === record.repository.toLowerCase()).map((pin) => pin.repository_id),
-        ...(reviewedAccounting.source_archives ?? []).filter((pin) => github && pin.repository.toLowerCase() === record.repository.toLowerCase()).map((pin) => pin.repository_id),
+        ...reviewedAccounting.pins
+          .filter(
+            (pin) => github && pin.repository.toLowerCase() === record.repository.toLowerCase(),
+          )
+          .map((pin) => pin.repository_id),
+        ...(reviewedAccounting.source_archives ?? [])
+          .filter(
+            (pin) => github && pin.repository.toLowerCase() === record.repository.toLowerCase(),
+          )
+          .map((pin) => pin.repository_id),
         ...(record.original_upstream_port_ids ?? []).flatMap((id) => {
           const identity = lineage.get(id)?.current.repository;
-          return identity?.host === (github ? "github.com" : "gitlab.com") ? [Number(identity.id)] : [];
+          return identity?.host === (github ? "github.com" : "gitlab.com")
+            ? [Number(identity.id)]
+            : [];
         }),
       ]);
       if (reviewedIds.size > 1 || [...reviewedIds].some((id) => id !== facts.id)) {
@@ -1601,24 +1830,34 @@ export async function collectRepositoryHealth(
       record.status === "reachable" ||
       knownMaintenance ||
       record.reviewed_condition_sha256 !== null ||
-      pinPresent || pinObserved ||
+      pinPresent ||
+      pinObserved ||
       commitPresent;
     record.classification = pinPresent
       ? "provider-reported-pin-present; destination-unknown; bytes-unverified"
-      : pinObserved ? "provider-reported-pin-observed; identity-unbound; destination-unknown; bytes-unverified"
-      : commitPresent
-        ? "provider-reported-commit-present; destination-unknown; bytes-unverified"
-        : record.reviewed_condition_sha256 !== null
-          ? "reviewed-endpoint-condition; availability-unknown; lineage-separately-recorded"
-          : knownMaintenance
-            ? "catalog-declared-unavailable-original"
-            : record.status === "reachable"
-              ? "location-reachable; exact-bytes-unverified"
-              : "unclassified-or-actionable";
+      : pinObserved
+        ? "provider-reported-pin-observed; identity-unbound; destination-unknown; bytes-unverified"
+        : commitPresent
+          ? "provider-reported-commit-present; destination-unknown; bytes-unverified"
+          : record.reviewed_condition_sha256 !== null
+            ? "reviewed-endpoint-condition; availability-unknown; lineage-separately-recorded"
+            : knownMaintenance
+              ? "catalog-declared-unavailable-original"
+              : record.status === "reachable"
+                ? "location-reachable; exact-bytes-unverified"
+                : "unclassified-or-actionable";
   }
   const incompleteReasons = new Set([
-    "authentication", "forbidden", "rate-limit", "provider-error", "transport", "timeout",
-    "invalid-metadata", "budget", "provider-status", "invalid-or-changed-pin-metadata",
+    "authentication",
+    "forbidden",
+    "rate-limit",
+    "provider-error",
+    "transport",
+    "timeout",
+    "invalid-metadata",
+    "budget",
+    "provider-status",
+    "invalid-or-changed-pin-metadata",
     "invalid-or-changed-commit-metadata",
   ]);
   const collected = (record: HealthObservation) =>
@@ -1636,7 +1875,7 @@ export async function collectRepositoryHealth(
     return {
       port_id: port.id,
       health_contract_sha256: healthCatalogPortHash(catalog, port.id, lineageRecords),
-      collection_status: locations.every(collected) ? "complete" as const : "partial" as const,
+      collection_status: locations.every(collected) ? ("complete" as const) : ("partial" as const),
       original_upstream: {
         status:
           original.length && original.every((record) => record.status === "reachable")
@@ -1653,8 +1892,14 @@ export async function collectRepositoryHealth(
       lineage: {
         status: lineage.get(port.id)?.status ?? "not-assessed",
         owner_issue: 139,
-        successor_selected: lineage.has(port.id) ? lineage.get(port.id)!.decisions.some((decision) =>
-          decision.outcome === "accepted" && decision.relationship === "successor") : null,
+        successor_selected: lineage.has(port.id)
+          ? lineage
+              .get(port.id)!
+              .decisions.some(
+                (decision) =>
+                  decision.outcome === "accepted" && decision.relationship === "successor",
+              )
+          : null,
         current: lineage.get(port.id)?.current ?? null,
         history: lineage.get(port.id)?.history ?? [],
         decisions: lineage.get(port.id)?.decisions ?? [],
@@ -1775,20 +2020,29 @@ export async function collectRepositoryHealth(
       ),
     )
     .map((incident) => incident.key);
-  const assessmentRecoveredIncidents = [...priorIncidents.values()].filter((incident) =>
-    incident.accounted_for === false && observations.some((record) =>
-      record.accounted_for === true &&
-      (record.pin_assessment?.status === "provider-reported-pin-present" ||
-        record.pin_assessment?.status === "provider-reported-pin-observed" ||
-        record.source_archive_assessment?.status === "provider-reported-commit-present") &&
-      typeof incident.port_id === "string" && record.port_ids.includes(incident.port_id) &&
-      record.provider === incident.provider && record.repository === incident.location &&
-      (record.release_ref ?? null) === incident.release_ref &&
-      record.observation_contract_sha256 === incident.observation_contract_sha256))
+  const assessmentRecoveredIncidents = [...priorIncidents.values()]
+    .filter(
+      (incident) =>
+        incident.accounted_for === false &&
+        observations.some(
+          (record) =>
+            record.accounted_for === true &&
+            (record.pin_assessment?.status === "provider-reported-pin-present" ||
+              record.pin_assessment?.status === "provider-reported-pin-observed" ||
+              record.source_archive_assessment?.status === "provider-reported-commit-present") &&
+            typeof incident.port_id === "string" &&
+            record.port_ids.includes(incident.port_id) &&
+            record.provider === incident.provider &&
+            record.repository === incident.location &&
+            (record.release_ref ?? null) === incident.release_ref &&
+            record.observation_contract_sha256 === incident.observation_contract_sha256,
+        ),
+    )
     .map((incident) => incident.key);
   return {
     format_version: 3,
-    collection_status: !overflow && observations.every(collected) ? "complete" as const : "partial" as const,
+    collection_status:
+      !overflow && observations.every(collected) ? ("complete" as const) : ("partial" as const),
     authority:
       "read-only-location-observation; no lineage, artifact, hold or qualification authority",
     catalog_sha256: catalogHash,

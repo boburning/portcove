@@ -100,7 +100,8 @@ export interface HealthLineageInputs {
 // decision/review semantics; this projection supplies its narrow listing input.
 export function healthLineageInputs(value: unknown): HealthLineageInputs {
   if (
-    !isRecord(value) || !isRecord(value.listing) ||
+    !isRecord(value) ||
+    !isRecord(value.listing) ||
     typeof value.listing.id !== "string" ||
     !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(value.listing.id) ||
     typeof value.listing.project_url !== "string" ||
@@ -118,9 +119,13 @@ export function healthLineageInputs(value: unknown): HealthLineageInputs {
     listing: {
       id: value.listing.id,
       project_url: value.listing.project_url,
-      ...(value.listing.issue_number === undefined ? {} : { issue_number: Number(value.listing.issue_number) }),
+      ...(value.listing.issue_number === undefined
+        ? {}
+        : { issue_number: Number(value.listing.issue_number) }),
     },
-    ...(value.upstream_lineage === undefined ? {} : { upstream_lineage: value.upstream_lineage as UpstreamLineage }),
+    ...(value.upstream_lineage === undefined
+      ? {}
+      : { upstream_lineage: value.upstream_lineage as UpstreamLineage }),
   };
   assessUpstreamLineage(inputs);
   return inputs;
@@ -226,8 +231,13 @@ export function healthCatalogPortHash(
   const seen = new Set<string>();
   let lineage: HealthLineageInputs | null = null;
   for (const record of lineageRecords) {
-    if (!isRecord(record) || !isRecord(record.listing) ||
-      typeof record.listing.id !== "string" || !ids.has(record.listing.id) || seen.has(record.listing.id))
+    if (
+      !isRecord(record) ||
+      !isRecord(record.listing) ||
+      typeof record.listing.id !== "string" ||
+      !ids.has(record.listing.id) ||
+      seen.has(record.listing.id)
+    )
       throw new Error("Invalid or duplicate upstream health lineage port");
     seen.add(record.listing.id);
     if (record.listing.id === portId) lineage = healthLineageInputs(record);

@@ -2757,7 +2757,7 @@ void test("live upstream health has bounded independent triggers while catalog s
   const step = (name: string) => {
     const entry: unknown = steps.find((value) => isRecord(value) && value.name === name);
     assert.ok(isRecord(entry) && isRecord(entry.with), `Missing workflow step: ${name}`);
-    return { ...entry, with: entry.with };
+    return { uses: entry.uses, if: entry.if, with: entry.with };
   };
   const restore = step("Restore main observation history");
   const save = step("Preserve trusted main observation history");
@@ -2768,15 +2768,17 @@ void test("live upstream health has bounded independent triggers while catalog s
   assert.equal(save.with.path, restore.with.path);
   assert.equal(restore.with["restore-keys"], "upstream-health-history-v1-main-");
   assert.equal(save.with.key, restore.with.key);
-  assert.match(String(save.if), /!cancelled\(\)/);
-  assert.match(String(save.if), /github\.repository == 'boburning\/portcove'/);
-  assert.match(String(save.if), /github\.ref == 'refs\/heads\/main'/);
-  assert.match(String(save.if), /github\.event_name != 'pull_request'/);
-  assert.match(String(save.if), /steps\.monitor\.outputs\.checkpoint_updated == 'true'/);
+  assert.ok(typeof save.if === "string");
+  assert.match(save.if, /!cancelled\(\)/);
+  assert.match(save.if, /github\.repository == 'boburning\/portcove'/);
+  assert.match(save.if, /github\.ref == 'refs\/heads\/main'/);
+  assert.match(save.if, /github\.event_name != 'pull_request'/);
+  assert.match(save.if, /steps\.monitor\.outputs\.checkpoint_updated == 'true'/);
   assert.equal(upload.if, "${{ !cancelled() }}");
-  assert.match(String(upload.with.path), /work\/upstream-health\/report\.json/);
-  assert.match(String(upload.with.path), /work\/upstream-health\/summary\.md/);
-  assert.doesNotMatch(String(upload.with.path), /checkpoint\.json/);
+  assert.ok(typeof upload.with.path === "string");
+  assert.match(upload.with.path, /work\/upstream-health\/report\.json/);
+  assert.match(upload.with.path, /work\/upstream-health\/summary\.md/);
+  assert.doesNotMatch(upload.with.path, /checkpoint\.json/);
   assert.equal(upload.with["retention-days"], 7);
   const release = await readFile(
     new URL("../.github/workflows/release.yml", import.meta.url),

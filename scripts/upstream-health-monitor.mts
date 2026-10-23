@@ -30,7 +30,10 @@ type Collection = Awaited<ReturnType<typeof collectRepositoryHealth>>;
 type Observation = Collection["observations"][number];
 type PortHealth = Collection["port_health"][number];
 type Incident = PortHealth["canonical_incidents"][number];
-type IncidentHistory = Pick<PortHealth, "port_id" | "health_contract_sha256" | "canonical_incidents">;
+type IncidentHistory = Pick<
+  PortHealth,
+  "port_id" | "health_contract_sha256" | "canonical_incidents"
+>;
 type CatalogPort = Record<string, unknown> & { id: string };
 type Catalog = Record<string, unknown> & { ports: CatalogPort[] };
 
@@ -108,7 +111,11 @@ interface MonitorOptions extends Omit<HealthOptions, "portIds" | "previousReport
   scope: HealthMonitorScope;
   policySha256: string;
   collect?: typeof collectRepositoryHealth;
-  estimate?: (input: unknown, portIds: string[], accounting?: unknown) => {
+  estimate?: (
+    input: unknown,
+    portIds: string[],
+    accounting?: unknown,
+  ) => {
     conservative_requests: number;
     hard_ceiling: number;
     status: string;
@@ -190,7 +197,8 @@ function validateCheckpoint(value: unknown, now: number): HealthCheckpoint | nul
       !hash(attempt.health_contract_sha256) ||
       !hash(attempt.policy_sha256) ||
       !clock(attempt.attempted_at, completion) ||
-      (attempt.scheduling_attempted_at !== null && !clock(attempt.scheduling_attempted_at, Date.parse(attempt.attempted_at))) ||
+      (attempt.scheduling_attempted_at !== null &&
+        !clock(attempt.scheduling_attempted_at, Date.parse(attempt.attempted_at))) ||
       !["complete", "partial"].includes(String(attempt.collection_status))
     )
       throw new Error("Monitoring checkpoint contains an invalid port attempt");
@@ -232,7 +240,8 @@ function validateCheckpoint(value: unknown, now: number): HealthCheckpoint | nul
       throw new Error("Monitoring checkpoint contains invalid incident history");
     healthIds.add(port.port_id);
   }
-  if (healthIds.size !== ids.size) throw new Error("Monitoring checkpoint is missing port incident history");
+  if (healthIds.size !== ids.size)
+    throw new Error("Monitoring checkpoint is missing port incident history");
   const historyIds = new Set<string>();
   const incidentKeys = new Set<string>();
   for (const port of value.incident_history) {
@@ -243,18 +252,24 @@ function validateCheckpoint(value: unknown, now: number): HealthCheckpoint | nul
       !ids.has(port.port_id) ||
       !hash(port.health_contract_sha256) ||
       !Array.isArray(port.canonical_incidents) ||
-      port.canonical_incidents.length > 512 ||
-      port.canonical_incidents.some((incident: unknown) =>
-        !isRecord(incident) || !isHealthIncidentHistory(incident, completion) || incident.port_id !== port.port_id)
+      port.canonical_incidents.length > 512
     )
       throw new Error("Monitoring checkpoint contains invalid retained incident history");
-    for (const incident of port.canonical_incidents) {
-      if (incidentKeys.has(incident.key)) throw new Error("Monitoring checkpoint repeats a retained incident");
+    const incidents: unknown[] = port.canonical_incidents;
+    for (const incident of incidents) {
+      if (
+        !isHealthIncidentHistory(incident, completion) ||
+        incident.port_id !== port.port_id
+      )
+        throw new Error("Monitoring checkpoint contains invalid retained incident history");
+      if (incidentKeys.has(incident.key))
+        throw new Error("Monitoring checkpoint repeats a retained incident");
       incidentKeys.add(incident.key);
     }
     historyIds.add(port.port_id);
   }
-  if (incidentKeys.size > maximumObservations) throw new Error("Monitoring checkpoint exceeds its incident-history bound");
+  if (incidentKeys.size > maximumObservations)
+    throw new Error("Monitoring checkpoint exceeds its incident-history bound");
   return value as unknown as HealthCheckpoint;
 }
 
@@ -303,13 +318,17 @@ export async function advanceHealthMonitor(
   // Validate the entire inventory and policy before selecting any network work.
   estimate(input, [], healthOptions.reviewedAccounting);
   const attempts = new Map(previous?.attempts.map((attempt) => [attempt.port_id, attempt]) ?? []);
-  const currentHashes = new Map(input.ports.map((port) => [
-    port.id,
-    healthCatalogPortHash(input, port.id, healthOptions.lineageRecords ?? []),
-  ]));
+  const currentHashes = new Map(
+    input.ports.map((port) => [
+      port.id,
+      healthCatalogPortHash(input, port.id, healthOptions.lineageRecords ?? []),
+    ]),
+  );
   const applicable = (id: string) => {
     const attempt = attempts.get(id);
-    return attempt && attempt.health_contract_sha256 === currentHashes.get(id) && attempt.policy_sha256 === policySha256
+    return attempt &&
+      attempt.health_contract_sha256 === currentHashes.get(id) &&
+      attempt.policy_sha256 === policySha256
       ? attempt
       : undefined;
   };
@@ -317,7 +336,11 @@ export async function advanceHealthMonitor(
     .filter((id) => {
       if (execution.event !== "push" || !isTrustedHealthExecution(execution)) return true;
       const attempt = applicable(id);
-      return !attempt || attempt.collection_status === "partial" || started - Date.parse(attempt.attempted_at) >= healthFreshnessMs;
+      return (
+        !attempt ||
+        attempt.collection_status === "partial" ||
+        started - Date.parse(attempt.attempted_at) >= healthFreshnessMs
+      );
     })
     .sort((left, right) => {
       const age = (id: string) => {
@@ -330,21 +353,28 @@ export async function advanceHealthMonitor(
   const oversized: string[] = [];
   for (const id of due) {
     const plan = estimate(input, [...selected, id], healthOptions.reviewedAccounting);
-    if (plan.status === "admitted" && plan.conservative_requests <= plan.hard_ceiling) selected.push(id);
+    if (plan.status === "admitted" && plan.conservative_requests <= plan.hard_ceiling)
+      selected.push(id);
     else {
       const single = estimate(input, [id], healthOptions.reviewedAccounting);
-      if (single.status !== "admitted" || single.conservative_requests > single.hard_ceiling) oversized.push(id);
+      if (single.status !== "admitted" || single.conservative_requests > single.hard_ceiling)
+        oversized.push(id);
     }
   }
   const selectedSet = new Set(selected);
   // This is a historical comparison envelope, never a current full-inventory result.
-  const comparison = previous === null ? null : {
-    format_version: 3,
-    authority: "historical-comparison-only",
-    completed_at: previous.updated_at,
-    observations: previous.observations.filter((observation) => observation.port_ids.some((id) => selectedSet.has(id))),
-    port_health: previous.incident_history.filter((port) => selectedSet.has(port.port_id)),
-  };
+  const comparison =
+    previous === null
+      ? null
+      : {
+          format_version: 3,
+          authority: "historical-comparison-only",
+          completed_at: previous.updated_at,
+          observations: previous.observations.filter((observation) =>
+            observation.port_ids.some((id) => selectedSet.has(id)),
+          ),
+          port_health: previous.incident_history.filter((port) => selectedSet.has(port.port_id)),
+        };
   const collection = await collect(input, {
     ...healthOptions,
     now,
@@ -352,9 +382,12 @@ export async function advanceHealthMonitor(
     previousReport: comparison,
   });
   const completed = now();
-  if (!clock(collection.completed_at, completed)) throw new Error("Monitoring returned an invalid completion clock");
+  if (!clock(collection.completed_at, completed))
+    throw new Error("Monitoring returned an invalid completion clock");
   const currentIds = new Set(input.ports.map((port) => port.id));
-  const freshObservations = new Map(collection.observations.map((observation) => [locationKey(observation), observation]));
+  const freshObservations = new Map(
+    collection.observations.map((observation) => [locationKey(observation), observation]),
+  );
   const retainedObservations = (previous?.observations ?? []).filter(
     (observation) =>
       !freshObservations.has(locationKey(observation)) &&
@@ -362,27 +395,41 @@ export async function advanceHealthMonitor(
   );
   const history = [...retainedObservations, ...collection.observations];
   const portHealth = [
-    ...(previous?.port_health ?? []).filter((port) => currentIds.has(port.port_id) && !selectedSet.has(port.port_id)),
+    ...(previous?.port_health ?? []).filter(
+      (port) => currentIds.has(port.port_id) && !selectedSet.has(port.port_id),
+    ),
     ...collection.port_health,
   ];
   // Inconclusive attempts replace current conditions, but cannot resolve a
   // previous condition. Keep that comparison history separate from this run's
   // current incident list until recovery or replacement of the observed scope.
-  const incidentHistory = new Map((previous?.incident_history ?? [])
-    .filter((port) => currentIds.has(port.port_id))
-    .map((port) => [port.port_id, port]));
-  const resolved = new Set([...collection.resolved_incidents, ...collection.assessment_recovered_incidents]);
+  const incidentHistory = new Map(
+    (previous?.incident_history ?? [])
+      .filter((port) => currentIds.has(port.port_id))
+      .map((port) => [port.port_id, port]),
+  );
+  const resolved = new Set([
+    ...collection.resolved_incidents,
+    ...collection.assessment_recovered_incidents,
+  ]);
   for (const health of collection.port_health) {
-    const currentLocations = new Map(collection.observations
-      .filter((record) => record.port_ids.includes(health.port_id))
-      .map((record) => [locationKey(record), record.observation_contract_sha256]));
-    const retained = (incidentHistory.get(health.port_id)?.canonical_incidents ?? [])
-      .filter((incident) => !resolved.has(incident.key) && currentLocations.get(locationKey({
-        provider: incident.provider,
-        repository: incident.location,
-        release_ref: incident.release_ref,
-        port_ids: [incident.port_id],
-      })) === incident.observation_contract_sha256);
+    const currentLocations = new Map(
+      collection.observations
+        .filter((record) => record.port_ids.includes(health.port_id))
+        .map((record) => [locationKey(record), record.observation_contract_sha256]),
+    );
+    const retained = (incidentHistory.get(health.port_id)?.canonical_incidents ?? []).filter(
+      (incident) =>
+        !resolved.has(incident.key) &&
+        currentLocations.get(
+          locationKey({
+            provider: incident.provider,
+            repository: incident.location,
+            release_ref: incident.release_ref,
+            port_ids: [incident.port_id],
+          }),
+        ) === incident.observation_contract_sha256,
+    );
     const incidents = new Map(retained.map((incident) => [incident.key, incident]));
     for (const incident of health.canonical_incidents) incidents.set(incident.key, incident);
     incidentHistory.set(health.port_id, {
@@ -397,8 +444,14 @@ export async function advanceHealthMonitor(
     if (!health || health.health_contract_sha256 !== currentHashes.get(id))
       throw new Error("Monitoring collection omitted or changed a selected port contract");
     const locations = collection.observations.filter((record) => record.port_ids.includes(id));
-    const whollyDeferred = locations.length > 0 && locations.every((record) =>
-      !record.attempted && !record.metadata_reused && ["budget", "rate-limit"].includes(record.reason ?? ""));
+    const whollyDeferred =
+      locations.length > 0 &&
+      locations.every(
+        (record) =>
+          !record.attempted &&
+          !record.metadata_reused &&
+          ["budget", "rate-limit"].includes(record.reason ?? ""),
+      );
     attempts.set(id, {
       port_id: id,
       health_contract_sha256: currentHashes.get(id)!,
@@ -407,17 +460,21 @@ export async function advanceHealthMonitor(
       // Deferred tails must get a turn before recently attempted ports when
       // wall-clock or provider limits stop a request-admitted batch early.
       scheduling_attempted_at: whollyDeferred
-        ? applicable(id)?.scheduling_attempted_at ?? null
+        ? (applicable(id)?.scheduling_attempted_at ?? null)
         : collection.completed_at,
       collection_status: health.collection_status,
     });
   }
-  const latestAttempts = [...attempts.values()].filter((attempt) => currentIds.has(attempt.port_id));
+  const latestAttempts = [...attempts.values()].filter((attempt) =>
+    currentIds.has(attempt.port_id),
+  );
   const inventory = {
     total_ports: input.ports.length,
     freshness_ms: healthFreshnessMs,
     assessed_this_run_port_ids: selected,
-    unassessed_this_run_port_ids: input.ports.map((port) => port.id).filter((id) => !selectedSet.has(id)),
+    unassessed_this_run_port_ids: input.ports
+      .map((port) => port.id)
+      .filter((id) => !selectedSet.has(id)),
     fresh_complete_port_ids: [] as string[],
     fresh_partial_port_ids: [] as string[],
     stale_port_ids: [] as string[],
@@ -426,8 +483,10 @@ export async function advanceHealthMonitor(
   for (const port of input.ports) {
     const attempt = applicable(port.id);
     if (!attempt) inventory.unmonitored_port_ids.push(port.id);
-    else if (completed - Date.parse(attempt.attempted_at) > healthFreshnessMs) inventory.stale_port_ids.push(port.id);
-    else if (attempt.collection_status === "complete") inventory.fresh_complete_port_ids.push(port.id);
+    else if (completed - Date.parse(attempt.attempted_at) > healthFreshnessMs)
+      inventory.stale_port_ids.push(port.id);
+    else if (attempt.collection_status === "complete")
+      inventory.fresh_complete_port_ids.push(port.id);
     else inventory.fresh_partial_port_ids.push(port.id);
   }
   const candidate: HealthCheckpoint = {
@@ -443,14 +502,21 @@ export async function advanceHealthMonitor(
     port_health: portHealth,
     incident_history: [...incidentHistory.values()],
   };
-  if (history.length > maximumObservations || Buffer.byteLength(JSON.stringify(candidate)) > checkpointBytes)
+  if (
+    history.length > maximumObservations ||
+    Buffer.byteLength(JSON.stringify(candidate)) > checkpointBytes
+  )
     throw new Error("Monitoring history exceeds its explicit retention bound");
-  const checkpoint = isTrustedHealthExecution(execution) ? validateCheckpoint(candidate, completed) : null;
+  const checkpoint = isTrustedHealthExecution(execution)
+    ? validateCheckpoint(candidate, completed)
+    : null;
   const report: MonitorReport = {
     format_version: 1,
-    authority: "upstream-monitoring-only; no acquisition, artifact, lineage or publication authority",
+    authority:
+      "upstream-monitoring-only; no acquisition, artifact, lineage or publication authority",
     execution,
-    previous_checkpoint: previous === null ? "absent; comparison unavailable" : "validated main observation history",
+    previous_checkpoint:
+      previous === null ? "absent; comparison unavailable" : "validated main observation history",
     batch: {
       requested_port_ids: requested,
       selected_port_ids: selected,
@@ -465,7 +531,8 @@ export async function advanceHealthMonitor(
         ...incident,
         observed_this_run: selectedSet.has(port.port_id),
         changed_in_this_run: selectedSet.has(port.port_id) && incident.notify,
-        freshness: completed - Date.parse(attempt.attempted_at) > healthFreshnessMs ? "stale" : "fresh",
+        freshness:
+          completed - Date.parse(attempt.attempted_at) > healthFreshnessMs ? "stale" : "fresh",
         latest_collection_status: attempt.collection_status,
       }));
     }),
@@ -476,17 +543,26 @@ export async function advanceHealthMonitor(
     report,
     summary: renderHealthMonitorSummary(report),
     exitCode: collection.collection_status === "complete" && oversized.length === 0 ? 0 : 1,
-    retcomm_port_ids: input.ports.filter((port) => selectedSet.has(port.id) && port.adapter === "psx-recomp-managed").map((port) => port.id),
+    retcomm_port_ids: input.ports
+      .filter((port) => selectedSet.has(port.id) && port.adapter === "psx-recomp-managed")
+      .map((port) => port.id),
   };
 }
 
-function cell(value: unknown): string {
-  return String(value ?? "unknown").replace(/[\r\n\t|`<>]/gu, " ").slice(0, 300);
+function cell(value: string | number | boolean | null | undefined): string {
+  return String(value ?? "unknown")
+    .replace(/[\r\n\t|`<>]/gu, " ")
+    .slice(0, 300);
 }
 
 export function renderHealthMonitorSummary(report: MonitorReport): string {
   const { collection, inventory, batch } = report;
-  const routine = report.known_conditions.filter((incident) => incident.accounted_for && !incident.changed_in_this_run && String(incident.classification).startsWith("provider-reported-"));
+  const routine = report.known_conditions.filter(
+    (incident) =>
+      incident.accounted_for &&
+      !incident.changed_in_this_run &&
+      String(incident.classification).startsWith("provider-reported-"),
+  );
   const incidents = report.known_conditions.filter((incident) => !routine.includes(incident));
   const changed = incidents.filter((incident) => incident.changed_in_this_run);
   const continuing = incidents.filter((incident) => !incident.changed_in_this_run);
@@ -501,17 +577,38 @@ export function renderHealthMonitorSummary(report: MonitorReport): string {
     "",
     `Requests: ${collection.consumed.requests}/${collection.request_plan.conservative_requests} planned; hard ceiling ${collection.request_plan.hard_ceiling}. Observation records: ${collection.request_plan.observation_records}/${collection.request_plan.observation_ceiling}. ${report.previous_checkpoint}.`,
   ];
-  if (routine.length) lines.push("", `${routine.length} routine provider metadata conditions are retained separately in JSON; destination availability and accepted bytes remain unverified.`);
+  if (routine.length)
+    lines.push(
+      "",
+      `${routine.length} routine provider metadata conditions are retained separately in JSON; destination availability and accepted bytes remain unverified.`,
+    );
   if (incidents.length) {
-    lines.push("", "| Port / location | Condition | Incident | Observation | Next action |", "| --- | --- | --- | --- | --- |");
+    lines.push(
+      "",
+      "| Port / location | Condition | Incident | Observation | Next action |",
+      "| --- | --- | --- | --- | --- |",
+    );
     for (const incident of [...changed, ...continuing].slice(0, 20)) {
-      lines.push(`| ${cell(incident.port_id)} / ${cell(incident.location)} | ${cell(incident.rule)} (${cell(incident.http_status)}); ${incident.accounted_for ? "acknowledged" : "actionable"} | ${incident.changed_in_this_run ? "New or changed" : "Continuing"}; first ${cell(incident.first_seen)} | ${incident.observed_this_run ? "This run" : "Retained history"}; ${cell(incident.freshness)} | ${cell(incident.resume_condition)} |`);
+      lines.push(
+        `| ${cell(incident.port_id)} / ${cell(incident.location)} | ${cell(incident.rule)} (${cell(incident.http_status)}); ${incident.accounted_for ? "acknowledged" : "actionable"} | ${incident.changed_in_this_run ? "New or changed" : "Continuing"}; first ${cell(incident.first_seen)} | ${incident.observed_this_run ? "This run" : "Retained history"}; ${cell(incident.freshness)} | ${cell(incident.resume_condition)} |`,
+      );
     }
-    if (incidents.length > 20) lines.push("", `${incidents.length - 20} additional conditions are retained in the JSON report.`);
+    if (incidents.length > 20)
+      lines.push(
+        "",
+        `${incidents.length - 20} additional conditions are retained in the JSON report.`,
+      );
   }
   if (batch.oversized_port_ids.length)
-    lines.push("", `**A single port exceeds the collection budget:** ${batch.oversized_port_ids.map(cell).join(", ")}. Its obligations remain unassessed.`);
-  if (!batch.selected_port_ids.length) lines.push("", "No live upstream requests were selected. Existing history is not a fresh inventory observation.");
+    lines.push(
+      "",
+      `**A single port exceeds the collection budget:** ${batch.oversized_port_ids.map(cell).join(", ")}. Its obligations remain unassessed.`,
+    );
+  if (!batch.selected_port_ids.length)
+    lines.push(
+      "",
+      "No live upstream requests were selected. Existing history is not a fresh inventory observation.",
+    );
   return `${lines.join("\n")}\n`;
 }
 
@@ -519,9 +616,13 @@ async function boundedJson(filename: string, maximum: number, optional = false):
   const safe = await assertOwnedUnlinkedPath(root, filename, "monitor input");
   let handle;
   try {
-    handle = await open(safe, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+    handle = await open(
+      safe,
+      constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0),
+    );
     const info = await handle.stat();
-    if (!info.isFile() || info.size > maximum) throw new Error("Monitoring input exceeds its regular-file bound");
+    if (!info.isFile() || info.size > maximum)
+      throw new Error("Monitoring input exceeds its regular-file bound");
     const bytes = Buffer.alloc(maximum + 1);
     let length = 0;
     while (length < bytes.length) {
@@ -540,9 +641,14 @@ async function boundedJson(filename: string, maximum: number, optional = false):
 }
 
 async function atomicJson(filename: string, value: unknown): Promise<void> {
-  const destination = await assertOwnedUnlinkedPath(path.join(root, "work"), filename, "monitor output");
+  const destination = await assertOwnedUnlinkedPath(
+    path.join(root, "work"),
+    filename,
+    "monitor output",
+  );
   const content = JSON.stringify(value);
-  if (Buffer.byteLength(content) > checkpointBytes) throw new Error("Monitoring output exceeds its byte bound");
+  if (Buffer.byteLength(content) > checkpointBytes)
+    throw new Error("Monitoring output exceeds its byte bound");
   await mkdir(path.dirname(destination), { recursive: true });
   const temporary = `${destination}.${randomUUID()}.next`;
   try {
@@ -567,7 +673,8 @@ function executionFromEnvironment(): HealthExecution {
 }
 
 async function main(): Promise<void> {
-  if (process.argv.length !== 2) throw new Error("upstream-health-monitor accepts fixed workflow environment only");
+  if (process.argv.length !== 2)
+    throw new Error("upstream-health-monitor accepts fixed workflow environment only");
   const workRoot = path.join(root, "work");
   await assertOwnedUnlinkedPath(root, workRoot, "monitor work directory");
   await mkdir(workRoot, { recursive: true });
@@ -581,9 +688,16 @@ async function main(): Promise<void> {
   await withCheckpointLock(checkpoint, async () => {
     try {
       const mode = process.env.HEALTH_MODE;
-      if (mode !== "full" && mode !== "affected" && mode !== "none") throw new Error("Missing monitor scope");
-      const policy = await boundedJson(path.join(root, ".github/upstream-health-accounting.json"), 1024 * 1024);
-      const catalog = await boundedJson(path.join(root, "crates/portcove-core/catalog/catalog.json"), 4 * 1024 * 1024);
+      if (mode !== "full" && mode !== "affected" && mode !== "none")
+        throw new Error("Missing monitor scope");
+      const policy = await boundedJson(
+        path.join(root, ".github/upstream-health-accounting.json"),
+        1024 * 1024,
+      );
+      const catalog = await boundedJson(
+        path.join(root, "crates/portcove-core/catalog/catalog.json"),
+        4 * 1024 * 1024,
+      );
       const result = await advanceHealthMonitor(
         catalog,
         await boundedJson(checkpoint, checkpointBytes, true),
@@ -602,9 +716,13 @@ async function main(): Promise<void> {
       await atomicJson(reportPath, result.report);
       await assertOwnedUnlinkedPath(path.join(root, "work"), summaryPath, "monitor summary");
       await writeFile(summaryPath, result.summary);
-      if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, result.summary);
+      if (process.env.GITHUB_STEP_SUMMARY)
+        await appendFile(process.env.GITHUB_STEP_SUMMARY, result.summary);
       if (process.env.GITHUB_OUTPUT)
-        await appendFile(process.env.GITHUB_OUTPUT, `retcomm=${result.retcomm_port_ids.length > 0}\nretcomm_port_ids=${result.retcomm_port_ids.join(",")}\ncheckpoint_updated=${result.checkpoint !== null}\n`);
+        await appendFile(
+          process.env.GITHUB_OUTPUT,
+          `retcomm=${result.retcomm_port_ids.length > 0}\nretcomm_port_ids=${result.retcomm_port_ids.join(",")}\ncheckpoint_updated=${result.checkpoint !== null}\n`,
+        );
       console.log(result.summary);
       process.exitCode = result.exitCode;
     } catch (error) {
@@ -614,12 +732,15 @@ async function main(): Promise<void> {
         execution,
         collection_status: "failed",
         observed_at: new Date().toISOString(),
-        reason: "Coordinator, input or state validation failed; prior checkpoint remains historical evidence",
+        reason:
+          "Coordinator, input or state validation failed; prior checkpoint remains historical evidence",
       });
-      const failureSummary = "## Upstream health observation\n\n**Collection failed.** Input, checkpoint or coordinator validation failed. Current upstream state is unassessed; prior checkpoint observations remain historical. Inspect the retained JSON report and failed step.\n";
+      const failureSummary =
+        "## Upstream health observation\n\n**Collection failed.** Input, checkpoint or coordinator validation failed. Current upstream state is unassessed; prior checkpoint observations remain historical. Inspect the retained JSON report and failed step.\n";
       await assertOwnedUnlinkedPath(workRoot, summaryPath, "monitor failure summary");
       await writeFile(summaryPath, failureSummary);
-      if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, failureSummary);
+      if (process.env.GITHUB_STEP_SUMMARY)
+        await appendFile(process.env.GITHUB_STEP_SUMMARY, failureSummary);
       throw error;
     }
   });
@@ -627,6 +748,8 @@ async function main(): Promise<void> {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
   main().catch(() => {
-    console.error("Upstream health monitoring failed; retained report and prior history require inspection.");
+    console.error(
+      "Upstream health monitoring failed; retained report and prior history require inspection.",
+    );
     process.exitCode = 1;
   });

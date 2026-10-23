@@ -1814,7 +1814,10 @@ void test("upstream health sources select the affected offline contracts", () =>
     "scripts/upstream-health-plan.test.mts",
     "scripts/upstream-health-monitor.test.mts",
   ];
-  for (const file of ["scripts/check-catalog-repositories.mts", "scripts/upstream-health-inputs.mts"]) {
+  for (const file of [
+    "scripts/check-catalog-repositories.mts",
+    "scripts/upstream-health-inputs.mts",
+  ]) {
     const owned = planFor([file]);
     assert.equal(owned.selection.unknown.size, 0);
     const command = requiredFixture(owned.plan.find((entry) => entry.id === "node-tests"));
@@ -1824,9 +1827,10 @@ void test("upstream health sources select the affected offline contracts", () =>
   for (const [file, tests] of [
     ["scripts/upstream-health-plan.mts", ["scripts/upstream-health-plan.test.mts"]],
     ["scripts/upstream-health-monitor.mts", ["scripts/upstream-health-monitor.test.mts"]],
-    [".github/workflows/upstream-health.yml", [
-      "scripts/upstream-health-plan.test.mts", "scripts/upstream-health-monitor.test.mts",
-    ]],
+    [
+      ".github/workflows/upstream-health.yml",
+      ["scripts/upstream-health-plan.test.mts", "scripts/upstream-health-monitor.test.mts"],
+    ],
     ["scripts/node-test-suites.json", ["scripts/node-test-inventory.test.mts"]],
   ] as const) {
     const owned = planFor([file]);

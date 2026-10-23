@@ -1,4 +1,5 @@
 name: Upstream health candidate validation
+# Temporary branch validation revision 2.
 
 on:
   push:
@@ -54,3 +55,4 @@ jobs:
           name: upstream-health-candidate-format
           path: work/upstream-health-candidate/formatter.patch
           retention-days: 7
+

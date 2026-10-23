@@ -52,7 +52,13 @@ function acceptAlternative(record: ReturnType<typeof authoring>) {
     relationship: "alternative",
     outcome: "accepted",
     rationale: "A separately admitted implementation retains its own canonical port.",
-    evidence: [{ kind: "supporting", reference: "https://example.invalid/review", note: "Reviewed attributable evidence." }],
+    evidence: [
+      {
+        kind: "supporting",
+        reference: "https://example.invalid/review",
+        note: "Reviewed attributable evidence.",
+      },
+    ],
     reconsider_when: "New contradictory provenance evidence is reviewed.",
     related_port: { id: "other", issue_number: 2 },
   };
@@ -181,7 +187,14 @@ void test("lineage freshness binds reviewed authoring facts without presentation
   const invalid = structuredClone(accepted);
   invalid.upstream_lineage.decisions[0]!.review!.decision_sha256 = "a".repeat(64);
   assert.throws(() => hash(invalid), /review does not bind/);
-  assert.throws(() => hash({ ...original, listing: { ...original.listing, project_url: "https://github.com/owner/wrong" } }), /Listing origin/);
+  assert.throws(
+    () =>
+      hash({
+        ...original,
+        listing: { ...original.listing, project_url: "https://github.com/owner/wrong" },
+      }),
+    /Listing origin/,
+  );
   assert.throws(() => healthCatalogPortHash(input, "game", [original, original]), /duplicate/);
 });
 
@@ -194,13 +207,18 @@ void test("mixed artwork and documentation changes make no live obligations", as
   const before = [authoring("game"), authoring("other")];
   const after = structuredClone(before);
   for (const record of after) record.listing.artwork.image_id = "new-cover";
-  const scope = await selectUpstreamHealthScope(base, head, [
-    change(),
-    change("crates/portcove-core/catalog/ports/game.json"),
-    change("crates/portcove-core/catalog/ports/other.json"),
-    change("apps/desktop/src/library.tsx"),
-    change("README.md"),
-  ], { base: before, head: after });
+  const scope = await selectUpstreamHealthScope(
+    base,
+    head,
+    [
+      change(),
+      change("crates/portcove-core/catalog/ports/game.json"),
+      change("crates/portcove-core/catalog/ports/other.json"),
+      change("apps/desktop/src/library.tsx"),
+      change("README.md"),
+    ],
+    { base: before, head: after },
+  );
   assert.equal(scope.mode, "none");
   assert.deepEqual(scope.port_ids, []);
 });
@@ -218,20 +236,28 @@ void test("bulk listing-only artwork does not enter the monitored lineage invent
   const game = authoring("game");
   const gameArt = structuredClone(game);
   gameArt.listing.artwork.image_id = "new-cover";
-  const changes = [change(authoringPath("game")), ...listed.map((record) => change(authoringPath(record.listing.id)))];
+  const changes = [
+    change(authoringPath("game")),
+    ...listed.map((record) => change(authoringPath(record.listing.id))),
+  ];
   const scope = await selectUpstreamHealthScope(input, input, changes, {
-    base: [game, ...listed], head: [gameArt, ...updated],
+    base: [game, ...listed],
+    head: [gameArt, ...updated],
   });
   assert.equal(scope.mode, "none");
   assert.deepEqual(scope.port_ids, []);
   const relevant = await selectUpstreamHealthScope(input, input, changes, {
-    base: [game, ...listed], head: [acceptAlternative(game), ...updated],
+    base: [game, ...listed],
+    head: [acceptAlternative(game), ...updated],
   });
   assert.deepEqual(relevant.port_ids, ["game"]);
   const invalid = structuredClone(game);
   invalid.listing.project_url = "http://invalid.example/game";
   await assert.rejects(
-    selectUpstreamHealthScope(input, input, changes, { base: [game, ...listed], head: [invalid, ...updated] }),
+    selectUpstreamHealthScope(input, input, changes, {
+      base: [game, ...listed],
+      head: [invalid, ...updated],
+    }),
     /credential-free HTTPS/,
   );
 });
@@ -241,19 +267,32 @@ void test("listing-only additions stay unmonitored while integration transitions
   const listed = { listing: { id: "listed", artwork: { image_id: "cover" } } };
   const addition = change(authoringPath("listed"), { status: "A", oldMode: "000000" });
   assert.equal((await selectUpstreamHealthScope(input, input, [addition])).mode, "none");
-  assert.equal((await selectUpstreamHealthScope(input, input, [addition], {
-    base: [], head: [listed],
-  })).mode, "none");
+  assert.equal(
+    (
+      await selectUpstreamHealthScope(input, input, [addition], {
+        base: [],
+        head: [listed],
+      })
+    ).mode,
+    "none",
+  );
   const integrated = { ...input, ports: [...input.ports, port("listed")] };
   const changes = [change(), change(authoringPath("listed"))];
   const scope = await selectUpstreamHealthScope(input, integrated, changes, {
-    base: [listed], head: [authoring("listed")],
+    base: [listed],
+    head: [authoring("listed")],
   });
   assert.equal(scope.mode, "affected");
   assert.deepEqual(scope.port_ids, ["listed"]);
-  assert.equal((await selectUpstreamHealthScope(integrated, input, changes, {
-    base: [authoring("listed")], head: [listed],
-  })).mode, "full");
+  assert.equal(
+    (
+      await selectUpstreamHealthScope(integrated, input, changes, {
+        base: [authoring("listed")],
+        head: [listed],
+      })
+    ).mode,
+    "full",
+  );
   await assert.rejects(
     selectUpstreamHealthScope(input, integrated, changes, { base: [listed], head: [] }),
     /Missing exact lineage/,
@@ -264,12 +303,17 @@ void test("operational changes stay scoped through unrelated additions and renam
   const base = catalog();
   const head = structuredClone(base);
   head.ports[0]!.release.repository = "successor/game";
-  const scope = await selectUpstreamHealthScope(base, head, [
-    change(),
-    change("crates/portcove-core/catalog/ports/game.json"),
-    change("docs/new-guide.md", { status: "A", oldMode: "000000" }),
-    change("apps/desktop/src/old.ts", { status: "R", newPath: "apps/desktop/src/new.ts" }),
-  ], { base: [authoring("game")], head: [authoring("game")] });
+  const scope = await selectUpstreamHealthScope(
+    base,
+    head,
+    [
+      change(),
+      change("crates/portcove-core/catalog/ports/game.json"),
+      change("docs/new-guide.md", { status: "A", oldMode: "000000" }),
+      change("apps/desktop/src/old.ts", { status: "R", newPath: "apps/desktop/src/new.ts" }),
+    ],
+    { base: [authoring("game")], head: [authoring("game")] },
+  );
   assert.equal(scope.mode, "affected");
   assert.deepEqual(scope.port_ids, ["game"]);
 });
@@ -279,7 +323,10 @@ void test("lineage-only authoring selects its port and unavailable comparison ca
   const before = authoring("game");
   const after = acceptAlternative(before);
   const changes = [change(authoringPath("game")), change("README.md")];
-  const scope = await selectUpstreamHealthScope(input, input, changes, { base: [before], head: [after] });
+  const scope = await selectUpstreamHealthScope(input, input, changes, {
+    base: [before],
+    head: [after],
+  });
   assert.equal(scope.mode, "affected");
   assert.deepEqual(scope.port_ids, ["game"]);
   assert.equal((await selectUpstreamHealthScope(input, input, changes)).mode, "full");
@@ -289,13 +336,19 @@ void test("lineage-only authoring selects its port and unavailable comparison ca
   );
   await assert.rejects(
     selectUpstreamHealthScope(input, input, changes, {
-      base: [before], head: [{ listing: { id: "game", project_url: 42 } }],
+      base: [before],
+      head: [{ listing: { id: "game", project_url: 42 } }],
     }),
     /lineage listing/,
   );
-  assert.equal((await selectUpstreamHealthScope(input, input, [
-    change(authoringPath("game"), { status: "D", newMode: "000000" }),
-  ])).mode, "full");
+  assert.equal(
+    (
+      await selectUpstreamHealthScope(input, input, [
+        change(authoringPath("game"), { status: "D", newMode: "000000" }),
+      ])
+    ).mode,
+    "full",
+  );
 });
 
 void test("qualification invalidates only the owning port", async () => {
@@ -368,7 +421,8 @@ async function repository(t: { after: (cleanup: () => Promise<void>) => void }) 
   const writeCatalog = (value: unknown) =>
     writeFile(path.join(directory, catalogPath), `${JSON.stringify(value, null, 2)}\n`);
   const readCatalog = () => readFile(path.join(directory, catalogPath), "utf8");
-  const readAuthoring = (relativePath: string) => readFile(path.join(directory, relativePath), "utf8");
+  const readAuthoring = (relativePath: string) =>
+    readFile(path.join(directory, relativePath), "utf8");
   const writeAuthoring = (id: string, value: unknown) =>
     writeFile(path.join(directory, authoringPath(id)), `${JSON.stringify(value, null, 2)}\n`);
   const commit = (message: string) => {
@@ -381,7 +435,18 @@ async function repository(t: { after: (cleanup: () => Promise<void>) => void }) 
   for (const port of base.ports) await writeAuthoring(port.id, authoring(port.id));
   await writeFile(path.join(directory, "README.md"), "Base\n");
   const ancestor = commit("Initial catalog");
-  return { directory, git, read, base, ancestor, writeCatalog, readCatalog, writeAuthoring, readAuthoring, commit };
+  return {
+    directory,
+    git,
+    read,
+    base,
+    ancestor,
+    writeCatalog,
+    readCatalog,
+    writeAuthoring,
+    readAuthoring,
+    commit,
+  };
 }
 
 void test("merge discovery selects a lineage-only accepted decision against the actual target", async (t) => {
@@ -397,12 +462,27 @@ void test("merge discovery selects a lineage-only accepted decision against the 
     relationship: "successor",
     outcome: "unresolved",
     rationale: "Attributable continuity remains unresolved.",
-    evidence: [{ kind: "context", reference: "https://example.invalid/candidate", note: "Candidate evidence." }],
+    evidence: [
+      {
+        kind: "context",
+        reference: "https://example.invalid/candidate",
+        note: "Candidate evidence.",
+      },
+    ],
     reconsider_when: "Independent continuity review supplies sufficient evidence.",
   });
   await f.writeAuthoring("other", target);
   const baseSha = f.commit("Record unrelated target lineage evidence");
-  f.git(["-c", "commit.gpgsign=false", "merge", "--quiet", "--no-ff", "feature", "-m", "Test merge"]);
+  f.git([
+    "-c",
+    "commit.gpgsign=false",
+    "merge",
+    "--quiet",
+    "--no-ff",
+    "feature",
+    "-m",
+    "Test merge",
+  ]);
   const checkoutSha = f.read(["rev-parse", "HEAD"]);
   const context = { event: "pull_request", baseSha, headSha, checkoutSha };
   const scope = await discoverUpstreamHealthScope(context, f.git, f.readCatalog, f.readAuthoring);
@@ -430,7 +510,9 @@ void test("authoring-only artwork and copy stay outside PR health selection", as
   const headSha = f.commit("Improve authored presentation only");
   const scope = await discoverUpstreamHealthScope(
     { event: "pull_request", baseSha: f.ancestor, headSha, checkoutSha: headSha },
-    f.git, f.readCatalog, f.readAuthoring,
+    f.git,
+    f.readCatalog,
+    f.readAuthoring,
   );
   assert.equal(scope.mode, "none");
   assert.deepEqual(scope.port_ids, []);
@@ -488,7 +570,14 @@ void test("merge discovery excludes target-only changes despite an advanced even
   const targetSha = f.commit("Change unrelated target port");
   f.git(["checkout", "--quiet", "-b", "test-merge"]);
   f.git([
-    "-c", "commit.gpgsign=false", "merge", "--quiet", "--no-ff", "feature", "-m", "Test merge",
+    "-c",
+    "commit.gpgsign=false",
+    "merge",
+    "--quiet",
+    "--no-ff",
+    "feature",
+    "-m",
+    "Test merge",
   ]);
   const checkoutSha = f.read(["rev-parse", "HEAD"]);
   f.git(["checkout", "--quiet", "main"]);
@@ -519,7 +608,14 @@ void test("merge discovery validates upstream changes, head, target and catalog"
   await writeFile(path.join(f.directory, "README.md"), "Target documentation\n");
   const baseSha = f.commit("Update target documentation");
   f.git([
-    "-c", "commit.gpgsign=false", "merge", "--quiet", "--no-ff", "feature", "-m", "Test merge",
+    "-c",
+    "commit.gpgsign=false",
+    "merge",
+    "--quiet",
+    "--no-ff",
+    "feature",
+    "-m",
+    "Test merge",
   ]);
   const checkoutSha = f.read(["rev-parse", "HEAD"]);
   const context = { event: "pull_request", baseSha, headSha, checkoutSha };
@@ -572,11 +668,13 @@ void test("head checkout uses its branch delta; non-PR runs remain full", async 
   assert.equal(scope.identities.comparison_base, f.ancestor);
   for (const event of ["push", "schedule", "workflow_dispatch"])
     assert.equal(
-      (await discoverUpstreamHealthScope(
-        { event },
-        () => assert.fail("Non-PR monitoring must not need PR refs"),
-        f.readCatalog,
-      )).mode,
+      (
+        await discoverUpstreamHealthScope(
+          { event },
+          () => assert.fail("Non-PR monitoring must not need PR refs"),
+          f.readCatalog,
+        )
+      ).mode,
       "full",
     );
 });

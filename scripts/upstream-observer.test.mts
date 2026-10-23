@@ -1008,12 +1008,18 @@ void test("observation history deduplicates aged conditions and exposes recovery
   const stale = await collect(healthTime + 25 * 3600_000, first, 404);
   assert.equal(stale.previous_report, "matching observation history");
   assert.equal(stale.material_changes.length, 0);
-  assert.equal(requiredFixture(requiredFixture(stale.port_health[0]).canonical_incidents[0]).occurrences, 2);
+  assert.equal(
+    requiredFixture(requiredFixture(stale.port_health[0]).canonical_incidents[0]).occurrences,
+    2,
+  );
   const altered = structuredClone(first);
   altered.catalog_sha256 = "f".repeat(64);
   assert.equal((await collect(healthTime + 1000, altered, 404)).material_changes.length, 0);
   altered.completed_at = new Date(healthTime + 2000).toISOString();
-  await assert.rejects(collect(healthTime + 1000, altered, 404), /Invalid historical health comparison/);
+  await assert.rejects(
+    collect(healthTime + 1000, altered, 404),
+    /Invalid historical health comparison/,
+  );
 });
 
 void test("repository-name reuse is a changed unknown condition, never continuity or inherited qualification", async () => {
@@ -1366,10 +1372,9 @@ void test("additions and history select their port; removals and schema changes 
       { scope: { port_id: "old", artifact_sha256: "a".repeat(64), upstream_ref: "v1" } },
     ],
   };
-  assert.deepEqual(
-    (await selectUpstreamHealthScope(base, changedHistory, [change()])).port_ids,
-    ["old"],
-  );
+  assert.deepEqual((await selectUpstreamHealthScope(base, changedHistory, [change()])).port_ids, [
+    "old",
+  ]);
 });
 
 void test("shared tools and uncertain inventory retain full monitoring; unrelated files do not widen", async () => {
@@ -1454,9 +1459,7 @@ void test("live monitoring policy retains valid artifact and endpoint contract b
   assert.equal(policy.format_version, 2);
   const ports: unknown[] = catalog.ports;
   const portFor = (id: string) => {
-    const port = requiredFixture(
-      ports.find((value) => isRecord(value) && value.id === id),
-    );
+    const port = requiredFixture(ports.find((value) => isRecord(value) && value.id === id));
     assert.ok(isRecord(port), id);
     return port;
   };
@@ -3031,9 +3034,13 @@ void test("malformed inventories refuse before requests and prior-report bounds 
             ),
         );
       if (count > 512) {
-        await assert.rejects(collectRepositoryHealth(catalog, {
-          previousReport: prior, fetch: fetch404,
-        }), /Invalid historical health comparison/);
+        await assert.rejects(
+          collectRepositoryHealth(catalog, {
+            previousReport: prior,
+            fetch: fetch404,
+          }),
+          /Invalid historical health comparison/,
+        );
         continue;
       }
       const report = await collectRepositoryHealth(catalog, {
