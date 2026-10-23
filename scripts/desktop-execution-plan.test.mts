@@ -19,7 +19,7 @@ import { resolveDesktopSelection, desktopHarnessDeadlineMs } from "./desktop-sce
 import { buildDesktopVerifyPlan } from "./desktop-verify.mts";
 import { runOwnedFixtureJourneys } from "../apps/desktop/scripts/desktop-owned-fixture-journeys.mts";
 import { OwnedNativeSession } from "../apps/desktop/scripts/desktop-owned-native-session.mts";
-import baseline from "./testdata/desktop-execution-baseline.json" with { type: "json" };
+import baseline from "./desktop-execution-baseline.mts";
 import type { DesktopSelection } from "./desktop-scenarios.mts";
 type KnownGap = DesktopSelection["known_gaps"][number];
 import type { OwnedFixtureJourneys } from "../apps/desktop/scripts/desktop-owned-fixture-journeys.mts";
