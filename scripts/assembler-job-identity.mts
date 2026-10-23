@@ -499,6 +499,14 @@ const capacityExecutorProfiles = Object.freeze({
 });
 export type CapacityExecutorRole = keyof typeof capacityExecutorProfiles;
 
+/** Read only the existing fixed profile; callers cannot appoint or mutate one.
+ * The returned names/environment confer no identity or execution authority. */
+export function capacityExecutorJobProfile(role: CapacityExecutorRole) {
+  if (!Object.hasOwn(capacityExecutorProfiles, role))
+    throw new Error("capacity executor role is not a fixed controller profile");
+  return Object.freeze({ ...capacityExecutorProfiles[role] });
+}
+
 const hostedNativeProfiles = Object.freeze({
   "windows-x86_64": {
     workflow: productionControllerWorkflow,
