@@ -1332,9 +1332,9 @@ function SavesAndSettingsSummary({
         <h3 className="mb-1 text-sm font-semibold">What a backup covers</h3>
         {retained ? (
           <p>
-            Saved-data locations follow the rules recorded for this installation. Exact paths are
-            not available in this summary. Backups copy the saves and settings folder managed by
-            Portcove; files elsewhere are not included.
+            Backups use Portcove’s managed saves and settings folder. Files collected from the game
+            follow the rules recorded for this installation. Exact paths are not available in this
+            summary.
           </p>
         ) : (
           <>
