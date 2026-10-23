@@ -1586,7 +1586,20 @@ async function connectObservedDriver() {
         browserName: process.platform === "win32" ? "webview2" : "wry",
         "tauri:options": {
           application: application,
-          ...(process.platform === "win32" ? { webviewOptions: { userDataFolder: profile } } : {}),
+          ...(process.platform === "win32"
+            ? {
+                webviewOptions: {
+                  userDataFolder: profile,
+                  // Request the existing WebDriver transport explicitly. The
+                  // ordinary installed application remains unchanged; this
+                  // endpoint belongs only to its isolated test session.
+                  additionalBrowserArguments: [
+                    "remote-debugging-port=0",
+                    "remote-debugging-address=127.0.0.1",
+                  ],
+                },
+              }
+            : {}),
         },
       });
     if (linuxLaunch && "privateAgent" in linuxLaunch)
