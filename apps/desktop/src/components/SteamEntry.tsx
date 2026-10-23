@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Gamepad2, FolderOpen } from "lucide-react";
+import { gameIdentityLabel } from "../port-identity";
 import { desktopApi } from "../api";
 import { pickSteamFolder } from "../file-picker";
 import type {
@@ -145,6 +146,9 @@ export function SteamEntryDialog({
           Manage Steam shortcut
         </DialogTitle>
         <DialogDescription id="steam-entry-description" className="mb-4 leading-relaxed">
+          <strong className="mb-2 block wrap-anywhere text-pc-foreground">
+            {gameIdentityLabel(port)}
+          </strong>
           {installed
             ? `Add, repair, or remove the Steam shortcut for ${port.name} in one selected local profile.`
             : "Remove a previously added Portcove shortcut from one selected local Steam profile. The game is not installed here."}

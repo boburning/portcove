@@ -89,7 +89,7 @@ fn fixed_definitions() -> Vec<HostToolDefinition> {
             id: "chdman".into(),
             display_name: "chdman".into(),
             configuration_variable: "PORTCOVE_CHDMAN".into(),
-            purpose: "CHD validation and disc-image materialization".into(),
+            purpose: "Check CHD game files and prepare disc images".into(),
             official_url: "https://docs.mamedev.org/tools/chdman.html".into(),
             supported_platforms: all.clone(),
             probe: HostToolProbePolicy {

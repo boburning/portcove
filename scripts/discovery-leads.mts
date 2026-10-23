@@ -7,10 +7,10 @@ const families = [
   { id: "new-recomp", terms: "recomp in:name,description", clock: "created" },
   {
     id: "changed-recompilation",
-    terms: "recompilation in:name,description,readme",
+    terms: "recompilation in:name,description",
     clock: "pushed",
   },
-  { id: "changed-native-port", terms: '"native port" in:description,readme', clock: "pushed" },
+  { id: "changed-native-port", terms: '"native port" in:name,description', clock: "pushed" },
 ] as const;
 export const leadPageSize = 50;
 export interface LeadSlice {
@@ -24,6 +24,7 @@ export interface LeadSlice {
   remaining?: { since: string; until: string }[];
   window_until?: string;
   restart_reason?: string;
+  terms?: string;
 }
 export interface DiscoveryLead {
   id: number;
@@ -44,6 +45,7 @@ export interface LeadState {
   next_family: number;
   slices: Record<string, LeadSlice>;
   records: Record<string, DiscoveryLead>;
+  retired_slices?: Record<string, LeadSlice>;
 }
 const clock = (v: unknown): v is string => typeof v === "string" && Number.isFinite(Date.parse(v));
 export function parseLeadState(value: unknown): LeadState {
@@ -58,7 +60,12 @@ export function parseLeadState(value: unknown): LeadState {
     Number(value.next_family) >= families.length
   )
     throw new Error("Invalid retained lead collection state");
-  for (const [id, raw] of Object.entries(value.slices)) {
+  if (value.retired_slices !== undefined && !isRecord(value.retired_slices))
+    throw new Error("Invalid retired lead slices");
+  for (const [id, raw] of [
+    ...Object.entries(value.slices),
+    ...Object.entries(value.retired_slices ?? {}),
+  ]) {
     if (
       !families.some((f) => f.id === id) ||
       !isRecord(raw) ||
@@ -81,6 +88,7 @@ export function parseLeadState(value: unknown): LeadState {
           ))) ||
       (raw.window_until !== undefined && !clock(raw.window_until)) ||
       (raw.restart_reason !== undefined && typeof raw.restart_reason !== "string") ||
+      (raw.terms !== undefined && typeof raw.terms !== "string") ||
       (raw.total !== undefined && (!Number.isSafeInteger(raw.total) || Number(raw.total) < 0))
     )
       throw new Error("Invalid retained lead search slice");
@@ -137,6 +145,11 @@ export function restartLeadSlice(
   reason: string,
 ) {
   const next = structuredClone(state);
+  if (plan.retired)
+    next.retired_slices = {
+      ...next.retired_slices,
+      [plan.family]: structuredClone(state.slices[plan.family]!),
+    };
   next.slices[plan.family] = { ...plan.slice, page: 1, seen: [], restart_reason: reason };
   delete next.slices[plan.family]!.total;
   return next;
@@ -195,7 +208,9 @@ export function retainLeadResults(
 export function nextLeadPage(state: LeadState, now: string) {
   if (!clock(now)) throw new Error("Invalid lead search clock");
   const family = families[state.next_family]!;
-  const previous = state.slices[family.id];
+  const saved = state.slices[family.id];
+  const retired = saved !== undefined && saved.terms !== family.terms;
+  const previous = retired ? undefined : saved;
   const slice =
     previous && !previous.completed_at
       ? previous
@@ -203,6 +218,7 @@ export function nextLeadPage(state: LeadState, now: string) {
           ...investigationWindow(previous?.completed_at, now),
           page: 1,
           seen: [],
+          terms: family.terms,
         };
   return {
     family: family.id,
@@ -211,6 +227,7 @@ export function nextLeadPage(state: LeadState, now: string) {
     page: slice.page,
     capped: slice.capped === true,
     current: previous?.completed_at === now,
+    retired,
   };
 }
 export function acceptLeadPage(
@@ -236,6 +253,11 @@ export function acceptLeadPage(
   if (slice.total !== undefined && slice.total !== total)
     throw new LeadSearchChanged("Lead search count changed; retain prior continuation");
   const next = retainLeadResults(state, response.items, observedAt, evidence);
+  if (plan.retired)
+    next.retired_slices = {
+      ...next.retired_slices,
+      [plan.family]: structuredClone(state.slices[plan.family]!),
+    };
   const ids = new Set(slice.seen);
   for (const raw of response.items as unknown[]) {
     if (
@@ -297,6 +319,8 @@ export function pendingLeads(
 ) {
   const hint = (r: DiscoveryLead) =>
     /tooling|framework|games.list|experimental/iu.test(r.description) ? 1 : 0;
+  const gameSignal = (r: DiscoveryLead) =>
+    /games?|recomp|decomp/iu.test(`${r.repository} ${r.description}`) ? 1 : 0;
   return Object.values(state.records)
     .filter(
       (r) =>
@@ -306,6 +330,7 @@ export function pendingLeads(
     )
     .sort(
       (a, b) =>
+        gameSignal(b) - gameSignal(a) ||
         Number(b.release_hint?.assets_observed ?? false) -
           Number(a.release_hint?.assets_observed ?? false) ||
         hint(a) - hint(b) ||

@@ -391,6 +391,21 @@ function PreparationCleanupDetails({
       kind: "Link or special entry",
     })),
   ];
+  const recordedLocations = [
+    [
+      readOnly ? "Original installation" : "Original installation preserved",
+      preview.original_install_path,
+    ],
+    [readOnly ? "Registered source" : "Registered source preserved", preview.source_path],
+    [readOnly ? "Saved data" : "Saved data preserved", preview.persistent_data_path],
+    [readOnly ? "Backups" : "Backups preserved", preview.backup_path],
+    [readOnly ? "Logs" : "Logs preserved", preview.logs_path],
+  ].map(([label, location]) => (
+    <div key={label}>
+      <dt>{label}</dt>
+      <dd className="m-[var(--space-1)_0_var(--space-3)] wrap-anywhere">{location}</dd>
+    </div>
+  ));
   return (
     <section
       className="preparation-cleanup-details"
@@ -410,6 +425,22 @@ function PreparationCleanupDetails({
         })}{" "}
         · {formatBytes(preview.retained.total_bytes)}
       </p>
+      {readOnly && (
+        <div className="mb-4">
+          <h3 className="mt-3 text-base font-semibold">What remains</h3>
+          <p>
+            {entries.length
+              ? "Setup left working files behind. This account does not confirm that those files are complete or ready to play."
+              : "No private working files were found. An unfinished setup record remains."}
+          </p>
+          <h3 className="mt-3 text-base font-semibold">What you can do now</h3>
+          <p>
+            Keep the files and return to the game to review its next steps, or review cleanup
+            separately. Opening cleanup checks the current files again before you decide what to
+            remove.
+          </p>
+        </div>
+      )}
       <dl>
         <div>
           <dt>
@@ -423,47 +454,27 @@ function PreparationCleanupDetails({
             {preview.retained_path}
           </dd>
         </div>
-        <div>
-          <dt>{readOnly ? "Original installation" : "Original installation preserved"}</dt>
-          <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]">
-            {preview.original_install_path}
-          </dd>
-        </div>
-        <div>
-          <dt>{readOnly ? "Registered source" : "Registered source preserved"}</dt>
-          <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]">
-            {preview.source_path}
-          </dd>
-        </div>
-        <div>
-          <dt>{readOnly ? "Saved data" : "Saved data preserved"}</dt>
-          <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]">
-            {preview.persistent_data_path}
-          </dd>
-        </div>
-        <div>
-          <dt>{readOnly ? "Backups" : "Backups preserved"}</dt>
-          <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]">
-            {preview.backup_path}
-          </dd>
-        </div>
-        <div>
-          <dt>{readOnly ? "Logs" : "Logs preserved"}</dt>
-          <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]">
-            {preview.logs_path}
-          </dd>
-        </div>
+        {!readOnly && recordedLocations}
       </dl>
-      <p className="[overflow-wrap:anywhere]">
-        {readOnly
-          ? "These are the recorded locations for this operation. The working files are separate from the installation, registered source, saved data, backups and logs. Review cleanup separately to see exactly what can be removed."
-          : entries.length
+      {readOnly && (
+        <details>
+          <summary className="cursor-pointer py-2 font-semibold" data-focusable>
+            Installation, source, saves, backups and logs
+          </summary>
+          <p className="text-xs wrap-anywhere">Recorded task: {preview.operation_id}</p>
+          <dl>{recordedLocations}</dl>
+        </details>
+      )}
+      {!readOnly && (
+        <p className="[overflow-wrap:anywhere]">
+          {entries.length
             ? "This deletes only the recorded setup working folder and its recovery journal. The deleted files cannot be recovered. If cleanup is interrupted, Portcove keeps the accepted cleanup in its journal and retries it when the library reopens."
             : "No setup working files were found. Cleanup clears the recorded setup path if it exists and its stale recovery journal."}
-      </p>
+        </p>
+      )}
       <p className="[overflow-wrap:anywhere]">
         {readOnly
-          ? "Portcove checks the current files again when you open cleanup. Setup and any programs it started must have stopped before cleanup can run."
+          ? "Setup and any programs it started must have stopped before cleanup can run."
           : entries.length
             ? "Portcove must confirm that setup and any programs it started have stopped before deleting these files."
             : "Portcove must confirm that setup and any programs it started have stopped before clearing this record."}

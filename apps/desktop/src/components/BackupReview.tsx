@@ -13,6 +13,7 @@ export type ApplyBackupAction = (
 ) => Promise<ReviewOutcome>;
 
 export function BackupReviewDialog({
+  gameName,
   backup,
   action,
   generation,
@@ -20,6 +21,7 @@ export function BackupReviewDialog({
   close,
   finalFocus,
 }: {
+  gameName?: string | undefined;
   backup: BackupRecord;
   action: BackupAction;
   generation: number;
@@ -62,6 +64,9 @@ export function BackupReviewDialog({
           {restore ? "Review backup restore" : "Review backup deletion"}
         </DialogTitle>
         <DialogDescription id="backup-review-description" className="mb-4 leading-relaxed">
+          {gameName && (
+            <strong className="mb-2 block wrap-anywhere text-pc-foreground">{gameName}</strong>
+          )}
           {restore
             ? "Replace this game's saved data with the selected snapshot."
             : "Permanently remove only the selected saved-data snapshot."}

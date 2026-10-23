@@ -1,0 +1,76 @@
+{
+  "integrated_main": "518e2302ef13a051d158734042415310ea979d49",
+  "captures": [
+    {
+      "individually_inspected": true,
+      "file": "app-matched-covers-dark.png",
+      "sha256": "3f3cca0bb45e9d152d12809b61278d7731bfa1158ff24f242046d083690eab5e"
+    },
+    {
+      "individually_inspected": true,
+      "file": "app-matched-rows-light.png",
+      "sha256": "416018d4ad91f8ea03dd2caaa575173e90a15130d5a42f633d849436e4e39b57"
+    },
+    {
+      "individually_inspected": true,
+      "file": "before-installation-review-9dfe09c.jpg",
+      "sha256": "935007391386e75d805d246dfa5f9c3776b642cb04d2c1e3272a243f75637059"
+    },
+    {
+      "individually_inspected": true,
+      "file": "cleanup-light.png",
+      "sha256": "348c31956a4941af0daf74829fb593204a8bcc3375d061356bf938d87cc369b7"
+    },
+    {
+      "individually_inspected": true,
+      "file": "cleanup-text-200-actions.png",
+      "sha256": "e17a0cb6a2beb3f47599eec9bc13ba528959088a4c697ab76e9033b8c408b7ce"
+    },
+    {
+      "individually_inspected": true,
+      "file": "cleanup-text-200-facts.png",
+      "sha256": "63dc4078e8a0a03590ed5618a528a3e4a164a40c36a36b3b4d18f4c1e2830c25"
+    },
+    {
+      "individually_inspected": true,
+      "file": "installation-review-reference.png",
+      "sha256": "12e9223f7463a855bcd2383e19a69293f66ab9fb0cce3991b389dea2deb6d067"
+    },
+    {
+      "individually_inspected": true,
+      "file": "no-results-light-320.png",
+      "sha256": "ed69546e382794dfb1368057d33eec32a420270f6d99fa71c9db5ee80396bebd"
+    },
+    {
+      "individually_inspected": true,
+      "file": "prototype-matched-covers-dark.png",
+      "sha256": "da7bfd3edf8b5dab52c505287bd37854b6f2dadf83737f6f4c2ecb64bc63e178"
+    },
+    {
+      "individually_inspected": true,
+      "file": "prototype-matched-rows-light.png",
+      "sha256": "06ede98b829be3b56d0d5234ccf2c5475c1dd1a4a4752ceaaee1d3846c2be280"
+    },
+    {
+      "individually_inspected": true,
+      "file": "retained-inspection-dark-320.png",
+      "sha256": "f8228745afaa1b86976f5871e4a5cd953cf433fbc2d0e897471bc7674c664b67"
+    },
+    {
+      "individually_inspected": true,
+      "file": "retained-inspection-light.png",
+      "sha256": "f5ae22152c2aa8ebd9877e33d0d65eace683f85aab73e9d666126e02a79ef707"
+    },
+    {
+      "individually_inspected": true,
+      "file": "saved-data-final-light.png",
+      "sha256": "59dcc2e1cd80472116dcffd4b5e5cf178a193830452f5a7fc27a1ee726badc8a"
+    },
+    {
+      "individually_inspected": true,
+      "file": "settings-advanced-light.png",
+      "sha256": "4abffab61827e0d054960f4a669710fb857d3fd08f8cf5dd338fe3e07694cbde"
+    }
+  ],
+  "implementation_revision": "75686b4258d24d614c1a5190e5fd6bff0047e71e"
+}

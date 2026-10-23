@@ -14,6 +14,10 @@ import {
 import type { ArtworkSlot, OperationEvent, ApplicationUpdateCheckPhase } from "../../types";
 import type { desktopApi } from "../../api";
 import { collectionArtwork } from "./collection-artwork";
+import { retainedSetup } from "./activity-fixtures";
+import { comparisonEntries } from "./comparison-scene";
+import type { ActivityFeed, ActivityRecord } from "../../types";
+import type { OperationResult } from "../../transport-types.generated";
 
 export const recoveryKey = "portcove.interactive.fixture-recovery";
 export function installInteractiveTransport(journey: Journey, refuse: (message: string) => void) {
@@ -23,8 +27,35 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
   let disposed = false;
   let prepared = false;
   const favorites = new Set<string>();
+  const examples =
+    journey === "activity"
+      ? [
+          retainedSetup("sample", "fixture-retained-harbor"),
+          retainedSetup("orchard", "fixture-retained-orchard", true),
+        ]
+      : [];
+  const records: ActivityRecord[] = examples.map((example) => example.record);
+  const retained = new Map(
+    examples.map((example) => [example.preview.operation_id, example.preview]),
+  );
+  const feed = (): ActivityFeed => ({
+    ...activities,
+    records: structuredClone(records),
+    current_activity_ids: records
+      .filter((record) => record.status === "running")
+      .map((record) => record.id),
+    attention_required_activity_ids: [...retained.keys()],
+    recovery_required_activity_ids: [...retained.keys()],
+    terminal_history_count: records.filter((record) => record.status !== "running").length,
+  });
+  let nextTask = 0;
   let pending:
-    | { resolve: (value: typeof install) => void; reject: (reason: unknown) => void }
+    | {
+        resolve: (value: typeof install) => void;
+        reject: (reason: unknown) => void;
+        record: ActivityRecord;
+        finishEvent: (result: OperationResult) => void;
+      }
     | undefined;
   const calls: string[] = [];
   const unsupported = (command: string): never => {
@@ -153,6 +184,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       const status = workspace(journey).statuses.find((item) => item.port_id === args?.portId);
       if (
         !status?.active ||
+        (status.readiness?.launchable === false && !status.readiness.pending_setup) ||
         (status.readiness?.pending_setup && !prepared) ||
         args?.source !== null ||
         !Array.isArray(args.arguments) ||
@@ -208,6 +240,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     get_workspace_snapshot: (args) => {
       requireArgs("get_workspace_snapshot", args, { generation });
       const snapshot = workspace(journey);
+      snapshot.activities = feed();
       const [status] = snapshot.statuses;
       if (prepared && !status) throw new Error("Prepared scenario has no port status");
       if (prepared && status)
@@ -228,17 +261,63 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     },
     get_doctor_report: (args) => {
       requireArgs("get_doctor_report", args, { generation });
-      return journey.startsWith("collection")
-        ? {
-            ...doctor,
-            catalog_port_count: workspace(journey).catalog.ports.length,
-            installed_port_count: workspace(journey).catalog.ports.length,
-          }
-        : doctor;
+      return {
+        ...doctor,
+        catalog_port_count: workspace(journey).catalog.ports.length,
+        installed_port_count: workspace(journey).statuses.filter((status) => status.active).length,
+        repair: {
+          generated_at: Date.now() / 1000,
+          items: [...retained.values()].map((preview) => ({
+            kind: "retained_preparation" as const,
+            port_id: preview.port_id,
+            operation_id: preview.operation_id,
+            path: preview.retained_path,
+            message: "Simulated setup left working files.",
+            proposed_action: "Inspect the retained files before deciding what to do.",
+          })),
+        },
+      };
     },
     get_activities: (args) => {
       requireArgs("get_activities", args, {});
-      return activities;
+      return feed();
+    },
+    get_activity_diagnostic: (args) => {
+      const record = records.find((record) => record.id === args?.activityId);
+      if (!record) return unsupported("get_activity_diagnostic");
+      requireArgs("get_activity_diagnostic", args, { activityId: record.id, generation });
+      const text = record.message ?? "Simulated task";
+      return [
+        {
+          activity_id: record.id,
+          complete: record.status !== "running",
+          phase: record.status,
+          stdout: { text, observed_bytes: new TextEncoder().encode(text).length, truncated: false },
+          stderr: { text: "", observed_bytes: 0, truncated: false },
+          stream_limit_bytes: 4096,
+          updated_at: Date.now() / 1000,
+        },
+      ] satisfies Awaited<ReturnType<typeof desktopApi.activityDiagnostic>>;
+    },
+    preview_preparation_cleanup: (args) => {
+      const preview = retained.get(String(args?.operationId));
+      if (!preview) return unsupported("preview_preparation_cleanup");
+      requireArgs("preview_preparation_cleanup", args, {
+        operationId: preview.operation_id,
+        generation,
+      });
+      return structuredClone(preview);
+    },
+    cleanup_preparation: (args) => {
+      const preview = retained.get(String(args?.operationId));
+      if (!preview) return unsupported("cleanup_preparation");
+      requireArgs("cleanup_preparation", args, {
+        operationId: preview.operation_id,
+        expectedPreview: preview.preview_sha256,
+        generation,
+      });
+      retained.delete(preview.operation_id);
+      return structuredClone(preview);
     },
     get_locale_preference: (args) => {
       requireArgs("get_locale_preference", args, {});
@@ -358,9 +437,11 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         id,
         args?.slot as ArtworkSlot,
         0,
-        journey.startsWith("collection") && id !== "collection-4",
+        (journey.startsWith("collection") && id !== "collection-4") ||
+          (journey === "comparison" &&
+            comparisonEntries.find((entry) => entry.id === id)?.artwork !== null),
       );
-      if (journey.startsWith("collection")) {
+      if (journey.startsWith("collection") || journey === "comparison") {
         const port = workspace(journey).catalog.ports.find((port) => port.id === id)!;
         state.generated_fallback.initials =
           port.presentation?.original_game_title?.slice(0, 2).toUpperCase() ?? "PC";
@@ -380,7 +461,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     },
     get_artwork_thumbnail: (args) => {
       if (
-        !journey.startsWith("collection") ||
+        !(journey.startsWith("collection") || journey === "comparison") ||
         !workspace(journey).catalog.ports.some((port) => port.id === args?.portId)
       )
         return unsupported("get_artwork_thumbnail");
@@ -399,11 +480,16 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     },
     plan_preparation: (args) => {
       requireArgs("plan_preparation", args, { portId: "sample", generation });
-      if (journey !== "setup" || prepared) return unsupported("plan_preparation");
+      if (!["setup", "activity"].includes(journey) || prepared)
+        return unsupported("plan_preparation");
       return preparation;
     },
     prepare_port: (args) => {
-      if (journey !== "setup" || pending || !(args?.onEvent instanceof Channel))
+      if (
+        !["setup", "activity"].includes(journey) ||
+        pending ||
+        !(args?.onEvent instanceof Channel)
+      )
         return unsupported("prepare_port");
       requireArgs("prepare_port", args, {
         portId: "sample",
@@ -412,9 +498,23 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         onEvent: args.onEvent,
       });
       const channel = args.onEvent as Channel<OperationEvent>;
+      const id = nextTask++ === 0 ? "fixture-preparation" : `fixture-preparation-${nextTask}`;
+      const record: ActivityRecord = {
+        id,
+        target_kind: "port",
+        target_id: "sample",
+        operation: "prepare",
+        status: "running",
+        started_at: Date.now() / 1000,
+        finished_at: null,
+        cancellation: { requested: false, phase: "preparing" },
+        failure: null,
+        message: "Simulated preparation; no real files were used.",
+      };
+      records.unshift(record);
       const base = {
         schema_version: 2 as const,
-        operation_id: "fixture-preparation",
+        operation_id: id,
         parent_operation_id: null,
         target: null,
         timestamp_ms: 1,
@@ -429,18 +529,19 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         message: "Fixture preparation is waiting. Complete, fail, or cancel it.",
       });
       return new Promise<typeof install>((resolve, reject) => {
-        pending = { resolve, reject };
+        pending = {
+          resolve,
+          reject,
+          record,
+          finishEvent: (result) =>
+            channel.onmessage({ ...base, sequence: 2, type: "finished", result }),
+        };
       });
     },
     cancel_operation: (args) => {
-      requireArgs("cancel_operation", args, { operationId: "fixture-preparation" });
       if (!pending) return unsupported("cancel_operation");
-      pending.reject({
-        code: "cancelled",
-        message: "Fixture preparation cancelled",
-        details: {},
-      });
-      pending = undefined;
+      requireArgs("cancel_operation", args, { operationId: pending.record.id });
+      pending.record.cancellation = { requested: true, phase: "preparing" };
       return { requested: true, phase: "preparing" } satisfies Awaited<
         ReturnType<typeof desktopApi.cancelOperation>
       >;
@@ -462,13 +563,36 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     calls,
     complete() {
       if (!pending) return unsupported("complete (no preparation running)");
+      if (pending.record.cancellation?.requested)
+        return unsupported("complete (cancellation requested; settle cancellation instead)");
       prepared = true;
+      pending.record.status = "succeeded";
+      pending.record.finished_at = Date.now() / 1000;
+      pending.record.cancellation = null;
+      pending.finishEvent("succeeded");
       pending.resolve(install);
       pending = undefined;
     },
     fail() {
       if (!pending) return unsupported("fail (no preparation running)");
-      pending.reject(new Error("Controlled fixture preparation failure"));
+      const example = retainedSetup("sample", pending.record.id);
+      Object.assign(pending.record, example.record, {
+        started_at: pending.record.started_at,
+        finished_at: Date.now() / 1000,
+      });
+      retained.set(example.preview.operation_id, example.preview);
+      pending.finishEvent("failed");
+      pending.reject(example.record.failure);
+      pending = undefined;
+    },
+    settleCancellation() {
+      if (!pending?.record.cancellation?.requested)
+        return unsupported("settle cancellation (no request)");
+      pending.record.status = "cancelled";
+      pending.record.finished_at = Date.now() / 1000;
+      pending.record.cancellation = null;
+      pending.finishEvent("cancelled");
+      pending.reject({ code: "cancelled", message: "Fixture preparation cancelled", details: {} });
       pending = undefined;
     },
     dispose() {

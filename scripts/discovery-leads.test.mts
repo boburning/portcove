@@ -189,6 +189,40 @@ void test("weekly held-lead refresh catches release-only changes without a sourc
   assert.equal(pendingLeads(state, new Set(), Date.parse(now) + 6 * 86400000).length, 0);
   assert.equal(pendingLeads(state, new Set(), Date.parse(now) + 7 * 86400000).length, 1);
 });
+void test("metadata query scopes preserve old pagination and game signals outrank compiler packages", () => {
+  let state = parseLeadState(undefined);
+  const plan = nextLeadPage(state, now);
+  state = acceptLeadPage(
+    state,
+    plan,
+    page([item(1430261227, "josiahg2502-glitch/BrawlRecompiled")]),
+    now,
+    "brawl",
+  );
+  const old = state.slices[plan.family]!;
+  delete old.terms;
+  state.next_family = 0;
+  const revised = nextLeadPage(state, now);
+  assert.equal(revised.retired, true);
+  assert.equal(revised.page, 1);
+  state = acceptLeadPage(state, revised, page([]), now, "new-scope");
+  assert.equal(state.retired_slices?.[plan.family]?.seen[0], 1430261227);
+  assert.equal(state.records["1430261227"]?.repository, "josiahg2502-glitch/BrawlRecompiled");
+  state.next_family = 2;
+  assert.doesNotMatch(nextLeadPage(state, now).query, /readme/u);
+  state.next_family = 3;
+  assert.doesNotMatch(nextLeadPage(state, now).query, /readme/u);
+  state.records["1"] = {
+    ...state.records["1430261227"],
+    id: 1,
+    repository: "ccache/ccache",
+    url: "https://github.com/ccache/ccache",
+    description: "A fast C/C++ compiler cache",
+    release_hint: { assets_observed: true, observed_at: now, evidence: "ccache-release.json" },
+  };
+  assert.equal(pendingLeads(state)[0]?.repository, "josiahg2502-glitch/BrawlRecompiled");
+  assert.ok(state.records["1"], "noisy old leads are retained rather than silently deleted");
+});
 void test("runner charges complementary pages, guards rotation and retains queue across restart", (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "discovery-leads-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));

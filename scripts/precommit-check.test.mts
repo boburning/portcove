@@ -64,6 +64,7 @@ function fixture() {
     "runtime-values.mts",
     "catalog-staged-check.mts",
     "catalog-authoring.mts",
+    "upstream-lineage.mts",
     "precommit.mts",
     "viteplus-cli.mts",
   ])

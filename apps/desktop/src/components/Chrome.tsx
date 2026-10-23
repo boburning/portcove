@@ -848,9 +848,6 @@ function GithubSettings({
 }) {
   return (
     <SettingsRow className="col-span-full" data-focus-group>
-      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-        GITHUB
-      </p>
       <GithubConnection status={github?.status} />
       {github?.status?.device_login_available && <DeviceLogin login={github.deviceLogin} />}
       <TokenEntry github={github} busy={!!busy} />
@@ -1470,6 +1467,7 @@ function DiagnosticsCard({
         variant="outline"
         size="sm"
         disabled={Boolean(busy) || refreshing || !refresh}
+        className="justify-self-start"
         onClick={() => void refresh?.()}
       >
         {failure ? "Retry diagnostics" : "Refresh diagnostics"}
