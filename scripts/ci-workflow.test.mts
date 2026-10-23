@@ -2712,6 +2712,16 @@ void test("live upstream health has bounded independent triggers while catalog s
       "scripts/check-catalog-repositories.mts",
       "scripts/check-retcomm-upstreams.mts",
       "scripts/upstream-health-plan.mts",
+      "scripts/upstream-health-inputs.mts",
+      "scripts/upstream-health-monitor.mts",
+      "scripts/upstream-health-*.test.mts",
+      "scripts/upstream-lineage.mts",
+      "scripts/observe-configured-upstream.mts",
+      "scripts/release-path-safety.mts",
+      "scripts/runtime-values.mts",
+      "scripts/json-values.mts",
+      "scripts/select-ci-plan.mts",
+      ".github/upstream-health-accounting.json",
       ".node-version",
       ".github/workflows/upstream-health.yml",
     ]) {
@@ -2725,22 +2735,49 @@ void test("live upstream health has bounded independent triggers while catalog s
   assert.match(health, /PR_BASE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
   assert.match(health, /PR_HEAD_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/);
   assert.match(health, /fetch-depth: 0/);
-  assert.match(health, /full\) node scripts\/check-catalog-repositories\.mts ;;/);
-  assert.match(
-    health,
-    /node scripts\/check-catalog-repositories\.mts --port-ids="\$HEALTH_PORT_IDS"/,
-  );
-  assert.match(health, /node scripts\/check-catalog-repositories\.mts --port-ids= ;;/);
-  assert.match(health, /Missing or invalid upstream health scope/);
-  assert.match(
-    health,
-    /steps\.scope\.outcome == 'success' && steps\.scope\.outputs\.retcomm == 'true'/,
-  );
-  assert.match(health, /full\) node scripts\/check-retcomm-upstreams\.mts ;;/);
+  assert.match(health, /run: node scripts\/upstream-health-monitor\.mts/);
+  assert.match(health, /HEALTH_MODE: \$\{\{ steps\.scope\.outputs\.mode \}\}/);
+  assert.match(health, /HEALTH_PORT_IDS: \$\{\{ steps\.scope\.outputs\.port_ids \}\}/);
+  assert.match(health, /!cancelled\(\) && steps\.monitor\.outputs\.retcomm == 'true'/);
   assert.match(
     health,
     /node scripts\/check-retcomm-upstreams\.mts --port-ids="\$RETCOMM_PORT_IDS"/,
   );
+  assert.match(health, /RETCOMM_PORT_IDS: \$\{\{ steps\.monitor\.outputs\.retcomm_port_ids \}\}/);
+  const document = parseDocument(health, { uniqueKeys: true });
+  assert.deepEqual(document.errors, []);
+  const parsed: unknown = document.toJS();
+  assert.ok(isRecord(parsed) && isRecord(parsed.jobs));
+  const job = parsed.jobs["upstream-health"];
+  assert.ok(isRecord(job) && Array.isArray(job.steps));
+  const steps: unknown[] = job.steps;
+  const monitor = steps.find((entry) => isRecord(entry) && entry.id === "monitor");
+  assert.ok(isRecord(monitor));
+  assert.equal(monitor.if, "${{ !cancelled() }}");
+  const step = (name: string) => {
+    const entry: unknown = steps.find((value) => isRecord(value) && value.name === name);
+    assert.ok(isRecord(entry) && isRecord(entry.with), `Missing workflow step: ${name}`);
+    return { ...entry, with: entry.with };
+  };
+  const restore = step("Restore main observation history");
+  const save = step("Preserve trusted main observation history");
+  const upload = step("Retain monitoring report");
+  assert.equal(restore.uses, "actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9");
+  assert.equal(save.uses, "actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9");
+  assert.equal(restore.with.path, "work/upstream-health/checkpoint.json");
+  assert.equal(save.with.path, restore.with.path);
+  assert.equal(restore.with["restore-keys"], "upstream-health-history-v1-main-");
+  assert.equal(save.with.key, restore.with.key);
+  assert.match(String(save.if), /!cancelled\(\)/);
+  assert.match(String(save.if), /github\.repository == 'boburning\/portcove'/);
+  assert.match(String(save.if), /github\.ref == 'refs\/heads\/main'/);
+  assert.match(String(save.if), /github\.event_name != 'pull_request'/);
+  assert.match(String(save.if), /steps\.monitor\.outputs\.checkpoint_updated == 'true'/);
+  assert.equal(upload.if, "${{ !cancelled() }}");
+  assert.match(String(upload.with.path), /work\/upstream-health\/report\.json/);
+  assert.match(String(upload.with.path), /work\/upstream-health\/summary\.md/);
+  assert.doesNotMatch(String(upload.with.path), /checkpoint\.json/);
+  assert.equal(upload.with["retention-days"], 7);
   const release = await readFile(
     new URL("../.github/workflows/release.yml", import.meta.url),
     "utf8",

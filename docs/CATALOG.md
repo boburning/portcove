@@ -1519,100 +1519,109 @@ authority, #246 protected delivery and #254 proposals.
 
 ## Read-only disappearance reporting
 
-`scripts/check-catalog-repositories.mts` reports each catalog port against six
-separate facts: original-upstream reachability, lineage, exact accepted-artifact
-obtainability, preservation, applicable holds, and retained qualification. Its
-format-2 output binds the canonical catalog hash and observation interval. A
-complete location collection means its declared probes completed; it does not
-mean every port is installable or that an artifact was verified.
+`scripts/check-catalog-repositories.mts` reports six separate facts for each
+selected port: declared project/acquisition reachability, retained lineage,
+exact accepted-artifact obtainability, preservation, applicable holds and
+qualification. Its format-3 output records the catalog and policy hashes,
+per-observation health contracts and observation interval. `collection_status`
+states whether collection completed; condition `outcome`, classifications and
+degradation state whether observed problems are accounted for. A completely
+observed 404 or identity mismatch can remain actionable. Neither a complete
+collection nor an accounted condition establishes installability.
 
-DirectManifest entries remain in the inventory, with their exact declared
-version/platform/digest/size and acquisition URL. The declared original project
-is also observed after a provider change. Hosted repositories use their existing
-bounded metadata requests. Direct artifact and other project endpoints use HEAD
-without provider credentials or redirects. A matching Content-Length establishes
-endpoint reachability only; the exact accepted bytes remain Unknown until their
-identity is actually verified. Missing, corrupt, inaccessible, contradictory or
-partial inputs remain explicit rather than becoming empty healthy inventories.
+DirectManifest entries retain their exact version/platform/digest/size and
+acquisition URL. Declared project and acquisition roles are inventoried
+separately, so a project URL change does not erase an older release repository.
+Hosted endpoints use bounded metadata requests; direct artifact and other project
+endpoints use credential-free HEAD without following redirects. Matching
+Content-Length establishes endpoint reachability only. Accepted bytes remain
+Unknown until their identity is verified. Missing, corrupt, inaccessible,
+contradictory or partial inputs remain explicit.
 
-Lineage decisions use the [shared authoring contract](#upstream-lineage-and-alternative-implementations)
-delivered for #139; preservation remains owned by #1306 and artifact or
-operation holds by #315/#246. This collector evaluates or modifies none of those
-authorities. Retained catalog qualification stays attached to its exact original
-artifact/source/platform scope; legacy platform arrays are labeled historical
-and neither is inherited by another release or location. An absent policy or
-preservation observation is Unknown, never permission or a clean hold status.
-
-Each failed availability condition has a deterministic incident key binding
-port, location, operation and failed rule, with HTTP evidence, collection time,
-backoff and a resume condition. Observation time is excluded from that key, so an
-unchanged condition retains its identity. The collector performs no issue writes,
-source transfer, installation, artifact execution or automatic qualification.
-The shared request, duration and byte bounds remain in force; direct-origin rate
-limits leave unrelated locations observable.
+Lineage fields retain the [shared authoring contract](#upstream-lineage-and-alternative-implementations)
+facts available when the port is observed, including reviewed decisions and
+history. Cached reports retain those observation-time facts; they are not a
+continuously refreshed lineage service or new decisions. Preservation remains
+owned by #1306 and artifact/operation holds by #315/#246. This collector modifies
+none of those authorities. Catalog qualification stays attached to its exact
+artifact/source/platform scope; legacy platform arrays are labeled historical.
+Neither transfers to another release or location. Absent preservation or hold
+evidence is Unknown, never permission or a clean hold status.
+Validated authoring lineage participates in the port's freshness contract and PR
+selection independently of the generated runtime catalog. A lineage-only decision
+therefore requests a new observation instead of retaining a stale decision as fresh.
 
 The retained Star Fox Enhanced incident in #247 (run 36735216087, job
 109955016518, source `5d6905ea8bf90fb887bb49a6a8524ab2ecc5846b`) reported
-`kandowontu/starfox-enhanced: github returned 404`. That observation remains
-historical disappearance evidence. The later
+`kandowontu/starfox-enhanced: github returned 404`. That remains historical
+disappearance evidence. The later
 [accepted successor decision](archive/2026-10-23-star-fox-successor.md) rests on
-separate attributable continuity evidence; it does not restore the historical
-release or transfer qualification. Changing the current project URL leaves the
-old release repository's 404 observable and invalidates its former
-original-location accounting match. The lineage decision does not make upstream
-health green or broaden monitoring exceptions. A bare 404 neither establishes
-retirement/deletion nor selects a successor.
+separate attributable continuity evidence and updates the current project URL.
+The old release repository remains inventoried under its acquisition role, with
+its exact known 404 accounted for and still visibly unknown. The successor does
+not restore the historical release, recover accepted bytes, transfer qualification
+or clear holds. A bare 404 neither establishes retirement/deletion nor selects
+a successor; known endpoint failure and accepted project continuity can coexist.
 
-Existing reviewed catalog maintenance declarations (`retired`, `superseded`,
-`abandoned`) account for a 404 only at that port's declared original location.
-They produce explicit degraded/unavailable output. They cannot suppress a missing
-artifact, new access/integrity failure, repository-name reuse, or an unclassified
-location shared with another port. An archived flag or a bare 404 creates no such
-declaration. The lineage, byte verification, preservation and distribution
-meaning remains independent, even when the monitoring job succeeds.
+Reviewed catalog maintenance declarations (`retired`, `superseded`, `abandoned`)
+account for a 404 only at the port's declared project scope. They retain degraded
+output and cannot suppress a missing artifact, new access/integrity failure,
+repository-name reuse or an unclassified shared location. An archived flag or
+bare 404 creates no such declaration.
 
-The owner-approved narrow monitoring extension in #247 comment 6082358982 is
-represented by `.github/upstream-health-accounting.json`. Exact reviewed original
-301/404 conditions may be accounted while remaining visibly unknown/degraded;
-matching requires the same semantic port contract, original location, operation,
-HTTP rule and, for301, numeric redirect identity. This is not retirement,
-succession, relocation acceptance or a catalog URL change. Changed/shared/new
-conditions without matching review remain failures.
+The format-2 `.github/upstream-health-accounting.json` preserves the reviewed
+monitoring dispositions and existing numeric release-pin identities. Versioned
+artifact bindings cover only the relevant port/platform/provider and exact
+URL/version/size/SHA-256; presentation edits and other platforms do not invalidate
+them. Endpoint conditions bind an explicit project/acquisition role and its
+relevant declaration, maintenance state, operation and HTTP rule. A reviewed 301
+also binds its numeric redirect identity. These dispositions grant no lineage,
+relocation, artifact, distribution or catalog mutation authority. Changed or
+unclassified conditions remain actionable in the report.
 
-Reviewed GitHub direct pins may additionally report exact provider metadata
-presence after a delivery302, with repository/release/asset IDs, complete asset
-inventory and exact URL/name/size/provider digest/facts matched. No redirect is
-followed and no artifact is downloaded or executed. Destination availability and
-accepted bytes stay unknown; endpoint reachability is not incremented. Missing,
-changed, partial or contradictory metadata stays unaccounted. See
-[upstream observations](UPSTREAM-OBSERVATIONS.md) for the bounded collection and
-protected accounting contract.
+Ordinary GitHub release-download 302 responses need no new exception record.
+Three fixed API metadata reads can validate the catalog's exact repository/tag,
+complete asset collection, URL/name/size and provider SHA-256 claim. A pin without
+a reviewed numeric binding reports `provider-reported-pin-observed` and
+`identity-unbound`. Existing reviewed repository/release/asset IDs and fact hashes
+remain mandatory for their artifact scope, producing `provider-reported-pin-present`
+only when they match; generic observations cannot replace those bindings. Both paths
+retain the HEAD redirect as unknown, with destination availability unknown and
+accepted bytes unverified. No redirect is followed or artifact downloaded or
+executed. Reviewed immutable source archives have a separate bounded commit
+metadata path with the same byte-verification boundary. See
+[upstream observations](UPSTREAM-OBSERVATIONS.md#health-inputs-and-reviewed-accounting)
+for the complete accounting contract.
 
-Historical qualification identities are also inventoried at their exact refs
-and declared hosted locations, or the matching immutable DirectManifest pin.
-Provider-reported digests remain metadata, never verified bytes. Empty/conflicting
-asset inventories and capped/partial pages stay Unknown; unavailable optional
-provider digests are explicitly unverified. A historical identity without a
-locatable declaration stays visibly unmonitored. Failed qualification records are
-reported at their original scope without creating or clearing a publisher hold.
+Historical qualification identities are inventoried at their exact refs and
+declared hosted locations, or the matching immutable DirectManifest pin.
+Provider-reported digests remain metadata, never verified bytes. Empty,
+conflicting, capped or partial asset collections stay Unknown. A historical
+identity without a locatable declaration stays visibly unmonitored. Failed
+qualification records are reported at their original scope without creating or
+clearing a publisher hold.
 
-An optional `--previous-report=PATH` consumes a bounded prior format-2 report as
-comparison evidence. It writes no state, issue comment or status ledger. Only a
-matching canonical catalog hash and a nonfuture report no older than 24 hours
-can provide notification comparison/backoff; stale or malformed scope is labeled unused.
-A structurally valid matching older snapshot retains only its repository-ID
-baseline so an outage or repeated replacement cannot silently establish a new
-identity. Current availability is always observed afresh.
-Repeated identical conditions keep their first-seen time, bounded occurrence
-count and `notify: false`; changed HTTP/identity/digest/size/classification facts
-request an update while retaining the condition’s first-seen time and count.
-Deferred attempts report no fresh HTTP response and identify prior comparison
-evidence separately. Rate limits without a usable retry clock use a one-minute
-fallback. Fresh recovery is reported separately. Unclassified failures
-remain prominent and keep their failure exit even when notification is
-unchanged. Ordinary unchanged success with a matching prior report is quiet;
-`--json` always emits the complete evidence record. The report never authenticates
-a prior snapshot as lineage, publication or distribution authority.
+Each condition has a deterministic key binding the port, location, operation,
+rule and relevant observation contract. First-seen time and recurrence survive
+unchanged repeats; material HTTP/identity/digest/size/classification changes and
+fresh recovery are reported separately. Narrow contracts preserve comparison
+across unrelated catalog edits. Prior numeric identity is a comparison baseline,
+never ownership or continuity evidence. The standalone `--previous-report=PATH`
+accepts bounded comparison evidence and writes no state or issue comments.
+
+The workflow coordinator persists validated main-only observation history and
+rotates batches within fixed ceilings of 320 requests and 512 observation records.
+Its report distinguishes this run's assessed ports from retained observations,
+stale/unmonitored entries
+and recent partial attempts, with a 24-hour freshness window and the complete
+inventory denominator. PRs compare actual merge-target health inputs with the
+merge result; presentation-only edits select no probes, while related semantic
+changes select their owning ports. PRs can read history but cannot advance the
+main checkpoint. Collection failures retain partial reports and failure history;
+invalid coordinator inputs preserve the prior checkpoint and emit a failure
+report. The diagnostic job is not a required merge check. Its collection exit
+is distinct from the standalone checker's stricter condition outcome, and neither
+changes required catalog validation, qualification or publication authority.
 
 The exact ReGaiden v0.4.1 Windows prepared-runtime route uses this closed
 shared-preference contract. Its [qualification report](qualification/slice6-regaiden-prepared-windows-2026-10-19.md)

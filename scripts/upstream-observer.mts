@@ -395,22 +395,28 @@ export function validateGithubSourceArchiveMetadata(
   return { repository: repo, commit: facts };
 }
 
-// Provider metadata is a pin-presence fact, not verified bytes or lineage.
-export function validateGithubPinMetadata(
+export type GithubDeclaredPin = Pick<
+  GithubPinScope,
+  "repository" | "tag" | "url" | "name" | "size" | "sha256"
+>;
+
+// An accepted catalog pin can be observed without registering a redirect
+// exception. Numeric identities returned here are observations, not approvals.
+export function validateGithubDeclaredPinMetadata(
   repository: unknown,
   release: unknown,
   assets: unknown,
-  expected: GithubPinScope,
+  expected: GithubDeclaredPin,
 ) {
-  const config = { repository: expected.repository, repository_id: expected.repository_id };
+  requireFact(isRecord(repository), "invalid-metadata", "invalid repository object");
+  const config = {
+    repository: expected.repository,
+    repository_id: identity(repository.id, "repository"),
+  };
   const repo = repositoryFact(repository, config);
-  requireFact(repo.archived === expected.archived, "repository-identity", "archive state changed");
   const selectedRelease = releaseFact(release);
   requireFact(
-    selectedRelease.id === expected.release_id &&
-      selectedRelease.tag_name === expected.tag &&
-      !selectedRelease.draft &&
-      observationHash(selectedRelease) === expected.release_facts_sha256,
+    selectedRelease.tag_name === expected.tag && !selectedRelease.draft,
     "release-identity",
     "declared release identity differs",
   );
@@ -443,15 +449,42 @@ export function validateGithubPinMetadata(
   );
   const asset = matches[0];
   requireFact(
-    asset.id === expected.asset_id &&
-      asset.name === expected.name &&
+    asset.name === expected.name &&
       asset.size === expected.size &&
-      asset.digest === `sha256:${expected.sha256}` &&
-      observationHash(asset) === expected.asset_facts_sha256,
+      asset.digest === `sha256:${expected.sha256}`,
     "asset-scope",
     "declared asset facts changed",
   );
   return { repository: repo, release: selectedRelease, asset };
+}
+
+// Previously reviewed identities remain independent comparison inputs. A
+// generic observation never replaces these bindings with its own fresh IDs.
+export function validateGithubPinMetadata(
+  repository: unknown,
+  release: unknown,
+  assets: unknown,
+  expected: GithubPinScope,
+) {
+  const facts = validateGithubDeclaredPinMetadata(repository, release, assets, expected);
+  requireFact(
+    facts.repository.id === expected.repository_id && facts.repository.archived === expected.archived,
+    "repository-identity",
+    "configured repository identity or archive state changed",
+  );
+  requireFact(
+    facts.release.id === expected.release_id &&
+      observationHash(facts.release) === expected.release_facts_sha256,
+    "release-identity",
+    "declared release identity differs",
+  );
+  requireFact(
+    facts.asset.id === expected.asset_id &&
+      observationHash(facts.asset) === expected.asset_facts_sha256,
+    "asset-scope",
+    "declared asset facts changed",
+  );
+  return facts;
 }
 
 function nextPage(link: string, pathname: string, page: number, config: ObserverConfig) {

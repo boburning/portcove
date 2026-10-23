@@ -273,6 +273,9 @@
       ],
       "files": [
         "scripts/upstream-observer.test.mts",
+        "scripts/upstream-health.test.mts",
+        "scripts/upstream-health-plan.test.mts",
+        "scripts/upstream-health-monitor.test.mts",
         "scripts/discovery-checkpoint.test.mts",
         "scripts/discovery-intake.test.mts",
         "scripts/roadmap-inventory.test.mts",
@@ -549,7 +552,12 @@
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
-      "files": ["scripts/upstream-observer.test.mts"]
+      "files": [
+        "scripts/upstream-observer.test.mts",
+        "scripts/upstream-health.test.mts",
+        "scripts/upstream-health-plan.test.mts",
+        "scripts/upstream-health-monitor.test.mts"
+      ]
     },
     "repository-tools-2": {
       "arguments": [
