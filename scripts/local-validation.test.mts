@@ -2235,3 +2235,89 @@ void test("native enlargement helper edits select receipt contracts and related 
   assert.ok(selection.uiRelatedFiles.has(helper));
   assert.equal(selection.ui, true);
 });
+
+void test("upstream test families preserve shared owners and narrow the planner to its consumers", async () => {
+  const { buildValidationPlan } = await import("./validation-plan.mts");
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const broad = [
+    "scripts/upstream-observer.test.mts",
+    "scripts/upstream-health-providers.test.mts",
+    "scripts/upstream-health-planning.test.mts",
+    "scripts/upstream-health-accounting.test.mts",
+    "scripts/upstream-health-source-archives.test.mts",
+    "scripts/upstream-health.test.mts",
+    "scripts/upstream-health-plan.test.mts",
+    "scripts/upstream-health-monitor.test.mts",
+  ];
+  const planner = [
+    "scripts/upstream-health-plan.test.mts",
+    "scripts/upstream-health-planning.test.mts",
+  ];
+  for (const file of [
+    "scripts/upstream-observer.mts",
+    "scripts/observe-configured-upstream.mts",
+    "scripts/check-catalog-repositories.mts",
+    "scripts/upstream-health-inputs.mts",
+    "scripts/upstream-health-plan.mts",
+    "scripts/fixtures/upstream-observation-fixtures.mts",
+    "scripts/fixtures/upstream-health-accounting-cases.json",
+    "scripts/fixtures/upstream-health-pins.json",
+    "scripts/fixtures/upstream-health-fade-to-black.json",
+    "release/upstream-observer.json",
+  ]) {
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const input = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [
+          {
+            status: input.status,
+            path: input.newPath,
+            ...(input.oldPath !== input.newPath ? { previousPath: input.oldPath } : {}),
+          },
+        ],
+        { fileExists: () => false },
+      );
+      const plan = buildValidationPlan({
+        changes: [input],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      const hosted = baselineContractTests(plan, { fileExists: () => false });
+      const expected = file === "scripts/upstream-health-plan.mts" ? planner : broad;
+      const label = JSON.stringify(input);
+      for (const required of expected) {
+        assert.ok(local.nodeTests.has(required), "local " + required + ": " + label);
+        assert.equal(
+          hosted.filter((selected) => selected === required).length,
+          1,
+          "hosted " + required + ": " + label,
+        );
+      }
+      if (file === "scripts/upstream-health-plan.mts") {
+        assert.deepEqual(
+          [...local.nodeTests]
+            .filter((selected) => selected.startsWith("scripts/upstream-"))
+            .sort(),
+          [...planner].sort(),
+          label,
+        );
+        if (variant.startsWith("R"))
+          assert.ok(local.nodeTests.has("scripts/repository-skills.test.mts"), label);
+        assert.deepEqual(
+          hosted.filter((selected) => selected.startsWith("scripts/upstream-")).sort(),
+          [...planner].sort(),
+          label,
+        );
+      }
+    }
+  }
+});

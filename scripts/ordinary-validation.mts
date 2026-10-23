@@ -301,7 +301,15 @@ const selectionContractTests = [
   "scripts/select-ci-plan.test.mts",
 ];
 
+const upstreamHealthObservationTests = [
+  "scripts/upstream-health-providers.test.mts",
+  "scripts/upstream-health-planning.test.mts",
+  "scripts/upstream-health-accounting.test.mts",
+  "scripts/upstream-health-source-archives.test.mts",
+];
+
 const upstreamHealthContractTests = [
+  ...upstreamHealthObservationTests,
   "scripts/upstream-observer.test.mts",
   "scripts/upstream-health.test.mts",
   "scripts/upstream-health-plan.test.mts",
@@ -1086,10 +1094,20 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/upstream-health-inputs.mts", upstreamHealthContractTests],
   [
     "scripts/upstream-health-plan.mts",
-    ["scripts/upstream-health-plan.test.mts", "scripts/upstream-observer.test.mts"],
+    ["scripts/upstream-health-plan.test.mts", "scripts/upstream-health-planning.test.mts"],
   ],
   ["scripts/upstream-health-monitor.mts", ["scripts/upstream-health-monitor.test.mts"]],
-  ["scripts/observe-configured-upstream.mts", ["scripts/discovery-checkpoint.test.mts"]],
+  [
+    "scripts/observe-configured-upstream.mts",
+    [...upstreamHealthContractTests, "scripts/discovery-checkpoint.test.mts"],
+  ],
+  ...[
+    "scripts/fixtures/upstream-observation-fixtures.mts",
+    "scripts/fixtures/upstream-health-accounting-cases.json",
+    "scripts/fixtures/upstream-health-pins.json",
+    "scripts/fixtures/upstream-health-fade-to-black.json",
+    "release/upstream-observer.json",
+  ].map((file): [string, string[]] => [file, upstreamHealthContractTests]),
   [
     "scripts/test-windows-installer.ps1",
     [
@@ -1486,6 +1504,8 @@ function frontendTask(id: string, reason: string, task: string) {
 function addNodeTest(selection: ValidationSelection, file: string) {
   const normalized = normalizePath(file);
   selection.nodeTests.add(normalized);
+  if (normalized === "scripts/upstream-observer.test.mts")
+    for (const companion of upstreamHealthObservationTests) selection.nodeTests.add(companion);
   if (normalized === "scripts/ci-baseline.test.mts")
     selection.nodeTests.add("scripts/ci-baseline-execution.test.mts");
   // Preserve every former workflow-suite consumer after responsibility-based colocation.

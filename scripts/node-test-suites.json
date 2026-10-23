@@ -2123,6 +2123,13 @@
       ]
     },
     {
+      "file": "scripts/upstream-health-accounting.test.mts",
+      "memberships": [
+        ["catalog-full", 130],
+        ["repository-tools", 130]
+      ]
+    },
+    {
       "file": "scripts/upstream-health-monitor.test.mts",
       "memberships": [
         ["catalog-full", 400],
@@ -2134,6 +2141,27 @@
       "memberships": [
         ["catalog-full", 300],
         ["repository-tools", 300]
+      ]
+    },
+    {
+      "file": "scripts/upstream-health-planning.test.mts",
+      "memberships": [
+        ["catalog-full", 120],
+        ["repository-tools", 120]
+      ]
+    },
+    {
+      "file": "scripts/upstream-health-providers.test.mts",
+      "memberships": [
+        ["catalog-full", 110],
+        ["repository-tools", 110]
+      ]
+    },
+    {
+      "file": "scripts/upstream-health-source-archives.test.mts",
+      "memberships": [
+        ["catalog-full", 140],
+        ["repository-tools", 140]
       ]
     },
     {
