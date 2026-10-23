@@ -97,8 +97,10 @@ pub(crate) enum CatalogCommand {
     ListingStatus,
     /// Refresh descriptive listings and artwork under the installed fixed catalog authority.
     ListingRefresh {
+        /// HTTPS base URL for signed catalog metadata; only the installed fixed authority is accepted.
         #[arg(long)]
         metadata_base_url: String,
+        /// HTTPS base URL for authenticated directory content; the address grants no publisher authority.
         #[arg(long)]
         targets_base_url: String,
     },
