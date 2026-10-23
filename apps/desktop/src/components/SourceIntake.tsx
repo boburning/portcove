@@ -326,9 +326,6 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
         className="max-h-[min(90vh,58rem)] w-[min(760px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
         aria-describedby="source-intake-description"
       >
-        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-          {copy.eyebrow}
-        </p>
         <DialogTitle ref={heading} tabIndex={-1} id="source-intake-title" className="mb-2 text-xl">
           {copy.title(request.portName)}
         </DialogTitle>

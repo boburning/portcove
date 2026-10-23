@@ -66,6 +66,49 @@ void test("a real pagination boundary retains all source ancestors without using
   assert.equal(f.calls.filter((call) => call.includes("page=2")).length, 1);
 });
 
+void test("complete accumulated history reaches the finite 2048-commit boundary and refuses overflow", () => {
+  const full = releaseSourceFixture(2048);
+  const result = collectReleaseSourceChanges(full.api, full.opportunity);
+  assert.equal(result.commits.length, 2048);
+  assert.equal(result.change_set_sha256, full.expectedHash);
+  assert.equal(result.api_requests, 25);
+  assert.equal(full.calls.filter((call) => call.includes("page=21")).length, 1);
+  const overflow = releaseSourceFixture(2049);
+  assert.throws(
+    () => collectReleaseSourceChanges(overflow.api, overflow.opportunity),
+    /completeness/,
+  );
+  assert.equal(overflow.calls.filter((call) => call.includes("/compare/")).length, 1);
+  for (const fault of ["page-overflow", "changed-total"]) {
+    const fixture = releaseSourceFixture(2048);
+    const api = {
+      request(method: string, endpoint: string) {
+        const response = fixture.api.request(method, endpoint);
+        if (fault === "page-overflow" && endpoint.includes("page=21")) {
+          return {
+            ...response,
+            headers: new Map(response.headers).set(
+              "link",
+              `<${endpoint.replace("page=21", "page=22")}>; rel="next"`,
+            ),
+          };
+        }
+        if (fault === "changed-total" && endpoint.includes("page=2")) {
+          assert.ok(isRecord(response.body));
+          response.body.total_commits = 2047;
+          response.body.ahead_by = 2047;
+        }
+        return response;
+      },
+    };
+    assert.throws(
+      () => collectReleaseSourceChanges(api, fixture.opportunity),
+      /pagination|changed/,
+    );
+    assert.ok(fixture.calls.every((endpoint) => !endpoint.includes("page=22")));
+  }
+});
+
 void test("truncated/diverged/duplicate/escaping comparisons and forged incomplete trees refuse", () => {
   for (const fault of [
     "truncated",

@@ -68,7 +68,7 @@ class GitPolicy(unittest.TestCase):
         executable, args, environment = calls[-1][1]
         self.assertEqual(executable, "/usr/bin/git")
         self.assertIn("--filter=tree:0", args)
-        self.assertIn("--depth=1601", args)
+        self.assertIn("--depth=2049", args)
         self.assertEqual(args[-2:], ["https://github.com/boburning/portcove.git", "a" * 40])
         self.assertIn("--no-write-fetch-head", args)
         self.assertIn("protocol.allow=never", args)
@@ -91,7 +91,7 @@ class GitPolicy(unittest.TestCase):
     def test_blob_mode_has_fixed_filter_and_larger_still_finite_file_ceiling(self):
         calls = self.run_request(phase="blobs")
         self.assertIn("--filter=blob:none", calls[-1][1][1])
-        self.assertNotIn("--depth=1601", calls[-1][1][1])
+        self.assertNotIn("--depth=2049", calls[-1][1][1])
         self.assertEqual(calls[1][1][1], (256 * 1024**2,) * 2)
 
     def test_local_decoding_has_same_preexec_limits_and_no_network_route(self):
@@ -112,6 +112,8 @@ class GitPolicy(unittest.TestCase):
                 self.assertEqual([name for name, _ in calls], ["limit"] * 4 + ["alarm", "exec"])
                 args = calls[-1][1][1]
                 self.assertIn(command, args)
+                if phase == "history":
+                    self.assertIn("--max-count=2049", args)
                 self.assertIn("protocol.https.allow=never", args)
                 self.assertFalse(any(arg.startswith("https:") for arg in args))
 

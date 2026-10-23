@@ -100,6 +100,7 @@ export function SupportBundleExport({
         variant="outline"
         size="sm"
         disabled={disabled || pending || !createSupportBundle}
+        className="justify-self-start"
         onClick={() => void create()}
       >
         {pending ? "Creating support bundle…" : "Create support bundle"}

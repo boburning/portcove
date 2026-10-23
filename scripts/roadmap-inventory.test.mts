@@ -360,6 +360,7 @@ void test("delivered candidates make quiet repeats write nothing and review cann
 });
 void test("unchanged finish preserves final inventory guards and records no planning doctor", async (t) => {
   const { session } = await temporarySession(t);
+  session.leadPages = 4; // Completed complementary lead collection; this fixture has no queued leads.
   const f = fixture(1);
   session.client.graphql = f.client.graphql;
   session.client.completeProjectContext = f.client.completeProjectContext;
@@ -664,6 +665,8 @@ void test("material proposal identity ignores wording and invalid replacements p
 });
 void test("quiet rotation yields a continuation at its reserved floor and cannot exceed fifty across commands", async (t) => {
   const { session } = await temporarySession(t);
+  // This fixture isolates the rotation budget after complementary collection with no new leads.
+  session.leadPages = 4;
   const f = fixture(60);
   for (const row of f.rows) {
     row.title = "[Port] Fixture " + row.number;

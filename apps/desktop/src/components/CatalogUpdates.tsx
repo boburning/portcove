@@ -28,9 +28,6 @@ export function CatalogSettings({
   const [open, setOpen] = useState(false);
   return (
     <SettingsRow className="" data-focus-group>
-      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-        CATALOG
-      </p>
       <h2>Custom catalog sources</h2>
       <CatalogOrigin provenance={provenance} />
       <p>
@@ -41,6 +38,7 @@ export function CatalogSettings({
       <Button
         data-focusable
         data-settings-control="catalog-updates"
+        className="justify-self-start"
         variant="outline"
         size="sm"
         disabled={disabled}

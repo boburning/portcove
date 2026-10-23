@@ -53,6 +53,7 @@ it("reviews exact paths and safety-backup behavior before a bound restore", asyn
   const close = vi.fn();
   await root.rerender(
     <BackupReviewDialog
+      gameName="Harbor Adventure — Édition <A&B> · Modern port"
       backup={review.preview.backup}
       action="restore"
       generation={7}
@@ -62,6 +63,10 @@ it("reviews exact paths and safety-backup behavior before a bound restore", asyn
   );
   expect(preview).toHaveBeenCalledWith("sample", "snapshot", "restore", 7);
   expect(apply).not.toHaveBeenCalled();
+  const dialog = document.querySelector('[role="dialog"]')!;
+  expect(document.getElementById(dialog.getAttribute("aria-describedby")!)?.textContent).toContain(
+    "Harbor Adventure — Édition <A&B> · Modern port",
+  );
   expect(document.body.textContent).toContain("library/user/sample");
   expect(document.body.textContent).toContain("Sample Port");
   expect(document.body.textContent).toContain("Catalog ID: sample");

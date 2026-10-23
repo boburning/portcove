@@ -144,7 +144,7 @@ def main():
             ]
         )
         if phase == "commits":
-            args.append("--depth=1601")
+            args.append("--depth=2049")
         args.extend(["https://github.com/boburning/portcove.git", *objects])
     elif phase == "init":
         args.extend(["init", "--bare", "--quiet", "--template=", value["repository"]])
@@ -152,7 +152,7 @@ def main():
         operations = {
             "commit": ["cat-file", "commit", *objects],
             "refs": ["for-each-ref", "--format=%(refname)"],
-            "history": ["rev-list", "--max-count=1601", *objects[:1], *[f"^{oid}" for oid in objects[1:]]],
+            "history": ["rev-list", "--max-count=2049", *objects[:1], *[f"^{oid}" for oid in objects[1:]]],
             "peel": ["rev-parse", "--verify", *[f"{oid}^{{commit}}" for oid in objects]],
             "tree": ["hash-object", "-w", "-t", "tree", "--stdin"],
             "sizes": ["cat-file", "--batch-check=%(objectname) %(objecttype) %(objectsize)"],

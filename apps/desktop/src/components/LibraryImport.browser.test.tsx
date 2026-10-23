@@ -73,7 +73,9 @@ afterEach(async () => {
 
 it("invalidates a reviewed backup after editing and exposes recoverable import errors", async () => {
   await click("Restore from a library copy");
-  expect(document.body.textContent).toContain("RESTORE PORTCOVE LIBRARY");
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain(
+    "Restore from a library copy",
+  );
   expect(document.body.textContent).toContain(
     "You need a library metadata file and a separate copy of the original library folder.",
   );
