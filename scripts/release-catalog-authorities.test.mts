@@ -379,3 +379,72 @@ void test("appointed catalog scope limits exact Core-bound titles/templates/sche
   );
   assert.throws(() => inspect(policy, { ...config, configuration_sha256: "0".repeat(64) }));
 });
+
+void test("descriptive directory requires explicit appointment without extending operational title scope", () => {
+  const config = configuration();
+  const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+  const target = "policy/official/catalog.listings.json";
+  const files = new Map([
+    ["definitions/index.json", Buffer.from("{}")],
+    [target, Buffer.from("inert Core-inspected listing fixture")],
+  ]);
+  const report = {
+    publication_schema: 2,
+    authority: "none",
+    scope: "inert-catalog-publication-inspection",
+    index_sha256: sha(files.get("definitions/index.json")!),
+    files: [...files].map(([target, bytes]) => ({
+      target,
+      bytes: bytes.length,
+      sha256: sha(bytes),
+    })),
+    definitions: [],
+    listings: {
+      target,
+      revision: 1,
+      sha256: sha(files.get(target)!),
+      listing_count: 1,
+      withdrawn_count: 0,
+    },
+  };
+  assert.throws(
+    () => assertControllerCatalogPublisherScope(config, report, files),
+    /outside appointed/,
+  );
+  const appointment = { listing_delivery_schema: 1, target };
+  const appointed = {
+    ...config,
+    catalog: { ...config.catalog, publisher_scope: [], descriptive_directory: appointment },
+  };
+  assert.equal(assertControllerCatalogPublisherScope(appointed, report, files).authority, "none");
+  for (const descriptive_directory of [
+    { ...appointment, operations: ["launch"] },
+    { ...appointment, listing_delivery_schema: 2 },
+    { ...appointment, target: "policy/official/foreign.json" },
+  ])
+    assert.throws(() =>
+      inspectCatalogAuthorityConfiguration({
+        ...appointed,
+        catalog: { ...appointed.catalog, descriptive_directory },
+      }),
+    );
+  assert.throws(
+    () =>
+      assertControllerCatalogPublisherScope(
+        appointed,
+        {
+          ...report,
+          definitions: [
+            {
+              namespace: "official",
+              stable_id: "foreign",
+              definition_target: "definitions/official/foreign.json",
+              policy_target: "policy/official/foreign.json",
+            },
+          ],
+        },
+        files,
+      ),
+    /outside appointed/,
+  );
+});

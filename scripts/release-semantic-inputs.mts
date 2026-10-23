@@ -13,7 +13,11 @@ import { parseVersionClassification } from "../apps/desktop/scripts/release-vers
 import { inspectReleaseReviewRequest } from "./release-review-request.mts";
 import { inspectPublishedApplicationSource } from "./release-published-source.mts";
 import { inspectCatalogSemanticOpportunity } from "./release-catalog-semantic.mts";
-import { inspectCatalogCoreReport } from "./release-catalog-publication-contract.mts";
+import {
+  assertCatalogListingClassification,
+  catalogListingTarget,
+  inspectCatalogCoreReport,
+} from "./release-catalog-publication-contract.mts";
 import {
   assertPreviewWithdrawalClassification,
   readPreviewWithdrawalSource,
@@ -360,6 +364,7 @@ export function prepareFrozenCatalogSemanticInputs(
         sha256: createHash("sha256").update(bytes).digest("hex"),
       }));
   const report = inspectCatalogCoreReport(JSON.parse(inspection.toString("utf8")), files);
+  assertCatalogListingClassification(report, opportunity.classification);
   if (
     capacityDigest(inventory(files, "target")) !== opportunity.bundle_sha256 ||
     report.index_sha256 !== opportunity.classification.index_sha256 ||
@@ -399,6 +404,7 @@ export function prepareFrozenCatalogSemanticInputs(
         const allowed =
           snapshot === "catalog"
             ? target === "definitions/index.json" ||
+              target === catalogListingTarget ||
               /^sha256\/[a-f0-9]{64}\.json$/u.test(target) ||
               /^policy\/official\/[a-z0-9][a-z0-9-]*(?:\.launch)?\.json$/u.test(target)
             : /^(?:metadata\/[a-zA-Z0-9.-]+\.json|targets\/(?:[a-z0-9_.-]+\/)*[a-zA-Z0-9_.-]+)$/u.test(
@@ -406,9 +412,11 @@ export function prepareFrozenCatalogSemanticInputs(
               );
         const maximum =
           snapshot === "catalog"
-            ? target.startsWith("policy/")
-              ? 65536
-              : 4 * 1024 ** 2
+            ? target === catalogListingTarget
+              ? 8 * 1024 ** 2
+              : target.startsWith("policy/")
+                ? 65536
+                : 4 * 1024 ** 2
             : 8 * 1024 ** 2;
         if (
           !allowed ||

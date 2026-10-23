@@ -192,19 +192,77 @@ export const catalogPublicationInventory = (files: ReadonlyMap<string, Buffer>) 
     .map(([target, bytes]) => ({ target, bytes: bytes.length, sha256: catalogFileHash(bytes) }));
 /** Validates byte binding only. Semantic projection comes from the actual Core
  * invocation, never this parser or a caller-supplied success flag. */
+export const catalogListingTarget = "policy/official/catalog.listings.json";
+/** Only the fixed descriptive target and its consistent-snapshot retained copies receive this larger bound. */
+export function catalogListingContextFileBound(name: string) {
+  return name === catalogListingTarget ||
+    name === `bundle/${catalogListingTarget}` ||
+    /^(?:prior\/)?targets\/[a-f0-9]{64}\.policy\/official\/catalog\.listings\.json$/u.test(name)
+    ? 8 * 1024 ** 2
+    : 1024 * 1024;
+}
+export function assertCatalogListingClassification(
+  report: Record<string, unknown>,
+  classification: { listings?: unknown },
+) {
+  const observed =
+    report.publication_schema === 2 ? inspectCatalogListingIdentity(report.listings) : null;
+  const classified =
+    classification.listings === undefined
+      ? null
+      : inspectCatalogListingIdentity(classification.listings);
+  if (digest(observed) !== digest(classified))
+    throw new Error("catalog listing classification differs from exact inspection");
+}
+
+export function inspectCatalogListingIdentity(raw: unknown) {
+  exact(raw, "listing_count,revision,sha256,target,withdrawn_count");
+  if (
+    raw.target !== catalogListingTarget ||
+    typeof raw.revision !== "number" ||
+    !Number.isSafeInteger(raw.revision) ||
+    raw.revision < 1
+  )
+    throw new Error("catalog listing identity differs");
+  sha(raw.sha256);
+  for (const field of ["listing_count", "withdrawn_count"]) {
+    const count = raw[field];
+    if (typeof count !== "number" || !Number.isInteger(count) || count < 0 || count > 10000)
+      throw new Error("catalog listing count exceeds bound");
+  }
+  return structuredClone(raw);
+}
+export function catalogInspectionShape(raw: Record<string, unknown>) {
+  const listings = raw.publication_schema === 2;
+  return (
+    Object.keys(raw).sort().join(",") ===
+      (listings
+        ? "authority,definitions,files,index_sha256,listings,publication_schema,scope"
+        : "authority,definitions,files,index_sha256,publication_schema,scope") &&
+    (listings
+      ? raw.scope === "inert-catalog-publication-inspection"
+      : raw.publication_schema === 1 &&
+        raw.scope === "inert-managed-definition-publication-inspection")
+  );
+}
+
 export function inspectCatalogCoreReport(raw: unknown, files: ReadonlyMap<string, Buffer>) {
   if (
     !isRecord(raw) ||
-    Object.keys(raw).sort().join(",") !==
-      "authority,definitions,files,index_sha256,publication_schema,scope" ||
-    raw.publication_schema !== 1 ||
+    !catalogInspectionShape(raw) ||
     raw.authority !== "none" ||
-    raw.scope !== "inert-managed-definition-publication-inspection" ||
     !Array.isArray(raw.definitions) ||
     !Array.isArray(raw.files) ||
     JSON.stringify(raw.files) !== JSON.stringify(catalogPublicationInventory(files)) ||
     raw.index_sha256 !== catalogFileHash(files.get("definitions/index.json") ?? Buffer.alloc(0))
   )
     throw new Error("Core inspection does not bind exact catalog bytes");
+  if (raw.publication_schema === 2) {
+    const listing = inspectCatalogListingIdentity(raw.listings);
+    const bytes = files.get(catalogListingTarget);
+    if (!bytes || bytes.length > 8 * 1024 ** 2 || listing.sha256 !== catalogFileHash(bytes))
+      throw new Error("Core listing inspection does not bind exact catalog bytes");
+  } else if (files.has(catalogListingTarget))
+    throw new Error("listing target requires capable inspection");
   return structuredClone(raw);
 }

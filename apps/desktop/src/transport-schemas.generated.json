@@ -16408,6 +16408,82 @@
     "title": "LibrarySelection",
     "type": "object"
   },
+  "listing_delivery_status": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "anchor_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "delivery_schema": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "expires_at": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "fallback_reason": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "listing_count": {
+        "format": "uint",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "repository_root_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "revision": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "selected": {
+        "type": "boolean"
+      },
+      "target_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "withdrawn_ids": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "delivery_schema",
+      "revision",
+      "selected",
+      "anchor_sha256",
+      "repository_root_sha256",
+      "target_sha256",
+      "expires_at",
+      "listing_count",
+      "withdrawn_ids",
+      "fallback_reason"
+    ],
+    "title": "ListingDeliveryStatus",
+    "type": "object"
+  },
   "listing_statuses": {
     "$defs": {
       "AcceptedSharedPreferencesBinding": {

@@ -222,7 +222,7 @@ fn resolve_effective_catalog(
     resolve_effective_catalog_from_baseline(connection, baseline, provenance, now)
 }
 
-fn resolve_effective_catalog_from_baseline(
+pub(crate) fn resolve_before_listings(
     connection: &Connection,
     baseline: Catalog,
     mut provenance: CatalogProvenance,
@@ -242,6 +242,25 @@ fn resolve_effective_catalog_from_baseline(
             Ok((baseline, provenance))
         }
     }
+}
+
+fn resolve_effective_catalog_from_baseline(
+    connection: &Connection,
+    baseline: Catalog,
+    provenance: CatalogProvenance,
+    now: i64,
+) -> Result<(Catalog, CatalogProvenance)> {
+    let (catalog, mut provenance) = resolve_before_listings(connection, baseline, provenance, now)?;
+    let (catalog, listings) =
+        crate::definition_repository::publisher_policy::listing_delivery::load(
+            connection, catalog, now,
+        );
+    if let Some(reason) = listings.fallback_reason {
+        provenance
+            .fallback_reasons
+            .push(format!("listing directory was not loaded: {reason}"));
+    }
+    Ok((catalog, provenance))
 }
 
 pub(crate) fn effective_catalog_status(

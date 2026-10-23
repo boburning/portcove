@@ -1067,3 +1067,90 @@ consumption, without executing any fixture payload. They do not establish a real
 production feed, installed GUI behavior, automatic protected publication or native
 platform qualification. #246/#534 retain production custody, publication readback,
 zero routine owner intervention and operation-delivery acceptance.
+
+## Descriptive directory delivery
+
+A capable reader can refresh `policy/official/catalog.listings.json` in the same
+catalog-specific TUF repository. This fixed target uses the independent
+`official-policy` delegation and the already installed compiled catalog anchor.
+It never installs a managed publisher policy or adds a `PortDefinition`. Network
+locations select transport only; they cannot select a trust root. The application
+updater, catalog role keys, delegated paths and protected production activation
+remain separate and unchanged.
+
+The strict UTF-8 target has `listing_delivery_schema: 1`, a positive safe-integer
+`revision`, `withdrawn_ids` and a `directory` containing the existing format-1
+`CatalogListingDocument`. The complete target is bounded to 8 MiB, each listing
+uses the existing descriptive validator, and both lists are bounded to 10,000
+identities. Unknown fields, duplicate JSON keys, duplicate IDs, conflicting
+withdrawals, unsafe links and operational fields are rejected. Setup instructions
+and IGDB artwork mappings remain inert descriptions; acquisition, user-selected
+execution consent and managed installation retain their existing boundaries.
+
+Core atomically retains the exact target bytes and authenticated metadata
+provenance with the shared installed-authority replay floor. Lower metadata or
+feed revisions and changed bytes at an equal feed revision are refused. A newer
+metadata version can renew identical target bytes. Acquisition, validation or
+cancellation before admission leaves the accepted directory intact. Each service
+captures one coherent catalog snapshot; a fresh service sees an admitted refresh.
+
+The selected directory overlays bundled and accepted managed presentation by
+stable ID, then orders records by ID. Omitted remote-only records disappear when
+the snapshot is replaced. Omitted bundled records remain available. Explicit
+withdrawals remove descriptive-only bundled records; managed definitions and
+retained runtime contracts remain available through their owning projections.
+No previous remote snapshot is automatically restored after a withdrawal.
+Local artwork overrides remain higher priority than corrected remote artwork.
+Existing external registrations and pending setups retain their captured listing
+identity independently of catalog availability.
+
+Cached selected data works offline until its authenticated expiry. Expired,
+corrupt or no-longer-authorized cached data falls back to the bundled directory;
+the retained revision/replay floor is not lowered. Status exposes the actual
+selection, revision, target and authority digests, expiry, counts, withdrawals
+and fallback reason. An expired tombstone is not an indefinite new authority over
+the bundled fallback. There is no startup fetch or unsigned GitHub JSON fallback.
+
+CLI `catalog listing-refresh --metadata-base-url <https-base>
+--targets-base-url <https-base>` performs an explicit refresh under the installed
+authority. `catalog listing-status` reports its selection. Tauri delegates the
+same operations to Core; settings exposes the manual refresh and existing catalog
+and artwork projections display the resulting data after a workspace reload.
+Authority provisioning still requires the existing exact-plan consent. Automatic
+scheduling and real production configuration remain with their existing owners.
+
+Publication inspection schema 2 includes a separately bound listing summary
+(target, revision, exact digest and listing/withdrawal counts). The
+existing source acquisition, complete-opportunity classification/review, release
+tool and policy-role signing route carry it; schema 1 remains byte-compatible
+when the target is absent. Listing publication requires the explicit
+`official-catalog-listings-v2` compatibility declaration. This supplies no
+semantic acceptance or activation authority by itself.
+
+Readers without this new target reader can continue using their existing
+repository targets. They need one bootstrap application release to consume
+listing delivery; later compatible listing/artwork changes need no executable
+build. Library migration 40 makes older executables refuse a newer library
+rather than silently lose its selection/replay state. Fixture tests establish
+engineering behavior only. #534's actual configured protected publication and
+public/native unchanged-binary evidence remain prerequisites to production;
+this descriptive milestone does not close #246 or qualify #144's real artifacts.
+
+The controller also requires an explicit source-bound `catalog.descriptive_directory`
+appointment with exactly `listing_delivery_schema: 1` and
+`target: "policy/official/catalog.listings.json"`. Existing title-limited
+`publisher_scope` grants do not authorize this target. A descriptive-only
+appointment may use an empty managed scope. No configuration or production
+appointment is installed by the reader implementation; #534 retains that protected
+setup/activation boundary. Existing infrastructure and Chameleon decisions remain
+in effect at their granted scope. Frozen review, preflight, context transfer and
+retained readback allow up to 8 MiB only for this exact target and its
+content-addressed historical copies; unrelated per-file and aggregate limits
+remain in effect.
+
+These are per-file limits, not guaranteed complete-publication capacity. The
+unchanged fixed-reader session permits 8 MiB of output in total, including
+manifest, encoded current/prior content and changed-source evidence. Attempts
+that exhaust that budget refuse complete review and remain held. The transport
+fixture exercises a 2 MiB current directory and retained prior copy; it supplies
+no actual semantic-review acceptance or production qualification.

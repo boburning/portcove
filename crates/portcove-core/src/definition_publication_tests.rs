@@ -203,3 +203,20 @@ fn producer_bounds_and_duplicate_json_refuse_without_extra_authority() {
     file.set_len((MAX_LEAF + 1) as u64).unwrap();
     assert!(inspect_definition_publication(root.path()).is_err());
 }
+
+#[test]
+fn descriptive_directory_publication_is_exact_and_separate_from_managed_grants() {
+    let mut files = BTreeMap::from([(
+        INDEX.into(),
+        br#"{"index_schema":1,"definitions":[],"contents":[]}"#.to_vec(),
+    )]);
+    let target = crate::definition_repository::publisher_policy::listing_delivery::TARGET;
+    let bytes = serde_json::to_vec(&json!({"listing_delivery_schema":1,"revision":1,"withdrawn_ids":[],"directory":{"format_version":1,"listings":[]}})).unwrap();
+    files.insert(target.into(), bytes.clone());
+    let report = inspect_definition_publication_bytes(&files).unwrap();
+    assert_eq!(report.publication_schema, 2);
+    assert!(report.definitions.is_empty());
+    assert_eq!(report.listings.unwrap().sha256, hash(&bytes));
+    files.insert("policy/official/other.listings.json".into(), bytes);
+    assert!(inspect_definition_publication_bytes(&files).is_err());
+}

@@ -57,6 +57,7 @@ function remaining(deadline: number) {
 function target(name: string) {
   return (
     name === "definitions/index.json" ||
+    name === "policy/official/catalog.listings.json" ||
     /^sha256\/[a-f0-9]{64}\.json$/u.test(name) ||
     /^policy\/official\/[a-z0-9][a-z0-9-]*(?:\.launch)?\.json$/u.test(name)
   );
@@ -100,7 +101,11 @@ export async function readCatalogPublicationBundle(directory: string, deadline: 
           throw new Error("catalog bundle file identity differs");
         const bytes = await readControllerToolFile(
           filename,
-          name.startsWith("policy/") ? 65536 : 4 * 1024 ** 2,
+          name === "policy/official/catalog.listings.json"
+            ? 8 * 1024 ** 2
+            : name.startsWith("policy/")
+              ? 65536
+              : 4 * 1024 ** 2,
         );
         total += bytes.length;
         if (total > 32 * 1024 ** 2 || files.size >= 16385)

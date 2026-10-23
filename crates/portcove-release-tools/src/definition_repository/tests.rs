@@ -843,3 +843,85 @@ async fn deletion_then_reintroduction_cannot_erase_authenticated_catalog_revisio
     );
     assert!(!fixture.root().join("reintroduced").exists());
 }
+
+fn replace_listing_directory(fixture: &Fixture, revision: u64) {
+    let target = "policy/official/catalog.listings.json";
+    let listings = (0..40).map(|index| json!({"id":format!("listing-{index}"),"name":format!("Listing {index} revision {revision}"),"summary":"x".repeat(2000),"project_url":"https://example.invalid/project","availability":"source-only"})).collect::<Vec<_>>();
+    let bytes = serde_json::to_vec(&json!({"listing_delivery_schema":1,"revision":revision,"withdrawn_ids":[],"directory":{"format_version":1,"listings":listings}})).unwrap();
+    assert!(bytes.len() > 65536);
+    fs::write(fixture.root().join("bundle").join(target), &bytes).unwrap();
+    let files = io::tree(&fixture.root().join("bundle"), BUNDLE_FILES, BUNDLE_MAX).unwrap();
+    let mut report: serde_json::Value =
+        serde_json::from_slice(&fs::read(fixture.root().join("inspection.json")).unwrap()).unwrap();
+    report["publication_schema"] = json!(2);
+    report["scope"] = json!("inert-catalog-publication-inspection");
+    report["listings"] = json!({"target":target,"revision":revision,"sha256":sha(&bytes),"listing_count":40,"withdrawn_count":0});
+    report["files"] = json!(bundle::identities(&files));
+    let report = serde_json::to_vec(&report).unwrap();
+    fs::write(fixture.root().join("inspection.json"), &report).unwrap();
+    let mut context = fixture.context_value();
+    context["inspection_sha256"] = json!(sha(&report));
+    fixture.set_context(context);
+}
+
+#[tokio::test]
+async fn descriptive_directory_large_targets_correct_and_read_back_without_revision_reset() {
+    let mut fixture = Fixture::new().await;
+    replace_listing_directory(&fixture, 1);
+    fixture.sign_all().await;
+    assemble_definition_repository(&fixture.assembly("listing-first"))
+        .await
+        .unwrap();
+    replace_listing_directory(&fixture, 2);
+    let mut context = fixture.context_value();
+    context["previous_repository"] = json!("listing-first");
+    for role in ["definitions", "policy", "snapshot", "timestamp"] {
+        context["versions"][role] = json!(2);
+    }
+    fixture.set_context(context);
+    fixture.roles = fixture.root().join("listing-roles-two");
+    fs::create_dir(&fixture.roles).unwrap();
+    fixture.sign_all().await;
+    assemble_definition_repository(&fixture.assembly("listing-second"))
+        .await
+        .unwrap();
+    replace_listing_directory(&fixture, 1);
+    let mut context = fixture.context_value();
+    context["previous_repository"] = json!("listing-second");
+    for role in ["definitions", "policy", "snapshot", "timestamp"] {
+        context["versions"][role] = json!(3);
+    }
+    fixture.set_context(context);
+    let failure = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("historical policy/launch rollback"),
+        "{failure}"
+    );
+}
+
+#[tokio::test]
+async fn descriptive_inspection_rejects_extra_or_false_summaries() {
+    let fixture = Fixture::new().await;
+    replace_listing_directory(&fixture, 1);
+    let manifest = fs::read(fixture.root().join("inspection.json")).unwrap();
+    let report: serde_json::Value = serde_json::from_slice(&manifest).unwrap();
+    for (field, value) in [
+        ("sha256", json!("0".repeat(64))),
+        ("listing_count", json!(39)),
+        ("operations", json!(["install"])),
+    ] {
+        let mut changed = report.clone();
+        changed["listings"][field] = value;
+        assert!(
+            bundle::inspect(
+                &fixture.root().join("bundle"),
+                &serde_json::to_vec(&changed).unwrap()
+            )
+            .is_err()
+        );
+    }
+}

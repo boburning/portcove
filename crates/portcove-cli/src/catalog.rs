@@ -93,6 +93,17 @@ pub(crate) enum CatalogCommand {
         #[arg(long, requires = "apply")]
         yes: bool,
     },
+    /// Show authenticated descriptive directory selection and fallback reasons.
+    ListingStatus,
+    /// Refresh descriptive listings and artwork under the installed fixed catalog authority.
+    ListingRefresh {
+        /// HTTPS base URL for signed catalog metadata; only the installed fixed authority is accepted.
+        #[arg(long)]
+        metadata_base_url: String,
+        /// HTTPS base URL for authenticated directory content; the address grants no publisher authority.
+        #[arg(long)]
+        targets_base_url: String,
+    },
     /// Refresh one official definition under this release's installed fixed authority.
     DefinitionRefresh {
         /// Official definition ID to refresh under the already installed fixed publisher authority.
@@ -171,6 +182,8 @@ impl CatalogCommand {
             Self::InspectObservation { .. } => "catalog.inspect-observation",
             Self::Status => "catalog.status",
             Self::DefinitionAuthority { .. } => "catalog.definition-authority",
+            Self::ListingStatus => "catalog.listing-status",
+            Self::ListingRefresh { .. } => "catalog.listing-refresh",
             Self::DefinitionRefresh { .. } => "catalog.definition-refresh",
             Self::TrustKey { .. } => "catalog.trust-key",
             Self::RevokeKey { .. } => "catalog.revoke-key",
@@ -225,6 +238,32 @@ pub(crate) async fn execute(
         ),
         CatalogCommand::Status => {
             render_read_success(mode, name, library.catalog_status()?, human::catalog_status)
+        }
+        CatalogCommand::ListingStatus => {
+            render_read_success(mode, name, library.listing_delivery_status()?, |value| {
+                format!(
+                    "Listing revision: {:?}; selected: {}; entries: {}",
+                    value.revision, value.selected, value.listing_count
+                )
+            })
+        }
+        CatalogCommand::ListingRefresh {
+            metadata_base_url,
+            targets_base_url,
+        } => {
+            let source = portcove_core::DefinitionRepositorySource::new(
+                &metadata_base_url,
+                &targets_base_url,
+            )?;
+            let refreshed = service
+                .refresh_listings(&source, progress_renderer(mode, service.catalog()))
+                .await?;
+            render_read_success(mode, name, refreshed, |value| {
+                format!(
+                    "Listing revision: {:?}; selected: {}; entries: {}",
+                    value.revision, value.selected, value.listing_count
+                )
+            })
         }
         CatalogCommand::DefinitionRefresh {
             stable_id,
