@@ -134,3 +134,64 @@ it("still applies queued reset after a failed in-flight enlargement", async () =
     error: undefined,
   });
 });
+
+it("notifies independent subscribers with stable prior snapshots and honors unsubscribe", async () => {
+  const first = deferred();
+  const apply = vi.fn().mockReturnValueOnce(first.promise).mockResolvedValue(undefined);
+  const controller = new InterfaceSizeController(apply, () => ({
+    getItem: () => null,
+    setItem: vi.fn(),
+  }));
+  const initial = controller.getSnapshot();
+  const snapshots: ReturnType<InterfaceSizeController["getSnapshot"]>[] = [];
+  const remaining = vi.fn();
+  const unsubscribe = controller.subscribe(() => snapshots.push(controller.getSnapshot()));
+  const unsubscribeRemaining = controller.subscribe(remaining);
+  try {
+    controller.request(125);
+    const pending = snapshots[0]!;
+    expect(pending).toMatchObject({ applied: 100, requested: 125, pending: true });
+    expect(pending).not.toBe(initial);
+    first.resolve();
+    await vi.waitFor(() => expect(controller.getSnapshot().pending).toBe(false));
+    expect(controller.getSnapshot().applied).toBe(125);
+    expect(initial).toMatchObject({ applied: 100, requested: 100, pending: false });
+    expect(pending).toMatchObject({ applied: 100, requested: 125, pending: true });
+    unsubscribe();
+    const detachedCount = snapshots.length;
+    remaining.mockClear();
+    controller.request(200);
+    await vi.waitFor(() => expect(controller.getSnapshot().pending).toBe(false));
+    expect(controller.getSnapshot().applied).toBe(200);
+    expect(snapshots).toHaveLength(detachedCount);
+    expect(remaining).toHaveBeenCalled();
+    expect(apply.mock.calls).toEqual([[1.25], [2]]);
+  } finally {
+    first.resolve();
+    unsubscribe();
+    unsubscribeRemaining();
+  }
+});
+
+it("dismissing a native error preserves the applied preference without retrying zoom", async () => {
+  const apply = vi.fn().mockRejectedValue(new Error("native refusal"));
+  const setItem = vi.fn();
+  const controller = new InterfaceSizeController(apply, () => ({ getItem: () => null, setItem }));
+  controller.request(250);
+  await vi.waitFor(() => expect(controller.getSnapshot().pending).toBe(false));
+  const failed = controller.getSnapshot();
+  expect(failed.error).toContain("could not be confirmed");
+  const listener = vi.fn();
+  const unsubscribe = controller.subscribe(listener);
+  try {
+    controller.dismissError();
+    expect(controller.getSnapshot()).toEqual({ ...failed, error: undefined });
+    expect(controller.getSnapshot()).not.toBe(failed);
+    expect(failed.error).toContain("could not be confirmed");
+    expect(listener).toHaveBeenCalled();
+    expect(apply).toHaveBeenCalledExactlyOnceWith(2.5);
+    expect(setItem).not.toHaveBeenCalled();
+  } finally {
+    unsubscribe();
+  }
+});
