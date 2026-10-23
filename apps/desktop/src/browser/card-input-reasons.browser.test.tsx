@@ -174,11 +174,14 @@ it.each([
         .toHaveAccessibleName(
           view === "catalog" ? `View details for ${name}` : `${name}. ${label}.`,
         );
-      if (view === "catalog")
-        await expect.element(card).toHaveAccessibleDescription(new RegExp(label));
+
       expect(card.element().querySelector(".readiness")?.textContent?.trim()).toBe(label);
       await expect.element(card).toMatchTextContent(reason);
-      await expect.element(card).toHaveAccessibleDescription(new RegExp(reason));
+      await expect
+        .element(card)
+        .toHaveAccessibleDescription(
+          new RegExp(view === "catalog" ? `${label}.*${reason}` : reason),
+        );
       await expect
         .element(card)
         .toMatchTextContent(view === "library" ? "Release channel: Preview" : "Preview channel");
@@ -201,16 +204,20 @@ it.each([
       await userEvent.click(page.getByRole("button", { name: "Back to cards", exact: true }));
     }
     const unknown = gameCard(view, "Unknown");
-    if (view === "catalog") {
-      await expect.element(unknown).toHaveAccessibleName("View details for Unknown");
-      await expect.element(unknown).toHaveAccessibleDescription(/Readiness unavailable/);
-    } else await expect.element(unknown).toHaveAccessibleName(/Readiness unavailable/);
+    await expect
+      .element(unknown)
+      .toHaveAccessibleName(
+        view === "catalog" ? "View details for Unknown" : "Unknown. Readiness unavailable.",
+      );
+    await expect
+      .element(unknown)
+      .toHaveAccessibleDescription(view === "catalog" ? /Readiness unavailable/ : "");
     for (const name of ["Ready", "Staged ready"]) {
       const card = gameCard(view, name);
       expect(card.element().querySelector(".readiness")?.textContent?.trim()).toBe("Ready to play");
-      if (view === "catalog")
-        await expect.element(card).toHaveAccessibleDescription(/Ready to play/);
-      else await expect.element(card).not.toHaveAccessibleDescription();
+      await expect
+        .element(card)
+        .toHaveAccessibleDescription(view === "catalog" ? /Ready to play/ : "");
       const play = card.getByRole("button", { name: "Play", exact: true });
       await expect
         .poll(() => play.query()?.matches(":disabled") ?? null)
