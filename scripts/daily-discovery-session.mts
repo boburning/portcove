@@ -646,7 +646,7 @@ export class DiscoverySession {
       this.budget.admit(1, 1);
       const response = this.source.api.request(
         "GET",
-        `search/repositories?q=${encodeURIComponent(plan.query)}&sort=created&order=asc&per_page=${leadPageSize}&page=${plan.page}`,
+        `search/repositories?q=${encodeURIComponent(plan.query)}&per_page=${leadPageSize}&page=${plan.page}`,
       );
       const name = `lead-search-${++this.searches}`;
       this.save(name, { ...object(response.body), query: plan.query, page: plan.page });

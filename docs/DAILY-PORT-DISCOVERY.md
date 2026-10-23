@@ -116,10 +116,14 @@ IDs/count honestly when 50/day or the budget cannot cover them.
 New-lead coverage is separate from canonical rotation. `collect` first runs
 `discover`: up to six charged search pages across newly created recomp/recompiled
 repositories and recently pushed recompilation/native-port projects. Each page
-contains at most fifty results, ordered by creation rather than latest activity.
+contains at most fifty results using GitHub's documented default best-match
+ordering within the fixed time window, rather than newest-activity ordering.
 Match repository names/descriptions rather than arbitrary README prose: a
 recompilation mention in compiler/cache/SDK documentation is a poor game lead.
 Rank explicit game/recomp/decomp metadata ahead of generic packaged software.
+Game names in repository names and console/game metadata are stronger signals
+than a generic description mentioning recompilation, a curated list or shared
+framework. These are research-order hints, never eligibility decisions.
 When query terms change, retain the old slice as retired evidence and start a
 fresh scoped window; never combine its old page counts with the revised query.
 `leads.json` retains provider IDs, evidence, research/dispositions and independent
