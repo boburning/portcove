@@ -50,6 +50,9 @@ import {
   readCoordinatorCheckpointEvidence,
 } from "./release-coordinator-checkpoint-evidence.mts";
 import { performance } from "node:perf_hooks";
+import { checkpointProofFixture } from "./fixtures/checkpoint-proof-fixture.mts";
+import { authenticateCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-authentication.mts";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import childProcess from "node:child_process";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
@@ -3993,3 +3996,95 @@ void test(
     );
   },
 );
+
+for (const expires of ["read", "first-object", "before-cas", "mutated-options"]) {
+  void test(`authenticated checkpoint expiry after ${expires} stops the next mutation and retains completed effects`, async (t) => {
+    const f = await remoteFixture(t),
+      proof = checkpointProofFixture(f.checkpoint, f.config);
+    const directory = await mkdtemp(path.join(os.tmpdir(), "checkpoint-publisher-auth-"));
+    t.after(() => rm(directory, { recursive: true, force: true }));
+    const previous = process.env.GH_TOKEN;
+    process.env.GH_TOKEN = "inert-metadata-token";
+    t.after(() => {
+      if (previous === undefined) delete process.env.GH_TOKEN;
+      else process.env.GH_TOKEN = previous;
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+    });
+    let clock = performance.now();
+    t.mock.method(performance, "now", () => clock);
+    t.mock.method(childProcess, "spawnSync", (_command: string, args: readonly string[]) => {
+      if (args[0] === "attestation")
+        return {
+          status: 0,
+          stdout: JSON.stringify([{ verificationResult: proof.verification }]),
+          stderr: "",
+        };
+      const response = proof.api.request("GET", args[2]!);
+      return {
+        status: 0,
+        stdout: `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify(response.body)}`,
+        stderr: "",
+      };
+    });
+    syncBuiltinESMExports();
+    await withReadOnlyReleaseChildren(directory, async () => {
+      const receipt = await authenticateCoordinatorCheckpointEvidence(
+        directory,
+        f.checkpoint,
+        f.config,
+        proof.evidence,
+        proof.expected,
+        clock + 60000,
+      );
+      let posts = 0,
+        expired = false;
+      const api: CoordinatorRemoteApi = {
+        request(method, endpoint, body) {
+          const response = f.api.request(method, endpoint, body);
+          if (method === "POST") posts++;
+          if (
+            (expires === "read" && method === "GET" && endpoint.includes("/git/commits/")) ||
+            (expires === "first-object" && posts === 1) ||
+            (expires === "before-cas" && posts === 7)
+          ) {
+            if (!expired) {
+              clock += 60001;
+              expired = true;
+            }
+          }
+          return response;
+        },
+        graphql: (...args) => f.api.graphql(...args),
+      };
+      if (expires === "mutated-options") {
+        const mutable: Parameters<typeof publishCoordinatorCheckpoint>[3] = {
+          api,
+          authenticatedEvidence: receipt,
+        };
+        const pending = publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, mutable);
+        mutable.authenticatedEvidence = undefined;
+        mutable.evidence = checkpointEvidence(f, "replacement-inert-bundle");
+        const result = await pending;
+        const expectedProof = inspectCoordinatorCheckpointEvidence(
+          f.checkpoint,
+          f.config,
+          proof.evidence,
+        );
+        assert.deepEqual(result.updates.at(-1), expectedProof.update);
+        assert.equal(f.refs.get(expectedProof.update.name), expectedProof.update.afterOid);
+        return;
+      }
+      await assert.rejects(
+        publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, {
+          api,
+          authenticatedEvidence: receipt,
+        }),
+        /authenticated checkpoint/,
+      );
+      assert.equal(f.counts().mutations, 0);
+      assert.equal(f.counts().posts, expires === "read" ? 0 : expires === "first-object" ? 1 : 7);
+      assert.equal(f.refs.get(f.stateRef), f.initial.checkpoint);
+    });
+  });
+}
