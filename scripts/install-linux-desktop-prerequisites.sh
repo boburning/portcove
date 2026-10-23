@@ -10,6 +10,7 @@ packages=(
 fuse_package=libfuse2
 install_deadline=3m
 fallback_install_deadline=5m
+prefer_archive_mirror=false
 if [[ -f /etc/os-release ]]; then
   # Ubuntu 24.04 renamed the FUSE 2 runtime package for its time64 transition.
   source /etc/os-release
@@ -22,6 +23,7 @@ for option in "$@"; do
     --include-rpm) packages+=(rpm) ;;
     --include-appimage-runtime) packages+=("$fuse_package" xvfb dbus-x11 at-spi2-core util-linux) ;;
     --include-webdriver) packages+=(webkit2gtk-driver xvfb dbus-x11) ;;
+    --prefer-archive-mirror) prefer_archive_mirror=true ;;
     --install-timeout-seconds=*)
       seconds=${option#*=}
       if [[ ! $seconds =~ ^[0-9]{3,4}$ ]] || (( 10#$seconds < 180 || 10#$seconds > 3600 )); then
@@ -32,12 +34,13 @@ for option in "$@"; do
       fallback_install_deadline=$install_deadline
       ;;
     *)
-      echo "usage: $0 [--include-rpm] [--include-appimage-runtime] [--include-webdriver] [--install-timeout-seconds=180..3600]" >&2
+      echo "usage: $0 [--include-rpm] [--include-appimage-runtime] [--include-webdriver] [--prefer-archive-mirror] [--install-timeout-seconds=180..3600]" >&2
       exit 2
       ;;
   esac
 done
 readonly packages
+readonly prefer_archive_mirror
 
 missing_packages=()
 for package in "${packages[@]}"; do
@@ -97,6 +100,25 @@ run_apt() {
     apt-get "${apt_options[@]}" "$@"
 }
 
+use_archive_mirror() {
+  # Cover the selected legacy/deb822 source and the hosted runner's mirror+file
+  # indirection. Preserve unrelated mirrors and lookalike hosts or root paths.
+  for source in "$ubuntu_sources" /etc/apt/apt-mirrors.txt; do
+    if [[ -f "$source" ]]; then
+      "${privilege[@]}" sed -i '
+:rewrite
+s#\(^\|[[:space:]]\)https\?://azure\.archive\.ubuntu\.com/ubuntu\([/[:space:]]\|$\)#\1https://archive.ubuntu.com/ubuntu\2#g
+t rewrite
+' "$source"
+    fi
+  done
+}
+
+if [[ $prefer_archive_mirror == true ]]; then
+  echo "Preferring the Ubuntu archive mirror before prerequisite installation."
+  use_archive_mirror
+fi
+
 install_from_current_mirror() {
   local label=$1
   local update_deadline=$2
@@ -136,11 +158,7 @@ fi
 # runner already uses another mirror, the second attempt still gets the longer
 # bounded retry window without rewriting that source.
 echo "Retrying Linux desktop prerequisites with the archive mirror fallback."
-for source in /etc/apt/sources.list /etc/apt/apt-mirrors.txt; do
-  if [[ -f "$source" ]]; then
-    "${privilege[@]}" sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
-  fi
-done
+use_archive_mirror
 if install_from_current_mirror "the archive mirror fallback" 4m "$fallback_install_deadline"; then
   exit 0
 else
