@@ -15,6 +15,7 @@ import {
   coordinatorCommandTimeout,
   withCoordinatorDeadline,
   checkCoordinatorDeadline,
+  withCoordinatorReadback,
 } from "./release-coordinator-deadline.mts";
 
 void test("source hydration and four-file preparation stop after a late actual Git reply", async (t) => {
@@ -243,4 +244,39 @@ void test("a late synchronous Git reply cannot proceed to another command or tra
     /deadline/,
   );
   assert.equal(calls, 1);
+});
+
+void test("readback command scope preserves original execution and cannot ratchet nested collection", async (t) => {
+  let clock = 1000;
+  t.mock.method(performance, "now", () => clock);
+  await assert.rejects(
+    withCoordinatorDeadline(2000, async () => {
+      clock = 2001;
+      assert.throws(() => coordinatorCommandTimeout(), /deadline/);
+      withCoordinatorReadback(2000, () => {
+        assert.equal(coordinatorCommandTimeout(60000), 29999);
+        withCoordinatorReadback(2000, () => assert.equal(coordinatorCommandTimeout(60000), 29999));
+        assert.throws(
+          () => withCoordinatorReadback(32000, () => assert.fail("no nested extension")),
+          /original deadline/,
+        );
+        assert.equal(coordinatorCommandTimeout(60000), 29999);
+        clock = 32000;
+        assert.throws(
+          () => withCoordinatorReadback(2000, () => assert.fail("expired collection")),
+          /collection bound/,
+        );
+      });
+      assert.throws(() => coordinatorCommandTimeout(), /deadline/);
+    }),
+    /deadline/,
+  );
+  clock = 1000;
+  await withCoordinatorDeadline(1500, async () => {
+    assert.throws(
+      () => withCoordinatorReadback(2000, () => assert.fail("tighter parent")),
+      /original deadline/,
+    );
+    assert.equal(coordinatorCommandTimeout(), 500);
+  });
 });

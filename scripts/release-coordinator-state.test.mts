@@ -17,7 +17,7 @@ import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-me
 import { isDeepStrictEqual } from "node:util";
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, writeFile, rm, readdir } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, rm, readdir, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -50,7 +50,10 @@ import {
   readCoordinatorCheckpointEvidence,
 } from "./release-coordinator-checkpoint-evidence.mts";
 import { performance } from "node:perf_hooks";
-import { checkpointProofFixture } from "./fixtures/checkpoint-proof-fixture.mts";
+import {
+  checkpointProofFixture,
+  fixedJobJournalAuthoritiesFixture,
+} from "./fixtures/checkpoint-proof-fixture.mts";
 import { authenticateCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-authentication.mts";
 import { publishCoordinatorSigningExchange } from "./release-coordinator-signing-exchange.mts";
 import { createCheckpointJobTokenApi } from "./release-coordinator-journal-api.mts";
@@ -65,6 +68,8 @@ import {
   recoverOwnedPublishedMetadata,
   recoverOwnedCapacityEffect,
   createOwnedCheckpointSigningApi,
+  authenticateOwnedCheckpointJournalHistory,
+  publishOwnedSignedCoordinatorCheckpoint,
 } from "./release-capacity-executor.mts";
 import {
   assemblerIdentityFixture,
@@ -4596,4 +4601,216 @@ void test("owned fixed-job factory freezes namespace across actual identity refr
     /job/,
   );
   assert.equal(journalCalls, 1, "completed executor cannot obtain another journal transport");
+});
+
+async function selectedOwnedHistoryFixture(t: test.TestContext) {
+  const f = await remoteFixture(t);
+  const bare = path.join(f.repository, "selected-empty.git");
+  execFileSync("git", ["init", "--bare", "--quiet", bare], { windowsHide: true, timeout: 10000 });
+  const input = {
+    ...f.input,
+    schema_version: 2,
+    active_candidate: null,
+    publication: { ...f.input.publication, reserved_versions: [] },
+    controller: {
+      workflow: productionControllerWorkflow,
+      revision: identityExpected.controller_revision,
+      publication_paused: false,
+      capacity_attempt: { ...capacityFixture(), schema_version: 2 },
+    },
+  };
+  const seed = await checkpointReleaseOpportunity(bare, null, input);
+  const checkpoint = await exportCoordinatorCheckpoint(bare, seed.checkpoint);
+  const authorities = fixedJobJournalAuthoritiesFixture();
+  authorities.journal_seed = {
+    checkpoint: seed.checkpoint,
+    state_sha256: createHash("sha256").update(checkpoint.blob.contents).digest("hex"),
+  };
+  const expected = {
+    ...identityExpected,
+    run_attempt: 1,
+    audience: "portcove-capacity-executor",
+    subject: controllerOidcSubject(
+      identityExpected.controller_ref,
+      "production-release-coordinator",
+    ),
+  };
+  const identity = assemblerIdentityFixture(
+    {
+      aud: expected.audience,
+      sub: expected.subject,
+      environment: "production-release-coordinator",
+    },
+    {},
+    { ...capacityExecutorJobProfile("coordinator"), runAttempt: 1 },
+  );
+  const bytes = await readFile(
+    new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+  );
+  const policy = {
+    schema_version: 2,
+    mode: "bounded-application-release",
+    revision: expected.controller_revision,
+    execution_ref: expected.controller_ref,
+    actor_id: expected.actor_id,
+    authority_configuration_sha256: capacityDigest(authorities),
+    grant_sha256: "f".repeat(64),
+    workflow_sha256: createHash("sha256").update(bytes).digest("hex"),
+  };
+  const runtime: NodeJS.ProcessEnv = {
+    GH_TOKEN: "inert-selected-job-token",
+    ACTIONS_ID_TOKEN_REQUEST_URL: "https://fixture.actions.githubusercontent.com/oidc",
+    ACTIONS_ID_TOKEN_REQUEST_TOKEN: "inert-oidc-bearer",
+    PORTCOVE_EXECUTION_PURPOSE: "application",
+    PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(authorities),
+    PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify(policy),
+    GITHUB_ACTIONS: "true",
+    GITHUB_SERVER_URL: "https://github.com",
+    GITHUB_API_URL: "https://api.github.com",
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_REPOSITORY_ID: "1354613114",
+    GITHUB_EVENT_NAME: "workflow_dispatch",
+    GITHUB_REF: expected.controller_ref,
+    GITHUB_REF_TYPE: "tag",
+    GITHUB_REF_PROTECTED: "true",
+    GITHUB_SHA: expected.controller_revision,
+    GITHUB_WORKFLOW_SHA: expected.controller_revision,
+    GITHUB_WORKFLOW_REF: `boburning/portcove/${productionControllerWorkflow}@${expected.controller_ref}`,
+    PORTCOVE_CONTROLLER_REVISION: expected.controller_revision,
+    PORTCOVE_CONTROLLER_REF: expected.controller_ref,
+    GITHUB_ACTOR_ID: expected.actor_id,
+    GITHUB_ACTOR: "fixture-operator",
+    GITHUB_TRIGGERING_ACTOR: "fixture-operator",
+    GITHUB_RUN_ID: expected.run_id,
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_JOB: "coordinator",
+    RUNNER_ENVIRONMENT: "github-hosted",
+  };
+  const before = new Map(Object.keys(runtime).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, runtime);
+  const actualSpawn = childProcess.spawnSync;
+  let heads = 0;
+  t.after(() => {
+    for (const [key, value] of before)
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+  t.mock.method(globalThis, "fetch", async (raw: Parameters<typeof fetch>[0]) => {
+    assert.ok(typeof raw === "string" || raw instanceof URL);
+    const url = typeof raw === "string" ? raw : raw.href;
+    if (url === "https://token.actions.githubusercontent.com/.well-known/jwks")
+      return new Response(JSON.stringify({ keys: [identityJwk] }));
+    assert.equal(
+      url,
+      "https://fixture.actions.githubusercontent.com/oidc?audience=portcove-capacity-executor",
+    );
+    return new Response(JSON.stringify({ value: identity.token }));
+  });
+  t.mock.method(
+    childProcess,
+    "spawnSync",
+    (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
+      if (command !== "gh") return actualSpawn(command, args, options);
+      if (args[1] !== "graphql") return identity.transport.spawn(command, args, options);
+      heads++;
+      assert.equal(options.env?.GH_TOKEN, "inert-selected-job-token");
+      assert.equal(options.env?.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
+      assert.ok(typeof options.input === "string");
+      const query: unknown = JSON.parse(options.input);
+      assert.ok(
+        isRecord(query) && typeof query.query === "string" && query.query.startsWith("query("),
+      );
+      return {
+        status: 0,
+        stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify({ data: { repository: { databaseId: 1354613114, nameWithOwner: "boburning/portcove", state: { prefix: "refs/heads/", name: "portcove-fixture-coordinator-state", target: { __typename: "Commit", oid: seed.checkpoint } }, intent: null } } })}`,
+        stderr: "",
+      };
+    },
+  );
+  syncBuiltinESMExports();
+  const deadline = performance.now() + 60000;
+  const session = await authenticateCapacityExecutor(
+    "coordinator",
+    expected,
+    f.repository,
+    deadline,
+  );
+  const bound = await authenticateOwnedCheckpointJournalHistory(session, bare, seed.checkpoint);
+  assert.equal(bound.history, "ratified-initial-seed");
+  assert.equal(heads, 2);
+  return { session, bare, seed, deadline, heads: () => heads };
+}
+void test("selected private history cannot rebind an active publisher or clear its stopped state", async (t) => {
+  const { session, bare, seed, heads } = await selectedOwnedHistoryFixture(t);
+  let enter!: () => void, release!: () => void;
+  const entered = new Promise<void>((resolve) => {
+    enter = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const publishing = publishOwnedSignedCoordinatorCheckpoint(
+    session,
+    bare,
+    seed.checkpoint,
+    async () => {
+      enter();
+      await gate;
+      throw new Error("retained current-control refusal");
+    },
+  );
+  await entered;
+  try {
+    await assert.rejects(
+      authenticateOwnedCheckpointJournalHistory(session, bare, seed.checkpoint),
+      /busy|bound|stopped|recovery/,
+    );
+  } finally {
+    release();
+    await assert.rejects(publishing, /current-control refusal/);
+  }
+  await assert.rejects(
+    authenticateOwnedCheckpointJournalHistory(session, bare, seed.checkpoint),
+    /stopped|recovery/,
+  );
+  await assert.rejects(
+    publishOwnedSignedCoordinatorCheckpoint(session, bare, seed.checkpoint, async () => {
+      assert.fail("stopped publisher");
+    }),
+    /stopped|recovery/,
+  );
+  assert.equal(heads(), 2, "no new history/provider work while busy or after refusal");
+});
+
+void test("selected signed publisher bounds local Git preparation to original remaining execution", async (t) => {
+  const f = await selectedOwnedHistoryFixture(t);
+  let clock = performance.now(),
+    calls = 0;
+  t.mock.method(performance, "now", () => clock);
+  t.mock.method(
+    childProcess,
+    "execFileSync",
+    (_command: string, _args: readonly string[], options: childProcess.ExecFileSyncOptions) => {
+      calls++;
+      assert.equal(options.timeout, 1);
+      clock = f.deadline + 1;
+      return "true";
+    },
+  );
+  syncBuiltinESMExports();
+  await assert.rejects(
+    publishOwnedSignedCoordinatorCheckpoint(f.session, f.bare, "f".repeat(40), async () => {
+      clock = f.deadline - 1;
+    }),
+    /deadline/,
+  );
+  assert.equal(calls, 1);
+  await assert.rejects(
+    publishOwnedSignedCoordinatorCheckpoint(f.session, f.bare, f.seed.checkpoint, async () => {
+      assert.fail("stopped phase");
+    }),
+    /stopped|recovery/,
+  );
 });

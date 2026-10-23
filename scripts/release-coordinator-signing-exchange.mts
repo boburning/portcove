@@ -25,6 +25,7 @@ import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { sanitizeOperationError } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
 type Checkpoint = Awaited<ReturnType<typeof exportCoordinatorCheckpoint>>;
 type Stage = "claim" | "fulcio" | "rekor" | "commit";
@@ -100,7 +101,9 @@ export async function publishCoordinatorSigningExchange(
     if (performance.now() >= deadline + (collecting ? 30000 : 0))
       throw new Error("signing exchange original deadline exhausted");
   };
-  const checkpoint = await exportCoordinatorCheckpoint(localRepository, expected);
+  const checkpoint = await withCoordinatorDeadline(deadline, () =>
+    exportCoordinatorCheckpoint(localRepository, expected),
+  );
   active();
   const updates = coordinatorCheckpointUpdates(checkpoint, scope);
   const claim: CoordinatorRefUpdate = {

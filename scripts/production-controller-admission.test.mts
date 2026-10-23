@@ -14,7 +14,19 @@ import {
   admitProductionClassificationObserver,
 } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
-import { inspectReleaseAuthorityConfiguration } from "./release-authority-configuration.mts";
+import {
+  inspectReleaseAuthorityConfiguration,
+  inspectCatalogAuthorityConfiguration,
+  inspectFixedJobJournalAuthorities,
+  inspectBoundFixedJobJournalAuthorities,
+  requireControllerFixedJobJournalAuthorities,
+} from "./release-authority-configuration.mts";
+import { fixedJobJournalAuthoritiesFixture } from "./fixtures/checkpoint-proof-fixture.mts";
+import { releaseCanonicalDigest } from "./release-canonical.mts";
+import {
+  capacityExecutorRolesForPurpose,
+  capacityExecutorJobProfile,
+} from "./assembler-job-identity.mts";
 
 const source = Buffer.from("independently selected workflow fixture\n");
 const policy = {
@@ -50,6 +62,154 @@ const environment = {
   PORTCOVE_CONTROLLER_REF: "refs/tags/portcove-production-controller-fixture",
 };
 const raw = JSON.stringify(policy);
+
+void test("selected journal profile has exactly two distinct Apps and cannot satisfy legacy release or catalog authority", () => {
+  const configuration = fixedJobJournalAuthoritiesFixture();
+  assert.deepEqual(inspectFixedJobJournalAuthorities(configuration), configuration);
+  assert.throws(() => inspectReleaseAuthorityConfiguration(configuration));
+  assert.throws(() => inspectCatalogAuthorityConfiguration(configuration));
+  for (const changed of [
+    { ...configuration, schema_version: 2 },
+    { ...configuration, purpose: "all" },
+    { ...configuration, publication: {} },
+    { ...configuration, journal_seed: { ...configuration.journal_seed, state_sha256: "bad" } },
+    {
+      ...configuration,
+      apps: { ...configuration.apps, classification: configuration.apps.semantic },
+    },
+    {
+      ...configuration,
+      apps: { ...configuration.apps, semantic: { app_id: 15368, installation_id: 1001 } },
+    },
+    {
+      ...configuration,
+      apps: { ...configuration.apps, protection_observer: configuration.apps.semantic },
+    },
+  ])
+    assert.throws(() => inspectFixedJobJournalAuthorities(changed));
+  const selected = {
+    ...admitProductionController(raw, environment, source),
+    mode: "bounded-application-release",
+    authority_configuration_sha256: releaseCanonicalDigest(configuration),
+    grant_sha256: "f".repeat(64),
+  };
+  assert.deepEqual(
+    inspectBoundFixedJobJournalAuthorities(JSON.stringify(configuration), selected, "application"),
+    configuration,
+  );
+  assert.deepEqual(
+    inspectBoundFixedJobJournalAuthorities(
+      JSON.stringify(configuration),
+      { ...selected, mode: "bounded-catalog-publication" },
+      "catalog-publication",
+    ),
+    configuration,
+  );
+  assert.throws(() =>
+    inspectBoundFixedJobJournalAuthorities(
+      JSON.stringify(configuration),
+      selected,
+      "catalog-publication",
+    ),
+  );
+  assert.throws(() =>
+    inspectBoundFixedJobJournalAuthorities(
+      JSON.stringify({ ...configuration, namespace: "portcove-other" }),
+      selected,
+      "application",
+    ),
+  );
+  assert.throws(() =>
+    inspectBoundFixedJobJournalAuthorities(
+      JSON.stringify(configuration),
+      { ...selected, mode: "admission-only" },
+      "application",
+    ),
+  );
+});
+
+void test("fixed journal roles separate application and catalog jobs using the existing identity profiles", () => {
+  const application = capacityExecutorRolesForPurpose("application"),
+    catalog = capacityExecutorRolesForPurpose("catalog-publication");
+  assert.ok(
+    application.includes("payload-signing") &&
+      !application.some((role) => role.startsWith("catalog-")),
+  );
+  assert.deepEqual(
+    catalog.sort(),
+    [
+      "catalog-definitions",
+      "catalog-policy",
+      "catalog-snapshot",
+      "catalog-timestamp",
+      "coordinator",
+      "site-publication",
+    ].sort(),
+  );
+  assert.equal(
+    new Set(application.map((role) => capacityExecutorJobProfile(role).job)).size,
+    application.length,
+  );
+  assert.throws(() => capacityExecutorRolesForPurpose("all"));
+});
+
+void test("actual selected journal source reader binds fixed job, immutable source and configuration digest", async (t) => {
+  const workflow = await readFile(
+    new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+  );
+  const configuration = fixedJobJournalAuthoritiesFixture();
+  const bounded = {
+    ...policy,
+    schema_version: 2,
+    mode: "bounded-application-release",
+    authority_configuration_sha256: releaseCanonicalDigest(configuration),
+    grant_sha256: "f".repeat(64),
+    workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
+  };
+  const runtime: NodeJS.ProcessEnv = {
+    ...environment,
+    GITHUB_JOB: "coordinator",
+    PORTCOVE_EXECUTION_PURPOSE: "application",
+    PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(configuration),
+    PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify(bounded),
+    PORTCOVE_CATALOG_AUTHORITIES: JSON.stringify(configuration),
+    PORTCOVE_CATALOG_CONTROLLER_ADMISSION: JSON.stringify({
+      ...bounded,
+      mode: "bounded-catalog-publication",
+      grant_sha256: "e".repeat(64),
+    }),
+  };
+  const before = new Map(Object.keys(runtime).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, runtime);
+  t.after(() => {
+    for (const [key, value] of before)
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+  });
+  const selected = await requireControllerFixedJobJournalAuthorities("coordinator");
+  assert.equal(selected.configuration_sha256, bounded.authority_configuration_sha256);
+  assert.equal(selected.source.revision, policy.revision);
+  process.env.PORTCOVE_RELEASE_AUTHORITIES = JSON.stringify({
+    ...configuration,
+    setup_plan_sha256: "e".repeat(64),
+  });
+  await assert.rejects(
+    requireControllerFixedJobJournalAuthorities("coordinator"),
+    /ratified configuration/,
+  );
+  process.env.PORTCOVE_RELEASE_AUTHORITIES = runtime.PORTCOVE_RELEASE_AUTHORITIES;
+  process.env.GITHUB_JOB = "payload_signing";
+  await assert.rejects(requireControllerFixedJobJournalAuthorities("coordinator"), /job/);
+  await requireControllerFixedJobJournalAuthorities("payload-signing");
+  process.env.PORTCOVE_EXECUTION_PURPOSE = "catalog-publication";
+  await assert.rejects(requireControllerFixedJobJournalAuthorities("payload-signing"));
+  process.env.GITHUB_JOB = "coordinator";
+  const catalog = await requireControllerFixedJobJournalAuthorities("coordinator");
+  assert.equal(catalog.purpose, "catalog-publication");
+  assert.equal(catalog.source.mode, "bounded-catalog-publication");
+  assert.equal(catalog.configuration_sha256, selected.configuration_sha256);
+  assert.notEqual(catalog.source.grant_sha256, selected.source.grant_sha256);
+});
 
 void test("classification writer admits only its own fixed workflow, job and ratified bytes", () => {
   const writer = {

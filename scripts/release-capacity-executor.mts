@@ -42,9 +42,11 @@ import { isRecord } from "./runtime-values.mts";
 import {
   createCoordinatorJournalApi,
   createCheckpointJobTokenApi,
+  createCheckpointHistoryReader,
 } from "./release-coordinator-journal-api.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import type { CapacityBoundaryReader } from "./release-capacity-operation.mts";
 import {
   inspectPublishedCatalogMetadata,
@@ -72,6 +74,17 @@ interface PrivateSession {
   identity: CapacityExecutorIdentity;
   observed: number;
   deadline?: number;
+  journalBinding?: "binding" | "bound" | "stopped";
+  journal?: {
+    configuration: Awaited<
+      ReturnType<
+        typeof import("./release-authority-configuration.mts").requireControllerFixedJobJournalAuthorities
+      >
+    >;
+    checkpoint: string;
+    busy: boolean;
+    stopped: boolean;
+  };
 }
 const sessions = new WeakMap<ExecutorSession, PrivateSession>();
 const audience = "portcove-capacity-executor";
@@ -192,7 +205,9 @@ export async function createOwnedCheckpointSigningApi(
   const frozenConfiguration = structuredClone(configuration);
   inspectCoordinatorRemoteNamespace(frozenConfiguration);
   await refreshCapacityExecutor(session);
-  const checkpoint = await exportCoordinatorCheckpoint(repository, expected);
+  const checkpoint = await withCoordinatorDeadline(value.deadline, () =>
+    exportCoordinatorCheckpoint(repository, expected),
+  );
   capacityExecutorIdentity(session);
   return createCheckpointJobTokenApi(
     value.directory,
@@ -200,6 +215,197 @@ export async function createOwnedCheckpointSigningApi(
     frozenConfiguration,
     value.deadline,
   );
+}
+
+/** First join for the selected profile. This reads actual protected source
+ * configuration and the fixed historical verifier; it accepts no supplied
+ * source, API, credential, accepted report or setup appointment. No effect or
+ * legacy fallback occurs. The owning publisher still must refresh controls and
+ * use the existing signer/verifier exchange before any authoritative advance. */
+export async function authenticateOwnedCheckpointJournalHistory(
+  session: ExecutorSession,
+  repository: string,
+  expected: string,
+) {
+  const value = sessions.get(session);
+  if (!value || value.deadline === undefined)
+    throw new Error("actual bounded executor session required for selected journal history");
+  if (value.journalBinding !== undefined)
+    throw new Error(
+      "journal history is already binding/bound or stopped; explicit recovery required",
+    );
+  value.journalBinding = "binding";
+  try {
+    const result = await withCoordinatorDeadline(value.deadline, () =>
+      withReadOnlyReleaseChildren(value.directory, () =>
+        authenticateOwnedCheckpointJournalHistoryWithinScope(session, repository, expected),
+      ),
+    );
+    value.journalBinding = "bound";
+    return result;
+  } catch (error) {
+    value.journalBinding = "stopped";
+    throw error;
+  }
+}
+async function authenticateOwnedCheckpointJournalHistoryWithinScope(
+  session: ExecutorSession,
+  repository: string,
+  expected: string,
+) {
+  // Load the selected composition only when this admitted path is invoked.
+  // Eager initialization would create a cycle through existing signing-context
+  // adapters in isolated controller bundles, even for a credential-free refusal.
+  const { requireControllerFixedJobJournalAuthorities } =
+    await import("./release-authority-configuration.mts");
+  const { authenticateFixedJobCoordinatorHistory } =
+    await import("./release-coordinator-checkpoint-authentication.mts");
+  const value = sessions.get(session)!;
+  const deadline = value.deadline!;
+  capacityExecutorIdentity(session);
+  const selected = await requireControllerFixedJobJournalAuthorities(value.role);
+  const identity = await refreshCapacityExecutor(session);
+  const source = selected.source;
+  if (
+    identity.controller_revision !== source.revision ||
+    identity.execution_ref !== source.execution_ref ||
+    identity.workflow !== source.workflow ||
+    identity.actor_id !== source.actor_id ||
+    identity.run_id !== source.run_id ||
+    identity.run_attempt !== source.run_attempt
+  )
+    throw new Error("selected journal source differs from actual executor");
+  const configuration = { schema_version: 1, namespace: selected.configuration.namespace };
+  const checkpoint = await exportCoordinatorCheckpoint(repository, expected);
+  const reader = createCheckpointHistoryReader(value.directory, expected, configuration, deadline);
+  reader.assertCurrentUnclaimedHead();
+  const history = await authenticateFixedJobCoordinatorHistory(
+    value.directory,
+    checkpoint,
+    selected.configuration,
+    source,
+    deadline,
+    reader.api,
+  );
+  await exportCoordinatorCheckpoint(repository, expected);
+  reader.assertCurrentUnclaimedHead();
+  const current = await requireControllerFixedJobJournalAuthorities(value.role);
+  capacityExecutorIdentity(session);
+  if (capacityDigest(current) !== capacityDigest(selected))
+    throw new Error("selected journal configuration/source changed during authentication");
+  value.journal = { configuration: selected, checkpoint: expected, busy: false, stopped: false };
+  return {
+    checkpoint: expected,
+    history: history.kind,
+    configuration_sha256: selected.configuration_sha256,
+    authority: "none" as const,
+  };
+}
+
+/** Selected private-session composition. A caller supplies current controls as
+ * trusted controller code, never a report/accepted Boolean or signing API. The
+ * existing exchange keeps durable intent, actual signer/verifier, original
+ * deadline and exact remote readback. Failure stops this journal session. */
+export async function publishOwnedSignedCoordinatorCheckpoint(
+  session: ExecutorSession,
+  repository: string,
+  expected: string,
+  currentControls: () => Promise<void>,
+) {
+  const value = sessions.get(session),
+    journal = value?.journal;
+  if (
+    !value ||
+    !journal ||
+    value.deadline === undefined ||
+    value.journalBinding !== "bound" ||
+    journal.busy ||
+    journal.stopped
+  )
+    throw new Error(
+      "actual authenticated journal history unavailable or stopped; explicit recovery required",
+    );
+  journal.busy = true;
+  const configuration = {
+    schema_version: 1,
+    namespace: journal.configuration.configuration.namespace,
+  };
+  try {
+    return await withReadOnlyReleaseChildren(value.directory, async () => {
+      const { requireControllerFixedJobJournalAuthorities } =
+        await import("./release-authority-configuration.mts");
+      const { signAndPublishCoordinatorCheckpoint } =
+        await import("./release-coordinator-signing-exchange.mts");
+      const refresh = async () => {
+        const identity = await refreshCapacityExecutor(session);
+        const current = await requireControllerFixedJobJournalAuthorities(value.role);
+        if (capacityDigest(current) !== capacityDigest(journal.configuration))
+          throw new Error("selected journal source/configuration changed before signing");
+        await currentControls();
+        capacityExecutorIdentity(session);
+        return identity;
+      };
+      const identity = await refresh();
+      if (expected === journal.checkpoint) {
+        const reader = createCheckpointHistoryReader(
+          value.directory,
+          expected,
+          configuration,
+          value.deadline!,
+        );
+        reader.assertCurrentUnclaimedHead();
+        return { checkpoint: expected, changed: false, authority: "none" as const };
+      }
+      const checkpoint = await withCoordinatorDeadline(value.deadline!, () =>
+        exportCoordinatorCheckpoint(repository, expected),
+      );
+      if (checkpoint.previous !== journal.checkpoint)
+        throw new Error("selected checkpoint does not extend the authenticated owned head");
+      const api = await createOwnedCheckpointSigningApi(
+        session,
+        repository,
+        expected,
+        configuration,
+      );
+      const source = journal.configuration.source;
+      const result = await signAndPublishCoordinatorCheckpoint(
+        value.directory,
+        repository,
+        expected,
+        configuration,
+        {
+          role: value.role,
+          producer: {
+            controller_revision: identity.controller_revision,
+            controller_ref: identity.execution_ref,
+            actor_id: identity.actor_id,
+            run_id: identity.run_id,
+            run_attempt: identity.run_attempt,
+            job_id: String(identity.job_id),
+            check_run_id: identity.check_run_id,
+            workflow_sha256: source.workflow_sha256,
+            configuration_sha256: journal.configuration.configuration_sha256,
+            setup_sha256: journal.configuration.configuration.setup_plan_sha256,
+          },
+        },
+        value.deadline!,
+        {
+          api,
+          async refresh() {
+            await refresh();
+          },
+        },
+      );
+      journal.checkpoint = result.checkpoint;
+      return result;
+    });
+  } catch (error) {
+    journal.stopped = true;
+    value.journalBinding = "stopped";
+    throw error;
+  } finally {
+    journal.busy = false;
+  }
 }
 
 interface OwnedEffectRequest {

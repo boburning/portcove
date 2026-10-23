@@ -3,7 +3,10 @@ import { performance } from "node:perf_hooks";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
-import { releaseControlPhaseProfile } from "./release-control-phases.mts";
+import {
+  releaseControlPhaseProfile,
+  inspectControllerExecutionPurpose,
+} from "./release-control-phases.mts";
 
 const issuer = "https://token.actions.githubusercontent.com";
 const repository = "boburning/portcove";
@@ -501,6 +504,15 @@ export type CapacityExecutorRole = keyof typeof capacityExecutorProfiles;
 
 /** Read only the existing fixed profile; callers cannot appoint or mutate one.
  * The returned names/environment confer no identity or execution authority. */
+export function capacityExecutorRolesForPurpose(raw: unknown): CapacityExecutorRole[] {
+  const purpose = inspectControllerExecutionPurpose(raw);
+  return (Object.keys(capacityExecutorProfiles) as CapacityExecutorRole[]).filter((role) =>
+    purpose === "application"
+      ? !role.startsWith("catalog-")
+      : role.startsWith("catalog-") || role === "coordinator" || role === "site-publication",
+  );
+}
+
 export function capacityExecutorJobProfile(role: CapacityExecutorRole) {
   if (!Object.hasOwn(capacityExecutorProfiles, role))
     throw new Error("capacity executor role is not a fixed controller profile");

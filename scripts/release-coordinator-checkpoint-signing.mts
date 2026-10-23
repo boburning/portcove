@@ -4,7 +4,12 @@
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import path from "node:path";
-import { DSSEBundleBuilder, FulcioSigner, RekorWitness } from "@sigstore/sign";
+// The pinned CommonJS barrel also loads unused CI identity providers and their
+// ambient network/proxy dependencies. Use the same official implementations
+// directly; this signer supplies its independently authenticated OIDC provider.
+import { DSSEBundleBuilder } from "@sigstore/sign/dist/bundler/dsse.js";
+import { FulcioSigner } from "@sigstore/sign/dist/signer/fulcio/index.js";
+import { RekorWitness } from "@sigstore/sign/dist/witness/tlog/index.js";
 import { bundleToJSON } from "@sigstore/bundle";
 import { withPortcoveSigningTransport } from "@sigstore/sign/dist/external/fetch.js";
 import {
