@@ -480,7 +480,22 @@ export function inspectCatalogAuthorityConfiguration(raw: unknown) {
     new Set(catalogApps.map((role) => apps[role].installation_id)).size !== catalogApps.length
   )
     throw new Error("catalog issuer/writer/observer/journal/dispatch identities conflated");
-  exact(value.catalog, "public_source,publisher_scope,setup_plan_sha256");
+  const descriptive =
+    isRecord(value.catalog) && Object.hasOwn(value.catalog, "descriptive_directory");
+  exact(
+    value.catalog,
+    descriptive
+      ? "descriptive_directory,public_source,publisher_scope,setup_plan_sha256"
+      : "public_source,publisher_scope,setup_plan_sha256",
+  );
+  if (descriptive) {
+    exact(value.catalog.descriptive_directory, "listing_delivery_schema,target");
+    if (
+      value.catalog.descriptive_directory.listing_delivery_schema !== 1 ||
+      value.catalog.descriptive_directory.target !== "policy/official/catalog.listings.json"
+    )
+      throw new Error("catalog descriptive directory appointment differs");
+  }
   const initialSite =
     isRecord(value.catalog.public_source) &&
     Object.hasOwn(value.catalog.public_source, "initial_site_preimage");
@@ -505,7 +520,7 @@ export function inspectCatalogAuthorityConfiguration(raw: unknown) {
     throw new Error("catalog initial site preimage differs from separate bounded setup pin");
   if (
     !Array.isArray(value.catalog.publisher_scope) ||
-    value.catalog.publisher_scope.length < 1 ||
+    (!descriptive && value.catalog.publisher_scope.length < 1) ||
     value.catalog.publisher_scope.length > 4096
   )
     throw new Error("catalog publisher scope unavailable");
@@ -569,6 +584,14 @@ export function inspectCatalogAuthorityConfiguration(raw: unknown) {
       },
       setup_plan_sha256: hex(value.catalog.setup_plan_sha256, 64),
       publisher_scope,
+      ...(descriptive
+        ? {
+            descriptive_directory: {
+              listing_delivery_schema: 1 as const,
+              target: "policy/official/catalog.listings.json" as const,
+            },
+          }
+        : {}),
     },
   };
 }
@@ -639,6 +662,8 @@ export function assertControllerCatalogPublisherScope(
   )
     throw new Error("catalog publisher configuration digest differs");
   const report = inspectCatalogCoreReport(inspection, files);
+  if (report.publication_schema === 2 && !authorities.catalog.descriptive_directory)
+    throw new Error("descriptive directory is outside appointed publisher scope");
   for (const rawDefinition of report.definitions as unknown[]) {
     if (
       !isRecord(rawDefinition) ||

@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 39;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 40;
 
 struct Migration {
     version: i64,
@@ -258,7 +258,21 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_39,
         verify: verify_migration_39,
     },
+    Migration {
+        version: 40,
+        name: "authenticated descriptive listing delivery",
+        apply: crate::definition_repository::publisher_policy::listing_delivery::migrate,
+        verify: verify_migration_40,
+    },
 ];
+
+fn verify_migration_40(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "listing_delivery",
+        &["singleton", "document_json", "provenance_json"],
+    )
+}
 
 fn migration_39(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch("CREATE TABLE catalog_downloads (
@@ -2707,6 +2721,7 @@ mod tests {
         schema_36: 36,
         schema_37: 37,
         schema_38: 38,
+        schema_39: 39,
     }
 
     #[test]

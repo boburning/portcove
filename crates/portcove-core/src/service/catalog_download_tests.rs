@@ -96,8 +96,14 @@ impl GithubFixture {
                     }
                     Err(error) => panic!("fixture accept: {error}"),
                 };
+                // Windows accepted sockets can inherit the polling listener's
+                // nonblocking mode. Serve each request with bounded blocking I/O.
+                stream.set_nonblocking(false).unwrap();
                 stream
                     .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                stream
+                    .set_write_timeout(Some(Duration::from_secs(5)))
                     .unwrap();
                 let mut request = [0; 8192];
                 let size = stream.read(&mut request).unwrap();

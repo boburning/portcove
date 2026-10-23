@@ -156,6 +156,7 @@ const TABLES: &[(&str, &str)] = &[
         "repository_id,asset_id,namespace,stable_id,anchor_sha256",
     ),
     ("curated_transition_receipts", "policy_sha256"),
+    ("listing_delivery", "singleton"),
 ];
 
 fn retained_state(connection: &Connection, omit_unadmitted_anchor: bool) -> Result<String> {

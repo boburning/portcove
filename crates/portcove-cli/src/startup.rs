@@ -85,6 +85,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | CatalogCommand::InspectListings { .. }
             | CatalogCommand::Show { .. }
             | CatalogCommand::Status
+            | CatalogCommand::ListingStatus
             | CatalogCommand::InspectProposal { .. } => ReadOnly,
             CatalogCommand::InspectDefinitionPublication { .. } => ReadOnly,
             CatalogCommand::DefinitionAuthority { apply, .. }
@@ -92,6 +93,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             CatalogCommand::CheckCapabilities { .. }
             | CatalogCommand::InspectObservation { .. }
             | CatalogCommand::DefinitionRefresh { .. }
+            | CatalogCommand::ListingRefresh { .. }
             | CatalogCommand::TrustKey { .. }
             | CatalogCommand::RevokeKey { .. }
             | CatalogCommand::Rollback { .. }

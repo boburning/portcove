@@ -215,6 +215,8 @@ export type CatalogUpdateSource = Requests.TransportInputs["catalog_update_sourc
 
 export type CatalogProvenance = Generated.TransportOutputs["catalog_provenance"];
 
+export type ListingDeliveryStatus = Generated.TransportOutputs["listing_delivery_status"];
+
 export type CatalogStatus = Generated.TransportOutputs["catalog_status"];
 
 export type CatalogUpdatePlan = Generated.TransportOutputs["catalog_update_plan"];
