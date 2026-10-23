@@ -5,7 +5,12 @@ import { execFileSync, spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { classifyChanges, buildPlan, executePlan } from "./ordinary-validation.mts";
+import {
+  classifyChanges,
+  buildPlan,
+  executePlan,
+  pythonContractTests,
+} from "./ordinary-validation.mts";
 import { validateValidationPlan, readValidationPlanInput } from "./validation-plan.mts";
 import { spawnCommand } from "./dev-storage.mts";
 import { createCiMetrics } from "./ci-metrics.mts";
@@ -108,8 +113,7 @@ export function baselineRequiresPython(plan: ValidationPlan) {
     [
       "scripts/nextest-equivalence.test.mts",
       "scripts/ci-workflow.test.mts",
-      "scripts/semantic-review-linux-supervisor.test.mts",
-      "scripts/release-semantic-source.test.mts",
+      ...pythonContractTests,
     ].includes(file),
   );
 }

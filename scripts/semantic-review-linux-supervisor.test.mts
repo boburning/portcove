@@ -1,27 +1,14 @@
+import { runPythonSuite } from "./python-test-results.mts";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { inspectLinuxQualificationConfiguration } from "./qualify-semantic-linux.mts";
 
-void test("Linux supervisor inert models run without namespace, provider, credential or native operations", () => {
-  const result = execFileSync(
-    process.platform === "win32" ? "python" : "python3",
-    [
-      "-I",
-      "-S",
-      "-B",
-      fileURLToPath(new URL("./semantic-review-linux-supervisor.test.py", import.meta.url)),
-    ],
-    {
-      encoding: "utf8",
-      windowsHide: true,
-      timeout: 30000,
-      maxBuffer: 65536,
-      stdio: ["ignore", "pipe", "pipe"],
-    },
+void test("Linux supervisor inert models run without namespace, provider, credential or native operations", (context) => {
+  runPythonSuite(
+    new URL("./semantic-review-linux-supervisor.test.py", import.meta.url),
+    context,
+    30000,
   );
-  assert.equal(result, "");
 });
 
 void test("qualification configuration cannot select auth, reviewer mode, command or another backend", () => {

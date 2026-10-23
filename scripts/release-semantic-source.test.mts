@@ -1,9 +1,10 @@
+import { runPythonSuite } from "./python-test-results.mts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtemp, mkdir, rm, access, readdir, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { pathToFileURL, fileURLToPath } from "node:url";
+import { pathToFileURL } from "node:url";
 import test from "node:test";
 import {
   materializeSemanticSource,
@@ -266,17 +267,6 @@ void test("declared blob size cannot replace exact materialized bytes; wrong sou
   );
 });
 
-void test("fixed source Git policy applies pre-parser limits and rejects injected/expired routes without execution", () => {
-  const output = execFileSync(
-    process.platform === "win32" ? "python" : "python3",
-    ["-I", "-S", "-B", fileURLToPath(new URL("semantic-source-git.test.py", import.meta.url))],
-    {
-      encoding: "utf8",
-      windowsHide: true,
-      timeout: 10000,
-      maxBuffer: 65536,
-      stdio: ["ignore", "pipe", "pipe"],
-    },
-  );
-  assert.equal(output, "");
+void test("fixed source Git policy applies pre-parser limits and rejects injected/expired routes without execution", (context) => {
+  runPythonSuite(new URL("./semantic-source-git.test.py", import.meta.url), context, 10000);
 });

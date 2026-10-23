@@ -1,5 +1,6 @@
+import { runPythonSuite } from "./python-test-results.mts";
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -9,29 +10,15 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 void test("fixed native network policy, real ClientHello and inert namespace models; Linux controlled private relay", (context) => {
-  const result = spawnSync(
-    process.platform === "win32" ? "python" : "python3",
-    [
-      "-I",
-      "-S",
-      "-B",
-      fileURLToPath(
-        new URL("../apps/desktop/scripts/native-linux-public-network.test.py", import.meta.url),
-      ),
-    ],
-    {
-      encoding: "utf8",
-      windowsHide: true,
-      timeout: 30000,
-      maxBuffer: 65536,
-      stdio: ["ignore", "pipe", "pipe"],
-    },
+  const report = runPythonSuite(
+    new URL("../apps/desktop/scripts/native-linux-public-network.test.py", import.meta.url),
+    context,
   );
-  assert.equal(result.error, undefined);
-  assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout, "");
-  if (process.platform === "linux") assert.doesNotMatch(result.stderr, /skipped=/u);
-  context.diagnostic(result.stderr.trim());
+  if (process.platform === "linux")
+    assert.ok(
+      report.cases.every((item) => item.status !== "skipped"),
+      "Linux must execute every platform case",
+    );
 });
 
 void test(
