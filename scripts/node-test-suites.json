@@ -277,7 +277,8 @@
         "scripts/discovery-intake.test.mts",
         "scripts/roadmap-inventory.test.mts",
         "scripts/repository-issue-inventory.test.mts",
-        "scripts/daily-discovery.test.mts"
+        "scripts/daily-discovery.test.mts",
+        "scripts/discovery-leads.test.mts"
       ]
     },
     "catalog-full-2": {
@@ -779,7 +780,8 @@
         "scripts/discovery-intake.test.mts",
         "scripts/roadmap-inventory.test.mts",
         "scripts/repository-issue-inventory.test.mts",
-        "scripts/daily-discovery.test.mts"
+        "scripts/daily-discovery.test.mts",
+        "scripts/discovery-leads.test.mts"
       ]
     },
     "mutex-owned-payload": {
