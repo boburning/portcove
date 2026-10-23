@@ -3,7 +3,10 @@
 import { open, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import { inspectJobTokenDispatchRun } from "./release-controller-wake.mts";
+import {
+  inspectJobTokenDispatchRun,
+  observeJobTokenDispatchRun,
+} from "./release-controller-wake.mts";
 import { isRecord } from "./runtime-values.mts";
 
 const repository = "boburning/portcove",
@@ -110,7 +113,7 @@ try {
       },
     };
     await retain("dispatch-intent", { endpoint, body, automatic_retry: false });
-    let response;
+    let response: ReturnType<typeof request>;
     try {
       response = request("POST", endpoint, body);
     } catch {
@@ -131,13 +134,14 @@ try {
         `https://github.com/${repository}/actions/runs/${String(raw.workflow_run_id)}`
     )
       throw new Error("inert dispatch not acknowledged; preserve original response, no retry");
-    const run = readRun(String(raw.workflow_run_id), env.GITHUB_SHA!);
-    const observed = inspectJobTokenDispatchRun(run, {
+    const expected = {
       run_id: String(raw.workflow_run_id),
       revision: env.GITHUB_SHA!,
       workflow,
       display_title: `Portcove job-token fixture receive ${env.GITHUB_RUN_ID}`,
-    });
+    };
+    const run = await observeJobTokenDispatchRun({ request }, expected, retain, started + 55000);
+    const observed = inspectJobTokenDispatchRun(run, expected);
     await retain("dispatch-run-observed", observed);
   } else {
     const parent = env.PORTCOVE_DISPATCH_PARENT_RUN ?? "",
