@@ -90,7 +90,9 @@ function details(
       biosInspection={biosInspection}
     />,
   );
-  return markup.split(">Recorded checks</h3>")[1]?.split(">Artwork</h2>")[0] ?? "";
+  const recorded = markup.split(">Recorded checks</summary>")[1];
+  expect(recorded, "Recorded checks disclosure is present in Overview").toBeDefined();
+  return recorded!.split("</details>")[0]!;
 }
 
 describe("detail qualification history", () => {

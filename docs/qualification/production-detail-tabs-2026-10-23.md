@@ -65,6 +65,11 @@ Focused runs retained under `E:/Codex-Evidence/production-detail-tabs-20261023`:
 - `final-layout-and-owner.log`: three files, 97 cases passed, including duplicate
   refusal suppression, exact update application and retained external drafts.
 - `final-static-second.log`: final changed-code formatting/lint/types passed.
+- `static-layout-regressions-second.log`: 172 static detail/qualification cases
+  passed. CI run `39998112787` retained 26 failures from old page-order and
+  heading-markup expectations; the repair scopes those checks to their new tab
+  homes without changing production code or qualification/eligibility assertions.
+  `static-regression-check.log` passed formatting, lint and types for the repair.
 
 The maintained `browser/detail-composition.browser.test.tsx` uses the actual App
 and disposable interactive transport. It checks both themes at 1366×768,
