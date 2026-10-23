@@ -222,7 +222,7 @@ fn resolve_effective_catalog(
     resolve_effective_catalog_from_baseline(connection, baseline, provenance, now)
 }
 
-fn resolve_effective_catalog_from_baseline(
+pub(crate) fn resolve_before_listings(
     connection: &Connection,
     baseline: Catalog,
     mut provenance: CatalogProvenance,
@@ -231,7 +231,7 @@ fn resolve_effective_catalog_from_baseline(
     let selected = crate::definition_candidate::selection::load_selected_definition_catalog(
         connection, &baseline, now,
     );
-    let (catalog, mut provenance) = match selected {
+    match selected {
         Ok(Some((catalog, expires_at))) => selected_catalog(catalog, expires_at, provenance),
         Ok(None) => Ok((baseline, provenance)),
         Err(error) => {
@@ -241,7 +241,16 @@ fn resolve_effective_catalog_from_baseline(
             ));
             Ok((baseline, provenance))
         }
-    }?;
+    }
+}
+
+fn resolve_effective_catalog_from_baseline(
+    connection: &Connection,
+    baseline: Catalog,
+    provenance: CatalogProvenance,
+    now: i64,
+) -> Result<(Catalog, CatalogProvenance)> {
+    let (catalog, mut provenance) = resolve_before_listings(connection, baseline, provenance, now)?;
     let (catalog, listings) =
         crate::definition_repository::publisher_policy::listing_delivery::load(
             connection, catalog, now,

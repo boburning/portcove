@@ -66,8 +66,6 @@ pub struct ListingPublicationIdentity {
     pub sha256: String,
     pub listing_count: usize,
     pub withdrawn_count: usize,
-    pub directory_sha256: String,
-    pub withdrawals_sha256: String,
 }
 
 pub(crate) fn inspect_listing_publication(bytes: &[u8]) -> Result<ListingPublicationIdentity> {
@@ -78,8 +76,6 @@ pub(crate) fn inspect_listing_publication(bytes: &[u8]) -> Result<ListingPublica
         sha256: hash(bytes),
         listing_count: document.directory.listings.len(),
         withdrawn_count: document.withdrawn_ids.len(),
-        directory_sha256: hash(&serde_json::to_vec(&document.directory)?),
-        withdrawals_sha256: hash(&serde_json::to_vec(&document.withdrawn_ids)?),
     })
 }
 

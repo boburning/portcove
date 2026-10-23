@@ -121,7 +121,9 @@ async fn authenticate(root: &[u8], files: &Files) -> Result<Files> {
             {
                 return invalid("catalog prior target outside role scope");
             }
-            let maximum = if name.raw().starts_with("policy/") {
+            let maximum = if name.raw() == "policy/official/catalog.listings.json" {
+                8 * 1024 * 1024
+            } else if name.raw().starts_with("policy/") {
                 65536
             } else {
                 4 * 1024 * 1024
@@ -297,7 +299,9 @@ fn historical_revision_floors(files: &Files, new: &Files) -> Result<()> {
                 continue;
             }
             let raw = at(files, &path)?;
-            let maximum = if definition_role {
+            let maximum = if target.raw() == "policy/official/catalog.listings.json" {
+                8 * 1024 * 1024
+            } else if definition_role {
                 4 * 1024 * 1024
             } else {
                 65536
@@ -324,7 +328,9 @@ fn historical_revision_floors(files: &Files, new: &Files) -> Result<()> {
                 }
             } else {
                 let policy: serde_json::Value = serde_json::from_slice(raw)?;
-                let field = if target.raw().ends_with(".launch.json") {
+                let field = if target.raw().ends_with(".launch.json")
+                    || target.raw() == "policy/official/catalog.listings.json"
+                {
                     "revision"
                 } else {
                     "policy_revision"
@@ -359,7 +365,9 @@ fn historical_revision_floors(files: &Files, new: &Files) -> Result<()> {
     for (name, (revision, bytes)) in policies {
         if let Some(next) = new.get(&name) {
             let value: serde_json::Value = serde_json::from_slice(next)?;
-            let field = if name.ends_with(".launch.json") {
+            let field = if name.ends_with(".launch.json")
+                || name == "policy/official/catalog.listings.json"
+            {
                 "revision"
             } else {
                 "policy_revision"

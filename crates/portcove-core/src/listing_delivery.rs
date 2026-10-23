@@ -224,7 +224,12 @@ impl Library {
     pub fn listing_delivery_status(&self) -> Result<ListingDeliveryStatus> {
         let connection = self.connection()?;
         let transaction = connection.unchecked_transaction()?;
-        let (_, status) = load(&transaction, Catalog::embedded()?, Self::now());
+        let now = Self::now();
+        let (baseline, provenance) =
+            crate::catalog_store::CatalogState::read(&transaction)?.resolve(now)?;
+        let (catalog, _) =
+            crate::catalog_store::resolve_before_listings(&transaction, baseline, provenance, now)?;
+        let (_, status) = load(&transaction, catalog, now);
         transaction.commit()?;
         Ok(status)
     }
@@ -248,7 +253,12 @@ impl Library {
                 ));
             }
         }
-        candidate.document.project(Catalog::embedded()?)?;
+        let now = Self::now();
+        let (baseline, provenance) =
+            crate::catalog_store::CatalogState::read(&transaction)?.resolve(now)?;
+        let (catalog, _) =
+            crate::catalog_store::resolve_before_listings(&transaction, baseline, provenance, now)?;
+        candidate.document.project(catalog)?;
         candidate.provenance.require_fresh()?;
         let provenance = serde_json::to_string(&candidate.provenance)?;
         let document = std::str::from_utf8(&candidate.bytes)
@@ -346,7 +356,8 @@ pub(crate) async fn refresh_fixture<T: Transport + Send + Sync + 'static>(
     source: &DefinitionRepositorySource,
     root: &[u8],
     transport: T,
+    emit: impl FnMut(OperationEvent),
 ) -> Result<ListingDeliveryStatus> {
     provisioning::installed_fixture_root(service.library(), root)?;
-    refresh(service, source, root, transport, |_| {}).await
+    refresh(service, source, root, transport, emit).await
 }

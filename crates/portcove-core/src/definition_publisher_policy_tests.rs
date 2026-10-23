@@ -6084,3 +6084,6 @@ async fn managed_policy_expiry_keeps_verified_public_launch_and_holds_fresh_acqu
     );
     assert_eq!(started, 0);
 }
+
+#[path = "listing_delivery_tests.rs"]
+mod descriptive_listing_delivery;

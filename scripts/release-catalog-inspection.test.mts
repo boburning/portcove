@@ -179,8 +179,6 @@ void test("listing publication requires capable exact inspection and binds every
       target,
       revision: 1,
       sha256: hash(bytes),
-      directory_sha256: hash(Buffer.from('{"format_version":1,"listings":[]}')),
-      withdrawals_sha256: hash(Buffer.from("[]")),
       listing_count: 0,
       withdrawn_count: 0,
     },

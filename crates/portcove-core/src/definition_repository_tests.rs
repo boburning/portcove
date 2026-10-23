@@ -1890,6 +1890,3 @@ fn minimal_metadata_targets_do_not_depend_on_unrelated_catalog_entries() {
     assert!(real_catalog.port("tuf-metadata-fixture").is_err());
     assert!(changed_catalog.port("tuf-metadata-fixture").is_ok());
 }
-
-#[path = "listing_delivery_tests.rs"]
-mod listing_delivery_tests;

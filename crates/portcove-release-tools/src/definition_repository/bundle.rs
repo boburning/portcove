@@ -9,7 +9,16 @@ struct Inspection {
     definitions: Vec<Definition>,
     scope: String,
     #[serde(default)]
-    listings: Option<serde_json::Value>,
+    listings: Option<ListingIdentity>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ListingIdentity {
+    target: String,
+    revision: u64,
+    sha256: String,
+    listing_count: usize,
+    withdrawn_count: usize,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -99,8 +108,8 @@ pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
             .get(target)
             .ok_or_else(|| TufRepositoryError::Invalid("listing target absent".into()))?;
         if bytes.len() > 8 * 1024 * 1024
-            || listings.get("target").and_then(|v| v.as_str()) != Some(target)
-            || listings.get("sha256").and_then(|v| v.as_str()) != Some(sha(bytes).as_str())
+            || listings.target != target
+            || listings.sha256 != sha(bytes)
         {
             return invalid("listing target/inspection identity differs");
         }
@@ -112,20 +121,16 @@ pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
         let withdrawals = document
             .get("withdrawn_ids")
             .ok_or_else(|| TufRepositoryError::Invalid("listing withdrawals absent".into()))?;
-        for (field, want) in [
-            ("revision", document["revision"].clone()),
-            (
-                "listing_count",
-                serde_json::json!(directory["listings"].as_array().map(Vec::len)),
-            ),
-            (
-                "withdrawn_count",
-                serde_json::json!(withdrawals.as_array().map(Vec::len)),
-            ),
-        ] {
-            if listings.get(field) != Some(&want) {
-                return invalid("listing summary differs");
-            }
+        if document["listing_delivery_schema"] != serde_json::json!(1)
+            || document["revision"].as_u64() != Some(listings.revision)
+            || listings.revision == 0
+            || listings.revision > 9_007_199_254_740_991
+            || directory["listings"].as_array().map(Vec::len) != Some(listings.listing_count)
+            || withdrawals.as_array().map(Vec::len) != Some(listings.withdrawn_count)
+            || listings.listing_count > 10000
+            || listings.withdrawn_count > 10000
+        {
+            return invalid("listing summary differs");
         }
         allowed.insert(target.into());
     }

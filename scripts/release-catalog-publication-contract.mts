@@ -194,10 +194,7 @@ export const catalogPublicationInventory = (files: ReadonlyMap<string, Buffer>) 
  * invocation, never this parser or a caller-supplied success flag. */
 export const catalogListingTarget = "policy/official/catalog.listings.json";
 export function inspectCatalogListingIdentity(raw: unknown) {
-  exact(
-    raw,
-    "directory_sha256,listing_count,revision,sha256,target,withdrawals_sha256,withdrawn_count",
-  );
+  exact(raw, "listing_count,revision,sha256,target,withdrawn_count");
   if (
     raw.target !== catalogListingTarget ||
     typeof raw.revision !== "number" ||
@@ -205,7 +202,7 @@ export function inspectCatalogListingIdentity(raw: unknown) {
     raw.revision < 1
   )
     throw new Error("catalog listing identity differs");
-  for (const field of ["sha256", "directory_sha256", "withdrawals_sha256"]) sha(raw[field]);
+  sha(raw.sha256);
   for (const field of ["listing_count", "withdrawn_count"]) {
     const count = raw[field];
     if (typeof count !== "number" || !Number.isInteger(count) || count < 0 || count > 10000)

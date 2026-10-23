@@ -1120,7 +1120,7 @@ Authority provisioning still requires the existing exact-plan consent. Automatic
 scheduling and real production configuration remain with their existing owners.
 
 Publication inspection schema 2 includes a separately bound listing summary
-(target, revision, exact digest, directory/withdrawal digests and counts). The
+(target, revision, exact digest and listing/withdrawal counts). The
 existing source acquisition, complete-opportunity classification/review, release
 tool and policy-role signing route carry it; schema 1 remains byte-compatible
 when the target is absent. Listing publication requires the explicit

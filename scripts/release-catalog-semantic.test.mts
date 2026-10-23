@@ -515,3 +515,35 @@ void test("copied catalog data cannot acquire runtime brand or reach broker cred
   );
   assert.equal(authorityCalls, 0);
 });
+
+void test("listing classification requires its capable compatibility declaration and strict descriptive identity", () => {
+  const f = fixture();
+  const listings = {
+    target: "policy/official/catalog.listings.json",
+    revision: 2,
+    sha256: "a".repeat(64),
+    listing_count: 7,
+    withdrawn_count: 1,
+  };
+  const candidate = {
+    ...f.opportunity,
+    classification: { ...f.opportunity.classification, listings },
+    compatibility: { ...f.opportunity.compatibility, contract: "official-catalog-listings-v2" },
+  };
+  assert.deepEqual(inspectCatalogSemanticOpportunity(candidate).classification.listings, listings);
+  assert.throws(() =>
+    inspectCatalogSemanticOpportunity({ ...candidate, compatibility: f.opportunity.compatibility }),
+  );
+  for (const change of [
+    { revision: 0 },
+    { listing_count: 10001 },
+    { target: "policy/official/other.listings.json" },
+    { operations: ["install"] },
+  ])
+    assert.throws(() =>
+      inspectCatalogSemanticOpportunity({
+        ...candidate,
+        classification: { ...candidate.classification, listings: { ...listings, ...change } },
+      }),
+    );
+});
