@@ -41,6 +41,11 @@ const call = (_meta?: unknown) => ({
 });
 const trace = {
   callId: "inert-call-id",
+  threadId: "inert-thread-id",
+  sessionId: "inert-session-id",
+  windowId: "inert-window-id",
+  itemId: "inert-item-id",
+  codex_bridge_mcp_call_id: "inert-bridge-id",
   "x-codex-turn-metadata": { codex_version: "0.162.0", source: "inert" },
   traceparent: `00-${"a".repeat(32)}-${"b".repeat(16)}-01`,
   tracestate: "portcove=inert",
@@ -72,6 +77,9 @@ await test("pinned RMCP transport metadata does not change the exact frozen read
     { traceparent: "invalid" },
     { tracestate: "x\ny" },
     { progressToken: "x".repeat(129) },
+    ...["threadId", "sessionId", "windowId", "itemId", "codex_bridge_mcp_call_id"].flatMap(
+      (key) => [{ [key]: 1 }, { [key]: "x".repeat(257) }, { [key]: "x\0" }],
+    ),
   ]) {
     const dispatch = createSemanticSnapshotRpc(inspectSemanticReaderIndex(index, sha(index)));
     dispatch(initialize);

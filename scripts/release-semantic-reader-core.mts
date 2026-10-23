@@ -433,6 +433,11 @@ export function createSemanticSnapshotRpc(raw: FrozenSemanticSnapshot) {
             (key) =>
               ![
                 "callId",
+                "threadId",
+                "sessionId",
+                "windowId",
+                "itemId",
+                "codex_bridge_mcp_call_id",
                 "x-codex-turn-metadata",
                 "traceparent",
                 "tracestate",
@@ -440,11 +445,23 @@ export function createSemanticSnapshotRpc(raw: FrozenSemanticSnapshot) {
                 "openai/readOnly",
               ].includes(key),
           ) ||
-          (meta.callId !== undefined &&
-            (typeof meta.callId !== "string" ||
-              !meta.callId.length ||
-              Buffer.byteLength(meta.callId) > 256 ||
-              meta.callId.includes("\0"))) ||
+          [
+            "callId",
+            "threadId",
+            "sessionId",
+            "windowId",
+            "itemId",
+            "codex_bridge_mcp_call_id",
+          ].some((key) => {
+            const value = meta[key];
+            return (
+              value !== undefined &&
+              (typeof value !== "string" ||
+                (key === "callId" && !value.length) ||
+                Buffer.byteLength(value) > 256 ||
+                value.includes("\0"))
+            );
+          }) ||
           (meta["x-codex-turn-metadata"] !== undefined &&
             (!isRecord(meta["x-codex-turn-metadata"]) ||
               Object.keys(meta["x-codex-turn-metadata"]).length > 64 ||
