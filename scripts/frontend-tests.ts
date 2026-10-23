@@ -8,10 +8,13 @@ import { createBrowserTraceRun } from "./browser-traces.ts";
 const traceRun = createBrowserTraceRun(
   fileURLToPath(new URL("../", import.meta.url)),
   process.env.PORTCOVE_BROWSER_TRACE_DIR,
+  process.env.VITE_PORTCOVE_BROWSER_TRACE_PROBE === "1",
 );
-export const testReporters = [...configDefaults.reporters, traceRun.reporter] satisfies NonNullable<
-  TestUserConfig["reporters"]
->;
+export const testReporters = [
+  ...configDefaults.reporters,
+  traceRun.reporter,
+  ...(process.env.VITE_PORTCOVE_BROWSER_TRACE_PROBE === "1" ? ["json" as const] : []),
+] satisfies NonNullable<TestUserConfig["reporters"]>;
 
 process.env.PLAYWRIGHT_BROWSERS_PATH ??= fileURLToPath(
   new URL("../work/browser-cache", import.meta.url),

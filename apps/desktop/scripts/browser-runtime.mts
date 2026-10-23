@@ -1,9 +1,16 @@
 import { resourceEntrypoint } from "../../../scripts/resource-command.mts";
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  lstatSync,
+  realpathSync,
+} from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolvePhysicalPath, spawnCommand } from "../../../scripts/dev-storage.mts";
-import { vitePlusCommand } from "../../../scripts/viteplus-cli.mts";
+import { closeProbeRunner, inspectProbeTrace, verifyProbeResult } from "./browser-trace-probe.mts";
 
 const desktop = fileURLToPath(new URL("../", import.meta.url));
 const root = path.resolve(desktop, "../..");
@@ -68,22 +75,87 @@ async function probeBrowserTrace() {
     throw new Error(`Browser trace run resolves outside the trace root: ${traceRun}`);
   }
   process.env.PORTCOVE_BROWSER_TRACE_DIR = traceRun;
-  const cli = vitePlusCommand(root);
-  const result = spawnCommand(
-    cli.command,
-    [
-      ...cli.args,
-      "test",
-      "--config",
-      path.join(root, "vite.config.ts"),
-      "--project",
-      "browser",
-      "src/browser/failure-probe.browser.test.tsx",
-    ],
-    { cwd: desktop, env: process.env, stdio: "inherit", windowsHide: true },
+  const reportFile = path.join(traceRun, "result.json");
+  const { createVitest } = await import("vite-plus/test/node");
+  const runner = await createVitest({
+    root,
+    config: path.join(root, "vite.config.ts"),
+    watch: false,
+    run: true,
+    outputFile: { json: reportFile },
+  });
+  try {
+    await runner.standalone();
+    const probe = path.join(desktop, "src/browser/failure-probe.browser.test.tsx");
+    const key = (value: string) => (process.platform === "win32" ? value.toLowerCase() : value);
+    const specifications = (await runner.globTestSpecifications()).filter(
+      (specification) => key(path.resolve(specification.moduleId)) === key(probe),
+    );
+    if (specifications.length !== 1) throw new Error("Browser probe has no unique specification");
+    await runner.runTestSpecifications(specifications);
+  } finally {
+    // The pinned runner reports some close failures through exitCode instead
+    // of rejecting close(). Keep that result distinct from the expected failure.
+    await closeProbeRunner(runner);
+  }
+  const files = readdirSync(traceRun, { recursive: true, withFileTypes: true });
+  const read = (file: string, limit: number) => {
+    const stat = lstatSync(file);
+    if (!stat.isFile() || stat.size < 1 || stat.size > limit)
+      throw new Error("Browser probe artifact is empty, oversized or not a regular file");
+    const relative = path.relative(resolvePhysicalPath(traceRun), realpathSync(file));
+    if (path.isAbsolute(relative) || relative === ".." || relative.startsWith(`..${path.sep}`))
+      throw new Error("Browser probe artifact resolves outside its run");
+    const bytes = readFileSync(file);
+    if (bytes.length !== stat.size) throw new Error("Browser probe artifact changed during read");
+    return bytes;
+  };
+  const outcomes = files.filter((file) => file.isFile() && file.name === "run-outcome.json");
+  if (outcomes.length !== 1) throw new Error("Browser probe has no unique runner outcome");
+  const outcome = outcomes[0]!;
+  verifyProbeResult(
+    Number(process.exitCode ?? 0),
+    JSON.parse(read(reportFile, 1024 * 1024).toString("utf8")),
+    JSON.parse(read(path.join(outcome.parentPath, outcome.name), 1024).toString("utf8")),
   );
-  if (result.status === 0) rmSync(traceRun, { recursive: true });
-  process.exit(result.status ?? 1);
+  const traces = files.filter((file) => file.isFile() && file.name.endsWith(".trace.zip"));
+  const screenshots = files.filter(
+    (file) =>
+      file.isFile() &&
+      file.name.endsWith(".png") &&
+      path.relative(traceRun, file.parentPath).split(path.sep).includes("screenshots"),
+  );
+  if (traces.length !== 1 || screenshots.length !== 1)
+    throw new Error(`Browser probe requires one fresh trace and screenshot: ${traceRun}`);
+  const trace = traces[0]!;
+  const inspection = inspectProbeTrace(
+    read(path.join(trace.parentPath, trace.name), 16 * 1024 * 1024),
+  );
+  const screenshot = screenshots[0]!;
+  const png = read(path.join(screenshot.parentPath, screenshot.name), 16 * 1024 * 1024);
+  if (!png.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex")))
+    throw new Error("Browser probe screenshot is not PNG");
+  browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const dimensions = await page.evaluate(
+      async (url) => {
+        const image = new globalThis.Image();
+        image.src = url;
+        await image.decode();
+        return { width: image.naturalWidth, height: image.naturalHeight };
+      },
+      `data:image/png;base64,${png.toString("base64")}`,
+    );
+    if (dimensions.width < 1 || dimensions.height < 1)
+      throw new Error("Empty browser probe screenshot");
+    console.log(
+      `Browser probe verified: expected failure, ${inspection.events} trace events, ${dimensions.width}x${dimensions.height} PNG; retained ${traceRun}`,
+    );
+  } finally {
+    await browser.close();
+  }
+  process.exitCode = 0;
 }
 
 async function runBrowserRuntime() {

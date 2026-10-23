@@ -6,6 +6,8 @@ it.skipIf(import.meta.env.VITE_PORTCOVE_BROWSER_TRACE_PROBE !== "1")(
   async () => {
     const button = document.body.appendChild(document.createElement("button"));
     button.textContent = "Visible browser probe";
-    await expect.element(page.getByRole("button", { name: "Missing browser probe" })).toBeVisible();
+    await expect.element(page.getByRole("button", { name: "Visible browser probe" })).toBeVisible();
+    await page.screenshot({ save: true });
+    expect.fail("PORTCOVE_EXPECTED_BROWSER_TRACE_FAILURE");
   },
 );
