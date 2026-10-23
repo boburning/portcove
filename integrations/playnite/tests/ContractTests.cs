@@ -41,7 +41,8 @@ internal static class ContractTests
             if (args.Length > 0 && args[0].StartsWith("qualification-", StringComparison.Ordinal))
                 RunQualification(args).GetAwaiter().GetResult();
             else
-                Run(args).GetAwaiter().GetResult();
+                return ScenarioRunner.Run(args, CreateScenarios, () => passed,
+                    () => Check(true, "runner continues the next independent scenario")).GetAwaiter().GetResult();
             Console.WriteLine("PASS " + passed + " reference-client contract checks");
             return 0;
         }
@@ -209,15 +210,26 @@ internal static class ContractTests
         }
     }
 
-    private static async Task Run(string[] args)
+    private static ScenarioRunner.Scenario[] CreateScenarios(string cli, string library) => new[]
     {
-        CheckRuntimeSelection();
-        CheckPersonalLibrary();
-        CheckGuidedSetup();
-        CheckManagedRemoval();
-        CheckUninstallController();
-        CheckInstallationReview();
-        CheckExternalRuntimeReview();
+        ScenarioRunner.Sync("runtime-selection", CheckRuntimeSelection),
+        ScenarioRunner.Sync("personal-library", CheckPersonalLibrary),
+        ScenarioRunner.Sync("guided-setup", CheckGuidedSetup),
+        ScenarioRunner.Sync("managed-removal", CheckManagedRemoval),
+        ScenarioRunner.Sync("uninstall-controller", CheckUninstallController),
+        ScenarioRunner.Sync("installation-review", CheckInstallationReview),
+        ScenarioRunner.Sync("external-runtime-review", CheckExternalRuntimeReview),
+        ScenarioRunner.Sync("protocol", ProtocolChecks),
+        new ScenarioRunner.Scenario("owned-transport", OwnedTransportChecks),
+        new ScenarioRunner.Scenario("consumer-measurements", ConsumerMeasurements),
+        new ScenarioRunner.Scenario("long-session-observation", LongSessionObservation),
+        new ScenarioRunner.Scenario("compiled-cli-consumer",
+            () => CompiledCliChecks(new[] { cli, library }),
+            () => cli == null ? "Requires both an explicit CLI and an isolated library." : null),
+    };
+
+    private static void ProtocolChecks()
+    {
         var managedStatus = Json.Parse("{\"active\":null}");
         Check(Json.OptionalObjectField(managedStatus, "external_runtime") == null,
             "absent external runtime is a valid managed status");
@@ -542,6 +554,10 @@ internal static class ContractTests
         BackupCreateRecords();
         PreparationCleanupRecords();
         LaunchRecords();
+    }
+
+    private static async Task OwnedTransportChecks()
+    {
         var root = Path.Combine(Path.GetDirectoryName(Binary), "fixture-library");
         var client = new PublicCli(Binary, root);
         await client.Connect();
@@ -565,8 +581,10 @@ internal static class ContractTests
         }
         await client.Manage("cancel", new[] { "cancel", "request" }, null);
         Check(true, "cancellation request accepts a result-only response");
-        await ConsumerMeasurements();
-        await LongSessionObservation();
+    }
+
+    private static async Task CompiledCliChecks(string[] args)
+    {
         if (args.Length == 2)
         {
             var real = new PublicCli(args[0], args[1]); await real.Connect();
