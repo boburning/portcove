@@ -683,6 +683,74 @@ export function inspectCapacityExecutorSubject(
   return { kind: "candidate" as const };
 }
 
+/** One transport choice for effects and explicit recovery. The selected source
+ * cannot borrow a legacy credential or guard in place of authenticated history. */
+function ownedCheckpointTransport(
+  session: ExecutorSession,
+  input: { repository: string; checkpoint: string; remote_configuration: unknown },
+  beforeCheckpointMutation?: () => Promise<void>,
+  beforeLegacyMutation?: () => void,
+  purpose?: "application" | "catalog-publication",
+) {
+  const value = sessions.get(session)!;
+  let remote: NonNullable<CapacityOperationOptions["remote"]>;
+  value.requiresSignedJournal ||= selectedJournalRequired();
+  if (value.requiresSignedJournal || value.journalBinding !== undefined) {
+    if (
+      value.journalBinding !== "bound" ||
+      !value.journal ||
+      value.journal.busy ||
+      value.journal.stopped ||
+      value.journal.checkpoint !== input.checkpoint ||
+      typeof beforeCheckpointMutation !== "function" ||
+      beforeLegacyMutation !== undefined ||
+      inspectCoordinatorRemoteNamespace(input.remote_configuration) !==
+        value.journal.configuration.configuration.namespace
+    )
+      throw new Error("selected effect requires its exact bound journal and fresh control reader");
+    if (purpose !== undefined) assertOwnedPublicationPurpose(value, purpose);
+    const controls = beforeCheckpointMutation;
+    remote = {
+      publish: (checkpoint) =>
+        publishOwnedSignedCoordinatorCheckpoint(session, input.repository, checkpoint, controls),
+    };
+  } else {
+    if (beforeCheckpointMutation !== undefined)
+      throw new Error(
+        "selected checkpoint controls cannot substitute authenticated journal history",
+      );
+    remote = {
+      configuration: input.remote_configuration,
+      api: recoveryJournalApi(value, beforeLegacyMutation),
+    };
+  }
+  return {
+    remote,
+    async publish(this: void, checkpoint: string) {
+      if ("publish" in remote) await remote.publish(checkpoint);
+      else
+        await publishCoordinatorCheckpoint(input.repository, checkpoint, remote.configuration, {
+          api: remote.api,
+        });
+    },
+  };
+}
+
+function assertOwnedPublicationPurpose(
+  value: PrivateSession,
+  purpose: "application" | "catalog-publication",
+) {
+  if (value.journal && value.journal.configuration.purpose !== purpose)
+    throw new Error("selected publication purpose differs from authenticated journal source");
+}
+
+function stopOwnedJournal(value: PrivateSession) {
+  if (value.requiresSignedJournal || value.journalBinding !== undefined) {
+    value.journalBinding = "stopped";
+    if (value.journal) value.journal.stopped = true;
+  }
+}
+
 /** Actual current-job/exact-checkpoint integration of the existing bounded
  * operation journal. This grants no semantic/custody/control acceptance: the
  * fixed controller must obtain those through their actual phase consumers
@@ -735,44 +803,13 @@ async function executeOwnedCapacityEffectWithinScope(
   let ownedId: string | null = null;
   const captured: { completed?: { remote_identity: string; evidence_sha256: string } } = {};
   try {
-    let remote: NonNullable<CapacityOperationOptions["remote"]>;
-    value.requiresSignedJournal ||= selectedJournalRequired();
-    if (value.requiresSignedJournal || value.journalBinding !== undefined) {
-      if (
-        value.journalBinding !== "bound" ||
-        !value.journal ||
-        value.journal.busy ||
-        value.journal.stopped ||
-        value.journal.checkpoint !== input.checkpoint ||
-        typeof beforeCheckpointMutation !== "function" ||
-        inspectCoordinatorRemoteNamespace(input.remote_configuration) !==
-          value.journal.configuration.configuration.namespace
-      )
-        throw new Error(
-          "selected effect requires its exact bound journal and fresh control reader",
-        );
-      const controls = beforeCheckpointMutation;
-      remote = {
-        publish: (checkpoint) =>
-          publishOwnedSignedCoordinatorCheckpoint(session, input.repository, checkpoint, controls),
-      };
-    } else {
-      if (beforeCheckpointMutation !== undefined)
-        throw new Error(
-          "selected checkpoint controls cannot substitute authenticated journal history",
-        );
-      remote = {
-        configuration: input.remote_configuration,
-        api: createCoordinatorJournalApi(value.directory, value.deadline),
-      };
-    }
-    const publish = async (checkpoint: string) => {
-      if ("publish" in remote) await remote.publish(checkpoint);
-      else
-        await publishCoordinatorCheckpoint(input.repository, checkpoint, remote.configuration, {
-          api: remote.api,
-        });
-    };
+    const { remote, publish } = ownedCheckpointTransport(
+      session,
+      input,
+      beforeCheckpointMutation,
+      undefined,
+      subject.kind === "catalog-publication" ? "catalog-publication" : "application",
+    );
     const executorIdentity = await refreshCapacityExecutor(session);
     const readOwnedBoundary: CapacityBoundaryReader = async (pending) => {
       if (!pending) return readBoundary();
@@ -894,10 +931,7 @@ async function executeOwnedCapacityEffectWithinScope(
     // The existing operation has already retained its best-effort failure
     // checkpoint. Do not let the same failed executor keep signing through the
     // direct journal publisher; recovery belongs to a new authenticated job.
-    if (value.requiresSignedJournal || value.journalBinding !== undefined) {
-      value.journalBinding = "stopped";
-      if (value.journal) value.journal.stopped = true;
-    }
+    stopOwnedJournal(value);
     throw error;
   } finally {
     state.busy = false;
@@ -957,12 +991,14 @@ export async function recoverOwnedCapacityEffect(
     Parameters<typeof recoverOwnedCapacityEffectWithinScope>[1],
     Parameters<typeof recoverOwnedCapacityEffectWithinScope>[2],
     beforeMutation?: () => void,
+    /** Selected signed journal: actual live controls; fourth guard is legacy only. */
+    beforeCheckpointMutation?: () => Promise<void>,
   ]
 ) {
   const value = sessions.get(args[0]);
   if (!value) throw new Error("an actual authenticated executor session is required");
   const work = () =>
-    recoverOwnedCapacityEffectWithinScope(args[0], args[1], args[2], false, args[3]);
+    recoverOwnedCapacityEffectWithinScope(args[0], args[1], args[2], false, args[3], args[4]);
   return value.deadline === undefined ? work() : withCoordinatorDeadline(value.deadline, work);
 }
 /** The same protected admitted-aggregate role may settle a previous terminal
@@ -974,7 +1010,7 @@ export async function recoverOwnedAdmittedAggregateEffect(
   if (!value || value.role !== "aggregate-assembly")
     throw new Error("actual admitted aggregate recovery job required");
   const work = () =>
-    recoverOwnedCapacityEffectWithinScope(args[0], args[1], args[2], true, args[3]);
+    recoverOwnedCapacityEffectWithinScope(args[0], args[1], args[2], true, args[3], args[4]);
   return value.deadline === undefined ? work() : withCoordinatorDeadline(value.deadline, work);
 }
 async function recoverOwnedCapacityEffectWithinScope(
@@ -987,6 +1023,7 @@ async function recoverOwnedCapacityEffectWithinScope(
   }>,
   admittedAggregate = false,
   beforeMutation?: () => void,
+  beforeCheckpointMutation?: () => Promise<void>,
 ) {
   const value = sessions.get(session);
   if (
@@ -1005,16 +1042,16 @@ async function recoverOwnedCapacityEffectWithinScope(
   if (state.busy || state.failed)
     throw new Error("executor is busy or stopped; retain original recovery evidence");
   state.busy = true;
-  const api = capacityRecoveryProviderApi(value);
-  const remote = {
-    configuration: input.remote_configuration,
-    api: recoveryJournalApi(value, beforeMutation),
-  };
   try {
+    const api = capacityRecoveryProviderApi(value);
+    const { remote, publish } = ownedCheckpointTransport(
+      session,
+      input,
+      beforeCheckpointMutation,
+      beforeMutation,
+    );
     const executorIdentity = await refreshCapacityExecutor(session);
-    await publishCoordinatorCheckpoint(input.repository, input.checkpoint, remote.configuration, {
-      api: remote.api,
-    });
+    await publish(input.checkpoint);
     const actual = await recoverReleaseOpportunity(input.repository, input.checkpoint);
     const controller = actual.input.controller;
     const capacity =
@@ -1029,6 +1066,10 @@ async function recoverOwnedCapacityEffectWithinScope(
     )
       throw new Error("an unresolved identity-bound capacity operation is required");
     const original = inspectCapacityExecutorIdentity(operation.executor_identity);
+    assertOwnedPublicationPurpose(
+      value,
+      operation.catalog_publication === undefined ? "application" : "catalog-publication",
+    );
     if (
       admittedAggregate &&
       (original.role !== "aggregate-assembly" ||
@@ -1083,9 +1124,7 @@ async function recoverOwnedCapacityEffectWithinScope(
       throw new Error("actual recovery readback is incomplete");
     await refreshCapacityExecutor(session);
     terminal();
-    await publishCoordinatorCheckpoint(input.repository, input.checkpoint, remote.configuration, {
-      api: remote.api,
-    });
+    await publish(input.checkpoint);
     const settled = await recordCapacityReadback(
       input.repository,
       input.checkpoint,
@@ -1102,6 +1141,7 @@ async function recoverOwnedCapacityEffectWithinScope(
     return { checkpoint: settled.checkpoint, operation_id: operation.id, ...resolution };
   } catch (error) {
     state.failed = true;
+    stopOwnedJournal(value);
     throw error;
   } finally {
     state.busy = false;
@@ -1116,11 +1156,19 @@ export async function recoverOwnedPublishedMetadata(
   raw: { repository: string; checkpoint: string; remote_configuration: unknown },
   readback: (operation: Readonly<Record<string, unknown>>) => Promise<unknown>,
   beforeMutation?: () => void,
+  beforeCheckpointMutation?: () => Promise<void>,
 ) {
   const value = sessions.get(session);
   if (!value) throw new Error("an actual authenticated executor session is required");
   const work = () =>
-    recoverOwnedPublishedMetadataWithinScope(session, raw, readback, "application", beforeMutation);
+    recoverOwnedPublishedMetadataWithinScope(
+      session,
+      raw,
+      readback,
+      "application",
+      beforeMutation,
+      beforeCheckpointMutation,
+    );
   return value.deadline === undefined ? work() : withCoordinatorDeadline(value.deadline, work);
 }
 /** Separate catalog-purpose handoff. The shared coordinator/terminal publisher
@@ -1130,11 +1178,19 @@ export async function recoverOwnedPublishedCatalogMetadata(
   raw: { repository: string; checkpoint: string; remote_configuration: unknown },
   readback: (operation: Readonly<Record<string, unknown>>) => Promise<unknown>,
   beforeMutation?: () => void,
+  beforeCheckpointMutation?: () => Promise<void>,
 ) {
   const value = sessions.get(session);
   if (!value) throw new Error("an actual authenticated executor session is required");
   const work = () =>
-    recoverOwnedPublishedMetadataWithinScope(session, raw, readback, "catalog", beforeMutation);
+    recoverOwnedPublishedMetadataWithinScope(
+      session,
+      raw,
+      readback,
+      "catalog",
+      beforeMutation,
+      beforeCheckpointMutation,
+    );
   return value.deadline === undefined ? work() : withCoordinatorDeadline(value.deadline, work);
 }
 async function recoverOwnedPublishedMetadataWithinScope(
@@ -1143,6 +1199,7 @@ async function recoverOwnedPublishedMetadataWithinScope(
   readback: (operation: Readonly<Record<string, unknown>>) => Promise<unknown>,
   component: "application" | "catalog" = "application",
   beforeMutation?: () => void,
+  beforeCheckpointMutation?: () => Promise<void>,
 ) {
   const value = sessions.get(session);
   if (!value || value.role !== "coordinator")
@@ -1155,16 +1212,17 @@ async function recoverOwnedPublishedMetadataWithinScope(
   }
   if (state.busy || state.failed) throw new Error("recovery executor is busy or stopped");
   state.busy = true;
-  const api = capacityRecoveryProviderApi(value);
-  const remote = {
-    configuration: input.remote_configuration,
-    api: recoveryJournalApi(value, beforeMutation),
-  };
   try {
+    const api = capacityRecoveryProviderApi(value);
+    const { remote, publish } = ownedCheckpointTransport(
+      session,
+      input,
+      beforeCheckpointMutation,
+      beforeMutation,
+      component === "catalog" ? "catalog-publication" : "application",
+    );
     const current = await refreshCapacityExecutor(session);
-    await publishCoordinatorCheckpoint(input.repository, input.checkpoint, remote.configuration, {
-      api: remote.api,
-    });
+    await publish(input.checkpoint);
     const actual = await recoverReleaseOpportunity(input.repository, input.checkpoint);
     const controller = actual.input.controller;
     const capacity =
@@ -1256,9 +1314,7 @@ async function recoverOwnedPublishedMetadataWithinScope(
       throw new Error("public readback differs from exact settled effect");
     await refreshCapacityExecutor(session);
     terminal();
-    await publishCoordinatorCheckpoint(input.repository, input.checkpoint, remote.configuration, {
-      api: remote.api,
-    });
+    await publish(input.checkpoint);
     const recovered =
       component === "catalog"
         ? await recordPublishedCatalogMetadata(
@@ -1288,6 +1344,7 @@ async function recoverOwnedPublishedMetadataWithinScope(
     };
   } catch (error) {
     state.failed = true;
+    stopOwnedJournal(value);
     throw error;
   } finally {
     state.busy = false;
