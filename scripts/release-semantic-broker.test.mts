@@ -373,6 +373,44 @@ void test(
   },
 );
 
+void test(
+  "Linux registration directory-sync failure blocks conversion and preserves its pending file",
+  { skip: process.platform !== "linux" },
+  async () => {
+    const root = await mkdtemp(path.join(os.homedir(), ".portcove-app-registration-sync-inert-"));
+    try {
+      const events: string[] = [];
+      const destination = path.join(root, "semantic");
+      const store = await createAppRegistrationStore(destination, async (directory) => {
+        events.push(directory);
+        if (directory === destination) {
+          assert.match(
+            (await readFile(path.join(destination, "conversion-intent.json"))).toString(),
+            /pending/u,
+          );
+          throw new Error("inert directory-sync failure");
+        }
+      });
+      const f = appRegistrationFixture();
+      const capture = createAppRegistrationCapture({ ...f.options, store });
+      await assert.rejects(capture(appCallback), /directory-sync failure/u);
+      assert.deepEqual(events, [root, destination]);
+      assert.equal(f.calls.length, 0);
+      await assert.rejects(capture(appCallback), /already consumed/u);
+      assert.equal((await lstat(path.join(destination, "conversion-intent.json"))).isFile(), true);
+      await assert.rejects(
+        createAppRegistrationStore(path.join(root, "observer"), async () => {
+          throw new Error("inert parent-sync failure");
+        }),
+        /parent-sync failure/u,
+      );
+      assert.equal((await lstat(path.join(root, "observer"))).isDirectory(), true);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
 function hostedAppReadback(role: HostedReleaseAppRole, appId = 123, installationId = 456) {
   const manifest = prepareHostedReleaseAppManifest(role);
   const app = {

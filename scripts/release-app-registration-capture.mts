@@ -1,5 +1,6 @@
 import { createHash, createPrivateKey, createPublicKey } from "node:crypto";
 import { lstat, mkdir, open, realpath } from "node:fs/promises";
+import { constants } from "node:fs";
 import path from "node:path";
 import type { ReadableStreamDefaultReader } from "node:stream/web";
 import {
@@ -16,10 +17,25 @@ export interface AppRegistrationStore {
 }
 const sha = (value: Buffer) => createHash("sha256").update(value).digest("hex");
 
+export async function syncRegistrationDirectory(directory: string) {
+  const handle = await open(
+    directory,
+    constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
+  );
+  try {
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+}
+
 /** Linux owner-only custody outside the reviewer namespace. Existing attempts,
  * linked/foreign/writable ancestry and non-private modes are refused, never
  * repaired or overwritten. There is no credential in the repository or stdout. */
-export async function createAppRegistrationStore(directory: string): Promise<AppRegistrationStore> {
+export async function createAppRegistrationStore(
+  directory: string,
+  synchronizeDirectory = syncRegistrationDirectory,
+): Promise<AppRegistrationStore> {
   const uid = process.getuid?.();
   if (
     process.platform !== "linux" ||
@@ -43,6 +59,7 @@ export async function createAppRegistrationStore(directory: string): Promise<App
     if (path.dirname(cursor) === cursor) break;
   }
   await mkdir(directory, { mode: 0o700 });
+  await synchronizeDirectory(parent);
   const owner = await lstat(directory);
   if (!owner.isDirectory() || owner.uid !== uid || (owner.mode & 0o077) !== 0)
     throw new Error("private registration directory unavailable");
@@ -76,6 +93,7 @@ export async function createAppRegistrationStore(directory: string): Promise<App
         total += bytes.length;
         await file.writeFile(bytes);
         await file.sync();
+        await synchronizeDirectory(directory);
       } finally {
         await file.close();
       }

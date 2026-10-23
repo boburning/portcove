@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { mkdir } from "node:fs/promises";
 import { userInfo } from "node:os";
@@ -12,6 +13,7 @@ import {
   createAppRegistrationCapture,
   createAppRegistrationStore,
   inspectAppRegistrationCallback,
+  syncRegistrationDirectory,
 } from "./release-app-registration-capture.mts";
 
 const origin = "http://127.0.0.1:1456";
@@ -121,9 +123,11 @@ export function createAppRegistrationHandler(options: {
 async function main() {
   const args = process.argv.slice(2);
   if (
-    args.length !== 2 ||
+    args.length !== 4 ||
     args[0] !== "--role" ||
     !["semantic", "protection_observer"].includes(args[1] ?? "") ||
+    args[2] !== "--expected-source" ||
+    !/^[a-f0-9]{40}$/u.test(args[3] ?? "") ||
     process.platform !== "linux" ||
     process.getuid?.() === 0 ||
     userInfo().username !== "boburning" ||
@@ -132,11 +136,39 @@ async function main() {
     process.env.SUDO_UID
   )
     throw new Error("fixed ordinary-owner Linux App registration required");
+  const source = args[3]!;
+  const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+  const git = (gitArgs: string[]) =>
+    execFileSync("/usr/bin/git", ["--no-optional-locks", "-C", root, ...gitArgs], {
+      encoding: "utf8",
+      timeout: 10000,
+      maxBuffer: 65536,
+      env: {
+        HOME: "/home/boburning",
+        PATH: "/usr/bin:/bin",
+        GIT_CONFIG_NOSYSTEM: "1",
+        GIT_CONFIG_GLOBAL: "/dev/null",
+        GIT_TERMINAL_PROMPT: "0",
+      },
+    }).trim();
+  if (
+    git(["rev-parse", "HEAD"]) !== source ||
+    git(["status", "--porcelain", "--untracked-files=no"]) !== ""
+  )
+    throw new Error("reviewed App registration source changed");
   const role = args[1] as HostedReleaseAppRole;
   const state = randomBytes(32).toString("hex");
   const deadline = Date.now() + 600000;
   const directory = `/home/boburning/.local/share/portcove/app-registration/${role}`;
-  const server = createServer();
+  let dispatch: ((request: IncomingMessage, response: ServerResponse) => void) | null = null;
+  const server = createServer((request, response) => {
+    if (!dispatch) {
+      response.writeHead(503, { Connection: "close" });
+      response.end("Setup not ready.");
+      return;
+    }
+    dispatch(request, response);
+  });
   server.maxConnections = 4;
   server.keepAliveTimeout = 1000;
   server.requestTimeout = 1000;
@@ -153,12 +185,14 @@ async function main() {
     } catch (error) {
       if (!(error instanceof Error && "code" in error && error.code === "EEXIST")) throw error;
     }
+    await syncRegistrationDirectory(path.dirname(path.dirname(directory)));
     const store = await createAppRegistrationStore(directory);
     await store.write(
       "session.json",
       Buffer.from(
         JSON.stringify({
           role,
+          source_revision: source,
           state,
           deadline,
           manifest: prepareHostedReleaseAppManifest(role),
@@ -189,7 +223,7 @@ async function main() {
             ),
           );
           process.stdout.write(
-            `${JSON.stringify(result ?? { status: "stopped", role, retained: true, effects: "unresolved", automatic_retry: false })}\n`,
+            `${JSON.stringify(result ? { ...result, source_revision: source } : { status: "stopped", role, retained: true, effects: "unresolved", automatic_retry: false })}\n`,
           );
           if (!result) process.exitCode = 1;
         } catch {
@@ -221,14 +255,14 @@ async function main() {
         finish,
       });
       const pending = new Set<Promise<void>>();
-      server.on("request", (request, response) => {
+      dispatch = (request, response) => {
         const work = handler(request, response).catch(() => {
           process.exitCode = 1;
           return finish(null);
         });
         pending.add(work);
         void work.finally(() => pending.delete(work));
-      });
+      };
       timer = setTimeout(
         () => {
           // Retain any response already in flight before terminal readback.
