@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "heromachine-breakdown-recompilation",
+    "name": "Breakdown / Breakdown-Recompilation (Heromachine)",
+    "summary": "Explore Breakdown / Breakdown-Recompilation (Heromachine) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/Heromachine/Breakdown-Recompilation",
+    "issue_number": 1805,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Heromachine/Breakdown-Recompilation"
+  }
+}

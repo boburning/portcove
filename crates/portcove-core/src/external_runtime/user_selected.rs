@@ -83,7 +83,7 @@ pub(crate) fn validate_arguments(arguments: &[String]) -> Result<()> {
 }
 
 pub(crate) fn preview(
-    port: &crate::PortDefinition,
+    listing: &crate::PortListing,
     executable: &Path,
     working_directory: &Path,
     arguments: &[String],
@@ -99,7 +99,7 @@ pub(crate) fn preview(
     checkpoint()?;
     let preview_sha256 = hex::encode(Sha256::digest(serde_json::to_vec(&(
         "portcove-user-selected-v1",
-        port,
+        listing,
         &executable,
         &path,
         arguments,
@@ -109,7 +109,7 @@ pub(crate) fn preview(
         user_selected: Some(UserSelectedLaunch {
             arguments: arguments.to_vec(),
         }),
-        port_id: port.id.clone(),
+        port_id: listing.id.clone(),
         path,
         executable,
         version: "user-managed".into(),
@@ -126,9 +126,16 @@ pub(crate) fn check_record(
     spec: &UserPreparedRuntimeSpec,
     library: &Path,
 ) -> Result<()> {
-    if spec.trust != ExternalRuntimeTrust::UserSelected
-        || record.platform != Platform::current()?
-        || record.version != "user-managed"
+    if spec.trust != ExternalRuntimeTrust::UserSelected {
+        return Err(PortcoveError::verification(
+            "user-selected runtime has no retained execution-intent contract",
+        ));
+    }
+    check_listing_record(record, library)
+}
+
+pub(crate) fn check_listing_identity(record: &ExternalRuntimeRecord) -> Result<()> {
+    if record.version != "user-managed"
         || !record.archive_sha256.is_empty()
         || !record.immutable_tree_sha256.is_empty()
         || record.shared_preferences.is_some()
@@ -142,6 +149,16 @@ pub(crate) fn check_record(
         .as_ref()
         .ok_or_else(|| PortcoveError::verification("user-selected execution intent is missing"))?;
     validate_arguments(&selection.arguments)?;
+    Ok(())
+}
+
+pub(crate) fn check_listing_record(record: &ExternalRuntimeRecord, library: &Path) -> Result<()> {
+    check_listing_identity(record)?;
+    if record.platform != Platform::current()? {
+        return Err(PortcoveError::unsupported(
+            "selected installation belongs to another platform",
+        ));
+    }
     let (executable, path) = checked_paths(&record.executable, &record.path, library)?;
     if executable != record.executable || path != record.path {
         return Err(PortcoveError::verification(

@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-jade-cocoon-recomp",
+    "name": "Jade Cocoon: Story of the Tamamayu / Alexbeav PSXRecomp",
+    "summary": "Explore Jade Cocoon: Story of the Tamamayu / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp",
+    "issue_number": 1599,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp"
+  }
+}

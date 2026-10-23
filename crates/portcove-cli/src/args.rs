@@ -185,6 +185,11 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         command: ExternalCommand,
     },
+    /// Download an upstream package and continue setup in a user-owned folder.
+    Setup {
+        #[command(subcommand)]
+        command: crate::setup::SetupCommand,
+    },
     /// Inspect and configure optional disc preparation tools for this host.
     Tool {
         #[command(subcommand)]
@@ -562,6 +567,28 @@ pub(crate) enum LaunchCommand {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum ExternalCommand {
+    /// Review new executable, directory and arguments for an existing selected installation.
+    SelectRelinkPreview {
+        port_id: String,
+        executable: PathBuf,
+        #[arg(long)]
+        working_directory: PathBuf,
+        #[arg(long = "arg", allow_hyphen_values = true)]
+        arguments: Vec<String>,
+    },
+    /// Save reviewed launch details; preserve the old and new external files.
+    SelectRelink {
+        port_id: String,
+        executable: PathBuf,
+        #[arg(long)]
+        working_directory: PathBuf,
+        #[arg(long = "arg", allow_hyphen_values = true)]
+        arguments: Vec<String>,
+        #[arg(long)]
+        expected_preview: String,
+        #[arg(long)]
+        yes: bool,
+    },
     /// Review an executable you manage yourself, without claiming package authenticity.
     SelectPreview {
         /// Catalog port ID offering user-selected executable registration.

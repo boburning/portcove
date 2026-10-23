@@ -94,9 +94,10 @@ async function click(name: string) {
 }
 
 function channelButton(name: string) {
+  const label = name === "beta" ? "preview" : name === "all" ? "all ports" : name;
   const button = [
     ...host.querySelectorAll<HTMLButtonElement>('[aria-label="Release channel filters"] button'),
-  ].find((item) => item.textContent?.trim().toLowerCase() === (name === "beta" ? "preview" : name));
+  ].find((item) => item.textContent?.trim().toLowerCase() === label);
   expect(button).toBeDefined();
   return button!;
 }
@@ -262,7 +263,7 @@ describe("Catalog channel controls", () => {
     expect(visibleIds()).toEqual(["stable", "beta", "both"]);
   });
 
-  it("preserves other structured constraints when toggling or clearing channels", async () => {
+  it("preserves other constraints for channel toggles and clears declared filters with All ports", async () => {
     await restore({ version: 1, channels: ["stable"], platforms: ["linux-x86-64"] });
     await click("beta");
     expect(visibleIds()).toEqual([]);
@@ -271,15 +272,16 @@ describe("Catalog channel controls", () => {
       channels: ["stable", "beta"],
       platforms: ["linux-x86-64"],
     });
-    await click("all");
+    expect(channelButton("all").getAttribute("aria-pressed")).toBe("false");
+    await click("stable");
+    await click("beta");
     expect(visibleIds()).toEqual([]);
     expect(shell.filter).toEqual({ version: 1, channels: [], platforms: ["linux-x86-64"] });
-    const reset = [...host.querySelectorAll<HTMLButtonElement>("button")].find((button) =>
-      button.textContent?.includes("Clear search and filters"),
-    );
-    expect(reset).toBeDefined();
-    await act(async () => reset!.click());
-    expect(visibleIds()).toHaveLength(4);
+    expect(channelButton("all").getAttribute("aria-pressed")).toBe("false");
+    await click("all");
+    expect(shell.filter).toBe("all");
+    expect(visibleIds()).toEqual(["stable", "beta", "rolling", "both"]);
+    expect(channelButton("all").getAttribute("aria-pressed")).toBe("true");
   });
 
   it.each([

@@ -526,8 +526,9 @@ the pinned runtime active after installing or moving it; missing or mismatched
 setup refuses the commit with that repair instruction. The installer changes
 neither the generated Vite+ dispatcher nor persistent machine/user PATH.
 
-`node scripts/catalog-staged-check.mts --staged` reads the four current catalog
-inputs from the Git index. It shares the generator's authoring projection and
+`node scripts/catalog-staged-check.mts --staged` reads the per-ID source records,
+shared source tables, generated projections and independent compatibility fixtures
+from the Git index. It shares the generator's authoring projection and
 independent compatibility expectations, preserves partial staging, and never
 regenerates or stages files. Unrelated commits skip this optional local check.
 

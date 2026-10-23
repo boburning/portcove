@@ -105,7 +105,7 @@ export function ArtworkFrame({
   );
 }
 
-export function DetailArtwork({ port }: { port: PortDefinition }) {
+export function DetailArtwork({ port }: { port: Pick<PortDefinition, "id"> }) {
   const { display } = useArtwork(port.id, "detail");
   if (!display.state?.selection) return null;
   return (
@@ -125,7 +125,7 @@ export function DetailArtwork({ port }: { port: PortDefinition }) {
   );
 }
 
-export function ArtworkControls({ port }: { port: PortDefinition }) {
+export function ArtworkControls({ port }: { port: Pick<PortDefinition, "id"> }) {
   const [open, setOpen] = useState(false);
   return (
     <details className="artwork-controls" onToggle={(event) => setOpen(event.currentTarget.open)}>
@@ -143,7 +143,13 @@ export function ArtworkControls({ port }: { port: PortDefinition }) {
   );
 }
 
-function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: ArtworkSlot }) {
+function ArtworkSlotControl({
+  port,
+  slot,
+}: {
+  port: Pick<PortDefinition, "id">;
+  slot: ArtworkSlot;
+}) {
   const { cache, display } = useArtwork(port.id, slot);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string>();

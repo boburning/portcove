@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kileak-the-dna-imperative-ktdir",
+    "name": "Kileak: The DNA Imperative / KTDIR",
+    "summary": "Explore Kileak: The DNA Imperative / KTDIR and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/NJH-1001/KTDIR",
+    "issue_number": 324,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/NJH-1001/KTDIR"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-simpsons-game-thesimpsonsgamerecomp",
+    "name": "The Simpsons Game / TheSimpsonsGameRecomp",
+    "summary": "Explore The Simpsons Game / TheSimpsonsGameRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/YesterMester/TheSimpsonsGameRecomp",
+    "issue_number": 379,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/YesterMester/TheSimpsonsGameRecomp"
+  }
+}

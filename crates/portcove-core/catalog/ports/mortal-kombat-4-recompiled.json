@@ -1,0 +1,75 @@
+{
+  "format_version": 1,
+  "order": 27,
+  "listing": {
+    "id": "mortal-kombat-4-recompiled",
+    "name": "Mortal Kombat 4: Recompiled",
+    "summary": "Native Mortal Kombat 4 recompilation.",
+    "project_url": "https://github.com/Alexbeav/mortal-kombat-4-recomp",
+    "original_game_title": "Mortal Kombat 4",
+    "variant_label": "PlayStation",
+    "artwork": {
+      "game_id": 1622,
+      "cover_id": 237769,
+      "image_id": "co53gp",
+      "image_sha256": "364769f2837d8bc18f4cd248c0b9c6b53aa5e4fb2b9f5d14cb26e645a9abcf47",
+      "game_slug": "mortal-kombat-4",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 82
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "repository": "Alexbeav/mortal-kombat-4-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["windows-x64"],
+        "linux-x86-64": ["linux-x64"],
+        "macos-x86-64": ["macos-x64"],
+        "macos-aarch64": ["macos-arm64"]
+      }
+    },
+    "source_profile": "mortal-kombat-4-psx",
+    "bios_source_profile": "psx-scph-1001-bios",
+    "executable_hints": {
+      "windows-x86-64": ["Mortal_Kombat_4.exe"],
+      "linux-x86-64": ["Mortal_Kombat_4"],
+      "macos-x86-64": ["Mortal_Kombat_4"],
+      "macos-aarch64": ["Mortal_Kombat_4"]
+    },
+    "persistent_paths": [
+      "saves",
+      "config",
+      "mods",
+      "settings.toml",
+      "game_options.json",
+      "graphics.json",
+      "input.json",
+      "sound.json"
+    ],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "mortal-kombat-4-psx",
+          "label": "Mortal Kombat 4 (USA) disc",
+          "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-1001-bios",
+          "label": "PlayStation SCPH-1001 BIOS",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jackie-chan-stuntmaster-rechan",
+    "name": "Jackie Chan Stuntmaster / ReChan",
+    "summary": "Explore Jackie Chan Stuntmaster / ReChan and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/SilverwireGames/ReChan",
+    "issue_number": 348,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/SilverwireGames/ReChan"
+  }
+}

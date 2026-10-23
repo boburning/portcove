@@ -1,0 +1,79 @@
+{
+  "format_version": 1,
+  "order": 66,
+  "listing": {
+    "id": "mega-man-x6-recompiled",
+    "name": "Mega Man X6 Recompiled",
+    "summary": "Native Mega Man X6 recompilation.",
+    "project_url": "https://github.com/mstan/MegaManX6Recomp",
+    "original_game_title": "Mega Man X6",
+    "artwork": {
+      "game_id": 409014,
+      "cover_id": 605094,
+      "image_id": "cocyw6",
+      "image_sha256": "12da48db9afebefe18414ff63c1ffc718adf5ee18fa94881a0f8d228c7770d6a",
+      "game_slug": "mega-man-x6-recompiled",
+      "match_kind": "port"
+    },
+    "issue_number": 117
+  },
+  "integration": {
+    "support_tier": "stable",
+    "channels": ["stable", "beta"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "mstan/MegaManX6Recomp",
+      "asset_hints": {
+        "windows-x86-64": ["windows-x64.zip"]
+      }
+    },
+    "source_profile": "mega-man-x6-psx",
+    "runtime_source_filename": "disc",
+    "runtime_source_materialization": "psx-bin-cue",
+    "launch_arguments": [
+      "--no-launcher",
+      "--memcard-dir",
+      "saves",
+      "--game",
+      "game.toml",
+      "--bios",
+      "bios/openbios.bin",
+      "--disc",
+      "disc/disc.cue"
+    ],
+    "executable_hints": {
+      "windows-x86-64": ["MegaManX6Recomp.exe"]
+    },
+    "persistent_paths": [
+      "saves",
+      "settings.toml",
+      "disc.cfg",
+      "bios.cfg",
+      "input.ini",
+      "game.toml",
+      "cache",
+      "overlay_captures.json",
+      "mods",
+      "disc",
+      "keybinds.ini",
+      "overlay_captures.json.d",
+      "psx_freeze_heartbeat.json",
+      "psx_last_run_report.json"
+    ],
+    "presentation": {
+      "installation_method": "staged-game-files",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "mega-man-x6-psx",
+          "label": "Mega Man X6 (USA Rev 1) disc",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

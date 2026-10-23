@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "zelda-link-s-awakening-dx-hd",
+    "name": "Zelda: Link's Awakening DX HD",
+    "summary": "Explore Zelda: Link's Awakening DX HD and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/ryancheung/Zelda-LA-DX-HD",
+    "issue_number": 128,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ryancheung/Zelda-LA-DX-HD"
+  }
+}

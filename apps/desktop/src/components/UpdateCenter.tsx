@@ -3,6 +3,7 @@ import { ActivityDiagnostic } from "./ActivityDiagnostic";
 import { RecoveryReview } from "./RecoveryReview";
 import { GameUpdateControl } from "./GameUpdates";
 import type { Perform } from "../features/operations/use-operation-state";
+import type { CatalogEntry } from "../features/browsing/catalog-entry";
 import { focusAndReveal } from "../focus";
 import { gameIdentityLabel, gameTitle, gameProjectLabel } from "../port-identity";
 import { controlFocus } from "./ui/control-style";
@@ -111,6 +112,7 @@ const libraryActivitySettingsTargets: Partial<
 
 export function UpdateCenter({
   ports,
+  activityPorts = ports,
   sourceProfiles = [],
   statuses,
   activities,
@@ -151,6 +153,7 @@ export function UpdateCenter({
   perform?: Perform | undefined;
   onLaunch?: ((portId: string) => void) | undefined;
   ports: PortDefinition[];
+  activityPorts?: readonly CatalogEntry[];
   sourceProfiles?: SourceProfile[];
   statuses: Map<string, PortStatus>;
   activities: ActivityRecord[];
@@ -527,7 +530,7 @@ export function UpdateCenter({
         />
         <ActivityHistory
           operationEvents={operationEvents}
-          ports={ports}
+          ports={activityPorts}
           sourceProfiles={sourceProfiles}
           activities={activities}
           activityFeed={activityFeed}
@@ -639,7 +642,7 @@ function ActivityHistory({
   generation: number;
   nowSeconds: number;
   reviewedActivityId?: string | undefined;
-  ports: PortDefinition[];
+  ports: readonly CatalogEntry[];
   sourceProfiles: SourceProfile[];
   activities: ActivityRecord[];
   activityFeed?: ActivityFeed | undefined;
@@ -951,6 +954,7 @@ function activityTarget(
 function operationLabel(operation: ActivityOperation) {
   const labels: Record<ActivityOperation, string> = {
     relink_external: "Change game folder",
+    download_package: "Upstream package download",
     prepare: "Game-data setup",
     launch: "Game launch",
     register_external: "Use an existing installation",

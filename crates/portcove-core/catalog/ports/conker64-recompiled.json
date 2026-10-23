@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "conker64-recompiled",
+    "name": "Conker64: Recompiled",
+    "summary": "Explore Conker64: Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/Conker64Recomp/conker64-recompiled",
+    "issue_number": 123,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Conker64Recomp/conker64-recompiled"
+  }
+}

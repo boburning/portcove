@@ -1,0 +1,74 @@
+{
+  "format_version": 1,
+  "order": 56,
+  "listing": {
+    "id": "sssv-recompiled",
+    "name": "Space Station Silicon Valley: Recompiled",
+    "summary": "Native Space Station Silicon Valley recompilation.",
+    "project_url": "https://github.com/Cellenseres/SSSV_Recomp",
+    "original_game_title": "Space Station Silicon Valley",
+    "artwork": {
+      "game_id": 3602,
+      "cover_id": 182330,
+      "image_id": "co3woq",
+      "image_sha256": "5bfcab3a7d39e84052d7a0c18dd8e644906d3586f8846c121f2d64d54e2500da",
+      "game_slug": "space-station-silicon-valley",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 107
+  },
+  "integration": {
+    "support_tier": "stable",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "adapter": "n64-recomp-portable",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "Cellenseres/SSSV_Recomp",
+      "asset_hints": {
+        "windows-x86-64": ["Windows.zip"],
+        "linux-x86-64": ["Linux.tar.gz"],
+        "macos-x86-64": ["macOS.zip"],
+        "macos-aarch64": ["macOS.zip"]
+      }
+    },
+    "source_profile": "space-station-silicon-valley",
+    "runtime_source_filename": "sssv.n64.us.1.0.z64",
+    "portable_marker": true,
+    "executable_hints": {
+      "windows-x86-64": ["SSSVRecompiled.exe"],
+      "linux-x86-64": ["SSSVRecompiled"],
+      "macos-x86-64": ["SSSVRecompiled"],
+      "macos-aarch64": ["SSSVRecompiled"]
+    },
+    "persistent_paths": [
+      "sssv.n64.us.1.0.z64",
+      "mods",
+      "mod_config",
+      "saves",
+      "mods.json",
+      "mods.json.bak",
+      "general.json",
+      "general.json.bak",
+      "graphics.json",
+      "graphics.json.bak",
+      "controls.json",
+      "controls.json.bak",
+      "sound.json",
+      "sound.json.bak"
+    ],
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "space-station-silicon-valley",
+          "label": "Space Station Silicon Valley (USA 1.0) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

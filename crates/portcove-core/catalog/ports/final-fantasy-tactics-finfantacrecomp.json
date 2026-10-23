@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "final-fantasy-tactics-finfantacrecomp",
+    "name": "Final Fantasy Tactics / FinFanTacRecomp",
+    "summary": "Explore Final Fantasy Tactics / FinFanTacRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/NJH-1001/FinFanTacRecomp",
+    "issue_number": 327,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/NJH-1001/FinFanTacRecomp"
+  }
+}

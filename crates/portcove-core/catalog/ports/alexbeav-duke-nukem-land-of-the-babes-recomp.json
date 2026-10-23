@@ -1,0 +1,87 @@
+{
+  "format_version": 1,
+  "order": 86,
+  "listing": {
+    "id": "alexbeav-duke-nukem-land-of-the-babes-recomp",
+    "name": "Duke Nukem: Land of the Babes / Alexbeav PSXRecomp",
+    "summary": "Native Duke Nukem: Land of the Babes recompilation from Alexbeav’s PSXRecomp project.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp",
+    "original_game_title": "Duke Nukem: Land of the Babes",
+    "artwork": {
+      "game_id": 8504,
+      "cover_id": 441104,
+      "image_id": "co9gcw",
+      "image_sha256": "0824cbe0f5262d51f5a1f2d15f9295a42626d78e36da063627d177df7255904a",
+      "game_slug": "duke-nukem-land-of-the-babes",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 441
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "direct-manifest",
+      "direct": {
+        "windows-x86-64": {
+          "version": "v0.3.6",
+          "url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/releases/download/v0.3.6/Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-windows-x64.zip",
+          "size": 30154371,
+          "sha256": "33a2bf033dd610b8f6d8afab2373b609b536a1253f15b78138fc6d37a2831c5b",
+          "published_at": "2026-09-04T14:48:44Z"
+        }
+      }
+    },
+    "source_profile": "duke-nukem-land-of-the-babes-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Duke_Nukem__Land_of_the_Babes_Recompiled.exe"]
+    },
+    "persistent_paths": [
+      "saves",
+      "settings.toml",
+      "input.ini",
+      "keybinds.ini",
+      "config.ini",
+      "disc.cfg",
+      "bios.cfg",
+      "mods",
+      "overlay-captures"
+    ],
+    "runtime_mutable_paths": [
+      "cache",
+      "psx_freeze_heartbeat.json",
+      "psx_freeze_heartbeat.json.tmp",
+      "psx_last_run_report.json",
+      "psx_cps_exit_trace.json",
+      "netplay_lan_lobby.txt"
+    ],
+    "runtime_mutable_file_patterns": [
+      {
+        "prefix": "psx_freeze_dump_psx-runtime_",
+        "suffix": ".json"
+      }
+    ],
+    "launch_environment": {
+      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+    },
+    "launch_arguments": ["--no-launcher", "--bios", "bios/openbios.bin"],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "duke-nukem-land-of-the-babes-psx",
+          "label": "Duke Nukem: Land of the Babes (USA) disc",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Provide your own matching single-track CHD for SLUS-01002. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
+    }
+  }
+}

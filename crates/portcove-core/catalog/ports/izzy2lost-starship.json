@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "izzy2lost-starship",
+    "name": "Star Fox 64 / Starship [Android Port] (izzy2lost)",
+    "summary": "Explore Star Fox 64 / Starship [Android Port] (izzy2lost) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/izzy2lost/Starship",
+    "issue_number": 1890,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/izzy2lost/Starship"
+  }
+}

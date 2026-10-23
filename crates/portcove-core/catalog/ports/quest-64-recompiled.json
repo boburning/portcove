@@ -1,0 +1,67 @@
+{
+  "format_version": 1,
+  "order": 36,
+  "listing": {
+    "id": "quest-64-recompiled",
+    "name": "Quest 64: Recompiled",
+    "summary": "Native Quest 64 recompilation.",
+    "project_url": "https://github.com/Rainchus/Quest64-Recomp",
+    "original_game_title": "Quest 64",
+    "artwork": {
+      "game_id": 3580,
+      "cover_id": 400422,
+      "image_id": "co8kyu",
+      "image_sha256": "d2ee88ac1ab1bfe7f4f56c5de0b4adaecce6c23e9292105ef382b931910d64d0",
+      "game_slug": "quest-64",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 89
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "n64-recomp-portable",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "Rainchus/Quest64-Recomp",
+      "asset_hints": {
+        "windows-x86-64": ["Quest64Recompiled"]
+      }
+    },
+    "source_profile": "quest-64",
+    "executable_hints": {
+      "windows-x86-64": ["Quest64Recompiled.exe"]
+    },
+    "persistent_paths": [
+      "mods",
+      "mod_config",
+      "saves",
+      "mods.json",
+      "mods.json.bak",
+      "general.json",
+      "general.json.bak",
+      "graphics.json",
+      "graphics.json.bak",
+      "controls.json",
+      "controls.json.bak",
+      "sound.json",
+      "sound.json.bak",
+      "quest64_us.z64"
+    ],
+    "runtime_source_filename": "quest64_us.z64",
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "quest-64",
+          "label": "Quest 64 (US 1.0) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

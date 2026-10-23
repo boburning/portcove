@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-digimon-world-2-recomp",
+    "name": "Digimon World 2 / Alexbeav PSXRecomp",
+    "summary": "Explore Digimon World 2 / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp",
+    "issue_number": 1592,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp"
+  }
+}

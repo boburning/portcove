@@ -1,0 +1,110 @@
+{
+  "format_version": 1,
+  "order": 93,
+  "listing": {
+    "id": "alexbeav-dino-crisis-2-recomp",
+    "name": "Dino Crisis 2 / Alexbeav PSXRecomp",
+    "summary": "Native Dino Crisis 2 PlayStation recompilation from Alexbeav’s PSXRecomp project.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp",
+    "original_game_title": "Dino Crisis 2",
+    "artwork": {
+      "game_id": 4132,
+      "cover_id": 407370,
+      "image_id": "co8qbu",
+      "image_sha256": "15daa02a91257ede23e9cb44d7c8feed83c4f125cd30cef60aafe5fff00800f7",
+      "game_slug": "dino-crisis-2",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 444
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "direct-manifest",
+      "direct": {
+        "windows-x86-64": {
+          "version": "v0.1.1",
+          "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/releases/download/v0.1.1/dino-crisis-2-0.1.1-windows-x64.zip",
+          "size": 26205977,
+          "sha256": "ce9d77b3d35254ba31b7cd1c3deef58adacde211fc399842e57fff9b78b56283",
+          "published_at": "2026-09-30T11:26:25Z"
+        },
+        "linux-x86-64": {
+          "version": "v0.1.1",
+          "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/releases/download/v0.1.1/dino-crisis-2-0.1.1-linux-x64.zip",
+          "size": 24179506,
+          "sha256": "f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125",
+          "published_at": "2026-09-30T11:26:25Z"
+        }
+      }
+    },
+    "source_profile": "dino-crisis-2-usa-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Dino_Crisis_2_Recompiled.exe"],
+      "linux-x86-64": ["Dino_Crisis_2_Recompiled"]
+    },
+    "persistent_paths": [
+      "saves",
+      "settings.toml",
+      "settings.toml.bad",
+      "input.ini",
+      "keybinds.ini",
+      "config.ini",
+      "disc.cfg",
+      "bios.cfg",
+      "mods",
+      "overlay-captures",
+      "overlay_captures.json",
+      "overlay_captures.json.d",
+      "overlay_captures.addendum.jsonl"
+    ],
+    "runtime_mutable_paths": [
+      "cache",
+      "psx_freeze_heartbeat.json",
+      "psx_freeze_heartbeat.json.tmp",
+      "psx_last_run_report.json",
+      "psx_cps_exit_trace.json",
+      "netplay_lan_lobby.txt"
+    ],
+    "runtime_mutable_file_patterns": [
+      {
+        "prefix": "psx_freeze_dump_psx-runtime_",
+        "suffix": ".json"
+      },
+      {
+        "prefix": "overlay_captures.json.",
+        "suffix": ".tmp"
+      }
+    ],
+    "launch_environment": {
+      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+    },
+    "launch_arguments": ["--no-launcher"],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "dino-crisis-2-usa-psx",
+          "label": "Dino Crisis 2 (USA) disc",
+          "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-5552-bios",
+          "label": "PlayStation SCPH-5552 BIOS (Europe)",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Provide your own matching two-track CHD for Dino Crisis 2 SLUS-01279 (USA) and legally obtained retail SCPH-5552/5502 Europe BIOS. Preserve both disc tracks. Portcove verifies the first data track and track count; the audio track digest and complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested."
+    },
+    "bios_source_profile": "psx-scph-5552-bios"
+  }
+}

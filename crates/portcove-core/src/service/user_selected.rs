@@ -2,7 +2,7 @@
 use super::*;
 
 impl PortcoveService {
-    fn require_user_selected_path_ownership(
+    pub(super) fn require_user_selected_path_ownership(
         &self,
         executable: &Path,
         working_directory: &Path,
@@ -53,6 +53,89 @@ impl PortcoveService {
         crate::external_runtime::check_user_selected_record(record, spec, self.library.root())?;
         self.require_user_selected_path_ownership(&record.executable, &record.path)
     }
+
+    pub(super) fn check_user_selected_retained_runtime(
+        &self,
+        record: &ExternalRuntimeRecord,
+        catalog: &Catalog,
+    ) -> Result<()> {
+        if self
+            .library
+            .all_installs()?
+            .iter()
+            .any(|install| install.port_id == record.port_id)
+        {
+            return Err(PortcoveError::state(
+                "managed installation and user-selected registration both exist for this port",
+            ));
+        }
+        if catalog.is_user_selected_listing(&record.port_id) {
+            crate::external_runtime::check_user_selected_listing_record(
+                record,
+                self.library.root(),
+            )?;
+            self.require_user_selected_path_ownership(&record.executable, &record.path)
+        } else {
+            let port = catalog.port(&record.port_id)?;
+            let spec = port
+                .release
+                .user_prepared
+                .get(&record.platform)
+                .ok_or_else(|| {
+                    PortcoveError::verification(
+                        "retained selected runtime has no platform contract",
+                    )
+                })?;
+            self.check_user_selected_runtime_record(record, spec)
+        }
+    }
+
+    fn require_user_selected_registration_available(&self, port_id: &str) -> Result<()> {
+        let state = self.library.status(port_id, ReleaseChannel::Stable)?;
+        if state.external_runtime.is_some()
+            || self
+                .library
+                .all_installs()?
+                .iter()
+                .any(|install| install.port_id == port_id)
+        {
+            return Err(PortcoveError::conflict(
+                "this port already has an installation; selecting another route requires explicitly removing the existing installation or registration",
+            ));
+        }
+        Ok(())
+    }
+
+    fn current_user_selected_definition(&self, port_id: &str) -> Result<Option<&PortDefinition>> {
+        let Some(port) = self.catalog.ports().iter().find(|port| port.id == port_id) else {
+            return Ok(None);
+        };
+        if port.release.provider != ReleaseSource::UserPrepared {
+            return Ok(None);
+        }
+        let Some(spec) = port
+            .release
+            .user_prepared
+            .get(&Platform::current()?)
+            .filter(|spec| spec.trust == crate::ExternalRuntimeTrust::UserSelected)
+        else {
+            return Ok(None);
+        };
+        // Preserve the existing accepted selected-runtime route and its retained
+        // authority. New directory presentation bounds cannot redefine it.
+        crate::external_runtime::validate_user_selected_route(port, spec)?;
+        self.require_definition_operation(
+            &self.catalog,
+            port,
+            DefinitionOperationContext::observed(
+                DefinitionOperation::RegisterExternal,
+                false,
+                true,
+            ),
+        )?;
+        Ok(Some(port))
+    }
+
     pub fn preview_user_selected_runtime(
         &self,
         port_id: &str,
@@ -77,33 +160,24 @@ impl PortcoveService {
         arguments: &[String],
         checkpoint: &dyn Fn() -> Result<()>,
     ) -> Result<ExternalRuntimePreview> {
-        let port = self.catalog.port(port_id)?;
-        let spec = port
-            .release
-            .user_prepared
-            .get(&Platform::current()?)
-            .ok_or_else(|| {
-                PortcoveError::unsupported("no existing-installation route for this platform")
-            })?;
-        if port.release.provider != ReleaseSource::UserPrepared
-            || spec.trust != crate::ExternalRuntimeTrust::UserSelected
-        {
-            return Err(PortcoveError::unsupported(
-                "this port requires its accepted package route",
-            ));
+        let pending = self.pending_setup_registration(port_id)?;
+        let listing = match &pending {
+            Some((record, _)) => &record.listing,
+            None => self.catalog.listing(port_id)?,
+        };
+        let selected_definition = if pending.is_none() {
+            self.current_user_selected_definition(port_id)?
+        } else {
+            None
+        };
+        if selected_definition.is_none() {
+            listing.validate()?;
         }
-        crate::external_runtime::validate_user_selected_route(port, spec)?;
-        self.require_definition_operation(
-            &self.catalog,
-            port,
-            DefinitionOperationContext::observed(
-                DefinitionOperation::RegisterExternal,
-                false,
-                true,
-            ),
-        )?;
-        let preview = crate::external_runtime::preview_user_selected(
-            port,
+        // This is an explicit alternative ownership route. Descriptive platform
+        // guesses and managed package holds grant neither trust nor denial of an
+        // unrelated native executable selected by the user.
+        let mut preview = crate::external_runtime::preview_user_selected(
+            listing,
             executable,
             working_directory,
             arguments,
@@ -111,7 +185,136 @@ impl PortcoveService {
             checkpoint,
         )?;
         self.require_user_selected_path_ownership(&preview.executable, &preview.path)?;
+        self.require_user_selected_registration_available(port_id)?;
+        if let Some(port) = selected_definition {
+            preview.preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
+                "accepted-user-selected-definition-v1",
+                &preview.preview_sha256,
+                port,
+                self.catalog.definition_selection(port_id),
+            ))?);
+        }
+        // The exact retained row binds continuation after directory retirement;
+        // a stale preview cannot consume a different download's bookkeeping.
+        if let Some((record, json)) = &pending {
+            preview.preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
+                "pending-user-selected-v1",
+                &preview.preview_sha256,
+                &record.id,
+                json,
+            ))?);
+        }
         Ok(preview)
+    }
+
+    pub(super) fn with_user_selected_readiness(&self, mut status: PortStatus) -> PortStatus {
+        // The general Library row carries a conventional managed save path;
+        // this route has no Core-owned save or settings directory.
+        status.user_data_root = None;
+        let mut blockers = Vec::new();
+        match status.external_runtime.as_ref() {
+            None => blockers.push(LaunchBlocker::MissingRuntime),
+            Some(record) => {
+                let checked = (|| {
+                    if status.active.is_some()
+                        || status.previous.is_some()
+                        || status.staged.is_some()
+                    {
+                        return Err(PortcoveError::state(
+                            "multiple installation owners are recorded",
+                        ));
+                    }
+                    let (current, catalog) = self
+                        .library
+                        .external_runtime_with_port(&status.port_id)?
+                        .ok_or_else(|| PortcoveError::state("selected registration disappeared"))?;
+                    if current.id != record.id {
+                        return Err(PortcoveError::conflict("selected registration changed"));
+                    }
+                    self.check_user_selected_retained_runtime(record, &catalog)?;
+                    self.require_definition_identity(
+                        record.retained_definition.as_ref(),
+                        DefinitionOperationContext::observed(
+                            DefinitionOperation::Launch,
+                            true,
+                            true,
+                        ),
+                    )
+                })();
+                if checked.is_err() {
+                    blockers.push(LaunchBlocker::InvalidInstallation);
+                }
+            }
+        }
+        status.readiness = Some(LaunchReadiness {
+            launchable: blockers.is_empty(),
+            blockers,
+            pending_setup: false,
+            required_source_extension: None,
+            source: None,
+            bios: None,
+            source_assessment: None,
+            bios_assessment: None,
+        });
+        // Public PortStatus carries lifecycle actions; backup-only assessments
+        // belong to the backup inventory, including for selected runtimes.
+        status.port_actions = [
+            PortAction::Install,
+            PortAction::RegisterExternal,
+            PortAction::RemoveManaged,
+            PortAction::Update,
+        ]
+        .into_iter()
+        .map(|action| PortActionAssessment {
+            action,
+            availability: PortActionAvailability::NotOffered,
+            reason: PortActionReason::RouteNotOffered,
+            definition: None,
+        })
+        .collect();
+        let launchable = status
+            .readiness
+            .as_ref()
+            .is_some_and(|readiness| readiness.launchable);
+        let registered = status.external_runtime.is_some();
+        for (action, availability, reason) in [
+            (
+                PortAction::Launch,
+                if launchable {
+                    PortActionAvailability::Allowed
+                } else {
+                    PortActionAvailability::Held
+                },
+                if launchable {
+                    PortActionReason::Available
+                } else if registered {
+                    PortActionReason::InvalidInstallation
+                } else {
+                    PortActionReason::NotInstalled
+                },
+            ),
+            (
+                PortAction::RemoveExternal,
+                if registered {
+                    PortActionAvailability::Waiting
+                } else {
+                    PortActionAvailability::NotOffered
+                },
+                if registered {
+                    PortActionReason::ReviewRequired
+                } else {
+                    PortActionReason::NotInstalled
+                },
+            ),
+        ] {
+            status.port_actions.push(PortActionAssessment {
+                action,
+                availability,
+                reason,
+                definition: None,
+            });
+        }
+        status
     }
 
     pub fn authorize_user_selected_runtime(
@@ -164,6 +367,18 @@ impl PortcoveService {
                 port_id,
                 &preview.preview_sha256,
             )?;
+            let pending = self.pending_setup_registration(port_id)?;
+            let accepted_selected =
+                pending.is_none() && self.current_user_selected_definition(port_id)?.is_some();
+            let retained = if accepted_selected {
+                self.catalog.clone()
+            } else {
+                let listing = match &pending {
+                    Some((record, _)) => record.listing.clone(),
+                    None => self.catalog.listing(port_id)?.clone(),
+                };
+                Catalog::for_user_selected_listing(listing)?
+            };
             operation.begin_publication()?;
             let record = ExternalRuntimeRecord {
                 user_selected: preview.user_selected,
@@ -176,18 +391,158 @@ impl PortcoveService {
                 archive_sha256: String::new(),
                 immutable_tree_sha256: String::new(),
                 registered_at: Library::now(),
-                retained_definition: self.catalog.definition_selection(port_id).cloned(),
+                retained_definition: accepted_selected
+                    .then(|| self.catalog.definition_selection(port_id).cloned())
+                    .flatten(),
                 shared_preferences: None,
             };
-            self.library
-                .register_external_runtime(&record, &self.catalog)?;
+            self.library.register_external_runtime_finishing_setup(
+                &record,
+                &retained,
+                pending
+                    .as_ref()
+                    .map(|(record, json)| (record.id.as_str(), json.as_str())),
+            )?;
             Ok(record)
+        })();
+        self.finish_activity(activity, result)
+    }
+
+    pub fn preview_user_selected_runtime_relink(
+        &self,
+        port_id: &str,
+        executable: &Path,
+        working_directory: &Path,
+        arguments: &[String],
+    ) -> Result<crate::ExternalRuntimeRelinkPreview> {
+        self.user_selected_runtime_relink_review(
+            port_id,
+            executable,
+            working_directory,
+            arguments,
+            &|| Ok(()),
+        )
+        .map(|(_, preview)| preview)
+    }
+
+    fn user_selected_runtime_relink_review(
+        &self,
+        port_id: &str,
+        executable: &Path,
+        working_directory: &Path,
+        arguments: &[String],
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<(
+        crate::library::ExternalRuntimeRelinkState,
+        crate::ExternalRuntimeRelinkPreview,
+    )> {
+        checkpoint()?;
+        let state = self
+            .library
+            .external_runtime_relink_state(port_id)?
+            .ok_or_else(|| {
+                PortcoveError::not_found("selected runtime registration was not found")
+            })?;
+        let record = &state.record;
+        // The previous path may have disappeared after an upstream update. Only
+        // its retained authority is read; review checks the newly selected paths.
+        crate::external_runtime::check_user_selected_identity(record)?;
+        if record.platform != Platform::current()? {
+            return Err(PortcoveError::unsupported(
+                "selected installation belongs to another platform",
+            ));
+        }
+        self.require_definition_identity(
+            record.retained_definition.as_ref(),
+            DefinitionOperationContext::observed(DefinitionOperation::RegisterExternal, true, true),
+        )?;
+        let proposed = crate::external_runtime::preview_user_selected(
+            state.catalog.listing(port_id)?,
+            executable,
+            working_directory,
+            arguments,
+            self.library.root(),
+            checkpoint,
+        )?;
+        self.require_user_selected_path_ownership(&proposed.executable, &proposed.path)?;
+        let preview_sha256 = hex::encode(Sha256::digest(serde_json::to_vec(&(
+            "portcove-user-selected-relink-v1",
+            &state.row_sha256,
+            &proposed,
+        ))?));
+        let preview = crate::ExternalRuntimeRelinkPreview {
+            port_id: port_id.into(),
+            registration_id: record.id.clone(),
+            previous_path: record.path.clone(),
+            proposed,
+            external_files_will_be_preserved: true,
+            preview_sha256,
+        };
+        Ok((state, preview))
+    }
+
+    pub fn authorize_user_selected_runtime_relink(
+        &self,
+        port_id: &str,
+        executable: &Path,
+        working_directory: &Path,
+        arguments: &[String],
+        expected_preview_sha256: &str,
+    ) -> Result<crate::DestructiveAuthorization> {
+        let preview = self.preview_user_selected_runtime_relink(
+            port_id,
+            executable,
+            working_directory,
+            arguments,
+        )?;
+        if preview.preview_sha256 != expected_preview_sha256 {
+            return Err(PortcoveError::conflict(
+                "selected installation or registration changed after review",
+            ));
+        }
+        self.library
+            .issue_authorization("relink_user_selected", port_id, &preview.preview_sha256)
+    }
+
+    pub fn relink_user_selected_runtime(
+        &self,
+        port_id: &str,
+        executable: &Path,
+        working_directory: &Path,
+        arguments: &[String],
+        authorization_token: &str,
+    ) -> Result<ExternalRuntimeRecord> {
+        let (activity, operation) = self.begin_cancellable_activity(
+            ActivityOperation::RelinkExternal,
+            ActivityTargetKind::Port,
+            Some(port_id),
+        )?;
+        let result = (|| {
+            let _lock = self
+                .library
+                .try_lock_port(port_id, "relink-user-selected")?;
+            let (state, preview) = self.user_selected_runtime_relink_review(
+                port_id,
+                executable,
+                working_directory,
+                arguments,
+                &|| operation.checkpoint(),
+            )?;
+            self.library.consume_authorization(
+                authorization_token,
+                "relink_user_selected",
+                port_id,
+                &preview.preview_sha256,
+            )?;
+            operation.begin_publication()?;
+            self.library
+                .relink_user_selected_runtime(port_id, &state.row_sha256, &preview.proposed)
         })();
         self.finish_activity(activity, result)
     }
 }
 
-fn managed_overlap_key(path: &Path) -> Result<PathBuf> {
+pub(super) fn managed_overlap_key(path: &Path) -> Result<PathBuf> {
     #[cfg(windows)]
     {
         let text = crate::path::unicode(path, "managed ownership path")?
@@ -214,8 +569,7 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let working = temporary.path().join("user-owned game");
         fs::create_dir(&working).unwrap();
-        let executable = working.join(if cfg!(windows) { "game.exe" } else { "game" });
-        fs::copy(std::env::current_exe().unwrap(), &executable).unwrap();
+        let executable = crate::test_fixture::build_probe(&working);
         fs::write(working.join("player-save.dat"), b"player save").unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let mut service = PortcoveService::new(library).unwrap();
@@ -270,10 +624,327 @@ mod tests {
             .unwrap()
     }
 
+    fn listing_only(service: &mut PortcoveService) {
+        let mut document = service.catalog.listing_document().clone();
+        for listing in &mut document.listings {
+            listing.platforms.clear();
+            listing.availability = crate::ListingAvailability::SourceOnly;
+        }
+        service.catalog = Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#)
+            .unwrap()
+            .with_listing_document(document)
+            .unwrap();
+    }
+
+    #[test]
+    fn listing_only_registration_relink_restart_and_launch_preserve_user_ownership() {
+        let (temporary, mut service, executable, working) = fixture("listing-only");
+        listing_only(&mut service);
+        assert!(service.catalog.port("listing-only").is_err());
+        let initial = service.listing_status("listing-only").unwrap();
+        assert!(
+            initial.actions.iter().any(|action| action.action
+                == crate::ListingAction::AttachExisting
+                && action.allowed)
+        );
+        let record = register(&service, "listing-only", &executable, &working);
+        assert!(
+            service
+                .preview_user_selected_runtime("listing-only", &executable, &working, &[])
+                .is_err()
+        );
+
+        let replacement = temporary.path().join("upstream update");
+        fs::create_dir(&replacement).unwrap();
+        let replacement_executable = replacement.join(executable.file_name().unwrap());
+        fs::copy(&executable, &replacement_executable).unwrap();
+        let arguments = vec!["--help".into()];
+        let preview = service
+            .preview_user_selected_runtime_relink(
+                "listing-only",
+                &replacement_executable,
+                &replacement,
+                &arguments,
+            )
+            .unwrap();
+        assert!(
+            service
+                .authorize_user_selected_runtime_relink(
+                    "listing-only",
+                    &replacement_executable,
+                    &replacement,
+                    &[],
+                    &preview.preview_sha256,
+                )
+                .is_err()
+        );
+        let authorization = service
+            .authorize_user_selected_runtime_relink(
+                "listing-only",
+                &replacement_executable,
+                &replacement,
+                &arguments,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        // Relinking must remain useful if an upstream updater removed the old
+        // executable. The player-owned save and the new selected tree remain.
+        fs::remove_file(&executable).unwrap();
+        let relinked = service
+            .relink_user_selected_runtime(
+                "listing-only",
+                &replacement_executable,
+                &replacement,
+                &arguments,
+                &authorization.token,
+            )
+            .unwrap();
+        assert_eq!(relinked.id, record.id);
+        assert_eq!(relinked.registered_at, record.registered_at);
+        assert!(
+            service
+                .relink_user_selected_runtime(
+                    "listing-only",
+                    &replacement_executable,
+                    &replacement,
+                    &arguments,
+                    &authorization.token,
+                )
+                .is_err()
+        );
+        assert_eq!(
+            fs::read(working.join("player-save.dat")).unwrap(),
+            b"player save"
+        );
+
+        let root = service.library.root().to_path_buf();
+        drop(service);
+        let service = PortcoveService::new(Library::open(root).unwrap()).unwrap();
+        let workspace = service.workspace_snapshot(10).unwrap();
+        assert!(
+            workspace
+                .listing_catalog
+                .unwrap()
+                .listings
+                .iter()
+                .any(|listing| listing.id == "listing-only")
+        );
+        assert!(
+            workspace
+                .listing_statuses
+                .iter()
+                .any(|listing| listing.port_id == "listing-only"
+                    && listing.status.external_runtime.is_some())
+        );
+        assert!(
+            service
+                .status("listing-only")
+                .unwrap()
+                .readiness
+                .unwrap()
+                .launchable
+        );
+        assert!(
+            service
+                .supervise_launch("listing-only", None, &[], LaunchStdio::Null, |_| {})
+                .unwrap()
+                .successful
+        );
+        let removal = service.preview_external_removal("listing-only").unwrap();
+        let consent = service
+            .authorize_external_removal("listing-only", &removal.preview_sha256)
+            .unwrap();
+        service
+            .remove_external_runtime("listing-only", &consent.token)
+            .unwrap();
+        assert!(replacement_executable.is_file());
+        assert_eq!(
+            fs::read(working.join("player-save.dat")).unwrap(),
+            b"player save"
+        );
+    }
+
+    #[test]
+    fn generic_route_beside_managed_definition_does_not_change_the_managed_contract() {
+        let (_temporary, mut service, executable, working) = fixture("generic-alternative");
+        service.catalog = Catalog::embedded().unwrap();
+        let before = serde_json::to_value(service.catalog.port("shipwright").unwrap()).unwrap();
+        let record = register(&service, "shipwright", &executable, &working);
+        let status = service.status("shipwright").unwrap();
+        assert!(status.readiness.unwrap().launchable);
+        assert!(
+            status
+                .port_actions
+                .iter()
+                .any(|action| action.action == PortAction::Update
+                    && action.availability == PortActionAvailability::NotOffered)
+        );
+        assert!(service.catalog.port("shipwright").is_ok());
+        assert_eq!(
+            serde_json::to_value(service.catalog.port("shipwright").unwrap()).unwrap(),
+            before
+        );
+        assert!(record.retained_definition.is_none());
+        let (_, retained) = service
+            .library
+            .external_runtime_with_port("shipwright")
+            .unwrap()
+            .unwrap();
+        assert!(retained.port("shipwright").is_err());
+    }
+
+    #[test]
+    fn accepted_user_selected_definition_preserves_creation_and_public_status_contract() {
+        let (_temporary, mut service, executable, working) = fixture("legacy-description");
+        let mut document = serde_json::to_value(service.catalog.authoritative_document()).unwrap();
+        document["ports"][0]["summary"] = json!("");
+        service.catalog = Catalog::from_json(&document.to_string()).unwrap();
+        // New authoring has its own stricter descriptive admission; an already
+        // accepted strict selected route keeps its historic creation behavior.
+        assert!(service.catalog.listing_document().validate().is_err());
+        register(&service, "legacy-description", &executable, &working);
+        let (_, retained) = service
+            .library
+            .external_runtime_with_port("legacy-description")
+            .unwrap()
+            .unwrap();
+        assert_eq!(retained.port("legacy-description").unwrap().summary, "");
+
+        // These are the existing public PortStatus consumer invariants, not
+        // backup inventory actions or a new client-specific compatibility path.
+        let single = service.status("legacy-description").unwrap();
+        let batch = service.statuses().unwrap().pop().unwrap();
+        for status in [single, batch] {
+            assert!(!status.port_actions.iter().any(|assessment| matches!(
+                assessment.action,
+                PortAction::BackupCreate | PortAction::BackupRestore
+            )));
+            for (action, availability, reason) in [
+                (
+                    PortAction::Update,
+                    PortActionAvailability::NotOffered,
+                    PortActionReason::RouteNotOffered,
+                ),
+                (
+                    PortAction::Rollback,
+                    PortActionAvailability::NotOffered,
+                    PortActionReason::NotInstalled,
+                ),
+                (
+                    PortAction::RemoveExternal,
+                    PortActionAvailability::Waiting,
+                    PortActionReason::ReviewRequired,
+                ),
+            ] {
+                let assessments = status
+                    .port_actions
+                    .iter()
+                    .filter(|assessment| assessment.action == action)
+                    .collect::<Vec<_>>();
+                assert_eq!(assessments.len(), 1);
+                assert_eq!(assessments[0].availability, availability);
+                assert_eq!(assessments[0].reason, reason);
+            }
+        }
+    }
+
+    #[test]
+    fn legacy_selected_contract_relinks_without_rewriting_its_retained_bytes() {
+        let (_temporary, service, executable, working) = fixture("retained-selected");
+        let record = register(&service, "retained-selected", &executable, &working);
+        service.library.remove_external_runtime(&record).unwrap();
+        service
+            .library
+            .register_external_runtime(&record, &service.catalog)
+            .unwrap();
+        let read_contract = || {
+            service.library.connection().unwrap().query_row(
+            "SELECT retained_catalog_json FROM external_runtime_registrations WHERE port_id=?1",
+            ["retained-selected"], |row| row.get::<_, String>(0),
+        ).unwrap()
+        };
+        let before = read_contract();
+        let envelope: serde_json::Value = serde_json::from_str(&before).unwrap();
+        assert_eq!(envelope["format"], 5);
+        let arguments = vec!["--help".into()];
+        let preview = service
+            .preview_user_selected_runtime_relink(
+                "retained-selected",
+                &executable,
+                &working,
+                &arguments,
+            )
+            .unwrap();
+        let consent = service
+            .authorize_user_selected_runtime_relink(
+                "retained-selected",
+                &executable,
+                &working,
+                &arguments,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        service
+            .relink_user_selected_runtime(
+                "retained-selected",
+                &executable,
+                &working,
+                &arguments,
+                &consent.token,
+            )
+            .unwrap();
+        assert_eq!(read_contract(), before);
+        assert!(
+            service
+                .status("retained-selected")
+                .unwrap()
+                .readiness
+                .unwrap()
+                .launchable
+        );
+    }
+
+    #[test]
+    fn managed_installation_blocks_generic_registration_without_changing_files() {
+        let (_temporary, service, executable, working) = fixture("owned-route");
+        service
+            .library
+            .register_install(
+                &InstallRecord {
+                    id: Uuid::new_v4().to_string(),
+                    port_id: "owned-route".into(),
+                    version: "v1".into(),
+                    path: service.library.root().join("versions/owned-route/v1"),
+                    channel: ReleaseChannel::Stable,
+                    installed_at: Library::now(),
+                    verified: false,
+                    staged: true,
+                    artifact: crate::ArtifactIdentity::default(),
+                    runtime: None,
+                    manifest_sha256: String::new(),
+                    selected_executable: PathBuf::from("game"),
+                },
+                false,
+            )
+            .unwrap();
+        assert!(
+            service
+                .preview_user_selected_runtime("owned-route", &executable, &working, &[])
+                .unwrap_err()
+                .message
+                .contains("already has an installation")
+        );
+        assert!(executable.is_file());
+        assert_eq!(
+            fs::read(working.join("player-save.dat")).unwrap(),
+            b"player save"
+        );
+    }
+
     #[test]
     fn user_selected_production_launch_restart_and_removal_preserve_external_bytes() {
         // Two independent definitions reuse the same capability with case data.
-        // The executable is this Rust test harness --help, not an observed game.
+        // The executable is the repository's owned native probe, not an observed game.
         for id in ["selected-a", "selected-b"] {
             let (_temporary, service, executable, working) = fixture(id);
             let record = register(&service, id, &executable, &working);
@@ -287,6 +958,7 @@ mod tests {
             let envelope: serde_json::Value = serde_json::from_str(&bytes).unwrap();
             assert_eq!(envelope["format"], 5);
             assert_eq!(envelope["external_trust"], "user-selected");
+            assert!(retained.1.port(id).is_ok());
             #[derive(serde::Deserialize)]
             #[serde(deny_unknown_fields)]
             #[allow(dead_code)]

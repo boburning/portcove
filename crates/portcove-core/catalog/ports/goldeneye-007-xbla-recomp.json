@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "goldeneye-007-xbla-recomp",
+    "name": "GoldenEye 007 XBLA Recomp",
+    "summary": "Explore GoldenEye 007 XBLA Recomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/SunJaycy/GoldenEye-Recomp",
+    "issue_number": 163,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/SunJaycy/GoldenEye-Recomp"
+  }
+}

@@ -230,8 +230,10 @@ pub use retained_build::{
 };
 pub use service::{
     AdoptionCopyFile, AdoptionCopyPlan, AdoptionDestinationPreview, AdoptionPreview,
-    AdoptionSkippedEntry, BackupAction, BackupActionPreview, IdentifiedLaunchRequest,
-    InstallOverrides, PortRemovalPreview, PortcoveService,
+    AdoptionSkippedEntry, BackupAction, BackupActionPreview, CatalogDownloadCandidate,
+    CatalogDownloadCandidates, CatalogDownloadCoverage, CatalogDownloadPreview,
+    CatalogDownloadRequest, IdentifiedLaunchRequest, InstallOverrides, PendingSetupRecord,
+    PendingSetupState, PortRemovalPreview, PortcoveService,
 };
 pub use signed_catalog::{
     CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope, SignedCatalogPayload,

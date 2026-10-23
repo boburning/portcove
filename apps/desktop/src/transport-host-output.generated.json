@@ -1057,6 +1057,261 @@
     "title": "BootstrapStatus",
     "type": "object"
   },
+  "catalog_download_candidates": {
+    "$defs": {
+      "CatalogDownloadCandidate": {
+        "properties": {
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "can_extract": {
+            "type": "boolean"
+          },
+          "download_url": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "release_tag": {
+            "type": "string"
+          },
+          "release_url": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "release_id",
+          "asset_id",
+          "release_tag",
+          "release_url",
+          "name",
+          "size",
+          "download_url",
+          "sha256",
+          "can_extract"
+        ],
+        "type": "object"
+      },
+      "CatalogDownloadCoverage": {
+        "properties": {
+          "candidate_limit": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "candidates_complete": {
+            "description": "All assets from the returned published releases are represented.",
+            "type": "boolean"
+          },
+          "release_history_complete": {
+            "description": "A short first page established the end of the visible release history.",
+            "type": "boolean"
+          },
+          "release_limit": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "releases_checked": {
+            "description": "Published releases whose dedicated asset inventory was fully inspected.",
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "release_limit",
+          "candidate_limit",
+          "releases_checked",
+          "release_history_complete",
+          "candidates_complete"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "allowed": {
+        "type": "boolean"
+      },
+      "candidates": {
+        "items": {
+          "$ref": "#/$defs/CatalogDownloadCandidate"
+        },
+        "type": "array"
+      },
+      "coverage": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/CatalogDownloadCoverage"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Absent when an availability or provider refusal prevented discovery."
+      },
+      "default_destination_parent": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "reason": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "upstream_url": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "port_id",
+      "allowed",
+      "reason",
+      "candidates",
+      "coverage",
+      "default_destination_parent",
+      "upstream_url"
+    ],
+    "title": "CatalogDownloadCandidates",
+    "type": "object"
+  },
+  "catalog_download_preview": {
+    "$defs": {
+      "CatalogDownloadCandidate": {
+        "properties": {
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "can_extract": {
+            "type": "boolean"
+          },
+          "download_url": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "release_tag": {
+            "type": "string"
+          },
+          "release_url": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "release_id",
+          "asset_id",
+          "release_tag",
+          "release_url",
+          "name",
+          "size",
+          "download_url",
+          "sha256",
+          "can_extract"
+        ],
+        "type": "object"
+      },
+      "CatalogDownloadRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "destination_parent": {
+            "type": "string"
+          },
+          "extract_archive": {
+            "type": "boolean"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "port_id",
+          "release_id",
+          "asset_id",
+          "destination_parent",
+          "extract_archive"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "artifact": {
+        "$ref": "#/$defs/CatalogDownloadCandidate"
+      },
+      "destination_path": {
+        "type": "string"
+      },
+      "preview_sha256": {
+        "type": "string"
+      },
+      "request": {
+        "$ref": "#/$defs/CatalogDownloadRequest"
+      }
+    },
+    "required": [
+      "request",
+      "artifact",
+      "destination_path",
+      "preview_sha256"
+    ],
+    "title": "CatalogDownloadPreview",
+    "type": "object"
+  },
   "cli_command_context": {
     "$defs": {
       "Platform": {
@@ -3216,6 +3471,316 @@
       "locale"
     ],
     "title": "DesktopLocalePreference",
+    "type": "object"
+  },
+  "pending_setup_record": {
+    "$defs": {
+      "CatalogDownloadCandidate": {
+        "properties": {
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "can_extract": {
+            "type": "boolean"
+          },
+          "download_url": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "release_tag": {
+            "type": "string"
+          },
+          "release_url": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "release_id",
+          "asset_id",
+          "release_tag",
+          "release_url",
+          "name",
+          "size",
+          "download_url",
+          "sha256",
+          "can_extract"
+        ],
+        "type": "object"
+      },
+      "IgdbArtwork": {
+        "additionalProperties": false,
+        "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
+        "properties": {
+          "cover_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_slug": {
+            "type": "string"
+          },
+          "image_id": {
+            "type": "string"
+          },
+          "image_sha256": {
+            "type": "string"
+          },
+          "match_kind": {
+            "$ref": "#/$defs/IgdbArtworkMatch"
+          }
+        },
+        "required": [
+          "game_id",
+          "cover_id",
+          "image_id",
+          "image_sha256",
+          "game_slug",
+          "match_kind"
+        ],
+        "type": "object"
+      },
+      "IgdbArtworkMatch": {
+        "enum": [
+          "port",
+          "underlying-game"
+        ],
+        "type": "string"
+      },
+      "ListingAvailability": {
+        "description": "A dated discovery fact, not a managed support or artifact admission decision.",
+        "enum": [
+          "unknown",
+          "packages",
+          "source-only",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "ManualSetupGuide": {
+        "additionalProperties": false,
+        "description": "Authored instructions only; these steps grant no operation or file authority.",
+        "properties": {
+          "help_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/$defs/ManualSetupStep"
+            },
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "steps",
+          "warnings"
+        ],
+        "type": "object"
+      },
+      "ManualSetupStep": {
+        "additionalProperties": false,
+        "properties": {
+          "instruction": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "instruction"
+        ],
+        "type": "object"
+      },
+      "PendingSetupState": {
+        "enum": [
+          "downloaded",
+          "attention-required"
+        ],
+        "type": "string"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "PortListing": {
+        "additionalProperties": false,
+        "description": "Descriptive project information. A listing never grants managed installation,\nexecutable selection, source access or ownership of an external directory.",
+        "properties": {
+          "artwork": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "availability": {
+            "$ref": "#/$defs/ListingAvailability",
+            "default": "unknown"
+          },
+          "id": {
+            "type": "string"
+          },
+          "issue_number": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "manual_setup": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ManualSetupGuide"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "original_game_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platforms": {
+            "default": [],
+            "description": "Empty means unknown; it is not an execution compatibility declaration.",
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "project_url": {
+            "type": "string"
+          },
+          "release_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "setup_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "variant_label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "summary",
+          "project_url",
+          "platforms",
+          "availability"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "archive_sha256": {
+        "description": "Observed archive bytes, not a curated acceptance or executable identity.",
+        "type": "string"
+      },
+      "artifact": {
+        "$ref": "#/$defs/CatalogDownloadCandidate"
+      },
+      "downloaded_at": {
+        "type": "string"
+      },
+      "id": {
+        "type": "string"
+      },
+      "listing": {
+        "$ref": "#/$defs/PortListing"
+      },
+      "path": {
+        "type": "string"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "reason": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "state": {
+        "$ref": "#/$defs/PendingSetupState"
+      }
+    },
+    "required": [
+      "id",
+      "port_id",
+      "listing",
+      "path",
+      "state",
+      "artifact",
+      "archive_sha256",
+      "downloaded_at",
+      "reason"
+    ],
+    "title": "PendingSetupRecord",
     "type": "object"
   },
   "preparation_cleanup_preview": {
@@ -6822,6 +7387,7 @@
       },
       "ActivityOperation": {
         "enum": [
+          "download_package",
           "prepare",
           "update_catalog",
           "discover_sources",
@@ -7277,6 +7843,58 @@
         ],
         "type": "object"
       },
+      "CatalogDownloadCandidate": {
+        "properties": {
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "can_extract": {
+            "type": "boolean"
+          },
+          "download_url": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "release_tag": {
+            "type": "string"
+          },
+          "release_url": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "release_id",
+          "asset_id",
+          "release_tag",
+          "release_url",
+          "name",
+          "size",
+          "download_url",
+          "sha256",
+          "can_extract"
+        ],
+        "type": "object"
+      },
       "CatalogEvidence": {
         "additionalProperties": false,
         "properties": {
@@ -7328,6 +7946,28 @@
           "portcove_qualification"
         ],
         "type": "string"
+      },
+      "CatalogListingDocument": {
+        "additionalProperties": false,
+        "description": "Independently versioned inert directory projection. The operational catalog\nkeeps its existing schema and strict PortDefinition interpretation.",
+        "properties": {
+          "format_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "listings": {
+            "items": {
+              "$ref": "#/$defs/PortListing"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format_version",
+          "listings"
+        ],
+        "type": "object"
       },
       "CompoundSourceFormat": {
         "enum": [
@@ -8162,6 +8802,46 @@
         ],
         "type": "object"
       },
+      "ListingAction": {
+        "enum": [
+          "attach-existing",
+          "relink-existing",
+          "launch",
+          "remove-registration"
+        ],
+        "type": "string"
+      },
+      "ListingActionAssessment": {
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/ListingAction"
+          },
+          "allowed": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "action",
+          "allowed"
+        ],
+        "type": "object"
+      },
+      "ListingAvailability": {
+        "description": "A dated discovery fact, not a managed support or artifact admission decision.",
+        "enum": [
+          "unknown",
+          "packages",
+          "source-only",
+          "unavailable"
+        ],
+        "type": "string"
+      },
       "ManagedInitialization": {
         "description": "Closed initialization recipes, never catalog-supplied scripts or file contents.",
         "enum": [
@@ -8366,6 +9046,61 @@
           "result"
         ],
         "type": "object"
+      },
+      "PendingSetupRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "archive_sha256": {
+            "description": "Observed archive bytes, not a curated acceptance or executable identity.",
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/CatalogDownloadCandidate"
+          },
+          "downloaded_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "listing": {
+            "$ref": "#/$defs/PortListing"
+          },
+          "path": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "$ref": "#/$defs/PendingSetupState"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "listing",
+          "path",
+          "state",
+          "artifact",
+          "archive_sha256",
+          "downloaded_at",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "PendingSetupState": {
+        "enum": [
+          "downloaded",
+          "attention-required"
+        ],
+        "type": "string"
       },
       "PersistentFilePattern": {
         "properties": {
@@ -8844,6 +9579,119 @@
           "setup_marker",
           "setup_output_paths",
           "upstream_status"
+        ],
+        "type": "object"
+      },
+      "PortListing": {
+        "additionalProperties": false,
+        "description": "Descriptive project information. A listing never grants managed installation,\nexecutable selection, source access or ownership of an external directory.",
+        "properties": {
+          "artwork": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "availability": {
+            "$ref": "#/$defs/ListingAvailability",
+            "default": "unknown"
+          },
+          "id": {
+            "type": "string"
+          },
+          "issue_number": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "manual_setup": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ManualSetupGuide"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "original_game_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platforms": {
+            "default": [],
+            "description": "Empty means unknown; it is not an execution compatibility declaration.",
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "project_url": {
+            "type": "string"
+          },
+          "release_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "setup_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "variant_label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "summary",
+          "project_url",
+          "platforms",
+          "availability"
+        ],
+        "type": "object"
+      },
+      "PortListingStatus": {
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/$defs/ListingActionAssessment"
+            },
+            "type": "array"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/$defs/PortStatus"
+          }
+        },
+        "required": [
+          "port_id",
+          "status",
+          "actions"
         ],
         "type": "object"
       },
@@ -10953,6 +11801,28 @@
       "catalog": {
         "$ref": "#/$defs/CatalogDocument"
       },
+      "listing_catalog": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/CatalogListingDocument"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "listing_statuses": {
+        "items": {
+          "$ref": "#/$defs/PortListingStatus"
+        },
+        "type": "array"
+      },
+      "pending_setups": {
+        "items": {
+          "$ref": "#/$defs/PendingSetupRecord"
+        },
+        "type": "array"
+      },
       "sources": {
         "items": {
           "$ref": "#/$defs/SourceRecord"
@@ -10968,6 +11838,9 @@
     },
     "required": [
       "catalog",
+      "listing_catalog",
+      "listing_statuses",
+      "pending_setups",
       "statuses",
       "sources",
       "activities"

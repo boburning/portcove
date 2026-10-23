@@ -320,6 +320,19 @@ pub(crate) fn external_relink_preview(
     preview: &ExternalRuntimeRelinkPreview,
     catalog: &Catalog,
 ) -> String {
+    if let Some(selection) = &preview.proposed.user_selected {
+        return format!(
+            "Selected launch details review\nPort: {}\nRegistration: {}\nPrevious folder: {}\nExecutable: {}\nWorking directory: {}\nArguments: {}\nPreview SHA-256: {}\nAll old and new files remain user-owned. Portcove has not authenticated this executable as an official package.\nNext step: external select-relink with these same launch details and --expected-preview {}.",
+            port_name(catalog, &preview.port_id),
+            clean(&preview.registration_id),
+            clean(&preview.previous_path.display().to_string()),
+            clean(&preview.proposed.executable.display().to_string()),
+            clean(&preview.proposed.path.display().to_string()),
+            clean(&serde_json::to_string(&selection.arguments).unwrap_or_default()),
+            clean(&preview.preview_sha256),
+            clean(&preview.preview_sha256),
+        );
+    }
     let mut text = format!(
         "Existing installation location review\nPort: {}\nRegistration: {}\nPrevious folder: {}\nProposed folder: {}\nVersion: {}\nPackage SHA-256: {}\nImmutable tree SHA-256: {}\nReview SHA-256: {}\nExternal files preserved: {}\nReview only; no saved location changed. This does not copy, update, back up or delete either folder.",
         port_name(catalog, &preview.port_id),

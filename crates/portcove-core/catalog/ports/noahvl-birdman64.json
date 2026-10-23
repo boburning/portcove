@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "noahvl-birdman64",
+    "name": "Pilotwings 64 / Birdman64 (NoahVl)",
+    "summary": "Explore Pilotwings 64 / Birdman64 (NoahVl) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/NoahVl/Birdman64",
+    "issue_number": 1801,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/NoahVl/Birdman64"
+  }
+}

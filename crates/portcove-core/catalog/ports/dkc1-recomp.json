@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dkc1-recomp",
+    "name": "DKC1Recomp",
+    "summary": "Explore DKC1Recomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/elliotttate/DKC1Recomp",
+    "issue_number": 721,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/elliotttate/DKC1Recomp"
+  }
+}

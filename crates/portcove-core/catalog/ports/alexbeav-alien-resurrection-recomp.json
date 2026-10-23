@@ -1,0 +1,110 @@
+{
+  "format_version": 1,
+  "order": 94,
+  "listing": {
+    "id": "alexbeav-alien-resurrection-recomp",
+    "name": "Alien Resurrection / Alexbeav PSXRecomp",
+    "summary": "Native Alien Resurrection PlayStation recompilation from Alexbeav’s PSXRecomp project.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp",
+    "original_game_title": "Alien Resurrection",
+    "artwork": {
+      "game_id": 44995,
+      "cover_id": 504131,
+      "image_id": "coaszn",
+      "image_sha256": "4a5c0dbbfb4f7c8f6815e2c171d5eb9f0e2efb5a657c4ff5b5acd6726c39c704",
+      "game_slug": "alien-resurrection",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 428
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "direct-manifest",
+      "direct": {
+        "windows-x86-64": {
+          "version": "v0.1.4",
+          "url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/alien-resurrection-recomp-0.1.4-windows-x64.zip",
+          "size": 29907400,
+          "sha256": "2eb2ba6aa955684145271393f635e43854deab116a629de69443a7d310e994d5",
+          "published_at": "2026-10-02T15:45:25Z"
+        },
+        "linux-x86-64": {
+          "version": "v0.1.4",
+          "url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/alien-resurrection-recomp-0.1.4-linux-x64.zip",
+          "size": 27800828,
+          "sha256": "f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995",
+          "published_at": "2026-10-02T15:45:25Z"
+        }
+      }
+    },
+    "source_profile": "alien-resurrection-europe-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Alien_Resurrection_Recompiled.exe"],
+      "linux-x86-64": ["Alien_Resurrection_Recompiled"]
+    },
+    "persistent_paths": [
+      "saves",
+      "settings.toml",
+      "settings.toml.bad",
+      "input.ini",
+      "keybinds.ini",
+      "config.ini",
+      "disc.cfg",
+      "bios.cfg",
+      "mods",
+      "overlay-captures",
+      "overlay_captures.json",
+      "overlay_captures.json.d",
+      "overlay_captures.addendum.jsonl"
+    ],
+    "runtime_mutable_paths": [
+      "cache",
+      "psx_freeze_heartbeat.json",
+      "psx_freeze_heartbeat.json.tmp",
+      "psx_last_run_report.json",
+      "psx_cps_exit_trace.json",
+      "netplay_lan_lobby.txt"
+    ],
+    "runtime_mutable_file_patterns": [
+      {
+        "prefix": "psx_freeze_dump_psx-runtime_",
+        "suffix": ".json"
+      },
+      {
+        "prefix": "overlay_captures.json.",
+        "suffix": ".tmp"
+      }
+    ],
+    "launch_environment": {
+      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+    },
+    "launch_arguments": ["--no-launcher"],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "alien-resurrection-europe-psx",
+          "label": "Alien Resurrection (Europe) disc",
+          "verification": "catalog-identity"
+        },
+        {
+          "role": "bios",
+          "profile_id": "psx-scph-5552-bios",
+          "label": "PlayStation SCPH-5552 BIOS (Europe)",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Provide your own matching four-track CHD for Alien Resurrection SLES-02913 (Europe) and a legally obtained retail SCPH-5552 BIOS. Preserve all disc tracks. Portcove verifies the first data track and track count; other tracks and the complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested."
+    },
+    "bios_source_profile": "psx-scph-5552-bios"
+  }
+}

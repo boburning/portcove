@@ -55,6 +55,10 @@ import type {
   BootstrapStatus,
   CapabilityDocument,
   CatalogDocument,
+  CatalogDownloadCandidates,
+  CatalogDownloadPreview,
+  CatalogDownloadRequest,
+  PendingSetupRecord,
   DefinitionCapabilityReport,
   DefinitionCapabilityRequest,
   DesktopSupportBundleExport,
@@ -288,6 +292,29 @@ export const desktopApi = {
     invoke<WorkspaceSnapshot>("get_workspace_snapshot", { generation }),
   workspaceChanged: (generation: number) =>
     invoke<boolean>("get_workspace_changed", { generation }),
+  catalogDownloadCandidates: (portId: string, generation: number) =>
+    invoke<CatalogDownloadCandidates>("catalog_download_candidates", { portId, generation }),
+  previewCatalogDownload: (request: CatalogDownloadRequest, generation: number) =>
+    invoke<CatalogDownloadPreview>("preview_catalog_download", { request, generation }),
+  downloadCatalogPackage: (
+    request: CatalogDownloadRequest,
+    expectedPreviewSha256: string,
+    generation: number,
+    onEvent?: (event: OperationEvent) => void,
+  ) => {
+    const channel = new Channel<OperationEvent>();
+    if (onEvent) channel.onmessage = onEvent;
+    return invoke<PendingSetupRecord>("download_catalog_package", {
+      request,
+      expectedPreviewSha256,
+      onEvent: channel,
+      generation,
+    });
+  },
+  forgetPendingSetup: (portId: string, pendingId: string, generation: number) =>
+    invoke<void>("forget_pending_setup", { portId, pendingId, generation }),
+  openPendingSetupFolder: (portId: string, pendingId: string, generation: number) =>
+    invoke<void>("open_pending_setup_folder", { portId, pendingId, generation }),
   discoverOrphanedOperations: (generation: number) =>
     invoke<void>("discover_orphaned_operations", { generation }),
   planPreparation: (portId: string, generation: number) =>
@@ -634,6 +661,36 @@ export const desktopApi = {
     generation: number,
   ) =>
     invoke<ExternalRuntimeRecord | null>("register_user_selected_runtime", {
+      portId,
+      executable,
+      workingDirectory,
+      arguments: arguments_,
+      expectedPreview,
+      generation,
+    }),
+  previewUserSelectedRuntimeRelink: (
+    portId: string,
+    executable: string,
+    workingDirectory: string,
+    arguments_: string[],
+    generation: number,
+  ) =>
+    invoke<import("./types").ExternalRuntimeRelinkPreview>("preview_user_selected_runtime_relink", {
+      portId,
+      executable,
+      workingDirectory,
+      arguments: arguments_,
+      generation,
+    }),
+  relinkUserSelectedRuntime: (
+    portId: string,
+    executable: string,
+    workingDirectory: string,
+    arguments_: string[],
+    expectedPreview: string,
+    generation: number,
+  ) =>
+    invoke<ExternalRuntimeRecord | null>("relink_user_selected_runtime", {
       portId,
       executable,
       workingDirectory,

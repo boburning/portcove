@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-resident-evil-3-recomp",
+    "name": "Resident Evil 3: Nemesis / Alexbeav PSXRecomp",
+    "summary": "Explore Resident Evil 3: Nemesis / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp",
+    "issue_number": 477,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp"
+  }
+}

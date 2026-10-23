@@ -31,6 +31,11 @@ import {
   portActionPresentation,
 } from "../features/port-actions/port-action-presentation";
 import type { PortDefinition, PortStatus } from "../types";
+import {
+  listingActionAssessment,
+  listingAvailabilityLabel,
+  type CatalogEntry,
+} from "../features/browsing/catalog-entry";
 import { observedUpdateCandidate } from "../features/browsing/update-query-context";
 import {
   filterOptions,
@@ -70,7 +75,7 @@ import { CatalogFilters } from "../features/browsing/CatalogFilters";
 import type { GameFileFilterState } from "../features/browsing/use-game-file-filter-context";
 
 const catalogSortOptions: readonly { value: CatalogSort; label: string }[] = [
-  { value: "catalog", label: "Catalog order" },
+  { value: "catalog", label: "Suggested order" },
   { value: "name", label: "Name A–Z" },
   { value: "installed-first", label: "In library first" },
 ];
@@ -111,11 +116,11 @@ export function PortBrowser({
   collectionLayoutFailure?: "read" | "write" | undefined;
   favorites?: ReturnType<typeof useFavorites> | undefined;
   view: View;
-  ports: PortDefinition[];
+  ports: CatalogEntry[];
   /** Search/view narrowed candidates, before either editable Catalog group. */
-  catalogFilterCandidates?: PortDefinition[] | undefined;
+  catalogFilterCandidates?: CatalogEntry[] | undefined;
   /** Search and canonical Library membership, before readiness and declared query. */
-  libraryFilterCandidates?: PortDefinition[] | undefined;
+  libraryFilterCandidates?: CatalogEntry[] | undefined;
   queryContext?: CatalogQueryContext;
   gameFileQuery?: GameFileFilterState | undefined;
   libraryReadiness?: string;
@@ -346,11 +351,13 @@ export function PortBrowser({
                 disabled={unresolvedFilter && item !== "all"}
                 onClick={() =>
                   setFilter((current) =>
-                    view === "catalog" ? toggleCatalogChannel(current, item, queryContext) : item,
+                    view === "catalog" && item !== "all"
+                      ? toggleCatalogChannel(current, item, queryContext)
+                      : item,
                   )
                 }
               >
-                {filterLabel(item)}
+                {view === "catalog" && item === "all" ? "All ports" : filterLabel(item)}
               </Button>
             ))}
           </div>
@@ -503,6 +510,11 @@ export function PortBrowser({
           )}
         </div>
       )}
+      {view === "catalog" && catalogSort === "catalog" && queryContext?.devicePlatform && (
+        <p className="mb-4 text-xs text-pc-muted-foreground">
+          Your library and setup options for this device appear first. All ports remain searchable.
+        </p>
+      )}
       {view === "library" && !firstUseEmpty && (constrained || query.trim()) && (
         <div className="mb-5 flex flex-wrap items-center justify-between gap-2 text-sm">
           <p className="m-0" role="status">
@@ -541,7 +553,7 @@ export function PortBrowser({
 function filterSelected(filter: Filter | CatalogQuery, item: Filter) {
   if (typeof filter === "string") return filter === item;
   if (evaluateCatalogQuery([], filter).state === "unresolved") return false;
-  return item === "all" ? !filter.channels?.length : filter.channels?.includes(item) === true;
+  return item === "all" ? !filterConstrained(filter) : filter.channels?.includes(item) === true;
 }
 
 function filterConstrained(filter: Filter | CatalogQuery) {
@@ -629,7 +641,7 @@ function BrowserResults({
   favorites?: ReturnType<typeof useFavorites> | undefined;
   onFavoriteToggle: (portId: string, button: HTMLButtonElement) => void;
   view: View;
-  ports: PortDefinition[];
+  ports: CatalogEntry[];
   installedCount: number;
   constrained: boolean;
   statuses: Map<string, PortStatus>;
@@ -802,6 +814,8 @@ function ContinueCard({
   const { port, status } = recent;
   const action = presentPortAction(useOperationPresentation(), port.id, status, "launch");
   const launchable =
+    (!port.listing || listingActionAssessment(port.listingStatus, "launch").allowed) &&
+    !port.pendingSetup &&
     status.readiness?.launchable === true &&
     status.readiness.blockers.length === 0 &&
     !action.readiness.blocked;
@@ -870,7 +884,7 @@ type PortCardProps = {
   layout: CollectionLayout;
   onFavoriteToggle: (portId: string, button: HTMLButtonElement) => void;
   favorites?: ReturnType<typeof useFavorites> | undefined;
-  port: PortDefinition;
+  port: CatalogEntry;
   status?: PortStatus | undefined;
   readiness: PortReadiness;
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
@@ -897,15 +911,26 @@ function PortCard({
     const originalState = readinessPresentation(readiness, view, status, port);
     const state = input ? { ...originalState, label: input.label } : originalState;
     const setup =
-      view === "catalog" && !status?.active && !status?.external_runtime
+      view === "catalog" &&
+      !status?.active &&
+      !status?.external_runtime &&
+      !port.pendingSetup &&
+      Boolean(port.release)
         ? catalogSetupPresentation(status)
         : undefined;
-    const channel = status?.channel ? releaseChannelPresentation(status.channel) : undefined;
+    const channel =
+      status?.channel && port.release && !status.external_runtime?.user_selected
+        ? releaseChannelPresentation(status.channel)
+        : undefined;
     const updateAvailable = observedUpdateCandidate(port.id, status)?.availableAtLastCheck === true;
     return { input, state, setup, channel, updateAvailable };
   };
   const { input, state, setup, channel, updateAvailable } = resolveCardPresentation();
-  const dropEligible = nativeSourceDrag.active && Boolean(port.source_profile);
+  const dropEligible =
+    nativeSourceDrag.active &&
+    Boolean(port.source_profile) &&
+    !status?.external_runtime?.user_selected &&
+    !port.pendingSetup;
   const dropTarget = dropEligible && nativeSourceDrag.targetPortId === port.id;
   const detailOrigin = `${view}:card:${port.id}`;
   const className = `port-card catalog-card collection-cover @container/card relative isolate flex min-w-0 flex-col p-0 text-start text-pc-foreground transition-colors duration-(--duration-fast) hover:text-pc-interactive-foreground motion-reduce:transition-none ${view === "catalog" ? "port-card-selectable cursor-pointer" : "port-card-library"}${dropEligible ? " source-drop-eligible" : ""}${dropTarget ? " source-drop-targeted outline-3 outline-solid outline-pc-ring outline-offset-2" : ""}`;
@@ -1325,6 +1350,8 @@ function PortCardStatus({
 }) {
   const action = presentPortAction(useOperationPresentation(), port.id, status, "launch");
   const canLaunch = Boolean(
+    (!port.listing || listingActionAssessment(port.listingStatus, "launch").allowed) &&
+    !port.pendingSetup &&
     status?.readiness?.launchable === true &&
     status.readiness.blockers.length === 0 &&
     !action.readiness.blocked &&
@@ -1357,7 +1384,11 @@ function PortCardStatus({
               data-detail-origin={reviewOrigin}
               onClick={() => onSelect(port.id, reviewOrigin)}
             >
-              Review game
+              {port.pendingSetup?.state === "attention-required"
+                ? "Review download"
+                : port.pendingSetup
+                  ? "Continue setup"
+                  : "Review game"}
             </Button>
           )}
           {canLaunch && (
@@ -1416,19 +1447,31 @@ function PortCardStatus({
                       controlFocus,
                       "cursor-default rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground",
                     )}
-                    onClick={() => onSelect(port.id, overflowOrigin, "updates")}
+                    onClick={() =>
+                      onSelect(
+                        port.id,
+                        overflowOrigin,
+                        port.release && !status?.external_runtime?.user_selected
+                          ? "updates"
+                          : undefined,
+                      )
+                    }
                   >
-                    Updates and activity
+                    {port.release && !status?.external_runtime?.user_selected
+                      ? "Updates and activity"
+                      : "Launch details"}
                   </Menu.Item>
-                  <Menu.Item
-                    className={cn(
-                      controlFocus,
-                      "cursor-default rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground",
-                    )}
-                    onClick={() => onSelect(port.id, overflowOrigin, "saves")}
-                  >
-                    Saves and storage
-                  </Menu.Item>
+                  {port.release && !status?.external_runtime?.user_selected && (
+                    <Menu.Item
+                      className={cn(
+                        controlFocus,
+                        "cursor-default rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection data-highlighted:text-pc-selection-foreground",
+                      )}
+                      onClick={() => onSelect(port.id, overflowOrigin, "saves")}
+                    >
+                      Saves and storage
+                    </Menu.Item>
+                  )}
                 </Menu.Popup>
               </Menu.Positioner>
             </Menu.Portal>
@@ -1455,8 +1498,18 @@ function readinessPresentation(
   readiness: PortReadiness,
   view: View,
   status?: PortStatus,
-  port?: PortDefinition,
+  port?: CatalogEntry,
 ) {
+  if (port?.pendingSetup?.state === "attention-required")
+    return { label: "Download needs attention", action: "Review download", tone: "setup" } as const;
+  if (port?.pendingSetup)
+    return { label: "Downloaded · setup needed", action: "Continue setup", tone: "setup" } as const;
+  if (port?.listing && !port.release && !status?.external_runtime)
+    return {
+      label: listingAvailabilityLabel(port.listing),
+      action: "View setup options",
+      tone: "available",
+    } as const;
   if (
     (status?.active || status?.external_runtime) &&
     portActionPresentation(status, "launch").blocked
@@ -1505,14 +1558,17 @@ function readinessPresentation(
   return values[readiness];
 }
 
-function cardInstallationLabel(port: PortDefinition, status: PortStatus | undefined) {
+function cardInstallationLabel(port: CatalogEntry, status: PortStatus | undefined) {
+  if (port.pendingSetup?.state === "attention-required") return "Review download";
+  if (port.pendingSetup) return "Continue setup";
+  if (!port.release && !status?.external_runtime) return "Setup from upstream";
   return !status
     ? "Installation status unknown"
     : status.active
       ? `Installed ${status.active.version}`
       : status?.external_runtime
         ? `External installation ${status.external_runtime.version}`
-        : port.release.provider === "user-prepared"
+        : port.release?.provider === "user-prepared"
           ? "Prepare game"
           : "Not installed";
 }

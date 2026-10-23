@@ -399,6 +399,183 @@ fn open_local_artwork_service(root: &Path) -> PortcoveService {
     service
 }
 
+fn listing_artwork_catalog(artwork: Option<&crate::IgdbArtwork>) -> crate::Catalog {
+    let document = crate::CatalogListingDocument::from_json(
+        &serde_json::json!({
+            "format_version": 1,
+            "listings": [{
+                "id": "listing-artwork-fixture",
+                "name": "Listing artwork fixture",
+                "summary": "Descriptive identity without an operational integration.",
+                "project_url": "https://example.invalid/listing-artwork",
+                "artwork": artwork
+            }]
+        })
+        .to_string(),
+    )
+    .unwrap();
+    crate::Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#)
+        .unwrap()
+        .with_listing_document(document)
+        .unwrap()
+}
+
+#[test]
+fn listing_only_artwork_uses_current_presentation_and_preserves_local_choices() {
+    use crate::{
+        DestinationArtworkContent, DestinationArtworkRole, DestinationArtworkUnavailableReason,
+    };
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service =
+        PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
+    let bytes = fs::read(image_file(
+        temporary.path(),
+        "catalog.jpg",
+        image::ImageFormat::Jpeg,
+    ))
+    .unwrap();
+    let artwork: crate::IgdbArtwork = serde_json::from_value(serde_json::json!({
+        "game_id": 17, "cover_id": 31, "image_id": "listingfixture",
+        "image_sha256": crate::signed_catalog::digest(&bytes),
+        "game_slug": "listing-artwork-fixture", "match_kind": "port"
+    }))
+    .unwrap();
+    service.replace_catalog_for_test(listing_artwork_catalog(Some(&artwork)));
+    let id = "listing-artwork-fixture";
+    assert!(service.catalog().port(id).is_err());
+    assert!(service.catalog().ports().is_empty());
+    assert!(matches!(
+        service
+            .artwork(id, ArtworkSlot::Cover)
+            .unwrap()
+            .resolved_source,
+        ArtworkResolvedSource::IgdbCover { .. }
+    ));
+    assert_eq!(
+        service
+            .artwork(id, ArtworkSlot::Detail)
+            .unwrap()
+            .resolved_source,
+        ArtworkResolvedSource::GeneratedFallback
+    );
+    cover_with_fetch(&service, &artwork, std::time::Instant::now(), || Ok(bytes)).unwrap();
+    let cached = service
+        .artwork_thumbnail(id, ArtworkSlot::Cover, 0)
+        .unwrap();
+    assert!(!cached.png.is_empty());
+    assert_eq!(
+        service
+            .destination_artwork(id, DestinationArtworkRole::PortraitCover)
+            .unwrap()
+            .content,
+        DestinationArtworkContent::Unavailable {
+            reason: DestinationArtworkUnavailableReason::NoLocalOriginal
+        }
+    );
+
+    let image = image_file(temporary.path(), "local.png", image::ImageFormat::Png);
+    let selected = service
+        .import_artwork(id, ArtworkSlot::Cover, &image, 0)
+        .unwrap();
+    service.replace_catalog_for_test(listing_artwork_catalog(None));
+    let retained_choice = service.artwork(id, ArtworkSlot::Cover).unwrap();
+    assert_eq!(retained_choice.choice, selected.choice);
+    assert!(matches!(
+        retained_choice.resolved_source,
+        ArtworkResolvedSource::LocalImport { .. }
+    ));
+    assert!(
+        !service
+            .artwork_thumbnail(id, ArtworkSlot::Cover, selected.choice.revision)
+            .unwrap()
+            .png
+            .is_empty()
+    );
+    let reset = service
+        .reset_artwork(id, ArtworkSlot::Cover, selected.choice.revision)
+        .unwrap();
+    assert_eq!(
+        reset.resolved_source,
+        ArtworkResolvedSource::GeneratedFallback
+    );
+    assert!(reset.choice.revision > selected.choice.revision);
+    assert!(
+        service
+            .artwork("missing-listing", ArtworkSlot::Cover)
+            .is_err()
+    );
+    assert!(image.is_file());
+}
+
+#[test]
+fn registered_listing_artwork_survives_directory_removal_and_restart() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library_root = temporary.path().join("library");
+    let mut service = PortcoveService::new(Library::open(&library_root).unwrap()).unwrap();
+    service.replace_catalog_for_test(listing_artwork_catalog(None));
+    let id = "listing-artwork-fixture";
+    let working = temporary.path().join("user-owned-game");
+    fs::create_dir(&working).unwrap();
+    let executable = crate::test_fixture::build_probe(&working);
+    let preview = service
+        .preview_user_selected_runtime(id, &executable, &working, &[])
+        .unwrap();
+    let consent = service
+        .authorize_user_selected_runtime(id, &executable, &working, &[], &preview.preview_sha256)
+        .unwrap();
+    service
+        .register_user_selected_runtime(id, &executable, &working, &[], &consent.token)
+        .unwrap();
+    let image = image_file(temporary.path(), "local.png", image::ImageFormat::Png);
+    let selected = service
+        .import_artwork(id, ArtworkSlot::Cover, &image, 0)
+        .unwrap();
+    drop(service);
+
+    let service = PortcoveService::new(Library::open(&library_root).unwrap()).unwrap();
+    assert!(service.catalog().listing(id).is_err());
+    assert_eq!(
+        service.artwork(id, ArtworkSlot::Cover).unwrap().choice,
+        selected.choice
+    );
+    assert!(
+        !service
+            .artwork_thumbnail(id, ArtworkSlot::Cover, selected.choice.revision)
+            .unwrap()
+            .png
+            .is_empty()
+    );
+    let handoff = service
+        .destination_artwork(id, crate::DestinationArtworkRole::PortraitCover)
+        .unwrap();
+    assert!(matches!(
+        handoff.content,
+        crate::DestinationArtworkContent::Available { .. }
+    ));
+    let reset = service
+        .reset_artwork(id, ArtworkSlot::Cover, selected.choice.revision)
+        .unwrap();
+    assert_eq!(
+        reset.resolved_source,
+        ArtworkResolvedSource::GeneratedFallback
+    );
+    assert!(matches!(
+        service
+            .import_artwork(id, ArtworkSlot::Detail, &image, 0)
+            .unwrap()
+            .resolved_source,
+        ArtworkResolvedSource::LocalImport { .. }
+    ));
+    let removal = service.preview_external_removal(id).unwrap();
+    let consent = service
+        .authorize_external_removal(id, &removal.preview_sha256)
+        .unwrap();
+    service.remove_external_runtime(id, &consent.token).unwrap();
+    assert!(service.artwork(id, ArtworkSlot::Cover).is_err());
+    assert!(executable.is_file());
+    assert!(image.is_file());
+}
+
 #[test]
 fn local_artwork_fixture_has_no_production_catalog_dependencies() {
     let temp = tempfile::tempdir().unwrap();

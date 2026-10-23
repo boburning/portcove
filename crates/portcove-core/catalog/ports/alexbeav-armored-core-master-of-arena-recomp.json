@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-armored-core-master-of-arena-recomp",
+    "name": "Armored Core: Master of Arena / Alexbeav PSXRecomp",
+    "summary": "Explore Armored Core: Master of Arena / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp",
+    "issue_number": 1585,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp"
+  }
+}

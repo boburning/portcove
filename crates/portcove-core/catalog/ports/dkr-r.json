@@ -1,0 +1,50 @@
+{
+  "format_version": 1,
+  "order": 13,
+  "listing": {
+    "id": "dkr-r",
+    "name": "DKR-R",
+    "summary": "Diddy Kong Racing through an upstream-owned DKR-R launcher that you manage.",
+    "project_url": "https://github.com/ThatGuyMcd/DKR-R",
+    "original_game_title": "Diddy Kong Racing",
+    "artwork": {
+      "game_id": 2723,
+      "cover_id": 88723,
+      "image_id": "co1wgj",
+      "image_sha256": "1a844d513546a07d99461f949c36e7c9d7ececcd0465b618b982b817b23f7391",
+      "game_slug": "diddy-kong-racing",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 54
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "ThatGuyMcd/DKR-R",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Extract the complete official Windows package into a folder you manage outside the Portcove library. Use upstream’s launcher to select your own supported Diddy Kong Racing original. Select the top-level DKR-R.exe with that release folder as its working directory; leave libexec and helpers intact. Optional --rom and --config arguments belong to your selected upstream profile. DKR-R or you manage runtime updates, saves, settings and backups. Portcove only registers, launches and removes the registration. Existing Portcove-managed installations keep their retained contracts; do not move their files into this route."
+    }
+  }
+}

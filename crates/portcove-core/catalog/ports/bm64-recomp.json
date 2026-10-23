@@ -1,0 +1,68 @@
+{
+  "format_version": 1,
+  "order": 10,
+  "listing": {
+    "id": "bm64-recomp",
+    "name": "Bomberman 64 Recompiled",
+    "summary": "Native Bomberman 64 recompilation.",
+    "project_url": "https://github.com/RevoSucks/BM64Recomp",
+    "original_game_title": "Bomberman 64",
+    "artwork": {
+      "game_id": 3451,
+      "cover_id": 239678,
+      "image_id": "co54xq",
+      "image_sha256": "9504ce53505bec94aa096060d121ae653e4c72678f95476a99c032d18381835e",
+      "game_slug": "bomberman-64",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 66
+  },
+  "integration": {
+    "support_tier": "stable",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "adapter": "n64-recomp-portable",
+    "release": {
+      "repository": "RevoSucks/BM64Recomp",
+      "asset_hints": {
+        "linux-x86-64": ["Linux-X64-Release"]
+      }
+    },
+    "source_profile": "bomberman-64",
+    "executable_hints": {
+      "windows-x86-64": ["BM64Recompiled.exe"],
+      "linux-x86-64": ["BM64Recompiled"]
+    },
+    "persistent_paths": [
+      "mods",
+      "mod_config",
+      "saves",
+      "mods.json",
+      "mods.json.bak",
+      "general.json",
+      "general.json.bak",
+      "graphics.json",
+      "graphics.json.bak",
+      "controls.json",
+      "controls.json.bak",
+      "sound.json",
+      "sound.json.bak",
+      "bm64_us.z64"
+    ],
+    "runtime_source_filename": "bm64_us.z64",
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "bomberman-64",
+          "label": "Bomberman 64 (US 1.0) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

@@ -88,6 +88,42 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 serde_json::json!(schema_for_contract::<CatalogDocument>(contract)),
             ),
             (
+                "catalog_listings",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::CatalogListingDocument>(contract)
+                ),
+            ),
+            (
+                "listing_statuses",
+                serde_json::json!(
+                    schema_for_contract::<Vec<portcove_core::PortListingStatus>>(contract)
+                ),
+            ),
+            (
+                "catalog_download_request",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::CatalogDownloadRequest>(contract)
+                ),
+            ),
+            (
+                "catalog_download_candidates",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::CatalogDownloadCandidates,
+                >(contract)),
+            ),
+            (
+                "catalog_download_preview",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::CatalogDownloadPreview>(contract)
+                ),
+            ),
+            (
+                "pending_setups",
+                serde_json::json!(
+                    schema_for_contract::<Vec<portcove_core::PendingSetupRecord>>(contract)
+                ),
+            ),
+            (
                 "source_intake_inspection",
                 serde_json::json!(
                     schema_for_contract::<portcove_core::SourceIntakeInspection>(contract)

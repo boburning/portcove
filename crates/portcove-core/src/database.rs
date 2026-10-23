@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 38;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 39;
 
 struct Migration {
     version: i64,
@@ -252,7 +252,42 @@ const MIGRATIONS: &[Migration] = &[
         apply: crate::retained_build::migrate,
         verify: verify_migration_38,
     },
+    Migration {
+        version: 39,
+        name: "non-owning catalog download handoff",
+        apply: migration_39,
+        verify: verify_migration_39,
+    },
 ];
+
+fn migration_39(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch("CREATE TABLE catalog_downloads (
+        port_id TEXT PRIMARY KEY,
+        pending_id TEXT NOT NULL UNIQUE,
+        record_json TEXT NOT NULL CHECK(length(CAST(record_json AS BLOB))<=65536),
+        stage_path TEXT,
+        phase TEXT NOT NULL CHECK(phase IN ('preparing','publication-intent','downloaded','attention-required')),
+        preview_sha256 TEXT NOT NULL CHECK(length(preview_sha256)=64),
+        activity_id TEXT NOT NULL
+    );")?;
+    Ok(())
+}
+
+fn verify_migration_39(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "catalog_downloads",
+        &[
+            "port_id",
+            "pending_id",
+            "record_json",
+            "stage_path",
+            "phase",
+            "preview_sha256",
+            "activity_id",
+        ],
+    )
+}
 
 fn verify_migration_38(connection: &Connection) -> Result<()> {
     require_columns(
@@ -2671,6 +2706,7 @@ mod tests {
         schema_35: 35,
         schema_36: 36,
         schema_37: 37,
+        schema_38: 38,
     }
 
     #[test]

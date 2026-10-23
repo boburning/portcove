@@ -1,0 +1,62 @@
+{
+  "format_version": 1,
+  "order": 49,
+  "listing": {
+    "id": "nocturne-recomp",
+    "name": "NocturneRecomp",
+    "summary": "Native recompilation of Castlevania: Symphony of the Night for Xbox Live Arcade.",
+    "project_url": "https://github.com/birabittoh/NocturneRecomp",
+    "original_game_title": "Castlevania: Symphony of the Night",
+    "variant_label": "Xbox Live Arcade",
+    "artwork": {
+      "game_id": 408841,
+      "cover_id": 603605,
+      "image_id": "cocxqt",
+      "image_sha256": "8c2affef1978f38399fc9b402e4f555f20eea0873f1f8922af27e680b34de6a6",
+      "game_slug": "nocturnerecomp",
+      "match_kind": "port"
+    },
+    "issue_number": 101
+  },
+  "integration": {
+    "support_tier": "stable",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "birabittoh/NocturneRecomp",
+      "asset_hints": {
+        "windows-x86-64": ["nocturnerecomp-v", "windows-x64.zip"]
+      }
+    },
+    "source_profile": "sotn-xbla",
+    "executable_hints": {
+      "windows-x86-64": ["nocturnerecomp.exe"]
+    },
+    "runtime_source_filename": "assets",
+    "runtime_source_materialization": "stfs-directory",
+    "runtime_source_hashes": {
+      "default.xex": "26a58b074c5dd6185b77a8111a0012866d11cba674b4b0810d79dbf07ad68aa6"
+    },
+    "runtime_mutable_paths": ["assets", "logs", "nocturnerecomp.toml"],
+    "user_data_environment": "REX_USER_DATA_ROOT",
+    "launch_environment": {
+      "REX_AUTO_UPDATE_ENABLED": "false",
+      "REX_GAME_DATA_ROOT": "assets"
+    },
+    "presentation": {
+      "installation_method": "staged-game-files",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "sotn-xbla",
+          "label": "Castlevania: Symphony of the Night Xbox Live Arcade package",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

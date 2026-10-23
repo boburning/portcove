@@ -26,6 +26,7 @@ export type FailureRecoveryTarget = {
 };
 export type FailureTone = "neutral" | "error";
 export type ActivityOperation =
+  | "download_package"
   | "prepare"
   | "update_catalog"
   | "discover_sources"
@@ -514,6 +515,8 @@ export type LaunchSessionPhase = "preparing" | "spawning" | "running" | "collect
 export type LibraryContentKind =
   "application_versions" | "user_data" | "source_inbox" | "backups" | "toolchains" | "local_artwork";
 export type LibrarySelectionSource = "invocation" | "saved" | "platform_default";
+export type ListingAction = "attach-existing" | "relink-existing" | "launch" | "remove-registration";
+export type OutputListingStatuses = PortListingStatus[];
 /**
  * Versioned best-effort progress envelope. Durable activity history remains
  * authoritative after reconnect or restart.
@@ -569,6 +572,8 @@ export type OutputDestinationOwnership =
   | "unrelated_content"
   | "invalid"
   | "unknown";
+export type PendingSetupState = "downloaded" | "attention-required";
+export type OutputPendingSetups = PendingSetupRecord[];
 export type ReconcileAction = "up_to_date" | "notify" | "staged" | "activated";
 export type RetainedBuildAvailability = "verified" | "missing" | "changed" | "held" | "unavailable";
 export type SourceImportMode = "copy" | "move" | "use_current_location";
@@ -648,6 +653,10 @@ export interface TransportOutputs {
   cancellation_state: CancellationState;
   capabilities: OutputCapabilities;
   catalog: CatalogDocument;
+  catalog_download_candidates: OutputCatalogDownloadCandidates;
+  catalog_download_preview: OutputCatalogDownloadPreview;
+  catalog_download_request: CatalogDownloadRequest;
+  catalog_listings: CatalogListingDocument;
   catalog_provenance: CatalogProvenance;
   catalog_status: OutputCatalogStatus;
   catalog_trust_key: CatalogTrustKey;
@@ -689,11 +698,13 @@ export interface TransportOutputs {
   library_move_plan: OutputLibraryMovePlan;
   library_move_result: OutputLibraryMoveResult;
   library_selection: LibrarySelection;
+  listing_statuses: OutputListingStatuses;
   operation_event: OutputOperationEvent;
   output_destination_preview: OutputOutputDestinationPreview;
   output_relocation_plan: OutputOutputRelocationPlan;
   output_relocation_result: OutputOutputRelocationResult;
   output_relocation_status: OutputOutputRelocationStatus;
+  pending_setups: OutputPendingSetups;
   port: PortDefinition;
   port_output_location: PortOutputLocation;
   port_paths: OutputPortPaths;
@@ -745,6 +756,8 @@ export interface TransportOutputs {
   desktop_application_update_status: OutputDesktopApplicationUpdateStatus;
   desktop_backup_review: OutputDesktopBackupReview;
   desktop_bootstrap_status: OutputDesktopBootstrapStatus;
+  desktop_catalog_download_candidates: OutputCatalogDownloadCandidates;
+  desktop_catalog_download_preview: OutputCatalogDownloadPreview;
   desktop_cli_command_context: OutputDesktopCliCommandContext;
   desktop_desktop_error: FailureReport;
   desktop_external_runtime_preview: ExternalRuntimePreview;
@@ -756,6 +769,7 @@ export interface TransportOutputs {
   desktop_game_file_scan_snapshot: OutputGameFileScanSnapshot;
   desktop_launch_result: OutputDesktopLaunchResult;
   desktop_locale_preference: OutputDesktopLocalePreference;
+  desktop_pending_setup_record: PendingSetupRecord;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
   desktop_source_verification_outcome: OutputSourceBatchOutcome;
@@ -1693,6 +1707,95 @@ export interface SourceMemberProfile {
   label: string;
   [k: string]: unknown;
 }
+export interface OutputCatalogDownloadCandidates {
+  allowed: boolean;
+  candidates: CatalogDownloadCandidate[];
+  /**
+   * Absent when an availability or provider refusal prevented discovery.
+   */
+  coverage: CatalogDownloadCoverage | null;
+  default_destination_parent: string | null;
+  port_id: string;
+  reason: string | null;
+  upstream_url: string;
+  [k: string]: unknown;
+}
+export interface CatalogDownloadCandidate {
+  asset_id: number;
+  can_extract: boolean;
+  download_url: string;
+  name: string;
+  release_id: number;
+  release_tag: string;
+  release_url: string;
+  sha256: string | null;
+  size: number;
+  [k: string]: unknown;
+}
+export interface CatalogDownloadCoverage {
+  candidate_limit: number;
+  /**
+   * All assets from the returned published releases are represented.
+   */
+  candidates_complete: boolean;
+  /**
+   * A short first page established the end of the visible release history.
+   */
+  release_history_complete: boolean;
+  release_limit: number;
+  /**
+   * Published releases whose dedicated asset inventory was fully inspected.
+   */
+  releases_checked: number;
+  [k: string]: unknown;
+}
+export interface OutputCatalogDownloadPreview {
+  artifact: CatalogDownloadCandidate;
+  destination_path: string;
+  preview_sha256: string;
+  request: CatalogDownloadRequest;
+  [k: string]: unknown;
+}
+export interface CatalogDownloadRequest {
+  asset_id: number;
+  destination_parent: string;
+  extract_archive: boolean;
+  port_id: string;
+  release_id: number;
+}
+/**
+ * Independently versioned inert directory projection. The operational catalog
+ * keeps its existing schema and strict PortDefinition interpretation.
+ */
+export interface CatalogListingDocument {
+  format_version: number;
+  listings: PortListing[];
+}
+/**
+ * Descriptive project information. A listing never grants managed installation,
+ * executable selection, source access or ownership of an external directory.
+ */
+export interface PortListing {
+  artwork?: IgdbArtwork | null;
+  /**
+   * A dated discovery fact, not a managed support or artifact admission decision.
+   */
+  availability: "unknown" | "packages" | "source-only" | "unavailable";
+  id: string;
+  issue_number?: number | null;
+  manual_setup?: ManualSetupGuide | null;
+  name: string;
+  original_game_title?: string | null;
+  /**
+   * Empty means unknown; it is not an execution compatibility declaration.
+   */
+  platforms: Platform[];
+  project_url: string;
+  release_url?: string | null;
+  setup_url?: string | null;
+  summary: string;
+  variant_label?: string | null;
+}
 export interface CatalogProvenance {
   catalog_sha256: string;
   expires_at: number | null;
@@ -2427,6 +2530,18 @@ export interface LibrarySelection {
   source: LibrarySelectionSource;
   [k: string]: unknown;
 }
+export interface PortListingStatus {
+  actions: ListingActionAssessment[];
+  port_id: string;
+  status: PortStatus;
+  [k: string]: unknown;
+}
+export interface ListingActionAssessment {
+  action: ListingAction;
+  allowed: boolean;
+  reason?: string | null;
+  [k: string]: unknown;
+}
 export interface OperationTarget {
   id: string;
   kind: ActivityTargetKind;
@@ -2503,6 +2618,20 @@ export interface OutputOutputRelocationStatus {
   phase: string;
   port_id: string;
   [k: string]: unknown;
+}
+export interface PendingSetupRecord {
+  /**
+   * Observed archive bytes, not a curated acceptance or executable identity.
+   */
+  archive_sha256: string;
+  artifact: CatalogDownloadCandidate;
+  downloaded_at: string;
+  id: string;
+  listing: PortListing;
+  path: string;
+  port_id: string;
+  reason: string | null;
+  state: PendingSetupState;
 }
 export interface OutputPortPaths {
   active_install_root: string | null;
@@ -3177,6 +3306,9 @@ export interface OutputDesktopWorkspaceSnapshot {
   activities: ActivityFeed;
   browsing?: CatalogBrowsingSnapshot | null;
   catalog: CatalogDocument;
+  listing_catalog: CatalogListingDocument | null;
+  listing_statuses: PortListingStatus[];
+  pending_setups: PendingSetupRecord[];
   sources: SourceRecord[];
   statuses: PortStatus[];
   [k: string]: unknown;

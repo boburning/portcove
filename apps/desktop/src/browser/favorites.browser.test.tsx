@@ -94,7 +94,7 @@ it.each(["dark", "light"])(
     await expect
       .element(page.getByRole("button", { name: "Favorite Two independent port", exact: true }))
       .not.toBeInTheDocument();
-    await userEvent.click(page.getByRole("button", { name: "All", exact: true }));
+    await userEvent.click(page.getByRole("button", { name: "All ports", exact: true }));
     await expect
       .element(page.getByRole("button", { name: "Favorites (1)", exact: true }))
       .toHaveAttribute("aria-pressed", "true");

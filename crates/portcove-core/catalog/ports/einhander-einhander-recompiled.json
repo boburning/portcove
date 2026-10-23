@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "einhander-einhander-recompiled",
+    "name": "Einhänder / Einhander-Recompiled",
+    "summary": "Explore Einhänder / Einhander-Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/strider973/Einhander-Recompiled",
+    "issue_number": 350,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/strider973/Einhander-Recompiled"
+  }
+}

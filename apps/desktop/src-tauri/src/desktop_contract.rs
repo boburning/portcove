@@ -19,6 +19,9 @@ pub(crate) type DesktopError = portcove_core::FailureReport;
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct DesktopWorkspaceSnapshot {
     pub(crate) catalog: portcove_core::CatalogDocument,
+    pub(crate) listing_catalog: Option<portcove_core::CatalogListingDocument>,
+    pub(crate) listing_statuses: Vec<portcove_core::PortListingStatus>,
+    pub(crate) pending_setups: Vec<portcove_core::PendingSetupRecord>,
     pub(crate) statuses: Vec<portcove_core::PortStatus>,
     pub(crate) sources: Vec<portcove_core::SourceRecord>,
     pub(crate) activities: portcove_core::ActivityFeed,
@@ -442,6 +445,9 @@ pub fn export_transport_schemas() -> Value {
             "external_runtime_relink_preview": output::<portcove_core::ExternalRuntimeRelinkPreview>(),
             "external_runtime_removal_preview": output::<portcove_core::ExternalRuntimeRemovalPreview>(),
             "external_runtime_record": output::<portcove_core::ExternalRuntimeRecord>(),
+            "catalog_download_candidates": output::<portcove_core::CatalogDownloadCandidates>(),
+            "catalog_download_preview": output::<portcove_core::CatalogDownloadPreview>(),
+            "pending_setup_record": output::<portcove_core::PendingSetupRecord>(),
             "steam_entry_review": output::<SteamEntryReview>(),
             "steam_profiles": output::<Vec<String>>(),
             "steam_batch_review": output::<SteamBatchReview>(),
@@ -449,6 +455,7 @@ pub fn export_transport_schemas() -> Value {
         },
         "input": {
             "install_input": schemars::schema_for!(InstallInput),
+            "catalog_download_request": schemars::schema_for!(portcove_core::CatalogDownloadRequest),
             "game_file_query_request": schemars::schema_for!(portcove_core::GameFileQueryRefreshRequest),
             "application_update_choice": schemars::schema_for!(ApplicationUpdateChoice),
             "application_update_production_decision": schemars::schema_for!(ApplicationUpdateProductionDecision),

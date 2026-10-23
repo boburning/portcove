@@ -1,0 +1,72 @@
+{
+  "format_version": 1,
+  "order": 44,
+  "listing": {
+    "id": "dr-mario-64-recomp",
+    "name": "Dr. Mario 64 Recompiled",
+    "summary": "Native Dr. Mario 64 recompilation. Fresh Windows settings use the qualified D3D12 route; existing settings are preserved. Auto/Vulkan failed on AMD RX 9070 XT driver 32.0.31041.1004; select D3D12 in graphics.json on that configuration.",
+    "project_url": "https://github.com/theboy181/drmario64_recomp_plus",
+    "original_game_title": "Dr. Mario 64",
+    "artwork": {
+      "game_id": 3475,
+      "cover_id": 95584,
+      "image_id": "co21r4",
+      "image_sha256": "1250bd93b844860ddd0ecdf0043b64f56d9ec647c586912edfc3a0d7421796c7",
+      "game_slug": "dr-mario-64",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 97
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "n64-recomp-portable",
+    "release": {
+      "repository": "theboy181/drmario64_recomp_plus",
+      "asset_hints": {
+        "windows-x86-64": ["Dr.Mario.64.Recompiled-", "-Windows.zip"]
+      }
+    },
+    "source_profile": "dr-mario-64",
+    "executable_hints": {
+      "windows-x86-64": ["drmario64_recomp.exe"]
+    },
+    "persistent_paths": [
+      "Dr. Mario 64 Recompiled x64-Release/drmario64.us.z64",
+      "Dr. Mario 64 Recompiled x64-Release/general.json",
+      "Dr. Mario 64 Recompiled x64-Release/general.json.bak",
+      "Dr. Mario 64 Recompiled x64-Release/graphics.json",
+      "Dr. Mario 64 Recompiled x64-Release/graphics.json.bak",
+      "Dr. Mario 64 Recompiled x64-Release/controls.json",
+      "Dr. Mario 64 Recompiled x64-Release/controls.json.bak",
+      "Dr. Mario 64 Recompiled x64-Release/sound.json",
+      "Dr. Mario 64 Recompiled x64-Release/sound.json.bak",
+      "Dr. Mario 64 Recompiled x64-Release/mods",
+      "Dr. Mario 64 Recompiled x64-Release/mods.json",
+      "Dr. Mario 64 Recompiled x64-Release/mod_config",
+      "Dr. Mario 64 Recompiled x64-Release/saves"
+    ],
+    "portable_marker": true,
+    "runtime_subdirectory": "Dr. Mario 64 Recompiled x64-Release",
+    "runtime_source_filename": "drmario64.us.z64",
+    "runtime_source_materialization": "n64-big-endian",
+    "runtime_source_hashes": {
+      "drmario64.us.z64": "bb2c0dec0a8287ad256929563d0509801c2f239df883c1cf52cab05b23bd77b6"
+    },
+    "launch_arguments": ["drmario64.us.z64"],
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "dr-mario-64",
+          "label": "Dr. Mario 64 source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    },
+    "n64_windows_initial_d3d12": true
+  }
+}

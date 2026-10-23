@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "castlevania-symphony-of-the-night-ps1-symphonyrecomp",
+    "name": "Castlevania: Symphony of the Night — PS1 / SymphonyRecomp",
+    "summary": "Explore Castlevania: Symphony of the Night — PS1 / SymphonyRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/BlackLabelHQ/SymphonyRecomp",
+    "issue_number": 319,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/BlackLabelHQ/SymphonyRecomp"
+  }
+}

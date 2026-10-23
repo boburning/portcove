@@ -4,6 +4,7 @@ import {
   type CatalogQuery,
   type CatalogQueryContext,
 } from "./features/browsing/catalog-query";
+import type { CatalogEntry } from "./features/browsing/catalog-entry";
 import type {
   ActivityRecord,
   DesktopError,
@@ -127,6 +128,7 @@ type OperationPresentation = {
 function operationPresentation(value: string): OperationPresentation {
   const presentations: Record<string, Omit<OperationPresentation, "indeterminate">> = {
     download: { label: "Downloading release", unit: "bytes" },
+    download_package: { label: "Downloading upstream package", unit: "bytes" },
     copy: { label: "Copying game files", unit: "bytes" },
     "psx-toolchain-download": { label: "Downloading preparation tools", unit: "bytes" },
     "Checking installed ports": { label: "Checking installed ports", unit: "ports" },
@@ -217,7 +219,7 @@ export interface LibraryOverview {
 }
 
 export interface RecentPort {
-  port: PortDefinition;
+  port: CatalogEntry;
   status: PortStatus;
 }
 
@@ -256,8 +258,9 @@ export const installationMethodLabels: Record<
   "user-prepared-runtime": "User-prepared external runtime",
 };
 
-export function installationMethodLabel(port: PortDefinition) {
-  if (usesUserSelectedRuntime(port)) return "Your existing installation";
+export function installationMethodLabel(port: CatalogEntry) {
+  if (port.release && usesUserSelectedRuntime({ release: port.release }))
+    return "Your existing installation";
   const method = port.presentation?.installation_method;
   return method && Object.hasOwn(installationMethodLabels, method)
     ? installationMethodLabels[method]
@@ -305,7 +308,8 @@ export function portReadiness(status: PortStatus | undefined): PortReadiness {
 }
 
 /** Presentation only. Core still owns whether a launch is permitted. */
-export function hasUnconfirmedLaunchInput(status: PortStatus | undefined, port?: PortDefinition) {
+export function hasUnconfirmedLaunchInput(status: PortStatus | undefined, port?: CatalogEntry) {
+  if (status?.external_runtime?.user_selected) return false;
   const readiness = status?.readiness;
   return (["source", "bios"] as const).some((role) => {
     const required = role === "source" ? port?.source_profile : port?.bios_source_profile;
@@ -336,14 +340,16 @@ const BIOS_BLOCKERS: ReadinessBlocker[] = [
 ];
 
 export function summarizeLibrary(
-  ports: PortDefinition[],
+  ports: CatalogEntry[],
   statuses: Map<string, PortStatus>,
 ): LibraryOverview {
   const installed = ports.filter((port) => {
     const status = statuses.get(port.id);
-    return status?.active || status?.external_runtime;
+    return status?.active || status?.external_runtime || port.pendingSetup;
   });
-  const states = installed.map((port) => portReadiness(statuses.get(port.id)));
+  const states = installed.map((port) =>
+    port.pendingSetup ? "setup" : portReadiness(statuses.get(port.id)),
+  );
   return {
     installed: installed.length,
     ready: states.filter((state) => state === "ready" || state === "staged").length,
@@ -353,7 +359,7 @@ export function summarizeLibrary(
 }
 
 export function mostRecentPort(
-  ports: PortDefinition[],
+  ports: CatalogEntry[],
   statuses: Map<string, PortStatus>,
 ): RecentPort | undefined {
   return ports.reduce<RecentPort | undefined>((recent, port) => {
@@ -390,7 +396,7 @@ export function requiredSourceNeeds(
   const requirements = new Map<string, SourceRequirement>();
   for (const port of ports.filter((candidate) => {
     const status = statuses.get(candidate.id);
-    return status?.active || status?.external_runtime;
+    return status?.active || (status?.external_runtime && !status.external_runtime.user_selected);
   })) {
     addSourceNeed(requirements, profilesById, registered, port, port.source_profile, "Game files");
     addSourceNeed(requirements, profilesById, registered, port, port.bios_source_profile, "BIOS");
@@ -420,7 +426,7 @@ function addSourceNeed(
 }
 
 export function filterPorts(
-  ports: PortDefinition[],
+  ports: CatalogEntry[],
   statuses: Map<string, PortStatus>,
   view: View,
   filter: Filter | CatalogQuery,
@@ -442,55 +448,68 @@ export function filterPorts(
   const candidates = ports.filter(
     (port) =>
       visibleInView(port, selectedStatuses, view) &&
-      matchesFilter(selectedStatuses.get(port.id), legacyFilter) &&
+      matchesFilter(selectedStatuses.get(port.id), legacyFilter, Boolean(port.pendingSetup)) &&
       searchableText(port).includes(normalizedQuery),
   );
   const visible = evaluateCatalogQuery(candidates, structuredQuery, context).ports;
-  if (view !== "catalog" || catalogSort === "catalog") return visible;
+  if (view !== "catalog" || (catalogSort === "catalog" && !context.devicePlatform)) return visible;
   return visible
     .map((port, index) => ({ port, index }))
     .sort((left, right) => {
       const comparison =
-        catalogSort === "name"
-          ? gameTitle(left.port).localeCompare(gameTitle(right.port), "en", { sensitivity: "base" })
-          : Number(
-              Boolean(
-                selectedStatuses.get(right.port.id)?.active ||
-                selectedStatuses.get(right.port.id)?.external_runtime,
-              ),
-            ) -
-            Number(
-              Boolean(
-                selectedStatuses.get(left.port.id)?.active ||
-                selectedStatuses.get(left.port.id)?.external_runtime,
-              ),
-            );
+        catalogSort === "catalog"
+          ? catalogRank(left.port, selectedStatuses.get(left.port.id), context.devicePlatform) -
+            catalogRank(right.port, selectedStatuses.get(right.port.id), context.devicePlatform)
+          : catalogSort === "name"
+            ? gameTitle(left.port).localeCompare(gameTitle(right.port), "en", {
+                sensitivity: "base",
+              })
+            : Number(
+                Boolean(
+                  selectedStatuses.get(right.port.id)?.active ||
+                  selectedStatuses.get(right.port.id)?.external_runtime,
+                ),
+              ) -
+              Number(
+                Boolean(
+                  selectedStatuses.get(left.port.id)?.active ||
+                  selectedStatuses.get(left.port.id)?.external_runtime,
+                ),
+              );
       return comparison || left.index - right.index;
     })
     .map(({ port }) => port);
 }
 
-function visibleInView(
-  port: PortDefinition,
-  statuses: ReadonlyMap<string, PortStatus>,
-  view: View,
-) {
+function catalogRank(port: CatalogEntry, status: PortStatus | undefined, platform?: string) {
+  if (status?.active || status?.external_runtime || port.pendingSetup) return 0;
+  if (port.release && !portActionPresentation(status, "install").blocked) return 1;
+  if (port.listing?.availability === "unavailable" || port.listing?.availability === "source-only")
+    return 5;
+  if (port.platforms.some((candidate) => candidate === platform)) return 2;
+  return port.platforms.length ? 4 : 3;
+}
+
+function visibleInView(port: CatalogEntry, statuses: ReadonlyMap<string, PortStatus>, view: View) {
   const status = statuses.get(port.id);
-  return view !== "library" || Boolean(status?.active || status?.external_runtime);
+  return (
+    view !== "library" || Boolean(status?.active || status?.external_runtime || port.pendingSetup)
+  );
 }
 
 function needsAttention(readiness: PortReadiness) {
   return readiness !== "available" && readiness !== "ready" && readiness !== "staged";
 }
 
-function matchesFilter(status: PortStatus | undefined, filter: Filter) {
+function matchesFilter(status: PortStatus | undefined, filter: Filter, pendingSetup = false) {
+  if (pendingSetup) return filter !== "ready";
   const readiness = portReadiness(status);
   if (filter === "ready") return readiness === "ready" || readiness === "staged";
   if (filter === "setup") return needsAttention(readiness);
   return true;
 }
 
-function searchableText(port: PortDefinition) {
+function searchableText(port: CatalogEntry) {
   const installationMethod = port.presentation?.installation_method
     ? installationMethodLabel(port)
     : "";

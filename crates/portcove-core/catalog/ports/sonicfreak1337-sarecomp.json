@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sonicfreak1337-sarecomp",
+    "name": "Sonic Adventure / Sonic Adventure Recompiled (sonicfreak1337)",
+    "summary": "Explore Sonic Adventure / Sonic Adventure Recompiled (sonicfreak1337) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/sonicfreak1337/SARecomp",
+    "issue_number": 1887,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sonicfreak1337/SARecomp"
+  }
+}

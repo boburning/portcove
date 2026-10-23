@@ -92,6 +92,94 @@ pub(crate) async fn register_user_selected_runtime(
 }
 
 #[tauri::command]
+pub(crate) async fn preview_user_selected_runtime_relink(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    executable: PathBuf,
+    working_directory: PathBuf,
+    arguments: Vec<String>,
+    generation: u64,
+) -> DesktopResult<ExternalRuntimeRelinkPreview> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .preview_user_selected_runtime_relink(
+                &port_id,
+                &executable,
+                &working_directory,
+                &arguments,
+            )
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn relink_user_selected_runtime(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    executable: PathBuf,
+    working_directory: PathBuf,
+    arguments: Vec<String>,
+    expected_preview: String,
+    generation: u64,
+) -> DesktopResult<Option<ExternalRuntimeRecord>> {
+    let review = preview_user_selected_runtime_relink(
+        state.clone(),
+        port_id.clone(),
+        executable.clone(),
+        working_directory.clone(),
+        arguments.clone(),
+        generation,
+    )
+    .await?;
+    if review.preview_sha256 != expected_preview {
+        return Err(PortcoveError::conflict(
+            "selected launch details or registration changed after review; inspect them again",
+        )
+        .into());
+    }
+    if !confirm_destructive(
+        &app,
+        "Change launch details",
+        format!(
+            "Run {} with working directory {} and arguments {}? The old and new game files stay where they are. You or the upstream launcher remain responsible for setup and updates.",
+            review.proposed.executable.display(),
+            review.proposed.path.display(),
+            serde_json::to_string(&arguments).map_err(PortcoveError::from)?,
+        ),
+        "Change launch details",
+    )
+    .await
+    {
+        return Ok(None);
+    }
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        let authorization = service.authorize_user_selected_runtime_relink(
+            &port_id,
+            &executable,
+            &working_directory,
+            &arguments,
+            &expected_preview,
+        )?;
+        service
+            .relink_user_selected_runtime(
+                &port_id,
+                &executable,
+                &working_directory,
+                &arguments,
+                &authorization.token,
+            )
+            .map(Some)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn preview_external_runtime_relink(
     state: tauri::State<'_, DesktopState>,
     port_id: String,

@@ -26,6 +26,19 @@ renaming; this history does not deliver future commands or migrate stored data.
 
 ## Documented API changes
 
+The open-catalog addition retains API80's existing strict command contracts and
+advertises `catalog.listings`, `catalog.inspect-listings`, `setup.*` and
+`external.select-relink` separately. `CatalogListingDocument` has its own
+format version1; it cannot carry executable or managed-source policies. The
+workspace gains optional listing and pending-setup read models, and activity
+includes `download_package`. Consumers must still refuse consequential values
+they do not interpret. Library writer39 records recoverable acquisition attempts;
+new generic listing/pending registrations retain a distinct version1 descriptive
+envelope. The existing strict user-prepared/user-selected creation route keeps
+its format5 retained contract; earlier exact-package and selected-runtime records
+keep their existing readers. This records source behavior, not published
+availability.
+
 API80 introduces explicit selected-executable external trust/intent and the
 reusable typed managed-policy declarations (staged-source capabilities 20 and
 19 respectively). Registration preview/results distinguish selected bytes from

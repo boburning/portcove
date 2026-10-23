@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "silent-hill-silent-hill-decomp-pc-branch",
+    "name": "Silent Hill / silent-hill-decomp PC branch",
+    "summary": "Explore Silent Hill / silent-hill-decomp PC branch and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/SlickAmogus/silent-hill-decomp",
+    "issue_number": 351,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/SlickAmogus/silent-hill-decomp"
+  }
+}

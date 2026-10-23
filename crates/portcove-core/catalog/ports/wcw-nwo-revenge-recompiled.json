@@ -1,0 +1,67 @@
+{
+  "format_version": 1,
+  "order": 39,
+  "listing": {
+    "id": "wcw-nwo-revenge-recompiled",
+    "name": "WCW/nWo Revenge: Recompiled",
+    "summary": "Native WCW/nWo Revenge recompilation.",
+    "project_url": "https://github.com/jessetbh/WCWnWoRevengeRecomp",
+    "original_game_title": "WCW/nWo Revenge",
+    "artwork": {
+      "game_id": 3636,
+      "cover_id": 154513,
+      "image_id": "co3b81",
+      "image_sha256": "d55280f6b77a96f2510147777d1ab98a6955107bec0770ae6d597510f3969d00",
+      "game_slug": "wcw-nwo-revenge",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 92
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "n64-recomp-portable",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "jessetbh/WCWnWoRevengeRecomp",
+      "asset_hints": {
+        "windows-x86-64": ["RevengeRecompiled", "Windows"]
+      }
+    },
+    "source_profile": "wcw-nwo-revenge",
+    "executable_hints": {
+      "windows-x86-64": ["RevengeRecompiled.exe"]
+    },
+    "persistent_paths": [
+      "mods",
+      "mod_config",
+      "saves",
+      "mods.json",
+      "mods.json.bak",
+      "general.json",
+      "general.json.bak",
+      "graphics.json",
+      "graphics.json.bak",
+      "controls.json",
+      "controls.json.bak",
+      "sound.json",
+      "sound.json.bak",
+      "wcw.nwo.revenge.us.z64"
+    ],
+    "runtime_source_filename": "wcw.nwo.revenge.us.z64",
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "wcw-nwo-revenge",
+          "label": "WCW/nWo Revenge (US) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

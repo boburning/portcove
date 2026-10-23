@@ -1,0 +1,62 @@
+{
+  "format_version": 1,
+  "order": 75,
+  "listing": {
+    "id": "open-nectar-pikmin",
+    "name": "Open Nectar (Pikmin)",
+    "summary": "Native Pikmin port from Open Nectar; gameplay has not been tested by Portcove.",
+    "project_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port",
+    "original_game_title": "Pikmin",
+    "artwork": {
+      "game_id": 2239,
+      "cover_id": 310696,
+      "image_id": "co6nqg",
+      "image_sha256": "e329bed9a1c6b508e0da086eaa87e323d52027a583c01a09cec87b807983680a",
+      "game_slug": "pikmin",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 742
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "upstream-managed-setup",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "repository": "SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port",
+      "asset_hints": {
+        "windows-x86-64": ["nectar-windows"]
+      }
+    },
+    "source_profile": "open-nectar-pikmin-disc",
+    "runtime_source_filename": "source.iso",
+    "runtime_source_materialization": "gamecube-iso",
+    "runtime_subdirectory": "nectar-windows",
+    "setup_executable_hints": {
+      "windows-x86-64": ["nectar-launcher.exe"]
+    },
+    "setup_arguments": ["--install-dir", ".", "--extract-only", "--rom"],
+    "setup_marker": "assets/.pikmin-assets",
+    "setup_output_paths": ["nectar-windows/assets"],
+    "launch_arguments": [],
+    "executable_hints": {
+      "windows-x86-64": ["nectar-launcher.exe"]
+    },
+    "runtime_mutable_paths": ["shader_cache"],
+    "persistent_paths": ["save", "pikmin_settings.conf"],
+    "presentation": {
+      "installation_method": "upstream-setup",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "open-nectar-pikmin-disc",
+          "label": "Pikmin USA Rev. 1 or Europe disc; Open Nectar checks it during preparation.",
+          "verification": "upstream-validator"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

@@ -210,6 +210,63 @@ pub(crate) fn require_known_artifact(
     Ok(())
 }
 
+/// Exact GitHub asset IDs remain subject to their retained byte identity even
+/// when the current directory no longer carries a strict integration. Absence
+/// is ordinary manual provenance, never an invented curated acceptance.
+pub(crate) fn known_download_identity(
+    connection: &Connection,
+    asset_id: u64,
+    release_id: u64,
+    acquisition_url: &str,
+    size: u64,
+) -> Result<Option<(u64, String)>> {
+    require_complete_history(connection)?;
+    let mut statement = connection.prepare("SELECT repository_id,identity_json FROM curated_artifact_admissions WHERE asset_id=?1 LIMIT 2")?;
+    let rows = statement
+        .query_map([asset_id.to_string()], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    if rows.len() > 1 {
+        return Err(PortcoveError::verification(
+            "known GitHub asset has conflicting retained repository identities",
+        ));
+    }
+    let Some((repository_id, json)) = rows.into_iter().next() else {
+        return Ok(None);
+    };
+    if json.len() > 8192 {
+        return Err(PortcoveError::verification(
+            "retained artifact identity exceeds its bound",
+        ));
+    }
+    let identity: serde_json::Value = serde_json::from_str(&json)?;
+    let sha256 = identity
+        .get("sha256")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit()))
+        .ok_or_else(|| PortcoveError::verification("retained artifact checksum is invalid"))?;
+    if identity.get("asset_id").and_then(serde_json::Value::as_u64) != Some(asset_id)
+        || identity
+            .get("release_id")
+            .and_then(serde_json::Value::as_u64)
+            != Some(release_id)
+        || identity.get("size").and_then(serde_json::Value::as_u64) != Some(size)
+        || identity
+            .get("acquisition_url")
+            .and_then(serde_json::Value::as_str)
+            != Some(acquisition_url)
+    {
+        return Err(PortcoveError::verification(
+            "selected asset differs from its known immutable identity",
+        ));
+    }
+    let repository_id = repository_id
+        .parse()
+        .map_err(|_| PortcoveError::verification("retained repository ID is invalid"))?;
+    Ok(Some((repository_id, sha256.into())))
+}
+
 fn immutable_identity(record: &CuratedAcquisitionRecord) -> Result<String> {
     // An asset can serve multiple platforms, but its immutable upstream and byte
     // identities cannot vary by title, policy revision, grant or platform.
@@ -609,6 +666,38 @@ mod tests {
         let reopened = crate::Library::open(directory.path()).unwrap();
         let connection = reopened.connection().unwrap();
         require_retained_identity(&connection, 7, &record).unwrap();
+        assert_eq!(
+            known_download_identity(
+                &connection,
+                record.asset_id,
+                record.release_id,
+                &record.acquisition_url,
+                record.size
+            )
+            .unwrap(),
+            Some((7, record.sha256.clone()))
+        );
+        assert!(
+            known_download_identity(
+                &connection,
+                record.asset_id,
+                record.release_id,
+                &record.acquisition_url,
+                record.size + 1
+            )
+            .is_err()
+        );
+        assert!(
+            known_download_identity(
+                &connection,
+                u64::MAX,
+                record.release_id,
+                &record.acquisition_url,
+                record.size
+            )
+            .unwrap()
+            .is_none()
+        );
         for changed in [
             CuratedAcquisitionRecord {
                 sha256: "d".repeat(64),

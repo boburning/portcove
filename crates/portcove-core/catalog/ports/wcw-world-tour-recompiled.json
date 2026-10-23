@@ -1,0 +1,67 @@
+{
+  "format_version": 1,
+  "order": 37,
+  "listing": {
+    "id": "wcw-world-tour-recompiled",
+    "name": "WCW vs. nWo World Tour: Recompiled",
+    "summary": "Native WCW vs. nWo World Tour recompilation.",
+    "project_url": "https://github.com/jessetbh/WCWvsNWOWorldTourRecomp",
+    "original_game_title": "WCW vs. nWo: World Tour",
+    "artwork": {
+      "game_id": 3635,
+      "cover_id": 277081,
+      "image_id": "co5xsp",
+      "image_sha256": "78ffa9784c9466e1d23557ae1d3d4555b75548eaccc078f202e73e06c788b69a",
+      "game_slug": "wcw-vs-nwo-world-tour",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 90
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "n64-recomp-portable",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "jessetbh/WCWvsNWOWorldTourRecomp",
+      "asset_hints": {
+        "windows-x86-64": ["WCWRecompiled", "Windows"]
+      }
+    },
+    "source_profile": "wcw-world-tour",
+    "executable_hints": {
+      "windows-x86-64": ["WCWRecompiled.exe"]
+    },
+    "persistent_paths": [
+      "mods",
+      "mod_config",
+      "saves",
+      "mods.json",
+      "mods.json.bak",
+      "general.json",
+      "general.json.bak",
+      "graphics.json",
+      "graphics.json.bak",
+      "controls.json",
+      "controls.json.bak",
+      "sound.json",
+      "sound.json.bak",
+      "wcw.nwo.worldtour.us.z64"
+    ],
+    "runtime_source_filename": "wcw.nwo.worldtour.us.z64",
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "wcw-world-tour",
+          "label": "WCW vs. nWo World Tour (US 1.0) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

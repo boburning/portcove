@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ace-combat-5-static-recompilation",
+    "name": "Ace Combat 5 Static Recompilation",
+    "summary": "Explore Ace Combat 5 Static Recompilation and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/sal063/Ace-Combat-5-Static-recompilation",
+    "issue_number": 1119,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sal063/Ace-Combat-5-Static-recompilation"
+  }
+}

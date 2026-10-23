@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "deep-fear-saturn-pc",
+    "name": "Deep Fear (Saturn PC)",
+    "summary": "Explore Deep Fear (Saturn PC) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/vs-sr-dev/pc-deepfear",
+    "issue_number": 1578,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/vs-sr-dev/pc-deepfear"
+  }
+}

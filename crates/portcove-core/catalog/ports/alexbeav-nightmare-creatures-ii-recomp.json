@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-nightmare-creatures-ii-recomp",
+    "name": "Nightmare Creatures II / Alexbeav PSXRecomp",
+    "summary": "Explore Nightmare Creatures II / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp",
+    "issue_number": 1603,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp"
+  }
+}
