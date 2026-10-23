@@ -125,6 +125,27 @@ export function coordinatorCheckpointEvidenceSubject(
   );
 }
 
+/** One canonical statement for the producer and existing retained-proof reader.
+ * Preparing these inert bytes grants no signing or transition authority. */
+export function prepareCoordinatorCheckpointSigningInput(
+  checkpoint: Checkpoint,
+  configuration: unknown,
+  producer: unknown,
+) {
+  const subject = coordinatorCheckpointEvidenceSubject(checkpoint, configuration, producer);
+  const statement = {
+    _type: "https://in-toto.io/Statement/v1",
+    subject: [{ name: subjectName, digest: { sha256: hash(subject) } }],
+    predicateType: coordinatorCheckpointPredicateType,
+    predicate: {
+      schema_version: 1,
+      transition_sha256: hash(subject),
+      producer: producerIdentity(producer),
+    },
+  };
+  return { subject, statement };
+}
+
 /** Reconstruct bounded immutable Git objects for the supplied original bundle.
  * A matching envelope remains unverified until cryptographic/provider checks.
  * This function never signs, retries, fetches, executes, or grants authority. */
@@ -165,16 +186,11 @@ export function inspectCoordinatorCheckpointEvidence(
   if (payload.toString("base64") !== envelope.payload)
     throw new Error("checkpoint evidence payload is not canonical base64");
   const statement: unknown = JSON.parse(payload.toString("utf8"));
-  const expectedStatement = {
-    _type: "https://in-toto.io/Statement/v1",
-    subject: [{ name: subjectName, digest: { sha256: hash(evidence.subject) } }],
-    predicateType: coordinatorCheckpointPredicateType,
-    predicate: {
-      schema_version: 1,
-      transition_sha256: hash(evidence.subject),
-      producer: subject.producer,
-    },
-  };
+  const expectedStatement = prepareCoordinatorCheckpointSigningInput(
+    checkpoint,
+    configuration,
+    subject.producer,
+  ).statement;
   if (!isDeepStrictEqual(statement, expectedStatement))
     throw new Error("checkpoint evidence envelope differs from the exact transition subject");
   const files = [

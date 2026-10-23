@@ -527,6 +527,8 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-coordinator-remote.mts",
   "scripts/release-checkpoint-job-identity.mts",
   "scripts/release-coordinator-checkpoint-authentication.mts",
+  "scripts/release-coordinator-checkpoint-signing.mts",
+  "scripts/release-checkpoint-signing-transport.mts",
   "scripts/release-coordinator-checkpoint-evidence.mts",
   "scripts/fixtures/checkpoint-proof-fixture.mts",
   "scripts/release-prepared-transport.mts",

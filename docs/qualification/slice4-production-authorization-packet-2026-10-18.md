@@ -1369,3 +1369,7 @@ change. Inert tests execute the actual guard against the observed representation
 and unsafe alternatives. No new storage operation, fixture, fill probe or
 credential action has occurred. Authentication/issuer/production and all prior
 D1/D2/D3, status, Chameleon and slice-5 boundaries remain unchanged.
+
+## October 23 implementation continuation under the selected simpler setup
+
+Checkpoint signature/job consumption was delivered in #2464, merge41c8b5b4ebb2a43a9cafbcb5e06b3bda04911bc6, with actual writer/authority acceptance still pending. The [current observations](slice4-hosted-observations-2026-10-22.md#bounded-checkpoint-signer-preparation-october-23) now record the bounded official-SDK producer adapter, exclusive intent/custody, zero-retry fixed network scope, reproduced review failures and inert qualification. It adds no production activation or owner action. The remaining coordinator join must start from the independently ratified setup/history predecessor and the same journal's exact remote pending operation before signing; the first mandatory-proof pending checkpoint cannot bootstrap its own authority. Local intent and a generated bundle do not satisfy that join. Preserve the approved simpler setup, no recurring admin/drives, $0 bounded attempts with Unknown availability/headroom/no capacity reservation, and every issue's existing acceptance boundary.
