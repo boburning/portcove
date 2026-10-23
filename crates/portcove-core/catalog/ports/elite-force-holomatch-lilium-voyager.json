@@ -8,6 +8,14 @@
     "issue_number": 1918,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/clover-moe/lilium-voyager"
+    "setup_url": "https://github.com/clover-moe/lilium-voyager",
+    "artwork": {
+      "game_id": 877,
+      "cover_id": 111792,
+      "image_id": "co2e9c",
+      "image_sha256": "1dbf39ee655418b4c7fa5a007b4d1ce8b304c891a688ac981b1f4a4d1597630a",
+      "game_slug": "star-trek-voyager-elite-force",
+      "match_kind": "underlying-game"
+    }
   }
 }

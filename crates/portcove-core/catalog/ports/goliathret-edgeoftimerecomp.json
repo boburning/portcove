@@ -8,6 +8,14 @@
     "issue_number": 1818,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/goliathret/EdgeOfTimeRecomp"
+    "setup_url": "https://github.com/goliathret/EdgeOfTimeRecomp",
+    "artwork": {
+      "game_id": 5179,
+      "cover_id": 276320,
+      "image_id": "co5x7k",
+      "image_sha256": "83599a1179260e2e218ec7cb497f373b7f98f29b4bb11097df1b8c00d0138d77",
+      "game_slug": "spider-man-edge-of-time",
+      "match_kind": "underlying-game"
+    }
   }
 }

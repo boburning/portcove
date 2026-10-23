@@ -8,6 +8,14 @@
     "issue_number": 368,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/ElspethThePict/S1Forever"
+    "setup_url": "https://github.com/ElspethThePict/S1Forever",
+    "artwork": {
+      "game_id": 88912,
+      "cover_id": 93117,
+      "image_id": "co1zul",
+      "image_sha256": "b49adaa12478047466365aa4e5d27e2c2d262335e3f4c48fef99c6a0f540ba91",
+      "game_slug": "sonic-the-hedgehog--14",
+      "match_kind": "underlying-game"
+    }
   }
 }

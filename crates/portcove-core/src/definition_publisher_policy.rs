@@ -986,28 +986,107 @@ pub(crate) fn assess_known_artifact_operation(
             }
         }
     }
-    let reason = if latest
-        .values()
-        .any(|(_, status)| *status == CuratedArtifactStatus::Revoked)
-    {
+    Ok(assess_curated_statuses(
+        latest.values().map(|(_, status)| *status),
+        operation,
+    ))
+}
+
+// Only the final decision is pure. Callers must still authenticate each retained
+// receipt, select its current scoped revision and verify the exact artifact.
+fn assess_curated_statuses(
+    statuses: impl IntoIterator<Item = CuratedArtifactStatus>,
+    operation: CuratedArtifactOperation,
+) -> crate::DefinitionEligibility {
+    let mut revoked = false;
+    let mut withdrawn = false;
+    for status in statuses {
+        revoked |= status == CuratedArtifactStatus::Revoked;
+        withdrawn |= status == CuratedArtifactStatus::DistributionWithdrawn;
+    }
+    let reason = if revoked {
         crate::DefinitionEligibilityReason::CuratedArtifactRevoked
-    } else if operation == CuratedArtifactOperation::Acquisition
-        && latest
-            .values()
-            .any(|(_, status)| *status == CuratedArtifactStatus::DistributionWithdrawn)
-    {
+    } else if operation == CuratedArtifactOperation::Acquisition && withdrawn {
         crate::DefinitionEligibilityReason::CuratedDistributionWithdrawn
     } else {
         crate::DefinitionEligibilityReason::MandatoryChecksPassed
     };
-    Ok(crate::DefinitionEligibility {
+    crate::DefinitionEligibility {
         outcome: if reason == crate::DefinitionEligibilityReason::MandatoryChecksPassed {
             crate::DefinitionEligibilityOutcome::Eligible
         } else {
             crate::DefinitionEligibilityOutcome::Hold
         },
         reason,
-    })
+    }
+}
+
+#[cfg(test)]
+mod curated_status_tests {
+    use super::{CuratedArtifactOperation, CuratedArtifactStatus, assess_curated_statuses};
+    use crate::{DefinitionEligibility, DefinitionEligibilityOutcome, DefinitionEligibilityReason};
+
+    #[test]
+    fn artifact_status_precedence_covers_acquisition_and_local_use() {
+        use CuratedArtifactStatus::{Cleared, DistributionWithdrawn, Revoked};
+        use DefinitionEligibilityOutcome::{Eligible, Hold};
+        use DefinitionEligibilityReason::{
+            CuratedArtifactRevoked, CuratedDistributionWithdrawn, MandatoryChecksPassed,
+        };
+
+        let passed = DefinitionEligibility {
+            outcome: Eligible,
+            reason: MandatoryChecksPassed,
+        };
+        let revoked = DefinitionEligibility {
+            outcome: Hold,
+            reason: CuratedArtifactRevoked,
+        };
+        let withdrawn = DefinitionEligibility {
+            outcome: Hold,
+            reason: CuratedDistributionWithdrawn,
+        };
+        // Expectations are policy facts, specified independently of the helper.
+        // A scope's clearance never cancels another scope's retained hold.
+        let cases: &[(
+            &[CuratedArtifactStatus],
+            DefinitionEligibility,
+            DefinitionEligibility,
+        )] = &[
+            (&[], passed, passed),
+            (&[Cleared], passed, passed),
+            (&[DistributionWithdrawn], withdrawn, passed),
+            (&[Revoked], revoked, revoked),
+            (&[Cleared, Cleared], passed, passed),
+            (&[Cleared, DistributionWithdrawn], withdrawn, passed),
+            (&[Cleared, Revoked], revoked, revoked),
+            (
+                &[DistributionWithdrawn, DistributionWithdrawn],
+                withdrawn,
+                passed,
+            ),
+            (&[DistributionWithdrawn, Revoked], revoked, revoked),
+            (&[Revoked, Revoked], revoked, revoked),
+            (&[Cleared, DistributionWithdrawn, Revoked], revoked, revoked),
+        ];
+        for (statuses, acquisition, local_use) in cases {
+            for (operation, expected) in [
+                (CuratedArtifactOperation::Acquisition, acquisition),
+                (CuratedArtifactOperation::LocalUse, local_use),
+            ] {
+                assert_eq!(
+                    assess_curated_statuses(statuses.iter().copied(), operation),
+                    *expected,
+                    "{statuses:?} {operation:?}"
+                );
+                assert_eq!(
+                    assess_curated_statuses(statuses.iter().rev().copied(), operation),
+                    *expected,
+                    "reversed {statuses:?} {operation:?}"
+                );
+            }
+        }
+    }
 }
 
 impl Library {

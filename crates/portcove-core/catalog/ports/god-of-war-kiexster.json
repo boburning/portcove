@@ -8,6 +8,14 @@
     "issue_number": 1671,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/KIexster/god-of-war-recomp"
+    "setup_url": "https://github.com/KIexster/god-of-war-recomp",
+    "artwork": {
+      "game_id": 549,
+      "cover_id": 157296,
+      "image_id": "co3ddc",
+      "image_sha256": "50bd98e4408b79a9c2d91b1649ed63f9cdd4adc8f1311526bb95c6abd8c9fa47",
+      "game_slug": "god-of-war",
+      "match_kind": "underlying-game"
+    }
   }
 }

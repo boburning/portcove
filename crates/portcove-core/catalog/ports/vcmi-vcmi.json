@@ -28,6 +28,14 @@
       ],
       "warnings": ["This project has not been verified for play through Portcove."],
       "help_url": "https://github.com/vcmi/vcmi/blob/1.7.5/docs/players/Installation_Windows.md"
+    },
+    "artwork": {
+      "game_id": 364,
+      "cover_id": 106423,
+      "image_id": "co2a47",
+      "image_sha256": "8140145877f727a95bf62cd94b9cb4b26a3148537c2225d90954256bd981b04c",
+      "game_slug": "heroes-of-might-and-magic-iii-the-restoration-of-erathia",
+      "match_kind": "underlying-game"
     }
   }
 }

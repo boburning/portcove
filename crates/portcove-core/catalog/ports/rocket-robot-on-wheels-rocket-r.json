@@ -8,6 +8,14 @@
     "issue_number": 1449,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/ThatGuyMcd/Rocket-R"
+    "setup_url": "https://github.com/ThatGuyMcd/Rocket-R",
+    "artwork": {
+      "game_id": 2644,
+      "cover_id": 473896,
+      "image_id": "coa5ns",
+      "image_sha256": "0f3878dfa9cba869d0e0f8a57358c084bab20e44b14deaa0e6865f81337e0bae",
+      "game_slug": "rocket-robot-on-wheels",
+      "match_kind": "underlying-game"
+    }
   }
 }

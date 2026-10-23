@@ -8,6 +8,14 @@
     "issue_number": 1861,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/andyvand/opentyrian2000"
+    "setup_url": "https://github.com/andyvand/opentyrian2000",
+    "artwork": {
+      "game_id": 14432,
+      "cover_id": 139249,
+      "image_id": "co2zg1",
+      "image_sha256": "e911149612234653a05a98c61f6c6e289ec12a34a7efadd22cf657c3cf474867",
+      "game_slug": "tyrian-2000",
+      "match_kind": "underlying-game"
+    }
   }
 }

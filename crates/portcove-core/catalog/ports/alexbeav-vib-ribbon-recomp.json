@@ -8,6 +8,14 @@
     "issue_number": 495,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp",
+    "artwork": {
+      "game_id": 9676,
+      "cover_id": 323297,
+      "image_id": "co6xgh",
+      "image_sha256": "1ddf13927fd41c2456029dfd8f6f6844e3f4c3569807a18767416ac3ff95de40",
+      "game_slug": "vib-ribbon",
+      "match_kind": "underlying-game"
+    }
   }
 }

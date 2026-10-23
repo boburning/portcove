@@ -8,6 +8,14 @@
     "issue_number": 437,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp",
+    "artwork": {
+      "game_id": 8280,
+      "cover_id": 98216,
+      "image_id": "co23s8",
+      "image_sha256": "e2852791410c34eeb997fa87b3a353a7d73e48de973071d2ca1e20fee11b877a",
+      "game_slug": "colony-wars",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1911,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/troyedwardsjr/z2rs"
+    "setup_url": "https://github.com/troyedwardsjr/z2rs",
+    "artwork": {
+      "game_id": 1025,
+      "cover_id": 86234,
+      "image_id": "co1uje",
+      "image_sha256": "6c68764e630651cb82ec2f8ed135d662dafe757ba40cb247ce104e4b91c76dda",
+      "game_slug": "zelda-ii-the-adventure-of-link",
+      "match_kind": "underlying-game"
+    }
   }
 }

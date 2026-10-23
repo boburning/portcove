@@ -8,6 +8,14 @@
     "issue_number": 366,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/novapowers0/DBZ-Budokai-3-HD-Collection"
+    "setup_url": "https://github.com/novapowers0/DBZ-Budokai-3-HD-Collection",
+    "artwork": {
+      "game_id": 21701,
+      "cover_id": 354759,
+      "image_id": "co7lqf",
+      "image_sha256": "d91f230d59b829b382f9e1420518b9ac71efff67776bfc3a577dd81b10a91517",
+      "game_slug": "dragon-ball-z-budokai-hd-collection",
+      "match_kind": "underlying-game"
+    }
   }
 }

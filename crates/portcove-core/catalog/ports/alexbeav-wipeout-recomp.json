@@ -8,6 +8,14 @@
     "issue_number": 496,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp",
+    "artwork": {
+      "game_id": 1083,
+      "cover_id": 200827,
+      "image_id": "co4ayj",
+      "image_sha256": "5d3fb7f3e64b5b51edd29df22c7c15d5f8abdc6849443f284a5bbed6453360c3",
+      "game_slug": "wipeout",
+      "match_kind": "underlying-game"
+    }
   }
 }

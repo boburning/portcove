@@ -8,6 +8,14 @@
     "issue_number": 1831,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/isledecomp/isle-portable"
+    "setup_url": "https://github.com/isledecomp/isle-portable",
+    "artwork": {
+      "game_id": 5612,
+      "cover_id": 162905,
+      "image_id": "co3hp5",
+      "image_sha256": "9f83154dea1e9290b5ee8da05570f9022bca43d6125ff19b72b485026282d190",
+      "game_slug": "lego-island",
+      "match_kind": "underlying-game"
+    }
   }
 }

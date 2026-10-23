@@ -8,6 +8,14 @@
     "issue_number": 466,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/metal-gear-solid-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/metal-gear-solid-recomp",
+    "artwork": {
+      "game_id": 375,
+      "cover_id": 545996,
+      "image_id": "cobpak",
+      "image_sha256": "2acd6f7ec640cb08c1c6bd7b52aec1d69133d371905f8c0a89d09bb68dd58863",
+      "game_slug": "metal-gear-solid",
+      "match_kind": "underlying-game"
+    }
   }
 }

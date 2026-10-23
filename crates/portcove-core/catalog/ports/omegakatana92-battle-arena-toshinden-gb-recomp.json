@@ -8,6 +8,14 @@
     "issue_number": 1796,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/omegakatana92/Battle-Arena-Toshinden-GB-Recomp"
+    "setup_url": "https://github.com/omegakatana92/Battle-Arena-Toshinden-GB-Recomp",
+    "artwork": {
+      "game_id": 225275,
+      "cover_id": 268536,
+      "image_id": "co5r7c",
+      "image_sha256": "1d6b39c4d2e8d883fbfee50e21f378ed96e7577a754e3d7e822df7fbd6ebf3f8",
+      "game_slug": "battle-arena-toshinden--3",
+      "match_kind": "underlying-game"
+    }
   }
 }

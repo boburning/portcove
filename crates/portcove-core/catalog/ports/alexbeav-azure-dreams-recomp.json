@@ -8,6 +8,14 @@
     "issue_number": 1587,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp",
+    "artwork": {
+      "game_id": 6545,
+      "cover_id": 155244,
+      "image_id": "co3bsc",
+      "image_sha256": "08b8df0d4b5ff787dfe466017caa31efa2bd14b293831337b6d3dd0e1784f7f1",
+      "game_slug": "azure-dreams",
+      "match_kind": "underlying-game"
+    }
   }
 }

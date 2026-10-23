@@ -8,6 +8,14 @@
     "issue_number": 370,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Erick194/DoomIIRPG-RE"
+    "setup_url": "https://github.com/Erick194/DoomIIRPG-RE",
+    "artwork": {
+      "game_id": 101031,
+      "cover_id": 139770,
+      "image_id": "co2zui",
+      "image_sha256": "cba5f5ca6ebf630c36205d21c20d2d58c4def25c69503ab268ecfb83abdfc107",
+      "game_slug": "doom-ii-rpg",
+      "match_kind": "underlying-game"
+    }
   }
 }

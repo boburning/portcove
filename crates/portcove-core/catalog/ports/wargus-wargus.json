@@ -8,6 +8,14 @@
     "issue_number": 1904,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Wargus/wargus"
+    "setup_url": "https://github.com/Wargus/wargus",
+    "artwork": {
+      "game_id": 130,
+      "cover_id": 182121,
+      "image_id": "co3wix",
+      "image_sha256": "640dd464855ef96581c7a6a6644295425888fcfbb82cfd9fd4609c95defb41de",
+      "game_slug": "warcraft-ii-tides-of-darkness",
+      "match_kind": "underlying-game"
+    }
   }
 }

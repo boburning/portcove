@@ -8,6 +8,14 @@
     "issue_number": 148,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/jackpoison-prog/RingOut"
+    "setup_url": "https://github.com/jackpoison-prog/RingOut",
+    "artwork": {
+      "game_id": 227987,
+      "cover_id": 282512,
+      "image_id": "co61zk",
+      "image_sha256": "cab12016a577512e14d96191bc17f92f08352fa32abea249d0e0f32f37f49adb",
+      "game_slug": "soulcalibur-ii--2",
+      "match_kind": "underlying-game"
+    }
   }
 }

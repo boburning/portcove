@@ -677,13 +677,38 @@ bounded job summaries. `PORTCOVE_CI_METRICS_DIR` enables versioned per-phase JSO
 without it the helper writes nothing. Reports retain source/checkout, run/attempt,
 job/runner, selected test counts and observed cache outcomes. Setup action timings
 remain in the saved job step inventory. Rust's first inventory includes workspace
-compilation. Multi-group impact selections prepare the pinned nextest binary list
-and Cargo metadata once in `rust-inventory-metadata`, then independently list the
-complete scope, each group and their union from those private snapshots. The
+compilation. Local multi-group impact selections prepare the pinned nextest binary
+list and Cargo metadata once in `rust-inventory-metadata`, then independently list
+the complete scope, each group and their union from those private snapshots. The
 snapshots are checked for mutation and removed when that invocation settles;
-actual test execution retains normal compilation. Single-group selections retain
-their original listing path. Filter discovery, selected tests and live transport
-checks have separate phases. Measurement does not add an acceptance gate.
+local test execution retains normal compilation. Single-group local selections
+retain their original listing path.
+
+Ordinary Windows CI compiles the workspace targets once, inventories the selected
+tests, and transfers a pinned nextest archive to one through eight workers.
+`scripts/windows-rust-tests.mts` balances the current test identities using bounded
+historical timing hints from `.config/rust-test-timing-hints.json`; hints affect
+scheduling only. The independently discovered current inventory owns coverage,
+including new tests without a timing hint. Each selected test belongs to exactly
+one nonempty partition. Workers verify the source, run and attempt, validation
+plan, compiler, nextest version, input digests and archive digest, then check the
+complete and selected inventories after remapping the extracted binaries. A
+missing or mismatched artifact or test inventory fails visibly.
+
+The `hosted-windows` profile uses four test slots; local execution retains two.
+Tests that previously reserved every slot still reserve every slot through
+`num-test-threads`. Live transport validation runs alongside the archive producer
+and workers. Its CLI and headless exporters share one explicit build and run from
+Cargo's executable artifacts; native Desktop parity retains its separate feature
+build. The required `rust` result waits for the build, all workers and transport
+validation. Qualification profiles and jobs retain their separate coverage.
+
+Inventory/build, archive creation, transfer/setup, partition execution and
+transport build/run phases must be included when assessing total feedback time.
+Retain queue delay, cache state and summed runner time separately from elapsed
+critical-path time. The complete Rust feedback goal of less than ten minutes is
+a measurement target, not a new timeout or permission to omit coverage. Existing
+finite CI envelopes and zero automatic test retries remain in force.
 
 Use `node scripts/ci-metrics.mts summarize DIRECTORY` for downloaded reports.
 CI health reports cancelled attempts' observed summed runner seconds and failed

@@ -8,6 +8,14 @@
     "issue_number": 159,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/sal063/AC6_recomp"
+    "setup_url": "https://github.com/sal063/AC6_recomp",
+    "artwork": {
+      "game_id": 5476,
+      "cover_id": 129981,
+      "image_id": "co2sal",
+      "image_sha256": "4c96dc0b2df555f04889240e43fcc2a6b1d9a39efddb2c11c0900c487f04ba70",
+      "game_slug": "ace-combat-6-fires-of-liberation",
+      "match_kind": "underlying-game"
+    }
   }
 }

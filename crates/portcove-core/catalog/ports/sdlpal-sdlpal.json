@@ -8,6 +8,14 @@
     "issue_number": 1878,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/sdlpal/sdlpal"
+    "setup_url": "https://github.com/sdlpal/sdlpal",
+    "artwork": {
+      "game_id": 18928,
+      "cover_id": 243131,
+      "image_id": "co57ln",
+      "image_sha256": "1f39fdcee8bb8f823cfca576fb2f91508d582f5b7cf42f5239e360632105340d",
+      "game_slug": "the-legend-of-sword-and-fairy",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -283,6 +283,7 @@ const containmentContractTests = [
 ];
 const containmentInputs = new Set([
   "scripts/rust-test-impact.mts",
+  "scripts/windows-rust-tests.mts",
   "scripts/desktop-linux-x11.mts",
   "scripts/resource-paths.mts",
   "scripts/native-build.mts",
@@ -1021,6 +1022,17 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ".config/rust-test-impact.json",
     ["scripts/rust-test-impact.test.mts", "scripts/local-validation.test.mts"],
   ],
+  ...["scripts/windows-rust-tests.mts", ".config/rust-test-timing-hints.json"].map(
+    (file): [string, string[]] => [
+      file,
+      [
+        "scripts/ci-workflow.test.mts",
+        "scripts/ci-result-gate.test.mts",
+        "scripts/ci-baseline.test.mts",
+        "scripts/rust-test-impact.test.mts",
+      ],
+    ],
+  ),
   [
     "scripts/ci-baseline.mts",
     ["scripts/ci-baseline.test.mts", "scripts/local-validation.test.mts"],
@@ -1573,6 +1585,8 @@ function classifyOnePath(
     file === "Cargo.lock" ||
     file === "rust-toolchain.toml" ||
     file === "deny.toml" ||
+    file === ".config/rust-test-timing-hints.json" ||
+    file === "scripts/windows-rust-tests.mts" ||
     (file === ".config/nextest.toml" && !options.nextestUnchanged)
   ) {
     selection.workspaceRust = true;

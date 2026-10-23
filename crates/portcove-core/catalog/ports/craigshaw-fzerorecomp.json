@@ -8,6 +8,14 @@
     "issue_number": 1821,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/craigshaw/FZeroRecomp"
+    "setup_url": "https://github.com/craigshaw/FZeroRecomp",
+    "artwork": {
+      "game_id": 3490,
+      "cover_id": 319391,
+      "image_id": "co6ufz",
+      "image_sha256": "c504dbfa253882ca87b76d75a5cd290aef6b717a368617107d69e836bd651553",
+      "game_slug": "f-zero",
+      "match_kind": "underlying-game"
+    }
   }
 }

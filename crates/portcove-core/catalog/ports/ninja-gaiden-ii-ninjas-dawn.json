@@ -8,6 +8,14 @@
     "issue_number": 1123,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/TheSaltTrader/Ninja-s-Dawn---A-Ninja-Gaiden-2-Recompilation-Project"
+    "setup_url": "https://github.com/TheSaltTrader/Ninja-s-Dawn---A-Ninja-Gaiden-2-Recompilation-Project",
+    "artwork": {
+      "game_id": 6782,
+      "cover_id": 130660,
+      "image_id": "co2stg",
+      "image_sha256": "a0bc1cada14ee0c8c64b5c8e3744230300cd659cd6c21950c6af6a6e990814ee",
+      "game_slug": "ninja-gaiden-ii",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -28,6 +28,14 @@
       ],
       "warnings": ["This project has not been verified for play through Portcove."],
       "help_url": "https://github.com/mstan/FaxanaduRecomp/blob/v2.3.3/README.md"
+    },
+    "artwork": {
+      "game_id": 1974,
+      "cover_id": 258567,
+      "image_id": "co5jif",
+      "image_sha256": "4aa37e16660fbbebd7b31132d3d8f4f87b9f09eacec4dc88a72417a555daf35e",
+      "game_slug": "faxanadu",
+      "match_kind": "underlying-game"
     }
   }
 }

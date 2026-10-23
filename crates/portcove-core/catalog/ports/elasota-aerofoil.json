@@ -8,6 +8,14 @@
     "issue_number": 1790,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/elasota/Aerofoil"
+    "setup_url": "https://github.com/elasota/Aerofoil",
+    "artwork": {
+      "game_id": 92749,
+      "cover_id": 89898,
+      "image_id": "co1xd6",
+      "image_sha256": "121ef536a98931c57917b7d97cf78f5679d55d5a714879ac2a43feb22df2082a",
+      "game_slug": "glider-pro",
+      "match_kind": "underlying-game"
+    }
   }
 }

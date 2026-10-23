@@ -8,6 +8,14 @@
     "issue_number": 1591,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp",
+    "artwork": {
+      "game_id": 28400,
+      "cover_id": 101151,
+      "image_id": "co261r",
+      "image_sha256": "fb9953d85b0f86a28f820a24526d4a599fc329b3e5362f8fd3add4d406b221bc",
+      "game_slug": "devil-dice",
+      "match_kind": "underlying-game"
+    }
   }
 }

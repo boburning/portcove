@@ -8,6 +8,14 @@
     "issue_number": 1909,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Blizz127/xenogears-decomp-port"
+    "setup_url": "https://github.com/Blizz127/xenogears-decomp-port",
+    "artwork": {
+      "game_id": 1346,
+      "cover_id": 556672,
+      "image_id": "cobxj4",
+      "image_sha256": "be44ec5ff1403e62e1a06b2a64b383d39ce3a1c7a164f137de4dee8b2013c2bc",
+      "game_slug": "xenogears",
+      "match_kind": "underlying-game"
+    }
   }
 }

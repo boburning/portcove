@@ -8,6 +8,14 @@
     "issue_number": 1569,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/spacestate1/namco22-decompile"
+    "setup_url": "https://github.com/spacestate1/namco22-decompile",
+    "artwork": {
+      "game_id": 11739,
+      "cover_id": 90993,
+      "image_id": "co1y7l",
+      "image_sha256": "54b9a288fe591f0b3fe28d0e14cafb1d8d2f24cb4a1e6c44ba477e5c167de8b1",
+      "game_slug": "time-crisis",
+      "match_kind": "underlying-game"
+    }
   }
 }

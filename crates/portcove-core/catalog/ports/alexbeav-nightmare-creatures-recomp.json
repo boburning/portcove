@@ -8,6 +8,14 @@
     "issue_number": 472,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp",
+    "artwork": {
+      "game_id": 3414,
+      "cover_id": 258182,
+      "image_id": "co5j7q",
+      "image_sha256": "09a5818258730eb15ac2a392fff1c0a2b640a0e3a25bb4efe3bdbdf749edb84b",
+      "game_slug": "nightmare-creatures",
+      "match_kind": "underlying-game"
+    }
   }
 }

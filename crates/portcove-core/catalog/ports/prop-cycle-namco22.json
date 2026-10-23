@@ -8,6 +8,14 @@
     "issue_number": 1565,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/spacestate1/namco22-decompile"
+    "setup_url": "https://github.com/spacestate1/namco22-decompile",
+    "artwork": {
+      "game_id": 40395,
+      "cover_id": 90454,
+      "image_id": "co1xsm",
+      "image_sha256": "13f3e3269b804ec08ff7262b8b13397eb4ca77dce41f1719111163fa62256f88",
+      "game_slug": "prop-cycle",
+      "match_kind": "underlying-game"
+    }
   }
 }

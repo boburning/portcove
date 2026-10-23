@@ -191,7 +191,7 @@ application-wide speedup, and no causal explanation for earlier timeout
 incidents follows from this comparison. CI retains the measurement and fixture
 artifacts; the issue/PR completion receipt links the exact run and source.
 
-CI retains `runtime-diagnostics-windows-<run>-<attempt>` and
+CI retains `runtime-diagnostics-windows-<run>-<attempt>-<partition>` and
 `runtime-diagnostics-linux-<run>-<attempt>` artifacts for seven days. They include
 the source revision, relevant source hashes, compiler/build/platform identity,
 fixture outcomes, failure-injection health, explicit limits and measurements.

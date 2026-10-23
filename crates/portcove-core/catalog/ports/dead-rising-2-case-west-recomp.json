@@ -8,6 +8,14 @@
     "issue_number": 1122,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/wivi514/Dead_Rising_2_Case_West_Xenon_Recomp"
+    "setup_url": "https://github.com/wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+    "artwork": {
+      "game_id": 21764,
+      "cover_id": 122775,
+      "image_id": "co2mqf",
+      "image_sha256": "dfd2adc8add2ceb52ba7e9bce03d4af6565d248abf247b58f1a383dd576b919d",
+      "game_slug": "dead-rising-2-case-west",
+      "match_kind": "underlying-game"
+    }
   }
 }

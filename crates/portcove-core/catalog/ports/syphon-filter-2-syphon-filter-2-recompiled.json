@@ -8,6 +8,14 @@
     "issue_number": 345,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp",
+    "artwork": {
+      "game_id": 4116,
+      "cover_id": 114617,
+      "image_id": "co2gft",
+      "image_sha256": "c27eb518708cddafc38b0493633ad10df446f1afc5710cbadc74183af4bec3b8",
+      "game_slug": "syphon-filter-2",
+      "match_kind": "underlying-game"
+    }
   }
 }

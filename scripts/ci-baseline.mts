@@ -60,7 +60,7 @@ export function baselineContractTests(plan: ValidationPlan, options: ClassifyOpt
     plan.fallback ||
     plan.changes.some((c) =>
       [c.oldPath, c.newPath].some((f) =>
-        /(?:validation-plan|select-ci-plan|ci-baseline|ci-result-gate|qualification-coverage|rust-test-impact|ci\.yml)/u.test(
+        /(?:validation-plan|select-ci-plan|ci-baseline|ci-result-gate|qualification-coverage|rust-test-impact|windows-rust-tests|rust-test-timing-hints|ci\.yml)/u.test(
           f,
         ),
       ),

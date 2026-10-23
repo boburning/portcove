@@ -8,7 +8,15 @@
     "project_url": "https://github.com/mstan/DrMarioNesRecomp",
     "original_game_title": "Dr. Mario",
     "variant_label": "NES",
-    "issue_number": 157
+    "issue_number": 157,
+    "artwork": {
+      "game_id": 3476,
+      "cover_id": 544213,
+      "image_id": "cobnx1",
+      "image_sha256": "6e3f1685fe9ff2560baa7d050ae204917597b163e5af0fc0166619b61993c523",
+      "game_slug": "dr-mario",
+      "match_kind": "underlying-game"
+    }
   },
   "integration": {
     "support_tier": "beta",

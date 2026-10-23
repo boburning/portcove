@@ -8,6 +8,14 @@
     "issue_number": 497,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp",
+    "artwork": {
+      "game_id": 1538,
+      "cover_id": 200817,
+      "image_id": "co4ay9",
+      "image_sha256": "a306ddcaf6d24f17a938e8b9eb6f5c83ded3ca97a5e67c214ff0fd1e750cf6bf",
+      "game_slug": "wipeout-xl",
+      "match_kind": "underlying-game"
+    }
   }
 }

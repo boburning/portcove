@@ -8,6 +8,14 @@
     "issue_number": 1825,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/goodshepherd23/Hellnight-Recompiled"
+    "setup_url": "https://github.com/goodshepherd23/Hellnight-Recompiled",
+    "artwork": {
+      "game_id": 14160,
+      "cover_id": 297380,
+      "image_id": "co6dgk",
+      "image_sha256": "932718fc24f0f5372f969c818cb6ab94acc7fef630021496dd4d973448179a88",
+      "game_slug": "hellnight",
+      "match_kind": "underlying-game"
+    }
   }
 }

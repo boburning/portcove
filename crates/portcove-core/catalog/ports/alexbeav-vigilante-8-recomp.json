@@ -8,6 +8,14 @@
     "issue_number": 498,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp",
+    "artwork": {
+      "game_id": 3332,
+      "cover_id": 154515,
+      "image_id": "co3b83",
+      "image_sha256": "551b7f4b5b448bf32085e869fe36b08d8725faaba9d023668676c273e7ad7fe3",
+      "game_slug": "vigilante-8",
+      "match_kind": "underlying-game"
+    }
   }
 }

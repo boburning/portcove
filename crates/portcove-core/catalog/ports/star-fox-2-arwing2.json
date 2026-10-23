@@ -8,6 +8,14 @@
     "issue_number": 1946,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/carlosrmz009/arwing2"
+    "setup_url": "https://github.com/carlosrmz009/arwing2",
+    "artwork": {
+      "game_id": 9674,
+      "cover_id": 85763,
+      "image_id": "co1u6b",
+      "image_sha256": "d8ad67a22559ea19bc63364b18bbe36cdfbc5275df4891758657548475abf694",
+      "game_slug": "star-fox-2",
+      "match_kind": "underlying-game"
+    }
   }
 }

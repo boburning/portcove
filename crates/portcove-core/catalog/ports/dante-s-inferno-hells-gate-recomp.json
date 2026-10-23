@@ -8,6 +8,14 @@
     "issue_number": 367,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/florinp93/hells-gate-recomp"
+    "setup_url": "https://github.com/florinp93/hells-gate-recomp",
+    "artwork": {
+      "game_id": 6958,
+      "cover_id": 104554,
+      "image_id": "co28oa",
+      "image_sha256": "ca61d103dab3eef24365a724385500de2dbba9fd054bd004bf2a6e0724870ff3",
+      "game_slug": "dante-s-inferno",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1798,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Mrsuss60/bloodborne_pc_windows_port"
+    "setup_url": "https://github.com/Mrsuss60/bloodborne_pc_windows_port",
+    "artwork": {
+      "game_id": 7334,
+      "cover_id": 525225,
+      "image_id": "cob99l",
+      "image_sha256": "5dc4f67d642758fe0d879abd14a2c3fa5da821e5e3a5eeda29278e875d76c1ae",
+      "game_slug": "bloodborne",
+      "match_kind": "underlying-game"
+    }
   }
 }

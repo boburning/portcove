@@ -8,6 +8,14 @@
     "issue_number": 1814,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/citrongames/Dora64"
+    "setup_url": "https://github.com/citrongames/Dora64",
+    "artwork": {
+      "game_id": 70797,
+      "cover_id": 304257,
+      "image_id": "co6irl",
+      "image_sha256": "a8d755f08d07c9f8409b7e3703a78faaad6454da05ba2903367cbb16282271a3",
+      "game_slug": "doraemon-nobita-to-3-tsu-no-seireiseki",
+      "match_kind": "underlying-game"
+    }
   }
 }

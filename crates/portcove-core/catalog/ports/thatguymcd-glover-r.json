@@ -8,6 +8,14 @@
     "issue_number": 1822,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/ThatGuyMcd/Glover-R"
+    "setup_url": "https://github.com/ThatGuyMcd/Glover-R",
+    "artwork": {
+      "game_id": 3348,
+      "cover_id": 182078,
+      "image_id": "co3whq",
+      "image_sha256": "a0742a26cb550661366365fee043c0b2be423de9c2e2928aa1aa63455f98da77",
+      "game_slug": "glover",
+      "match_kind": "underlying-game"
+    }
   }
 }

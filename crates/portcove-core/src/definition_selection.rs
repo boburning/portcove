@@ -39,6 +39,22 @@ impl DefinitionSelectionIdentity {
         &self,
         snapshot: &DefinitionSnapshot,
     ) -> Result<crate::DefinitionCatalogProjection> {
+        self.validate_snapshot_binding(snapshot)?;
+        let projection = snapshot.projection()?;
+        self.validate_snapshot_revision(projection.entry().revision())?;
+        Ok(projection)
+    }
+
+    pub(crate) fn validate_projected_snapshot(
+        &self,
+        snapshot: &DefinitionSnapshot,
+        validated_revision: u64,
+    ) -> Result<()> {
+        self.validate_snapshot_binding(snapshot)?;
+        self.validate_snapshot_revision(validated_revision)
+    }
+
+    fn validate_snapshot_binding(&self, snapshot: &DefinitionSnapshot) -> Result<()> {
         if self.namespace != snapshot.namespace()
             || self.stable_id != snapshot.port_id()
             || self.repository_root_sha256 != self.provenance.root_sha256
@@ -54,13 +70,16 @@ impl DefinitionSelectionIdentity {
         validate_sha256(&self.repository_root_sha256)?;
         DefinitionReplayFloor::from(&self.provenance).validate()?;
         expiration_unix(&self.provenance)?;
-        let projection = snapshot.projection()?;
-        if self.definition_revision != projection.entry().revision() {
+        Ok(())
+    }
+
+    fn validate_snapshot_revision(&self, validated_revision: u64) -> Result<()> {
+        if self.definition_revision != validated_revision {
             return Err(PortcoveError::verification(
                 "definition admission revision differs from its exact entry",
             ));
         }
-        Ok(projection)
+        Ok(())
     }
 }
 
@@ -105,11 +124,17 @@ impl StoredDefinitionSelection {
             provenance: candidate.provenance.clone(),
             snapshot: candidate.projection.snapshot().clone(),
         };
-        value.validate()?;
+        // Eligible candidates already own the complete validated projection.
+        // Recheck its identity binding without rebuilding those immutable bytes.
+        value.identity().validate_projected_snapshot(
+            &value.snapshot,
+            candidate.projection.entry().revision(),
+        )?;
+        candidate.projection.catalog().port(&value.stable_id)?;
         Ok(value)
     }
 
-    fn validate(&self) -> Result<()> {
+    fn validate(&self) -> Result<crate::DefinitionCatalogProjection> {
         let projection = self
             .identity()
             .validated_snapshot_projection(&self.snapshot)
@@ -120,7 +145,7 @@ impl StoredDefinitionSelection {
                 .detail("cause", error.message)
             })?;
         projection.catalog().port(&self.stable_id)?;
-        Ok(())
+        Ok(projection)
     }
 
     fn identity(&self) -> DefinitionSelectionIdentity {
@@ -136,11 +161,23 @@ impl StoredDefinitionSelection {
     }
 }
 
+struct ValidatedDefinitionSelection {
+    stored: StoredDefinitionSelection,
+    projection: crate::DefinitionCatalogProjection,
+}
+
+impl ValidatedDefinitionSelection {
+    fn new(stored: StoredDefinitionSelection) -> Result<Self> {
+        let projection = stored.validate()?;
+        Ok(Self { stored, projection })
+    }
+}
+
 struct DefinitionSelectionState {
     revision: u64,
     replay_floor: Option<DefinitionReplayFloor>,
-    active: Option<StoredDefinitionSelection>,
-    previous: Option<StoredDefinitionSelection>,
+    active: Option<ValidatedDefinitionSelection>,
+    previous: Option<ValidatedDefinitionSelection>,
     active_json: Option<String>,
 }
 
@@ -168,12 +205,10 @@ impl DefinitionSelectionState {
         if let Some(floor) = &replay_floor {
             floor.validate()?;
         }
-        if let Some(selection) = &active {
-            selection.validate()?;
-        }
-        if let Some(selection) = &previous {
-            selection.validate()?;
-        }
+        let active = active.map(ValidatedDefinitionSelection::new).transpose()?;
+        let previous = previous
+            .map(ValidatedDefinitionSelection::new)
+            .transpose()?;
         if active.is_some() != replay_floor.is_some()
             || (revision == 0) != active.is_none()
             || (previous.is_some() && active.is_none())
@@ -183,7 +218,7 @@ impl DefinitionSelectionState {
             ));
         }
         if let (Some(active), Some(floor)) = (&active, &replay_floor)
-            && *floor != DefinitionReplayFloor::from(&active.provenance)
+            && *floor != DefinitionReplayFloor::from(&active.stored.provenance)
         {
             return Err(PortcoveError::state(
                 "active definition selection differs from its replay floor",
@@ -204,10 +239,100 @@ impl DefinitionSelectionState {
             selected: self
                 .active
                 .as_ref()
-                .map(StoredDefinitionSelection::identity),
+                .map(|selection| selection.stored.identity()),
             replay_floor: self.replay_floor.clone(),
             can_rollback: self.previous.is_some(),
         }
+    }
+}
+
+pub(crate) struct DefinitionOperationAssessment<'a> {
+    connection: &'a Connection,
+    state: DefinitionSelectionState,
+}
+
+impl DefinitionOperationAssessment<'_> {
+    pub(crate) fn assess(
+        &self,
+        identity: &DefinitionSelectionIdentity,
+        context: DefinitionOperationContext,
+    ) -> Result<DefinitionEligibility> {
+        validate_sha256(&identity.repository_root_sha256)?;
+        DefinitionReplayFloor::from(&identity.provenance).validate()?;
+        if identity.namespace.is_empty()
+            || identity.stable_id.is_empty()
+            || identity.definition_revision == 0
+            || identity.policy_revision == 0
+            || !valid_grant_id(&identity.grant_id)
+            || identity.repository_root_sha256 != identity.provenance.root_sha256
+        {
+            return Err(PortcoveError::state(
+                "retained definition admission identity is invalid",
+            ));
+        }
+
+        let transaction = self.connection;
+        let state = &self.state;
+        let policy =
+            PublisherPolicyRecord::read(transaction, &identity.namespace, &identity.stable_id)?;
+        let replayed_metadata = state
+            .replay_floor
+            .as_ref()
+            .is_some_and(|floor| floor.evaluate(&identity.provenance).is_err());
+        let publisher_scoped = policy
+            .as_ref()
+            .is_some_and(|policy| policy.status == DefinitionPublisherStatus::Scoped)
+            && crate::definition_repository::publisher_policy::allows_operation(
+                transaction,
+                identity,
+                context,
+            )?;
+        let publisher_revoked = policy
+            .as_ref()
+            .is_some_and(|policy| policy.status == DefinitionPublisherStatus::Revoked);
+        let retained_launch_continues = context.operation == crate::DefinitionOperation::Launch
+            && context.retained_contract
+            && publisher_scoped
+            && crate::definition_repository::publisher_policy::continues_retained_launch(
+                transaction,
+                identity,
+            )?;
+        let same_identity_changed = !retained_launch_continues
+            && policy
+                .as_ref()
+                .is_some_and(|policy| !policy.matches_identity(identity));
+        let launch_checks =
+            crate::definition_repository::publisher_policy::launch_assessment::checks_passed(
+                transaction,
+                identity,
+                context,
+            )?;
+        let result = evaluate_definition_eligibility(&DefinitionEligibilityFacts {
+            operation: context.operation,
+            publisher_scoped,
+            publisher_revoked,
+            capability_supported: true,
+            unknown_safety_field: launch_checks.is_none(),
+            ownership_preserved: true,
+            same_identity_changed,
+            expected_integrity: true,
+            local_integrity_valid: context.local_integrity_valid,
+            required_source_missing: context.required_source_missing,
+            source_mismatch: context.source_mismatch,
+            mandatory_checks_passed: launch_checks != Some(false),
+            fresh_metadata: Library::now() < expiration_unix(&identity.provenance)?
+                && crate::definition_repository::publisher_policy::availability_expiration(
+                    transaction,
+                    &identity.namespace,
+                    &identity.stable_id,
+                )?
+                .is_none_or(|expires| Library::now() < expires),
+            replayed_metadata,
+            refresh_interrupted: false,
+            retained_contract: context.retained_contract,
+            retained_local_authorization: context.retained_contract,
+        });
+        Ok(result)
     }
 }
 
@@ -342,13 +467,13 @@ impl Library {
         let role = state
             .active
             .as_ref()
-            .filter(|selection| selection.identity() == *identity)
+            .filter(|selection| selection.stored.identity() == *identity)
             .map(|_| "active")
             .or_else(|| {
                 state
                     .previous
                     .as_ref()
-                    .filter(|selection| selection.identity() == *identity)
+                    .filter(|selection| selection.stored.identity() == *identity)
                     .map(|_| "previous")
             });
         Ok(role)
@@ -385,7 +510,7 @@ impl Library {
                 ));
             }
         };
-        if existing.is_some_and(|selection| selection.identity() == *identity) {
+        if existing.is_some_and(|selection| selection.stored.identity() == *identity) {
             return transaction.commit().map_err(Into::into);
         }
         if existing.is_some() || (role == "previous" && state.active.is_none()) {
@@ -568,82 +693,23 @@ impl Library {
         identity: &DefinitionSelectionIdentity,
         context: DefinitionOperationContext,
     ) -> Result<DefinitionEligibility> {
-        validate_sha256(&identity.repository_root_sha256)?;
-        DefinitionReplayFloor::from(&identity.provenance).validate()?;
-        if identity.namespace.is_empty()
-            || identity.stable_id.is_empty()
-            || identity.definition_revision == 0
-            || identity.policy_revision == 0
-            || !valid_grant_id(&identity.grant_id)
-            || identity.repository_root_sha256 != identity.provenance.root_sha256
-        {
-            return Err(PortcoveError::state(
-                "retained definition admission identity is invalid",
-            ));
-        }
+        self.with_definition_operation_assessment(|assessment| assessment.assess(identity, context))
+    }
 
+    /// Reuse immutable selection interpretation only within one fresh SQLite
+    /// read transaction. Every operation still evaluates its current policy,
+    /// expiry and supplied integrity/source observations.
+    pub(crate) fn with_definition_operation_assessment<T>(
+        &self,
+        action: impl FnOnce(&DefinitionOperationAssessment<'_>) -> Result<T>,
+    ) -> Result<T> {
         let connection = self.connection()?;
         let transaction = connection.unchecked_transaction()?;
         let state = DefinitionSelectionState::read(&transaction)?;
-        let policy =
-            PublisherPolicyRecord::read(&transaction, &identity.namespace, &identity.stable_id)?;
-        let replayed_metadata = state
-            .replay_floor
-            .as_ref()
-            .is_some_and(|floor| floor.evaluate(&identity.provenance).is_err());
-        let publisher_scoped = policy
-            .as_ref()
-            .is_some_and(|policy| policy.status == DefinitionPublisherStatus::Scoped)
-            && crate::definition_repository::publisher_policy::allows_operation(
-                &transaction,
-                identity,
-                context,
-            )?;
-        let publisher_revoked = policy
-            .as_ref()
-            .is_some_and(|policy| policy.status == DefinitionPublisherStatus::Revoked);
-        let retained_launch_continues = context.operation == crate::DefinitionOperation::Launch
-            && context.retained_contract
-            && publisher_scoped
-            && crate::definition_repository::publisher_policy::continues_retained_launch(
-                &transaction,
-                identity,
-            )?;
-        let same_identity_changed = !retained_launch_continues
-            && policy
-                .as_ref()
-                .is_some_and(|policy| !policy.matches_identity(identity));
-        let launch_checks =
-            crate::definition_repository::publisher_policy::launch_assessment::checks_passed(
-                &transaction,
-                identity,
-                context,
-            )?;
-        let result = evaluate_definition_eligibility(&DefinitionEligibilityFacts {
-            operation: context.operation,
-            publisher_scoped,
-            publisher_revoked,
-            capability_supported: true,
-            unknown_safety_field: launch_checks.is_none(),
-            ownership_preserved: true,
-            same_identity_changed,
-            expected_integrity: true,
-            local_integrity_valid: context.local_integrity_valid,
-            required_source_missing: context.required_source_missing,
-            source_mismatch: context.source_mismatch,
-            mandatory_checks_passed: launch_checks != Some(false),
-            fresh_metadata: Self::now() < expiration_unix(&identity.provenance)?
-                && crate::definition_repository::publisher_policy::availability_expiration(
-                    &transaction,
-                    &identity.namespace,
-                    &identity.stable_id,
-                )?
-                .is_none_or(|expires| Self::now() < expires),
-            replayed_metadata,
-            refresh_interrupted: false,
-            retained_contract: context.retained_contract,
-            retained_local_authorization: context.retained_contract,
-        });
+        let result = action(&DefinitionOperationAssessment {
+            connection: &transaction,
+            state,
+        })?;
         transaction.commit()?;
         Ok(result)
     }
@@ -789,9 +855,10 @@ pub(crate) fn load_selected_definition_catalog(
     now_unix: i64,
 ) -> Result<Option<(Catalog, i64)>> {
     let state = DefinitionSelectionState::read(connection)?;
-    let Some(selection) = state.active.as_ref() else {
+    let Some(validated) = state.active.as_ref() else {
         return Ok(None);
     };
+    let selection = &validated.stored;
     let policy =
         PublisherPolicyRecord::read(connection, &selection.namespace, &selection.stable_id)?
             .ok_or_else(|| {
@@ -803,10 +870,10 @@ pub(crate) fn load_selected_definition_catalog(
         ));
     }
     require_fresh(&selection.provenance, now_unix)?;
-    let projection = selection.snapshot.projection()?;
+    let projection = &validated.projection;
     if !crate::definition_repository::publisher_policy::allows_projection(
         connection,
-        &projection,
+        projection,
         &selection.provenance,
     )? {
         return Err(PortcoveError::conflict(

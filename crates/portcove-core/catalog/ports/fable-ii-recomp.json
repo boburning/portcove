@@ -8,6 +8,14 @@
     "issue_number": 1124,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/himdo/Fable-2-Recomp"
+    "setup_url": "https://github.com/himdo/Fable-2-Recomp",
+    "artwork": {
+      "game_id": 522,
+      "cover_id": 90809,
+      "image_id": "co1y2h",
+      "image_sha256": "14efd3dfd2ba8beb181f666abbaf175dfcfba79b3253aa38d505528011489735",
+      "game_slug": "fable-ii",
+      "match_kind": "underlying-game"
+    }
   }
 }

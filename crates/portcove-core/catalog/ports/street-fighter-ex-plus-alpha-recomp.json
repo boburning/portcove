@@ -8,6 +8,14 @@
     "issue_number": 1116,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/guimaraf/plusalpha-recomp"
+    "setup_url": "https://github.com/guimaraf/plusalpha-recomp",
+    "artwork": {
+      "game_id": 38297,
+      "cover_id": 88314,
+      "image_id": "co1w56",
+      "image_sha256": "3670f6c116ef18a1a52ac64fbb9f552664eaf9819cbca40a121ae6b201f2c16e",
+      "game_slug": "street-fighter-ex-plus-alpha",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 457,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/jackie-chan-stuntmaster-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/jackie-chan-stuntmaster-recomp",
+    "artwork": {
+      "game_id": 18943,
+      "cover_id": 113058,
+      "image_id": "co2f8i",
+      "image_sha256": "3ccb32aac7e3b1b15561c58359847af01fdd9f164f331682e994adfe0f94b604",
+      "game_slug": "jackie-chan-stuntmaster",
+      "match_kind": "underlying-game"
+    }
   }
 }

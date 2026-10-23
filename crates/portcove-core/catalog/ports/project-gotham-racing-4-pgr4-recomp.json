@@ -8,6 +8,14 @@
     "issue_number": 360,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/beatrixzy/PGR4-Recomp"
+    "setup_url": "https://github.com/beatrixzy/PGR4-Recomp",
+    "artwork": {
+      "game_id": 2540,
+      "cover_id": 86417,
+      "image_id": "co1uoh",
+      "image_sha256": "298c851b4b05844dc20d54b12ef826012aec8e15d5d32936a288b77a5c137ce8",
+      "game_slug": "project-gotham-racing-4",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1619,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Shmargus/GSRecomp"
+    "setup_url": "https://github.com/Shmargus/GSRecomp",
+    "artwork": {
+      "game_id": 1172,
+      "cover_id": 85978,
+      "image_id": "co1uca",
+      "image_sha256": "dff4cc742ba8d38f9e5ebe17b900ea1f1dfa453be1bff6ffedfa321e339aba0c",
+      "game_slug": "golden-sun",
+      "match_kind": "underlying-game"
+    }
   }
 }

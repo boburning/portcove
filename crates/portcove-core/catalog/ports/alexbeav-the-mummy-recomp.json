@@ -8,6 +8,14 @@
     "issue_number": 485,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp",
+    "artwork": {
+      "game_id": 80821,
+      "cover_id": 198917,
+      "image_id": "co49hh",
+      "image_sha256": "4972cc3b44dfef4051aca4dc7d6a4f2d2bfc6117a16362985157a4b9e1df0e17",
+      "game_slug": "the-mummy--1",
+      "match_kind": "underlying-game"
+    }
   }
 }

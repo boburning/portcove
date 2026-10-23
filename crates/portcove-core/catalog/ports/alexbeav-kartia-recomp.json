@@ -8,6 +8,14 @@
     "issue_number": 1600,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp",
+    "artwork": {
+      "game_id": 45222,
+      "cover_id": 557400,
+      "image_id": "coby3c",
+      "image_sha256": "f54f3abfcf4cb3864a567ff84ce88f7f384867e80be318d0a9acd789804ddd87",
+      "game_slug": "kartia-the-word-of-fate",
+      "match_kind": "underlying-game"
+    }
   }
 }

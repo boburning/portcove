@@ -8,6 +8,14 @@
     "issue_number": 1805,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Heromachine/Breakdown-Recompilation"
+    "setup_url": "https://github.com/Heromachine/Breakdown-Recompilation",
+    "artwork": {
+      "game_id": 5756,
+      "cover_id": 200132,
+      "image_id": "co4af8",
+      "image_sha256": "9bc245ca26a70c0d55c8e80029c89642bd2dcfc48e0bccbdfdcea8d3a22f1be6",
+      "game_slug": "breakdown",
+      "match_kind": "underlying-game"
+    }
   }
 }

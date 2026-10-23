@@ -8,6 +8,14 @@
     "issue_number": 1622,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/nathanialf/ico-pc"
+    "setup_url": "https://github.com/nathanialf/ico-pc",
+    "artwork": {
+      "game_id": 7170,
+      "cover_id": 175220,
+      "image_id": "co3r78",
+      "image_sha256": "6ab4d0a4eebe33c774cb97817538cd171d8489fcad57c8b0fcd8ed3378dace3d",
+      "game_slug": "ico",
+      "match_kind": "underlying-game"
+    }
   }
 }

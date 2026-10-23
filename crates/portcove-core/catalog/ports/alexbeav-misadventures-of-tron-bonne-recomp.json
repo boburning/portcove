@@ -8,6 +8,14 @@
     "issue_number": 1602,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp",
+    "artwork": {
+      "game_id": 1753,
+      "cover_id": 313161,
+      "image_id": "co6pmx",
+      "image_sha256": "2ee7a7b47b2143442c364a0fa366eaab83ccb8732249084eb62a3f5f020fc544",
+      "game_slug": "the-misadventures-of-tron-bonne",
+      "match_kind": "underlying-game"
+    }
   }
 }

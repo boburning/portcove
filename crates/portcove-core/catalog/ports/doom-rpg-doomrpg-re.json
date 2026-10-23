@@ -8,6 +8,14 @@
     "issue_number": 369,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Erick194/DoomRPG-RE"
+    "setup_url": "https://github.com/Erick194/DoomRPG-RE",
+    "artwork": {
+      "game_id": 101029,
+      "cover_id": 419952,
+      "image_id": "co901c",
+      "image_sha256": "cc08e314298f0cb0e877d0f6483b3d4b830feace20b3b36258c2300b82c068d2",
+      "game_slug": "doom-rpg",
+      "match_kind": "underlying-game"
+    }
   }
 }

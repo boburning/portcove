@@ -8,6 +8,14 @@
     "issue_number": 121,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://t3hd0gg.com/project-r/"
+    "setup_url": "https://t3hd0gg.com/project-r/",
+    "artwork": {
+      "game_id": 3596,
+      "cover_id": 182312,
+      "image_id": "co3wo8",
+      "image_sha256": "f682920014e6f237bb1f66d93560dfd7ddf5238aac2fd47d3fbeaec684673e15",
+      "game_slug": "san-francisco-rush-2049",
+      "match_kind": "underlying-game"
+    }
   }
 }

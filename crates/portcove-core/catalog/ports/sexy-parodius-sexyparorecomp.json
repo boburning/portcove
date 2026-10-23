@@ -8,6 +8,14 @@
     "issue_number": 325,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/NJH-1001/SexyParoRecomp"
+    "setup_url": "https://github.com/NJH-1001/SexyParoRecomp",
+    "artwork": {
+      "game_id": 39485,
+      "cover_id": 321081,
+      "image_id": "co6vqx",
+      "image_sha256": "9ea8041580cca072ba9695fa11d3accd1a3ca312eefd452d8f87a0a52856f220",
+      "game_slug": "sexy-parodius",
+      "match_kind": "underlying-game"
+    }
   }
 }

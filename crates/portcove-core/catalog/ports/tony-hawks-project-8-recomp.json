@@ -8,6 +8,14 @@
     "issue_number": 1125,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/theokyr/Project8Recomp"
+    "setup_url": "https://github.com/theokyr/Project8Recomp",
+    "artwork": {
+      "game_id": 344862,
+      "cover_id": 487005,
+      "image_id": "coafrx",
+      "image_sha256": "37de86645dd516ce7cc08a12f372495ce3583df99e251b76e8611b00ce9674f9",
+      "game_slug": "tony-hawks-project-8--1",
+      "match_kind": "underlying-game"
+    }
   }
 }

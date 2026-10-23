@@ -8,6 +8,14 @@
     "issue_number": 430,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/apocalypse-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/apocalypse-recomp",
+    "artwork": {
+      "game_id": 15547,
+      "cover_id": 519449,
+      "image_id": "cob4t5",
+      "image_sha256": "305be3b0f3a1846f2a075c64dc47f7c3d12226990e092b3639503bea270aeccf",
+      "game_slug": "apocalypse--1",
+      "match_kind": "underlying-game"
+    }
   }
 }

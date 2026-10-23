@@ -8,6 +8,14 @@
     "issue_number": 1880,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/eandis/SDOJ-Recomp"
+    "setup_url": "https://github.com/eandis/SDOJ-Recomp",
+    "artwork": {
+      "game_id": 1673,
+      "cover_id": 126925,
+      "image_id": "co2pxp",
+      "image_sha256": "f368c7e6230a4ad5b865bfd6cc9107d0c8c5952678cc43e7566b1ae7a2002238",
+      "game_slug": "dodonpachi-saidaioujou",
+      "match_kind": "underlying-game"
+    }
   }
 }

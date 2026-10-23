@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
@@ -7,7 +10,7 @@ import {
   checkDesktopEventContract,
   checkTransportContract,
   checkDesktopExporterParity,
-  desktopSchemaExporterCommands,
+  buildSchemaExporters,
   extractDeclaredDesktopCommands,
   extractDeclaredDesktopEvents,
   extractExportedDesktopEvents,
@@ -19,6 +22,7 @@ import {
   exportDesktopSchemas,
 } from "./check-transport-contract.mts";
 import { renderTransportSchemas } from "./transport-schemas.mts";
+import { readCiMetrics } from "./ci-metrics.mts";
 
 const schemas = {
   response: {
@@ -38,7 +42,55 @@ const schemas = {
   },
 };
 
-void test("production exporters report sequential phases separately from their returned contracts", (t) => {
+const exporterRoot = path.resolve("fixture");
+const exporterPaths = {
+  cli: path.resolve("custom Cargo output", "compiled-cli"),
+  headless: path.resolve("custom Cargo output", "compiled-headless"),
+  native: path.resolve("separate native output", "compiled-native"),
+};
+
+function fixtureBuildMessages(native = false): Record<string, unknown>[] {
+  const manifest = path.join(
+    exporterRoot,
+    native ? "apps/desktop/src-tauri/Cargo.toml" : "crates/portcove-cli/Cargo.toml",
+  );
+  const targets = native
+    ? [{ name: "export_transport", kind: "example", executable: exporterPaths.native }]
+    : [
+        { name: "portcove", kind: "bin", executable: exporterPaths.cli },
+        { name: "export_desktop_transport", kind: "example", executable: exporterPaths.headless },
+      ];
+  return [
+    ...targets.map(({ name, kind, executable }, index) => ({
+      reason: "compiler-artifact",
+      manifest_path: manifest,
+      target: { name, kind: [kind] },
+      profile: { test: false },
+      executable,
+      fresh: index === 0,
+    })),
+    { reason: "build-finished", success: true },
+  ];
+}
+
+function fixtureExport(executable: string, args: string[]) {
+  return {
+    status: 0,
+    stderr: "",
+    stdout:
+      executable === "cargo"
+        ? fixtureBuildMessages(args.includes("portcove-desktop"))
+            .map((message) => JSON.stringify(message))
+            .join("\n")
+        : JSON.stringify(
+            executable === exporterPaths.cli
+              ? { ok: true, command: "schema.export", data: schemas }
+              : { input: schemas, output: schemas, events: schemas },
+          ),
+  };
+}
+
+void test("exporters build once per package and execute Cargo's exact artifacts with separate timings", (t) => {
   const stderr: string[] = [];
   const stdout: string[] = [];
   t.mock.method(process.stderr, "write", (value: string) => {
@@ -49,39 +101,238 @@ void test("production exporters report sequential phases separately from their r
     stdout.push(value);
     return true;
   });
-  const calls: string[][] = [];
-  const execute = (args: string[]) => {
-    calls.push(args);
-    const core = args.includes("--contract");
-    return {
-      status: 0,
-      stderr: "",
-      stdout: JSON.stringify(
-        core
-          ? { ok: true, command: "schema.export", data: schemas }
-          : { input: schemas, output: schemas, events: schemas },
-      ),
-    };
+  const calls: { executable: string; args: string[] }[] = [];
+  const execute = (executable: string, args: string[], root: string) => {
+    assert.equal(root, exporterRoot);
+    calls.push({ executable, args });
+    const result = fixtureExport(executable, args);
+    if (executable === "cargo") {
+      // A dependency with the same target name must not supply our executable.
+      const unrelated = {
+        ...fixtureElement(fixtureBuildMessages(), 0),
+        manifest_path: path.resolve("another-package", "Cargo.toml"),
+        executable: path.resolve("stale-executable"),
+      };
+      result.stdout = `${JSON.stringify(unrelated)}\n${result.stdout}`;
+    }
+    return result;
   };
-  assert.deepEqual(exportSchemas("fixture", "output", execute), schemas);
-  assert.deepEqual(exportSchemas("fixture", "input", execute), schemas);
-  assert.deepEqual(exportDesktopSchemas("fixture", true, execute).output, schemas);
-  assert.deepEqual(
-    calls.map((args) => args.at(-1)),
-    ["output", "input", "export_desktop_transport", "export_transport"],
-  );
+  const exporters = buildSchemaExporters(exporterRoot, execute);
+  assert.deepEqual(exportSchemas(exporters, "output"), schemas);
+  assert.deepEqual(exportSchemas(exporters, "input"), schemas);
+  assert.deepEqual(exportDesktopSchemas(exporters, true).output, schemas);
+  assert.deepEqual(calls, [
+    {
+      executable: "cargo",
+      args: [
+        "build",
+        "--locked",
+        "--quiet",
+        "--message-format=json,json-render-diagnostics",
+        "-p",
+        "portcove-cli",
+        "--bin",
+        "portcove",
+        "--example",
+        "export_desktop_transport",
+      ],
+    },
+    { executable: exporterPaths.cli, args: ["--json", "schema", "export", "--contract", "output"] },
+    { executable: exporterPaths.cli, args: ["--json", "schema", "export", "--contract", "input"] },
+    { executable: exporterPaths.headless, args: [] },
+    {
+      executable: "cargo",
+      args: [
+        "build",
+        "--locked",
+        "--quiet",
+        "--message-format=json,json-render-diagnostics",
+        "-p",
+        "portcove-desktop",
+        "--example",
+        "export_transport",
+      ],
+    },
+    { executable: exporterPaths.native, args: [] },
+  ]);
   assert.deepEqual(
     stderr.filter((line) => line.includes("started")),
     [
+      "[transport] build-core-headless started\n",
       "[transport] core-output started\n",
       "[transport] core-input started\n",
       "[transport] desktop-headless started\n",
+      "[transport] build-desktop-native started\n",
       "[transport] desktop-native started\n",
       "[transport] desktop-parity started\n",
     ],
   );
-  assert.equal(stderr.filter((line) => /completed \(\d+ms\)/u.test(line)).length, 5);
+  assert.equal(stderr.filter((line) => /completed \(\d+ms\)/u.test(line)).length, 7);
   assert.deepEqual(stdout, ["Headless Desktop contracts match the compiled native host.\n"]);
+});
+
+void test("transport metrics distinguish schema status from execution failure", (t) => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-transport-metrics-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const module = new URL("./check-transport-contract.mts", import.meta.url);
+  // A fresh process enables the real module-level metrics without changing the
+  // parent environment or injecting a replacement metrics implementation.
+  const script = `
+    import assert from "node:assert/strict";
+    import { spawnSync } from "node:child_process";
+    import { exportSchemas } from ${JSON.stringify(module.href)};
+    const data = ${JSON.stringify({ ...schemas, status: schemas.response })};
+    let fail = false;
+    const exporters = {
+      root: process.cwd(), cli: process.execPath, headless: process.execPath,
+      execute: () => fail
+        ? spawnSync(process.execPath, ["--eval", "console.error('intentional exporter failure'); process.exit(23)"], { encoding: "utf8", windowsHide: true })
+        : { status: 0, stderr: "", stdout: JSON.stringify({ ok: true, command: "schema.export", data }) },
+    };
+    assert.deepEqual(exportSchemas(exporters, "output"), data);
+    assert.deepEqual(exportSchemas(exporters, "input"), data);
+    fail = true;
+    try {
+      exportSchemas(exporters, "failure");
+      assert.fail("export failure did not throw");
+    } catch (error) {
+      assert.ok(error instanceof Error && "exitCode" in error);
+      assert.equal(error.exitCode, 23);
+      process.exitCode = error.exitCode;
+    }
+  `;
+  const result = spawnSync(process.execPath, ["--input-type=module", "--eval", script], {
+    env: { ...process.env, PORTCOVE_CI_METRICS_DIR: directory },
+    encoding: "utf8",
+    timeout: 15_000,
+    windowsHide: true,
+  });
+  assert.equal(result.status, 23, result.stderr);
+  assert.match(result.stderr, /core-output completed[\s\S]*core-input completed/u);
+  assert.match(result.stderr, /intentional exporter failure[\s\S]*core-failure failed/u);
+  const { records } = readCiMetrics(directory);
+  assert.equal(records.length, 3);
+  assert.deepEqual(Object.fromEntries(records.map(({ phase, outcome }) => [phase, outcome])), {
+    "transport.core-output": "completed",
+    "transport.core-input": "completed",
+    "transport.core-failure": "failed",
+  });
+  assert.ok(records.find(({ phase }) => phase === "transport.core-failure")?.failure);
+});
+
+void test("failed or unconfirmed Cargo builds never supply executable artifacts", (t) => {
+  const stderr: string[] = [];
+  t.mock.method(process.stderr, "write", (value: string) => {
+    stderr.push(value);
+    return true;
+  });
+  for (const status of [0, 17]) {
+    assert.throws(
+      () =>
+        buildSchemaExporters(exporterRoot, () => ({
+          status,
+          stdout: fixtureBuildMessages()
+            .map((message) => JSON.stringify(message))
+            .join("\n"),
+          stderr: "compiler detail\n",
+          ...(status === 0 ? { error: new Error("spawn failed") } : {}),
+        })),
+      (error: unknown) => {
+        assert.ok(error instanceof Error && "exitCode" in error);
+        assert.equal(error.exitCode, status === 0 ? 1 : 17);
+        return true;
+      },
+    );
+  }
+  assert.match(stderr.join(""), /build-core-headless started[\s\S]*compiler detail[\s\S]*failed/u);
+  assert.doesNotMatch(stderr.join(""), /completed/u);
+
+  const cases: { name: string; change: (messages: Record<string, unknown>[]) => void }[] = [
+    {
+      name: "wrong package",
+      change: (messages) => {
+        fixtureElement(messages, 0).manifest_path = path.resolve("other", "Cargo.toml");
+      },
+    },
+    {
+      name: "wrong target kind",
+      change: (messages) => {
+        fixtureElement(messages, 0).target = { name: "portcove", kind: ["test"] };
+      },
+    },
+    {
+      name: "test harness",
+      change: (messages) => {
+        fixtureElement(messages, 0).profile = { test: true };
+      },
+    },
+    {
+      name: "missing executable",
+      change: (messages) => {
+        fixtureElement(messages, 0).executable = null;
+      },
+    },
+    {
+      name: "relative executable",
+      change: (messages) => {
+        fixtureElement(messages, 0).executable = "target/debug/portcove";
+      },
+    },
+    {
+      name: "ambiguous artifact",
+      change: (messages) => {
+        messages.unshift(fixtureElement(messages, 0));
+      },
+    },
+    {
+      name: "missing headless",
+      change: (messages) => {
+        messages.splice(1, 1);
+      },
+    },
+    {
+      name: "missing completion",
+      change: (messages) => {
+        messages.pop();
+      },
+    },
+    {
+      name: "failed completion",
+      change: (messages) => {
+        fixtureElement(messages, 2).success = false;
+      },
+    },
+    {
+      name: "artifact after completion",
+      change: (messages) => {
+        messages.push(fixtureElement(messages, 0));
+      },
+    },
+  ];
+  for (const { name, change } of cases) {
+    const messages = fixtureBuildMessages();
+    change(messages);
+    let calls = 0;
+    assert.throws(
+      () =>
+        buildSchemaExporters(exporterRoot, (executable) => {
+          assert.equal(executable, "cargo");
+          calls += 1;
+          return {
+            status: 0,
+            stderr: "",
+            stdout: messages.map((message) => JSON.stringify(message)).join("\n"),
+          };
+        }),
+      /Cargo /u,
+      name,
+    );
+    assert.equal(calls, 1, name);
+  }
+  assert.throws(
+    () => buildSchemaExporters(exporterRoot, () => ({ status: 0, stdout: "{invalid", stderr: "" })),
+    SyntaxError,
+  );
 });
 
 void test("export failures retain phase, diagnostics and exit status; invalid JSON is not completion", (t) => {
@@ -90,38 +341,41 @@ void test("export failures retain phase, diagnostics and exit status; invalid JS
     stderr.push(value);
     return true;
   });
+  const exporters = buildSchemaExporters(exporterRoot, (executable, args) =>
+    executable === "cargo"
+      ? fixtureExport(executable, args)
+      : {
+          status: 7,
+          stdout: "",
+          stderr: "export detail\n",
+        },
+  );
+  stderr.length = 0;
   assert.throws(
-    () =>
-      exportSchemas("fixture", "input", () => ({
-        status: 7,
-        stdout: "",
-        stderr: "compiler detail\n",
-      })),
+    () => exportSchemas(exporters, "input"),
     (error: unknown) => {
       assert.ok(error instanceof Error && "exitCode" in error);
       assert.equal(error.exitCode, 7);
       return true;
     },
   );
-  assert.match(
-    stderr.join(""),
-    /core-input started[\s\S]*compiler detail[\s\S]*core-input failed/u,
+  assert.match(stderr.join(""), /core-input started[\s\S]*export detail[\s\S]*core-input failed/u);
+  const invalid = buildSchemaExporters(exporterRoot, (executable, args) =>
+    executable === "cargo"
+      ? fixtureExport(executable, args)
+      : { status: 0, stdout: "invalid", stderr: "" },
   );
   stderr.length = 0;
-  assert.throws(() =>
-    exportSchemas("fixture", "output", () => ({ status: 0, stdout: "invalid", stderr: "" })),
-  );
+  assert.throws(() => exportSchemas(invalid, "output"));
   assert.match(stderr.join(""), /core-output failed/u);
   assert.doesNotMatch(stderr.join(""), /completed/u);
   let calls = 0;
-  assert.throws(
-    () =>
-      exportDesktopSchemas("fixture", true, () => {
-        calls += 1;
-        return { status: null, stdout: null, stderr: undefined, error: new Error("spawn failed") };
-      }),
-    /spawn failed/,
-  );
+  const missing = buildSchemaExporters(exporterRoot, (executable, args) => {
+    if (executable === "cargo") return fixtureExport(executable, args);
+    calls += 1;
+    return { status: null, stdout: null, stderr: undefined, error: new Error("spawn failed") };
+  });
+  assert.throws(() => exportDesktopSchemas(missing, true), /spawn failed/);
   assert.equal(calls, 1);
 });
 
@@ -131,27 +385,69 @@ void test("Desktop malformed envelopes and parity drift produce failed phases", 
     stderr.push(value);
     return true;
   });
-  assert.throws(
-    () => exportDesktopSchemas("fixture", true, () => ({ status: 0, stdout: "{}", stderr: "" })),
-    /invalid envelope/,
+  const invalid = buildSchemaExporters(exporterRoot, (executable, args) =>
+    executable === "cargo"
+      ? fixtureExport(executable, args)
+      : { status: 0, stdout: "{}", stderr: "" },
   );
+  assert.throws(() => exportDesktopSchemas(invalid, true), /invalid envelope/);
   assert.match(stderr.join(""), /desktop-headless failed/);
-  stderr.length = 0;
-  assert.throws(
-    () =>
-      exportDesktopSchemas("fixture", true, (args) => ({
-        status: 0,
-        stderr: "",
-        stdout: JSON.stringify({
-          input: schemas,
-          events: schemas,
-          output: args.includes("portcove-desktop") ? { different: {} } : schemas,
-        }),
-      })),
-    /differ from/,
+  const drifted = buildSchemaExporters(exporterRoot, (executable, args) =>
+    executable === "cargo"
+      ? fixtureExport(executable, args)
+      : {
+          status: 0,
+          stderr: "",
+          stdout: JSON.stringify({
+            input: schemas,
+            events: schemas,
+            output: executable === exporterPaths.native ? { different: {} } : schemas,
+          }),
+        },
   );
+  stderr.length = 0;
+  assert.throws(() => exportDesktopSchemas(drifted, true), /differ from/);
   assert.match(stderr.join(""), /desktop-parity started[\s\S]*desktop-parity failed/u);
   assert.doesNotMatch(stderr.join(""), /desktop-parity completed/u);
+});
+
+void test("native build or execution failure cannot become successful parity", (t) => {
+  const stderr: string[] = [];
+  const stdout: string[] = [];
+  t.mock.method(process.stderr, "write", (value: string) => {
+    stderr.push(value);
+    return true;
+  });
+  t.mock.method(process.stdout, "write", (value: string) => {
+    stdout.push(value);
+    return true;
+  });
+  for (const failBuild of [true, false]) {
+    let nativeExecutions = 0;
+    const exporters = buildSchemaExporters(exporterRoot, (executable, args) => {
+      if (executable === exporterPaths.native) nativeExecutions += 1;
+      if (failBuild ? args.includes("portcove-desktop") : executable === exporterPaths.native)
+        return { status: 19, stdout: "", stderr: "native failure detail\n" };
+      return fixtureExport(executable, args);
+    });
+    stderr.length = 0;
+    assert.throws(
+      () => exportDesktopSchemas(exporters, true),
+      (error: unknown) => {
+        assert.ok(error instanceof Error && "exitCode" in error);
+        assert.equal(error.exitCode, 19);
+        return true;
+      },
+    );
+    assert.equal(nativeExecutions, failBuild ? 0 : 1);
+    assert.match(
+      stderr.join(""),
+      failBuild ? /build-desktop-native failed/u : /\] desktop-native failed/u,
+    );
+    assert.match(stderr.join(""), /native failure detail/u);
+    assert.doesNotMatch(stderr.join(""), /desktop-parity started/u);
+  }
+  assert.deepEqual(stdout, []);
 });
 
 void test("real missing Cargo CLI preserves spawn diagnostics without undefined-stream errors", () => {
@@ -162,35 +458,40 @@ void test("real missing Cargo CLI preserves spawn diagnostics without undefined-
     timeout: 15_000,
   });
   assert.equal(result.status, 1, result.stderr);
-  assert.match(result.stderr, /core-output failed/);
+  assert.match(result.stderr, /build-core-headless failed/);
   assert.match(result.stderr, /ENOENT/);
   assert.doesNotMatch(result.stderr, /TypeError|ERR_INVALID_ARG_TYPE/);
   assert.equal(result.stdout, "");
 });
 
-void test("headless export retains required Windows native parity and explicit capable-host parity", () => {
-  const headless = [
-    "run",
-    "--locked",
-    "--quiet",
-    "-p",
-    "portcove-cli",
-    "--example",
-    "export_desktop_transport",
-  ];
-  const native = [
-    "run",
-    "--locked",
-    "--quiet",
-    "-p",
-    "portcove-desktop",
-    "--example",
-    "export_transport",
-  ];
-  assert.deepEqual(desktopSchemaExporterCommands("linux"), [headless]);
-  assert.deepEqual(desktopSchemaExporterCommands("darwin"), [headless]);
-  assert.deepEqual(desktopSchemaExporterCommands("win32"), [headless, native]);
-  assert.deepEqual(desktopSchemaExporterCommands("linux", true), [headless, native]);
+void test("headless export retains required Windows native parity and explicit capable-host parity", (t) => {
+  t.mock.method(process.stderr, "write", () => true);
+  t.mock.method(process.stdout, "write", () => true);
+  for (const [platform, verifyNative, nativeExpected] of [
+    ["linux", false, false],
+    ["darwin", false, false],
+    ["win32", false, true],
+    ["linux", true, true],
+  ] as const) {
+    const calls: { executable: string; args: string[] }[] = [];
+    const exporters = buildSchemaExporters(exporterRoot, (executable, args) => {
+      calls.push({ executable, args });
+      return fixtureExport(executable, args);
+    });
+    exportDesktopSchemas(exporters, verifyNative, platform);
+    assert.equal(
+      calls.filter(({ executable }) => executable === "cargo").length,
+      nativeExpected ? 2 : 1,
+    );
+    assert.equal(
+      calls.some(({ args }) => args.includes("portcove-desktop")),
+      nativeExpected,
+    );
+    assert.equal(
+      calls.some(({ executable }) => executable === exporterPaths.native),
+      nativeExpected,
+    );
+  }
 });
 
 void test("native parity compares the complete Rust envelope without depending on key order", () => {

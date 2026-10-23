@@ -8,6 +8,14 @@
     "issue_number": 1585,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp",
+    "artwork": {
+      "game_id": 19424,
+      "cover_id": 178349,
+      "image_id": "co3tm5",
+      "image_sha256": "68e6ca1e489d4fd6c637fe82d7021f4563d120f375acda1a1b519921e4bd7327",
+      "game_slug": "armored-core-master-of-arena",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -139,6 +139,16 @@ selected tests. This changes feedback order, not coverage or merge requirements.
 Use the existing complete-diff plan to identify these consumers when choosing
 focused feedback; a hand-written feature filter may omit them.
 
+Ordinary Windows Rust coverage uses one workspace build and a same-attempt
+nextest archive distributed across balanced workers. The current complete and
+selected inventories determine coverage; historical duration hints determine
+only scheduling. The required Rust result includes the archive producer, every
+selected partition and the parallel live transport check. Hosted workers use
+four test slots while local runs retain two; exclusive tests reserve the active
+profile's entire slot count. See [CI timing diagnostics](DEVELOPMENT-TOOLS.md#ci-timing-diagnostics)
+for provenance checks and measurement boundaries. This changes ordinary test
+scheduling without replacing qualification coverage.
+
 Retain failures, diagnose the smallest useful reproduction, and repeat only
 invalidated obligations. Preserve assertions, coverage, cleanup and finite
 termination; an unchanged later pass does not establish a causal repair.

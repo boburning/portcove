@@ -8,6 +8,14 @@
     "issue_number": 365,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/florinp93/xmd-recompiled"
+    "setup_url": "https://github.com/florinp93/xmd-recompiled",
+    "artwork": {
+      "game_id": 5302,
+      "cover_id": 109712,
+      "image_id": "co2cnk",
+      "image_sha256": "147c2825e0dcd6c88d08a03a0ffd1a604467746bc1627a5b873ac18b169d0482",
+      "game_slug": "x-men-destiny",
+      "match_kind": "underlying-game"
+    }
   }
 }

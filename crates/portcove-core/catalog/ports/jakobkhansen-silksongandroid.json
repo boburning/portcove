@@ -8,6 +8,14 @@
     "issue_number": 1884,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/jakobkhansen/SilksongAndroid"
+    "setup_url": "https://github.com/jakobkhansen/SilksongAndroid",
+    "artwork": {
+      "game_id": 115289,
+      "cover_id": 531786,
+      "image_id": "cobebu",
+      "image_sha256": "5ccc0412e66ff956dc125b477e97e355ec0e3449c1fc6b2b94685941439c966b",
+      "game_slug": "hollow-knight-silksong",
+      "match_kind": "underlying-game"
+    }
   }
 }

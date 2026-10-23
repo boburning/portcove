@@ -8,6 +8,14 @@
     "issue_number": 1819,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/elprogramadorloco-arch/jim2-recomp"
+    "setup_url": "https://github.com/elprogramadorloco-arch/jim2-recomp",
+    "artwork": {
+      "game_id": 362054,
+      "cover_id": 485073,
+      "image_id": "coaea9",
+      "image_sha256": "dc7770125e1c258f5b1beb8a85f5cf79826708a4034212103ddb612743cf6568",
+      "game_slug": "earthworm-jim-2--5",
+      "match_kind": "underlying-game"
+    }
   }
 }

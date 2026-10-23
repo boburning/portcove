@@ -8,6 +8,14 @@
     "issue_number": 1597,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/galerians-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/galerians-recomp",
+    "artwork": {
+      "game_id": 54552,
+      "cover_id": 220251,
+      "image_id": "co4py3",
+      "image_sha256": "55a63b62e83d29cc69f8394f5e2d07dce4f010203ec327b9e1377c8f7662e42d",
+      "game_slug": "galerians",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 721,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/elliotttate/DKC1Recomp"
+    "setup_url": "https://github.com/elliotttate/DKC1Recomp",
+    "artwork": {
+      "game_id": 1090,
+      "cover_id": 327551,
+      "image_id": "co70qn",
+      "image_sha256": "a348e97c032a181e95a9c4d1fb3cc43667fda92e39c994c6d3b24b2dce91cd6e",
+      "game_slug": "donkey-kong-country",
+      "match_kind": "underlying-game"
+    }
   }
 }

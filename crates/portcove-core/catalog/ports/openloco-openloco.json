@@ -8,6 +8,14 @@
     "issue_number": 1855,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/OpenLoco/OpenLoco"
+    "setup_url": "https://github.com/OpenLoco/OpenLoco",
+    "artwork": {
+      "game_id": 10737,
+      "cover_id": 218442,
+      "image_id": "co4oju",
+      "image_sha256": "90f17237bab990be10d78aa67afb190685854311ad3f54ffe229e0eb5bc93475",
+      "game_slug": "chris-sawyers-locomotion",
+      "match_kind": "underlying-game"
+    }
   }
 }

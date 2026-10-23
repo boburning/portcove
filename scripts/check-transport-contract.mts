@@ -14,9 +14,9 @@ interface ExportResult {
   stderr: string | null | undefined;
   error?: Error;
 }
-type ExportCommand = (args: string[], root: string) => ExportResult;
-const executeExport: ExportCommand = (args, root) =>
-  spawnSync("cargo", args, {
+type ExportCommand = (executable: string, args: string[], root: string) => ExportResult;
+const executeExport: ExportCommand = (executable, args, root) =>
+  spawnSync(executable, args, {
     cwd: root,
     encoding: "utf8",
     maxBuffer: 16 * 1024 * 1024,
@@ -34,7 +34,9 @@ function exportPhase<T>(phase: string, operation: () => T): T {
   const start = performance.now();
   process.stderr.write(`[transport] ${phase} started\n`);
   try {
-    const result = metrics.measure(`transport.${phase}`, operation);
+    // Schema fields such as `status` are data, not subprocess outcomes. Command
+    // and envelope failures already throw and remain failed timing records.
+    const { value: result } = metrics.measure(`transport.${phase}`, () => ({ value: operation() }));
     process.stderr.write(
       `[transport] ${phase} completed (${Math.round(performance.now() - start)}ms)\n`,
     );
@@ -46,18 +48,128 @@ function exportPhase<T>(phase: string, operation: () => T): T {
     throw error;
   }
 }
-function checkedExport(args: string[], root: string, execute: ExportCommand) {
-  const command = execute(args, root);
+function checkedCommand(executable: string, args: string[], root: string, execute: ExportCommand) {
+  const command = execute(executable, args, root);
+  if (command.stderr) process.stderr.write(command.stderr);
   if (command.error || command.status !== 0) {
-    const diagnostic = command.stderr || command.stdout;
-    if (diagnostic) process.stderr.write(diagnostic);
+    if (!command.stderr && command.stdout) process.stderr.write(command.stdout);
     throw new SchemaExportError(
       command.error?.message ?? "Schema exporter failed",
-      command.status ?? 1,
+      command.status === 0 ? 1 : (command.status ?? 1),
     );
   }
-  const result: unknown = JSON.parse((command.stdout ?? "").trim());
+  return command.stdout ?? "";
+}
+function checkedExport(executable: string, args: string[], root: string, execute: ExportCommand) {
+  const result: unknown = JSON.parse(checkedCommand(executable, args, root, execute).trim());
   return result;
+}
+
+interface ExportTarget {
+  name: string;
+  kind: "bin" | "example";
+}
+interface BuiltSchemaExporters {
+  root: string;
+  cli: string;
+  headless: string;
+  execute: ExportCommand;
+}
+
+function buildExporterExecutables(
+  root: string,
+  packageName: string,
+  manifestPath: string,
+  targets: readonly ExportTarget[],
+  execute: ExportCommand,
+) {
+  const output = checkedCommand(
+    "cargo",
+    [
+      "build",
+      "--locked",
+      "--quiet",
+      "--message-format=json,json-render-diagnostics",
+      "-p",
+      packageName,
+      ...targets.flatMap(({ kind, name }) => [`--${kind}`, name]),
+    ],
+    root,
+    execute,
+  );
+  const manifest = path.resolve(root, manifestPath);
+  const executables = new Map<string, string>();
+  let finished = false;
+  for (const line of output.split(/\r?\n/u)) {
+    // Cargo cannot control arbitrary stdout from procedural macros. Only its
+    // JSON records identify artifacts; other output remains diagnostic text.
+    if (!line.startsWith("{")) {
+      if (line.trim()) process.stderr.write(`${line}\n`);
+      continue;
+    }
+    const message: unknown = JSON.parse(line);
+    if (!isRecord(message)) continue;
+    if (message.reason === "build-finished") {
+      if (finished || message.success !== true)
+        throw new Error("Cargo exporter build did not finish successfully");
+      finished = true;
+      continue;
+    }
+    if (
+      message.reason !== "compiler-artifact" ||
+      typeof message.manifest_path !== "string" ||
+      !path.isAbsolute(message.manifest_path) ||
+      path.normalize(message.manifest_path) !== manifest ||
+      !isRecord(message.target)
+    )
+      continue;
+    const artifactTarget = message.target;
+    const target = targets.find(
+      ({ name, kind }) =>
+        artifactTarget.name === name &&
+        Array.isArray(artifactTarget.kind) &&
+        artifactTarget.kind.length === 1 &&
+        artifactTarget.kind[0] === kind,
+    );
+    if (!target) continue;
+    if (
+      finished ||
+      !isRecord(message.profile) ||
+      message.profile.test !== false ||
+      typeof message.executable !== "string" ||
+      !path.isAbsolute(message.executable) ||
+      message.executable.includes("\0")
+    )
+      throw new Error(`Cargo did not report a runnable exporter for ${target.name}`);
+    if (executables.has(target.name))
+      throw new Error(`Cargo reported ambiguous exporter artifacts for ${target.name}`);
+    executables.set(target.name, message.executable);
+  }
+  if (!finished) throw new Error("Cargo exporter build is missing its successful completion");
+  return targets.map(({ name }) => {
+    const executable = executables.get(name);
+    if (!executable) throw new Error(`Cargo exporter build is missing ${name}`);
+    return executable;
+  });
+}
+
+export function buildSchemaExporters(root: string, execute = executeExport): BuiltSchemaExporters {
+  return exportPhase("build-core-headless", () => {
+    // Both targets belong to the CLI package. Keep the native host out of this
+    // invocation so its dependency features cannot affect the headless contract.
+    const [cli, headless] = buildExporterExecutables(
+      root,
+      "portcove-cli",
+      "crates/portcove-cli/Cargo.toml",
+      [
+        { name: "portcove", kind: "bin" },
+        { name: "export_desktop_transport", kind: "example" },
+      ],
+      execute,
+    );
+    if (!cli || !headless) throw new Error("CLI schema exporter inventory is incomplete");
+    return { root, cli, headless, execute };
+  });
 }
 
 function capture(match: RegExpMatchArray | undefined, index: number): string {
@@ -568,24 +680,13 @@ function shippedFrontendSources(directory: string): string[] {
   return sources;
 }
 
-export function exportSchemas(root: string, contract: string, execute = executeExport) {
+export function exportSchemas(exporters: BuiltSchemaExporters, contract: string) {
   return exportPhase(`core-${contract}`, () => {
     const envelope = checkedExport(
-      [
-        "run",
-        "--locked",
-        "--quiet",
-        "-p",
-        "portcove-cli",
-        "--",
-        "--json",
-        "schema",
-        "export",
-        "--contract",
-        contract,
-      ],
-      root,
-      execute,
+      exporters.cli,
+      ["--json", "schema", "export", "--contract", contract],
+      exporters.root,
+      exporters.execute,
     );
     if (
       !isRecord(envelope) ||
@@ -599,33 +700,20 @@ export function exportSchemas(root: string, contract: string, execute = executeE
   });
 }
 
-export function desktopSchemaExporterCommands(platform: string, verifyNative = false) {
-  const commands = [
-    ["run", "--locked", "--quiet", "-p", "portcove-cli", "--example", "export_desktop_transport"],
-  ];
-  if (platform === "win32" || verifyNative)
-    commands.push([
-      "run",
-      "--locked",
-      "--quiet",
-      "-p",
-      "portcove-desktop",
-      "--example",
-      "export_transport",
-    ]);
-  return commands;
-}
-
 export function checkDesktopExporterParity(headless: unknown, native: unknown) {
   return renderTransportSchemas(headless) === renderTransportSchemas(native)
     ? []
     : ["Headless Desktop schemas differ from the compiled native host"];
 }
 
-export function exportDesktopSchemas(root: string, verifyNative: boolean, execute = executeExport) {
-  const results = desktopSchemaExporterCommands(process.platform, verifyNative).map((args, index) =>
-    exportPhase(index === 0 ? "desktop-headless" : "desktop-native", () => {
-      const result = checkedExport(args, root, execute);
+export function exportDesktopSchemas(
+  exporters: BuiltSchemaExporters,
+  verifyNative: boolean,
+  platform = process.platform,
+) {
+  const exportDesktop = (phase: string, executable: string) =>
+    exportPhase(phase, () => {
+      const result = checkedExport(executable, [], exporters.root, exporters.execute);
       if (
         !isRecord(result) ||
         !isRecord(result.input) ||
@@ -634,18 +722,28 @@ export function exportDesktopSchemas(root: string, verifyNative: boolean, execut
       )
         throw new Error("Desktop exporter returned an invalid envelope");
       return result;
-    }),
-  );
-  if (results.length === 2) {
+    });
+  const headless = exportDesktop("desktop-headless", exporters.headless);
+  if (platform === "win32" || verifyNative) {
+    const nativeExecutable = exportPhase("build-desktop-native", () => {
+      const [executable] = buildExporterExecutables(
+        exporters.root,
+        "portcove-desktop",
+        "apps/desktop/src-tauri/Cargo.toml",
+        [{ name: "export_transport", kind: "example" }],
+        exporters.execute,
+      );
+      if (!executable) throw new Error("Native schema exporter inventory is incomplete");
+      return executable;
+    });
+    const native = exportDesktop("desktop-native", nativeExecutable);
     exportPhase("desktop-parity", () => {
-      const failures = checkDesktopExporterParity(results[0], results[1]);
+      const failures = checkDesktopExporterParity(headless, native);
       if (failures.length) throw new Error(failures.join("\n"));
     });
     console.log("Headless Desktop contracts match the compiled native host.");
   }
-  const result = results[0];
-  if (!result) throw new Error("Desktop exporter inventory is empty");
-  return result;
+  return headless;
 }
 
 export function checkRepositoryDesktopExposure(root: string) {
@@ -702,7 +800,8 @@ function main() {
     console.log("Desktop command/event exposure matches Rust.");
     return;
   }
-  const schemas = exportSchemas(root, "output");
+  const exporters = buildSchemaExporters(root);
+  const schemas = exportSchemas(exporters, "output");
   const typesPath = values.types
     ? path.resolve(values.types)
     : path.join(root, "apps", "desktop", "src", "transport-schemas.generated.json");
@@ -712,7 +811,7 @@ function main() {
   const sourceText = fs.readFileSync(typesPath, "utf8");
 
   const failures = checkTransportContract(schemas, sourceText);
-  const inputSchemas = exportSchemas(root, "input");
+  const inputSchemas = exportSchemas(exporters, "input");
   const requests = Object.fromEntries(
     [
       "source_discovery_request",
@@ -729,7 +828,7 @@ function main() {
       (message) => `Request inputs: ${message}`,
     ),
   );
-  const desktop = exportDesktopSchemas(root, values["native-parity"]);
+  const desktop = exportDesktopSchemas(exporters, values["native-parity"]);
   for (const contract of ["input", "output"]) {
     const target =
       contract === "output" && values["host-types"]

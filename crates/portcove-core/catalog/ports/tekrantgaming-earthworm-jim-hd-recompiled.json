@@ -8,6 +8,14 @@
     "issue_number": 1820,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/TekRantGaming/earthworm-jim-hd-recompiled"
+    "setup_url": "https://github.com/TekRantGaming/earthworm-jim-hd-recompiled",
+    "artwork": {
+      "game_id": 20420,
+      "cover_id": 117634,
+      "image_id": "co2irm",
+      "image_sha256": "471bf461081ae9a3a0737da24a5c559379bcf238bc1eca0f588b088be728051a",
+      "game_slug": "earthworm-jim-hd",
+      "match_kind": "underlying-game"
+    }
   }
 }

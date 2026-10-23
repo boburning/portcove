@@ -8,6 +8,14 @@
     "issue_number": 1862,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/TekRantGaming/outpost-kaloki-x-recompiled"
+    "setup_url": "https://github.com/TekRantGaming/outpost-kaloki-x-recompiled",
+    "artwork": {
+      "game_id": 20508,
+      "cover_id": 228956,
+      "image_id": "co4wnw",
+      "image_sha256": "ee653bd02fb37753186e0e25e04849eb87668e65ad0cff757578d3a4fe462cb8",
+      "game_slug": "outpost-kaloki-x",
+      "match_kind": "underlying-game"
+    }
   }
 }

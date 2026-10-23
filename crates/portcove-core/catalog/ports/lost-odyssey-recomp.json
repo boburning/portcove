@@ -8,6 +8,14 @@
     "issue_number": 744,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/freefrank/LostOdysseyRecomp"
+    "setup_url": "https://github.com/freefrank/LostOdysseyRecomp",
+    "artwork": {
+      "game_id": 7057,
+      "cover_id": 178444,
+      "image_id": "co3tos",
+      "image_sha256": "c066384a5aeb7b43d45f30b695b19ab3ff3507c62a3f0ca1dcc577a57c96b65d",
+      "game_slug": "lost-odyssey",
+      "match_kind": "underlying-game"
+    }
   }
 }

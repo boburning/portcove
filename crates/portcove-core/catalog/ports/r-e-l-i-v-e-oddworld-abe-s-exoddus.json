@@ -8,6 +8,14 @@
     "issue_number": 122,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/AliveTeam/alive_reversing"
+    "setup_url": "https://github.com/AliveTeam/alive_reversing",
+    "artwork": {
+      "game_id": 1000,
+      "cover_id": 173511,
+      "image_id": "co3pvr",
+      "image_sha256": "b4ebd4e1951371f2eb6a016245ac3ae03cf0d740bea4267f6b8c3da23dae74f1",
+      "game_slug": "oddworld-abe-s-exoddus",
+      "match_kind": "underlying-game"
+    }
   }
 }

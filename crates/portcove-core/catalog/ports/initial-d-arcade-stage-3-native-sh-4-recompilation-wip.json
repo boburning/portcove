@@ -8,6 +8,14 @@
     "issue_number": 372,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/distilledorion-sketch/Initial-D-Arcade-Stage-3-Native-SH-4-Recompilation-WIP-"
+    "setup_url": "https://github.com/distilledorion-sketch/Initial-D-Arcade-Stage-3-Native-SH-4-Recompilation-WIP-",
+    "artwork": {
+      "game_id": 196740,
+      "cover_id": 440228,
+      "image_id": "co9fok",
+      "image_sha256": "88abbcf6173566371bfa0c09ded8749f289d54ba8a026d145b473e6854457dcc",
+      "game_slug": "initial-d-arcade-stage-3",
+      "match_kind": "underlying-game"
+    }
   }
 }

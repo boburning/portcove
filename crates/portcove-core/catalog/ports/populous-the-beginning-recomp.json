@@ -8,6 +8,14 @@
     "issue_number": 1537,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/veritr1x/populous-recomp"
+    "setup_url": "https://github.com/veritr1x/populous-recomp",
+    "artwork": {
+      "game_id": 5525,
+      "cover_id": 100323,
+      "image_id": "co25er",
+      "image_sha256": "e41e163b6dc71ebbb75dedaa74cf7d8bfe14b66989166513cead45dd86863149",
+      "game_slug": "populous-the-beginning",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 447,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp",
+    "artwork": {
+      "game_id": 8600,
+      "cover_id": 398165,
+      "image_id": "co8j85",
+      "image_sha256": "ab4ef365d47d1c79def199cff02846100a7cbbfe2ee69a6253ed0d12c572130c",
+      "game_slug": "fear-effect",
+      "match_kind": "underlying-game"
+    }
   }
 }

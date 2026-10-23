@@ -28,6 +28,14 @@
       ],
       "warnings": ["This project has not been verified for play through Portcove."],
       "help_url": "https://github.com/Interkarma/daggerfall-unity/blob/v1.1.1-cve-2025/README.md"
+    },
+    "artwork": {
+      "game_id": 53,
+      "cover_id": 91103,
+      "image_id": "co1yan",
+      "image_sha256": "d3363948d57336edfdb56921fbc4c174aa5b6d2f653b1ccd58a4c003f574da70",
+      "game_slug": "the-elder-scrolls-ii-daggerfall",
+      "match_kind": "underlying-game"
     }
   }
 }

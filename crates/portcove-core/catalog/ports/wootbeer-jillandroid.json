@@ -8,6 +8,14 @@
     "issue_number": 1834,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/wootbeer/jillandroid"
+    "setup_url": "https://github.com/wootbeer/jillandroid",
+    "artwork": {
+      "game_id": 9641,
+      "cover_id": 227910,
+      "image_id": "co4vuu",
+      "image_sha256": "ec8df70a1a71273622ecd3a41852f1f4e90cd335c41f32a0f78a6f65c8776ded",
+      "game_slug": "jill-of-the-jungle",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1571,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/bryantmh/rush2recompiled"
+    "setup_url": "https://github.com/bryantmh/rush2recompiled",
+    "artwork": {
+      "game_id": 3593,
+      "cover_id": 152863,
+      "image_id": "co39y7",
+      "image_sha256": "a26e738caa58ca0892e77603340872603a29290a6fab8fe40dfe32aca3a98791",
+      "game_slug": "rush-2-extreme-racing-usa",
+      "match_kind": "underlying-game"
+    }
   }
 }

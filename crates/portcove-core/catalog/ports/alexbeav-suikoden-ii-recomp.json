@@ -8,6 +8,14 @@
     "issue_number": 1608,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp",
+    "artwork": {
+      "game_id": 1454,
+      "cover_id": 90946,
+      "image_id": "co1y6a",
+      "image_sha256": "f873de55d28c6ceb08a27ad6705831271e04f80905832c6f6626b0bc436b9178",
+      "game_slug": "suikoden-ii",
+      "match_kind": "underlying-game"
+    }
   }
 }

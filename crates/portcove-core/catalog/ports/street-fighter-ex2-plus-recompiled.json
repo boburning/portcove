@@ -8,6 +8,14 @@
     "issue_number": 1117,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/strider973/Street-Fighter-EX2-Plus-Recompiled"
+    "setup_url": "https://github.com/strider973/Street-Fighter-EX2-Plus-Recompiled",
+    "artwork": {
+      "game_id": 44965,
+      "cover_id": 125658,
+      "image_id": "co2oyi",
+      "image_sha256": "1a0bf6dab6ae344497a77abaaa58f0111ac941a82e779efc2df27c5770f594cd",
+      "game_slug": "street-fighter-ex2-plus",
+      "match_kind": "underlying-game"
+    }
   }
 }

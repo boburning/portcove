@@ -8,6 +8,14 @@
     "issue_number": 324,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/NJH-1001/KTDIR"
+    "setup_url": "https://github.com/NJH-1001/KTDIR",
+    "artwork": {
+      "game_id": 20255,
+      "cover_id": 132231,
+      "image_id": "co2u13",
+      "image_sha256": "8bbd7446c8888c8f3ae1b04c135a9e43acd76f643356bfb133ea7090a41df1d5",
+      "game_slug": "kileak-the-dna-imperative",
+      "match_kind": "underlying-game"
+    }
   }
 }

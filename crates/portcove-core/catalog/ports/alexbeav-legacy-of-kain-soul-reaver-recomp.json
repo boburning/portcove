@@ -8,6 +8,14 @@
     "issue_number": 456,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp",
+    "artwork": {
+      "game_id": 4122,
+      "cover_id": 91101,
+      "image_id": "co1yal",
+      "image_sha256": "e604bb0235b9239088dacc44834b6729fd02a14b3e2b134baa354257ae35897f",
+      "game_slug": "legacy-of-kain-soul-reaver",
+      "match_kind": "underlying-game"
+    }
   }
 }

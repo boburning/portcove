@@ -8,6 +8,14 @@
     "issue_number": 478,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp",
+    "artwork": {
+      "game_id": 24131,
+      "cover_id": 480584,
+      "image_id": "coaatk",
+      "image_sha256": "9b4951eb9b721fb20d75d62d5dd31a9b1a320a3adec8981234c543a95757e533",
+      "game_slug": "silent-bomber",
+      "match_kind": "underlying-game"
+    }
   }
 }

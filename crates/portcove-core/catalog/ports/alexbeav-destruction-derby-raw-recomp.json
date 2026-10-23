@@ -8,6 +8,14 @@
     "issue_number": 1590,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp",
+    "artwork": {
+      "game_id": 1169,
+      "cover_id": 371176,
+      "image_id": "co7yeg",
+      "image_sha256": "57552e4b598b6db052e91116fc2f2ac97f58dd7c6e68b3515182966fb7974124",
+      "game_slug": "destruction-derby-raw",
+      "match_kind": "underlying-game"
+    }
   }
 }

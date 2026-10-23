@@ -8,6 +8,14 @@
     "issue_number": 1843,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alariq/mc2"
+    "setup_url": "https://github.com/alariq/mc2",
+    "artwork": {
+      "game_id": 19194,
+      "cover_id": 162632,
+      "image_id": "co3hhk",
+      "image_sha256": "15382dda32aab4766cda493eaa9080dd4b155ae663289e59da0b8c8e994beac8",
+      "game_slug": "mechcommander-2",
+      "match_kind": "underlying-game"
+    }
   }
 }

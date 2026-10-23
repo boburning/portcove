@@ -8,6 +8,14 @@
     "issue_number": 332,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp"
+    "setup_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp",
+    "artwork": {
+      "game_id": 2342,
+      "cover_id": 289642,
+      "image_id": "co67hm",
+      "image_sha256": "6024ad15454ac8e18d972b6d5544e85bb975cdde2f1717c3aff547e351b36ff2",
+      "game_slug": "mario-kart-64",
+      "match_kind": "underlying-game"
+    }
   }
 }

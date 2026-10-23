@@ -8,6 +8,14 @@
     "issue_number": 1903,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/nhaar/Waddle-Forever"
+    "setup_url": "https://github.com/nhaar/Waddle-Forever",
+    "artwork": {
+      "game_id": 92589,
+      "cover_id": 100120,
+      "image_id": "co2594",
+      "image_sha256": "89e4cf3e66692204f7340e756fd83bd86b824a7cc952975f75f748f665eb13a9",
+      "game_slug": "club-penguin",
+      "match_kind": "underlying-game"
+    }
   }
 }

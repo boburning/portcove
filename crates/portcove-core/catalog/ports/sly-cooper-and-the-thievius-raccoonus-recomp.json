@@ -8,6 +8,14 @@
     "issue_number": 171,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/chrisking1981/sly1-recomp"
+    "setup_url": "https://github.com/chrisking1981/sly1-recomp",
+    "artwork": {
+      "game_id": 1798,
+      "cover_id": 79083,
+      "image_id": "co1p0r",
+      "image_sha256": "6f1e2f5e93d9ebf16ae9701088953a532c1055b8e0d29d306e9c6723cc3e80c5",
+      "game_slug": "sly-cooper-and-the-thievius-raccoonus",
+      "match_kind": "underlying-game"
+    }
   }
 }

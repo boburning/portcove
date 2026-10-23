@@ -8,6 +8,14 @@
     "issue_number": 459,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp",
+    "artwork": {
+      "game_id": 4002,
+      "cover_id": 84942,
+      "image_id": "co1tji",
+      "image_sha256": "a7a6b4931e4693816a02c5e8bd22b7c6cfca8b7f6f4d58a2c65e9c45504c62ff",
+      "game_slug": "medievil-ii--1",
+      "match_kind": "underlying-game"
+    }
   }
 }

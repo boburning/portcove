@@ -8,6 +8,14 @@
     "issue_number": 1578,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/vs-sr-dev/pc-deepfear"
+    "setup_url": "https://github.com/vs-sr-dev/pc-deepfear",
+    "artwork": {
+      "game_id": 46057,
+      "cover_id": 354153,
+      "image_id": "co7l9l",
+      "image_sha256": "8055f6f1ada2cd3c7e86cede012d8c098087200712db478b5290eda1e68c7883",
+      "game_slug": "deep-fear",
+      "match_kind": "underlying-game"
+    }
   }
 }

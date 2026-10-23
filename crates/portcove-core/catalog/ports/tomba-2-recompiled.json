@@ -8,6 +8,14 @@
     "issue_number": 169,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/Tomba2Recomp"
+    "setup_url": "https://github.com/mstan/Tomba2Recomp",
+    "artwork": {
+      "game_id": 4100,
+      "cover_id": 240795,
+      "image_id": "co55sr",
+      "image_sha256": "c3845309b87055c9c8744fbd6cd2549c6e00a19a72cee4ff8449ca3d0cc2e66e",
+      "game_slug": "tomba-2-the-evil-swine-return",
+      "match_kind": "underlying-game"
+    }
   }
 }

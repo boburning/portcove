@@ -8,6 +8,14 @@
     "issue_number": 449,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-viii-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-viii-recomp",
+    "artwork": {
+      "game_id": 425,
+      "cover_id": 138937,
+      "image_id": "co2z7d",
+      "image_sha256": "0eb01a9e190dda911b8f9216ee23e69ca198691b5372f0b76f33652282498c9c",
+      "game_slug": "final-fantasy-viii",
+      "match_kind": "underlying-game"
+    }
   }
 }

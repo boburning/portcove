@@ -8,6 +8,14 @@
     "issue_number": 340,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/snesrev/sm"
+    "setup_url": "https://github.com/snesrev/sm",
+    "artwork": {
+      "game_id": 1103,
+      "cover_id": 265426,
+      "image_id": "co5osy",
+      "image_sha256": "6c552ed7337ed7a6a68fd8502d2885747bccd350af9cd4aa081f1f08060c5f6d",
+      "game_slug": "super-metroid",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -102,13 +102,17 @@ pub(crate) struct IndexedCatalogFixture<'a> {
 
 impl<'a> IndexedCatalogFixture<'a> {
     pub(crate) fn new(catalog: &'a crate::Catalog, port_id: &str) -> Self {
+        // Keep a noncanonical byte witness for exact retention tests without
+        // repeating pretty-print whitespace throughout the complete projection.
+        let mut contract = serde_json::to_vec(&serde_json::json!({
+            "contract_schema":1,"representation":"catalog_projection",
+            "catalog":catalog.authoritative_document()
+        }))
+        .unwrap();
+        contract.push(b'\n');
         Self {
             port: catalog.port(port_id).unwrap(),
-            contract: serde_json::to_vec_pretty(&serde_json::json!({
-                "contract_schema":1,"representation":"catalog_projection",
-                "catalog":catalog.authoritative_document()
-            }))
-            .unwrap(),
+            contract,
         }
     }
 

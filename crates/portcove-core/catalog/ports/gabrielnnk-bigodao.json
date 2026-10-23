@@ -8,6 +8,14 @@
     "issue_number": 1799,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/GABRIELNNK/Bigodao"
+    "setup_url": "https://github.com/GABRIELNNK/Bigodao",
+    "artwork": {
+      "game_id": 1072,
+      "cover_id": 94841,
+      "image_id": "co216h",
+      "image_sha256": "5873adbc749035989cbc2d03e7f5571859f2b29d1a05d964b741a089aac0ab83",
+      "game_slug": "wario-land-super-mario-land-3",
+      "match_kind": "underlying-game"
+    }
   }
 }

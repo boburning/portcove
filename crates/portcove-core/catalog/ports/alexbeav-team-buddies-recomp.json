@@ -8,6 +8,14 @@
     "issue_number": 1610,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp",
+    "artwork": {
+      "game_id": 45024,
+      "cover_id": 343072,
+      "image_id": "co7cps",
+      "image_sha256": "57e24550df3b8305738c77b3347b775581e3321e1834d714e3ff632e68258712",
+      "game_slug": "team-buddies",
+      "match_kind": "underlying-game"
+    }
   }
 }

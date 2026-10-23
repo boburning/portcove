@@ -8,6 +8,14 @@
     "issue_number": 426,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp",
+    "artwork": {
+      "game_id": 1960,
+      "cover_id": 88564,
+      "image_id": "co1wc4",
+      "image_sha256": "7a15bca139bc9bf733b45f019188df176908dc82c0ab7250a4ca4f75242ccf9f",
+      "game_slug": "alone-in-the-dark-the-new-nightmare",
+      "match_kind": "underlying-game"
+    }
   }
 }

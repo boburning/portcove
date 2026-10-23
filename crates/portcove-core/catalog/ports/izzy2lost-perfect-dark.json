@@ -8,6 +8,14 @@
     "issue_number": 1867,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/izzy2lost/perfect_dark"
+    "setup_url": "https://github.com/izzy2lost/perfect_dark",
+    "artwork": {
+      "game_id": 1463,
+      "cover_id": 336883,
+      "image_id": "co77xv",
+      "image_sha256": "b4527efe3caaec5486b90fecdad0978574ce819f4024e5dd29f4565443871afc",
+      "game_slug": "perfect-dark",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 477,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp",
+    "artwork": {
+      "game_id": 966,
+      "cover_id": 134615,
+      "image_id": "co2vvb",
+      "image_sha256": "b31e1d21e58215c80168692466d4cdf392072546e5060e438df440ba56f5f4b3",
+      "game_slug": "resident-evil-3-nemesis",
+      "match_kind": "underlying-game"
+    }
   }
 }

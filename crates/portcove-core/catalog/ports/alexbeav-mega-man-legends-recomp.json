@@ -8,6 +8,14 @@
     "issue_number": 462,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp",
+    "artwork": {
+      "game_id": 1752,
+      "cover_id": 515296,
+      "image_id": "cob1ls",
+      "image_sha256": "97e5c9d299d1547a95db9079571c26e2655b4695985fdca68631b411c9b17d47",
+      "game_slug": "mega-man-legends",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -59,7 +59,7 @@ void test("beta Rust qualification skips only the inapplicable Intel jobs and re
     evaluate({
       group: "rust",
       plan: selectedPlan,
-      fast: { fast_rust: "skipped" },
+      fast: { fast_rust: "skipped", fast_rust_tests: "skipped", fast_rust_transport: "skipped" },
       qualification,
     });
   assert.match(check(results), /Accepted qualification/);
@@ -161,7 +161,7 @@ void test("fast plans require only selected fast group work", () => {
   assert.match(
     evaluate({
       group: "rust",
-      fast: { fast_rust: "skipped" },
+      fast: { fast_rust: "skipped", fast_rust_tests: "skipped", fast_rust_transport: "skipped" },
       qualification: { rust_full: "skipped" },
     }),
     /Accepted fast/u,
@@ -193,17 +193,29 @@ void test("qualification plans require qualification and reject fast execution",
   );
 });
 
-void test("ordinary native changes use the Windows lane without secondary producers", () => {
+void test("ordinary native changes require the Windows build, every partition and live transport", () => {
   const platformPlan = plan("apps/desktop/src-tauri/src/window_windows.rs");
   const inputs = {
     plan: platformPlan,
     group: "rust",
-    fast: { fast_rust: "success" },
+    fast: { fast_rust: "success", fast_rust_tests: "success", fast_rust_transport: "success" },
     targeted: {},
     qualification: { rust_full: "skipped" },
   };
   assert.match(evaluate(inputs), /Accepted fast/u);
-  assert.throws(() => evaluate({ ...inputs, fast: { fast_rust: "skipped" } }), /expected success/u);
+  for (const producer of Object.keys(inputs.fast)) {
+    for (const result of ["skipped", "failure", "cancelled", "timed_out", ""])
+      assert.throws(
+        () => evaluate({ ...inputs, fast: { ...inputs.fast, [producer]: result } }),
+        /expected success/u,
+      );
+    const missing: Record<string, string> = { ...inputs.fast };
+    delete missing[producer];
+    assert.throws(
+      () => evaluate({ ...inputs, fast: missing }),
+      /build, partition execution and live transport/u,
+    );
+  }
   assert.throws(
     () => evaluate({ ...inputs, targeted: { obsolete_platform: "success" } }),
     /expected skipped/u,

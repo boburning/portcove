@@ -8,6 +8,14 @@
     "issue_number": 1950,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/matteo-pacini/theme-hospital-enhanced"
+    "setup_url": "https://github.com/matteo-pacini/theme-hospital-enhanced",
+    "artwork": {
+      "game_id": 1624,
+      "cover_id": 182013,
+      "image_id": "co3wfx",
+      "image_sha256": "a94b929334cfd7a64b4e8c53084db5af44a1bc3a32e5c2f952d1aadcfa4335c4",
+      "game_slug": "theme-hospital",
+      "match_kind": "underlying-game"
+    }
   }
 }

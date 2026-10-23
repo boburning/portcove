@@ -8,6 +8,14 @@
     "issue_number": 1567,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/spacestate1/namco22-decompile"
+    "setup_url": "https://github.com/spacestate1/namco22-decompile",
+    "artwork": {
+      "game_id": 66860,
+      "cover_id": 48323,
+      "image_id": "krccm0xixo6wbgv3a0xj",
+      "image_sha256": "66d45b5fab2eb9c8da3b3db65c733f806289f4ea142137cf971edc739af897d8",
+      "game_slug": "tokyo-wars",
+      "match_kind": "underlying-game"
+    }
   }
 }

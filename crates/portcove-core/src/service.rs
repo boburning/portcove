@@ -921,9 +921,14 @@ impl PortcoveService {
             status,
             &registered_sources,
             &mut HashMap::new(),
-            retained_catalog,
+            retained_catalog.as_ref(),
         )?;
-        let status = self.with_definition_operations(catalog, port, status)?;
+        let status = self.with_definition_operations(
+            catalog,
+            port,
+            status,
+            retained_catalog.as_ref().ok().and_then(Option::as_ref),
+        )?;
         self.with_port_actions(port, status, &registered_sources)
     }
 
@@ -985,9 +990,14 @@ impl PortcoveService {
                     status,
                     &registered_sources,
                     &mut checked_sources,
-                    retained_catalog,
+                    retained_catalog.as_ref(),
                 )?;
-                let status = self.with_definition_operations(catalog, port, status)?;
+                let status = self.with_definition_operations(
+                    catalog,
+                    port,
+                    status,
+                    retained_catalog.as_ref().ok().and_then(Option::as_ref),
+                )?;
                 self.with_port_actions(port, status, &registered_sources)
                     .map(|status| self.with_rollback_assessment(status))
             })
@@ -1606,7 +1616,7 @@ impl PortcoveService {
         mut status: PortStatus,
         registered_sources: &HashMap<String, SourceRecord>,
         checked_sources: &mut HashMap<String, SourceHealth>,
-        retained_catalog: Result<Option<Catalog>>,
+        retained_catalog: std::result::Result<&Option<Catalog>, &PortcoveError>,
     ) -> Result<PortStatus> {
         let mut blockers = Vec::new();
         let retained_catalog = match retained_catalog {
@@ -1904,15 +1914,49 @@ impl PortcoveService {
         current_catalog: &Catalog,
         current_port: &PortDefinition,
         mut status: PortStatus,
+        retained_catalog: Option<&Catalog>,
     ) -> Result<PortStatus> {
         status.definition_operations.clear();
+        if current_catalog
+            .definition_selection(&current_port.id)
+            .is_none()
+            && !status
+                .external_runtime
+                .as_ref()
+                .is_some_and(|record| record.retained_definition.is_some())
+            && retained_catalog
+                .and_then(|catalog| catalog.definition_selection(&current_port.id))
+                .is_none()
+        {
+            return Ok(status);
+        }
+        self.library
+            .with_definition_operation_assessment(|assessment| {
+                self.assess_status_definition_operations(
+                    current_catalog,
+                    current_port,
+                    status,
+                    retained_catalog,
+                    assessment,
+                )
+            })
+    }
+
+    fn assess_status_definition_operations(
+        &self,
+        current_catalog: &Catalog,
+        current_port: &PortDefinition,
+        mut status: PortStatus,
+        retained_catalog: Option<&Catalog>,
+        assessment: &crate::definition_candidate::selection::DefinitionOperationAssessment<'_>,
+    ) -> Result<PortStatus> {
         let admission_operation = if current_port.release.provider == ReleaseSource::UserPrepared {
             DefinitionOperation::RegisterExternal
         } else {
             DefinitionOperation::Install
         };
         if let Some(identity) = current_catalog.definition_selection(&current_port.id) {
-            let mut eligibility = self.library.assess_definition_operation(
+            let mut eligibility = assessment.assess(
                 identity,
                 DefinitionOperationContext::observed(admission_operation, false, true),
             )?;
@@ -1943,7 +1987,7 @@ impl PortcoveService {
             if let Some(external) = status.external_runtime.as_ref()
                 && let Some(identity) = external.retained_definition.as_ref()
             {
-                let launch = self.library.assess_definition_operation(
+                let launch = assessment.assess(
                     identity,
                     DefinitionOperationContext::observed(DefinitionOperation::Launch, true, true),
                 )?;
@@ -1969,7 +2013,12 @@ impl PortcoveService {
         }) {
             return Ok(status);
         }
-        let installed_catalog = self.installed_catalog(active)?;
+        // This exact immutable interpretation was already read and checked for
+        // launch readiness in the same status calculation. Execution retains
+        // its independent manifest, policy and filesystem checks.
+        let installed_catalog = retained_catalog.ok_or_else(|| {
+            PortcoveError::state("installed status has no retained catalog interpretation")
+        })?;
         let Some(identity) = installed_catalog.definition_selection(&active.port_id) else {
             return Ok(status);
         };
@@ -1980,7 +2029,7 @@ impl PortcoveService {
                 .push(DefinitionOperationAssessment {
                     operation: DefinitionOperation::Prepare,
                     eligibility: self.with_curated_local_assessment(
-                        self.library.assess_definition_operation(
+                        assessment.assess(
                             identity,
                             DefinitionOperationContext::observed(
                                 DefinitionOperation::Prepare,
@@ -1994,7 +2043,7 @@ impl PortcoveService {
                 });
         }
         let launch = self.with_curated_local_assessment(
-            self.library.assess_definition_operation(
+            assessment.assess(
                 identity,
                 self.managed_launch_context(Some(identity), active)?,
             )?,
@@ -12108,7 +12157,7 @@ fn main() {
                 stale,
                 &HashMap::new(),
                 &mut HashMap::new(),
-                retained_catalog,
+                retained_catalog.as_ref(),
             )
             .unwrap();
         let status = service

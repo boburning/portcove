@@ -8,6 +8,14 @@
     "issue_number": 1914,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port"
+    "setup_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port",
+    "artwork": {
+      "game_id": 2162,
+      "cover_id": 129525,
+      "image_id": "co2rxx",
+      "image_sha256": "a91a1393cd7f8423249a643e0fb984acb90c75660bdd13030e70ebab68a58045",
+      "game_slug": "zombies-ate-my-neighbors",
+      "match_kind": "underlying-game"
+    }
   }
 }

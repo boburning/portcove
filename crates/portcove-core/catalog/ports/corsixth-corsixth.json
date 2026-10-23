@@ -28,6 +28,14 @@
       ],
       "warnings": ["This project has not been verified for play through Portcove."],
       "help_url": "https://github.com/CorsixTH/CorsixTH/blob/v0.70.1/README.md"
+    },
+    "artwork": {
+      "game_id": 127904,
+      "cover_id": 87792,
+      "image_id": "co1vqo",
+      "image_sha256": "85d8be21323ee5747b4316fbffc8045bff5916899e2746958c8beca93f894f2e",
+      "game_slug": "corsixth",
+      "match_kind": "port"
     }
   }
 }

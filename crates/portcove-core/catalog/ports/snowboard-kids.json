@@ -8,6 +8,14 @@
     "issue_number": 1354,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/HikariLucy/SnowboardKids-Recomp"
+    "setup_url": "https://github.com/HikariLucy/SnowboardKids-Recomp",
+    "artwork": {
+      "game_id": 3342,
+      "cover_id": 104128,
+      "image_id": "co28cg",
+      "image_sha256": "e6de2524e0b09d327d373cfd986e9f4c77cd451f56dcff7c09b68a0a8a5b49bb",
+      "game_slug": "snowboard-kids",
+      "match_kind": "underlying-game"
+    }
   }
 }

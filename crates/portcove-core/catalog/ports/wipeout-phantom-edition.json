@@ -8,6 +8,14 @@
     "issue_number": 119,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition"
+    "setup_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition",
+    "artwork": {
+      "game_id": 1083,
+      "cover_id": 200827,
+      "image_id": "co4ayj",
+      "image_sha256": "5d3fb7f3e64b5b51edd29df22c7c15d5f8abdc6849443f284a5bbed6453360c3",
+      "game_slug": "wipeout",
+      "match_kind": "underlying-game"
+    }
   }
 }

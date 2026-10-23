@@ -8,6 +8,14 @@
     "issue_number": 1812,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced"
+    "setup_url": "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced",
+    "artwork": {
+      "game_id": 224522,
+      "cover_id": 267803,
+      "image_id": "co5qmz",
+      "image_sha256": "c753dc03a5efe6667836d1700435d133cc3f5b6f1b747e039cb3c15116decfff",
+      "game_slug": "doom-64--1",
+      "match_kind": "underlying-game"
+    }
   }
 }

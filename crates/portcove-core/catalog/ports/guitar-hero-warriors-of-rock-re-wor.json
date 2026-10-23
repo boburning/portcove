@@ -8,6 +8,14 @@
     "issue_number": 359,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/ronniecloud/re-wor"
+    "setup_url": "https://github.com/ronniecloud/re-wor",
+    "artwork": {
+      "game_id": 2629,
+      "cover_id": 80992,
+      "image_id": "co1qhs",
+      "image_sha256": "6753e2bf3ab41327904aca38ef07a5d2a176cb370cc4e2f80c05a0e928419fb9",
+      "game_slug": "guitar-hero-warriors-of-rock",
+      "match_kind": "underlying-game"
+    }
   }
 }

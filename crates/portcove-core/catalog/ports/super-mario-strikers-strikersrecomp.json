@@ -8,6 +8,14 @@
     "issue_number": 817,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/aharonahdoot/StrikersRecomp"
+    "setup_url": "https://github.com/aharonahdoot/StrikersRecomp",
+    "artwork": {
+      "game_id": 2256,
+      "cover_id": 89895,
+      "image_id": "co1xd3",
+      "image_sha256": "9953c59416011cdbe3074beed3a4ac8863368b7e11c1d31cf11445864279dc8b",
+      "game_slug": "super-mario-strikers",
+      "match_kind": "underlying-game"
+    }
   }
 }

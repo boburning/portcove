@@ -8,6 +8,14 @@
     "issue_number": 468,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp",
+    "artwork": {
+      "game_id": 4121,
+      "cover_id": 90798,
+      "image_id": "co1y26",
+      "image_sha256": "76ba7e3d108ac917ec6164b7985da023681426182726351b82dd0f7bcbabd703",
+      "game_slug": "mortal-kombat-trilogy",
+      "match_kind": "underlying-game"
+    }
   }
 }

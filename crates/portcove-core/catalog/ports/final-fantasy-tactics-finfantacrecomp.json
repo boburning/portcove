@@ -8,6 +8,14 @@
     "issue_number": 327,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/NJH-1001/FinFanTacRecomp"
+    "setup_url": "https://github.com/NJH-1001/FinFanTacRecomp",
+    "artwork": {
+      "game_id": 428,
+      "cover_id": 138568,
+      "image_id": "co2yx4",
+      "image_sha256": "3650dc7805fd36ace8f43d3ed2e4ef31e35b46a52c22305cc3cb85a8be9a9956",
+      "game_slug": "final-fantasy-tactics",
+      "match_kind": "underlying-game"
+    }
   }
 }

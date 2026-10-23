@@ -8,6 +8,14 @@
     "issue_number": 813,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/FluffyQuack/rexglue-MetalSlugXX"
+    "setup_url": "https://github.com/FluffyQuack/rexglue-MetalSlugXX",
+    "artwork": {
+      "game_id": 21760,
+      "cover_id": 115480,
+      "image_id": "co2h3s",
+      "image_sha256": "f5f17cd0528c0c599ec41e956a95578f4601e4748c9bf9e0777b12826e168005",
+      "game_slug": "metal-slug-xx",
+      "match_kind": "underlying-game"
+    }
   }
 }

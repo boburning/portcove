@@ -8,6 +8,14 @@
     "issue_number": 167,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/maximilianoide/sin-punishment-recompiled"
+    "setup_url": "https://github.com/maximilianoide/sin-punishment-recompiled",
+    "artwork": {
+      "game_id": 1467,
+      "cover_id": 85687,
+      "image_id": "co1u47",
+      "image_sha256": "8fecac0c2aacf3b0b0eb0ff86932d3b0f6e8ac2bf81d562d89edefadccb8bf99",
+      "game_slug": "sin-and-punishment",
+      "match_kind": "underlying-game"
+    }
   }
 }

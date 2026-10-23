@@ -1,0 +1,732 @@
+{
+  "format_version": 1,
+  "source": "https://github.com/boburning/portcove/actions/runs/39985081929/job/120522180962",
+  "purpose": "Scheduling estimates only. Current nextest inventory owns membership; missing and new identities always receive a fallback weight.",
+  "default_seconds": 0.5,
+  "families": [
+    ["portcove-cli::bin/portcove", "args::tests::", 0.035],
+    ["portcove-cli::bin/portcove", "catalog::render::tests::", 0.035],
+    ["portcove-cli::bin/portcove", "human::catalog_detail_tests::", 0.1],
+    ["portcove-cli::bin/portcove", "human::task_results::tests::", 0.084],
+    ["portcove-cli::bin/portcove", "human::tests::", 0.072],
+    ["portcove-cli::bin/portcove", "human::transfers::tests::", 0.057],
+    ["portcove-cli::bin/portcove", "human_adapters::tests::", 0.043],
+    ["portcove-cli::bin/portcove", "tests::", 0.035],
+    ["portcove-cli::desktop_host_diagnostics", "", 0.198],
+    ["portcove-cli::host_diagnostics", "", 1.619],
+    ["portcove-cli::machine_contract", "", 1.215],
+    ["portcove-cli::machine_contract", "definition_capability_contract::", 1.032],
+    ["portcove-cli::machine_contract", "human_presentation::", 1.419],
+    ["portcove-cli::machine_contract", "preparation_contract::", 11.51],
+    ["portcove-cli::runtime_diagnostics", "", 3.974],
+    ["portcove-cli::runtime_diagnostics", "frontend_diagnostics::tests::", 0.013],
+    ["portcove-core", "activity_diagnostics::tests::", 0.539],
+    ["portcove-core", "adapter::admitted_zip_source::tests::", 0.029],
+    ["portcove-core", "adapter::tests::", 0.146],
+    ["portcove-core", "archive::tests::", 0.034],
+    ["portcove-core", "artwork_tests::", 0.804],
+    ["portcove-core", "browsing_context::tests::", 0.282],
+    ["portcove-core", "cancellation::managed_builder_tests::", 0.925],
+    ["portcove-core", "cancellation::tests::", 0.489],
+    ["portcove-core", "cartridge_build::tests::", 0.441],
+    ["portcove-core", "catalog::listings::tests::", 0.104],
+    ["portcove-core", "catalog::tests::", 0.217],
+    ["portcove-core", "catalog_update::tests::", 3.535],
+    ["portcove-core", "curated_acquisition::tests::", 0.314],
+    ["portcove-core", "database::tests::", 0.075],
+    ["portcove-core", "definition_acquisition::tests::", 0.081],
+    ["portcove-core", "definition_capabilities::tests::", 0.016],
+    ["portcove-core", "definition_entry::tests::", 0.058],
+    ["portcove-core", "definition_index::tests::", 0.046],
+    ["portcove-core", "definition_loader::tests::", 0.063],
+    ["portcove-core", "definition_policy_tests::", 0.032],
+    ["portcove-core", "definition_projection::tests::", 0.685],
+    ["portcove-core", "definition_publication::tests::", 0.769],
+    ["portcove-core", "definition_repository::tests::", 1.179],
+    ["portcove-core", "definition_repository::tests::publisher_policy_tests::", 7.011],
+    ["portcove-core", "durability::tests::", 0.252],
+    ["portcove-core", "external_runtime::shared_preferences::smb1r::", 0.043],
+    ["portcove-core", "external_runtime::shared_preferences::tests::", 0.015],
+    ["portcove-core", "external_runtime::tests::", 0.027],
+    ["portcove-core", "external_runtime::tfe_settings::tests::", 0.013],
+    ["portcove-core", "failure::tests::", 0.019],
+    ["portcove-core", "game_file_query::tests::", 2.657],
+    ["portcove-core", "game_file_root::tests::", 0.107],
+    ["portcove-core", "ghostship_data_store::tests::", 0.099],
+    ["portcove-core", "gitlab::tests::", 0.114],
+    ["portcove-core", "host_preferences::tests::", 0.042],
+    ["portcove-core", "host_tools::tests::", 0.199],
+    ["portcove-core", "import_execution::tests::", 2.759],
+    ["portcove-core", "install::tests::", 0.782],
+    ["portcove-core", "installed_contract::tests::", 1.175],
+    ["portcove-core", "library::tests::", 0.091],
+    ["portcove-core", "library_access::tests::", 0.068],
+    ["portcove-core", "library_import::tests::", 0.604],
+    ["portcove-core", "library_move::tests::", 4.471],
+    ["portcove-core", "library_transfer::tests::", 1.766],
+    ["portcove-core", "managed_shared_preferences::tests::", 0.279],
+    ["portcove-core", "managed_tfe::tests::", 0.031],
+    ["portcove-core", "n64_graphics::tests::", 0.171],
+    ["portcove-core", "output_relocation::tests::", 5.58],
+    ["portcove-core", "output_root::tests::", 0.097],
+    ["portcove-core", "portable_tree::tests::", 0.017],
+    ["portcove-core", "preparation::ghostship::tests::", 0.037],
+    ["portcove-core", "preparation::tests::", 1.022],
+    ["portcove-core", "preparation::tests::execution_tests::", 1.825],
+    ["portcove-core", "process::tests::", 0.062],
+    ["portcove-core", "psx::tests::", 0.248],
+    ["portcove-core", "relative_file_set::tests::", 0.139],
+    ["portcove-core", "release::observation::tests::", 0.179],
+    ["portcove-core", "release::tests::", 0.08],
+    ["portcove-core", "retained_build::tests::", 2.23],
+    ["portcove-core", "runtime_data_policy::tests::", 0.124],
+    ["portcove-core", "runtime_path_policy::tests::", 1.669],
+    ["portcove-core", "service::catalog_download::tests::", 0.348],
+    ["portcove-core", "service::forbidden_memories_qualification::tests::", 0.215],
+    ["portcove-core", "service::game_install_review::tests::", 1.071],
+    ["portcove-core", "service::game_update_review::tests::", 2.616],
+    ["portcove-core", "service::ghostship_compatibility::legacy_save::", 0.029],
+    ["portcove-core", "service::ghostship_persistence_tests::", 1.411],
+    ["portcove-core", "service::ghostship_recovery_execution::tests::", 0.224],
+    ["portcove-core", "service::ghostship_safety::tests::", 0.214],
+    ["portcove-core", "service::runtime_tests::", 0.633],
+    ["portcove-core", "service::shipwright_persistence_tests::", 2.006],
+    ["portcove-core", "service::tests::", 1.626],
+    ["portcove-core", "service::tests::backups::", 0.896],
+    ["portcove-core", "service::user_selected::tests::", 0.562],
+    ["portcove-core", "source::tests::", 0.258],
+    ["portcove-core", "source_assessment::tests::", 0.017],
+    ["portcove-core", "source_batch::tests::", 1.057],
+    ["portcove-core", "source_catalog::tests::", 0.016],
+    ["portcove-core", "source_disc::tests::", 0.29],
+    ["portcove-core", "source_discovery::tests::", 0.239],
+    ["portcove-core", "source_file::tests::", 0.017],
+    ["portcove-core", "source_import::tests::", 0.475],
+    ["portcove-core", "source_inbox::tests::", 0.275],
+    ["portcove-core", "source_inspection::tests::", 0.192],
+    ["portcove-core", "source_report::tests::", 0.112],
+    ["portcove-core", "source_zip::tests::", 0.045],
+    ["portcove-core", "stfs::tests::", 0.017],
+    ["portcove-core", "support_bundle::tests::", 0.016],
+    ["portcove-core", "support_bundle_export::tests::", 0.032],
+    ["portcove-core", "support_bundle_read::tests::", 0.226],
+    ["portcove-core", "tool_process::tests::", 0.4],
+    ["portcove-core", "tool_process::windows::launch_tests::", 0.014],
+    ["portcove-core", "tool_process::windows::native_control_tests::", 0.141],
+    ["portcove-core", "tool_process::windows::proof_tests::", 0.017],
+    ["portcove-desktop", "application_update::tests::", 0.017],
+    ["portcove-desktop", "application_update_apply::tests::", 0.12],
+    ["portcove-desktop", "application_update_commands::tests::", 0.017],
+    ["portcove-desktop", "application_update_coordinator::tests::", 0.027],
+    ["portcove-desktop", "application_update_download::tests::", 0.015],
+    ["portcove-desktop", "application_update_helper::tests::", 0.037],
+    ["portcove-desktop", "application_update_macos_archive::tests::", 0.019],
+    ["portcove-desktop", "application_update_operation::tests::", 0.06],
+    ["portcove-desktop", "application_update_payload::tests::", 0.014],
+    ["portcove-desktop", "application_update_preferences::tests::", 0.02],
+    ["portcove-desktop", "application_update_restart::tests::", 0.015],
+    ["portcove-desktop", "application_update_schedule::tests::", 0.018],
+    ["portcove-desktop", "application_update_staging::tests::", 0.044],
+    ["portcove-desktop", "application_update_status::tests::", 0.027],
+    ["portcove-desktop", "application_update_trust::tests::", 0.117],
+    ["portcove-desktop", "application_update_windows::tests::", 0.018],
+    ["portcove-desktop", "cli_context::tests::", 1.241],
+    ["portcove-desktop", "diagnostics::tests::", 0.052],
+    ["portcove-desktop", "frontend_diagnostics::tests::", 0.014],
+    ["portcove-desktop", "library_selection::tests::", 0.463],
+    ["portcove-desktop", "library_transfer::tests::", 1.089],
+    ["portcove-desktop", "steam_entries::tests::", 0.094],
+    ["portcove-desktop", "steam_entry_commands::tests::", 0.066],
+    ["portcove-desktop", "tests::", 0.429],
+    ["portcove-desktop::example/verify_packaged_application_update", "tests::", 0.013],
+    ["portcove-desktop::updater_trust", "", 0.315],
+    ["portcove-release-tools", "definition_repository::tests::", 0.585],
+    ["portcove-release-tools::tuf_repository", "isolated_roles::", 0.64],
+    ["portcove-release-tools::tuf_repository", "isolated_roles::bootstrap::", 0.292],
+    ["portcove-release-tools::tuf_repository", "offline_ceremony::", 1.187],
+    ["portcove-release-tools::verification", "", 0.035]
+  ],
+  "tests": [
+    ["portcove-core", "artwork_tests::local_artwork_writers_share_the_same_library_lock", 5.116],
+    [
+      "portcove-core",
+      "catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts",
+      8.69
+    ],
+    [
+      "portcove-core",
+      "catalog_update::tests::catalog_status_verifies_each_cached_candidate_once_per_snapshot",
+      6.476
+    ],
+    [
+      "portcove-core",
+      "catalog_update::tests::corruption_and_expiry_fall_back_without_trusting_bad_metadata",
+      5.998
+    ],
+    [
+      "portcove-core",
+      "catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries",
+      8.913
+    ],
+    ["portcove-core", "catalog_update::tests::rollback_keeps_the_replay_floor", 6.016],
+    [
+      "portcove-core",
+      "definition_projection::tests::every_current_port_retains_exact_bytes_and_complete_validated_source_graph",
+      6.943
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_activation_recovery_revocation_retains_interrupted_journal",
+      15.445
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_activation_recovery_withdrawal_permits_local_commit",
+      16.31
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_activation_revocation_preserves_staged_target_and_active_version",
+      13.515
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_activation_withdrawal_permits_exact_retained_target",
+      15.735
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_admitted_scope_resolves_missing_digest_and_revalidates_mutable_identity",
+      15.02
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_adoption_prepared_refuses_unsupported_grant",
+      13.271
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_adoption_prepared_revocation_preserves_evidence",
+      15.144
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_adoption_prepared_withdrawal_preserves_adoption_refusal",
+      15.259
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_adoption_published_refuses_unsupported_grant",
+      13.439
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_adoption_published_revocation_preserves_evidence",
+      16.029
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_adoption_published_withdrawal_preserves_adoption_refusal",
+      16.062
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_adoption_refuses_before_authorization_or_copy",
+      7.912
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_cache_policy_loss_during_copy_refuses_publication_and_preserves_bytes",
+      10.769
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_cache_restore_cancellation_waits_for_worker_before_cleanup",
+      9.049
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_cache_restore_revocation_during_copy_preserves_cached_bytes",
+      8.965
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_cache_restore_withdrawal_during_copy_preserves_cached_bytes",
+      8.761
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_cache_retention_cancellation_preserves_partial_after_worker_exit",
+      9.77
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_cache_retention_revocation_during_copy_refuses_publication",
+      9.847
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_cache_retention_withdrawal_during_copy_refuses_publication",
+      9.734
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_cache_reuse_refuses_corruption_and_preserves_capacity_evidence",
+      19.588
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_capability_preserves_other_platform_publisher_digest_installation",
+      7.493
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_install_prepared_revocation_preserves_owned_payload",
+      11.505
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_install_prepared_withdrawal_preserves_owned_payload",
+      11.608
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_install_published_revocation_preserves_owned_payload",
+      12.194
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_install_published_withdrawal_preserves_owned_payload",
+      12.146
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_install_refuses_changed_artifact_bytes_before_publication",
+      7.571
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_install_refuses_stale_resolution_before_requesting_artifact_bytes",
+      6.237
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_installed_revocation_holds_critical_verification_and_fresh_acquisition",
+      26.878
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition",
+      27.075
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_launch_boundary_shared_revocation_refuses_before_child_with_valid_baseline",
+      14.736
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_metadata_tag_peeling_enforces_exact_identity_and_finite_bound",
+      15.077
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_publication_recovery_permitted_artifact_commits_once",
+      13.454
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_publication_recovery_published_permitted_artifact_commits_once",
+      12.529
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_publication_recovery_published_revocation_preserves_payload",
+      15.224
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_publication_recovery_published_withdrawal_preserves_payload",
+      15.514
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_publication_recovery_revocation_preserves_private_payload",
+      15.185
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_publication_recovery_withdrawal_preserves_private_payload",
+      15.169
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_retained_launch_revocation_prevents_child_start_after_reopen",
+      20.613
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_retained_launch_withdrawal_supervises_exact_owned_child_after_reopen",
+      25.201
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_rollback_revocation_preserves_unaffected_active_and_recovery_evidence",
+      26.298
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target",
+      30.544
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_shared_artifact_clearance_preserves_other_scope_and_omitted_history",
+      5.839
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_status_revocation_holds_exact_current_and_retained_operations",
+      16.616
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::curated_status_withdrawal_holds_acquisition_and_permits_retained_launch",
+      16.781
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::managed_installer_requires_resolver_proof_and_refuses_artifact_redirect_before_contact",
+      5.993
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract",
+      21.18
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::ordinary_refresh::ordinary_refresh_retains_restrictive_admission_when_launch_companion_fails_then_recovers",
+      10.108
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::ordinary_refresh::ordinary_refresh_uses_one_authenticated_snapshot_and_exact_retry_preserves_selection",
+      7.815
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::publisher_policy_tests::prepared_adoption_revocation_survives_rejection_and_interrupted_restart",
+      8.345
+    ],
+    [
+      "portcove-core",
+      "definition_repository::tests::selected_post_client_definition_loads_as_the_active_catalog",
+      6.125
+    ],
+    [
+      "portcove-core",
+      "game_file_query::tests::late_channel_or_instance_drift_discards_the_private_refresh_result",
+      7.694
+    ],
+    [
+      "portcove-core",
+      "game_file_query::tests::retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailable",
+      5.99
+    ],
+    [
+      "portcove-core",
+      "import_execution::tests::copying_import_recovers_without_replaying_old_saves",
+      5.646
+    ],
+    [
+      "portcove-core",
+      "import_execution::tests::import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empty_library",
+      6.996
+    ],
+    [
+      "portcove-core",
+      "import_execution::tests::published_import_recovers_without_replaying_old_saves",
+      6.337
+    ],
+    [
+      "portcove-core",
+      "import_execution::tests::verified_import_recovers_without_replaying_old_saves",
+      7.799
+    ],
+    [
+      "portcove-core",
+      "installed_contract::tests::legacy_preparation_preserves_all_three_verified_origins_and_rejects_invalid_envelopes",
+      5.261
+    ],
+    [
+      "portcove-core",
+      "library_move::tests::admitted_post_client_definition_survives_interrupted_move_resume",
+      8.172
+    ],
+    [
+      "portcove-core",
+      "library_move::tests::late_credentials_hold_move_before_authority_or_destination_activation",
+      6.503
+    ],
+    [
+      "portcove-core",
+      "library_move::tests::published_move_recovers_without_two_writable_libraries",
+      6.052
+    ],
+    [
+      "portcove-core",
+      "library_move::tests::verified_move_recovers_without_two_writable_libraries",
+      6.1
+    ],
+    [
+      "portcove-core",
+      "library_transfer::tests::move_plan_accepts_an_admitted_post_client_definition",
+      6.378
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::changed_old_content_is_retained_until_cleanup_is_safe",
+      7.102
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::external_cleanup_preserves_unowned_sibling_after_authority_commit",
+      10.849
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::external_to_external_cleanup_recovers_after_authority_commit",
+      10.885
+    ],
+    ["portcove-core", "output_relocation::tests::late_credentials_hold_prepared_relocation", 5.707],
+    [
+      "portcove-core",
+      "output_relocation::tests::late_credentials_hold_published_relocation_before_authority_commit",
+      5.819
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::late_empty_relocation_destination_is_preserved_until_controlled_resolution",
+      5.975
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::ports_with_a_shared_source_relocate_to_independent_roots",
+      7.028
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::preview_is_read_only_and_relocation_preserves_roles_and_central_data",
+      5.804
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::recovers_relocation_cleanup_completed_to_one_authority",
+      6.375
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::recovers_relocation_copied_to_one_authority",
+      5.838
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::recovers_relocation_copy_started_to_one_authority",
+      5.824
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::recovers_relocation_journaled_to_one_authority",
+      5.748
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::recovers_relocation_metadata_committed_to_one_authority",
+      6.313
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::recovers_relocation_prepared_to_one_authority",
+      5.708
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::recovers_relocation_publication_prepared_to_one_authority",
+      5.729
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::recovers_relocation_published_to_one_authority",
+      5.693
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::recovery_preserves_foreign_cleanup_staging_and_all_old_copies",
+      5.601
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::recovery_refuses_a_reviewed_plan_under_a_foreign_port_lock",
+      5.605
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::released_relocation_phases_and_checked_transitions_preserve_stored_contract",
+      5.996
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::relocation_accepts_newly_admitted_retained_preference_in_preview_and_staging",
+      5.843
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::relocation_checked_transition_rejects_changed_identity_without_advancing_journal",
+      5.516
+    ],
+    [
+      "portcove-core",
+      "output_relocation::tests::relocation_decoder_refuses_mixed_envelopes_and_missing_copy_staging_without_writes",
+      5.53
+    ],
+    [
+      "portcove-core",
+      "preparation::tests::execution_tests::completed_legacy_setup_keeps_working_without_repeating_setup",
+      5.653
+    ],
+    [
+      "portcove-core",
+      "preparation::tests::execution_tests::completed_nested_legacy_setup_keeps_its_working_directory",
+      5.636
+    ],
+    [
+      "portcove-core",
+      "preparation::tests::execution_tests::interrupted_private_preparation_gets_a_truthful_terminal_report_after_reconnect",
+      6.33
+    ],
+    [
+      "portcove-core",
+      "preparation::tests::execution_tests::preparation_is_explicit_and_play_never_runs_setup_or_recreates_inputs",
+      6.546
+    ],
+    [
+      "portcove-core",
+      "preparation::tests::execution_tests::retained_definition_survives_catalog_changes_but_missing_receipt_blocks_play",
+      6.837
+    ],
+    [
+      "portcove-core",
+      "runtime_path_policy::tests::move_previews_check_retained_policy_before_creating_destinations",
+      8.008
+    ],
+    [
+      "portcove-core",
+      "service::tests::additive_current_mutability_recovers_a_retained_install_and_survives_rollback",
+      7.521
+    ],
+    [
+      "portcove-core",
+      "service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh",
+      14.916
+    ],
+    [
+      "portcove-core",
+      "service::tests::backups::current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_paths",
+      6.581
+    ],
+    ["portcove-core", "service::tests::backups::recovers_restore_prepared", 6.905],
+    ["portcove-core", "service::tests::backups::recovers_restore_published", 6.928],
+    ["portcove-core", "service::tests::backups::recovers_restore_version_synchronized", 7.179],
+    [
+      "portcove-core",
+      "service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation",
+      6.308
+    ],
+    [
+      "portcove-core",
+      "service::tests::external_adoption_recovery_retains_contradictory_destinations",
+      5.321
+    ],
+    [
+      "portcove-core",
+      "service::tests::publication_recovery_retains_conflicting_original_paths_intent",
+      10.371
+    ],
+    [
+      "portcove-core",
+      "service::tests::publication_recovery_retains_conflicting_quarantine_intent",
+      10.362
+    ],
+    [
+      "portcove-core",
+      "service::tests::publication_recovery_retains_conflicting_source_import_intent",
+      10.662
+    ],
+    [
+      "portcove-core",
+      "service::tests::publication_recovery_retains_conflicting_relocation_intent",
+      12.751
+    ],
+    [
+      "portcove-core",
+      "service::tests::publication_recovery_retains_foreign_install_and_adoption_owners_in_every_phase",
+      6.083
+    ],
+    [
+      "portcove-core",
+      "service::tests::successor_staged_and_rollback_versions_keep_exact_contracts",
+      9.048
+    ],
+    [
+      "portcove-core",
+      "service::tests::unavailable_artwork_does_not_block_reviewed_install_update_or_supervised_launch",
+      6.527
+    ],
+    [
+      "portcove-cli::machine_contract",
+      "artwork_contract::artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle",
+      13.742
+    ],
+    [
+      "portcove-cli::machine_contract",
+      "game_file_query_uses_core_refresh_and_truthful_operation_events",
+      8.562
+    ],
+    [
+      "portcove-cli::machine_contract",
+      "preparation_contract::lost_preparation_output_is_resolved_by_fresh_public_readback_without_replay",
+      8.493
+    ],
+    [
+      "portcove-cli::machine_contract",
+      "preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case",
+      16.806
+    ],
+    [
+      "portcove-cli::machine_contract",
+      "preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd",
+      11.749
+    ],
+    [
+      "portcove-cli::machine_contract",
+      "preparation_contract::reviewed_chd_conversion_retains_both_phases_through_fresh_cli_and_play",
+      7.709
+    ],
+    [
+      "portcove-cli::machine_contract",
+      "preparation_contract::reviewed_preparation_runs_through_jsonl_and_a_fresh_cli_plays_without_setup",
+      12.793
+    ],
+    [
+      "portcove-cli::machine_contract",
+      "retained_build_contract::retained_build_reference_roundtrip_binds_exact_bytes_and_keeps_missing_reference",
+      9.845
+    ],
+    [
+      "portcove-cli::runtime_diagnostics",
+      "runtime_diagnostics_correlates_real_install_update_prepare_and_launch",
+      13.411
+    ]
+  ]
+}
