@@ -195,9 +195,40 @@ export async function installedOnboardingScenario(context: InstalledContext) {
     const choice = await browser.wait(until.elementLocated(By.css('[role="combobox"]')), 30_000);
     await choice.click();
     await reviewControls(browser).click(asset);
+    await click("Choose download folder…");
+    await selectPicker("installed-rejected-library-destination", context.library);
+    await click("Review download");
+    const refusedReview = await browser.wait(
+      until.elementLocated(By.css('[role="dialog"]')),
+      15_000,
+    );
+    const refusal = "self-service downloads must be outside the entire Portcove Library folder";
+    await browser.wait(async () => (await refusedReview.getText()).includes(refusal), 15_000);
+    assert.equal(
+      (await refusedReview.findElements(By.xpath('.//button[normalize-space(.)="Download"]')))
+        .length,
+      0,
+      "A refused preview must not offer the download action",
+    );
+    assert.ok(!(await snapshot()).pending_setups?.some((row) => row.port_id === portId));
+    report.onboarding_refusal = {
+      scope: "Controlled invalid destination in the isolated harness Library; no upstream incident",
+      destination: context.library,
+      visible_message: refusal,
+      download_controls: 0,
+      pending_setup_created: false,
+    };
+    await capture("installed-download-library-refusal", true);
+    await reviewControls(browser).click(
+      By.xpath('//div[@role="dialog"]//button[normalize-space(.)="Cancel"]'),
+    );
+    await browser.wait(
+      async () => (await browser.findElements(By.css('[role="dialog"]'))).length === 0,
+      15_000,
+    );
     const downloads = path.join(output, "upstream-downloads");
     await mkdir(downloads);
-    await click("Choose download folder…");
+    await click("Change download folder…");
     await selectPicker("installed-upstream-destination", downloads);
     await click("Review download");
     await browser.wait(until.elementLocated(By.css('[role="dialog"]')), 15_000);
@@ -208,6 +239,9 @@ export async function installedOnboardingScenario(context: InstalledContext) {
       );
     }, 15_000);
     await capture("installed-sopwith-download-review", true);
+    steps.push(
+      "Core refused the isolated Library destination in the real review; cancellation and a corrected external destination recovered without a pending setup or second download",
+    );
     await click("Download");
     const pending = await browser.wait(async () => {
       const matches =
