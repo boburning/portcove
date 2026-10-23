@@ -1276,9 +1276,6 @@ export function ApplicationUpdateSettings(
     >
       <div className="application-update-heading flex items-start justify-between gap-4 max-[65rem]:flex-col">
         <div>
-          <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-text-secondary)]">
-            APPLICATION UPDATES
-          </p>
           <h2 id="application-update-settings-title" ref={headingRef} tabIndex={-1}>
             Portcove updates
           </h2>

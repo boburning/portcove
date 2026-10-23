@@ -76,6 +76,48 @@ function History({
   );
 }
 
+it("keeps current backup history quiet and failed reads explicit without enabling stale restore", async () => {
+  const retry = vi.fn().mockResolvedValue(undefined);
+  const props = {
+    backups,
+    restore: vi.fn(),
+    remove: vi.fn(),
+    retryRead: retry,
+    restoreAssessment: {
+      action: "backup_restore" as const,
+      availability: "allowed" as const,
+      reason: "available" as const,
+    },
+  };
+  await root.rerender(
+    <BackupHistory {...props} readState={{ status: "current", hasInventory: true }} />,
+  );
+  expect(container.querySelector(".backup-inventory-notice")).toBeNull();
+  const refresh = [...container.querySelectorAll("button")].find(
+    (button) => button.textContent === "Refresh backup history",
+  )!;
+  expect(refresh.closest('[role="status"]')).toBeNull();
+  await act(async () => refresh.click());
+  expect(retry).toHaveBeenCalledOnce();
+  await root.rerender(
+    <BackupHistory {...props} readState={{ status: "failed", hasInventory: true }} />,
+  );
+  expect(container.querySelector('[role="status"]')?.textContent).toContain(
+    "Backup history could not be loaded",
+  );
+  expect(container.textContent).toContain("last loaded backup list");
+  expect(
+    [...container.querySelectorAll<HTMLButtonElement>('[data-backup-action="restore"]')].every(
+      (button) => button.disabled,
+    ),
+  ).toBe(true);
+  await root.rerender(
+    <BackupHistory {...props} backups={[]} readState={{ status: "current", hasInventory: true }} />,
+  );
+  expect(container.textContent).toContain("No backups yet");
+  expect(container.querySelector(".backup-inventory-notice")).toBeNull();
+});
+
 async function openDeletion(id: string) {
   const opener = container.querySelector<HTMLButtonElement>(
     `[data-backup-id="${id}"] button[aria-label^="Delete"]`,
@@ -748,7 +790,7 @@ it("offers retained owned-data backup without an install and rejects last-loaded
     )!;
   expect(button()).toBeDefined();
   expect(button().disabled).toBe(false);
-  expect(container.textContent).toContain("Back up owned saves and settings.");
+  expect(container.textContent).toContain("Back up saves and settings managed by Portcove.");
   await act(async () => refresh());
   expect(button().disabled).toBe(true);
   expect(container.textContent).toContain("Your saved data could not be checked.");

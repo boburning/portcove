@@ -141,6 +141,17 @@ issues for new work without duplicating the canonical Port record. Automatic
 archival is not part of this lifecycle; archived-item coverage must be explicitly
 validated before adopting an archival policy.
 
+Upstream disappearance or a candidate successor does not reopen a completed
+port admission or create a duplicate canonical issue by itself. Apply the
+[catalog lineage policy](CATALOG.md#upstream-lineage-and-alternative-implementations)
+to the existing authored record and retain dated evidence on its canonical issue.
+Reviewed relocation/succession preserves that port and issue; a fork, alternative
+or independent product has a distinct canonical identity. Record insufficient or
+contradictory evidence and the exact reconsideration condition without moving
+historical qualification. A finite policy issue can complete with an honest
+unresolved real case when its acceptance permits it, as #139 does for #124.
+Project Status and Port stage keep their existing independent meanings.
+
 Live roadmap and provenance inventories read every page and require unique
 record counts to match the reported totals. Missing pages, stalled cursors,
 changing totals, or API failures invalidate the read; retry from the beginning.

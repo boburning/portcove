@@ -176,6 +176,64 @@ const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord =>
   ...overrides,
 });
 
+it("distinguishes catalog saved-data declarations, retained installation rules and external saves", () => {
+  const coverage = (
+    currentPort: PortDefinition,
+    active: InstallRecord | null,
+    externalRuntime?: PortStatus["external_runtime"],
+  ) => {
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={currentPort}
+        status={{
+          ...portStatus(),
+          active,
+          ...(externalRuntime ? { external_runtime: externalRuntime } : {}),
+        }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+      />,
+    );
+    return (
+      html.match(/<section aria-label="Saved-data coverage">([\s\S]*?)<\/section>/u)?.[1] ?? ""
+    );
+  };
+  const catalog = coverage(port, null);
+  expect(catalog).toContain("Current catalog saved-data declarations");
+  expect(catalog).toContain("<code>save</code>");
+  expect(catalog).toContain("when creating a backup");
+  expect(catalog).toContain("Other locations are not covered");
+  const managed = coverage(
+    { ...port, persistent_paths: ["changed-provider-catalog-path"] },
+    installRecord(),
+  );
+  expect(managed).toContain("rules recorded for this installation");
+  expect(managed).toContain("Exact paths are not available");
+  expect(managed).not.toContain("changed-provider-catalog-path");
+  expect(managed).not.toContain("backup review");
+  const retained = coverage(
+    { ...preparedPort, persistent_paths: ["new-catalog-path"] },
+    installRecord(),
+  );
+  expect(retained).toContain("rules recorded for this installation");
+  expect(retained).toContain("Exact paths are not available");
+  expect(retained).not.toContain("new-catalog-path");
+  const external = coverage(preparedPort, null, {
+    id: "external",
+    port_id: preparedPort.id,
+    path: "fixture/external",
+    executable: "fixture/external/game.exe",
+    version: "1.0",
+    platform: "windows-x86-64",
+    archive_sha256: "a".repeat(64),
+    immutable_tree_sha256: "b".repeat(64),
+    registered_at: 1,
+  });
+  expect(external).toContain("outside Portcove’s managed backups");
+  expect(external).not.toContain("<code>save</code>");
+});
+
 it.each([
   ["allowed", "available", false, null],
   [
@@ -510,7 +568,7 @@ describe("desktop components", () => {
       );
       expect(html).toContain("Verify installation");
       expect(html).toContain(`Uninstall ${currentPort.name}`);
-      expect(html).toContain("Managed by Portcove under this installation");
+      expect(html).toContain("Managed by Portcove using this installation");
       expect(html).toContain("Saved data follows this installation");
       expect(html).not.toContain("No saved data paths declared");
       expect(html).not.toContain("Game-owned settings and saves in the external runtime");
@@ -554,7 +612,7 @@ describe("desktop components", () => {
       const activation = html.match(/<button[^>]*>Use update · retained-staged<\/button>/)?.[0];
       expect(activation).toBeDefined();
       expect(/\sdisabled(?:=|\s|>)/.test(activation ?? "")).toBe(Boolean(busy));
-      expect(html).toContain("Managed by Portcove under this installation");
+      expect(html).toContain("Managed by Portcove using this installation");
       expect(html).not.toContain("Choose game executable");
       expect(html).not.toContain("Remove registration");
       expect(html).not.toContain("Stored with your external runtime");
@@ -714,7 +772,7 @@ describe("desktop components", () => {
         actions={actions}
       />,
     );
-    expect(html).toContain("Structured requirement details are unavailable in this catalog.");
+    expect(html).toContain("Detailed setup requirements are unavailable.");
     expect(html).toContain("Installation method</small>Unavailable in this catalog");
     expect(html).toContain("Saved data handling</small>Unavailable in this catalog");
   });
@@ -1802,7 +1860,7 @@ describe("desktop components", () => {
           path: "C:/Tools/chdman.exe",
           source: "discovery",
           configuration_variable: "PORTCOVE_CHDMAN",
-          purpose: "CHD validation and disc-image materialization",
+          purpose: "Check CHD game files and prepare disc images",
           official_url: "https://docs.mamedev.org/tools/chdman.html",
         },
         {
@@ -2729,7 +2787,7 @@ describe("desktop components", () => {
     expect(buttonLabels).toContain("Check for updates");
     expect(installed).toContain("Open data folder");
     expect(installed).toContain("Back up data");
-    expect(installed).toContain('title="Back up owned saves and settings."');
+    expect(installed).toContain('title="Back up saves and settings managed by Portcove."');
     const backupButton = installed.match(
       /<button\b[^>]*aria-describedby="backup-create-explanation"[^>]*>/,
     )?.[0];

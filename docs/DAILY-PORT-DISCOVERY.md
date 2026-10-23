@@ -117,6 +117,11 @@ New-lead coverage is separate from canonical rotation. `collect` first runs
 `discover`: up to six charged search pages across newly created recomp/recompiled
 repositories and recently pushed recompilation/native-port projects. Each page
 contains at most fifty results, ordered by creation rather than latest activity.
+Match repository names/descriptions rather than arbitrary README prose: a
+recompilation mention in compiler/cache/SDK documentation is a poor game lead.
+Rank explicit game/recomp/decomp metadata ahead of generic packaged software.
+When query terms change, retain the old slice as retired evidence and start a
+fresh scoped window; never combine its old page counts with the revised query.
 `leads.json` retains provider IDs, evidence, research/dispositions and independent
 fixed query windows/pages; unfinished windows do not slide forward. Completed
 windows overlap by 48 hours; the initial window is fourteen days. Search is an
