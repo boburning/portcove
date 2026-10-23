@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import "./discovery-leads.test.mts";
 import test from "node:test";
 import { once } from "node:events";
 import { stripTypeScriptTypes } from "node:module";

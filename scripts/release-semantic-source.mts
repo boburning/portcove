@@ -5,7 +5,10 @@ import { mkdir, writeFile, readdir, lstat, realpath } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { GitHubRestReader } from "./github-api.mts";
-import { inspectReleaseSourceTree } from "./release-source-changes.mts";
+import {
+  inspectReleaseSourceTree,
+  maximumReleaseSourceCommits,
+} from "./release-source-changes.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { semanticSupervisorEnvironment } from "./release-semantic-runtime.mts";
 import { runResourceCommand } from "./resource-command.mts";
@@ -257,7 +260,7 @@ export async function materializeSemanticSource(
   const commits = [...new Set([expected.source_commit, expected.base_commit, published])];
   const changed = inRepository([
     "rev-list",
-    "--max-count=1601",
+    `--max-count=${maximumReleaseSourceCommits + 1}`,
     expected.source_commit,
     `^${expected.base_commit}`,
   ])
@@ -265,7 +268,8 @@ export async function materializeSemanticSource(
     .trim()
     .split("\n")
     .filter(Boolean);
-  if (changed.length > 1600) throw new Error("semantic source change history exceeds bound");
+  if (changed.length > maximumReleaseSourceCommits)
+    throw new Error("semantic source change history exceeds bound");
   const selectedCommits = [...new Set([...commits, ...changed])];
   const commitRows = inRepository(
     ["cat-file", "--batch-check=%(objectname) %(objecttype) %(objectsize)"],
