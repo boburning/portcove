@@ -1044,6 +1044,13 @@ export function validatePlanOriginCoverage(items: readonly RoadmapIssueItem[] | 
   return [];
 }
 
+export function isNonCatalogResearchBody(body: string) {
+  return (
+    /Catalog ID:\s*Not assigned \(researched candidate\)/i.test(body) &&
+    /(?:does not grant support|not supported merely|does not change catalog\.json)/i.test(body)
+  );
+}
+
 export function renderPortIssueBody({
   title,
   upstream,
@@ -1427,10 +1434,7 @@ export function validatePortIssueCoverage(
       matches.push(url);
       issuesByCatalogId.set(id, matches);
     } else {
-      if (
-        !/Catalog ID:\s*Not assigned \(researched candidate\)/i.test(body) ||
-        !/(?:does not grant support|not supported merely|does not change catalog\.json)/i.test(body)
-      ) {
+      if (!isNonCatalogResearchBody(body)) {
         errors.push(
           "Non-catalog port issue must identify research/watchlist status and disclaim support: " +
             url,
@@ -3471,17 +3475,25 @@ export class RoadmapClient {
   }
 
   projectDetails(number: number) {
-    return projectDetailsObservation(
-      this.json([
-        "project",
-        "view",
-        String(number),
-        "--owner",
-        this.config.owner,
-        "--format",
-        "json",
-      ]),
+    const root = this.ownerType() === "Organization" ? "organization" : "user";
+    const project = nestedGitHubField(
+      this.graphql(
+        `query($login: String!, $number: Int!) { ${root}(login: $login) { projectV2(number: $number) { id number title url public closed shortDescription readme } } }`,
+        { login: this.config.owner, number },
+      ),
+      root,
+      "projectV2",
     );
+    if (
+      !isRecord(project) ||
+      typeof project.id !== "string" ||
+      !project.id ||
+      project.number !== number
+    )
+      throw new Error(
+        "incomplete GitHub inventory: selected Project identity is unavailable or mismatched",
+      );
+    return projectDetailsObservation(project);
   }
 
   fieldList(number: number): ProjectCollection<ProjectField> {

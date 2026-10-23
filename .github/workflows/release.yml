@@ -125,7 +125,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Install repository quality tools
-        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
         with:
           tool: ${{ steps.quality-pins.outputs.required_all }}
       - name: Install Linux desktop prerequisites
@@ -223,7 +223,7 @@ jobs:
         run: echo "spec=cargo-deny@$(node scripts/quality-tools.mts --version cargo-deny)" >> "$GITHUB_OUTPUT"
       - name: Install the pinned scanner in the credential-free compiler job
         if: runner.os == 'Linux' && needs.identity.outputs.release_profile == 'initial-beta-win-linux'
-        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
         with:
           tool: ${{ steps.compiler-scanner-pin.outputs.spec }}
       - run: pnpm install --frozen-lockfile
@@ -463,7 +463,7 @@ jobs:
       - name: Read pinned assembly scanner
         id: assembly-pins
         run: node scripts/quality-tools.mts --github-output >> "$GITHUB_OUTPUT"
-      - uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2
+      - uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
         with:
           tool: ${{ steps.assembly-pins.outputs.required_prebuilt }}
       - name: Download complete release matrix
@@ -637,7 +637,7 @@ jobs:
       - name: Read pinned security scanner
         id: security-pins
         run: node scripts/quality-tools.mts --github-output >> "$GITHUB_OUTPUT"
-      - uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2
+      - uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
         with:
           tool: ${{ steps.security-pins.outputs.required_prebuilt }}
       - name: Recheck Linux release authorization before upload

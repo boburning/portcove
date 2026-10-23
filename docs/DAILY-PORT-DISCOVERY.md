@@ -116,10 +116,14 @@ IDs/count honestly when 50/day or the budget cannot cover them.
 New-lead coverage is separate from canonical rotation. `collect` first runs
 `discover`: up to six charged search pages across newly created recomp/recompiled
 repositories and recently pushed recompilation/native-port projects. Each page
-contains at most fifty results, ordered by creation rather than latest activity.
+contains at most fifty results using GitHub's documented default best-match
+ordering within the fixed time window, rather than newest-activity ordering.
 Match repository names/descriptions rather than arbitrary README prose: a
 recompilation mention in compiler/cache/SDK documentation is a poor game lead.
 Rank explicit game/recomp/decomp metadata ahead of generic packaged software.
+Game names in repository names and console/game metadata are stronger signals
+than a generic description mentioning recompilation, a curated list or shared
+framework. These are research-order hints, never eligibility decisions.
 When query terms change, retain the old slice as retired evidence and start a
 fresh scoped window; never combine its old page counts with the revised query.
 `leads.json` retains provider IDs, evidence, research/dispositions and independent
@@ -240,6 +244,17 @@ For an unresolved candidate without a public mutation, `op: hold` accepts
 `hold: {candidate_id, reason, resume}`. Retain its factual blocker and exact
 resume condition. Reconcile ambiguous or unfinished public writes first.
 A new proposal may supersede an uncreated held draft for the same target.
+
+Intake proposals must satisfy the same non-catalog research/watchlist metadata
+and support disclaimer checked by the scoped doctor before they can be reviewed
+or created. If a retained created intake fails that check, `op: amend` accepts
+`amendment: {candidate_id, expected_body_sha256, body, reason}` only for its
+exact `doctor-pending` candidate. Preserve the intake marker and canonical
+identity; the runner saves the old candidate/review and requires a new separate
+review of the amended body. `apply` guards the fresh old-body hash and owner
+placement, patches the same issue once, and retains its preimage before writing.
+An interrupted patch can be recovered by observing the exact target body; an
+unconfirmed attempted patch is never repeated. Unrelated owner changes stop it.
 
 Every message includes `run_id`; a message is capped at 128 KiB while reading.
 Read the retained authority bodies/comments before choosing actions. Prioritize

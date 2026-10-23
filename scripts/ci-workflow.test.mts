@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { requireNodeTestInventory } from "./node-test-inventory.mts";
+import { createBrowserTraceRun } from "./browser-traces.ts";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import type {
   SpawnOptions,
@@ -80,6 +81,30 @@ function requiredFixture<T>(value: T | null | undefined): T {
   return value;
 }
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+function workflowJob(job: string) {
+  const settings: unknown = parseDocument(workflow, { uniqueKeys: true }).toJS();
+  assert.ok(isRecord(settings) && isRecord(settings.jobs));
+  const owner = settings.jobs[job];
+  assert.ok(isRecord(owner) && Array.isArray(owner.steps));
+  return owner;
+}
+function workflowStep(job: string, name: string) {
+  const owner = workflowJob(job);
+  assert.ok(Array.isArray(owner.steps));
+  const steps: unknown[] = owner.steps;
+  const step = steps.find((value) => isRecord(value) && value.name === name);
+  assert.ok(
+    isRecord(step) && typeof step.run === "string",
+    `Missing executable step: ${job}/${name}`,
+  );
+  return { ...step, run: step.run };
+}
+function executableLines(run: string) {
+  return run
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+}
 
 void test("maintained first-party sources default to checked TypeScript", () => {
   const inventory = spawnSync("git", ["ls-files", "-z", "--", "*.js", "*.jsx", "*.mjs", "*.cjs"], {
@@ -273,7 +298,6 @@ const windowsQualificationRunner = await readFile(
   new URL("./run-windows-qualification.ps1", import.meta.url),
   "utf8",
 );
-const requiredCiSurface = `${workflow}\n${windowsQualificationRunner}`;
 
 void test("reviewed hosted phases retain independent allocations, fixed commands and read-only isolation", () => {
   const source = nativeDesignCompatibilityWorkflow;
@@ -656,12 +680,15 @@ const rustWorkspaceTests = jobSection("rust_workspace_tests", "rust_clippy");
 const rustClippy = jobSection("rust_clippy", "windows_storage");
 const windowsStorage = jobSection("windows_storage", "native_rust");
 void test("fixed-account cases execute on Windows in both fast and qualification plans", () => {
-  const helpers = jobSection("windows_helpers", "fast_catalog");
-  for (const lane of [helpers, windowsStorage]) {
-    assert.match(lane, /runs-on: windows-latest/);
-    assert.match(
-      lane,
-      /run: node --test --test-timeout=30000 --test-reporter=\.\/scripts\/test-duration-reporter\.mts scripts\/release-local-worker-accounts\.test\.mts scripts\/release-native-account-capability\.test\.mts scripts\/recover-local-worker-empty-setup\.test\.mts/,
+  for (const job of ["windows_helpers", "windows_storage"]) {
+    assert.equal(workflowJob(job)["runs-on"], "windows-latest");
+    assert.deepEqual(
+      executableLines(
+        workflowStep(job, "Test inert fixed-account setup and capability contracts on Windows").run,
+      ),
+      [
+        "node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts",
+      ],
     );
   }
 });
@@ -758,9 +785,9 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
 
 void test("Windows diagnostics serialize file workers without changing coverage or deadlines", () => {
   const command = requiredFixture(
-    windowsStorage.match(
-      /- name: Test development diagnostics and evidence\r?\n\s+run: ([^\r\n]+)/u,
-    )?.[1],
+    executableLines(
+      workflowStep("windows_storage", "Test development diagnostics and evidence").run,
+    )[0],
   )
     .trim()
     .split(/\s+/u);
@@ -806,19 +833,22 @@ void test("Windows diagnostics serialize file workers without changing coverage 
     "scripts/rust-test-impact.test.mts",
     "scripts/rust-test-tree-supervisor.test.mts",
     "scripts/tool-cache.test.mts",
+    "scripts/resource-capacity.test.mts",
+    "scripts/resource-command.test.mts",
   ]);
 });
 
 void test("every Node test file is included in required CI and the local quality workflow", async () => {
   const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
-  const localQualitySurface = `${recipes}\n${windowsQualificationRunner}`;
   const files = (await readdir(new URL(".", import.meta.url))).filter((name: string) =>
     /\.test\.[cm]?[jt]s$/u.test(name),
   );
   requireNodeTestInventory(
     files.map((file) => `scripts/${file}`),
-    requiredCiSurface,
-    localQualitySurface,
+    workflow,
+    recipes,
+    windowsQualificationRunner,
+    await readFile(new URL("./node-test-suites.json", import.meta.url), "utf8"),
   );
 });
 
@@ -853,9 +883,11 @@ void test("selected release-policy contracts install their desktop-owned depende
 });
 
 void test("full repository contracts run the bounded release evidence collector controls", () => {
-  assert.match(
-    catalog,
-    /- name: Test bounded release run evidence\r?\n +run: node --test --test-timeout=30000 --test-reporter=\.\/scripts\/test-duration-reporter\.mts scripts\/release-run-evidence\.test\.mts/u,
+  assert.deepEqual(
+    executableLines(workflowStep("catalog_full", "Test bounded release run evidence").run),
+    [
+      "node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/release-run-evidence.test.mts",
+    ],
   );
 });
 
@@ -2359,6 +2391,102 @@ void test("full frontend qualification provisions browser artifacts before compo
     assert.doesNotMatch(upload, /^ +work\/bt\r?$/m);
   }
 });
+
+void test("browser uploads select the actual trace and screenshot output layout", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-browser-upload-layout-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const run = createBrowserTraceRun(root);
+  await mkdir(run.screenshotDirectory, { recursive: true });
+  const trace = path.join(run.directory, "failure.trace.zip");
+  const screenshot = path.join(run.screenshotDirectory, "failure.png");
+  await writeFile(trace, "owned layout fixture, not an executed browser trace");
+  await writeFile(screenshot, "owned screenshot layout fixture");
+  const files = [trace, screenshot].map((file) => path.relative(root, file).replaceAll("\\", "/"));
+  const document = parseDocument(workflow, { uniqueKeys: true });
+  assert.deepEqual(document.errors, []);
+  const parsed: unknown = document.toJS();
+  assert.ok(isRecord(parsed) && isRecord(parsed.jobs));
+  for (const id of ["fast_frontend", "frontend_full", "frontend_portability"]) {
+    const job = parsed.jobs[id];
+    assert.ok(isRecord(job) && Array.isArray(job.steps));
+    const upload: unknown = job.steps.find(
+      (step: unknown) =>
+        isRecord(step) &&
+        isRecord(step.with) &&
+        typeof step.with.name === "string" &&
+        step.with.name.startsWith("browser-traces-"),
+    );
+    assert.ok(isRecord(upload) && isRecord(upload.with) && typeof upload.with.path === "string");
+    const patterns = upload.with.path
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    for (const file of files)
+      assert.ok(
+        patterns.some((pattern) => path.posix.matchesGlob(file, pattern)),
+        `${id} does not upload the actual output ${file}`,
+      );
+    const withoutScreenshots = patterns.filter(
+      (pattern) => !path.posix.matchesGlob(files[1]!, pattern),
+    );
+    assert.ok(withoutScreenshots.some((pattern) => path.posix.matchesGlob(files[0]!, pattern)));
+    assert.ok(!withoutScreenshots.some((pattern) => path.posix.matchesGlob(files[1]!, pattern)));
+  }
+});
+
+for (const closeFails of [false, true]) {
+  void test(`a passing run retains raw traces after ${closeFails ? "failed" : "successful"} pool shutdown`, async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-browser-close-control-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const run = createBrowserTraceRun(root);
+    const { createVitest } = await import("vite-plus/test/node");
+    const runner = await createVitest({
+      root,
+      config: false,
+      watch: false,
+      reporters: [run.reporter],
+    });
+    const originalExitCode = process.exitCode;
+    const originalLogger = runner.logger.error;
+    const diagnostics: unknown[][] = [];
+    runner.logger.error = (...args: unknown[]) => {
+      diagnostics.push(args);
+    };
+    try {
+      await runner.standalone();
+      await mkdir(run.directory, { recursive: true });
+      const raw = path.join(run.directory, "provider.trace");
+      await writeFile(raw, "pending browser trace");
+      await run.reporter.onTestRunEnd?.([], [], "passed");
+      const failure = new Error("owned pool-close failure control");
+      let closed = false;
+      // Fault injection uses the pinned runner's real close implementation.
+      // Its pool is private; production code never replaces or observes it.
+      Reflect.set(runner, "pool", {
+        async close() {
+          assert.equal(await readFile(raw, "utf8"), "pending browser trace");
+          await writeFile(raw, "browser shutdown flushed its final trace chunk");
+          closed = true;
+          if (closeFails) throw failure;
+        },
+      });
+      await runner.close();
+      assert.equal(closed, true);
+      if (closeFails) {
+        assert.equal(process.exitCode, 1);
+        assert.ok(diagnostics.some((args) => args.includes(failure)));
+      } else {
+        assert.equal(process.exitCode, originalExitCode);
+        assert.deepEqual(diagnostics, []);
+      }
+      assert.equal(await readFile(raw, "utf8"), "browser shutdown flushed its final trace chunk");
+    } finally {
+      await runner.close();
+      runner.logger.error = originalLogger;
+      process.exitCode = originalExitCode;
+    }
+  });
+}
 
 void test("frontend tools resolve through the pinned Vite+ bundle", async () => {
   const manifest: unknown = JSON.parse(
@@ -4285,11 +4413,7 @@ void test("extracted validation evidence suite remains in hosted and repository 
     /scripts\/validation-evidence\.test\.mts/u,
   );
   assert.match(
-    requiredFixture(
-      requiredFixture(workflow.split("Test development diagnostics and evidence")[1]).split(
-        "\n",
-      )[1],
-    ),
+    workflowStep("windows_storage", "Test development diagnostics and evidence").run,
     /scripts\/validation-evidence\.test\.mts/u,
   );
 });

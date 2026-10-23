@@ -221,6 +221,20 @@ void test("metadata query scopes preserve old pagination and game signals outran
     release_hint: { assets_observed: true, observed_at: now, evidence: "ccache-release.json" },
   };
   assert.equal(pendingLeads(state)[0]?.repository, "josiahg2502-glitch/BrawlRecompiled");
+  for (const [id, repository, description] of [
+    [2, "btraceio/btrace", "Production-safe tracing for Java with no restart or recompilation"],
+    [3, "lists/awesome-game-decompilations", "A curated list of game decompilations"],
+    [4, "engine/PS2Recomp", "Static Recompiler & Runtime Tool to make native PC ports"],
+  ] as const) {
+    state.records[String(id)] = {
+      ...state.records["1"],
+      id,
+      repository,
+      url: `https://github.com/${repository}`,
+      description,
+    };
+  }
+  assert.equal(pendingLeads(state)[0]?.repository, "josiahg2502-glitch/BrawlRecompiled");
   assert.ok(state.records["1"], "noisy old leads are retained rather than silently deleted");
 });
 void test("runner charges complementary pages, guards rotation and retains queue across restart", (t) => {
@@ -254,6 +268,11 @@ void test("runner charges complementary pages, guards rotation and retains queue
             return { body: [] };
           }
           calls++;
+          assert.doesNotMatch(
+            endpoint,
+            /sort=created/u,
+            "repository search must not rely on an unsupported sort field",
+          );
           const body = page([item(calls)]);
           budget.charge("GET", "search/repositories", 1, 100, "200");
           return { body };

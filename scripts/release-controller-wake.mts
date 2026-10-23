@@ -13,12 +13,126 @@ import { productionControllerWorkflow } from "./production-controller-admission.
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
+import timers from "node:timers/promises";
 
 const repository = "boburning/portcove";
 const prefix = `repos/${repository}`;
 const workflow = ".github/workflows/application-update-wake.yml";
+export const jobTokenDispatchActor = "41898282";
+export const jobTokenDispatchTransport = "github-actions-job-v1";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 type Api = { request(method: string, endpoint: string, body?: unknown): IncludedResponse };
+type DispatchRunExpectation = {
+  run_id: string;
+  revision: string;
+  workflow: string;
+  display_title: string;
+};
+
+function inspectDispatchRunExpectation(expected: DispatchRunExpectation) {
+  if (
+    ![productionControllerWorkflow, ".github/workflows/job-token-dispatch-fixture.yml"].includes(
+      expected.workflow,
+    ) ||
+    !/^[a-f0-9]{40}$/u.test(expected.revision) ||
+    !/^[1-9][0-9]{0,15}$/u.test(expected.run_id) ||
+    typeof expected.display_title !== "string" ||
+    !expected.display_title ||
+    Buffer.byteLength(expected.display_title) > 256
+  )
+    throw new Error("fixed job-token dispatch expectation required");
+}
+
+function inspectDispatchRunIdentity(raw: unknown, expected: DispatchRunExpectation) {
+  inspectDispatchRunExpectation(expected);
+  if (
+    !isRecord(raw) ||
+    String(raw.id) !== expected.run_id ||
+    !Number.isSafeInteger(raw.id) ||
+    raw.head_sha !== expected.revision ||
+    raw.path !== expected.workflow ||
+    raw.event !== "workflow_dispatch" ||
+    raw.run_attempt !== 1 ||
+    !isRecord(raw.actor) ||
+    String(raw.actor.id) !== jobTokenDispatchActor ||
+    !isRecord(raw.triggering_actor) ||
+    String(raw.triggering_actor.id) !== jobTokenDispatchActor ||
+    !isRecord(raw.repository) ||
+    raw.repository.id !== 1354613114 ||
+    raw.repository.full_name !== repository ||
+    !isRecord(raw.head_repository) ||
+    raw.head_repository.id !== 1354613114
+  )
+    throw new Error("job-token dispatch run, source or actual Actions actor differs");
+  return raw;
+}
+
+/** Provider run identity only. Neither the Actions actor nor this readback is a
+ * semantic result, a coordinator reservation, or permission to execute. */
+export function inspectJobTokenDispatchRun(raw: unknown, expected: DispatchRunExpectation) {
+  const run = inspectDispatchRunIdentity(raw, expected);
+  if (run.display_title !== expected.display_title)
+    throw new Error("job-token dispatch run, source or actual Actions actor differs");
+  return { run_id: expected.run_id, revision: expected.revision, actor_id: jobTokenDispatchActor };
+}
+
+/** Settle only the correlation title, using GETs for the original acknowledged
+ * run. Wrong issuer/source/repository/attempt is an immediate refusal. Every
+ * response is retained BEFORE validation. There is never another dispatch POST
+ * or a renewed deadline, including after unavailable/ambiguous responses. */
+export async function observeJobTokenDispatchRun(
+  api: Api,
+  expected: DispatchRunExpectation,
+  record: (phase: string, evidence: unknown) => Promise<void>,
+  deadline: number,
+) {
+  expected = structuredClone(expected);
+  inspectDispatchRunExpectation(expected);
+  if (!Number.isFinite(deadline) || deadline > performance.now() + 55000)
+    throw new Error("original dispatch readback deadline required");
+  const active = () => {
+    if (performance.now() >= deadline)
+      throw new Error("original dispatch readback deadline exhausted; retain original run ID");
+  };
+  for (let index = 1; index <= 4; index++) {
+    active();
+    let response: IncludedResponse;
+    try {
+      response = api.request("GET", `${prefix}/actions/runs/${expected.run_id}`);
+    } catch {
+      await record("dispatch-run-readback-unavailable", { run_id: expected.run_id, index });
+      throw new Error("acknowledged run readback unavailable; retain original run ID, no POST");
+    }
+    const oversized = Buffer.byteLength(JSON.stringify(response.body) ?? "null") > 64 * 1024;
+    await record("dispatch-run-readback", {
+      run_id: expected.run_id,
+      index,
+      status: response.status,
+      ...(oversized
+        ? { oversized: true, body_sha256: digest(response.body) }
+        : { body: response.body }),
+    });
+    active();
+    if (response.status !== 200 || oversized)
+      throw new Error("acknowledged run readback unavailable or oversized; retain original run ID");
+    const run = inspectDispatchRunIdentity(response.body, expected);
+    if (run.display_title === expected.display_title) {
+      inspectJobTokenDispatchRun(run, expected);
+      return run;
+    }
+    if (
+      index === 4 ||
+      !["queued", "requested", "waiting", "pending", "in_progress"].includes(String(run.status))
+    )
+      throw new Error(
+        "acknowledged run correlation remains unproven; retain original run ID, no POST",
+      );
+    if (performance.now() + 5000 >= deadline)
+      throw new Error("original dispatch readback deadline exhausted; retain original run ID");
+    await timers.setTimeout(5000);
+  }
+  throw new Error("dispatch readback exhausted");
+}
 
 function providerGet(api: Api, endpoint: string) {
   const response = api.request("GET", endpoint);
@@ -62,7 +176,7 @@ function dispatchIntent(
       ref: config.execution_ref.slice("refs/tags/".length),
       inputs: {
         wake_run_id: wakeRun,
-        ...(config.schema_version === 3 ? { publication_purpose: config.publication_purpose } : {}),
+        ...(config.schema_version >= 3 ? { publication_purpose: config.publication_purpose } : {}),
       },
       return_run_details: true,
     },
@@ -79,6 +193,13 @@ export function inspectWakeControllerRun(
   wakeRun: string,
   expectedRun: string,
 ) {
+  if (config.schema_version === 4)
+    inspectJobTokenDispatchRun(raw, {
+      run_id: expectedRun,
+      revision: config.revision,
+      workflow: productionControllerWorkflow,
+      display_title: `Portcove ${config.publication_purpose === "catalog-publication" ? "catalog publication" : "application release"} wake ${wakeRun}`,
+    });
   if (
     !isRecord(raw) ||
     !Number.isSafeInteger(raw.id) ||
@@ -89,7 +210,7 @@ export function inspectWakeControllerRun(
     raw.event !== "workflow_dispatch" ||
     raw.run_attempt !== 1 ||
     raw.display_title !==
-      `Portcove ${config.schema_version === 3 && config.publication_purpose === "catalog-publication" ? "catalog publication" : "application release"} wake ${wakeRun}` ||
+      `Portcove ${config.schema_version >= 3 && config.publication_purpose === "catalog-publication" ? "catalog publication" : "application release"} wake ${wakeRun}` ||
     !isRecord(raw.actor) ||
     String(raw.actor.id) !== config.dispatch_actor_id ||
     !isRecord(raw.triggering_actor) ||
@@ -403,7 +524,7 @@ export async function reconcilePreviousWakes(
       approved.some(
         (config) =>
           item.display_title ===
-          `Portcove ${config.schema_version === 3 && config.publication_purpose === "catalog-publication" ? "catalog publication" : "application release"} wake ${String(run.id)}`,
+          `Portcove ${config.schema_version >= 3 && config.publication_purpose === "catalog-publication" ? "catalog publication" : "application release"} wake ${String(run.id)}`,
       ),
     );
     if (matches.length !== 1)
@@ -413,7 +534,7 @@ export async function reconcilePreviousWakes(
       approved.find(
         (config) =>
           matches[0]!.display_title ===
-          `Portcove ${config.schema_version === 3 && config.publication_purpose === "catalog-publication" ? "catalog publication" : "application release"} wake ${String(run.id)}`,
+          `Portcove ${config.schema_version >= 3 && config.publication_purpose === "catalog-publication" ? "catalog publication" : "application release"} wake ${String(run.id)}`,
       )!,
       String(run.id),
       String(matches[0]!.id),
@@ -431,11 +552,14 @@ export async function reconcilePreviousWakes(
 export function inspectControllerWakeConfiguration(value: unknown) {
   if (
     !isRecord(value) ||
-    ![2, 3].includes(Number(value.schema_version)) ||
+    typeof value.schema_version !== "number" ||
+    ![2, 3, 4].includes(value.schema_version) ||
     Object.keys(value).sort().join(",") !==
-      (value.schema_version === 3
-        ? "activation_started_at,dispatch_actor_id,execution_ref,namespace,publication_purpose,revision,schema_version,wake_workflow_sha256,workflow_sha256"
-        : "activation_started_at,dispatch_actor_id,execution_ref,revision,schema_version,wake_workflow_sha256,workflow_sha256") ||
+      (value.schema_version === 4
+        ? "activation_started_at,dispatch_actor_id,dispatch_transport,execution_ref,namespace,publication_purpose,revision,schema_version,wake_workflow_sha256,workflow_sha256"
+        : value.schema_version === 3
+          ? "activation_started_at,dispatch_actor_id,execution_ref,namespace,publication_purpose,revision,schema_version,wake_workflow_sha256,workflow_sha256"
+          : "activation_started_at,dispatch_actor_id,execution_ref,revision,schema_version,wake_workflow_sha256,workflow_sha256") ||
     typeof value.execution_ref !== "string" ||
     !/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(
       value.execution_ref,
@@ -454,21 +578,28 @@ export function inspectControllerWakeConfiguration(value: unknown) {
   )
     throw new Error("ratified wake-up controller tuple unavailable");
   if (
-    value.schema_version === 3 &&
+    Number(value.schema_version) >= 3 &&
     (typeof value.namespace !== "string" ||
       !/^portcove-[a-z0-9]+(?:-[a-z0-9]+){0,5}$/u.test(value.namespace) ||
       value.namespace.length > 64)
   )
     throw new Error("fixed shared wake namespace required");
+  if (
+    value.schema_version === 4 &&
+    (value.dispatch_transport !== jobTokenDispatchTransport ||
+      value.dispatch_actor_id !== jobTokenDispatchActor)
+  )
+    throw new Error("fixed job-token dispatch transport and observed Actions actor required");
   const purpose =
-    value.schema_version === 3
+    Number(value.schema_version) >= 3
       ? inspectControllerExecutionPurpose(value.publication_purpose)
       : "application";
   return {
-    schema_version: value.schema_version === 3 ? 3 : 2,
-    ...(value.schema_version === 3
+    schema_version: value.schema_version === 4 ? 4 : value.schema_version === 3 ? 3 : 2,
+    ...(Number(value.schema_version) >= 3
       ? { publication_purpose: purpose, namespace: String(value.namespace) }
       : {}),
+    ...(value.schema_version === 4 ? { dispatch_transport: jobTokenDispatchTransport } : {}),
     execution_ref: value.execution_ref,
     revision: value.revision,
     workflow_sha256: value.workflow_sha256,
@@ -476,6 +607,15 @@ export function inspectControllerWakeConfiguration(value: unknown) {
     dispatch_actor_id: value.dispatch_actor_id,
     activation_started_at: value.activation_started_at,
   };
+}
+
+/** Operating route for the approved two-App setup. Legacy tuples remain readable
+ * for original-intent recovery, but cannot acquire a new credential or dispatch. */
+export function requireJobTokenWakeConfiguration(raw: unknown) {
+  const value = inspectControllerWakeConfiguration(raw);
+  if (value.schema_version !== 4 || value.dispatch_transport !== jobTokenDispatchTransport)
+    throw new Error("current wake requires the explicitly ratified job-token configuration");
+  return value;
 }
 
 /** A wake-up schedules the existing fixed controller; it cannot accept a
@@ -502,7 +642,7 @@ export async function wakeRatifiedController(
         approved_configurations?: readonly ReturnType<typeof inspectControllerWakeConfiguration>[];
       },
 ) {
-  const deadline = Math.min(performance.now() + 55000, options.deadline ?? Infinity);
+  let deadline = Math.min(performance.now() + 55000, options.deadline ?? Infinity);
   const active = () => {
     if (!Number.isFinite(deadline) || performance.now() >= deadline)
       throw new Error("wake phase deadline exhausted; retain actual effects");
@@ -555,6 +695,33 @@ export async function wakeRatifiedController(
     identity.private !== false
   )
     throw new Error("wake-up fixed public repository identity differs");
+  if (config.schema_version === 4) {
+    const jobs = get(`actions/runs/${environment.GITHUB_RUN_ID}/attempts/1/jobs?per_page=100`);
+    const job = isRecord(jobs) && Array.isArray(jobs.jobs) ? (jobs.jobs[0] as unknown) : null;
+    if (
+      !isRecord(jobs) ||
+      jobs.total_count !== 1 ||
+      !Array.isArray(jobs.jobs) ||
+      jobs.jobs.length !== 1 ||
+      !isRecord(job) ||
+      !Number.isSafeInteger(job.id) ||
+      Number(job.id) < 1 ||
+      job.name !== "Wake fixed application controller" ||
+      String(job.run_id) !== environment.GITHUB_RUN_ID ||
+      job.run_attempt !== 1 ||
+      job.head_sha !== environment.GITHUB_SHA ||
+      job.status !== "in_progress" ||
+      typeof job.started_at !== "string" ||
+      !Number.isFinite(Date.parse(job.started_at)) ||
+      Date.now() < Date.parse(job.started_at) ||
+      Date.now() >= Date.parse(job.started_at) + 55000
+    )
+      throw new Error("job-token wake requires its exact live hosted job and original budget");
+    deadline = Math.min(
+      deadline,
+      performance.now() + Date.parse(job.started_at) + 55000 - Date.now(),
+    );
+  }
   const readRefs = () => {
     const current = get("git/ref/heads/main");
     const controller = get(`git/ref/${config.execution_ref.slice(5)}`);
@@ -644,10 +811,32 @@ export async function wakeRatifiedController(
     controller_run_id: runId,
     endpoint: response.body.run_url,
   });
-  const observed = api.request("GET", `${prefix}/actions/runs/${runId}`);
-  if (observed.status !== 200)
-    throw new Error("acknowledged controller run readback unavailable; retain original ID");
-  inspectWakeControllerRun(observed.body, config, environment.GITHUB_RUN_ID!, runId);
+  // Only this acknowledged-run GET may return a late body for bounded retention.
+  // All other GETs retain the ordinary after-response deadline check above.
+  const acknowledgedEndpoint = `${prefix}/actions/runs/${runId}`;
+  const acknowledgedRunReader: Api = {
+    request(method, endpoint, body) {
+      if (method !== "GET" || endpoint !== acknowledgedEndpoint || body !== undefined)
+        throw new Error("fixed acknowledged-run GET required");
+      active();
+      return request("GET", acknowledgedEndpoint);
+    },
+  };
+  const observed =
+    config.schema_version === 4
+      ? await observeJobTokenDispatchRun(
+          acknowledgedRunReader,
+          {
+            run_id: runId,
+            revision: config.revision,
+            workflow: productionControllerWorkflow,
+            display_title: `Portcove ${config.publication_purpose === "catalog-publication" ? "catalog publication" : "application release"} wake ${environment.GITHUB_RUN_ID}`,
+          },
+          record,
+          deadline,
+        )
+      : providerGet(api, `${prefix}/actions/runs/${runId}`);
+  inspectWakeControllerRun(observed, config, environment.GITHUB_RUN_ID!, runId);
   const result = {
     authority: "none",
     decision: "dispatch-acknowledged-only" as const,
@@ -681,14 +870,14 @@ export function inspectControllerWakeChoices(application: unknown, catalog: unkn
   if (configs.length < 1) throw new Error("no configured automatic controller purpose");
   if (
     application != null &&
-    configs[0]!.schema_version === 3 &&
+    configs[0]!.schema_version >= 3 &&
     configs[0]!.publication_purpose !== "application"
   )
     throw new Error("application wake purpose differs");
   if (
     catalog != null &&
     !(
-      configs.at(-1)!.schema_version === 3 &&
+      configs.at(-1)!.schema_version >= 3 &&
       configs.at(-1)!.publication_purpose === "catalog-publication"
     )
   )
@@ -696,8 +885,10 @@ export function inspectControllerWakeChoices(application: unknown, catalog: unkn
   if (configs.length === 2) {
     const [a, b] = configs;
     if (
-      a!.schema_version !== 3 ||
-      b!.schema_version !== 3 ||
+      a!.schema_version < 3 ||
+      b!.schema_version < 3 ||
+      a!.schema_version !== b!.schema_version ||
+      (a!.schema_version === 4 && a!.dispatch_actor_id !== b!.dispatch_actor_id) ||
       a!.namespace !== b!.namespace ||
       a!.revision !== b!.revision ||
       a!.execution_ref !== b!.execution_ref ||
@@ -843,27 +1034,12 @@ async function main() {
       const priority =
         choices.length === 2 ? readWakePurposePriority(api, choices[0]!.namespace!) : null;
       selected = selectControllerWakePurpose(choices, current.run_number, priority);
+      requireJobTokenWakeConfiguration(selected);
       await writeFile(selectedFile, JSON.stringify(selected), { flag: "wx", mode: 0o600 });
-      const authority: unknown = JSON.parse(
-        (selected.publication_purpose === "catalog-publication"
-          ? process.env.PORTCOVE_CATALOG_AUTHORITIES
-          : process.env.PORTCOVE_RELEASE_AUTHORITIES) ?? "null",
-      );
-      if (
-        !isRecord(authority) ||
-        !isRecord(authority.apps) ||
-        !isRecord(authority.apps.dispatch) ||
-        String(authority.apps.dispatch.actor_id) !== selected.dispatch_actor_id ||
-        !Number.isSafeInteger(authority.apps.dispatch.app_id) ||
-        !Number.isSafeInteger(authority.apps.dispatch.installation_id) ||
-        Number(authority.apps.dispatch.app_id) < 1 ||
-        Number(authority.apps.dispatch.installation_id) < 1
-      )
-        throw new Error("selected wake dispatch App configuration unavailable");
       if (!process.env.GITHUB_OUTPUT) throw new Error("wake selection output unavailable");
       await appendFile(
         process.env.GITHUB_OUTPUT,
-        `dispatch_app_id=${String(authority.apps.dispatch.app_id)}\ndispatch_installation_id=${String(authority.apps.dispatch.installation_id)}\npublication_purpose=${selected.publication_purpose ?? "application"}\n`,
+        `dispatch_transport=${jobTokenDispatchTransport}\npublication_purpose=${selected.publication_purpose ?? "application"}\n`,
       );
     } else {
       const handle = await open(
@@ -895,7 +1071,7 @@ async function main() {
       } finally {
         await handle.close();
       }
-      selected = inspectControllerWakeConfiguration(JSON.parse(bytes.toString("utf8")));
+      selected = requireJobTokenWakeConfiguration(JSON.parse(bytes.toString("utf8")));
       if (!choices.some((config) => digest(config) === digest(selected)))
         throw new Error("retained selected wake configuration changed");
     }

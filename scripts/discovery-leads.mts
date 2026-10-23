@@ -208,8 +208,9 @@ export function retainLeadResults(
 export function nextLeadPage(state: LeadState, now: string) {
   if (!clock(now)) throw new Error("Invalid lead search clock");
   const family = families[state.next_family]!;
+  const contract = `${family.terms} [best-match]`;
   const saved = state.slices[family.id];
-  const retired = saved !== undefined && saved.terms !== family.terms;
+  const retired = saved !== undefined && saved.terms !== contract;
   const previous = retired ? undefined : saved;
   const slice =
     previous && !previous.completed_at
@@ -218,7 +219,7 @@ export function nextLeadPage(state: LeadState, now: string) {
           ...investigationWindow(previous?.completed_at, now),
           page: 1,
           seen: [],
-          terms: family.terms,
+          terms: contract,
         };
   return {
     family: family.id,
@@ -319,8 +320,15 @@ export function pendingLeads(
 ) {
   const hint = (r: DiscoveryLead) =>
     /tooling|framework|games.list|experimental/iu.test(r.description) ? 1 : 0;
-  const gameSignal = (r: DiscoveryLead) =>
-    /games?|recomp|decomp/iu.test(`${r.repository} ${r.description}`) ? 1 : 0;
+  const gameSignal = (r: DiscoveryLead) => {
+    if (/\b(?:tooling|tools?|framework|libraries|curated|list|sdk)\b/iu.test(r.description))
+      return 0;
+    return /\b(?:games?|xbox|playstation|nintendo|wii|n64|gamecube|dreamcast|native pc port)\b/iu.test(
+      r.description,
+    ) || /recomp|decomp/iu.test(r.repository.split("/")[1] ?? "")
+      ? 1
+      : 0;
+  };
   return Object.values(state.records)
     .filter(
       (r) =>

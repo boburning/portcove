@@ -107,6 +107,25 @@ function fixtureGraphql(input: unknown) {
 const config = validateConfig(
   JSON.parse(await readFile(new URL("../.github/roadmap.json", import.meta.url), "utf8")),
 );
+function fixtureProjectDetails(
+  args: readonly string[],
+  input: string | undefined,
+  id: string,
+  number = config.project.number,
+) {
+  if (args[0] === "api" && args[2] === "users/boburning") return JSON.stringify({ type: "User" });
+  if (args[0] !== "api" || args[1] !== "graphql") return undefined;
+  const request = fixtureGraphql(input);
+  if (
+    !request.query.includes("user(login: $login)") ||
+    !request.query.includes("projectV2(number: $number)") ||
+    request.query.includes("fields(")
+  )
+    return undefined;
+  assert.equal(request.variables.login, "boburning");
+  assert.equal(request.variables.number, number);
+  return JSON.stringify({ data: { user: { projectV2: { id, number } } } });
+}
 const newPortForm = await readFile(
   new URL("../.github/ISSUE_TEMPLATE/new-port.yml", import.meta.url),
   "utf8",
@@ -2249,7 +2268,8 @@ void test("RoadmapClient capture uses mocked gh output and stores planning field
   const runner: GitHubRunner = (args, input) => {
     calls.push({ args, input });
     if (args[1] === "item-create") return JSON.stringify({ id: "PVTI_draft", title: "Candidate" });
-    if (args[1] === "view") return JSON.stringify({ id: "PVT_project" });
+    const project = fixtureProjectDetails(args, input, "PVT_project", 7);
+    if (project !== undefined) return project;
     if (args[1] === "field-list")
       return JSON.stringify({
         fields: [
@@ -2313,7 +2333,8 @@ void test("capture-port creates one Project-backed issue without depending on pa
         html_url: "https://github.com/boburning/portcove/issues/88",
         number: 88,
       });
-    if (args[0] === "project" && args[1] === "view") return JSON.stringify({ id: "PVT_project" });
+    const project = fixtureProjectDetails(args, input, "PVT_project", 7);
+    if (project !== undefined) return project;
     if (args[0] === "project" && args[1] === "field-list")
       return JSON.stringify({
         fields: Object.entries(expectedFields).map(([name, value], index) => ({
@@ -2433,7 +2454,8 @@ Preserve this contributor text.`;
       }
       if (args[0] === "api" && args[2] === "repos/boburning/portcove/issues/42")
         return JSON.stringify(issue());
-      if (args[0] === "project" && args[1] === "view") return JSON.stringify({ id: "PVT_project" });
+      const project = fixtureProjectDetails(args, input, "PVT_project", 7);
+      if (project !== undefined) return project;
       if (args[0] === "project" && args[1] === "field-list")
         return JSON.stringify({
           fields: [
@@ -2776,8 +2798,9 @@ void test("promotion validation happens before any GitHub mutation", () => {
 void test("move refuses ambiguous item references", () => {
   const mockedConfig = structuredClone(config);
   mockedConfig.project.number = 7;
-  const runner: GitHubRunner = (args: readonly string[]) => {
-    if (args[1] === "view") return JSON.stringify({ id: "PVT_project" });
+  const runner: GitHubRunner = (args, input) => {
+    const project = fixtureProjectDetails(args, input, "PVT_project", 7);
+    if (project !== undefined) return project;
     if (args[1] === "graphql")
       return JSON.stringify({
         data: {
@@ -2858,7 +2881,8 @@ void test("Project membership refuses malformed or stalled coverage before mutat
     let reads = 0,
       mutations = 0;
     const client = new RoadmapClient(config, (args, input) => {
-      if (args[0] === "project" && args[1] === "view") return JSON.stringify({ id: "P_selected" });
+      const project = fixtureProjectDetails(args, input, "P_selected");
+      if (project !== undefined) return project;
       if (args[0] === "project" && args[1] === "field-list") return JSON.stringify({ fields: [] });
       if (input?.includes("addProjectV2ItemById")) {
         mutations++;
@@ -2878,7 +2902,8 @@ void test("RoadmapClient reuses an existing issue item instead of duplicating it
   mockedConfig.project.number = 7;
   const runner: GitHubRunner = (args, input) => {
     calls.push({ args, input });
-    if (args[1] === "view") return JSON.stringify({ id: "PVT_project" });
+    const project = fixtureProjectDetails(args, input, "PVT_project", 7);
+    if (project !== undefined) return project;
     if (args[1] === "field-list") return JSON.stringify({ fields: [] });
     if (args[0] === "api" && args[1] === "graphql") {
       const after = fixtureGraphql(input).variables.after;
@@ -3239,7 +3264,8 @@ void test("GraphQL Project item pagination reads every item with normalized fiel
   const calls: RunnerCall[] = [];
   const runner: GitHubRunner = (args, input) => {
     calls.push({ args, input });
-    if (args[1] === "view") return JSON.stringify({ id: "PVT" });
+    const project = fixtureProjectDetails(args, input, "PVT");
+    if (project !== undefined) return project;
     const after = fixtureGraphql(input).variables.after;
     const item = after
       ? {
@@ -3299,12 +3325,13 @@ void test("GraphQL Project item pagination reads every item with normalized fiel
   );
   assert.equal(fieldValue(items[0], "Work type"), "Port");
   assert.equal(fieldValue(items[1], "Status"), "Inbox");
-  assert.equal(calls.filter((call) => call.args[1] === "graphql").length, 2);
+  assert.equal(calls.filter((call) => call.input?.includes("items(first: 50")).length, 2);
 });
 
 void test("Project item inventory rejects a truncated nested field connection", () => {
-  const runner: GitHubRunner = (args: readonly string[]) => {
-    if (args[1] === "view") return JSON.stringify({ id: "PVT" });
+  const runner: GitHubRunner = (args, input) => {
+    const project = fixtureProjectDetails(args, input, "PVT");
+    if (project !== undefined) return project;
     return JSON.stringify({
       data: {
         node: {
@@ -3348,9 +3375,8 @@ void test("set-many validates transitions before one mutation and exact readback
   });
   const runner: GitHubRunner = (args, input) => {
     calls.push({ args, input });
-    if (args[0] === "api" && args[2] === "users/boburning") return JSON.stringify({ type: "User" });
-    if (args[0] === "project" && args[1] === "view")
-      return JSON.stringify({ id: "PVT", number: 7 });
+    const project = fixtureProjectDetails(args, input, "PVT", 7);
+    if (project !== undefined) return project;
     if (args[0] === "project" && args[1] === "field-list")
       return JSON.stringify({
         fields: [
@@ -3792,7 +3818,8 @@ for (const kind of ["items"]) {
   function readPages(pages: readonly unknown[]) {
     let index = 0;
     const client = new RoadmapClient(config, (args, input) => {
-      if (args[0] === "project") return JSON.stringify({ id: "PVT" });
+      const project = fixtureProjectDetails(args, input, "PVT");
+      if (project !== undefined) return project;
       assert.match(fixtureGraphql(input).query, /totalCount/);
       const current = pages[index++];
       if (current instanceof Error) throw current;
