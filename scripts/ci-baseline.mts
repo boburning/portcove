@@ -114,6 +114,17 @@ export function baselineRequiresPython(plan: ValidationPlan) {
   );
 }
 
+export function baselineRequiresDesktopDependencies(plan: ValidationPlan) {
+  if (plan.mode === "qualification") return true;
+  if (plan.mode !== "fast") return false;
+  // The actual native-source consumer imports the desktop-owned SemVer policy
+  // even when its source declarations changed outside release-security paths.
+  return (
+    plan.areas.includes("release-security") ||
+    baselineContractTests(plan).includes("scripts/release-native-source-contract.test.mts")
+  );
+}
+
 // Run the cheap production checkers against the actual checkout when their
 // contracts are selected. Fixture-based unit tests alone cannot prove integrity.
 export function baselineIntegrityCommands(plan: ValidationPlan, options: ClassifyOptions = {}) {

@@ -73,6 +73,7 @@ jobs:
       reused_groups: ${{ steps.plan.outputs.reused_groups }}
       contract_python: ${{ steps.plan.outputs.contract_python }}
       contract_rust: ${{ steps.plan.outputs.contract_rust }}
+      contract_desktop: ${{ steps.plan.outputs.contract_desktop }}
       mode: ${{ steps.plan.outputs.mode }}
       reason: ${{ steps.plan.outputs.reason }}
       files_json: ${{ steps.plan.outputs.files_json }}
@@ -213,7 +214,7 @@ jobs:
         with:
           test-fixtures: true
       - id: workspace-cache
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           cache-on-failure: true
           key: fast-rust-tests-${{ hashFiles('Cargo.toml') }}
@@ -226,7 +227,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Record workspace cache observation
@@ -304,7 +305,7 @@ jobs:
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
         with:
           test-fixtures: true
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
         with:
           cache-on-failure: true
@@ -340,7 +341,7 @@ jobs:
         if: needs.classify.outputs.script_tools == 'true'
         id: aqua-version
         run: echo "version=$(tr -d '\r\n' < .aqua-version)" >> "$GITHUB_OUTPUT"
-      - uses: aquaproj/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329 # v4.1.0
+      - uses: aquaproj/aqua-installer@611554c6f0137ba41c8dd15aca8bee82504ea461 # v4.1.1
         if: needs.classify.outputs.script_tools == 'true'
         with:
           aqua_version: ${{ steps.aqua-version.outputs.version }}
@@ -399,6 +400,7 @@ jobs:
           name: browser-traces-fast-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             work/bt/**/*.trace.zip
+            work/bt/**/screenshots/**/*.png
             .vitest/attachments/failure-screenshots/**/*.png
             apps/desktop/.vitest/attachments/failure-screenshots/**/*.png
             .vitest/attachments/**/*.json
@@ -494,12 +496,12 @@ jobs:
           cache: true
           run-install: |
             args: [--filter, portcove-repository, --frozen-lockfile, --ignore-scripts]
-      - name: Install selected release-policy test dependencies
-        if: contains(fromJSON(needs.classify.outputs.plan_json).areas, 'release-security')
+      - name: Install selected desktop test dependencies
+        if: needs.classify.outputs.contract_desktop == 'true'
         run: pnpm --filter portcove-desktop-ui install --frozen-lockfile --ignore-scripts
       - uses: ./.github/actions/setup-rust
         if: needs.classify.outputs.contract_rust == 'true'
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         if: needs.classify.outputs.contract_python == 'true'
         with:
           python-version: "3.12"
@@ -555,7 +557,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           test-fixtures: true
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
@@ -568,7 +570,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Run exhaustive Rust test shard
@@ -613,7 +615,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           test-fixtures: true
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
@@ -626,7 +628,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - run: cargo nextest run --locked --workspace --exclude portcove-core
@@ -654,7 +656,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-rust
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
@@ -727,7 +729,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           test-fixtures: true
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
@@ -740,7 +742,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Use the runner-owned temporary directory
@@ -762,7 +764,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           targets: x86_64-apple-darwin
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
@@ -775,7 +777,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Cross-compile the full Intel test workspace
@@ -812,7 +814,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Download this attempt's Intel test binaries
@@ -837,7 +839,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-rust
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
@@ -897,7 +899,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           test-fixtures: true
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           cache-on-failure: true
           key: ${{ hashFiles('Cargo.toml') }}
@@ -909,7 +911,7 @@ jobs:
             ~/.cargo/bin/rscheck
           key: quality-rscheck-binaries-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/quality-tools.json') }}
       - name: Install pinned prebuilt Rust quality tools
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
         with:
           tool: ${{ steps.quality-pins.outputs.required_prebuilt }}
       - name: Read pinned aqua version
@@ -917,7 +919,7 @@ jobs:
         shell: bash
         run: echo "version=$(tr -d '\r\n' < .aqua-version)" >> "$GITHUB_OUTPUT"
       - name: Install pinned aqua
-        uses: aquaproj/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329 # v4.1.0
+        uses: aquaproj/aqua-installer@611554c6f0137ba41c8dd15aca8bee82504ea461 # v4.1.1
         with:
           aqua_version: ${{ steps.aqua-version.outputs.version }}
           enable_aqua_install: "false"
@@ -932,7 +934,7 @@ jobs:
           fi
       - name: Install pinned rscheck
         if: steps.rscheck-tool.outputs.ready != 'true'
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
         with:
           tool: ${{ steps.quality-pins.outputs.rscheck_spec }}
       - name: Verify exact Rust quality-tool versions
@@ -1034,7 +1036,7 @@ jobs:
         working-directory: .
         run: echo "just=just@$(node scripts/quality-tools.mts --version just)" >> "$GITHUB_OUTPUT"
       - name: Install pinned recipe runner
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
         with:
           tool: ${{ steps.quality-pins.outputs.just }}
       - name: Verify staged checks and hook installation
@@ -1079,6 +1081,7 @@ jobs:
           name: browser-traces-full-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             work/bt/**/*.trace.zip
+            work/bt/**/screenshots/**/*.png
             .vitest/attachments/failure-screenshots/**/*.png
             apps/desktop/.vitest/attachments/failure-screenshots/**/*.png
             .vitest/attachments/**/*.json
@@ -1139,7 +1142,7 @@ jobs:
           path: work/prose-ci-integration/
           if-no-files-found: ignore
           retention-days: 7
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
       - name: Verify repository and release contracts
@@ -1147,7 +1150,7 @@ jobs:
           # node-suite: catalog-full
           node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/upstream-observer.test.mts scripts/discovery-checkpoint.test.mts scripts/discovery-intake.test.mts scripts/roadmap-inventory.test.mts scripts/repository-issue-inventory.test.mts scripts/daily-discovery.test.mts scripts/discovery-leads.test.mts
           # node-suite: catalog-full-2
-          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/validation-evidence.test.mts scripts/container-browser.test.mts scripts/container-build.test.mts scripts/desktop-listener-probe.test.mts scripts/container-recovery.test.mts scripts/checked-git.test.mts scripts/resource-status.test.mts scripts/report-summary.test.mts scripts/ci-metrics.test.mts scripts/checkout-context.test.mts scripts/github-body.test.mts scripts/audit.test.mts scripts/audit-evidence.test.mts scripts/audit-archive.test.mts scripts/audit-reuse.test.mts scripts/check-release-metadata.test.mts scripts/desktop-build-cache.test.mts scripts/heavy-rust-test-lock.test.mts scripts/release-package-policy.test.mts scripts/release-public-build-inputs.test.mts scripts/release-public-build-provenance.test.mts scripts/release-live-control-admission.test.mts scripts/release-control-handshake.test.mts scripts/write-release-checksums.test.mts scripts/hosted-native-continuity.test.mts scripts/updater-artifact-inventory.test.mts scripts/release-payload-signing.test.mts scripts/release-payload-preparation.test.mts scripts/release-signing-handoff.test.mts scripts/reconcile-release-assets.test.mts scripts/trusted-release-assembly.test.mts scripts/release-artifact-archive.test.mts scripts/finalize-release-assets.test.mts scripts/generate-release-downloads.test.mts scripts/release-workflow.test.mts scripts/sign-catalog.test.mts scripts/release-result-gate.test.mts scripts/linux-beta-risk-706.test.mts scripts/linux-beta-risk-706-controller.test.mts scripts/dependency-security.test.mts scripts/desktop-input-observation.test.mts scripts/run-rust-tests.test.mts scripts/rust-support-cache.test.mts scripts/rust-test-tree-supervisor.test.mts scripts/ci-workflow.test.mts scripts/node-test-inventory.test.mts scripts/ci-health.test.mts scripts/workflow-provenance.test.mts scripts/check-document-links.test.mts scripts/nextest-equivalence.test.mts scripts/ordinary-git-routing.test.mts scripts/package-ownership-selection.test.mts scripts/postmerge-ci.test.mts scripts/validation-plan.test.mts scripts/select-ci-plan.test.mts scripts/ci-result-gate.test.mts scripts/ci-baseline.test.mts scripts/rust-test-impact.test.mts scripts/qualification-coverage.test.mts scripts/test-duration-reporter.test.mts scripts/ui-test-selection.test.mts scripts/quality-tools.test.mts scripts/dependency-automation.test.mts scripts/pnpm-lock-inventory.test.mts scripts/frontend-build-compare.test.mts scripts/renovate-engine-probe.test.mts scripts/repository-settings.test.mts scripts/repository-skills.test.mts scripts/pr-conventions.test.mts scripts/pr-delivery.test.mts scripts/pr-delivery-snapshot.test.mts scripts/renovate-fast-lane.test.mts scripts/github-api.test.mts scripts/cleanup-intel-artifacts.test.mts scripts/process-lock.test.mts scripts/source-provenance-audit.test.mts scripts/check-child-process-policy.test.mts scripts/check-transport-contract.test.mts scripts/check-fallow-report.test.mts scripts/run-fallow.test.mts scripts/fallow-summary.test.mts scripts/fallow-scope.test.mts scripts/fallow-source.test.mts scripts/generate-catalog.test.mts scripts/upstream-lineage.test.mts scripts/prepare-port.test.mts scripts/maintainer-config.test.mts scripts/catalog-staged-check.test.mts scripts/catalog-proposal-costs.test.mts scripts/migrate-catalog-schema2.test.mts scripts/roadmap.test.mts scripts/roadmap-scoped.test.mts scripts/release-handshake-hosted-fixture.test.mts scripts/release-candidate-qualification.test.mts scripts/release-immutable-publication.test.mts scripts/release-acceptance-evidence.test.mts scripts/release-compiler-capture.test.mts scripts/release-native-observation.test.mts scripts/release-controller-tools.test.mts scripts/release-role-key-channel.test.mts scripts/release-compiler-outputs.test.mts scripts/release-compiler-source.test.mts scripts/release-compiler-source-admission.test.mts scripts/release-compiler-evidence.test.mts scripts/release-source-attestation.test.mts scripts/release-native-qualification-contract.test.mts scripts/native-qualification-account.test.mts scripts/native-qualification-account-client.test.mts scripts/native-qualification-account-adapter.test.mts scripts/desktop-native-account-session.test.mts scripts/release-native-acceptance.test.mts scripts/release-native-admission.test.mts scripts/release-native-check-discovery.test.mts scripts/release-bootstrap-preparation.test.mts scripts/release-signing-context.test.mts scripts/release-preview-withdrawals.test.mts scripts/release-signing-context-artifact.test.mts scripts/release-publication-result.test.mts scripts/release-publication-result-artifact.test.mts scripts/release-controller-wake.test.mts scripts/release-tuf-signing.test.mts scripts/release-tuf-role-artifact.test.mts scripts/release-publication-controller.test.mts scripts/release-publication-inputs.test.mts scripts/release-publication-source.test.mts scripts/release-local-native-setup.test.mts scripts/release-local-worker-tasks.test.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts scripts/release-native-attempt.test.mts scripts/release-native-windows-driver.test.mts scripts/release-native-windows-public-continuation.test.mts scripts/release-native-source-contract.test.mts scripts/release-native-pre-sign-report.test.mts scripts/release-native-check-broker.test.mts scripts/release-native-candidate.test.mts scripts/release-native-parent.test.mts scripts/release-native-linux-public-capture.test.mts scripts/release-native-public-pair.test.mts scripts/release-native-public-compiler.test.mts scripts/release-native-public-signature.test.mts scripts/release-native-public-attempt-contract.test.mts scripts/release-native-scheduler.test.mts scripts/release-native-stage-capture.test.mts scripts/release-native-wsl-boundary.test.mts scripts/native-linux-driver-http.test.mts scripts/native-linux-isolated-init.test.mts scripts/native-linux-isolated-plan.test.mts scripts/release-native-linux-driver.test.mts scripts/native-qualification-linux-supervisor.test.mts scripts/native-qualification-linux-transfer.test.mts scripts/release-native-wsl-capture.test.mts
+          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/validation-evidence.test.mts scripts/container-browser.test.mts scripts/container-build.test.mts scripts/desktop-listener-probe.test.mts scripts/container-recovery.test.mts scripts/checked-git.test.mts scripts/resource-status.test.mts scripts/report-summary.test.mts scripts/ci-metrics.test.mts scripts/checkout-context.test.mts scripts/github-body.test.mts scripts/audit.test.mts scripts/audit-evidence.test.mts scripts/audit-archive.test.mts scripts/audit-reuse.test.mts scripts/check-release-metadata.test.mts scripts/desktop-build-cache.test.mts scripts/heavy-rust-test-lock.test.mts scripts/release-package-policy.test.mts scripts/release-public-build-inputs.test.mts scripts/release-public-build-provenance.test.mts scripts/release-live-control-admission.test.mts scripts/release-control-handshake.test.mts scripts/write-release-checksums.test.mts scripts/hosted-native-continuity.test.mts scripts/updater-artifact-inventory.test.mts scripts/release-payload-signing.test.mts scripts/release-payload-preparation.test.mts scripts/release-signing-handoff.test.mts scripts/reconcile-release-assets.test.mts scripts/trusted-release-assembly.test.mts scripts/release-artifact-archive.test.mts scripts/finalize-release-assets.test.mts scripts/generate-release-downloads.test.mts scripts/release-workflow.test.mts scripts/sign-catalog.test.mts scripts/release-result-gate.test.mts scripts/linux-beta-risk-706.test.mts scripts/linux-beta-risk-706-controller.test.mts scripts/dependency-security.test.mts scripts/desktop-input-observation.test.mts scripts/run-rust-tests.test.mts scripts/rust-support-cache.test.mts scripts/rust-test-tree-supervisor.test.mts scripts/ci-workflow.test.mts scripts/node-test-inventory.test.mts scripts/ci-health.test.mts scripts/workflow-provenance.test.mts scripts/check-document-links.test.mts scripts/nextest-equivalence.test.mts scripts/ordinary-git-routing.test.mts scripts/package-ownership-selection.test.mts scripts/postmerge-ci.test.mts scripts/validation-plan.test.mts scripts/select-ci-plan.test.mts scripts/ci-result-gate.test.mts scripts/ci-baseline.test.mts scripts/rust-test-impact.test.mts scripts/qualification-coverage.test.mts scripts/test-duration-reporter.test.mts scripts/ui-test-selection.test.mts scripts/quality-tools.test.mts scripts/dependency-automation.test.mts scripts/pnpm-lock-inventory.test.mts scripts/frontend-build-compare.test.mts scripts/renovate-engine-probe.test.mts scripts/repository-settings.test.mts scripts/repository-skills.test.mts scripts/pr-conventions.test.mts scripts/pr-delivery.test.mts scripts/pr-delivery-snapshot.test.mts scripts/renovate-fast-lane.test.mts scripts/github-api.test.mts scripts/cleanup-intel-artifacts.test.mts scripts/process-lock.test.mts scripts/source-provenance-audit.test.mts scripts/check-child-process-policy.test.mts scripts/check-transport-contract.test.mts scripts/check-fallow-report.test.mts scripts/run-fallow.test.mts scripts/fallow-summary.test.mts scripts/fallow-scope.test.mts scripts/fallow-source.test.mts scripts/generate-catalog.test.mts scripts/upstream-lineage.test.mts scripts/prepare-port.test.mts scripts/maintainer-config.test.mts scripts/catalog-staged-check.test.mts scripts/catalog-proposal-costs.test.mts scripts/migrate-catalog-schema2.test.mts scripts/roadmap.test.mts scripts/roadmap-scoped.test.mts scripts/roadmap-membership-readback.test.mts scripts/release-handshake-hosted-fixture.test.mts scripts/release-candidate-qualification.test.mts scripts/release-immutable-publication.test.mts scripts/release-acceptance-evidence.test.mts scripts/release-compiler-capture.test.mts scripts/release-native-observation.test.mts scripts/release-controller-tools.test.mts scripts/release-role-key-channel.test.mts scripts/release-compiler-outputs.test.mts scripts/release-compiler-source.test.mts scripts/release-compiler-source-admission.test.mts scripts/release-compiler-evidence.test.mts scripts/release-source-attestation.test.mts scripts/release-native-qualification-contract.test.mts scripts/native-qualification-account.test.mts scripts/native-qualification-account-client.test.mts scripts/native-qualification-account-adapter.test.mts scripts/desktop-native-account-session.test.mts scripts/release-native-acceptance.test.mts scripts/release-native-admission.test.mts scripts/release-native-check-discovery.test.mts scripts/release-bootstrap-preparation.test.mts scripts/release-signing-context.test.mts scripts/release-preview-withdrawals.test.mts scripts/release-signing-context-artifact.test.mts scripts/release-publication-result.test.mts scripts/release-publication-result-artifact.test.mts scripts/release-controller-wake.test.mts scripts/release-tuf-signing.test.mts scripts/release-tuf-role-artifact.test.mts scripts/release-publication-controller.test.mts scripts/release-publication-inputs.test.mts scripts/release-publication-source.test.mts scripts/release-local-native-setup.test.mts scripts/release-local-worker-tasks.test.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts scripts/release-native-attempt.test.mts scripts/release-native-windows-driver.test.mts scripts/release-native-windows-public-continuation.test.mts scripts/release-native-source-contract.test.mts scripts/release-native-pre-sign-report.test.mts scripts/release-native-check-broker.test.mts scripts/release-native-candidate.test.mts scripts/release-native-parent.test.mts scripts/release-native-linux-public-capture.test.mts scripts/release-native-public-pair.test.mts scripts/release-native-public-compiler.test.mts scripts/release-native-public-signature.test.mts scripts/release-native-public-attempt-contract.test.mts scripts/release-native-scheduler.test.mts scripts/release-native-stage-capture.test.mts scripts/release-native-wsl-boundary.test.mts scripts/native-linux-driver-http.test.mts scripts/native-linux-isolated-init.test.mts scripts/native-linux-isolated-plan.test.mts scripts/release-native-linux-driver.test.mts scripts/native-qualification-linux-supervisor.test.mts scripts/native-qualification-linux-transfer.test.mts scripts/release-native-wsl-capture.test.mts
           node scripts/check-release-metadata.mts
           node scripts/quality-tools.mts --validate
           node scripts/qualification-coverage.mts
@@ -1259,6 +1262,7 @@ jobs:
           name: browser-traces-contributor-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             work/bt/**/*.trace.zip
+            work/bt/**/screenshots/**/*.png
             .vitest/attachments/failure-screenshots/**/*.png
             apps/desktop/.vitest/attachments/failure-screenshots/**/*.png
           include-hidden-files: true

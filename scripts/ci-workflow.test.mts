@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { requireNodeTestInventory } from "./node-test-inventory.mts";
+import { createBrowserTraceRun } from "./browser-traces.ts";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import type {
   SpawnOptions,
@@ -497,7 +498,7 @@ void test("hosted backup focus is manual-only, pinned, isolated and retains real
   assert.doesNotMatch(requiredFixture(windows.split("    steps:")[0]), /\$\{\{ runner\./);
   assert.match(windows, /id: native-quality-pins/);
   assert.match(windows, /node scripts\/quality-tools.mts --github-output >> \$env:GITHUB_OUTPUT/);
-  assert.match(windows, /taiki-e\/install-action@8cca0918f8471c33515202b73f56ab27f2bed283/);
+  assert.match(windows, /taiki-e\/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177/);
   assert.match(windows, /tool: \$\{\{ steps.native-quality-pins.outputs.required_prebuilt \}\}/);
   assert.ok(
     windows.indexOf("Provision existing pinned prebuilt quality tools") <
@@ -535,7 +536,7 @@ void test("Windows updater rehearsal adopts manifest-pinned prebuilt tools befor
     reader,
     /run: node scripts\/quality-tools\.mts --github-output >> \$env:GITHUB_OUTPUT/,
   );
-  assert.match(prebuilt, /uses: taiki-e\/install-action@8cca0918f8471c33515202b73f56ab27f2bed283/);
+  assert.match(prebuilt, /uses: taiki-e\/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177/);
   assert.match(
     prebuilt,
     /tool: \$\{\{ steps\.windows-quality-pins\.outputs\.required_prebuilt \}\}/,
@@ -866,7 +867,7 @@ void test("application release records run after the maintained SemVer dependenc
   assert.ok(!catalog.includes("scripts/reconstruct-application-update-records.test.mts"));
 });
 
-void test("selected release-policy contracts install their desktop-owned dependency before fast contract execution", () => {
+void test("selected contracts install their desktop-owned dependencies before fast contract execution", () => {
   const block = requiredFixture(
     requiredFixture(workflow.split("  fast_catalog:")[1]).split(/\n  [a-z_]+:/u)[0],
   );
@@ -875,10 +876,8 @@ void test("selected release-policy contracts install their desktop-owned depende
   );
   const execution = block.indexOf("run: node scripts/ci-baseline.mts contracts");
   assert.ok(setup >= 0 && execution > setup);
-  assert.match(
-    block,
-    /if: contains\(fromJSON\(needs\.classify\.outputs\.plan_json\)\.areas, 'release-security'\)/u,
-  );
+  assert.match(block, /if: needs\.classify\.outputs\.contract_desktop == 'true'/u);
+  assert.match(workflow, /contract_desktop: \$\{\{ steps\.plan\.outputs\.contract_desktop \}\}/u);
 });
 
 void test("full repository contracts run the bounded release evidence collector controls", () => {
@@ -1003,7 +1002,7 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
   );
   assert.deepEqual(qualityCaches, [
     {
-      uses: "Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+      uses: "Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
       if: "contains(fromJSON(needs.classify.outputs.groups_json), 'rust')",
       with: {
         "cache-on-failure": true,
@@ -1117,7 +1116,7 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
   assert.match(updaterRehearsal, /work\/updater-rehearsal\/linux-host-baseline\.txt/g);
   assert.match(
     packageOwnershipRehearsal,
-    /timeout-minutes: 15\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh --include-rpm/,
+    /timeout-minutes: 30\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh --include-rpm --install-timeout-seconds=600 --prefer-archive-mirror/,
   );
   for (const hostedWorkflow of [
     workflow,
@@ -1164,8 +1163,8 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
     /install_from_current_mirror "the archive mirror fallback" 4m "\$fallback_install_deadline"/,
   );
   assert.ok(
-    installer.indexOf('"the runner-configured mirror"') <
-      installer.indexOf("archive.ubuntu.com/ubuntu"),
+    installer.indexOf('if install_from_current_mirror "the runner-configured mirror"') <
+      installer.indexOf('echo "Retrying Linux desktop prerequisites'),
   );
   assert.match(installer, /--include-rpm\) packages\+=\(rpm\)/);
   assert.match(installer, /VERSION_ID:-} == 24\.04[\s\S]*fuse_package=libfuse2t64/);
@@ -1750,12 +1749,12 @@ void test("release, rehearsal and deep audit Rust callers preserve repository pi
     );
     const cache = steps(
       section,
-      "Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2",
+      "Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3",
     );
     assert.deepEqual(
       cache.map((step: string) => step.replace(/^ {10}#.*\r?\n/gm, "")),
       [
-        "      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2\n" +
+        "      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3\n" +
           (cacheSetting ? `        with:\n          ${cacheSetting}\n` : ""),
       ],
     );
@@ -1794,7 +1793,7 @@ void test("release, rehearsal and deep audit Rust callers preserve repository pi
       assert.throws(() =>
         assertHostSetup(
           section.replace(
-            "Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+            "Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0",
             "Swatinem/rust-cache@floating",
           ),
           cacheSetting,
@@ -2256,7 +2255,7 @@ void test("Linux Rust quality keeps its platform-specific and policy gates witho
   assert.match(rustQuality, /runs-on: ubuntu-latest/);
   assert.match(rustQuality, /AQUA_ENFORCE_CHECKSUM: "true"/);
   assert.match(rustQuality, /AQUA_ENFORCE_REQUIRE_CHECKSUM: "true"/);
-  assert.match(rustQuality, /aquaproj\/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329/);
+  assert.match(rustQuality, /aquaproj\/aqua-installer@611554c6f0137ba41c8dd15aca8bee82504ea461/);
   assert.match(rustQuality, /aqua_version: \$\{\{ steps\.aqua-version\.outputs\.version \}\}/);
   assert.match(rustQuality, /enable_aqua_install: "false"/);
   assert.doesNotMatch(
@@ -2391,6 +2390,102 @@ void test("full frontend qualification provisions browser artifacts before compo
   }
 });
 
+void test("browser uploads select the actual trace and screenshot output layout", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-browser-upload-layout-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const run = createBrowserTraceRun(root);
+  await mkdir(run.screenshotDirectory, { recursive: true });
+  const trace = path.join(run.directory, "failure.trace.zip");
+  const screenshot = path.join(run.screenshotDirectory, "failure.png");
+  await writeFile(trace, "owned layout fixture, not an executed browser trace");
+  await writeFile(screenshot, "owned screenshot layout fixture");
+  const files = [trace, screenshot].map((file) => path.relative(root, file).replaceAll("\\", "/"));
+  const document = parseDocument(workflow, { uniqueKeys: true });
+  assert.deepEqual(document.errors, []);
+  const parsed: unknown = document.toJS();
+  assert.ok(isRecord(parsed) && isRecord(parsed.jobs));
+  for (const id of ["fast_frontend", "frontend_full", "frontend_portability"]) {
+    const job = parsed.jobs[id];
+    assert.ok(isRecord(job) && Array.isArray(job.steps));
+    const upload: unknown = job.steps.find(
+      (step: unknown) =>
+        isRecord(step) &&
+        isRecord(step.with) &&
+        typeof step.with.name === "string" &&
+        step.with.name.startsWith("browser-traces-"),
+    );
+    assert.ok(isRecord(upload) && isRecord(upload.with) && typeof upload.with.path === "string");
+    const patterns = upload.with.path
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    for (const file of files)
+      assert.ok(
+        patterns.some((pattern) => path.posix.matchesGlob(file, pattern)),
+        `${id} does not upload the actual output ${file}`,
+      );
+    const withoutScreenshots = patterns.filter(
+      (pattern) => !path.posix.matchesGlob(files[1]!, pattern),
+    );
+    assert.ok(withoutScreenshots.some((pattern) => path.posix.matchesGlob(files[0]!, pattern)));
+    assert.ok(!withoutScreenshots.some((pattern) => path.posix.matchesGlob(files[1]!, pattern)));
+  }
+});
+
+for (const closeFails of [false, true]) {
+  void test(`a passing run retains raw traces after ${closeFails ? "failed" : "successful"} pool shutdown`, async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-browser-close-control-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const run = createBrowserTraceRun(root);
+    const { createVitest } = await import("vite-plus/test/node");
+    const runner = await createVitest({
+      root,
+      config: false,
+      watch: false,
+      reporters: [run.reporter],
+    });
+    const originalExitCode = process.exitCode;
+    const originalLogger = runner.logger.error;
+    const diagnostics: unknown[][] = [];
+    runner.logger.error = (...args: unknown[]) => {
+      diagnostics.push(args);
+    };
+    try {
+      await runner.standalone();
+      await mkdir(run.directory, { recursive: true });
+      const raw = path.join(run.directory, "provider.trace");
+      await writeFile(raw, "pending browser trace");
+      await run.reporter.onTestRunEnd?.([], [], "passed");
+      const failure = new Error("owned pool-close failure control");
+      let closed = false;
+      // Fault injection uses the pinned runner's real close implementation.
+      // Its pool is private; production code never replaces or observes it.
+      Reflect.set(runner, "pool", {
+        async close() {
+          assert.equal(await readFile(raw, "utf8"), "pending browser trace");
+          await writeFile(raw, "browser shutdown flushed its final trace chunk");
+          closed = true;
+          if (closeFails) throw failure;
+        },
+      });
+      await runner.close();
+      assert.equal(closed, true);
+      if (closeFails) {
+        assert.equal(process.exitCode, 1);
+        assert.ok(diagnostics.some((args) => args.includes(failure)));
+      } else {
+        assert.equal(process.exitCode, originalExitCode);
+        assert.deepEqual(diagnostics, []);
+      }
+      assert.equal(await readFile(raw, "utf8"), "browser shutdown flushed its final trace chunk");
+    } finally {
+      await runner.close();
+      runner.logger.error = originalLogger;
+      process.exitCode = originalExitCode;
+    }
+  });
+}
+
 void test("frontend tools resolve through the pinned Vite+ bundle", async () => {
   const manifest: unknown = JSON.parse(
     await readFile(new URL("../package.json", import.meta.url), "utf8"),
@@ -2511,12 +2606,12 @@ void test("release and deep preflights require a fresh audit", async () => {
   );
   assert.match(release, /just audit --fresh/);
   assert.match(release, /id: aqua-version/);
-  assert.match(release, /aquaproj\/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329/);
+  assert.match(release, /aquaproj\/aqua-installer@611554c6f0137ba41c8dd15aca8bee82504ea461/);
   assert.match(release, /aqua_version: \$\{\{ steps\.aqua-version\.outputs\.version \}\}/);
   assert.match(release, /enable_aqua_install: "false"/);
   assert.match(deep, /just audit --fresh/);
   assert.match(deep, /id: aqua-version/);
-  assert.match(deep, /aquaproj\/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329/);
+  assert.match(deep, /aquaproj\/aqua-installer@611554c6f0137ba41c8dd15aca8bee82504ea461/);
   assert.match(deep, /aqua_version: \$\{\{ steps\.aqua-version\.outputs\.version \}\}/);
   assert.match(deep, /enable_aqua_install: "false"/);
   assert.match(localPreflight, /just audit --fresh/);

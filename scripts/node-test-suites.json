@@ -380,6 +380,7 @@
         "scripts/migrate-catalog-schema2.test.mts",
         "scripts/roadmap.test.mts",
         "scripts/roadmap-scoped.test.mts",
+        "scripts/roadmap-membership-readback.test.mts",
         "scripts/release-handshake-hosted-fixture.test.mts",
         "scripts/release-candidate-qualification.test.mts",
         "scripts/release-immutable-publication.test.mts",
@@ -777,6 +778,7 @@
       "files": [
         "scripts/roadmap.test.mts",
         "scripts/roadmap-scoped.test.mts",
+        "scripts/roadmap-membership-readback.test.mts",
         "scripts/source-provenance-audit.test.mts",
         "scripts/discovery-checkpoint.test.mts",
         "scripts/discovery-intake.test.mts",

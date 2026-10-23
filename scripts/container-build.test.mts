@@ -83,11 +83,13 @@ exit 99`;
       });
     }
   }
-  const fullControl = source.slice(source.indexOf("install_from_current_mirror() {"));
+  const fullControl = source.slice(source.indexOf("use_archive_mirror() {"));
   for (const status of [0, 100, 124, 137]) {
     const script = `set -euo pipefail
 packages=(fixture)
 privilege=()
+ubuntu_sources=/fixture/missing-source
+prefer_archive_mirror=false
 install_deadline=3600s
 fallback_install_deadline=3600s
 installs=0
@@ -112,6 +114,72 @@ ${fullControl}`;
         return true;
       });
     }
+  }
+});
+void test("APT archive preference rewrites only the selected Azure Ubuntu routes", async () => {
+  const git = await command("git", ["--exec-path"]);
+  const bash =
+    process.platform === "win32"
+      ? path.resolve(git.stdout.trim(), "../../../bin/bash.exe")
+      : "bash";
+  const source = readFileSync("scripts/install-linux-desktop-prerequisites.sh", "utf8");
+  const start = source.indexOf("use_archive_mirror() {");
+  const selection = source.indexOf("if [[ $prefer_archive_mirror == true ]]");
+  assert(start > 0 && selection > start);
+  const rewrite = source
+    .slice(start, selection)
+    .replace("/etc/apt/apt-mirrors.txt", '"$fixture_mirror_file"');
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-apt-mirror-"));
+  try {
+    const selected = path.join(root, "ubuntu.sources");
+    const mirrors = path.join(root, "apt-mirrors.txt");
+    const unchanged = [
+      "https://security.ubuntu.com/ubuntu",
+      "https://custom.example/ubuntu",
+      "https://custom.example/proxy/https://azure.archive.ubuntu.com/ubuntu",
+      "https://azure.archive.ubuntu.com.evil/ubuntu",
+      "https://notazure.archive.ubuntu.com/ubuntu",
+      "https://azure.archive.ubuntu.com/ubuntu-extra",
+    ].join("\n");
+    writeFileSync(
+      selected,
+      `Types: deb\nURIs: http://azure.archive.ubuntu.com/ubuntu https://azure.archive.ubuntu.com/ubuntu/\nURIs: mirror+file:/etc/apt/apt-mirrors.txt\n${unchanged}\n`,
+    );
+    writeFileSync(mirrors, `http://azure.archive.ubuntu.com/ubuntu\n${unchanged}\n`);
+    const result = await command(bash, [
+      "-c",
+      `set -euo pipefail
+privilege=()
+ubuntu_sources=$1
+fixture_mirror_file=$2
+${rewrite}
+use_archive_mirror`,
+      "fixture",
+      selected.replaceAll("\\", "/"),
+      mirrors.replaceAll("\\", "/"),
+    ]);
+    assert.equal(result.status, 0);
+    assert.equal(
+      readFileSync(selected, "utf8"),
+      `Types: deb\nURIs: https://archive.ubuntu.com/ubuntu https://archive.ubuntu.com/ubuntu/\nURIs: mirror+file:/etc/apt/apt-mirrors.txt\n${unchanged}\n`,
+    );
+    assert.equal(
+      readFileSync(mirrors, "utf8"),
+      `https://archive.ubuntu.com/ubuntu\n${unchanged}\n`,
+    );
+    const selector = source.slice(selection, source.indexOf("install_from_current_mirror() {"));
+    for (const enabled of [false, true]) {
+      const selectedRoute = await command(bash, [
+        "-c",
+        `set -euo pipefail
+prefer_archive_mirror=${enabled}
+use_archive_mirror() { echo route-selected; }
+${selector}`,
+      ]);
+      assert.equal(selectedRoute.stdout.includes("route-selected"), enabled);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });
 void test("package member inspection requires the exact regular executable", () => {

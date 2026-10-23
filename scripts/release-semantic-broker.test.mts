@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import os from "node:os";
 import path from "node:path";
 import { createHash, generateKeyPairSync, verify } from "node:crypto";
+import { createServer, request as httpRequest } from "node:http";
+import { chmod, lstat, readFile, symlink } from "node:fs/promises";
 import {
   authenticateCapturedSemanticIssuer,
   prepareSemanticAppJwt,
@@ -57,6 +59,530 @@ import {
   createSemanticSnapshotReader,
 } from "./release-semantic-reader-core.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  prepareHostedReleaseAppManifest,
+  observeHostedReleaseApp,
+  inspectHostedReleaseAppSeparation,
+  type HostedReleaseAppRole,
+} from "./release-hosted-app-setup.mts";
+import {
+  createAppRegistrationCapture,
+  createAppRegistrationStore,
+  inspectAppRegistrationCallback,
+} from "./release-app-registration-capture.mts";
+import { createAppRegistrationHandler } from "./register-hosted-release-app.mts";
+
+const appState = "a".repeat(64);
+const appCode = "inert-registration-code-123";
+const appCallback = {
+  method: "GET",
+  host: "127.0.0.1:1456",
+  remote_address: "127.0.0.1",
+  url: `/portcove-app-setup/semantic?code=${appCode}&state=${appState}`,
+};
+function appRegistrationFixture() {
+  const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const pem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+  const app = {
+    id: 123,
+    slug: "portcove-inert-producer",
+    owner: { id: 43177418, login: "boburning" },
+    permissions: { checks: "write", metadata: "read" },
+    events: [],
+  };
+  const privateFiles = new Map<string, Buffer>();
+  const calls: { url: string; options: RequestInit }[] = [];
+  const transport: typeof fetch = async (url, options) => {
+    assert(options);
+    assert(typeof url === "string");
+    calls.push({ url, options });
+    assert.equal(options.redirect, "error");
+    if (options.method === "POST") {
+      assert.equal(url, `https://api.github.com/app-manifests/${appCode}/conversions`);
+      assert.equal(new Headers(options.headers).has("authorization"), false);
+      assert(privateFiles.has("conversion-intent.json"));
+      return Response.json(
+        { ...app, pem, client_secret: "inert-private-client-secret" },
+        { status: 201 },
+      );
+    }
+    assert.equal(options.method, "GET");
+    assert.equal(url, "https://api.github.com/app");
+    const jwt = new Headers(options.headers).get("authorization")!.slice(7);
+    const [header, payload, signature] = jwt.split(".");
+    assert(
+      verify(
+        "RSA-SHA256",
+        Buffer.from(`${header}.${payload}`),
+        publicKey,
+        Buffer.from(signature!, "base64url"),
+      ),
+    );
+    const claims = JSON.parse(Buffer.from(payload!, "base64url").toString("utf8")) as Record<
+      string,
+      unknown
+    >;
+    assert.equal(claims.iss, "123");
+    return Response.json(app);
+  };
+  const store = {
+    async write(name: string, bytes: Buffer) {
+      assert(!privateFiles.has(name), "retained bytes cannot be overwritten");
+      privateFiles.set(name, Buffer.from(bytes));
+    },
+  };
+  const options = {
+    role: "semantic" as const,
+    state: appState,
+    deadline: Date.now() + 60000,
+    store,
+    transport,
+  };
+  const record = (name: string) => {
+    const value: unknown = JSON.parse(privateFiles.get(name)!.toString());
+    assert(isRecord(value));
+    return value;
+  };
+  return { app, pem, privateFiles, calls, options, record };
+}
+
+void test("registration callback admits only fixed loopback, role, state and unique code fields", () => {
+  assert.equal(inspectAppRegistrationCallback("semantic", appState, appCallback), appCode);
+  for (const change of [
+    { method: "POST" },
+    { host: "localhost:1456" },
+    { remote_address: "192.0.2.1" },
+    { url: appCallback.url.replace("/semantic?", "/protection_observer?") },
+    { url: appCallback.url.replace(appState, "b".repeat(64)) },
+    { url: `${appCallback.url}&code=${appCode}` },
+    { url: `${appCallback.url}#fragment` },
+    { url: `https://elsewhere.invalid${appCallback.url}` },
+  ])
+    assert.throws(() =>
+      inspectAppRegistrationCallback("semantic", appState, { ...appCallback, ...change }),
+    );
+});
+
+void test("App registration directly captures one conversion and authenticates the generated key without public secrets", async () => {
+  const f = appRegistrationFixture();
+  const capture = createAppRegistrationCapture(f.options);
+  const result = await capture(appCallback);
+  assert.equal(result.app_id, 123);
+  assert.equal(result.installation_repository_scope, "not-established");
+  assert.equal(result.authority, "none");
+  assert.equal(f.calls.length, 2);
+  assert.equal(f.privateFiles.get("app.pem")!.toString(), f.pem);
+  assert(
+    f.privateFiles.get("conversion.body")!.includes(Buffer.from("inert-private-client-secret")),
+  );
+  assert(!JSON.stringify(result).includes("PRIVATE KEY"));
+  assert(!JSON.stringify(result).includes("inert-private-client-secret"));
+  assert(!JSON.stringify(result).includes(appCode));
+  await assert.rejects(capture(appCallback), /already consumed/u);
+  assert.equal(f.calls.length, 2);
+});
+
+void test("App conversion retains wrong-owner or expanded-permission effects without installing or retrying", async () => {
+  for (const change of [
+    { owner: { id: 1, login: "other" } },
+    { permissions: { checks: "write", metadata: "read", contents: "write" } },
+  ]) {
+    const f = appRegistrationFixture();
+    let posts = 0;
+    const capture = createAppRegistrationCapture({
+      ...f.options,
+      transport: async () => {
+        posts++;
+        return Response.json({ ...f.app, ...change, pem: f.pem }, { status: 201 });
+      },
+    });
+    await assert.rejects(capture(appCallback), /boundary differs/u);
+    assert(f.privateFiles.has("conversion.body"));
+    assert(!f.privateFiles.has("result.json"));
+    await assert.rejects(capture(appCallback), /already consumed/u);
+    assert.equal(posts, 1);
+  }
+});
+
+void test("ambiguous conversion preserves pending intent and refuses a second POST", async () => {
+  const f = appRegistrationFixture();
+  let posts = 0;
+  const capture = createAppRegistrationCapture({
+    ...f.options,
+    transport: async () => {
+      posts++;
+      throw new Error("inert lost response");
+    },
+  });
+  await assert.rejects(capture(appCallback), /transport ambiguous/u);
+  assert.equal(f.record("conversion-intent.json").effect, "unresolved");
+  assert.equal(f.record("conversion-transport.json").effect, "unknown");
+  await assert.rejects(capture(appCallback), /already consumed/u);
+  assert.equal(posts, 1);
+});
+
+void test("registration preserves incomplete and oversized private response prefixes and stops", async () => {
+  for (const oversized of [false, true]) {
+    const f = appRegistrationFixture();
+    let pulls = 0,
+      posts = 0;
+    const stream = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          if (pulls++ === 0)
+            controller.enqueue(
+              Buffer.from(oversized ? "x".repeat(128 * 1024 + 1) : "inert-partial"),
+            );
+          else controller.error(new Error("inert interrupted body"));
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const capture = createAppRegistrationCapture({
+      ...f.options,
+      transport: async () => {
+        posts++;
+        return new Response(stream, { status: 201 });
+      },
+    });
+    await assert.rejects(capture(appCallback), /registration (body|response)/u);
+    assert.equal(f.privateFiles.get("conversion.body")!.length, oversized ? 128 * 1024 : 13);
+    assert.equal(f.record("conversion-response.json").complete, false);
+    assert.equal(posts, 1);
+  }
+});
+
+void test("registration refuses expired input and failed pending retention before any provider mutation", async () => {
+  const f = appRegistrationFixture();
+  await assert.rejects(
+    createAppRegistrationCapture({ ...f.options, deadline: Date.now() - 1 })(appCallback),
+    /expired/u,
+  );
+  const capture = createAppRegistrationCapture({
+    ...f.options,
+    store: {
+      async write() {
+        throw new Error("inert retention failure");
+      },
+    },
+  });
+  await assert.rejects(capture(appCallback), /retention failure/u);
+  await assert.rejects(capture(appCallback), /already consumed/u);
+  assert.equal(f.calls.length, 0);
+});
+
+void test("registration page/callback/replay path captures privately and leaves no listener after teardown", async () => {
+  const f = appRegistrationFixture();
+  let finishes = 0;
+  const handler = createAppRegistrationHandler({
+    role: "semantic",
+    state: appState,
+    capture: createAppRegistrationCapture(f.options),
+    recordBegin: async () => {
+      await f.options.store.write("registration-intent.json", Buffer.from("{}"));
+    },
+    finish: async () => {
+      finishes++;
+    },
+  });
+  const server = createServer((request, response) => {
+    void handler(request, response);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert(address && typeof address !== "string");
+  const origin = `http://127.0.0.1:${address.port}`;
+  const get = (url: string) =>
+    new Promise<{ status: number; text: () => Promise<string> }>((resolve, reject) => {
+      const request = httpRequest(
+        `${origin}${url}`,
+        { headers: { Host: "127.0.0.1:1456" } },
+        (response) => {
+          const chunks: Buffer[] = [];
+          response.on("data", (chunk: Buffer) => {
+            chunks.push(chunk);
+          });
+          response.once("error", reject);
+          response.once("end", () =>
+            resolve({
+              status: response.statusCode ?? 0,
+              text: async () => Buffer.concat(chunks).toString("utf8"),
+            }),
+          );
+        },
+      );
+      request.once("error", reject);
+      request.end();
+    });
+  try {
+    const page = await get("/portcove-app-setup/semantic/begin");
+    assert.equal(page.status, 200);
+    assert.match(
+      await page.text(),
+      /form method="post" action="https:\/\/github.com\/settings\/apps\/new/u,
+    );
+    const wrong = await get(appCallback.url.replace(appState, "b".repeat(64)));
+    assert.equal(wrong.status, 400);
+    assert.equal(f.calls.length, 0);
+    const completed = await get(appCallback.url);
+    assert.equal(completed.status, 200);
+    assert(!(await completed.text()).includes("PRIVATE KEY"));
+    const replay = await get(appCallback.url);
+    assert.equal(replay.status, 409);
+    assert.equal(finishes, 1);
+    assert.equal(f.calls.filter((call) => call.options.method === "POST").length, 1);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+  assert.equal(server.listening, false);
+});
+
+void test(
+  "Linux registration custody rejects reuse and linked paths and keeps private regular files",
+  { skip: process.platform !== "linux" },
+  async () => {
+    const root = await mkdtemp(path.join(os.homedir(), ".portcove-app-registration-inert-"));
+    try {
+      const destination = path.join(root, "semantic");
+      const store = await createAppRegistrationStore(destination);
+      await store.write("app.pem", Buffer.from("inert credential-free fixture"));
+      const file = await lstat(path.join(destination, "app.pem"));
+      assert.equal(file.mode & 0o077, 0);
+      assert.equal(file.nlink, 1);
+      assert.equal(
+        (await readFile(path.join(destination, "app.pem"))).toString(),
+        "inert credential-free fixture",
+      );
+      await assert.rejects(store.write("app.pem", Buffer.from("replace")), /EEXIST/u);
+      await assert.rejects(createAppRegistrationStore(destination), /EEXIST/u);
+      await symlink(destination, path.join(root, "linked"));
+      await assert.rejects(
+        createAppRegistrationStore(path.join(root, "linked", "other")),
+        /linked/u,
+      );
+      await chmod(destination, 0o777);
+      await assert.rejects(store.write("result.json", Buffer.from("{}")), /custody changed/u);
+      await chmod(destination, 0o700);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+void test(
+  "Linux registration directory-sync failure blocks conversion and preserves its pending file",
+  { skip: process.platform !== "linux" },
+  async () => {
+    const root = await mkdtemp(path.join(os.homedir(), ".portcove-app-registration-sync-inert-"));
+    try {
+      const events: string[] = [];
+      const destination = path.join(root, "semantic");
+      const store = await createAppRegistrationStore(destination, async (directory) => {
+        events.push(directory);
+        if (directory === destination) {
+          assert.match(
+            (await readFile(path.join(destination, "conversion-intent.json"))).toString(),
+            /pending/u,
+          );
+          throw new Error("inert directory-sync failure");
+        }
+      });
+      const f = appRegistrationFixture();
+      const capture = createAppRegistrationCapture({ ...f.options, store });
+      await assert.rejects(capture(appCallback), /directory-sync failure/u);
+      assert.deepEqual(events, [root, destination]);
+      assert.equal(f.calls.length, 0);
+      await assert.rejects(capture(appCallback), /already consumed/u);
+      assert.equal((await lstat(path.join(destination, "conversion-intent.json"))).isFile(), true);
+      await assert.rejects(
+        createAppRegistrationStore(path.join(root, "observer"), async () => {
+          throw new Error("inert parent-sync failure");
+        }),
+        /parent-sync failure/u,
+      );
+      assert.equal((await lstat(path.join(root, "observer"))).isDirectory(), true);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+function hostedAppReadback(role: HostedReleaseAppRole, appId = 123, installationId = 456) {
+  const manifest = prepareHostedReleaseAppManifest(role);
+  const app = {
+    id: appId,
+    owner: { id: 43177418, login: "boburning" },
+    permissions: manifest.default_permissions,
+    events: [],
+  };
+  const installation = {
+    id: installationId,
+    app_id: appId,
+    account: app.owner,
+    suspended_at: null,
+    repository_selection: "selected",
+    permissions: manifest.default_permissions,
+    events: [],
+  };
+  const repositories = {
+    total_count: 1,
+    repositories: [{ id: 1354613114, full_name: "boburning/portcove" }],
+  };
+  const reads: string[] = [];
+  const values: Record<string, unknown> = {
+    app,
+    [`app/installations/${installationId}`]: installation,
+    "installation/repositories?per_page=100": repositories,
+  };
+  const client = (channel: "app" | "installation") => ({
+    request(method: string, endpoint: string) {
+      assert.equal(method, "GET");
+      assert.equal(channel, endpoint.startsWith("installation/") ? "installation" : "app");
+      reads.push(endpoint);
+      assert(Object.hasOwn(values, endpoint));
+      return {
+        status: 200,
+        headers: new Map<string, string>(),
+        body: structuredClone(values[endpoint]),
+      };
+    },
+  });
+  return {
+    app,
+    installation,
+    repositories,
+    values,
+    reads,
+    expected: { app_id: appId, installation_id: installationId },
+    clients: { app: client("app"), installation: client("installation") },
+  };
+}
+
+void test("selected two-App manifests have exact permissions and no OAuth or webhook work", () => {
+  const semantic = prepareHostedReleaseAppManifest("semantic");
+  const observer = prepareHostedReleaseAppManifest("protection_observer");
+  assert.deepEqual(semantic.default_permissions, { checks: "write", metadata: "read" });
+  assert.deepEqual(observer.default_permissions, { administration: "write", metadata: "read" });
+  for (const manifest of [semantic, observer]) {
+    assert.equal(manifest.public, false);
+    assert.equal(manifest.hook_attributes.active, false);
+    assert.deepEqual(manifest.default_events, []);
+    assert.equal(manifest.request_oauth_on_install, false);
+    assert.match(manifest.redirect_url, /^http:\/\/127\.0\.0\.1:1456\/portcove-app-setup\//u);
+  }
+  assert.throws(() => prepareHostedReleaseAppManifest("dispatch" as HostedReleaseAppRole));
+});
+
+void test("two-App setup readback uses separate GET clients and returns only measured public identities", () => {
+  const s = hostedAppReadback("semantic"),
+    o = hostedAppReadback("protection_observer", 124, 457);
+  const semantic = observeHostedReleaseApp("semantic", s.expected, s.clients);
+  const observer = observeHostedReleaseApp("protection_observer", o.expected, o.clients);
+  assert.deepEqual(s.reads, [
+    "app",
+    "app/installations/456",
+    "installation/repositories?per_page=100",
+  ]);
+  const pair = inspectHostedReleaseAppSeparation(semantic, observer);
+  assert.equal(pair.semantic.authority, "none");
+  assert.equal(pair.semantic.installation_repository_scope, "not-established");
+  assert.equal(pair.protection_observer.acceptance, "not-established");
+  assert.throws(() => inspectHostedReleaseAppSeparation(semantic, { ...observer, app_id: 123 }));
+  assert.throws(() =>
+    inspectHostedReleaseAppSeparation(semantic, { ...observer, installation_id: 456 }),
+  );
+  assert.throws(() =>
+    observeHostedReleaseApp("semantic", { app_id: 15368, installation_id: 456 }, s.clients),
+  );
+});
+
+void test("narrowed token inventory never establishes installation-wide scope or returns private caller fields", () => {
+  const f = hostedAppReadback("semantic");
+  const expected = { ...f.expected, private_key: "inert-private-sentinel", writer_app_id: 999 };
+  const result = observeHostedReleaseApp("semantic", expected, f.clients);
+  assert.equal(result.installation_repository_scope, "not-established");
+  assert.equal(Object.hasOwn(result, "private_key"), false);
+  assert.equal(Object.hasOwn(result, "writer_app_id"), false);
+  assert.equal(JSON.stringify(result).includes("inert-private-sentinel"), false);
+});
+
+for (const role of ["semantic", "protection_observer"] as const) {
+  void test(`${role} setup refuses broader App authority even with a narrowed installation`, () => {
+    const f = hostedAppReadback(role);
+    f.values.app = { ...f.app, permissions: { ...f.app.permissions, contents: "write" } };
+    assert.throws(() => observeHostedReleaseApp(role, f.expected, f.clients), /boundary differs/u);
+  });
+  void test(`${role} setup refuses wrong issuer, owner, events, repository scope or suspension`, () => {
+    for (const mutate of [
+      (f: ReturnType<typeof hostedAppReadback>) => {
+        f.app.id++;
+      },
+      (f: ReturnType<typeof hostedAppReadback>) => {
+        f.app.owner.id++;
+      },
+      (f: ReturnType<typeof hostedAppReadback>) => {
+        f.app.events.push("push" as never);
+      },
+      (f: ReturnType<typeof hostedAppReadback>) => {
+        f.installation.app_id++;
+      },
+      (f: ReturnType<typeof hostedAppReadback>) => {
+        f.installation.repository_selection = "all";
+      },
+      (f: ReturnType<typeof hostedAppReadback>) => {
+        f.values["app/installations/456"] = {
+          ...f.installation,
+          suspended_at: "2026-10-23T00:00:00Z",
+        };
+      },
+      (f: ReturnType<typeof hostedAppReadback>) => {
+        f.repositories.total_count = 2;
+      },
+      (f: ReturnType<typeof hostedAppReadback>) => {
+        f.repositories.repositories[0]!.id++;
+      },
+    ]) {
+      const f = hostedAppReadback(role);
+      mutate(f);
+      assert.throws(
+        () => observeHostedReleaseApp(role, f.expected, f.clients),
+        /boundary differs/u,
+      );
+    }
+  });
+}
+
+void test("App setup preserves unavailable/incomplete readback as refusal without mutation or retry", () => {
+  for (const response of [
+    { status: 403, headers: new Map(), body: {} },
+    {
+      status: 200,
+      headers: new Map([["link", '<https://api.github.com/other>; rel="next"']]),
+      body: {},
+    },
+    { status: 200, headers: new Map(), body: { oversized: "x".repeat(128 * 1024) } },
+  ]) {
+    let calls = 0;
+    const client = {
+      request(method: string) {
+        assert.equal(method, "GET");
+        calls++;
+        return response;
+      },
+    };
+    assert.throws(
+      () =>
+        observeHostedReleaseApp(
+          "semantic",
+          { app_id: 123, installation_id: 456 },
+          { app: client, installation: client },
+        ),
+      /unavailable, incomplete, oversized or late/u,
+    );
+    assert.equal(calls, 1);
+  }
+});
 
 void test("issuer transport pins App/token routes and the exact captured Check body without ambient credentials", async () => {
   const body = {

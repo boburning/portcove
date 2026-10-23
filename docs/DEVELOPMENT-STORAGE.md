@@ -97,9 +97,12 @@ Browser Mode keeps its explicitly provisioned Chromium shell and companions unde
 the checkout's ignored `work/browser-cache`; `browser:bootstrap` owns that cache,
 and the browser project reports the missing executable when it is absent. Browser
 failure traces and screenshots remain in distinct invocation directories under
-ignored `work/browser-traces`; Vitest attachments may also remain under ignored
-`apps/desktop/.vitest`. Successful runs remove only their own raw trace resources.
-Preserve failed evidence during diagnosis.
+ignored `work/bt`; Vitest attachments may also remain under ignored
+`apps/desktop/.vitest`. Raw provider traces remain after successful runs because
+reporter completion does not prove successful browser shutdown. Preserve failed
+evidence during diagnosis. Browser trace deletion requires an explicit owned-path
+cleanup decision after confirming that the owning process has exited; the Cargo
+target cleanup command below does not manage browser traces.
 Use the owning task's narrow test command and `just local-check`; exhaustive
 validation remains required only for its documented acceptance or investigation.
 
