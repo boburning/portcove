@@ -994,10 +994,12 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/precommit-check.test.mts",
     ],
   ],
-  [
-    "scripts/node-test-suites.json",
-    ["scripts/node-test-inventory.test.mts", "scripts/ci-workflow.test.mts"],
-  ],
+  ...["scripts/node-test-suites.mts", "scripts/node-test-suites.json"].map(
+    (file): [string, string[]] => [
+      file,
+      ["scripts/node-test-inventory.test.mts", "scripts/ci-workflow.test.mts"],
+    ],
+  ),
   [
     "CONTRIBUTING.md",
     ["scripts/repository-settings.test.mts", "scripts/repository-skills.test.mts"],

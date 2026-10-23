@@ -12,8 +12,71 @@ export interface NodeTestSuites {
   format_version: 1;
   suites: Record<string, NodeTestSuite>;
 }
+function expandNodeTestOwnership(value: Record<string, unknown>) {
+  if (
+    Object.keys(value).some((key) => !["format_version", "suites", "tests"].includes(key)) ||
+    !isRecord(value.suites) ||
+    !Array.isArray(value.tests) ||
+    !value.tests.length
+  )
+    throw new Error("Invalid Node test ownership registry");
+  const suites: Record<string, { arguments: unknown; files: string[] }> = {};
+  const positions = new Map<string, Map<number, string>>();
+  for (const [id, entry] of Object.entries(value.suites)) {
+    if (
+      !/^[a-z][a-z0-9-]*$/u.test(id) ||
+      !isRecord(entry) ||
+      Object.keys(entry).length !== 1 ||
+      !Object.hasOwn(entry, "arguments")
+    )
+      throw new Error("Invalid Node ownership suite: " + id);
+    suites[id] = { arguments: entry.arguments, files: [] };
+    positions.set(id, new Map());
+  }
+  const seenFiles = new Set<string>();
+  for (const entry of value.tests) {
+    if (
+      !isRecord(entry) ||
+      Object.keys(entry).some((key) => !["file", "memberships"].includes(key)) ||
+      typeof entry.file !== "string" ||
+      !nodeTestPath.test(entry.file) ||
+      seenFiles.has(entry.file) ||
+      !Array.isArray(entry.memberships) ||
+      !entry.memberships.length
+    )
+      throw new Error("Invalid or repeated Node test ownership record");
+    seenFiles.add(entry.file);
+    const seenSuites = new Set<string>();
+    for (const membership of entry.memberships) {
+      if (!Array.isArray(membership) || membership.length !== 2)
+        throw new Error("Invalid Node test ownership membership: " + entry.file);
+      const id: unknown = membership[0];
+      const position: unknown = membership[1];
+      if (
+        typeof id !== "string" ||
+        typeof position !== "number" ||
+        !Number.isSafeInteger(position) ||
+        position < 0
+      )
+        throw new Error("Invalid Node test ownership membership: " + entry.file);
+      const suite = positions.get(id);
+      if (!suite || seenSuites.has(id) || suite.has(position))
+        throw new Error("Unknown or repeated Node test ownership position: " + entry.file);
+      seenSuites.add(id);
+      suite.set(position, entry.file);
+    }
+  }
+  for (const [id, members] of positions) {
+    const suite = suites[id];
+    if (!suite) throw new Error("Missing Node ownership suite: " + id);
+    suite.files = [...members].sort(([left], [right]) => left - right).map(([, file]) => file);
+  }
+  return { format_version: 1, suites };
+}
+
 export function parseNodeTestSuites(text: string): NodeTestSuites {
-  const value: unknown = JSON.parse(text);
+  let value: unknown = JSON.parse(text);
+  if (isRecord(value) && value.format_version === 2) value = expandNodeTestOwnership(value);
   if (!isRecord(value) || value.format_version !== 1 || !isRecord(value.suites))
     throw new Error("Invalid Node test suite registry");
   const suites: Record<string, NodeTestSuite> = {};

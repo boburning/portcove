@@ -1811,11 +1811,18 @@ must be nonempty, unique and fully executed without skips. This is scoped native
 feedback, not a new qualification requirement for ordinary changes.
 
 Root Node test commands are maintained in `scripts/node-test-suites.json`.
-Edit the owning suite there, then run `node scripts/node-test-suites.mts --write`
+Its format-2 registry gives each test file one ownership record with
+`[suite, position]` memberships; suites retain their existing runner arguments.
+Positions are unique nonnegative safe integers within a suite. Gaps allow new
+records without renumbering others, and independent positions preserve suites
+with different execution orders. Legacy format-1 inputs remain readable for
+existing callers and fixtures.
+
+Add, rename or remove the ownership record, then run `node scripts/node-test-suites.mts --write`
 to update its annotated direct commands in CI, Just recipes and the Windows
 qualification wrapper. `--check` verifies the generated commands without writing.
 Flags, file order, storage wrappers, native prerequisites and platform ownership
-remain explicit. Dynamic diff-selected `ci-baseline` routes retain their separate
+remain explicit in those actual consumers. Dynamic diff-selected `ci-baseline` routes retain their separate
 routing contracts; registry membership is not execution evidence.
 
 The optional Vite+ pre-commit hook checks the staged registry and executable
