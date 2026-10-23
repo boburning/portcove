@@ -1354,7 +1354,10 @@ void test("retired GitHub policy JSON remains owned without a file-specific tomb
   });
   assert.deepEqual([...selection.unknown], []);
   assert.deepEqual([...selection.nodeTests].sort(), [
+    "scripts/check-catalog-repositories.test.mts",
+    "scripts/check-retcomm-upstreams.test.mts",
     "scripts/ci-workflow.test.mts",
+    "scripts/deep-audit-summary.test.mts",
     "scripts/repository-settings.test.mts",
     "scripts/validation-plan.test.mts",
   ]);
@@ -1839,12 +1842,25 @@ void test("reviewed upstream accounting has an exact health-test owner without a
   const owned = planFor([".github/upstream-health-accounting.json"]);
   assert.equal(owned.selection.unknown.size, 0);
   assert.ok(owned.selection.nodeTests.has("scripts/upstream-observer.test.mts"));
+  assert.ok(owned.selection.nodeTests.has("scripts/check-catalog-repositories.test.mts"));
   assert.ok(ids(owned.plan).includes("node-tests"));
   const other = classifyChanges(
     [{ status: "M", path: ".github/unreviewed-health-accounting.json" }],
     { fileExists: allFilesExist },
   );
   assert.ok(other.unknown.has(".github/unreviewed-health-accounting.json"));
+  for (const status of ["D", "R"]) {
+    const change =
+      status === "R"
+        ? {
+            status,
+            path: ".github/renamed-health-accounting.json",
+            previousPath: ".github/upstream-health-accounting.json",
+          }
+        : { status, path: ".github/upstream-health-accounting.json" };
+    const selection = classifyChanges([change], { fileExists: () => false });
+    assert.ok(selection.nodeTests.has("scripts/check-catalog-repositories.test.mts"));
+  }
 });
 
 void test("upstream health sources select the affected offline contracts", () => {
@@ -2083,5 +2099,46 @@ void test("focused native and release selections retain independently executed c
     const commands = buildPlan(selected);
     const args = commands.flatMap((command) => command.args);
     assert.equal(args.filter((arg) => arg === companion).length, 1, "run each companion once");
+  }
+});
+
+void test("colocated workflow contracts retain every former route and their direct production owners", () => {
+  const companions = [
+    "scripts/check-catalog-repositories.test.mts",
+    "scripts/check-retcomm-upstreams.test.mts",
+    "scripts/deep-audit-summary.test.mts",
+  ];
+  for (const file of [
+    ".github/workflows/ci.yml",
+    ".github/workflows/deep-quality.yml",
+    ".github/workflows/upstream-health.yml",
+    ".github/actions/setup-rust/action.yml",
+    "package.json",
+    "apps/desktop/package.json",
+    "justfile",
+    "scripts/ci-workflow.test.mts",
+  ]) {
+    // A deleted test file has no executable route; other consumers retain it.
+    const statuses = file === "scripts/ci-workflow.test.mts" ? ["M"] : ["M", "D", "R"];
+    for (const status of statuses) {
+      const change =
+        status === "R"
+          ? { status, path: "renamed-workflow-input.txt", previousPath: file }
+          : { status, path: file };
+      const selection = classifyChanges([change], {
+        fileExists: status === "M" ? allFilesExist : () => false,
+      });
+      assert.ok(selection.nodeTests.has("scripts/ci-workflow.test.mts"), `${status}:${file}`);
+      for (const companion of companions)
+        assert.ok(selection.nodeTests.has(companion), `${status}:${file}`);
+    }
+  }
+  for (const companion of companions) {
+    for (const file of [companion, companion.replace(".test.mts", ".mts")]) {
+      const selection = classifyChanges([{ status: "M", path: file }], {
+        fileExists: allFilesExist,
+      });
+      assert.ok(selection.nodeTests.has(companion), file);
+    }
   }
 });
