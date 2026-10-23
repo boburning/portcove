@@ -110,6 +110,8 @@ export function isInformationalPath(file: string) {
 }
 
 export function isSharedFrontendInput(file: string) {
+  // Retain deleted Vitest config names for historical diffs and both rename sides.
+  // Maintained test configuration lives in vite.config.ts and scripts/frontend-tests.ts.
   return (
     [
       "vite.config.ts",

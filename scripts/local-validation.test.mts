@@ -237,6 +237,63 @@ void test("shared browser trace runtime selects full frontend tests and build", 
   assert.ok(!tests.args.includes("--related"));
 });
 
+void test("current and deleted test configurations retain full frontend coverage on both rename sides", () => {
+  for (const file of [
+    "vite.config.ts",
+    "apps/desktop/vite.config.ts",
+    "scripts/frontend-tests.ts",
+    "apps/desktop/vitest.config.ts",
+    "apps/desktop/vitest.browser.config.ts",
+  ]) {
+    for (const change of [
+      { status: "M", path: file },
+      { status: "A", path: file },
+      { status: "D", path: file },
+      { status: "R100", path: "docs/moved-config.md", previousPath: file },
+      { status: "R100", path: file, previousPath: "docs/moved-config.md" },
+    ]) {
+      for (const fileExists of [() => true, () => false]) {
+        const label = `${change.status} ${change.previousPath ?? ""} -> ${change.path}`;
+        const selection = classifyChanges([change], { fileExists });
+        assert.equal(selection.unknown.size, 0, label);
+        assert.equal(selection.ui, true, label);
+        assert.equal(selection.uiFullTests, true, label);
+        assert.equal(selection.uiRelatedFiles.size, 0, label);
+        const commands = buildPlan(selection);
+        for (const [id, task] of [
+          ["ui-tests", "frontend:unit"],
+          ["ui-browser-tests", "frontend:browser"],
+          ["ui-build", "frontend:build"],
+        ] as const) {
+          assert.ok(
+            commands.some((entry) => entry.id === id && entry.args.includes(task)),
+            label,
+          );
+        }
+        assert.ok(!commands.some((entry) => entry.id === "ui-related-tests"), label);
+      }
+      const hosted = buildValidationPlan({
+        changes: [
+          {
+            status: change.status,
+            oldPath: change.previousPath ?? change.path,
+            newPath: change.path,
+            oldMode: change.status === "A" ? "000000" : "100644",
+            newMode: change.status === "D" ? "000000" : "100644",
+          },
+        ],
+        eventName: "pull_request",
+        checkout: "a".repeat(40),
+        head: "a".repeat(40),
+        base: "b".repeat(40),
+        mergeBase: "b".repeat(40),
+      });
+      assert.equal(hosted.mode, "fast", file);
+      assert.ok(hosted.groups.includes("frontend"), file);
+    }
+  }
+});
+
 void test("integrated source lint fails before expensive stages while preserving valid selected obligations", () => {
   const selection = classifyChanges([{ status: "M", path: "apps/desktop/tsconfig.json" }], {
     fileExists: allFilesExist,
