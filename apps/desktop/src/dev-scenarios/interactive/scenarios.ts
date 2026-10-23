@@ -1,4 +1,5 @@
 import { artworkState, failureReport, portDefinition, portStatus } from "../../test-fixtures";
+import { comparisonEntries } from "./comparison-scene";
 import type {
   ActivityFeed,
   BootstrapStatus,
@@ -14,7 +15,9 @@ export const journeys = [
   { id: "library", label: "Interactive Library" },
   { id: "collection", label: "Mixed collection · simulated content" },
   { id: "collection-large", label: "60-entry collection · simulated content" },
+  { id: "comparison", label: "Matched Library comparison · shared content and artwork" },
   { id: "setup", label: "Interactive preparation" },
+  { id: "activity", label: "Activity and retained setup · simulated tasks" },
   { id: "recovery", label: "Interactive startup recovery" },
 ] as const;
 export type Journey = (typeof journeys)[number]["id"];
@@ -81,7 +84,7 @@ export function workspace(journey: Journey): WorkspaceSnapshot {
     ...portDefinition(),
     name: "Harbor Adventure",
     summary: "A deterministic development fixture",
-    ...(journey === "setup"
+    ...(["setup", "activity"].includes(journey)
       ? { adapter: "upstream-managed-setup" as const, setup_output_paths: ["game.dat"] }
       : {}),
   };
@@ -90,36 +93,50 @@ export function workspace(journey: Journey): WorkspaceSnapshot {
     { ...portDefinition(), id: "orchard", name: "Orchard Quest" },
     { ...portDefinition(), id: "summit", name: "Summit Racer" },
   ];
-  const ports = journey.startsWith("collection")
-    ? Array.from(
-        { length: journey === "collection-large" ? 60 : 12 },
-        (_, index): PortDefinition => ({
+  const ports =
+    journey === "comparison"
+      ? comparisonEntries.map((entry): PortDefinition => ({
           ...portDefinition(),
-          id: `collection-${index}`,
-          name:
-            index === 0
-              ? "sm64-port"
-              : index === 1
-                ? "Mario modern port"
-                : `Harbor desktop port ${index + 1}`,
+          id: entry.id,
+          name: entry.port,
           presentation: {
             installation_method: "portable-package",
             saves_and_settings: "portcove-managed",
             source_requirements: [],
-            ...portDefinition().presentation,
-            original_game_title:
-              index < 2
-                ? "Super Mario 64"
-                : index === 2
-                  ? "Harbor Adventure: The Very Long Voyage Beyond the Northern Sea — Complete Edition"
-                  : ["Orchard Quest", "Summit Racer", "Moonlit Harbor", "The Last Station"][
-                      index % 4
-                    ]!,
-            variant_label: index === 1 ? "Modern renderer" : null,
+            original_game_title: entry.title,
+            variant_label: entry.variant,
           },
-        }),
-      )
-    : ordinaryPorts;
+        }))
+      : journey.startsWith("collection")
+        ? Array.from(
+            { length: journey === "collection-large" ? 60 : 12 },
+            (_, index): PortDefinition => ({
+              ...portDefinition(),
+              id: `collection-${index}`,
+              name:
+                index === 0
+                  ? "sm64-port"
+                  : index === 1
+                    ? "Mario modern port"
+                    : `Harbor desktop port ${index + 1}`,
+              presentation: {
+                installation_method: "portable-package",
+                saves_and_settings: "portcove-managed",
+                source_requirements: [],
+                ...portDefinition().presentation,
+                original_game_title:
+                  index < 2
+                    ? "Super Mario 64"
+                    : index === 2
+                      ? "Harbor Adventure: The Very Long Voyage Beyond the Northern Sea — Complete Edition"
+                      : ["Orchard Quest", "Summit Racer", "Moonlit Harbor", "The Last Station"][
+                          index % 4
+                        ]!,
+                variant_label: index === 1 ? "Modern renderer" : null,
+              },
+            }),
+          )
+        : ordinaryPorts;
   return {
     catalog: { schema_version: 1, ports, source_profiles: [] },
     listing_catalog: null,
@@ -128,21 +145,35 @@ export function workspace(journey: Journey): WorkspaceSnapshot {
     statuses: ports.map((port): PortStatus => ({
       ...portStatus(),
       port_id: port.id,
-      active: journey.startsWith("collection")
-        ? { ...install, port_id: port.id, id: `fixture-${port.id}` }
-        : port.id === "sample"
-          ? install
-          : port.id === "orchard"
-            ? { ...install, port_id: port.id, id: `fixture-${port.id}` }
-            : null,
+      active:
+        journey.startsWith("collection") || journey === "comparison"
+          ? {
+              ...install,
+              port_id: port.id,
+              id: `fixture-${port.id}`,
+              path: `fixture/library/${port.id}/versions/1.2`,
+            }
+          : port.id === "sample"
+            ? install
+            : port.id === "orchard"
+              ? {
+                  ...install,
+                  port_id: port.id,
+                  id: `fixture-${port.id}`,
+                  path: `fixture/library/${port.id}`,
+                }
+              : null,
       readiness: {
         launchable:
           port.id !== "collection-4" &&
+          port.id !== "comparison-4" &&
           port.id !== "summit" &&
-          (journey !== "setup" || port.id !== "sample"),
-        pending_setup: journey === "setup" && port.id === "sample",
-        blockers: port.id === "collection-4" ? ["missing_source"] : [],
-        ...(port.id === "collection-4" ? { source: "missing" as const } : {}),
+          (!["setup", "activity"].includes(journey) || port.id !== "sample"),
+        pending_setup: ["setup", "activity"].includes(journey) && port.id === "sample",
+        blockers: ["collection-4", "comparison-4"].includes(port.id) ? ["missing_source"] : [],
+        ...(["collection-4", "comparison-4"].includes(port.id)
+          ? { source: "missing" as const }
+          : {}),
       },
       ...(journey.startsWith("collection") && port.id === "collection-3"
         ? { staged: { ...install, id: "fixture-staged", port_id: port.id, staged: true } }

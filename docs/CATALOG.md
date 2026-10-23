@@ -1234,7 +1234,8 @@ node scripts/prepare-port.mts --record /path/to/stable-id.json --route download 
 
 The command accepts a canonical Portcove issue number/URL, a direct public
 project URL or a reviewed authored record. It refuses conflicting stable IDs or
-origins and asks for a stable ID when a shared upstream is ambiguous. Supply a
+unreviewed origin changes and asks for a stable ID when a shared upstream is ambiguous.
+A reviewed `--record` can append the lineage transition described below. Supply a
 non-GitHub project's reviewed `--id`, `--name` and optional `--summary`; no generic
 web scrape is required. A listing needs identity and origin, not a save audit,
 release history, README or resolved tag. GitHub listing collection reads repository
@@ -1405,6 +1406,112 @@ Opt-in reports must exclude game data, secrets and personal paths; untrusted
 reports cannot revoke the whole catalog. Ordinary success needs no owner action;
 exceptions have bounded retries, scope and a reproducible resume condition.
 
+## Upstream lineage and alternative implementations
+
+The stable port ID and canonical port issue identify the Portcove integration.
+Its upstream lineage records who continues that implementation. An accepted
+release identifies exact repository/release/asset/platform/size/digest facts;
+acquisition locations describe where those accepted bytes may be obtained under
+their own authority. A location change does not replace any of these identities.
+
+| Relationship | Meaning and catalog treatment                                                                                                                                                                                       |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Relocation   | The same project moves location, including to another host. Retain the port ID and canonical issue after reviewed continuity. A different known repository ID on the same host is not a same-repository relocation. |
+| Successor    | A continued implementation with attributable continuity, potentially under different maintainers or repository identity. Retain the port and issue only after independent review accepts that exact relationship.   |
+| Fork         | A derived implementation with independent continuing identity. Give it a distinct port record and canonical issue; retain the original.                                                                             |
+| Alternative  | A separately selectable implementation of the same game or target. Give it a distinct port and issue; a recommendation does not merge identities.                                                                   |
+| Independent  | A separate product or game/target, even if it shares a repository or some code. Keep its distinct port and issue.                                                                                                   |
+
+Assess sufficient attributable continuity for the concrete proposal. Record the
+supporting facts, contextual facts, contradictory evidence, rationale and exact
+reconsideration condition. A name, redirect, shared commit, copied credits or
+popularity alone is insufficient. There is no mandatory announcement format,
+universal evidence checklist or numerical trust score. Unresolved contradictions
+prevent acceptance; insufficient evidence remains `unresolved`, and evidence
+against the proposed relationship can produce `rejected`. Neither changes the
+current accepted upstream. Independent review may be an authorized separate
+non-writing agent; this policy creates no universal human gate.
+
+### One authoring representation and decision boundary
+
+The optional `upstream_lineage` object lives on the existing per-port authored
+record, beside `listing` and `integration`. `scripts/upstream-lineage.mts` is the
+shared validator and assessor used by generation and preparation. It is not a
+second project inventory and is excluded from every runtime/catalog/listing
+projection, signed definition and installed contract.
+
+Format 1 contains `target_key`, `origin` and ordered `decisions`. The stable
+lowercase kebab-case target key identifies the underlying game/target; reuse the
+same key for implementations of that target. An identity contains `project_url`
+and, when actually observed, `repository: { host, id }` with the provider's stable
+ID. Provider IDs are scoped to their host. Explicit GitHub identities name a
+repository root without query or fragment; case, trailing slash and `.git`
+spellings cannot create duplicate known aliases. Other hosts keep their own path
+semantics, supporting cross-host migrations without assuming GitHub identity.
+
+Each decision records `from`, `to`, `relationship`, `outcome`, `rationale`,
+`evidence` and `reconsider_when`. Evidence entries contain `kind` (`supporting`,
+`context` or `contradiction`), an attributable HTTPS `reference` and a bounded
+`note`. Accepted decisions require supporting evidence and a `review` containing
+its reference and `decision_sha256`. `lineageDecisionDigest(record, lineage,
+decision)` computes the canonical SHA-256 over all decision facts except
+`review`, bound to the stable port, canonical issue and target. This detects stale
+or copied declarations; it does not authenticate a reviewer. The referenced
+evidence and independent PR review establish the actual decision, not a supplied
+hash or evidence label.
+
+Accepted relocation/succession advances the current upstream; all prior
+identities remain in history. Accepted fork/alternative/independent decisions
+instead require `related_port: { id, issue_number }`, matching a separate
+catalog record and its known destination identity. They leave the original
+current upstream intact. Generation rejects duplicate canonical issues and
+duplicate known upstream implementations for one target, while allowing different
+targets in one repository. Unknown historical IDs must not be invented.
+
+Records without lineage remain `legacy-unassessed`; no mass migration or inferred
+acceptance occurs. Their existing projection and runtime behavior stay intact.
+For an ordinary update, start from the current authored record, append the exact
+proposed decision, obtain independent review, bind its digest and reference, then
+use `prepare-port.mts --record ...`. Preparation checks the previous record,
+preserves known port/issue/target/origin and all earlier decisions, and reports
+the assessment. A known provider ID conflicting with collected metadata refuses
+the proposal even when its URL is unchanged. Unavailable provider metadata does
+not become a verified identity. Failure retains accepted input files.
+
+Reversal appends a new reviewed decision from the current identity to the retained
+earlier identity. Never delete a failed or accepted event to make a transition
+pass. Generation checks internal chain consistency; direct file edits and
+historical imports additionally require Git diff review against the retained
+record. A self-consistent edited chain alone cannot prove immutable history.
+
+### Preservation and authority
+
+Lineage acceptance does not accept a new release, authorize a mirror, clear an
+operation hold, grant distribution, widen publisher authority or migrate saves.
+Release selectors and acquisition declarations remain separately reviewed
+operational fields. A source/tag match cannot substitute for an accepted
+artifact's exact bytes. Historical qualification stays attached to its original
+artifact, source, platform and environment; it does not transfer to a successor.
+
+Existing installations, pins, retained versions and rollback keep their captured
+definition, accepted release/source identity, execution and save/configuration
+ownership. Core's retained-contract tests exercise catalog changes across legacy
+and successor versions; lineage metadata does not enter that interpretation.
+The authoring tests check identical complete runtime projections and preservation
+of existing inputs through accepted, refused and reversed decisions. Signed
+catalog format 1 retains its existing compatibility policy: it permits the
+already supported release/project-location metadata updates while preserving
+source, execution and persistence contracts. No new format or relaxed validator
+is introduced here.
+
+The [October 23 decision record](archive/2026-10-23-upstream-lineage-policy.md)
+imports the independently delivered ReCut relocation and records the Star Fox
+candidate as unresolved. The restored Star Fox historical tag updates a dated
+observation; it does not establish successor authority or recover the accepted
+ZIP. This completes the finite #139 policy case without selecting a new Star Fox
+runtime. #251 consumes the shared contract; #1306 owns preservation/failover,
+#315 release/distribution authority, #246 protected delivery and #254 proposals.
+
 ## Read-only disappearance reporting
 
 `scripts/check-catalog-repositories.mts` reports each catalog port against six
@@ -1423,7 +1530,8 @@ endpoint reachability only; the exact accepted bytes remain Unknown until their
 identity is actually verified. Missing, corrupt, inaccessible, contradictory or
 partial inputs remain explicit rather than becoming empty healthy inventories.
 
-Lineage decisions remain owned by #139, preservation by #1306 and artifact or
+Lineage decisions use the [shared authoring contract](#upstream-lineage-and-alternative-implementations)
+delivered for #139; preservation remains owned by #1306 and artifact or
 operation holds by #315/#246. This collector evaluates or modifies none of those
 authorities. Retained catalog qualification stays attached to its exact original
 artifact/source/platform scope; legacy platform arrays are labeled historical

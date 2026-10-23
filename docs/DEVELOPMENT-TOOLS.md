@@ -626,8 +626,13 @@ bounded job summaries. `PORTCOVE_CI_METRICS_DIR` enables versioned per-phase JSO
 without it the helper writes nothing. Reports retain source/checkout, run/attempt,
 job/runner, selected test counts and observed cache outcomes. Setup action timings
 remain in the saved job step inventory. Rust's first inventory includes workspace
-compilation; filter discovery, selected tests and live transport checks have
-separate phases. Measurement does not add another compilation or acceptance gate.
+compilation. Multi-group impact selections prepare the pinned nextest binary list
+and Cargo metadata once in `rust-inventory-metadata`, then independently list the
+complete scope, each group and their union from those private snapshots. The
+snapshots are checked for mutation and removed when that invocation settles;
+actual test execution retains normal compilation. Single-group selections retain
+their original listing path. Filter discovery, selected tests and live transport
+checks have separate phases. Measurement does not add an acceptance gate.
 
 Use `node scripts/ci-metrics.mts summarize DIRECTORY` for downloaded reports.
 The delivery watcher records initial queue delay separately from workflow start
@@ -949,6 +954,26 @@ collection or `journey=collection-large` for 60 entries. This mounts the actual
 App with disposable in-memory transport; game/file actions are simulated and
 unsupported actions visibly refuse. Expand the labeled demo review desk to change
 journey, reset, or settle fixture preparation. It is not the real first-use state.
+
+`journey=activity` adds two independent retained-setup records, including an
+uncertain outcome. Starting preparation creates its own typed Activity record;
+leaving, browsing another entry and returning preserves the original target.
+Completion, failure and settled cancellation update that same record. Requesting
+cancellation leaves it running until the review desk settles it. Fixture cleanup
+changes only the selected disposable record. The demo's one pending preparation
+is a fixture limitation, not product concurrency policy. Unsupported actions
+still refuse; none of these records demonstrate Core execution or real files.
+
+`journey=comparison` is a separate 12-entry scene shared by the comparison
+authoring tool and the app transport. It includes duplicate ports, a long Unicode
+identity, missing artwork and actual portrait/landscape/square PNG inputs. Run
+`node apps/desktop/scripts/prepare-library-comparison.mts <absolute-reference-root> <new-absolute-output-directory>`
+to create an isolated reference copy and viewer, with original reference and image
+hashes plus the production revision/working-tree annotation. Existing output is
+never overwritten, and changed reference entry points refuse generation. The
+viewer expects the actual app dev server on 4182 and its reference server on 4184.
+Use identical viewport, theme, view and scale; the independent realistic demos
+remain separate. Diagnostic art does not change catalog mappings or user assets.
 
 The app preview tracks the available viewport and retains the real workspace
 scroll owner. For a labeled comparison frame, append `&embed=1`; this hides review

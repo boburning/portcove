@@ -43,12 +43,14 @@ function OutputFact({ label, children }: { label: string; children: ReactNode })
 
 export function OutputLocationControl({
   portId,
+  gameName,
   generation,
   busy,
   onChanged,
   onApplying,
 }: {
   portId: string;
+  gameName?: string | undefined;
   generation: number;
   busy?: string | undefined;
   onChanged?: (() => void) | undefined;
@@ -384,6 +386,7 @@ export function OutputLocationControl({
       </ActionRow>
       {preview && (
         <OutputLocationReview
+          gameName={gameName}
           preview={preview}
           relocation={relocation}
           pending={pending}
@@ -548,6 +551,7 @@ const pendingCleanupMessages = {
 };
 
 function OutputLocationReview({
+  gameName,
   preview,
   relocation,
   pending,
@@ -558,6 +562,7 @@ function OutputLocationReview({
   finalFocus,
 }: {
   preview: OutputDestinationPreview;
+  gameName?: string | undefined;
   relocation?: OutputRelocationPlan | undefined;
   pending?: "load" | "pick" | "review" | "apply" | undefined;
   apply: () => void;
@@ -586,6 +591,7 @@ function OutputLocationReview({
         }}
       >
         <OutputRelocationReview
+          gameName={gameName}
           plan={relocation}
           pending={pending === "apply"}
           apply={applyRelocation}
@@ -617,6 +623,9 @@ function OutputLocationReview({
           {preview.reset_to_default ? "Review library default" : "Review future folder"}
         </DialogTitle>
         <DialogDescription id="output-location-review-description" className="mb-4 leading-relaxed">
+          <strong className="mb-2 block wrap-anywhere text-pc-foreground">
+            {gameName ?? preview.port_id}
+          </strong>
           Confirm the destination for future installs without moving any existing version.
         </DialogDescription>
         <div
@@ -707,6 +716,7 @@ function outputCapacityLabel(preview: OutputDestinationPreview) {
 }
 
 function OutputRelocationReview({
+  gameName,
   plan,
   pending,
   apply,
@@ -714,6 +724,7 @@ function OutputRelocationReview({
   finalFocus,
 }: {
   plan: OutputRelocationPlan;
+  gameName?: string | undefined;
   pending: boolean;
   apply: () => void;
   cancel: () => void;
@@ -744,6 +755,9 @@ function OutputRelocationReview({
         Review moving existing versions
       </DialogTitle>
       <DialogDescription id="output-relocation-review-description" className="mb-4 leading-relaxed">
+        <strong className="mb-2 block wrap-anywhere text-pc-foreground">
+          {gameName ?? plan.port_id}
+        </strong>
         Copy and verify the reviewed application versions before changing their recorded locations.
       </DialogDescription>
       <div

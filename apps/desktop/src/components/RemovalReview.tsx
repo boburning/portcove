@@ -1,4 +1,5 @@
 import { ActionReviewFailure } from "./ActionReviewFailure";
+import { gameIdentityLabel } from "../port-identity";
 import { useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { desktopApi } from "../api";
@@ -92,7 +93,7 @@ export function RemovalReviewDialog({
         aria-describedby="removal-review-description"
       >
         <DialogTitle id="removal-review-title" className="mb-2 text-xl">
-          Uninstall {port.name}?
+          Uninstall {gameIdentityLabel(port)}?
         </DialogTitle>
         <DialogDescription id="removal-review-description" className="mb-4 leading-relaxed">
           This removes all installed versions of {port.name} managed by Portcove.

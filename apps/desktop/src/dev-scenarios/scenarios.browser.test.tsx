@@ -66,7 +66,7 @@ describe("static development scenarios", () => {
     const interrupted = renderScenario("interrupted-operation");
     expect(interrupted).toContain("Backup recovery required");
     expect(interrupted).toContain("Backups need attention");
-    expect(interrupted.indexOf("Restart Portcove, then review doctor output.")).toBeLessThan(
+    expect(interrupted.indexOf("Restart Portcove, then check your backups again.")).toBeLessThan(
       interrupted.indexOf("<details"),
     );
     const refreshFailure = renderScenario("refresh-failure");
@@ -94,7 +94,7 @@ describe("static development scenarios", () => {
     expect(gameDetails).toContain('data-variant="ghost"');
     expect(gameDetails).toContain('data-variant="outline"');
     const installationReview = renderScenario("installation-review-reference");
-    expect(installationReview).toContain("INSTALL PLAN");
+    expect(installationReview).toContain("Review installation");
     expect(installationReview).toContain("Install · 64.0 MiB");
     expect(installationReview).not.toContain("Installation and version");
     expect(installationReview).toContain('class="detail-panel ');
@@ -198,6 +198,6 @@ describe("development browser entry", () => {
 
     expect(document.body.classList.contains("scenario-embed")).toBe(true);
     expect(document.querySelector("iframe")).toBeNull();
-    expect(document.querySelector<HTMLElement>("main")!.innerHTML).toContain("INSTALL PLAN");
+    expect(document.querySelector<HTMLElement>("main")!.innerHTML).toContain("Review installation");
   });
 });

@@ -78,9 +78,6 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
         reviewSize="wide"
         aria-describedby="move-library-description"
       >
-        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-          LIBRARY STORAGE
-        </p>
         <DialogTitle id="move-library-title" className="mb-2 text-xl">
           Change library location
         </DialogTitle>

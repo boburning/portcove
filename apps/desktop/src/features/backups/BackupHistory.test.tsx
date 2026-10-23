@@ -98,7 +98,10 @@ describe("backup history presentation", () => {
     expect(actionButtons).toHaveLength(2);
     for (const opening of actionButtons) expect(opening).toContain('disabled=""');
     expect(html).toContain("What to do next");
-    expect(html.indexOf("Restart Portcove, then review doctor output.")).toBeLessThan(
+    expect(html.indexOf("Restart Portcove, then check your backups again.")).toBeLessThan(
+      html.indexOf("<details"),
+    );
+    expect(html.indexOf("Restart Portcove, then review doctor output.")).toBeGreaterThan(
       html.indexOf("<details"),
     );
     expect(html).toContain("Technical details");
