@@ -1044,6 +1044,13 @@ export function validatePlanOriginCoverage(items: readonly RoadmapIssueItem[] | 
   return [];
 }
 
+export function isNonCatalogResearchBody(body: string) {
+  return (
+    /Catalog ID:\s*Not assigned \(researched candidate\)/i.test(body) &&
+    /(?:does not grant support|not supported merely|does not change catalog\.json)/i.test(body)
+  );
+}
+
 export function renderPortIssueBody({
   title,
   upstream,
@@ -1427,10 +1434,7 @@ export function validatePortIssueCoverage(
       matches.push(url);
       issuesByCatalogId.set(id, matches);
     } else {
-      if (
-        !/Catalog ID:\s*Not assigned \(researched candidate\)/i.test(body) ||
-        !/(?:does not grant support|not supported merely|does not change catalog\.json)/i.test(body)
-      ) {
+      if (!isNonCatalogResearchBody(body)) {
         errors.push(
           "Non-catalog port issue must identify research/watchlist status and disclaim support: " +
             url,

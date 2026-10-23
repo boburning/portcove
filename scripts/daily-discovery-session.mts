@@ -24,6 +24,7 @@ import {
   portFieldInitialization,
   reconcilePortIssueMarkers,
   validateDurableIssueBody,
+  isNonCatalogResearchBody,
 } from "./roadmap.mts";
 import type { RoadmapInventory, InventoryCache } from "./roadmap-inventory.mts";
 import { collectRoadmapInventory } from "./roadmap-inventory.mts";
@@ -83,6 +84,7 @@ interface Candidate {
   pending_ids?: string[];
   hold?: { reason: string; resume: string };
   superseded_by?: string;
+  amendment?: { expected_body_sha256: string; status: "prepared" | "attempted" | "applied" };
 }
 interface Evidence {
   repository: string;
@@ -193,12 +195,13 @@ export function discoveryInventoryCost(inventory: RoadmapInventory) {
 }
 export function discoveryDeliveryCost(
   inventory: RoadmapInventory,
-  candidates: readonly { body: string; requests?: number; bytes?: number }[],
+  candidates: readonly { body: string; requests?: number; bytes?: number; amendment?: unknown }[],
 ) {
   const { requests: pages, bytes: thin } = discoveryInventoryCost(inventory);
   const requests =
     (candidates.length + 1) * pages +
     candidates.length * 8 +
+    candidates.filter((c) => c.amendment).length * 3 +
     4 +
     candidates.reduce((s, c) => s + (c.requests ?? 0), 0);
   const bytes =
@@ -210,6 +213,27 @@ export function discoveryDeliveryCost(
     requests: Math.ceil(Math.max(requests * 1.25, requests + pages)),
     bytes: Math.ceil(Math.max(bytes * 1.25, bytes + thin)),
   };
+}
+export function intakeAmendmentAction(
+  body: string,
+  current: string,
+  amendment: Candidate["amendment"],
+) {
+  if (current === body) return "observed";
+  if (!amendment || observationHash(current) !== amendment.expected_body_sha256)
+    throw new Error("Retained intake body changed; preserve and reconcile");
+  if (amendment.status !== "prepared")
+    throw new Error("Unconfirmed amendment requires readback; no repeated write");
+  return "patch";
+}
+export function validateDiscoveryIntakeBody(body: string, upstream: string, portKey: string) {
+  validateDurableIssueBody(body);
+  if (reconcilePortIssueMarkers(body, { upstream, portKey }) !== body)
+    throw new Error("Intake requires the maintained canonical body markers before review");
+  if (!isNonCatalogResearchBody(body))
+    throw new Error(
+      "Intake requires canonical research/watchlist metadata and a support disclaimer before review",
+    );
 }
 export class DiscoverySession {
   inventory!: RoadmapInventory;
@@ -322,6 +346,16 @@ export class DiscoverySession {
         ].includes(c.status)
       )
         throw new Error("Interrupted candidate binding is invalid; preserve and reconcile");
+      if (
+        c.amendment !== undefined &&
+        (!isRecord(c.amendment) ||
+          c.kind !== "intake" ||
+          !c.created_issue ||
+          typeof c.amendment.expected_body_sha256 !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(c.amendment.expected_body_sha256) ||
+          !["prepared", "attempted", "applied"].includes(String(c.amendment.status)))
+      )
+        throw new Error("Interrupted amendment binding is invalid; preserve and reconcile");
       if (
         !["needs-review", "held", "superseded"].includes(String(c.status)) &&
         (!isRecord(c.review) ||
@@ -808,9 +842,7 @@ export class DiscoverySession {
     if (this.journal.candidates[id]) return this.journal.candidates[id];
     const marked = `<!-- portcove-discovery-${v.kind}:${id} -->\n\n${body}`;
     if (v.kind === "intake") {
-      validateDurableIssueBody(marked);
-      if (reconcilePortIssueMarkers(marked, { upstream: upstream.href, portKey: key }) !== marked)
-        throw new Error("Intake requires the maintained canonical body markers before review");
+      validateDiscoveryIntakeBody(marked, upstream.href, key);
     }
     const candidate: Candidate = {
       id,
@@ -918,6 +950,56 @@ export class DiscoverySession {
     c.hold = { reason: text(v.reason), resume: text(v.resume) };
     this.persist();
     return { id: c.id, status: c.status, hold: c.hold };
+  }
+  amend(raw: unknown) {
+    const v = object(raw),
+      c = this.journal.candidates[text(v.candidate_id)];
+    if (
+      !c ||
+      c.kind !== "intake" ||
+      !c.created_issue ||
+      c.status !== "doctor-pending" ||
+      v.expected_body_sha256 !== c.body_sha256
+    )
+      throw new Error("Amendment requires the exact retained doctor-pending intake");
+    const body = text(v.body);
+    if (
+      Buffer.byteLength(body) > 65536 ||
+      !body.includes(`<!-- portcove-discovery-intake:${c.id} -->`)
+    )
+      throw new Error("Amendment must preserve the intake identity and body bound");
+    validateDiscoveryIntakeBody(body, c.upstream, c.portKey);
+    const amendment = { expected_body_sha256: c.body_sha256, status: "prepared" as const };
+    const changed = { ...c, body, amendment };
+    const cost = discoveryDeliveryCost(
+      this.inventory,
+      Object.values(this.journal.candidates)
+        .filter((candidate) => !["delivered", "held", "superseded"].includes(candidate.status))
+        .map((candidate) => (candidate.id === c.id ? changed : candidate))
+        .map((candidate) => ({
+          ...candidate,
+          requests: candidate.evidence_ids.reduce(
+            (sum, id) => sum + this.journal.evidence[id]!.requests,
+            0,
+          ),
+          bytes: candidate.evidence_ids.reduce(
+            (sum, id) => sum + this.journal.evidence[id]!.bytes,
+            0,
+          ),
+        })),
+    );
+    this.budget.reserveDelivery(cost.requests, cost.bytes);
+    this.save(`amend-history-${c.id}-${c.body_sha256.slice(0, 12)}`, {
+      candidate: c,
+      reason: text(v.reason),
+    });
+    c.body = body;
+    c.body_sha256 = observationHash(body);
+    c.amendment = amendment;
+    c.status = "needs-review";
+    delete c.review;
+    this.persist();
+    return c;
   }
   collect() {
     if (this.journal.collection_done)
@@ -1127,6 +1209,8 @@ export class DiscoverySession {
             const issue = this.client.repositoryIssue(c.created_issue);
             if (!issue.body?.includes(`portcove-discovery-intake:${c.id}`))
               throw new Error("Retained issue does not match candidate");
+            // Guard the reviewed preimage before normalization can write any fields.
+            if (c.amendment) intakeAmendmentAction(c.body, issue.body, c.amendment);
             if (
               (typeof issue.state === "string" && issue.state.toLowerCase() === "closed") ||
               (Array.isArray(object(issue).assignees) &&
@@ -1149,6 +1233,25 @@ export class DiscoverySession {
               inventory: this.inventory,
             });
             c.itemId = result.itemId;
+            if (c.amendment) {
+              const fresh = this.client.repositoryIssue(c.created_issue);
+              if (intakeAmendmentAction(c.body, text(fresh.body), c.amendment) === "patch") {
+                this.save(
+                  `amend-preimage-${c.id}-${c.amendment.expected_body_sha256.slice(0, 12)}`,
+                  fresh,
+                );
+                c.amendment.status = "attempted";
+                this.persist();
+                this.client.api.request(
+                  "PATCH",
+                  `repos/${this.client.config.repository}/issues/${c.created_issue}`,
+                  { body: c.body },
+                );
+                this.wrote = true;
+              }
+              c.amendment.status = "applied";
+              this.persist();
+            }
           } else {
             if (matches.length)
               throw new Error(
@@ -1468,6 +1571,7 @@ export async function runDiscoverySession(
       if (op === "collect") result = session.collect();
       else if (op === "discover") result = session.discover();
       else if (op === "lead-dispose") result = session.disposeLead(message.disposition);
+      else if (op === "amend") result = session.amend(message.amendment);
       else if (op === "research") result = session.research(text(message.repository));
       else if (op === "search") result = session.search(text(message.query));
       else if (op === "read-primary")
