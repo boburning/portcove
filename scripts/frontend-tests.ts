@@ -1,6 +1,5 @@
 import { configDefaults, type TestProjectConfiguration, type TestUserConfig } from "vite-plus";
 import { fileURLToPath } from "node:url";
-import path from "node:path";
 import process from "node:process";
 import { URL } from "node:url";
 import { playwright } from "vite-plus/test/browser-playwright";
@@ -47,7 +46,7 @@ const browserProject = {
         tracesDir: traceRun.directory,
       },
       screenshotFailures: true,
-      screenshotDirectory: path.join(traceRun.directory, "screenshots"),
+      screenshotDirectory: traceRun.screenshotDirectory,
     },
   },
 } satisfies TestProjectConfiguration;

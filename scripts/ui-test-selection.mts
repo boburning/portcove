@@ -16,6 +16,27 @@ export interface UiRunObservation {
 const identity = (file: string): string =>
   process.platform === "win32" ? file.toLowerCase() : file;
 
+/** This diagnostic deliberately fails only when explicitly enabled. */
+export function allowedUiSkippedFiles(
+  files: readonly string[],
+  desktopRoot: string,
+  environment: Readonly<NodeJS.ProcessEnv> = process.env,
+): ReadonlyMap<string, string> {
+  const probe = identity(path.resolve(desktopRoot, "src/browser/failure-probe.browser.test.tsx"));
+  return new Map(
+    files
+      .filter(
+        (file) =>
+          environment.VITE_PORTCOVE_BROWSER_TRACE_PROBE !== "1" &&
+          identity(path.resolve(file)) === probe,
+      )
+      .map((file) => [
+        file,
+        "Intentional browser failure diagnostic is disabled outside its probe",
+      ]),
+  );
+}
+
 export function resolveUiSelection(
   files: readonly string[],
   desktopRoot: string,
@@ -53,6 +74,7 @@ export function resolveUiSelection(
 export function reconcileUiSelection(
   { testModules, unhandledErrors }: UiRunObservation,
   files: readonly string[],
+  allowedSkippedFiles: ReadonlyMap<string, string> = new Map(),
 ) {
   const rawModules: unknown = testModules;
   const rawErrors: unknown = unhandledErrors;
@@ -60,8 +82,16 @@ export function reconcileUiSelection(
     throw new Error("UI run is unsuccessful or incomplete");
   const expected = new Set(files.map((file: string) => identity(path.resolve(file))));
   if (!expected.size) throw new Error("UI selection is empty");
+  const permissions = new Map<string, string>();
+  for (const [file, reason] of allowedSkippedFiles) {
+    const key = identity(path.resolve(file));
+    if (!expected.has(key) || permissions.has(key) || !reason.trim())
+      throw new Error(`Invalid UI skipped-file permission: ${file}`);
+    permissions.set(key, reason);
+  }
   const discovered = new Set<string>(),
     executed: string[] = [];
+  const skippedFiles: { file: string; reason: string }[] = [];
   let passed = 0,
     skipped = 0;
   for (const module of testModules) {
@@ -83,6 +113,11 @@ export function reconcileUiSelection(
       else throw new Error(`UI test did not finish successfully: ${test.fullName}`);
     }
     if (ran) executed.push(module.moduleId);
+    else {
+      const reason = permissions.get(key);
+      if (!reason) throw new Error(`Requested UI suite was wholly skipped: ${module.moduleId}`);
+      skippedFiles.push({ file: module.moduleId, reason });
+    }
   }
   const missing = files.filter((file: string) => !discovered.has(identity(path.resolve(file))));
   if (missing.length) throw new Error(`Requested UI suites did not run: ${missing.join(", ")}`);
@@ -91,6 +126,7 @@ export function reconcileUiSelection(
     requested_files: files,
     discovered_files: testModules.map((module) => module.moduleId),
     executed_files: executed,
+    skipped_files: skippedFiles,
     passed,
     skipped,
   };

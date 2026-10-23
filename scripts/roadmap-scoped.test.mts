@@ -115,6 +115,93 @@ void test("scoped doctor uses real direct issue reads and never needs the failin
   assert.equal(f.queries.length, 2);
   assert.equal(f.mutations(), 0);
 });
+
+for (const ownerType of ["User", "Organization"] as const) {
+  void test(`scoped doctor resolves a ${ownerType} Project through observable API reads`, async () => {
+    const f = fixture();
+    const root = ownerType === "Organization" ? "organization" : "user";
+    const otherRoot = ownerType === "Organization" ? "user" : "organization";
+    const client = new RoadmapClient(config, (args, input) => {
+      assert.equal(args[0], "api", "Project CLI owner inference must not run");
+      if (args[2] === `users/${config.owner}`) {
+        assert(args.includes("GET"));
+        return JSON.stringify({ login: config.owner, type: ownerType });
+      }
+      assert.equal(args[1], "graphql");
+      const request: unknown = JSON.parse(input ?? "null");
+      assert(isRecord(request) && typeof request.query === "string" && isRecord(request.variables));
+      if (request.query.includes("projectV2(number:")) {
+        assert(request.query.includes(`${root}(login: $login)`));
+        assert(!request.query.includes(`${otherRoot}(login:`));
+        assert.deepEqual(request.variables, { login: config.owner, number: config.project.number });
+        return JSON.stringify({
+          data: {
+            [root]: { projectV2: { id: "PVT", number: config.project.number } },
+          },
+        });
+      }
+      return JSON.stringify({ data: f.client.graphql(request.query, request.variables) });
+    });
+    const result = await runScopedDoctor(config, client, { issues: [1], catalog: { ports: [] } });
+    assert.equal(result.coverage, "complete");
+    assert.equal(result.global_health, "not_evaluated");
+    assert.deepEqual(result.scope.checked_issues, [1]);
+    assert.deepEqual(
+      client.api.observations.map(({ operation }) => operation),
+      [`GET users/${config.owner}`, "POST graphql", "POST graphql", "POST graphql"],
+    );
+    assert.equal(f.queries.length, 2);
+    assert.equal(f.mutations(), 0);
+  });
+}
+
+void test("selected Project lookup rejects absent or mismatched identities before issue reads", () => {
+  for (const project of [
+    null,
+    {},
+    { id: "", number: config.project.number },
+    { id: "PVT", number: 999 },
+  ]) {
+    const client = new RoadmapClient(config, (args) => {
+      assert.equal(args[0], "api");
+      if (args[2] === `users/${config.owner}`) return JSON.stringify({ type: "User" });
+      return JSON.stringify({ data: { user: { projectV2: project } } });
+    });
+    assert.throws(
+      () => client.executionIssue(1),
+      /selected Project identity is unavailable or mismatched/,
+    );
+    assert.equal(client.api.observations.length, 2);
+  }
+});
+
+void test("Project discovery retains provider authentication failures and their diagnostics", async () => {
+  for (const [stage, status] of [
+    ["owner", 401],
+    ["project", 403],
+  ] as const) {
+    const client = new RoadmapClient(config, (args) => {
+      assert.equal(args[0], "api");
+      if (stage === "project" && args[2] === `users/${config.owner}`)
+        return JSON.stringify({ type: "User" });
+      throw new GitHubApiError("http_error", "Project credential was refused", { status });
+    });
+    await assert.rejects(
+      runScopedDoctor(config, client, { issues: [1], catalog: { ports: [] } }),
+      (error: unknown) => {
+        assert(error instanceof GitHubApiError);
+        assert.equal(error.status, status);
+        const diagnosis = doctorFailureDiagnostics(error);
+        assert.equal(diagnosis.kind, "authentication");
+        assert.equal(diagnosis.coverage, "inconclusive");
+        assert.match(diagnosis.error.message, /Project credential was refused/);
+        return true;
+      },
+    );
+    assert.equal(client.api.observations.length, stage === "owner" ? 1 : 2);
+  }
+});
+
 void test("direct prerequisites use their own complete memberships rather than absence in a scoped subset", async () => {
   for (const present of [true, false]) {
     const f = fixture();

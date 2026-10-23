@@ -64,39 +64,44 @@ void test("installed workflows remain inert without configuration and preserve e
     }
   }
 });
-void test("held automatic wake uses only the bound dispatch App and its actual installation", async () => {
-  const wake = parse(
-    await readFile(new URL(".github/workflows/application-update-wake.yml", root), "utf8"),
-  ) as Workflow;
-  const job = wake.jobs.wake!;
-  assert.equal(
-    job.if,
-    "${{ vars.PORTCOVE_CONTROLLER_WAKE != '' || vars.PORTCOVE_CATALOG_CONTROLLER_WAKE != '' }}",
+void test("held automatic wake uses one fixed job token without a dispatch App credential", async () => {
+  const text = await readFile(
+    new URL(".github/workflows/application-update-wake.yml", root),
+    "utf8",
   );
+  const wake = parse(text) as Workflow;
+  const job = wake.jobs.wake!;
+  assert.ok(job.if);
+  for (const [application, catalog, allowed] of [
+    ["", "", false],
+    [JSON.stringify({ schema_version: 3 }), "", false],
+    ["", JSON.stringify({ schema_version: 3 }), false],
+    [JSON.stringify({ schema_version: 4 }), "", true],
+    ["", JSON.stringify({ schema_version: 4 }), true],
+    [JSON.stringify({ schema_version: 3 }), JSON.stringify({ schema_version: 4 }), false],
+    [JSON.stringify({ schema_version: 4 }), JSON.stringify({ schema_version: 3 }), false],
+  ] as const)
+    assert.equal(
+      runInNewContext(job.if.slice(3, -2), {
+        vars: { PORTCOVE_CONTROLLER_WAKE: application, PORTCOVE_CATALOG_CONTROLLER_WAKE: catalog },
+        fromJSON: JSON.parse,
+      }),
+      allowed,
+      "legacy tuples must hold before checkout or job-token dispatch",
+    );
   assert.equal(job["timeout-minutes"], slice4CapacityResources.wake_job_minutes[0]);
   assert.equal(wake.concurrency.group, slice4CapacityResources.wake_concurrency);
-  const app = job.steps.findIndex((step) =>
-    step.uses?.startsWith("actions/create-github-app-token@"),
-  );
-  assert.ok(app > 0);
-  assert.equal(job.steps[app]!.with?.["app-id"], "${{ steps.prepare.outputs.dispatch_app_id }}");
-  assert.equal(job.steps[app]!.with?.["permission-actions"], "write");
-  assert.equal(
-    job.steps[app + 1]?.env?.PORTCOVE_OBSERVED_INSTALLATION_ID,
-    "${{ steps.dispatch-token.outputs.installation-id }}",
-  );
-  assert.equal(
-    job.steps[app + 1]?.env?.PORTCOVE_EXPECTED_INSTALLATION_ID,
-    "${{ steps.prepare.outputs.dispatch_installation_id }}",
-  );
-  assert.match(
-    job.steps[app]!.with?.["private-key"] ?? "",
-    /\(steps\.prepare\.outputs\.publication_purpose == 'catalog-publication' && secrets\.PORTCOVE_CATALOG_DISPATCH_APP_PRIVATE_KEY\) \|\| \(steps\.prepare\.outputs\.publication_purpose == 'application' && secrets\.PORTCOVE_DISPATCH_APP_PRIVATE_KEY\)/u,
-  );
+  assert.deepEqual(job.permissions, { contents: "read", actions: "write" });
+  assert.ok(!text.includes("secrets.") && !text.includes("create-github-app-token"));
   const prepare = job.steps.findIndex(
     (step) => step.run === "node scripts/release-controller-wake.mts --prepare",
   );
-  assert.ok(prepare >= 0 && prepare < app);
+  const intent = job.steps.findIndex((step) => step.uses?.startsWith("actions/upload-artifact@"));
+  const dispatch = job.steps.findIndex(
+    (step) => step.run === "node scripts/release-controller-wake.mts --dispatch",
+  );
+  assert.ok(prepare >= 0 && prepare < intent && intent < dispatch);
+  assert.equal(job.steps[dispatch]!.env?.GH_TOKEN, "${{ github.token }}");
   assert.equal(
     job.steps[prepare]!.env?.PORTCOVE_CONTROLLER_WAKE,
     "${{ vars.PORTCOVE_CONTROLLER_WAKE }}",
@@ -105,7 +110,39 @@ void test("held automatic wake uses only the bound dispatch App and its actual i
     job.steps[prepare]!.env?.PORTCOVE_CATALOG_CONTROLLER_WAKE,
     "${{ vars.PORTCOVE_CATALOG_CONTROLLER_WAKE }}",
   );
-  assert.ok(!JSON.stringify(wake).includes("SIGNING_PRIVATE_KEY"));
+});
+
+void test("dispatch qualification is a bounded secret-free sender and inert receiver, separate from production", async () => {
+  const text = await readFile(
+    new URL(".github/workflows/job-token-dispatch-fixture.yml", root),
+    "utf8",
+  );
+  const fixture = parse(text) as Workflow;
+  assert.deepEqual(Object.keys(fixture.jobs), ["send", "receive"]);
+  assert.deepEqual(Object.keys(fixture.on as object), ["workflow_dispatch"]);
+  assert.deepEqual(fixture.jobs.send!.permissions, { contents: "read", actions: "write" });
+  assert.equal(fixture.jobs.receive!.permissions, undefined);
+  for (const job of Object.values(fixture.jobs)) {
+    assert.equal(job["runs-on"], "ubuntu-24.04");
+    assert.equal(job["timeout-minutes"], 2);
+    assert.equal(
+      job.steps.find((step) => step.uses?.startsWith("actions/checkout@"))!.with?.[
+        "persist-credentials"
+      ],
+      false,
+    );
+    assert.equal(
+      job.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@"))!.with?.[
+        "retention-days"
+      ],
+      7,
+    );
+    assert.ok(job.steps.some((step) => step.run === "node scripts/qualify-job-token-dispatch.mts"));
+  }
+  assert.doesNotMatch(
+    text,
+    /secrets\.|SIGNING|^\s+cache:|production-release|create-github-app-token/mu,
+  );
 });
 void test("actual coordinator outputs bind every fixed composite declaration", async () => {
   const workflow = parse(
