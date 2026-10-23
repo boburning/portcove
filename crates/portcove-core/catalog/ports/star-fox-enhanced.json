@@ -58,5 +58,52 @@
       ],
       "saves_and_settings": "portcove-managed"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "star-fox-snes",
+    "origin": {
+      "project_url": "https://github.com/kandowontu/starfox-enhanced"
+    },
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/kandowontu/starfox-enhanced"
+        },
+        "to": {
+          "project_url": "https://github.com/kandowontu2/starfox-enhanced",
+          "repository": {
+            "host": "github.com",
+            "id": "1393981305"
+          }
+        },
+        "relationship": "successor",
+        "outcome": "unresolved",
+        "rationale": "As of 2026-10-23, the candidate retains the historical source commit and v0.0.6.7 tag and has newer activity, but sufficient attributable maintainer and provenance continuity has not been established. Copied history and credits do not establish successor authority. The original release endpoint remains unavailable and no historical accepted artifact was recovered or verified.",
+        "evidence": [
+          {
+            "kind": "context",
+            "reference": "https://github.com/boburning/portcove/issues/124",
+            "note": "The canonical issue retains the original admission, disappearance incident, candidate evidence and unresolved decision; its September observation that the candidate tag was unavailable is historical."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/kandowontu2/starfox-enhanced",
+            "note": "Observed 2026-10-23: public repository 1393981305, created 2026-09-29, owner 335174380; this identifies the candidate, not continuity with the former owner."
+          },
+          {
+            "kind": "context",
+            "reference": "https://github.com/kandowontu2/starfox-enhanced/commit/2455f8cc7a2f71a0dcd4b9d6f0c80e0ef2d83273",
+            "note": "The historical accepted source commit is present. The restored v0.0.6.7 annotated tag a739cbf8b6d54f32c4bbc7fc5489f7632ae413ff points here; neither proves ownership continuity or the exact accepted ZIP bytes."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/kandowontu2/starfox-enhanced/releases/tags/v0.0.6.7",
+            "note": "Observed 2026-10-23: HTTP 404 for the historical release endpoint despite the restored tag. Newer v0.0.8.8 metadata describes a different release and artifact."
+          }
+        ],
+        "reconsider_when": "Perform a bounded independent review when attributable maintainer and license/provenance continuity evidence can establish or reject succession, including any contradictory takeover evidence. No single announcement is mandatory. Keep the canonical port, historical upstream, accepted release, source/save/install contracts and qualification unchanged until that decision; artifact recovery, release admission and distribution require their separate evidence."
+      }
+    ]
   }
 }

@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { isRecord } from "./runtime-values.mts";
+import { assessUpstreamLineage, checkLineageIdentities } from "./upstream-lineage.mts";
+import type { UpstreamLineage } from "./upstream-lineage.mts";
 
 // These are checked authoring projections, not a second catalog schema. Unknown
 // metadata is retained verbatim; the captured Core inspector owns admission.
@@ -33,6 +35,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   integration?: Record<string, unknown>;
   /** Retained only to preserve the established operational ordering at migration. */
   order?: number;
+  /** Reviewed provenance; never projected into runtime definitions or listings. */
+  upstream_lineage?: UpstreamLineage;
 }
 
 export const catalogSourceNames = {
@@ -160,7 +164,9 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     )
       throw new Error("Shared presentation fields belong to the listing.");
   }
-  return value as AuthoredPort;
+  const record = value as AuthoredPort;
+  assessUpstreamLineage(record);
+  return record;
 }
 
 /** Mechanical split; no support, source, package or artwork observations are added. */
@@ -207,6 +213,7 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
   const records = inputs.map((record) => checkedAuthoredPort(record));
   if (new Set(records.map((record) => record.listing.id)).size !== records.length)
     throw new Error("Catalog source has duplicate stable listing IDs.");
+  checkLineageIdentities(records);
   records.sort(
     (a, b) =>
       (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER) ||

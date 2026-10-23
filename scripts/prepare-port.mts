@@ -27,6 +27,11 @@ import type {
 } from "./inspect-igdb-artwork.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
+import {
+  assessUpstreamLineage,
+  checkLineageChange,
+  checkObservedRepository,
+} from "./upstream-lineage.mts";
 
 interface PrepareOptions {
   catalogRoot: string;
@@ -318,10 +323,6 @@ export async function preparePort(options: PrepareOptions) {
     if (facts.issue?.id && facts.issue.id !== id)
       throw new Error("Canonical issue and proposed stable ID differ.");
     const previous = authored.records.find((record) => record.listing.id === id);
-    if (previous && previous.listing.project_url !== facts.project_url)
-      throw new Error(
-        "Existing stable ID has another origin; review that identity change separately.",
-      );
     const metadata = isRecord(facts.project?.body) ? facts.project.body : {};
     const base = explicit ?? previous;
     let record = checkedAuthoredPort({
@@ -340,6 +341,8 @@ export async function preparePort(options: PrepareOptions) {
         ...(facts.issue ? { issue_number: facts.issue.number } : {}),
       },
     });
+    if (previous) checkLineageChange(previous, record);
+    checkObservedRepository(record, metadata.id);
     if (
       facts.assets_complete &&
       facts.assets.length &&
@@ -399,6 +402,7 @@ export async function preparePort(options: PrepareOptions) {
       format_version: 1,
       port_id: id,
       route: record.integration ? "existing-integration" : (options.route ?? "listing"),
+      lineage: assessUpstreamLineage(record),
       ...prepared,
       files: { ...prepared.files, upstream: immutableJson(root, "upstream", facts) },
       preparation_costs: preparationCosts(started),

@@ -51,5 +51,46 @@
       ],
       "saves_and_settings": "portcove-managed"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "paper-mario-n64",
+    "origin": {
+      "project_url": "https://github.com/SMCGames/Paper-Mario-ReCut"
+    },
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/SMCGames/Paper-Mario-ReCut"
+        },
+        "to": {
+          "project_url": "https://github.com/SMCGames/Paper-Mario-ReCut-Deprecated",
+          "repository": {
+            "host": "github.com",
+            "id": "1247923238"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "Import the same-repository relocation already independently reviewed and merged in PR #2354. Numeric repository observations, retained historical release ID and tag history, and the attributable maintainer deprecation establish continuity together. No historical numeric repository baseline or verified historical asset digest is inferred.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/boburning/portcove/blob/6e952aa151213292d684d069beceba5355cfc270/docs/archive/2026-10-21-paper-mario-recut-relocation.md",
+            "note": "Retained bounded observations and historical release continuity corroborate the location correction and explicit deprecation."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/SMCGames/Paper-Mario-ReCut-Deprecated/commit/9987cc93dbdc9bdfcf1be7a1eb7aa5df70837f72",
+            "note": "Attributable deprecation directly descends from the retained v0.1.2 release target; PaperBoat remains a separate implementation."
+          }
+        ],
+        "reconsider_when": "New contradictory maintainer, provider identity or provenance evidence requires a new independent assessment; append a rejection or reviewed reversal without erasing this decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/pull/2354",
+          "decision_sha256": "88e5ec59b0b5a8d0b9a7b60230dbca4429845a32eaa3419e436aca368bc41f00"
+        }
+      }
+    ]
   }
 }
