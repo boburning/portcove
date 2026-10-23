@@ -764,6 +764,13 @@ Node. Selective profiles cannot be combined with legacy deep/desktop switches.
 Frontend setup uses the pinned package-manager declaration and frozen lockfile;
 Core setup selects the existing Rust pin/components and cargo-nextest only.
 Daily keeps existing Aqua checksum/attestation and Cargo cache boundaries.
+
+The Linux package-ownership rehearsal gives its packaging-prerequisite APT install
+a finite 600-second budget within a 30-minute step. The longer step covers the
+existing bounded index/mirror fallback and cleanup; an interrupted install still
+refuses a retry. Package/runtime assertions and the 45-minute build-job limit
+remain unchanged. A pass under this budget establishes completion, not a mirror
+performance improvement.
 The hosted native prerequisite selects `native-drivers` to avoid provisioning unrelated
 development tools. It preserves driver pin/hash receipts, Microsoft Authenticode-before-execution,
 actual runtime matching, cache promotion and the selected doctor's readback. Its

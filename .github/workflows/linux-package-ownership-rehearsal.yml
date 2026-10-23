@@ -82,8 +82,8 @@ jobs:
         with:
           key: linux-package-ownership-rehearsal
       - name: Install Linux packaging prerequisites
-        timeout-minutes: 15
-        run: ./scripts/install-linux-desktop-prerequisites.sh --include-rpm
+        timeout-minutes: 30
+        run: ./scripts/install-linux-desktop-prerequisites.sh --include-rpm --install-timeout-seconds=600
       - run: pnpm install --frozen-lockfile
       - name: Build DEB and RPM packages only
         run: pnpm tauri build --bundles deb,rpm --ci
