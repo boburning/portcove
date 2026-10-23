@@ -361,6 +361,16 @@ launch, retained readback and a mapped negative-path matrix. Other Playnite
 versions, real-game playability and the full native failure matrix remain
 unqualified.
 
+The contract runner reports each of 12 sequential scenarios as a `SCENARIO`
+JSON record, including status, duration, completed checks and any original failure.
+It continues independent scenarios after failure and returns a failed aggregate.
+`check.ps1 -ContractsOnly -Scenario protocol` selects exact names;
+`check.ps1 -ListScenarios` lists them. Multiple names may be passed to `-Scenario`.
+Focused selection skips lifecycle qualification and packaging. A full synthetic
+run explicitly reports the compiled consumer as skipped unless both `-Cli` and
+an isolated `-Library` are supplied. Build checks also exercise intentional
+failure-then-pass controls and reject malformed selections before executing cases.
+
 `tests/ContractTests.cs` is a redistributable synthetic CLI/process fixture, not
 a retail source, game artifact or port-admission bypass. It checks literal argv,
 opaque identities, schema/capability drift, structured errors, stream termination,

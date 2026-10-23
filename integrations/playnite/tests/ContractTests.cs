@@ -41,7 +41,7 @@ internal static class ContractTests
             if (args.Length > 0 && args[0].StartsWith("qualification-", StringComparison.Ordinal))
                 RunQualification(args).GetAwaiter().GetResult();
             else
-                Run(args).GetAwaiter().GetResult();
+                return Run(args).GetAwaiter().GetResult();
             Console.WriteLine("PASS " + passed + " reference-client contract checks");
             return 0;
         }
@@ -209,15 +209,27 @@ internal static class ContractTests
         }
     }
 
-    private static async Task Run(string[] args)
+    private static Task<int> Run(string[] args)
     {
-        CheckRuntimeSelection();
-        CheckPersonalLibrary();
-        CheckGuidedSetup();
-        CheckManagedRemoval();
-        CheckUninstallController();
-        CheckInstallationReview();
-        CheckExternalRuntimeReview();
+        return ScenarioRunner.Run(args, (cli, library) => new[] {
+            ScenarioRunner.Sync("runtime-selection", CheckRuntimeSelection),
+            ScenarioRunner.Sync("personal-library", CheckPersonalLibrary),
+            ScenarioRunner.Sync("guided-setup", CheckGuidedSetup),
+            ScenarioRunner.Sync("managed-removal", CheckManagedRemoval),
+            ScenarioRunner.Sync("uninstall-controller", CheckUninstallController),
+            ScenarioRunner.Sync("installation-review", CheckInstallationReview),
+            ScenarioRunner.Sync("external-runtime-review", CheckExternalRuntimeReview),
+            ScenarioRunner.Sync("protocol", CheckProtocol),
+            new ScenarioRunner.Scenario("owned-transport", CheckOwnedTransport),
+            new ScenarioRunner.Scenario("consumer-measurements", ConsumerMeasurements),
+            new ScenarioRunner.Scenario("long-session-observation", LongSessionObservation),
+            new ScenarioRunner.Scenario("compiled-cli-consumer", () => CheckCompiledCli(cli, library),
+                () => cli == null ? "Requires a compiled CLI and isolated library; use check.ps1 -Cli <executable> -Library <isolated-root>." : null)
+        }, () => passed, () => Check(true, "runner control continues after an independent failure"));
+    }
+
+    private static void CheckProtocol()
+    {
         var managedStatus = Json.Parse("{\"active\":null}");
         Check(Json.OptionalObjectField(managedStatus, "external_runtime") == null,
             "absent external runtime is a valid managed status");
@@ -542,6 +554,10 @@ internal static class ContractTests
         BackupCreateRecords();
         PreparationCleanupRecords();
         LaunchRecords();
+    }
+
+    private static async Task CheckOwnedTransport()
+    {
         var root = Path.Combine(Path.GetDirectoryName(Binary), "fixture-library");
         var client = new PublicCli(Binary, root);
         await client.Connect();
@@ -565,46 +581,69 @@ internal static class ContractTests
         }
         await client.Manage("cancel", new[] { "cancel", "request" }, null);
         Check(true, "cancellation request accepts a result-only response");
-        await ConsumerMeasurements();
-        await LongSessionObservation();
-        if (args.Length == 2)
+    }
+
+    private static async Task CheckCompiledCli(string cli, string library)
+    {
+        var real = new PublicCli(cli, library); await real.Connect();
+        var capabilities = await real.Read("capabilities", "capabilities");
+        Check(real.ApiSchemaVersion == 80 && Json.Array(Json.Field(capabilities, "engine_templates"))
+            .Any(template => Json.Text(template, "template") == "staged-source-portable"
+                && Json.Number(template, "contract_version") == 18),
+            "compiled API80 producer advertises the prepared directory contract through the actual client");
+        var statuses = Json.Array(await real.Read("status", "status"));
+        var catalog = Json.Array(await real.Read("catalog.list", "catalog", "list"));
+        Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
+        var displayed = PersonalLibrary.Read(catalog, statuses, "compiled-game-title-library");
+        Check(displayed.Count > 0 && displayed.All(game => {
+            var definition = catalog.First(port => Json.Text(port, "id") == game.PortId);
+            var presentation = Json.Field(definition, "presentation");
+            return game.Name.StartsWith(Json.Text(presentation, "original_game_title"), StringComparison.Ordinal)
+                && game.GameId == Identity.Game("compiled-game-title-library", game.PortId);
+        }), "compiled current-schema catalog titles lead actual reader names without changing port identities");
+        var prepared = catalog.Where(port => Json.Text(Json.Field(port, "release"), "provider") == "user-prepared").ToArray();
+        Check(prepared.Length > 0, "compiled catalog contains prepared routes for actual client consumption");
+        foreach (var port in prepared)
         {
-            var real = new PublicCli(args[0], args[1]); await real.Connect();
-            var capabilities = await real.Read("capabilities", "capabilities");
-            Check(real.ApiSchemaVersion == 80 && Json.Array(Json.Field(capabilities, "engine_templates"))
-                .Any(template => Json.Text(template, "template") == "staged-source-portable"
-                    && Json.Number(template, "contract_version") == 18),
-                "compiled API80 producer advertises the prepared directory contract through the actual client");
-            var statuses = Json.Array(await real.Read("status", "status"));
-            var catalog = Json.Array(await real.Read("catalog.list", "catalog", "list"));
-            Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
-            var displayed = PersonalLibrary.Read(catalog, statuses, "compiled-game-title-library");
-            Check(displayed.Count > 0 && displayed.All(game => {
-                var definition = catalog.First(port => Json.Text(port, "id") == game.PortId);
-                var presentation = Json.Field(definition, "presentation");
-                return game.Name.StartsWith(Json.Text(presentation, "original_game_title"), StringComparison.Ordinal)
-                    && game.GameId == Identity.Game("compiled-game-title-library", game.PortId);
-            }), "compiled current-schema catalog titles lead actual reader names without changing port identities");
-            var prepared = catalog.Where(port => Json.Text(Json.Field(port, "release"), "provider") == "user-prepared").ToArray();
-            Check(prepared.Length > 0 && prepared.All(port => SetupInstructions.Summary(Json.Field(port, "presentation")).Contains("1. ")),
-                "compiled current-schema authored setup steps are consumed by the actual client");
-            Check(prepared.All(port => SetupInstructions.TechnicalNotes(Json.Field(port, "presentation"))
-                    == Json.Text(Json.Field(port, "presentation"), "manual_preparation"))
-                && prepared.All(port => SetupInstructions.HelpUrl(Json.Field(port, "presentation")) == null ||
-                    new Uri(SetupInstructions.HelpUrl(Json.Field(port, "presentation"))).Scheme == "https"),
-                "compiled prepared routes retain authored technical notes and validated upstream setup links");
-            Check(real.ApiSchemaVersion == ProtocolStream.Schema && statuses.All(status =>
-                PortActions.Read(status).Count(value => value.Action == "rollback") == 1 &&
-                PortActions.Read(status).Count(value => value.Action == "update") == 1),
-                "compiled current-schema producer and actual reader consume one rollback and update assessment per catalog status");
-            var portId = Json.Text(statuses[0], "port_id");
-            var inventory = await real.Read("backup.list", "backup", "list", portId);
-            Check(PortActionDecision.Read(Json.Field(inventory, "create_assessment")).Action == "backup_create",
-                "compiled current-schema backup producer and actual strict reader consume creation assessment");
-            Check(PortActionDecision.Read(Json.Field(inventory, "restore_assessment")).Action == "backup_restore",
-                "compiled current-schema backup producer and actual strict reader consume restore assessment");
-            Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
+            var presentation = Json.Field(port, "presentation");
+            var guide = Json.OptionalObjectField(presentation, "manual_setup");
+            var summary = SetupInstructions.Summary(presentation);
+            var notes = SetupInstructions.TechnicalNotes(presentation);
+            var help = SetupInstructions.HelpUrl(presentation);
+            object optional;
+            var legacy = Json.TryField(presentation, "manual_preparation", out optional)
+                ? Json.OptionalText(presentation, "manual_preparation") : null;
+            if (guide == null)
+            {
+                Check(summary == legacy && notes == null && help == null,
+                    "compiled legacy setup prose remains the complete fallback: " + Json.Text(port, "id"));
+            }
+            else
+            {
+                var expected = Json.Array(Json.Field(guide, "warnings"))
+                    .Select(warning => "Before you begin: " + (string)warning)
+                    .Concat(Json.Array(Json.Field(guide, "steps")).Select((step, index) =>
+                        (index + 1) + ". " + Json.Text(step, "title") + ": " + Json.Text(step, "instruction")));
+                Check(summary == string.Join("\n", expected) && notes == legacy,
+                    "compiled authored warnings, numbered steps and technical notes reach the actual client: " + Json.Text(port, "id"));
+                var expectedHelp = Json.TryField(guide, "help_url", out optional)
+                    ? Json.OptionalText(guide, "help_url") : null;
+                Check(help == expectedHelp &&
+                    (help == null || new Uri(help).Scheme == "https"),
+                    "compiled authored setup link remains exact and HTTPS: " + Json.Text(port, "id"));
+            }
         }
+        Check(real.ApiSchemaVersion == ProtocolStream.Schema && statuses.All(status =>
+            PortActions.Read(status).Count(value => value.Action == "rollback") == 1 &&
+            PortActions.Read(status).Count(value => value.Action == "update") == 1),
+            "compiled current-schema producer and actual reader consume one rollback and update assessment per catalog status");
+        var portId = Json.Text(statuses[0], "port_id");
+        var inventory = await real.Read("backup.list", "backup", "list", portId);
+        Check(PortActionDecision.Read(Json.Field(inventory, "create_assessment")).Action == "backup_create",
+            "compiled current-schema backup producer and actual strict reader consume creation assessment");
+        Check(PortActionDecision.Read(Json.Field(inventory, "restore_assessment")).Action == "backup_restore",
+            "compiled current-schema backup producer and actual strict reader consume restore assessment");
+        Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
     }
 
     // The SDK exposes emission to extensions, but subscription only to the host.
