@@ -14,7 +14,6 @@ import traceback
 import unittest
 from pathlib import Path
 
-
 MAX_RECORDS = 2048
 MAX_REPORT_BYTES = 2 * 1024 * 1024
 MODULE = "_portcove_contract"
