@@ -159,7 +159,7 @@ network, security or other behavioral deadlines, acceptance or release authority
 A pass under a larger budget proves completion under that budget.
 
 The October 2026 test audit calibrated the three maintained Node suites that
-contain the six fixed Linux Python child wrappers from a 30-second default to
+contain fixed Linux Python child wrappers from a 30-second default to
 60 seconds. Their child limits remain 30 seconds. The dynamic ordinary and
 bootstrap contract runners also allow 60 seconds so those same wrappers can
 report and clean up. Other registered suite defaults, explicit per-test limits
