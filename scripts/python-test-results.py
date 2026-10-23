@@ -7,12 +7,12 @@ failure outcome even when report generation fails.
 import hashlib
 import importlib.util
 import json
-from pathlib import Path
 import platform
 import sys
 import time
 import traceback
 import unittest
+from pathlib import Path
 
 
 MAX_RECORDS = 2048

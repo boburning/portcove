@@ -2756,6 +2756,23 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
       platform: "x86_64-apple-darwin",
     },
   ];
+  const auditLifecycleFilters = [
+    {
+      platform: "x86_64-apple-darwin",
+      filter:
+        "package(portcove-core) & (test(/^definition_repository::tests::publisher_policy_tests::curated_activation_withdrawal_permits_exact_retained_target$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_admitted_scope_resolves_missing_digest_and_revalidates_mutable_identity$/))",
+    },
+    {
+      platform: "x86_64-unknown-linux-gnu",
+      filter:
+        "package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/) | test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/))",
+    },
+    {
+      platform: "x86_64-pc-windows-msvc",
+      filter:
+        "package(portcove-cli) & test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/)",
+    },
+  ];
   // Admit only these exact platform/filter identities. Comparing the complete
   // inventory also rejects duplicates without a separately maintained count.
   const outputIdentity = (value: Readonly<Record<string, unknown>>) =>
@@ -2765,6 +2782,7 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     [
       ...windowsLifecycleFilters.map((filter) => ({ platform: "x86_64-pc-windows-msvc", filter })),
       ...publicationFilters,
+      ...auditLifecycleFilters,
     ]
       .map(outputIdentity)
       .sort(),
@@ -2772,6 +2790,17 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   for (const filter of windowsLifecycleFilters) {
     const override = overrideFor(filter, "x86_64-pc-windows-msvc");
     assert.equal(override.platform, "x86_64-pc-windows-msvc");
+    assert.equal(override["success-output"], "immediate");
+    assert.deepEqual(override["slow-timeout"], {
+      period: "5s",
+      "terminate-after": 12,
+      "grace-period": "0s",
+    });
+    for (const field of ["retries", "threads-required", "priority"])
+      assert.equal(override[field], undefined);
+  }
+  for (const { filter, platform } of auditLifecycleFilters) {
+    const override = overrideFor(filter, platform);
     assert.equal(override["success-output"], "immediate");
     assert.deepEqual(override["slow-timeout"], {
       period: "5s",
