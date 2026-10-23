@@ -3,7 +3,6 @@ import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promi
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import test from "node:test";
 import pinFixture from "./fixtures/upstream-health-fade-to-black.json" with { type: "json" };
 import { estimateHealthRequests, type HealthFetch } from "./check-catalog-repositories.mts";
@@ -702,11 +701,7 @@ void test("missing planner scope emits CLI failure artifacts without network wor
   const outputs = path.join(directory, "step-outputs");
   const result = spawnSync(
     process.execPath,
-    [
-      "--import",
-      pathToFileURL(denyNetwork).href,
-      path.join(directory, "scripts/upstream-health-monitor.mts"),
-    ],
+    ["--import", denyNetwork, path.join(directory, "scripts/upstream-health-monitor.mts")],
     {
       encoding: "utf8",
       timeout: 10_000,

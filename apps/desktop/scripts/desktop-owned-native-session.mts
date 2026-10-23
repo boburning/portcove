@@ -3,12 +3,6 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 export const nativeSessionScript = fileURLToPath(new URL("./native-session.ps1", import.meta.url));
-export const ownedGameWindowScript = fileURLToPath(
-  new URL("./owned-game-window.ps1", import.meta.url),
-);
-export const sopwithKnownFolderScript = fileURLToPath(
-  new URL("./sopwith-known-folder.ps1", import.meta.url),
-);
 
 export interface CapturedNativeProcess {
   pid: number;

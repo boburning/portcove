@@ -125,7 +125,7 @@ if ($ObservePicker) {
     if ($PreparedRuntimeDirectory) {
         $allowedNames = if ($ExpectedPickerTitle -ceq 'Choose game-file folder') {
             @('selected-setup-inputs', 'connected-folder-extra', 'connected-folder-replacement')
-        } else { @('player-owned-runtime', 'real-prepared-runtime-dkc3-recomp', 'real-prepared-runtime-wave-race-64-racewave46', 'upstream-downloads') }
+        } else { @('player-owned-runtime', 'real-prepared-runtime-dkc3-recomp', 'real-prepared-runtime-wave-race-64-racewave46') }
         $outputDirectory = [IO.Path]::GetFullPath([IO.Path]::GetDirectoryName($ObservationPath))
         $suppliedName = [IO.Path]::GetFileName($PreparedRuntimeDirectory)
         if ($suppliedName -cnotin $allowedNames) { throw 'Picker input is not an admitted owned fixture directory.' }
@@ -365,7 +365,7 @@ $nativeLibraryWindowHandle = $null
 if ($FilePath -and $DirectoryPath) { throw 'Choose only one native picker input.' }
 if ($FilePath) {
     Assert-ExactConfirmationWindow $window
-    if ($Button -ne 'Open' -or $Title -notin @('Choose local artwork', 'Choose game files', 'Choose ZIP file', 'Choose BIOS file', 'Locate game executable')) { throw 'File input is limited to maintained artwork, game-file, BIOS and reviewed executable pickers.' }
+    if ($Button -ne 'Open' -or $Title -notin @('Choose local artwork', 'Choose game files', 'Choose ZIP file', 'Choose BIOS file')) { throw 'File input is limited to artwork, game-file, and BIOS pickers.' }
     $selected = (Resolve-Path -LiteralPath $FilePath).Path
     if (-not [IO.File]::Exists($selected)) { throw 'Owned picker fixture is not a file.' }
     $fields = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'File name:' })

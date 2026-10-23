@@ -2322,28 +2322,6 @@ the same registration/version and executable/uninstaller bytes, and unchanged
 isolated persistent data before uninstall. It does not accept an arbitrary
 callback or replace the retained-byte scenario.
 
-Add `--installed-scenario native-installed-onboarding-and-covers` for the finite
-#1155/#46 ordinary Windows package journey. It requires the live current-installed
-receipt and an empty isolated library. It downloads the reviewed official SDL
-Sopwith portable asset through the UI, reopens pending setup, obtains native
-registration/relink consent, launches from Library, observes the actual game
-window and positive process exits, and removes bookkeeping while preserving both
-external trees and the actual upstream known-folder state. Its bounded cover
-sample includes new listing-only mappings and existing integrations, empty-cache
-online display, cached offline restart, first-ever offline fallback, explicit local
-choice/restart/unavailable-file retention and reset. Controlled failures remain
-test observations. Prior signed correction/withdrawal fixtures retain their scope.
-The ordinary boundary scenario also runs, without fixture build features.
-
-Run this installation only in an authorized disposable Windows environment;
-APPDATA overrides do not isolate Registry or shell known folders. The existing
-`native-design-compatibility.yml` manual operation `installed-onboarding` selects
-the public `windows-2022` runner, repository-pinned prerequisites and maintained
-package/installer/resource guards. It retains exact receipts and PNGs through the
-existing bounded job-log evidence mechanism. It performs no artifact/cache
-storage, production signing, release/feed publication or account provisioning.
-An observed unsigned test package remains distinct from a distributed release.
-
 The exclusive `.native-doctor.json` receipt alongside the installer evidence
 retains tool preflight results, including failed preflight before installation.
 The admission receipt retains successful preflight and exact input bindings.

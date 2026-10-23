@@ -83,110 +83,61 @@ void test("owner-host invocation refuses before any runtime installation", () =>
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Only the reviewed standard hosted diagnostic/);
 });
-for (const route of [
-  {
-    name: "continuity",
-    workflow: "hosted-runtime-readiness",
-    ref: "feature/534-runtime-fixture",
-    job: "readiness",
-    eligible: true,
-  },
-  {
-    name: "installed main",
-    workflow: "native-design-compatibility",
-    ref: "main",
-    job: "installed_onboarding",
-    eligible: true,
-  },
-  {
-    name: "installed topic",
-    workflow: "native-design-compatibility",
-    ref: "feature/1155-desktop-covers-delivery",
-    job: "installed_onboarding",
-    eligible: true,
-  },
-  {
-    name: "different installed job",
-    workflow: "native-design-compatibility",
-    ref: "main",
-    job: "qualify",
-    eligible: false,
-  },
-  {
-    name: "different installed ref",
-    workflow: "native-design-compatibility",
-    ref: "feature/unreviewed",
-    job: "installed_onboarding",
-    eligible: false,
-  },
-] as const) {
-  void test(
-    `hosted runtime ${route.name} admission with an existing eligible mocked engine`,
-    { skip: process.platform !== "win32" },
-    async (t) => {
-      const root = await mkdtemp(path.join(os.tmpdir(), "portcove-hosted-runtime-test-"));
-      t.after(() => rm(root, { recursive: true, force: true }));
-      await mkdir(path.join(root, "scripts"));
-      await mkdir(path.join(root, "apps/desktop/src-tauri/src"), { recursive: true });
-      const copiedHelper = path.join(root, "scripts/prepare-hosted-windows-runtime.ps1");
-      await copyFile(helper, copiedHelper);
-      await copyFile(
-        new URL("../apps/desktop/src-tauri/src/runtime_support.rs", import.meta.url),
-        path.join(root, "apps/desktop/src-tauri/src/runtime_support.rs"),
-      );
-      const wrapper = path.join(root, "run.ps1");
-      await writeFile(
-        wrapper,
-        `param([string]$FixtureHelper)
+void test(
+  "existing eligible hosted runtime returns success despite a stale native exit code",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-hosted-runtime-test-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    await mkdir(path.join(root, "scripts"));
+    await mkdir(path.join(root, "apps/desktop/src-tauri/src"), { recursive: true });
+    const copiedHelper = path.join(root, "scripts/prepare-hosted-windows-runtime.ps1");
+    await copyFile(helper, copiedHelper);
+    await copyFile(
+      new URL("../apps/desktop/src-tauri/src/runtime_support.rs", import.meta.url),
+      path.join(root, "apps/desktop/src-tauri/src/runtime_support.rs"),
+    );
+    const wrapper = path.join(root, "run.ps1");
+    await writeFile(
+      wrapper,
+      `param([string]$FixtureHelper)
 $ErrorActionPreference = 'Stop'
 function Get-ItemProperty { [pscustomobject]@{name='Microsoft Edge WebView2 Runtime';pv='155.0.4283.62'} }
 $LASTEXITCODE = 73
 & $FixtureHelper
 if ($LASTEXITCODE -ne 0) { throw 'Actual successful helper left a stale native exit code' }
 `,
-      );
-      const result = spawnSync(
-        "pwsh",
-        ["-NoProfile", "-NonInteractive", "-File", wrapper, copiedHelper],
-        {
-          encoding: "utf8",
-          timeout: 30000,
-          env: {
-            ...process.env,
-            GITHUB_ACTIONS: "true",
-            GITHUB_REPOSITORY: "boburning/portcove",
-            RUNNER_ENVIRONMENT: "github-hosted",
-            GITHUB_EVENT_NAME: "workflow_dispatch",
-            GITHUB_RUN_ID: "123",
-            GITHUB_RUN_ATTEMPT: "1",
-            GITHUB_SHA: "1".repeat(40),
-            GITHUB_WORKFLOW_REF: `boburning/portcove/.github/workflows/${route.workflow}.yml@refs/heads/${route.ref}`,
-            GITHUB_JOB: route.job,
-            RUNNER_OS: "Windows",
-            ImageOS: "win22",
-          },
+    );
+    const result = spawnSync(
+      "pwsh",
+      ["-NoProfile", "-NonInteractive", "-File", wrapper, copiedHelper],
+      {
+        encoding: "utf8",
+        timeout: 30000,
+        env: {
+          ...process.env,
+          GITHUB_ACTIONS: "true",
+          GITHUB_REPOSITORY: "boburning/portcove",
+          RUNNER_ENVIRONMENT: "github-hosted",
+          GITHUB_EVENT_NAME: "workflow_dispatch",
+          GITHUB_RUN_ID: "123",
+          GITHUB_RUN_ATTEMPT: "1",
+          GITHUB_SHA: "1".repeat(40),
+          GITHUB_WORKFLOW_REF:
+            "boburning/portcove/.github/workflows/hosted-runtime-readiness.yml@refs/heads/feature/534-runtime-fixture",
         },
-      );
-      if (!route.eligible) {
-        assert.notEqual(result.status, 0);
-        assert.match(result.stderr, /Only the reviewed standard hosted diagnostic/);
-        await assert.rejects(
-          readFile(path.join(root, "work/hosted-continuity-evidence/windows-runtime.json")),
-          { code: "ENOENT" },
-        );
-        return;
-      }
-      assert.equal(result.status, 0, result.stderr);
-      const receipt: unknown = JSON.parse(
-        await readFile(
-          path.join(root, "work/hosted-continuity-evidence/windows-runtime.json"),
-          "utf8",
-        ),
-      );
-      assert.ok(isRecord(receipt));
-      assert.equal(receipt.stage, "ready-existing");
-      assert.equal(receipt.installed, false);
-      assert.deepEqual(receipt.after, ["155.0.4283.62"]);
-    },
-  );
-}
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const receipt: unknown = JSON.parse(
+      await readFile(
+        path.join(root, "work/hosted-continuity-evidence/windows-runtime.json"),
+        "utf8",
+      ),
+    );
+    assert.ok(isRecord(receipt));
+    assert.equal(receipt.stage, "ready-existing");
+    assert.equal(receipt.installed, false);
+    assert.deepEqual(receipt.after, ["155.0.4283.62"]);
+  },
+);

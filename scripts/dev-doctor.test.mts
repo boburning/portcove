@@ -1,5 +1,5 @@
 import type { ToolDefinition, DoctorOptions } from "./dev-doctor.mts";
-import { readToolPins, toolCachePaths } from "./tool-cache.mts";
+import { readToolPins } from "./tool-cache.mts";
 import { loadQualityManifest } from "./quality-tools.mts";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -45,35 +45,6 @@ void test("Windows desktop doctor probes pinned Rust payloads without ambient ex
     assert.equal(result.status, "unavailable");
     assert.deepEqual(calls, [definition.command[0]]);
     assert.equal(cachedRustDefinition(tool, { cargoRoot }, "linux").command[0], binary);
-  }
-});
-
-void test("selected Windows Cargo prerequisites probe pinned payloads instead of Cargo PATH lookup", async () => {
-  const manifest = await loadQualityManifest();
-  const tools = manifest.tools.filter((tool) =>
-    ["cargo-nextest", "cargo-shear", "cargo-deny"].includes(tool.id),
-  );
-  const expected = tools.map((tool) => cachedRustDefinition(tool, toolCachePaths(), "win32"));
-  for (const available of [true, true, false]) {
-    const calls: string[][] = [];
-    const observations = await collectSelectedPrerequisites([], {
-      platform: "win32",
-      capabilities: tools.map((tool) => tool.id),
-      run: (command, args) => {
-        calls.push([command, ...args]);
-        const definition = expected.find((item) => item.command[0] === command);
-        assert.ok(definition, "No ambient Cargo subcommand or provisioning fallback is allowed");
-        assert.ok(typeof definition.version === "string");
-        return available
-          ? { status: 0, stdout: definition.version }
-          : { status: null, error: Object.assign(new Error("absent"), { code: "ENOENT" }) };
-      },
-    });
-    assert.deepEqual(
-      calls,
-      expected.map((definition) => definition.command),
-    );
-    assert.ok(observations.every((item) => item.status === (available ? "ok" : "unavailable")));
   }
 });
 
@@ -614,35 +585,24 @@ void test("doctor reports a timeout rather than a version pass", () => {
 });
 
 void test("Core profile observes only Rust capabilities; missing frontend cannot block it", async () => {
-  for (const platform of ["linux", "win32"]) {
-    const commands: [string, string[]][] = [];
-    const report = await collectProfileDoctor("core", {
-      platform,
-      storage: {},
-      pnpmDefinition: () => null,
-      aquaDefinition: () => null,
-      run(command, args, options) {
-        commands.push([command, args]);
-        assert.equal(options.env?.RUSTUP_AUTO_INSTALL, "0");
-        assert.equal(options.env?.COREPACK_ENABLE_NETWORK, "0");
-        if (command === "rustc") return { status: 0, stdout: "rustc 1.99.1" };
-        if (args[0] === "nextest" || path.basename(command) === "cargo-nextest.exe")
-          return { status: 0, stdout: "cargo-nextest 0.9.100" };
-        return { status: 0, stdout: "1.99.1" };
-      },
-    });
-    assert.equal(report.ok, true);
-    assert.ok(
-      commands.every(
-        ([command]) =>
-          command === "rustc" ||
-          command === "cargo" ||
-          (platform === "win32" && path.basename(command) === "cargo-nextest.exe"),
-      ),
-    );
-    assert.ok(!report.capabilities.includes("node"));
-    assert.ok(!report.capabilities.includes("frontend-dependencies"));
-  }
+  const commands: [string, string[]][] = [];
+  const report = await collectProfileDoctor("core", {
+    storage: {},
+    pnpmDefinition: () => null,
+    aquaDefinition: () => null,
+    run(command, args, options) {
+      commands.push([command, args]);
+      assert.equal(options.env?.RUSTUP_AUTO_INSTALL, "0");
+      assert.equal(options.env?.COREPACK_ENABLE_NETWORK, "0");
+      if (command === "rustc") return { status: 0, stdout: "rustc 1.99.1" };
+      if (args[0] === "nextest") return { status: 0, stdout: "cargo-nextest 0.9.100" };
+      return { status: 0, stdout: "1.99.1" };
+    },
+  });
+  assert.equal(report.ok, true);
+  assert.ok(commands.every(([command]) => command === "rustc" || command === "cargo"));
+  assert.ok(!report.capabilities.includes("node"));
+  assert.ok(!report.capabilities.includes("frontend-dependencies"));
 });
 
 void test("requested profile stays failed when one capability is missing; observations never provision", async () => {
@@ -704,10 +664,7 @@ void test("native Windows profile observes installed compiler paths while ordina
       calls.push([command, args]);
       if (command === "/verified/msedgedriver") return { status: 0, stdout: "100.0.0.1" };
       const tool = quality.tools.find(
-        (tool) =>
-          JSON.stringify(tool.command) === JSON.stringify([command, ...args]) ||
-          JSON.stringify(cachedRustDefinition(tool, toolCachePaths(), "win32").command) ===
-            JSON.stringify([command, ...args]),
+        (tool) => JSON.stringify(tool.command) === JSON.stringify([command, ...args]),
       );
       const version =
         tool?.version ??

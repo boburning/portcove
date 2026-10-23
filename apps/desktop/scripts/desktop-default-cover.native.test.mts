@@ -138,7 +138,7 @@ void test("default cover restoration preserves primary failures and still closes
 void test("default cover observation remains inert when its scenario is not selected", async () => {
   const scenario = fragment(
     "export async function defaultCoverScenario(",
-    "export async function createImageRefusal(",
+    "async function createImageRefusal(",
   ).replace("export ", "");
   let visited = 0;
   const result: unknown = runInNewContext(`${scenario} defaultCoverScenario(context)`, {
@@ -155,9 +155,9 @@ void test("default cover observation remains inert when its scenario is not sele
 
 void test("default cover refusal proxy rejects owned CONNECT traffic without retaining request secrets", async (t) => {
   const create = fragment(
-    "export async function createImageRefusal(",
+    "async function createImageRefusal(",
     "async function restoreCacheAfterObservation(",
-  ).replace("export ", "");
+  );
   const result: unknown = runInNewContext(`${create} createImageRefusal()`, {
     assert,
     createServer,

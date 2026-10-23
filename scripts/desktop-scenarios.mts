@@ -137,11 +137,6 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
-    "native-installed-onboarding-and-covers",
-    "Installed ordinary Windows client downloads the official SDL Sopwith package, resumes setup, registers, launches, relinks and removes only bookkeeping; bounded catalog covers use the same account-free client.",
-    { source: "desktop-installed-onboarding.mts", qualification_only: true, platforms: ["win32"] },
-  ),
-  scenario(
     "native-normal-package-webview-boundary",
     "Ordinary Windows package enforces effective main-window assets, IPC, CSP, permission and navigation boundaries.",
     { source: "desktop-main-webview-boundary.mts", qualification_only: true },
@@ -716,13 +711,6 @@ export function resolveDesktopSelection({
       throw new Error("native-preliminary-selected-setup requires one exact standalone scenario");
     if (platform !== "win32") throw new Error("native-preliminary-selected-setup requires Windows");
   }
-  if (
-    uniqueRequested.includes("native-installed-onboarding-and-covers") &&
-    (uniqueRequested.length !== 1 || platform !== "win32")
-  )
-    throw new Error(
-      "native-installed-onboarding-and-covers requires one exact standalone Windows scenario",
-    );
   if (uniqueRequested.includes("native-saved-folder-hash-resume")) {
     if (uniqueRequested.length !== 1)
       throw new Error("native-saved-folder-hash-resume requires one exact standalone scenario");
@@ -861,10 +849,6 @@ export function desktopHarnessDeadlineMs(
 ) {
   // Five checkpoints, positive host/driver joins and fresh starts; harness only.
   if (selection.selected_scenarios.includes("native-host-publication-recovery")) return 720_000;
-  // Fixed upstream package, two UI launches/restarts and at most twelve live
-  // cover observations. Individual network, picker and process waits stay bounded.
-  if (selection.selected_scenarios.includes("native-installed-onboarding-and-covers"))
-    return 1_200_000;
   // Includes source verification of the owned256MiB intervention fixture,
   // manual-content restore and its preparation/adoption prerequisites.
   const executed = selection.selected_scenarios.length + selection.setup_scenarios.length;

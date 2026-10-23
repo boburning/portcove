@@ -1,7 +1,7 @@
 import { revealDetailSection } from "./desktop-review-controls.mts";
 import type { LinuxInspectorProtocol } from "./desktop-linux-webkit-inspector.mts";
 import type { IRectangle } from "selenium-webdriver";
-import type { PortDefinition } from "../src/transport-types.generated.d.ts";
+import type { PortDefinition, CatalogDocument } from "../src/transport-types.generated.d.ts";
 import type { PreparationContext } from "./desktop-preparation-test.mts";
 import type { Socket } from "node:net";
 import { transportValue } from "./transport-values.mts";
@@ -14,12 +14,6 @@ type CoverContext = Pick<
   setTheme: (theme: "light" | "dark") => Promise<unknown>;
   restart: PreparationContext["restartApplication"];
   cacheConditions?: boolean;
-  selectedIds?: readonly string[];
-};
-type CoverPort = Pick<PortDefinition, "id" | "name"> & {
-  presentation?: {
-    artwork?: NonNullable<NonNullable<PortDefinition["presentation"]>["artwork"]> | null;
-  } | null;
 };
 interface WithheldCover {
   original: string;
@@ -28,8 +22,6 @@ interface WithheldCover {
 interface CoverImage {
   width: number;
   height: number;
-  frameWidth: number;
-  frameHeight: number;
   background: string;
   objectFit: string;
   fallbackPalette: boolean;
@@ -49,7 +41,7 @@ interface CoverRow {
 }
 interface InspectContext {
   browser: WebDriver;
-  ports: CoverPort[];
+  ports: PortDefinition[];
   ids: string[];
   detailIds: Set<string>;
   image: (selector: string) => Promise<CoverImage>;
@@ -64,37 +56,14 @@ interface MissingCacheContext extends Pick<
   "browser" | "output" | "restart" | "invoke"
 > {
   browser: WebDriver;
-  ports: CoverPort[];
+  ports: PortDefinition[];
   cache: string;
   offlineEnvironment: NodeJS.ProcessEnv | undefined;
   refusedOrigins: string[];
   captureSettled: CaptureSettled;
   onWithheld: (value: WithheldCover) => void;
 }
-async function catalogValue(
-  invoke: CoverContext["invoke"],
-  selectedIds?: readonly string[],
-): Promise<{ ports: CoverPort[] }> {
-  if (selectedIds) {
-    assert.ok(
-      selectedIds.length > 0 &&
-        selectedIds.length <= 12 &&
-        new Set(selectedIds).size === selectedIds.length,
-    );
-    const bootstrap = await invoke("get_bootstrap_status");
-    assert.ok(isRecord(bootstrap) && bootstrap.ok === true);
-    const status = transportValue("desktop_bootstrap_status", bootstrap.value);
-    const reply = await invoke("get_workspace_snapshot", { generation: status.generation });
-    assert.ok(isRecord(reply) && reply.ok === true);
-    const workspace = transportValue("desktop_workspace_snapshot", reply.value);
-    const ports = required(workspace.listing_catalog).listings.map((listing) => ({
-      id: listing.id,
-      name: listing.name,
-      presentation: { ...(listing.artwork ? { artwork: listing.artwork } : {}) },
-    }));
-    for (const id of selectedIds) assert.equal(ports.filter((port) => port.id === id).length, 1);
-    return { ports };
-  }
+async function catalogValue(invoke: CoverContext["invoke"]): Promise<CatalogDocument> {
   const reply = await invoke("get_catalog");
   assert.ok(isRecord(reply));
   assert.equal(reply.ok, true);
@@ -125,7 +94,6 @@ export async function defaultCoverScenario({
   library,
   restart,
   cacheConditions = false,
-  selectedIds,
 }: CoverContext) {
   await scenario(
     cacheConditions ? "native-default-cover-cache-conditions" : "native-default-cover-display",
@@ -142,35 +110,25 @@ export async function defaultCoverScenario({
       let withheld: WithheldCover | undefined;
       let primaryFailure: { error: unknown } | undefined;
       try {
-        const catalog = await catalogValue(invoke, selectedIds);
-        const detailIds = new Set(
-          selectedIds ?? [
-            "shipwright",
-            "2ship2harkinian",
-            "zelda64-recomp",
-            "spaghetti-kart",
-            "paperboat",
-            "dkr-r",
-            "banjo-recomp",
-            "re-blue",
-            "gen1recomp",
-            "vpw2-recompiled",
-            "open-nectar-pikmin",
-            "diddy-kong-racing-golden-balloon",
-          ],
-        );
+        const catalog = await catalogValue(invoke);
+        const detailIds = new Set([
+          "shipwright",
+          "2ship2harkinian",
+          "zelda64-recomp",
+          "spaghetti-kart",
+          "paperboat",
+          "dkr-r",
+          "banjo-recomp",
+          "re-blue",
+          "gen1recomp",
+          "vpw2-recompiled",
+          "open-nectar-pikmin",
+          "diddy-kong-racing-golden-balloon",
+        ]);
         const ids = catalog.ports
-          .filter(
-            (port) => port.presentation?.artwork && (!selectedIds || selectedIds.includes(port.id)),
-          )
+          .filter((port) => port.presentation?.artwork)
           .map((port) => port.id);
         assert.ok(ids.length > 0, "The actual catalog must have accepted cover mappings");
-        if (selectedIds)
-          assert.deepEqual(
-            ids.toSorted(),
-            [...selectedIds].sort(),
-            "Every selected native cover must retain its accepted mapping",
-          );
         const rows: CoverRow[] = [];
         const captureSettled: CaptureSettled = async (name, selector, currentBrowser = browser) => {
           await currentBrowser.wait(
@@ -253,8 +211,6 @@ export async function defaultCoverScenario({
               return {
                 width: img.naturalWidth,
                 height: img.naturalHeight,
-                frameWidth: frame.getBoundingClientRect().width,
-                frameHeight: frame.getBoundingClientRect().height,
                 background: getComputedStyle(frame).backgroundColor,
                 objectFit: getComputedStyle(img).objectFit,
                 fallbackPalette: [...frame.classList].some((name) => /^palette-\d+$/.test(name)),
@@ -271,11 +227,6 @@ export async function defaultCoverScenario({
             rendered.objectFit,
             "contain",
             "The complete original cover remains visible",
-          );
-          assert.ok(
-            rendered.frameWidth > 0 &&
-              Math.abs(rendered.frameWidth / rendered.frameHeight - 2 / 3) < 0.02,
-            "Catalog and selected-game cover frames retain 2:3 proportions",
           );
           assert.equal(
             rendered.fallbackPalette,
@@ -302,7 +253,7 @@ export async function defaultCoverScenario({
           rows.push(
             ...(await inspectCoverPass({
               browser,
-              ports: catalog.ports.filter((port) => ids.includes(port.id)),
+              ports: catalog.ports,
               ids,
               detailIds,
               image,
@@ -340,12 +291,11 @@ export async function defaultCoverScenario({
             {
               scope: cacheConditions
                 ? "native app; isolated empty-cache first display and cached restart with backend image traffic rejected; missing-cache negative control. Package/installation provenance requires an independently joined outer receipt; no physical-device claim"
-                : "native app; selected mapped catalog covers in both themes, representative details; first/warm same-session CDN display, not cold-request latency or offline. Package/installation provenance requires an independently joined outer receipt",
+                : "native app; every mapped catalog cover in both themes, representative details; first/warm same-session CDN display, not cold-request latency or offline. Package/installation provenance requires an independently joined outer receipt",
               negativeControl,
               refusedOrigins,
               catalogCount: catalog.ports.length,
               mappedCount: ids.length,
-              selectedIds: selectedIds ?? null,
               rows,
             },
             null,
@@ -370,7 +320,7 @@ export async function defaultCoverScenario({
   );
 }
 
-export async function createImageRefusal() {
+async function createImageRefusal() {
   const origins: string[] = [];
   const sockets = new Set<Socket>();
   // Test-only local refusal: never forwards traffic or records headers, paths or credentials.
@@ -474,7 +424,7 @@ async function assertEmptyCache(cache: string) {
   assert.deepEqual(initial, [], "Cold display requires an actually empty isolated artwork cache");
 }
 
-async function verifyMappedCache(ports: CoverPort[], ids: string[], cache: string) {
+async function verifyMappedCache(ports: PortDefinition[], ids: string[], cache: string) {
   const mappings = new Map(ports.map((port) => [port.id, port.presentation?.artwork]));
   for (const digest of new Set(ids.map((id) => required(mappings.get(id)).image_sha256))) {
     assert.match(digest, /^[a-f0-9]{64}$/);

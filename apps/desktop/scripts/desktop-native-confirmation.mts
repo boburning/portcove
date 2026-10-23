@@ -134,7 +134,6 @@ function ownedRuntimePicker(
           "player-owned-runtime",
           "real-prepared-runtime-dkc3-recomp",
           "real-prepared-runtime-wave-race-64-racewave46",
-          "upstream-downloads",
         ].map((name) => path.join(output, name));
         assert.ok(
           admitted.includes(directoryPath),

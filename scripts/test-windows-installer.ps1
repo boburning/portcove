@@ -20,8 +20,6 @@ param(
     [string]$NormalPackageManifestPath,
     [Parameter(Position = 8)]
     [string]$NormalPackageAdmissionPath,
-    [ValidateSet('native-normal-package-webview-boundary', 'native-installed-onboarding-and-covers')]
-    [string]$NormalPackageScenario = 'native-normal-package-webview-boundary',
     [Parameter(Position = 9)]
     [string]$NativeAccountBindingPath,
     [Parameter(Position = 10)]
@@ -446,7 +444,7 @@ if ($NormalPackageManifestPath) {
     if (-not $NormalPackageAdmissionPath) { throw "Current-installed boundary requires the admitted just desktop-test --current-installed route" }
     & node (Join-Path $normalRepository 'scripts/desktop-test-cli.mts') `
         --verify-installed-admission $NormalPackageAdmissionPath --installer $installer `
-        --package-evidence $NormalPackageManifestPath --expected-app $ExpectedExecutablePath --installed-scenario $NormalPackageScenario
+        --package-evidence $NormalPackageManifestPath --expected-app $ExpectedExecutablePath
     if ($LASTEXITCODE -ne 0) { throw "Current-installed boundary native admission was not verified before installation" }
     $normalRevision = (& git -C $normalRepository rev-parse HEAD).Trim()
     if ($LASTEXITCODE -ne 0) { throw "Current-installed package source could not be resolved" }
@@ -1501,7 +1499,7 @@ try {
         Write-InstallerEvidence "current_installed_boundary_running"
         & node (Join-Path $normalRepository 'apps/desktop/scripts/desktop-test.mts') `
             --app $application --output (Join-Path $normalBoundaryOutput 'native') `
-            --scenario $NormalPackageScenario --package-evidence $boundManifest `
+            --scenario native-normal-package-webview-boundary --package-evidence $boundManifest `
             *> (Join-Path $normalBoundaryOutput 'native-harness.log')
         if ($LASTEXITCODE -ne 0) { throw "Current-installed native boundary failed; preserve installation and owned cleanup evidence" }
         $normalCleanupPath = Join-Path $normalBoundaryOutput 'native/normal-package-boundary-cleanup.json'
@@ -1526,7 +1524,7 @@ try {
         }
         $normalNativePath = Join-Path $normalBoundaryOutput 'native/evidence.json'
         $normalNative = Get-Content -LiteralPath $normalNativePath -Raw | ConvertFrom-Json
-        $normalCheck = @($normalNative.checks | Where-Object { $_.scenario -eq $NormalPackageScenario })
+        $normalCheck = @($normalNative.checks | Where-Object { $_.scenario -eq 'native-normal-package-webview-boundary' })
         if ($normalNative.outcome -ne 'passed' -or $normalNative.revision -ne $normalRevision -or
             $normalNative.executable.path -ne $application -or $normalNative.executable.sha256 -ne $installedHash -or
             $normalCheck.Count -ne 1 -or $normalCheck[0].outcome -ne 'passed') {
@@ -1555,7 +1553,6 @@ try {
             cleanup_evidence = $normalCleanupPath
             package_evidence = $boundManifest
             preservation_manifest_after = $afterBoundaryManifest
-            onboarding_library_manifest = if ($NormalPackageScenario -eq 'native-installed-onboarding-and-covers') { @(Get-RecursiveFileManifest (Join-Path $normalBoundaryOutput 'native/library')) } else { $null }
         }
         Write-InstallerEvidence "current_installed_boundary_complete" $normalBoundary
     }
@@ -1712,12 +1709,6 @@ try {
         if (-not [IO.File]::Exists((Join-Path $retainedRendererEvidence "renderer-update-evidence.json"))) {
             throw "Renderer evidence was not retained outside the disposable installer run"
         }
-    }
-    if ($normalBoundary -and $NormalPackageScenario -eq 'native-installed-onboarding-and-covers') {
-        $afterOnboardingUninstall = @(Get-RecursiveFileManifest (Join-Path $normalBoundaryOutput 'native/library'))
-        if (($normalBoundary.onboarding_library_manifest | ConvertTo-Json -Depth 6 -Compress) -cne
-            ($afterOnboardingUninstall | ConvertTo-Json -Depth 6 -Compress)) { throw 'Uninstall changed the observed onboarding library' }
-        $normalBoundary['onboarding_library_preserved_after_uninstall'] = $true
     }
     $completed = $true
     $result = [pscustomobject]@{
