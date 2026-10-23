@@ -4063,7 +4063,7 @@ for (const expires of ["read", "first-object", "before-cas", "mutated-options"])
           authenticatedEvidence: receipt,
         };
         const pending = publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, mutable);
-        mutable.authenticatedEvidence = undefined;
+        delete mutable.authenticatedEvidence;
         mutable.evidence = checkpointEvidence(f, "replacement-inert-bundle");
         const result = await pending;
         const expectedProof = inspectCoordinatorCheckpointEvidence(
