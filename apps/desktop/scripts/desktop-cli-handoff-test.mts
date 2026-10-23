@@ -18,6 +18,7 @@ import path from "node:path";
 import { realpath, writeFile } from "node:fs/promises";
 import { By, Key, until, type WebElement } from "selenium-webdriver";
 import {
+  revealDetailSection,
   reviewControls,
   assertCompactReview,
   captureAccessibilityReport,
@@ -132,7 +133,10 @@ export async function cliHandoffScenario({
           await clickVisible(browser, favorite);
         await click(By.css(`[data-detail-game-id="${port.id}"]`));
       }
-      const technical = By.css(".detail-body > .advanced-settings > .advanced-summary");
+      await revealDetailSection(browser, "Files");
+      const technical = By.css(
+        ".detail-tab-panel:not([hidden]) > .advanced-settings > .advanced-summary",
+      );
       const technicalControl = await browser.wait(until.elementLocated(technical), 10_000);
       const technicalText = await executeBrowserScript(
         browser,
@@ -146,19 +150,13 @@ export async function cliHandoffScenario({
     await open("zelda64-recomp", "Library");
     assert.deepEqual(
       await executeBrowserScript(browser, () =>
-        Array.from(document.querySelectorAll(".detail-body > .detail-group > h2"), (heading) =>
-          heading.textContent?.trim(),
+        Array.from(document.querySelectorAll("[data-detail-workspace] [role=tab]"), (tab) =>
+          tab.textContent?.trim(),
         ),
       ),
-      [
-        "Installation and version",
-        "Requirements",
-        "Updates",
-        "Saves and storage",
-        "About this port",
-        "Artwork",
-      ],
+      ["Overview", "Files", "Saved data", "Versions"],
     );
+    await revealDetailSection(browser, "Versions");
     const versionSummary = await browser
       .findElement(By.css('[aria-label="Installation and release versions"]'))
       .getText();
@@ -180,6 +178,7 @@ export async function cliHandoffScenario({
       await browser.findElement(By.css("#detail-updates")).findElement(By.xpath("..")).getText(),
       /No update check is saved for this installation and channel/,
     );
+    await revealDetailSection(browser, "Files");
     const launch = By.css('[aria-label="Launch from another app"]');
     await browser.wait(until.elementLocated(By.css('[aria-label="Copy launch command"]')), 10_000);
     await click(By.xpath('//summary[normalize-space(.)="Separate program and arguments"]'));

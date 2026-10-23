@@ -288,6 +288,7 @@ it("returns focus to Saves and storage when the uninstalled detail consumer remo
     };
     return (
       <DetailPanel
+        opening={{ token: 1, destination: "saves" }}
         port={portDefinition()}
         backups={current}
         libraryGeneration={7}
@@ -613,6 +614,7 @@ function DetailReadHistory({
   });
   return (
     <DetailPanel
+      opening={{ token: 1, destination: "saves" }}
       port={port}
       backups={current.backups}
       backupProblems={current.inventory.problems}

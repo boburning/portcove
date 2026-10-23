@@ -7,6 +7,7 @@
 @import "./variants.css";
 @import "./adaptive.css";
 @import "./collection.css";
+@import "./details.css";
 
 @source "../";
 @source not "../**/*.test.{ts,tsx,js,mjs}";

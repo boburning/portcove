@@ -123,116 +123,6 @@ void test("serialized install refresh rejection, explicit retry and restoration 
   assert.equal(window.fetch, original);
   assert.equal(Object.hasOwn(window, "__portcoveInstallRefreshProbe"), false);
 });
-void test("serialized staged layout retains action identity, state and actual placement facts", () => {
-  const layout = segment("function readStagedLayout(", "function assertStagedActionPlacement(");
-  const bounds = { left: 20, right: 128, top: 20, bottom: 60 };
-  const summary = { contains: () => true };
-  let groupOpacity = "1";
-  let shown = true;
-  let ariaDisabled: string | null = null;
-  const group = {
-    getBoundingClientRect: () => ({ ...bounds, right: 340 }),
-    closest: () => summary,
-    querySelectorAll: (): unknown[] => controls,
-    parentElement: null,
-  };
-  const button = (textContent: string, rectangle = bounds) => ({
-    textContent,
-    disabled: false,
-    getBoundingClientRect: () => rectangle,
-    getClientRects: () => (shown ? [rectangle] : []),
-    getAttribute: (name: string) => (name === "aria-disabled" ? ariaDisabled : null),
-    closest: (): typeof group => group,
-    parentElement: group,
-  });
-  const play = button("Play");
-  const activate = button("Use update · 2.0.0-fixture", { ...bounds, left: 136, right: 339 });
-  let controls = [play, activate];
-  const detail = {
-    querySelectorAll: (selector: string) =>
-      selector === ".primary-actions button"
-        ? [play, activate]
-        : [{ textContent: "Updates", getBoundingClientRect: () => ({ top: 100 }) }],
-    querySelector: (selector: string) => ({
-      textContent: selector.includes("hero-state")
-        ? "Ready to play"
-        : selector.includes("hero-reason")
-          ? ""
-          : "Play the installed version or use the saved update 2.0.0-fixture.",
-    }),
-  };
-  const observe = () =>
-    object(
-      runInNewContext(
-        `${layout} readStagedLayout("2.0.0-fixture")`,
-        {
-          document: {
-            querySelector: () => detail,
-            documentElement: { scrollWidth: 960, clientWidth: 960 },
-          },
-          innerWidth: 960,
-          innerHeight: 640,
-          getComputedStyle: (element: unknown) => ({
-            visibility: "visible",
-            display: "flex",
-            opacity: element === group ? groupOpacity : "1",
-            rowGap: "8px",
-            columnGap: "8px",
-          }),
-        },
-        { timeout: 1000 },
-      ),
-    );
-  const result = observe();
-  assert.equal(result.state, "Ready to play");
-  assert.equal(result.reason, "");
-  assert.equal(
-    result.attention,
-    "Play the installed version or use the saved update 2.0.0-fixture.",
-  );
-  assert.equal(result.documentOverflow, false);
-  assert.equal(result.orderedNeighbors, true);
-  assert.equal(result.inSummary, true);
-  assert.equal(result.rowGap, 8);
-  assert.equal(result.columnGap, 8);
-  assert.equal(object(result.viewport).width, 960);
-  assert.equal(object(result.play).right, 128);
-  assert.equal(object(result.play).enabled, true);
-  assert.equal(object(result.activate).left, 136);
-  assert.equal(object(result.activate).visible, true);
-  assert.equal(
-    JSON.stringify(result.play),
-    JSON.stringify({ ...bounds, enabled: true, visible: true }),
-  );
-  assert.equal(
-    JSON.stringify(result.activate),
-    JSON.stringify({ ...bounds, left: 136, right: 339, enabled: true, visible: true }),
-  );
-  groupOpacity = "0";
-  assert.equal(object(observe().play).visible, false);
-  assert.equal(object(observe().activate).visible, false);
-  groupOpacity = "1";
-  shown = false;
-  assert.equal(object(observe().play).visible, false);
-  assert.equal(object(observe().activate).visible, false);
-  shown = true;
-  ariaDisabled = "true";
-  assert.equal(object(observe().play).enabled, false);
-  assert.equal(object(observe().activate).enabled, false);
-  ariaDisabled = null;
-  play.disabled = true;
-  activate.disabled = true;
-  assert.equal(object(observe().play).enabled, false);
-  assert.equal(object(observe().activate).enabled, false);
-  play.disabled = false;
-  activate.disabled = false;
-  controls = [activate, play];
-  assert.equal(observe().orderedNeighbors, false);
-  controls = [play, button("Intervening action"), activate];
-  assert.equal(observe().orderedNeighbors, false);
-  activate.closest = () => ({ ...group });
-  assert.equal(observe().orderedNeighbors, false);
-});
 
 const placement: unknown = runInNewContext(
   `${segment("function assertStagedActionPlacement(", "export async function installScenarios(")} assertStagedActionPlacement`,
@@ -243,58 +133,30 @@ function checkPlacement(value: unknown) {
   assert.ok(typeof placement === "function");
   Reflect.apply(placement, undefined, [value]);
 }
-const row = {
-  play: { left: 20, right: 128, top: 20, bottom: 60, enabled: true, visible: true },
-  activate: { left: 136, right: 339, top: 20, bottom: 60, enabled: true, visible: true },
-  group: { left: 20, right: 340, top: 20, bottom: 60 },
-  orderedNeighbors: true,
-  inSummary: true,
-  rowGap: 8,
-  columnGap: 8,
+const valid = {
+  play: { left: 20, right: 95, top: 20, bottom: 60, enabled: true, visible: true },
+  activate: { left: 20, right: 223, top: 200, bottom: 240, enabled: true, visible: true },
+  header: { left: 20, right: 900, top: 10, bottom: 160 },
+  panel: { left: 20, right: 900, top: 180, bottom: 600 },
+  versionsSelected: true,
+  state: "Ready to play",
+  attention: "Update saved for later · 2.0.0-fixture",
   viewport: { width: 960, height: 640 },
-  updatesTop: 100,
   documentOverflow: false,
 };
-const wrapped = {
-  ...row,
-  play: { ...row.play, right: 276 },
-  activate: { ...row.activate, left: 20, right: 223, top: 68, bottom: 108 },
-  group: { ...row.group, right: 276, bottom: 108 },
-  updatesTop: 140,
-};
+void test("staged actions retain direct header Play and activation in the selected Versions panel", () =>
+  checkPlacement(valid));
 for (const [name, value] of [
-  ["same row", row],
-  ["immediate wrapped row", wrapped],
-] as const) {
-  void test(`staged actions accept ${name}`, () => checkPlacement(value));
-}
-const invalid: [string, unknown][] = [
-  [
-    "far continuation",
-    {
-      ...wrapped,
-      activate: { ...wrapped.activate, top: 200, bottom: 240 },
-      group: { ...wrapped.group, bottom: 300 },
-      updatesTop: 400,
-    },
-  ],
-  ["horizontal overlap", { ...row, activate: { ...row.activate, left: 120 } }],
-  ["vertical overlap", { ...wrapped, activate: { ...wrapped.activate, top: 55, bottom: 95 } }],
-  ["reversed visual order", { ...row, play: row.activate, activate: row.play }],
-  ["split or intervening controls", { ...row, orderedNeighbors: false }],
-  ["outside summary", { ...row, inSummary: false }],
-  ["group overflow", { ...row, activate: { ...row.activate, right: 350 } }],
-  ["viewport overflow", { ...row, viewport: { width: 300, height: 640 } }],
-  ["hidden action", { ...row, activate: { ...row.activate, visible: false } }],
-  ["disabled action", { ...row, activate: { ...row.activate, enabled: false } }],
-  ["zero size", { ...row, play: { ...row.play, right: row.play.left } }],
-  ["nonfinite bounds", { ...row, play: { ...row.play, left: NaN } }],
-  ["missing action", { ...row, play: undefined }],
-  ["unbounded computed gap", { ...wrapped, rowGap: 200 }],
-  ["missing computed gap", { ...wrapped, rowGap: NaN }],
-  ["after update decisions", { ...wrapped, updatesTop: 80 }],
-  ["document overflow", { ...row, documentOverflow: true }],
-];
-for (const [name, value] of invalid) {
+  ["inactive Versions", { ...valid, versionsSelected: false }],
+  ["incorrect readiness", { ...valid, state: "Setup required" }],
+  ["missing attention", { ...valid, attention: undefined }],
+  ["missing action", { ...valid, activate: undefined }],
+  ["hidden action", { ...valid, activate: { ...valid.activate, visible: false } }],
+  ["disabled action", { ...valid, play: { ...valid.play, enabled: false } }],
+  ["zero size", { ...valid, play: { ...valid.play, right: 20 } }],
+  ["nonfinite bounds", { ...valid, activate: { ...valid.activate, left: NaN } }],
+  ["outside owning panel", { ...valid, activate: { ...valid.activate, top: 160 } }],
+  ["horizontal overflow", { ...valid, activate: { ...valid.activate, right: 970 } }],
+  ["document overflow", { ...valid, documentOverflow: true }],
+] as const)
   void test(`staged actions reject ${name}`, () => assert.throws(() => checkPlacement(value)));
-}

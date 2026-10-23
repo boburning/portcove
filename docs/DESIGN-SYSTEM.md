@@ -66,34 +66,58 @@ shrinking essential text, hiding consequences or replacing the domain projection
 
 ## Game details
 
-Details keep the complete original-game title, port/project and distinguishing
-variant together with the current Core-derived action. The action follows identity
-inside the hero rather than occupying a distant right-hand column. Whole-image
-2:3 cover frames are bounded independently of text: 48 CSS pixels in the narrow
-reading flow, 64 at 20rem of detail width and 96 at 32rem. Identity and actions
-remain alongside the compact artwork. Details have a 64rem reading limit within
-the full scrolling workspace. Enlarged reading and long identities grow the text/action block and may
-require vertical scrolling. They never stretch or crop artwork.
+Managed games, registered external installations and catalog/self-service entries
+use one 70rem detail composition. The complete game title uses the existing large
+heading token. Project and variant, observed readiness, a natural-width primary
+action and adjacent overflow follow it. Green readiness and direct red Play retain
+their existing authoritative projections. The installation fact is independently
+observed: managed version, registered external installation, downloaded setup or
+not installed. Readiness never establishes ownership.
 
-About, current installation/version facts and registered external-folder ownership
-precede routine update preferences and artwork management. A downloaded update's
-notice remains beside the current action; review and activation retain their
-existing separate controls. External-folder facts come from the registered runtime,
-not readiness or a support flag. Recorded compatibility checks use a keyboard
-disclosure. Existing file, backup, maintenance, artwork-override and technical
-controls remain reachable in their named sections, and Back retains its existing
-exact entry/query/view/scroll/focus contract.
+The whole-image cover frame is fixed independently of title length: 240 by 360 CSS
+pixels on ordinary tall desktops, 160 by 240 in short/compact or text-enlarged
+compositions, and 144 by 216 in narrow stacked layouts. Header columns have 32px
+separation. The title wraps fully. Existing artwork precedence, cache/provenance,
+overrides and quiet fallback remain with Artwork; both artwork slots are accessible
+through Change artwork in Files. No crop or provider mapping is inferred.
 
-Missing hero artwork uses the existing quiet gamepad fallback, without repeating
-the title. Failure/stale artwork notices and all image precedence/cache behavior
-remain with the existing artwork owner. This presentation adds no crop inference
-or provider/asset mapping.
+Four permanent sections use Base UI manual-activation tabs. Arrow keys and
+Home/End move focus; Enter/Space select. Narrow tab lists wrap with visible labels.
+Panels stay mounted to preserve drafts and reviews; inactive panels are hidden and
+inert, so they cannot receive keyboard, accessibility or controller traversal.
+Overview pairs the actual description with a narrower facts column; project status,
+compatibility qualifications and recorded checks have named disclosures. Files owns
+setup, source/BIOS/tool and installation/location/artwork/Steam/CLI/verification/removal
+tools. Saved data owns coverage, unknowns, backup history, recovery and reviews.
+Versions owns checks, candidate decisions, staged activation, rollback and future
+preferences. Unsupported routes state their actual limits and keep upstream links.
 
-Less frequent project/release facts and recorded qualification history share the
-Project and compatibility details disclosure under About this port. Platform and
-installation-method facts remain visible; retired upstream projects retain an
-attention notice. Unknown update checks are explained once in Updates; known
-release observations remain labeled as the latest version at the last check.
+A concise attention strip exposes relevant exceptions and running work; its action
+opens the owning section. An available update does not change the current playable
+installation into a readiness failure. Header and overflow shortcuts reveal the
+section before invoking its existing control; destructive reviews and native consent
+remain with their production owners.
+
+### Detail opening, focus and return contract
+
+The navigation owner carries the requested destination and a unique opening token.
+An explicit update destination opens Versions and an explicit backup destination
+opens Saved data. Otherwise setup, absent/changed/unreadable inputs, unknown readiness,
+invalid installation or incomplete external setup open Files; an observed update or
+staged candidate opens Versions; ready entries normally open Overview. Choose this
+once per opening. Refresh, task completion and new observations update content and
+notices without changing a manual selection or reclaiming focus. A new opening
+reevaluates the destination.
+
+Ordinary entry focuses the game heading. Explicit section links activate their panel
+before focusing its heading. Menu/dialog dismissal returns to a connected visible
+trigger or a section fallback. Completion intent is bound to operation identity,
+generation and the current opening; obsolete or inactive-panel continuations do not
+reclaim focus. Back restores the exact entry and originating control together with
+search, filters, cover/row view and workspace/document scroll. The existing navigation,
+operation and review owners retain those responsibilities; presentation adds no
+durable state or parallel workflow authority.
+
 Settings uses plain headings, retaining quiet context labels where device/current
 library scope matters. Add games says Review before continuing across routes.
 

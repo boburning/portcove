@@ -79,7 +79,9 @@ for (const theme of ["dark", "light"]) {
     expect(top).toBeGreaterThan(0);
     await origin.click();
     const back = page.getByRole("button", { name: "Back to previous workspace", exact: true });
-    await expect.element(back).toHaveFocus();
+    await expect
+      .element(page.getByRole("heading", { name: "Orchard Quest", level: 1 }))
+      .toHaveFocus();
     expect(back.element().getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
     await back.click();
     await expect.element(origin).toHaveFocus();

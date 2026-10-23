@@ -65,7 +65,13 @@
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
-      "files": ["scripts/ci-workflow.test.mts", "scripts/node-test-inventory.test.mts"]
+      "files": [
+        "scripts/ci-workflow.test.mts",
+        "scripts/check-catalog-repositories.test.mts",
+        "scripts/check-retcomm-upstreams.test.mts",
+        "scripts/deep-audit-summary.test.mts",
+        "scripts/node-test-inventory.test.mts"
+      ]
     },
     "windows-storage-4": {
       "arguments": [
@@ -78,6 +84,7 @@
         "scripts/desktop-scenarios.test.mts",
         "scripts/native-compatibility.test.mts",
         "scripts/desktop-execution-plan.test.mts",
+        "scripts/desktop-execution-baseline.test.mts",
         "scripts/desktop-real-runtime.test.mts",
         "scripts/desktop-linux-native-session.test.mts",
         "scripts/desktop-linux-stop.test.mts",
@@ -160,6 +167,7 @@
         "scripts/desktop-scenarios.test.mts",
         "scripts/native-compatibility.test.mts",
         "scripts/desktop-execution-plan.test.mts",
+        "scripts/desktop-execution-baseline.test.mts",
         "scripts/desktop-real-runtime.test.mts",
         "scripts/desktop-linux-native-session.test.mts",
         "scripts/desktop-linux-stop.test.mts",
@@ -337,6 +345,9 @@
         "scripts/rust-support-cache.test.mts",
         "scripts/rust-test-tree-supervisor.test.mts",
         "scripts/ci-workflow.test.mts",
+        "scripts/check-catalog-repositories.test.mts",
+        "scripts/check-retcomm-upstreams.test.mts",
+        "scripts/deep-audit-summary.test.mts",
         "scripts/node-test-inventory.test.mts",
         "scripts/ci-health.test.mts",
         "scripts/workflow-provenance.test.mts",
@@ -485,6 +496,7 @@
         "scripts/desktop-scenarios.test.mts",
         "scripts/native-compatibility.test.mts",
         "scripts/desktop-execution-plan.test.mts",
+        "scripts/desktop-execution-baseline.test.mts",
         "scripts/desktop-real-runtime.test.mts",
         "scripts/desktop-linux-native-session.test.mts",
         "scripts/desktop-linux-stop.test.mts",
@@ -569,6 +581,9 @@
       ],
       "files": [
         "scripts/ci-workflow.test.mts",
+        "scripts/check-catalog-repositories.test.mts",
+        "scripts/check-retcomm-upstreams.test.mts",
+        "scripts/deep-audit-summary.test.mts",
         "scripts/node-test-inventory.test.mts",
         "scripts/ci-health.test.mts",
         "scripts/workflow-provenance.test.mts",

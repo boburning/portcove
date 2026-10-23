@@ -1,5 +1,5 @@
 import { Gamepad2 } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
 import { desktopApi } from "../api";
 import { listingActionAssessment, type CatalogEntry } from "../features/browsing/catalog-entry";
 import {
@@ -22,6 +22,7 @@ export interface SelfServiceSetupProps {
   generation: number;
   perform: Perform;
   onChanged: () => void;
+  render?: ((slots: { play: ReactNode; setup: ReactNode }) => ReactNode) | undefined;
 }
 
 /** Non-owning setup only. Managed installation remains in the strict detail pane. */
@@ -31,6 +32,7 @@ export function SelfServiceSetup({
   generation,
   perform,
   onChanged,
+  render,
 }: SelfServiceSetupProps) {
   const [editorOpen, setEditorOpen] = useState(false);
   const editorId = useId();
@@ -57,8 +59,24 @@ export function SelfServiceSetup({
       },
     });
   };
-  return (
-    <section className="grid gap-4" aria-label="Set up and launch">
+  const playAction = registered ? (
+    <Button
+      data-focusable
+      variant="primary"
+      size="lg"
+      disabled={!launch.allowed || busy}
+      onClick={play}
+    >
+      <Icon glyph={Gamepad2} /> Play
+    </Button>
+  ) : null;
+  const setup = (
+    <section
+      id="detail-self-service-setup"
+      tabIndex={-1}
+      className="grid gap-4"
+      aria-label="Set up and launch"
+    >
       {pending && !registered && (
         <Notice intent={needsRecovery ? "warning" : "info"}>
           <div data-slot="notice-body">
@@ -84,27 +102,21 @@ export function SelfServiceSetup({
         </Notice>
       )}
       {!registered && !pending && (
-        <CatalogDownloadControl
-          entry={entry}
-          generation={generation}
-          busy={busy}
-          perform={perform}
-        />
+        <div data-detail-download>
+          <CatalogDownloadControl
+            entry={entry}
+            generation={generation}
+            busy={busy}
+            perform={perform}
+          />
+        </div>
       )}
       <ActionRow>
-        {registered ? (
+        {!render && playAction}
+        {!registered && !needsRecovery ? (
           <Button
             data-focusable
-            variant="primary"
-            size="lg"
-            disabled={!launch.allowed || busy}
-            onClick={play}
-          >
-            <Icon glyph={Gamepad2} /> Play
-          </Button>
-        ) : !needsRecovery ? (
-          <Button
-            data-focusable
+            data-self-service-continue
             variant={pending ? "primary" : "outline"}
             disabled={!attach.allowed || busy}
             aria-expanded={editorOpen}
@@ -155,4 +167,5 @@ export function SelfServiceSetup({
       )}
     </section>
   );
+  return render ? render({ play: playAction, setup }) : setup;
 }

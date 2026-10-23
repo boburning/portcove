@@ -236,7 +236,7 @@ type OwnedWindow = Window & {
   __portcove244FocusTrace?: FocusTrace;
 };
 import { executeBrowserScript } from "./browser-script.mts";
-import { assertReviewFieldPresentation } from "./desktop-review-controls.mts";
+import { revealDetailSection, assertReviewFieldPresentation } from "./desktop-review-controls.mts";
 import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 // Actual-Tauri proof for the paired one-off intake and explicit-folder source journeys.
 import assert from "node:assert/strict";
@@ -620,6 +620,7 @@ export async function sourceDialogScenario({
     const { button, click } = reviewControls(browser);
 
     await openCatalogPortAfterRefresh(browser, port);
+    await revealDetailSection(browser, "Files");
     const disclosure = await browser.findElement(By.css(".requirements-disclosure"));
     const detailsOpen = (element: Element) => {
       if (!(element instanceof HTMLDetailsElement))
@@ -1002,14 +1003,16 @@ async function selectedSetupDetail(
 ) {
   await browser.wait(until.elementLocated(By.id("port-detail-title")), 5_000);
   assert.equal(await browser.findElement(By.id("port-detail-title")).getText(), port.name);
-  const state = await browser.findElement(By.css(".hero-state")).getText();
-  const reason = await browser.findElement(By.css(".hero-reason")).getText();
+  const state = await browser.findElement(By.css("[data-detail-readiness]")).getText();
+  const reason = await browser.findElement(By.css("[data-detail-reason]")).getText();
   if (!biosRegistered) {
     assert.equal(state, "Required BIOS file needed");
     assert.ok(
-      (await browser.findElement(By.css(".hero-requirement")).getText()).includes(
-        "Selected setup inert BIOS",
-      ),
+      (
+        await browser
+          .findElement(By.css('[aria-label="Required game files and verification"]'))
+          .getText()
+      ).includes("Selected setup inert BIOS"),
     );
     assert.equal(
       await browser
@@ -1028,7 +1031,7 @@ async function selectedSetupDetail(
       reason,
       "Portcove will check required game files and verify the release before it becomes active.",
     );
-    assert.equal((await browser.findElements(By.css(".hero-requirement"))).length, 0);
+    // Requirements stay available in Files after successful source registration.
     assert.equal(
       await browser
         .findElement(By.xpath('//button[normalize-space(.)="Review installation"]'))

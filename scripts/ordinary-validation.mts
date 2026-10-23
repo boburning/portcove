@@ -937,6 +937,9 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/desktop-execution-plan.test.mts",
     ["scripts/desktop-scenarios.test.mts", "scripts/desktop-verify.test.mts"],
   ],
+  ...["scripts/desktop-execution-baseline.mts", "scripts/desktop-execution-baseline.test.mts"].map(
+    (file): [string, string[]] => [file, ["scripts/desktop-execution-plan.test.mts"]],
+  ),
   ...[
     "scripts/desktop-execution-plan.mts",
     "scripts/desktop-scenarios.mts",
@@ -1185,6 +1188,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   [
     ".github/upstream-health-accounting.json",
     [
+      "scripts/check-catalog-repositories.test.mts",
       "scripts/upstream-observer.test.mts",
       "scripts/upstream-health.test.mts",
       "scripts/upstream-health-monitor.test.mts",
@@ -1441,10 +1445,20 @@ function frontendTask(id: string, reason: string, task: string) {
 function addNodeTest(selection: ValidationSelection, file: string) {
   const normalized = normalizePath(file);
   selection.nodeTests.add(normalized);
+  // Preserve every former workflow-suite consumer after responsibility-based colocation.
+  if (normalized === "scripts/ci-workflow.test.mts")
+    for (const companion of [
+      "scripts/check-catalog-repositories.test.mts",
+      "scripts/check-retcomm-upstreams.test.mts",
+      "scripts/deep-audit-summary.test.mts",
+    ])
+      selection.nodeTests.add(companion);
   // These contracts formerly ran through imports; keep them in focused routes
   // now that each suite has its own explicit execution entry point.
   if (normalized === "scripts/desktop-scenarios.test.mts")
     selection.nodeTests.add("scripts/native-compatibility.test.mts");
+  if (normalized === "scripts/desktop-execution-plan.test.mts")
+    selection.nodeTests.add("scripts/desktop-execution-baseline.test.mts");
   if (normalized === "scripts/release-workflow.test.mts")
     selection.nodeTests.add("scripts/sign-catalog.test.mts");
 }

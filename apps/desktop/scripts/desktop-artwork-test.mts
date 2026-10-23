@@ -23,6 +23,7 @@ import { readFile, realpath, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
 import {
+  revealDetailSection,
   assertCompactReview,
   captureAccessibilityReport,
   reviewControls,
@@ -199,6 +200,7 @@ export async function artworkScenario({
           ),
         );
         await click(By.css(`[data-detail-origin="catalog:card:${port.id}"]`));
+        await revealDetailSection(browser, "Files");
         const summary = await browser.findElement(
           By.xpath('//summary[normalize-space(.)="Change artwork"]'),
         );
