@@ -403,6 +403,38 @@ requires independently authorized offline setup.
 
 ### One-key initial offline ceremony
 
+The legacy instructions below retain their existing two-of-three Root and
+offline Targets contract. The separately approved
+[single-owner initial setup](qualification/slice4-hosted-continuity-first-2026-10-22.md)
+uses the explicitly selected `initial_root_profile: "single-owner-one-of-one-v1"`
+in independently ratified configuration. That profile prepares exactly one Root
+public key with threshold one; one signing invocation completes its quorum and
+another signature attempt refuses. Omission still selects
+`legacy-two-of-three-v1`. Neither metadata nor a candidate may select the expected
+profile, and an existing published Root cannot be replaced by treating it as a
+new initial setup. Reconcile actual public Root/rotation history first.
+
+The approved single-owner arrangement uses separate application and catalog keys
+in one encrypted recovery vault with a ciphertext-only backup, without extra
+drives or independent custodians. It accepts loss of independent quorum
+resilience; connected encrypted storage is not air-gapped custody. Root remains
+outside Actions and reviewer access. Actual file ownership, encryption, restore,
+wrong-key refusal and public fingerprints still need setup evidence. This
+changes initial custody, not the maximum 365-day Root expiry or verification of
+existing trust. It does not require routine per-artifact owner stamps.
+
+For that explicitly selected profile, `top_level_targets_profile:
+"online-unchanged-authority-v1"` permits separately isolated Targets signing only
+after a real authenticated prior repository exists. Its fixed body derivation
+allows checked version+1 and strictly advancing expiry, bounded by 90 days and the
+unchanged Root expiry; keys, delegations, publishers, paths and payload authority
+cannot change. Omission keeps `offline-pinned-v1`. Initial bootstrap, expired
+current metadata, delegation/key changes and Root maintenance retain their
+separate authority. Application renewal has six isolated online roles; catalog
+renewal has five. The component signer/context implementation does not activate
+current controller factories: ratified profiles, exact-job custody, durable
+coordinator transitions and actual protected observations remain required.
+
 The maintained `portcove-release-tools` commands below prepare initial Root v1
 and top-level Targets v1 with one private key per signing process. They use
 existing Tough verification and fixed namespaces. They do not rotate keys,
@@ -426,8 +458,10 @@ output contains only public key ID/digest and fixed filenames. Unix output modes
 are directory 0700/files 0600; Windows ACL protection must be independently
 established and read back before production invocation. Existing or partial
 output is never replaced or silently regenerated. Each role's custody location,
-backup and public transfer are independently appointed at setup; never run nine
-production creations in one shared custody location. No production key creation
+backup and public transfer are independently appointed at setup; the legacy
+independent-custodian design must not consolidate its nine production creations
+into one shared custody location. The approved single-owner replacement above
+deliberately uses a different custody arrangement. No production key creation
 is authorized by this implementation or its disposable tests.
 
 1. `prepare-offline-root CONFIG` reads **public files only**: exactly three
