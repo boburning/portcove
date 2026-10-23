@@ -57,6 +57,177 @@ import {
   createSemanticSnapshotReader,
 } from "./release-semantic-reader-core.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  prepareHostedReleaseAppManifest,
+  observeHostedReleaseApp,
+  inspectHostedReleaseAppSeparation,
+  type HostedReleaseAppRole,
+} from "./release-hosted-app-setup.mts";
+
+function hostedAppReadback(role: HostedReleaseAppRole, appId = 123, installationId = 456) {
+  const manifest = prepareHostedReleaseAppManifest(role);
+  const app = {
+    id: appId,
+    owner: { id: 43177418, login: "boburning" },
+    permissions: manifest.default_permissions,
+    events: [],
+  };
+  const installation = {
+    id: installationId,
+    app_id: appId,
+    account: app.owner,
+    suspended_at: null,
+    repository_selection: "selected",
+    permissions: manifest.default_permissions,
+    events: [],
+  };
+  const repositories = {
+    total_count: 1,
+    repositories: [{ id: 1354613114, full_name: "boburning/portcove" }],
+  };
+  const reads: string[] = [];
+  const values: Record<string, unknown> = {
+    app,
+    [`app/installations/${installationId}`]: installation,
+    "installation/repositories?per_page=100": repositories,
+  };
+  const client = (channel: "app" | "installation") => ({
+    request(method: string, endpoint: string) {
+      assert.equal(method, "GET");
+      assert.equal(channel, endpoint.startsWith("installation/") ? "installation" : "app");
+      reads.push(endpoint);
+      assert(Object.hasOwn(values, endpoint));
+      return {
+        status: 200,
+        headers: new Map<string, string>(),
+        body: structuredClone(values[endpoint]),
+      };
+    },
+  });
+  return {
+    app,
+    installation,
+    repositories,
+    values,
+    reads,
+    expected: { app_id: appId, installation_id: installationId },
+    clients: { app: client("app"), installation: client("installation") },
+  };
+}
+
+void test("selected two-App manifests have exact permissions and no OAuth or webhook work", () => {
+  const semantic = prepareHostedReleaseAppManifest("semantic");
+  const observer = prepareHostedReleaseAppManifest("protection_observer");
+  assert.deepEqual(semantic.default_permissions, { checks: "write", metadata: "read" });
+  assert.deepEqual(observer.default_permissions, { administration: "write", metadata: "read" });
+  for (const manifest of [semantic, observer]) {
+    assert.equal(manifest.public, false);
+    assert.equal(manifest.hook_attributes.active, false);
+    assert.deepEqual(manifest.default_events, []);
+    assert.equal(manifest.request_oauth_on_install, false);
+    assert.match(manifest.redirect_url, /^http:\/\/127\.0\.0\.1:1456\/portcove-app-setup\//u);
+  }
+  assert.throws(() => prepareHostedReleaseAppManifest("dispatch" as HostedReleaseAppRole));
+});
+
+void test("two-App setup readback uses separate GET clients and returns only measured public identities", () => {
+  const s = hostedAppReadback("semantic"),
+    o = hostedAppReadback("protection_observer", 124, 457);
+  const semantic = observeHostedReleaseApp("semantic", s.expected, s.clients);
+  const observer = observeHostedReleaseApp("protection_observer", o.expected, o.clients);
+  assert.deepEqual(s.reads, [
+    "app",
+    "app/installations/456",
+    "installation/repositories?per_page=100",
+  ]);
+  const pair = inspectHostedReleaseAppSeparation(semantic, observer);
+  assert.equal(pair.semantic.authority, "none");
+  assert.equal(pair.protection_observer.acceptance, "not-established");
+  assert.throws(() => inspectHostedReleaseAppSeparation(semantic, { ...observer, app_id: 123 }));
+  assert.throws(() =>
+    inspectHostedReleaseAppSeparation(semantic, { ...observer, installation_id: 456 }),
+  );
+  assert.throws(() =>
+    observeHostedReleaseApp("semantic", { app_id: 15368, installation_id: 456 }, s.clients),
+  );
+});
+
+for (const role of ["semantic", "protection_observer"] as const) {
+  void test(`${role} setup refuses broader App authority even with a narrowed installation`, () => {
+    const f = hostedAppReadback(role);
+    f.app.permissions = { ...f.app.permissions, contents: "write" } as typeof f.app.permissions;
+    assert.throws(() => observeHostedReleaseApp(role, f.expected, f.clients), /boundary differs/u);
+  });
+  void test(`${role} setup refuses wrong issuer, owner, events, repository scope or suspension`, () => {
+    for (const mutate of [
+      (f: ReturnType<typeof hostedAppReadback>) => {
+        f.app.id++;
+      },
+      (f: ReturnType<typeof hostedAppReadback>) => {
+        f.app.owner.id++;
+      },
+      (f: ReturnType<typeof hostedAppReadback>) => {
+        f.app.events.push("push" as never);
+      },
+      (f: ReturnType<typeof hostedAppReadback>) => {
+        f.installation.app_id++;
+      },
+      (f: ReturnType<typeof hostedAppReadback>) => {
+        f.installation.repository_selection = "all";
+      },
+      (f: ReturnType<typeof hostedAppReadback>) => {
+        f.values["app/installations/456"] = {
+          ...f.installation,
+          suspended_at: "2026-10-23T00:00:00Z",
+        };
+      },
+      (f: ReturnType<typeof hostedAppReadback>) => {
+        f.repositories.total_count = 2;
+      },
+      (f: ReturnType<typeof hostedAppReadback>) => {
+        f.repositories.repositories[0]!.id++;
+      },
+    ]) {
+      const f = hostedAppReadback(role);
+      mutate(f);
+      assert.throws(
+        () => observeHostedReleaseApp(role, f.expected, f.clients),
+        /boundary differs/u,
+      );
+    }
+  });
+}
+
+void test("App setup preserves unavailable/incomplete readback as refusal without mutation or retry", () => {
+  for (const response of [
+    { status: 403, headers: new Map(), body: {} },
+    {
+      status: 200,
+      headers: new Map([["link", '<https://api.github.com/other>; rel="next"']]),
+      body: {},
+    },
+    { status: 200, headers: new Map(), body: { oversized: "x".repeat(128 * 1024) } },
+  ]) {
+    let calls = 0;
+    const client = {
+      request(method: string) {
+        assert.equal(method, "GET");
+        calls++;
+        return response;
+      },
+    };
+    assert.throws(
+      () =>
+        observeHostedReleaseApp(
+          "semantic",
+          { app_id: 123, installation_id: 456 },
+          { app: client, installation: client },
+        ),
+      /unavailable, incomplete, oversized or late/u,
+    );
+    assert.equal(calls, 1);
+  }
+});
 
 void test("issuer transport pins App/token routes and the exact captured Check body without ambient credentials", async () => {
   const body = {
