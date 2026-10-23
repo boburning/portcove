@@ -43,7 +43,7 @@ export function startInteractiveScenarios() {
   preview.inert = false;
   preview.classList.remove("scenario-preview");
   limitation.textContent =
-    "Interactive renderer fixtures using the actual App and desktopApi. No Core execution, native IPC, game files, or production service. Unsupported actions are refused. Whole-interface sizing needs the desktop WebView. During preparation: Alt+Shift+Enter completes the fixture; Alt+Shift+F injects failure.";
+    "Interactive renderer fixtures using the actual App and desktopApi. No Core execution, native IPC, game files, or production service. Unsupported actions are refused. Whole-interface sizing needs the desktop WebView. The preparation demo runs one task at a time; this is not a product concurrency limit. Alt+Shift+Enter completes it; Alt+Shift+F injects failure; Alt+Shift+C settles a requested cancellation. Retained-file cleanup changes only these disposable records.";
   const controls = document.createElement("div");
   controls.className = "scenario-fixture-actions";
   const refusal = document.createElement("p");
@@ -57,8 +57,12 @@ export function startInteractiveScenarios() {
   const fail = document.createElement("button");
   fail.type = "button";
   fail.textContent = "Fail fixture preparation";
-  for (const button of [reset, complete, fail]) button.className = "scenario-fixture-control";
-  controls.append(reset, complete, fail, refusal);
+  const settle = document.createElement("button");
+  settle.type = "button";
+  settle.textContent = "Settle fixture cancellation";
+  for (const button of [reset, complete, fail, settle])
+    button.className = "scenario-fixture-control";
+  controls.append(reset, complete, fail, settle, refusal);
   limitation.after(controls);
   let root: Root | undefined;
   let transport: ReturnType<typeof installInteractiveTransport> | undefined;
@@ -67,7 +71,7 @@ export function startInteractiveScenarios() {
     transport?.dispose();
     if (resetState) sessionStorage.removeItem(recoveryKey);
     refusal.textContent = "";
-    complete.hidden = fail.hidden = journey !== "setup";
+    complete.hidden = fail.hidden = settle.hidden = !["setup", "activity"].includes(journey);
     transport = installInteractiveTransport(journey, (message) => {
       refusal.textContent = message;
     });
@@ -110,13 +114,23 @@ export function startInteractiveScenarios() {
     }
   };
   const fixtureKey = (event: KeyboardEvent) => {
-    if (!event.altKey || !event.shiftKey || selected() !== "setup") return;
+    if (!event.altKey || !event.shiftKey || !["setup", "activity"].includes(selected())) return;
     if (event.key === "Enter") {
       event.preventDefault();
       finish();
     } else if (event.key.toLowerCase() === "f") {
       event.preventDefault();
       failPreparation();
+    } else if (event.key.toLowerCase() === "c") {
+      event.preventDefault();
+      settleCancellation();
+    }
+  };
+  const settleCancellation = () => {
+    try {
+      transport?.settleCancellation();
+    } catch {
+      /* The review desk displays the refusal. */
     }
   };
   document.addEventListener("keydown", fixtureKey, true);
@@ -124,6 +138,7 @@ export function startInteractiveScenarios() {
   reset.addEventListener("click", change);
   complete.addEventListener("click", finish);
   fail.addEventListener("click", failPreparation);
+  settle.addEventListener("click", settleCancellation);
   stop = () => {
     document.removeEventListener("keydown", fixtureKey, true);
     select.removeEventListener("change", change);

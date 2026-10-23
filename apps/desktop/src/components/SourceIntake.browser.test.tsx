@@ -449,7 +449,7 @@ describe("source intake dialog", () => {
       path: null,
       source: null,
       configuration_variable: "PORTCOVE_CHDMAN",
-      purpose: "CHD validation and disc-image materialization",
+      purpose: "Check CHD game files and prepare disc images",
       official_url: "https://docs.mamedev.org/tools/chdman.html",
     };
     const inspect = vi

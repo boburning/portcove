@@ -601,10 +601,12 @@ function DetailBody({
       )}
       {external ? (
         <DetailGroup title="Saves and storage">
-          <p>
-            Game-owned settings and saves in the external runtime remain outside Portcove's backup,
-            update, and removal operations.
-          </p>
+          <section aria-label="Saved-data coverage">
+            <p>
+              This installation’s saves and settings stay outside Portcove’s managed backups,
+              updates and removal. Follow the port’s instructions to copy them separately.
+            </p>
+          </section>
         </DetailGroup>
       ) : (
         <SavesStorageGroup
@@ -1050,6 +1052,7 @@ function SavesStorageGroup({
     <OutputLocationControl
       key={`${port.id}:${libraryGeneration}`}
       portId={port.id}
+      gameName={gameIdentityLabel(port)}
       generation={libraryGeneration}
       busy={outputExternalBusy}
       onChanged={outputLocationChanged}
@@ -1075,6 +1078,7 @@ function SavesStorageGroup({
       />
       {hasBackupHistory && (
         <BackupHistory
+          gameName={gameIdentityLabel(port)}
           key={`${port.id}:${libraryGeneration}`}
           generation={libraryGeneration}
           backups={backups}
@@ -1268,7 +1272,12 @@ function ProjectReleaseSummary({ port }: { port: PortDefinition }) {
 
 function RequirementsSummary({ port }: { port: PortDefinition }) {
   if (!port.presentation)
-    return <p>Structured requirement details are unavailable in this catalog.</p>;
+    return (
+      <p>
+        Detailed setup requirements are unavailable. Check this port’s instructions before
+        continuing.
+      </p>
+    );
   return (
     <div
       className="metadata grid grid-cols-[1fr_1fr] gap-[10px]"
@@ -1300,18 +1309,57 @@ function SavesAndSettingsSummary({
   port: PortDefinition;
   status?: PortStatus | undefined;
 }) {
+  const retained = Boolean(
+    (status?.active || status?.staged) && port.release.provider === "user-prepared",
+  );
+  const declared = [
+    ...port.persistent_paths,
+    ...(port.persistent_file_patterns ?? []).map(
+      (pattern) => `${pattern.prefix}*${pattern.suffix}`,
+    ),
+  ];
   return (
-    <div className="metadata grid grid-cols-[1fr_1fr] gap-[10px]">
+    <div className="grid min-w-0 gap-3 text-sm wrap-anywhere">
       <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
         <small className="mb-[5px] block text-[var(--color-text-muted)]">Saved data handling</small>
         {(status?.active || status?.staged) && port.release.provider === "user-prepared"
-          ? "Managed by Portcove under this installation's retained contract"
+          ? "Managed by Portcove using this installation’s recorded saved-data rules"
           : port.presentation?.saves_and_settings === "portcove-managed"
             ? "Managed by Portcove for backup and restore"
             : port.presentation?.saves_and_settings === "external-user-owned"
               ? "Stored with your external runtime; Portcove does not back up or remove it"
               : "Unavailable in this catalog"}
       </span>
+      <section aria-label="Saved-data coverage">
+        <h3 className="mb-1 text-sm font-semibold">What a backup covers</h3>
+        {retained ? (
+          <p>
+            Saved-data locations follow the rules recorded for this installation. Exact paths are
+            not available in this summary; the backup review checks which files can be included.
+          </p>
+        ) : (
+          <>
+            <p>
+              Declared saved-data locations
+              {declared.length ? ":" : " are unavailable in this catalog."}
+            </p>
+            {declared.length > 0 && (
+              <ul className="my-2 list-disc ps-5">
+                {declared.map((location) => (
+                  <li key={location}>
+                    <code>{location}</code>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p>
+              The backup review confirms the files included from the managed saves and settings
+              folder. Other locations are not covered. Game-version rollback and library metadata
+              export are separate from saved-data backup.
+            </p>
+          </>
+        )}
+      </section>
     </div>
   );
 }
@@ -1858,6 +1906,7 @@ function PrimaryActions({
       </div>
     ) : (
       <InstallAction
+        gameName={gameIdentityLabel(sources.port)}
         cancellations={installCancellations}
         ready={launchReady}
         sourceReady={sourceReady}
@@ -1999,6 +2048,7 @@ function StagedActivation({
 }
 
 export function InstallAction({
+  gameName,
   cancellations,
   ready,
   sourceReady,
@@ -2015,6 +2065,7 @@ export function InstallAction({
   openLibraryStorage,
   portaled = true,
 }: {
+  gameName?: string | undefined;
   cancellations?: ActivityRecord[] | undefined;
   ready: boolean;
   sourceReady: boolean;
@@ -2120,6 +2171,9 @@ export function InstallAction({
               Review installation
             </DialogTitle>
             <DialogDescription id="install-review-description" className="mb-4 leading-relaxed">
+              {gameName && (
+                <strong className="mb-2 block wrap-anywhere text-pc-foreground">{gameName}</strong>
+              )}
               {plan.action === "download"
                 ? "Review the version, download size, and install folder."
                 : "Review the version and how this local release will be used."}
@@ -2255,9 +2309,6 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
   return (
     <div className="install-plan mt-[16px] grid grid-cols-1 [align-items:end] gap-[18px] rounded-pc-lg border border-pc-border bg-pc-surface p-[14px] @min-[30rem]/detail:grid-cols-[1fr_auto]">
       <div>
-        <p className="eyebrow mb-[5px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-          INSTALL PLAN
-        </p>
         <strong className="block text-[length:var(--text-sm)]">{plan.release.version}</strong>
         <span className="mt-[4px] block text-xs text-[var(--color-text-secondary)] capitalize">
           {releaseChannelPresentation(plan.channel).label} · {installPlanActionLabel(plan.action)}
@@ -2922,12 +2973,13 @@ function backupCreateExplanation(
       return "Your saved data could not be checked. Retry the backup inventory read.";
     return "Checking your saved data…";
   }
-  if (available) return "Back up owned saves and settings.";
+  if (available) return "Back up saves and settings managed by Portcove.";
   if (!consistent) return unavailable;
   const reasons: Partial<
     Record<NonNullable<BackupInventory["create_assessment"]>["reason"], string>
   > = {
-    missing_data: "There are no owned saves or settings to back up yet.",
+    missing_data:
+      "No saves or settings managed by Portcove were found to back up. Other locations are not checked here.",
     recovery_required: "Restart Portcove to retry recovery, then check your backups again.",
     unsafe_data: "The saved-data location needs path and ownership review.",
     assessment_incomplete: "The saved-data check did not finish. Your data is preserved.",

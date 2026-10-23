@@ -1,5 +1,6 @@
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { FolderOpen } from "lucide-react";
+import { gameIdentityLabel } from "../port-identity";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import {
@@ -442,7 +443,7 @@ function SelectedRuntimeDialog({
         showCloseButton={false}
         aria-describedby="selected-runtime-description"
       >
-        <DialogTitle>Use this {port.name} installation?</DialogTitle>
+        <DialogTitle>Use this {gameIdentityLabel(port)} installation?</DialogTitle>
         <DialogDescription id="selected-runtime-description">
           You selected this executable. Portcove has not authenticated it as an official package.
           You or the upstream launcher own setup and updates. Portcove will launch it and can remove
@@ -548,8 +549,8 @@ function RegisterExternalDialog({
       >
         <DialogTitle>
           {mode === "relink"
-            ? `Change game folder for ${port.name}?`
-            : `Use this ${port.name} installation?`}
+            ? `Change game folder for ${gameIdentityLabel(port)}?`
+            : `Use this ${gameIdentityLabel(port)} installation?`}
         </DialogTitle>
         <DialogDescription id="external-register-description">
           Portcove will save this location and check the required files before each launch. It will
@@ -656,7 +657,7 @@ function RemoveExternalDialog({
         showCloseButton={false}
         aria-describedby="external-remove-description"
       >
-        <DialogTitle>Stop using this {port.name} installation?</DialogTitle>
+        <DialogTitle>Stop using this {gameIdentityLabel(port)} installation?</DialogTitle>
         <DialogDescription id="external-remove-description">
           This removes only Portcove's saved location. The files stay where they are, including
           settings and saves.

@@ -760,7 +760,6 @@ function BrowserEmptyState({
     return (
       <EmptyState
         icon={Settings2}
-        eyebrow="NO MATCHES"
         title="No ports in your library match your search and filters"
         description={
           installedCount === 0
@@ -778,7 +777,6 @@ function BrowserEmptyState({
   return (
     <EmptyState
       icon={Settings2}
-      eyebrow="NO MATCHES"
       title="No ports match these filters"
       description="Try another search or change the filters."
       action={

@@ -134,3 +134,66 @@ it("does not install into an existing native host", () => {
     Reflect.deleteProperty(window, "__TAURI__");
   }
 });
+
+it("keeps task records and retained-file facts bound to their original operations through new work", async () => {
+  transport = installInteractiveTransport("activity", vi.fn());
+  const before = await desktopApi.previewPreparationCleanup("fixture-retained-orchard", 1);
+  const result = desktopApi.prepare("sample", preparation.plan_sha256, 1, vi.fn());
+  expect((await desktopApi.activities()).current_activity_ids).toEqual(["fixture-preparation"]);
+  const record = (await desktopApi.activities()).records.find(
+    (record) => record.id === "fixture-preparation",
+  )!;
+  expect(record.target_id).toBe("sample");
+  await desktopApi.outputLocation("orchard", 1);
+  await desktopApi.planPreparation("sample", 1);
+  expect(await desktopApi.previewPreparationCleanup("fixture-retained-orchard", 1)).toEqual(before);
+  transport.complete();
+  await result;
+  const feed = await desktopApi.activities();
+  expect(feed.current_activity_ids).toEqual([]);
+  expect(feed.records.find((record) => record.id === "fixture-preparation")).toMatchObject({
+    target_id: "sample",
+    status: "succeeded",
+  });
+  expect(feed.recovery_required_activity_ids).toEqual(
+    expect.arrayContaining(["fixture-retained-harbor", "fixture-retained-orchard"]),
+  );
+  await expect(desktopApi.cleanupPreparation(before.operation_id, "unreviewed", 1)).rejects.toThrow(
+    "unexpected arguments",
+  );
+  await desktopApi.cleanupPreparation(before.operation_id, before.preview_sha256, 1);
+  expect((await desktopApi.activities()).recovery_required_activity_ids).not.toContain(
+    before.operation_id,
+  );
+  expect((await desktopApi.previewPreparationCleanup("fixture-retained-harbor", 1)).port_id).toBe(
+    "sample",
+  );
+});
+
+it("distinguishes a cancellation request from settlement and records failed setup for recovery", async () => {
+  transport = installInteractiveTransport("setup", vi.fn());
+  const result = desktopApi.prepare("sample", preparation.plan_sha256, 1, vi.fn());
+  const outcome = result.catch((error: unknown) => error);
+  await desktopApi.cancelOperation("fixture-preparation");
+  expect((await desktopApi.activities()).records[0]).toMatchObject({
+    status: "running",
+    cancellation: { requested: true },
+  });
+  expect(() => transport!.complete()).toThrow("cancellation requested");
+  transport.settleCancellation();
+  expect(await outcome).toMatchObject({ code: "cancelled" });
+  expect((await desktopApi.activities()).records[0]).toMatchObject({
+    status: "cancelled",
+    target_id: "sample",
+  });
+  const next = desktopApi.prepare("sample", preparation.plan_sha256, 1, vi.fn());
+  const failure = next.catch((error: unknown) => error);
+  transport.fail();
+  expect(await failure).toMatchObject({ presentation: { mutation_state: "recovery_required" } });
+  const feed = await desktopApi.activities();
+  expect(new Set(feed.records.map((record) => record.id)).size).toBe(2);
+  expect(feed.recovery_required_activity_ids).toEqual(["fixture-preparation-2"]);
+  const preview = await desktopApi.previewPreparationCleanup("fixture-preparation-2", 1);
+  expect(preview.port_id).toBe("sample");
+  expect(preview.retained_path).toContain("fixture-preparation-2");
+});
