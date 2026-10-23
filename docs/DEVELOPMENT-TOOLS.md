@@ -1655,11 +1655,23 @@ checkpoint tests before frontend and application builds. The selected inventory
 must be nonempty, unique and fully executed without skips. This is scoped native
 feedback, not a new qualification requirement for ordinary changes.
 
-The optional Vite+ pre-commit hook also checks Node-test registration when relevant
-tests or inventory inputs are staged. It uses the same coverage assertion as CI,
-reading the Git index so unstaged workflow/recipe edits cannot conceal an
-incomplete commit. It does not modify either tree; the normal Vite+ staged
-formatting and partial-staging behavior follows only after that check succeeds.
+Root Node test commands are maintained in `scripts/node-test-suites.json`.
+Edit the owning suite there, then run `node scripts/node-test-suites.mts --write`
+to update its annotated direct commands in CI, Just recipes and the Windows
+qualification wrapper. `--check` verifies the generated commands without writing.
+Flags, file order, storage wrappers, native prerequisites and platform ownership
+remain explicit. Dynamic diff-selected `ci-baseline` routes retain their separate
+routing contracts; registry membership is not execution evidence.
+
+The optional Vite+ pre-commit hook checks the staged registry and executable
+consumers together when relevant tests or inventory inputs are staged. It uses
+the same assertion as CI: each indexed root test needs a qualification consumer
+and a local recipe. Comments, disabled jobs/steps, wrong lanes and stale paths
+cannot register coverage. The Windows payload counts only through an active
+caller and its independently pinned mutex/cleanup/exit envelope; changes to that
+envelope require an explicit custody review and expectation update. Unstaged
+workflow/recipe/registry edits cannot conceal an incomplete commit. The check
+does not modify either tree; normal staged formatting follows only after success.
 
 Native helper dependencies are declared in
 `scripts/native-helper-dependencies.mts`. Literal PowerShell dot-source imports

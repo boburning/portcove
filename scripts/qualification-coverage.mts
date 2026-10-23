@@ -2,6 +2,7 @@ import { isRecord, errorMessage } from "./runtime-values.mts";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseDocument } from "yaml";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const expectedPlatforms = ["linux-x86_64", "macos-aarch64", "macos-x86_64", "windows-x86_64"];
@@ -13,28 +14,35 @@ const expectedProtectedContexts = [
   "rust-quality",
 ];
 
+export function workflowDefinition(workflow: string): Record<string, unknown> {
+  const document = parseDocument(workflow, { uniqueKeys: true });
+  if (document.errors.length)
+    throw new Error(`Invalid workflow YAML: ${document.errors[0]?.message}`);
+  const value: unknown = document.toJS();
+  if (!isRecord(value) || !isRecord(value.jobs)) throw new Error("Workflow jobs must be a mapping");
+  return value;
+}
+export function workflowJobs(workflow: string): Record<string, Record<string, unknown>> {
+  const value = workflowDefinition(workflow);
+  if (!isRecord(value.jobs)) throw new Error("Workflow jobs must be a mapping");
+  const jobs: Record<string, Record<string, unknown>> = {};
+  for (const [id, job] of Object.entries(value.jobs)) {
+    if (!isRecord(job)) throw new Error(`Invalid workflow job: ${id}`);
+    jobs[id] = job;
+  }
+  return jobs;
+}
+
 export function qualificationJobInventory(workflow: string) {
   const jobs: string[] = [];
   const pullRequestJobs: string[] = [];
-  let current: string | undefined = undefined;
-  let body: string[] = [];
-  const flush = () => {
-    if (!current) return;
-    const condition = body.find((line) => /^ {4}if:/u.test(line)) ?? "";
-    if (!/needs\.classify\.outputs\.mode == 'qualification'/u.test(condition)) return;
+  for (const [current, job] of Object.entries(workflowJobs(workflow))) {
+    const condition = typeof job.if === "string" ? job.if : "";
+    if (!/needs\.classify\.outputs\.mode == 'qualification'/u.test(condition)) continue;
     (/github\.event_name == 'pull_request'/u.test(condition) ? pullRequestJobs : jobs).push(
       current,
     );
-  };
-  for (const line of workflow.split(/\r?\n/u)) {
-    const match = /^  ([a-z][a-z0-9_]+):$/u.exec(line);
-    if (match) {
-      flush();
-      current = match[1];
-      body = [];
-    } else if (current) body.push(line);
   }
-  flush();
   return { jobs: jobs.sort(), pullRequestJobs: pullRequestJobs.sort() };
 }
 
@@ -75,6 +83,7 @@ export function validateQualificationCoverage(inventory: unknown, workflow: stri
   if (new Set(allDeclared).size !== allDeclared.length)
     throw new Error("duplicate qualification job");
   const observed = qualificationJobInventory(workflow);
+  const parsedJobs = workflowJobs(workflow);
   if (
     JSON.stringify(declared) !== JSON.stringify(observed.jobs) ||
     JSON.stringify(declaredPullRequest) !== JSON.stringify(observed.pullRequestJobs)
@@ -83,11 +92,17 @@ export function validateQualificationCoverage(inventory: unknown, workflow: stri
       `qualification job inventory mismatch: declared=${declared.join(",")} pull-request=${declaredPullRequest.join(",")} observed=${observed.jobs.join(",")} observed-pull-request=${observed.pullRequestJobs.join(",")}`,
     );
   for (const context of inventory.protected_contexts)
-    if (!workflow.includes(`\n  ${context}:`))
-      throw new Error(`missing protected context wrapper: ${context}`);
+    if (!parsedJobs[context]) throw new Error(`missing protected context wrapper: ${context}`);
   if (
     JSON.stringify([...inventory.platforms].sort()) !== JSON.stringify(expectedPlatforms) ||
-    expectedPlatforms.some((platform) => !workflow.includes(platform))
+    expectedPlatforms.some(
+      (platform) =>
+        !Object.values(parsedJobs).some((job) =>
+          [job.name, job.if, job["runs-on"], job.strategy].some((value) =>
+            JSON.stringify(value)?.includes(platform),
+          ),
+        ),
+    )
   )
     throw new Error("qualification platform inventory mismatch");
   if (
