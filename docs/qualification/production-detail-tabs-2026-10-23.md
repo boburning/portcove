@@ -70,6 +70,11 @@ Focused runs retained under `E:/Codex-Evidence/production-detail-tabs-20261023`:
   heading-markup expectations; the repair scopes those checks to their new tab
   homes without changing production code or qualification/eligibility assertions.
   `static-regression-check.log` passed formatting, lint and types for the repair.
+- `entry-focus-regressions.log`: 24 browser cases passed for adaptive document
+  flow, Add Games and game-file filtering. Run `39999038785` retained five old
+  Back-focus expectations while all 843 static cases and the production build
+  passed. The repair expects ordinary entry's game heading and uses the shared
+  layout in the filter fixture, preserving keyboard return to the exact card.
 
 The maintained `browser/detail-composition.browser.test.tsx` uses the actual App
 and disposable interactive transport. It checks both themes at 1366×768,
