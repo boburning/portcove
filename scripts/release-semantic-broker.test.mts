@@ -94,10 +94,11 @@ function appRegistrationFixture() {
   const calls: { url: string; options: RequestInit }[] = [];
   const transport: typeof fetch = async (url, options) => {
     assert(options);
-    calls.push({ url: String(url), options });
+    assert(typeof url === "string");
+    calls.push({ url, options });
     assert.equal(options.redirect, "error");
     if (options.method === "POST") {
-      assert.equal(String(url), `https://api.github.com/app-manifests/${appCode}/conversions`);
+      assert.equal(url, `https://api.github.com/app-manifests/${appCode}/conversions`);
       assert.equal(new Headers(options.headers).has("authorization"), false);
       assert(privateFiles.has("conversion-intent.json"));
       return Response.json(
@@ -106,7 +107,7 @@ function appRegistrationFixture() {
       );
     }
     assert.equal(options.method, "GET");
-    assert.equal(String(url), "https://api.github.com/app");
+    assert.equal(url, "https://api.github.com/app");
     const jwt = new Headers(options.headers).get("authorization")!.slice(7);
     const [header, payload, signature] = jwt.split(".");
     assert(
@@ -137,7 +138,12 @@ function appRegistrationFixture() {
     store,
     transport,
   };
-  return { app, pem, privateFiles, calls, options };
+  const record = (name: string) => {
+    const value: unknown = JSON.parse(privateFiles.get(name)!.toString());
+    assert(isRecord(value));
+    return value;
+  };
+  return { app, pem, privateFiles, calls, options, record };
 }
 
 void test("registration callback admits only fixed loopback, role, state and unique code fields", () => {
@@ -209,14 +215,8 @@ void test("ambiguous conversion preserves pending intent and refuses a second PO
     },
   });
   await assert.rejects(capture(appCallback), /transport ambiguous/u);
-  assert.equal(
-    JSON.parse(f.privateFiles.get("conversion-intent.json")!.toString()).effect,
-    "unresolved",
-  );
-  assert.equal(
-    JSON.parse(f.privateFiles.get("conversion-transport.json")!.toString()).effect,
-    "unknown",
-  );
+  assert.equal(f.record("conversion-intent.json").effect, "unresolved");
+  assert.equal(f.record("conversion-transport.json").effect, "unknown");
   await assert.rejects(capture(appCallback), /already consumed/u);
   assert.equal(posts, 1);
 });
@@ -247,10 +247,7 @@ void test("registration preserves incomplete and oversized private response pref
     });
     await assert.rejects(capture(appCallback), /registration (body|response)/u);
     assert.equal(f.privateFiles.get("conversion.body")!.length, oversized ? 128 * 1024 : 13);
-    assert.equal(
-      JSON.parse(f.privateFiles.get("conversion-response.json")!.toString()).complete,
-      false,
-    );
+    assert.equal(f.record("conversion-response.json").complete, false);
     assert.equal(posts, 1);
   }
 });
