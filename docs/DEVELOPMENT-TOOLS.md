@@ -1077,8 +1077,10 @@ cleanup command does not manage browser traces.
 In CI, the fast and full
 frontend lanes run the explicit bootstrap before browser tests and upload failure
 artifacts. The intentional failure probe is
-`pnpm --dir apps/desktop test:browser:trace-probe`; it exits nonzero and
-should be run only when validating trace retention.
+`pnpm --dir apps/desktop test:browser:trace-probe`; it exits zero only after
+verifying the expected assertion failure, completed shutdown and readable
+diagnostics. Run it when validating diagnostic retention; its result remains
+separate from product-test success.
 
 The initial browser composition mounts the shipped adoption modal, its review
 hook, shared controls, direction provider, styles, and a strict test-only Tauri
