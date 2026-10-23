@@ -234,7 +234,8 @@ void test("full installation observation retains ambiguous mint and partial resp
         return new Response(
           new ReadableStream({
             start(controller) {
-              controller.enqueue("inert non-byte body");
+              // Deliberately violate the provider stream type at this boundary.
+              controller.enqueue("inert non-byte body" as unknown as Uint8Array);
               controller.close();
             },
           }),
