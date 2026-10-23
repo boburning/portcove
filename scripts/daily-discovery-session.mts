@@ -959,6 +959,13 @@ export class DiscoverySession {
   recheck() {
     if (!this.leadWorkComplete()) {
       const deferred = {
+        checked: [] as number[],
+        overdue: rotatingRecheck(
+          sourceProvenancePortIssues(this.inventory.issues).map((i) => Number(i.number)),
+          this.checkpoint.checked,
+          new Date().toISOString(),
+          50,
+        ).overdue,
         phase: "quiet-recheck",
         status: "deferred",
         reason:
