@@ -475,7 +475,7 @@ jobs:
         shell: pwsh
         run: node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT
       - name: Provision existing pinned prebuilt quality tools
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: ${{ steps.native-quality-pins.outputs.required_prebuilt }}
       - name: Install locked packages and existing pinned native tools
@@ -711,11 +711,11 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Install source pinned rscheck
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
@@ -791,11 +791,11 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Install source pinned rscheck
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
@@ -869,11 +869,11 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Install source pinned rscheck
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
@@ -947,11 +947,11 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Install source pinned rscheck
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
