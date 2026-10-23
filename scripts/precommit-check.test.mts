@@ -1,17 +1,18 @@
 import { errorCode } from "./runtime-values.mts";
+import {
+  disposableDirectory,
+  registerDisposableDirectory,
+} from "./fixtures/disposable-directory.mts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
   mkdirSync,
-  mkdtempSync,
   readFileSync,
   writeFileSync,
   symlinkSync,
   unlinkSync,
   copyFileSync,
   chmodSync,
-  rmSync,
-  lstatSync,
 } from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
@@ -30,35 +31,44 @@ const env = {
   CI: "false",
   PATH: `${path.join(root, "node_modules/.bin")}${path.delimiter}${process.env.PATH}`,
 };
+const unprovenWriters = new Set<string>();
+function trackWriter<T extends { error?: NodeJS.ErrnoException; signal: NodeJS.Signals | null }>(
+  cwd: string,
+  result: T,
+): T {
+  if (result.error || result.signal) unprovenWriters.add(path.resolve(cwd));
+  return result;
+}
 function run(cwd: string, executable: string, args: readonly string[], ok = true) {
-  const result = spawnSync(executable, args, {
+  const result = trackWriter(
     cwd,
-    env,
-    encoding: "utf8",
-    timeout: 30_000,
-    windowsHide: true,
-  });
+    spawnSync(executable, args, {
+      cwd,
+      env,
+      encoding: "utf8",
+      timeout: 30_000,
+      windowsHide: true,
+    }),
+  );
   assert.ifError(result.error);
   if (ok) assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   return result;
 }
 const git = (cwd: string, ...args: string[]) => run(cwd, "git", args).stdout;
-function removeFixture(directory: string) {
-  assert.equal(path.dirname(path.resolve(directory)), path.resolve(base));
-  const info = lstatSync(directory, { throwIfNoEntry: false });
-  if (!info) return;
-  assert.ok(info.isDirectory() && !info.isSymbolicLink());
-  const junction = path.join(directory, "node_modules");
-  const link = lstatSync(junction, { throwIfNoEntry: false });
-  if (link) {
-    assert.ok(link.isSymbolicLink(), "Fixture cleanup refuses a real node_modules directory");
-    unlinkSync(junction);
-  }
-  rmSync(directory, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+function requireWriterExit(directory: string) {
+  assert.ok(
+    !unprovenWriters.has(path.resolve(directory)),
+    `Fixture writer exit is unproven; retained ${directory}`,
+  );
 }
-function fixture(context: TestContext) {
-  const cwd = mkdtempSync(path.join(base, "staged-' space-"));
-  context.after(() => removeFixture(cwd));
+function fixture(context: TestContext, drain?: () => Promise<void>) {
+  const cwd = disposableDirectory(context, path.join(base, "staged-' space-"), {
+    sharedLinks: ["node_modules"],
+    async drain() {
+      await drain?.();
+      requireWriterExit(cwd);
+    },
+  });
   git(cwd, "init", "-q");
   git(cwd, "config", "user.name", "Portcove hook fixture");
   git(cwd, "config", "user.email", "hook-fixture@example.invalid");
@@ -155,7 +165,10 @@ void test("supported hooks work from a linked worktree and noninteractive Git cl
   const commonBefore = readFileSync(path.join(cwd, ".git/config"), "utf8");
   const sibling = `${cwd}-linked`;
   git(cwd, "worktree", "add", "-qb", "linked-fixture", sibling);
-  context.after(() => removeFixture(sibling));
+  registerDisposableDirectory(context, sibling, {
+    sharedLinks: ["node_modules"],
+    drain: () => requireWriterExit(sibling),
+  });
   symlinkSync(path.join(root, "node_modules"), path.join(sibling, "node_modules"), "junction");
   git(sibling, "config", "--worktree", "core.hooksPath", ".husky/_");
   configureHooks(sibling, "enable", env);
@@ -183,14 +196,17 @@ void test(
     const runtime = path.join(runtimeDir, process.platform === "win32" ? "node.exe" : "node");
     copyFileSync(process.execPath, runtime);
     if (process.platform !== "win32") chmodSync(runtime, 0o755);
-    const setup = spawnSync(
-      runtime,
-      [
-        "--input-type=module",
-        "-e",
-        `import { configureHooks } from ${JSON.stringify(pathToFileURL(path.join(root, "scripts/hooks-install.mts")).href)}; configureHooks(${JSON.stringify(cwd)}, "enable");`,
-      ],
-      { env, encoding: "utf8", timeout: 30_000, windowsHide: true },
+    const setup = trackWriter(
+      cwd,
+      spawnSync(
+        runtime,
+        [
+          "--input-type=module",
+          "-e",
+          `import { configureHooks } from ${JSON.stringify(pathToFileURL(path.join(root, "scripts/hooks-install.mts")).href)}; configureHooks(${JSON.stringify(cwd)}, "enable");`,
+        ],
+        { env, encoding: "utf8", timeout: 30_000, windowsHide: true },
+      ),
     );
     assert.equal(setup.status, 0, setup.stderr || setup.error?.message);
     const core = git(cwd, "--exec-path").trim();
@@ -211,18 +227,25 @@ void test(
     writeFileSync(path.join(cwd, "sample.js"), "export const staged = true;\n");
     git(cwd, "add", "vite.config.ts", "sample.js");
     const commit = (directory = cwd) =>
-      spawnSync(gitPath, ["commit", "--allow-empty", "-qm", "runtime fixture"], {
-        cwd: directory,
-        env: lean,
-        encoding: "utf8",
-        timeout: 60_000,
-        windowsHide: true,
-      });
+      trackWriter(
+        directory,
+        spawnSync(gitPath, ["commit", "--allow-empty", "-qm", "runtime fixture"], {
+          cwd: directory,
+          env: lean,
+          encoding: "utf8",
+          timeout: 60_000,
+          windowsHide: true,
+        }),
+      );
     const success = commit();
     assert.equal(success.status, 0, success.stderr || success.stdout || success.error?.message);
     git(cwd, "config", "extensions.worktreeConfig", "true");
     const sibling = `${cwd}-linked`;
     git(cwd, "worktree", "add", "-qb", "runtime-linked", sibling);
+    registerDisposableDirectory(context, sibling, {
+      sharedLinks: ["node_modules"],
+      drain: () => requireWriterExit(sibling),
+    });
     symlinkSync(path.join(root, "node_modules"), path.join(sibling, "node_modules"), "junction");
     configureHooks(sibling, "enable", env);
     writeFileSync(path.join(sibling, "sample.js"), "export const linked = true;\n");
@@ -281,8 +304,7 @@ void test(
     const { spawn } = await import("node:child_process");
     const { existsSync } = await import("node:fs");
     let cleanupChild: () => Promise<void> = async () => {};
-    t.after(() => cleanupChild());
-    const cwd = fixture(t);
+    const cwd = fixture(t, () => cleanupChild());
     writeFileSync(
       path.join(cwd, "vite.config.ts"),
       'export default { fmt: {}, staged: { "*.js": ["vp fmt --config vite.config.ts --ignore-path .gitignore", "node slow.mjs"] } };\n',
@@ -309,7 +331,7 @@ void test(
     assert.ok(pid !== undefined);
     cleanupChild = async () => {
       try {
-        process.kill(-pid, "SIGTERM");
+        if (child.exitCode === null && child.signalCode === null) process.kill(-pid, "SIGTERM");
       } catch (error) {
         if (errorCode(error) !== "ESRCH") throw error;
       }
@@ -326,6 +348,20 @@ void test(
         ]);
       } finally {
         clearTimeout(timer);
+      }
+      const groupDeadline = Date.now() + 5000;
+      for (;;) {
+        try {
+          process.kill(-pid, 0);
+        } catch (error) {
+          if (errorCode(error) === "ESRCH") break;
+          throw error;
+        }
+        assert.ok(
+          Date.now() < groupDeadline,
+          `Fixture process group exit is unproven; retained ${cwd}`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 20));
       }
     };
     const deadline = Date.now() + 15_000;

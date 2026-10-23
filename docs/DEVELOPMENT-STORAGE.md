@@ -258,7 +258,8 @@ overlapping compiler/test tree.
 immediately registers test teardown. Cleanup checks the original root identity
 and parent before removal; it refuses a replaced root. Tests must finish and
 drain child writers before teardown. Declared diagnostic bundles belong outside
-the disposable root. The helper neither adopts old scratch trees nor removes
+the disposable root. An unproven writer exit makes cleanup fail and retains the
+root for investigation. The helper neither adopts old scratch trees nor removes
 retained verification evidence. Shared directory links remain links during
 recursive removal; hook fixtures additionally unlink their shared `node_modules`
 junction explicitly before deleting the owned root.

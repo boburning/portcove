@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
-import { writeFile, mkdir, symlink, readFile, readdir, access } from "node:fs/promises";
+import { writeFile, mkdir, symlink, readFile, readdir, access, rename } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -26,7 +26,8 @@ import assert from 'node:assert/strict';
 import { writeFileSync, symlinkSync } from 'node:fs';
 import { disposableDirectory } from ${JSON.stringify(helper)};
 test('successful fixture assertion', (context) => {
-  const scratch = disposableDirectory(context, ${JSON.stringify(scratchPrefix)});
+  const scratch = disposableDirectory(context, ${JSON.stringify(scratchPrefix)}, {sharedLinks:['shared']});
+  symlinkSync(${JSON.stringify(shared)}, scratch + '/shared', 'junction');
   writeFileSync(${JSON.stringify(path.join(root, "success.path"))}, scratch);
   writeFileSync(scratch + '/disposable.bin', 'scratch bytes');
   assert.ok(true);
@@ -71,7 +72,7 @@ void test("disposable fixture teardown refuses a replaced root and preserves its
   const target = path.join(root, "target");
   await mkdir(target);
   await writeFile(path.join(target, "sentinel.txt"), "preserved");
-  let cleanup: () => void = () => {
+  let cleanup: () => void | Promise<void> = () => {
     throw new Error("Cleanup was not registered");
   };
   const scratch = disposableDirectory(
@@ -85,8 +86,64 @@ void test("disposable fixture teardown refuses a replaced root and preserves its
   const { rm } = await import("node:fs/promises");
   await rm(scratch, { recursive: true });
   await symlink(target, scratch, "junction");
-  assert.throws(cleanup, /root was replaced/);
+  await assert.rejects(async () => cleanup(), /root was replaced/);
   assert.equal(await readFile(path.join(target, "sentinel.txt"), "utf8"), "preserved");
+});
+
+void test("registered fixture teardown refuses an ordinary replacement directory", async (context) => {
+  const root = disposableDirectory(
+    context,
+    path.join(os.tmpdir(), "portcove-disposable-identity-"),
+  );
+  let cleanup: () => void | Promise<void> = () => {
+    throw new Error("Cleanup was not registered");
+  };
+  const scratch = disposableDirectory(
+    {
+      after(callback) {
+        cleanup = callback;
+      },
+    },
+    path.join(root, "scratch-"),
+  );
+  await rename(scratch, `${scratch}-original`);
+  await mkdir(scratch);
+  await writeFile(path.join(scratch, "sentinel.txt"), "replacement bytes");
+  await assert.rejects(async () => cleanup(), /root was replaced/);
+  assert.equal(await readFile(path.join(scratch, "sentinel.txt"), "utf8"), "replacement bytes");
+});
+
+void test("fixture cleanup retains scratch when writer drain fails or a shared link becomes a real directory", async (context) => {
+  const root = disposableDirectory(context, path.join(os.tmpdir(), "portcove-disposable-drain-"));
+  for (const failure of ["drain", "shared-link"] as const) {
+    let cleanup: () => void | Promise<void> = () => {
+      throw new Error("Cleanup was not registered");
+    };
+    const scratch = disposableDirectory(
+      {
+        after(callback) {
+          cleanup = callback;
+        },
+      },
+      path.join(root, "scratch-"),
+      {
+        sharedLinks: ["shared"],
+        drain: async () => {
+          if (failure === "drain") throw new Error("writer exit is unproven");
+        },
+      },
+    );
+    await mkdir(path.join(scratch, "shared"));
+    await writeFile(path.join(scratch, "shared", "sentinel.txt"), "preserved bytes");
+    await assert.rejects(
+      async () => cleanup(),
+      failure === "drain" ? /writer exit is unproven/ : /shared link was replaced/,
+    );
+    assert.equal(
+      await readFile(path.join(scratch, "shared", "sentinel.txt"), "utf8"),
+      "preserved bytes",
+    );
+  }
 });
 
 import { isRecord } from "./runtime-values.mts";
