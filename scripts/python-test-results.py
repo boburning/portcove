@@ -29,6 +29,12 @@ def identity(test):
     return value.removeprefix(MODULE + ".")
 
 
+def has_failure(record):
+    return record["status"] in FAILURE_STATUSES or any(
+        item["status"] in FAILURE_STATUSES for item in record["additional_outcomes"]
+    )
+
+
 class CaseResults(unittest.TextTestResult):
     def __init__(self, *args):
         super().__init__(*args)
@@ -41,18 +47,15 @@ class CaseResults(unittest.TextTestResult):
             return
         if len(self.records) >= MAX_RECORDS:
             self.reporting_error = "Python case report exceeds record limit"
-            # Method records and original failures outrank successful subtests.
+            # Method/fixture records and failures outrank nonfailure subtests.
             # If all slots already describe failures, keep the earlier failures.
             candidates = [index for index, item in enumerate(self.records)
-                          if item["kind"] == "subtest" and item["status"] == "passed"]
-            failed = record["status"] in FAILURE_STATUSES or any(
-                item["status"] in FAILURE_STATUSES
-                for item in record["additional_outcomes"]
-            )
+                          if item["kind"] == "subtest" and not has_failure(item)]
+            failed = has_failure(record)
             if failed and not candidates:
                 candidates = [index for index, item in enumerate(self.records)
-                              if item["status"] == "passed" and not item["additional_outcomes"]]
-            if not candidates or (record["kind"] != "test" and not failed):
+                              if not has_failure(item)]
+            if not candidates or (record["kind"] == "subtest" and not failed):
                 return
             self.records.pop(candidates[0])
         self.records.append(record)
@@ -80,11 +83,7 @@ class CaseResults(unittest.TextTestResult):
             else:
                 if len(self.active["additional_outcomes"]) >= 16:
                     self.reporting_error = "Python case exceeds outcome limit"
-                    earlier_failure = self.active["status"] in FAILURE_STATUSES or any(
-                        item["status"] in FAILURE_STATUSES
-                        for item in self.active["additional_outcomes"]
-                    )
-                    if status in FAILURE_STATUSES and not earlier_failure:
+                    if status in FAILURE_STATUSES and not has_failure(self.active):
                         # Retain the first real failure over preceding skips or
                         # expected failures; later failures cannot replace it.
                         self.active["additional_outcomes"][-1] = {

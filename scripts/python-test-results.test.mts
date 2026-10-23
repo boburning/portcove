@@ -427,6 +427,29 @@ void test("Python outcome overflow retains the first actual error after skipped 
   );
 });
 
+void test("Python record overflow retains the first failure after skipped subtests fill the report", (t) => {
+  const suite = fixture(
+    t,
+    `class Cases(unittest.TestCase):
+    def test_a_skips(self):
+        for value in range(2047):
+            with self.subTest(value=value):
+                raise unittest.SkipTest("subtest is unavailable")
+        raise unittest.SkipTest("method is unavailable")
+    def test_z_first_failure(self):
+        self.fail("FIRST_FAILURE_AFTER_ALL_SKIPS")
+`,
+  );
+  const result = execute(suite);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /FIRST_FAILURE_AFTER_ALL_SKIPS/u);
+  const report = readPythonReport(result.stdout, suite, result.status);
+  assert.equal(report.suite_exit_status, 1);
+  assert.match(report.incomplete_reason!, /record limit/u);
+  assert.ok(report.cases.length <= 2048);
+  assert.ok(report.cases.some((item) => item.reason?.includes("FIRST_FAILURE_AFTER_ALL_SKIPS")));
+});
+
 void test("Python reporter changes refuse provenance", (t) => {
   const suite = fixture(
     t,
