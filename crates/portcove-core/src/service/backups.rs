@@ -42,8 +42,9 @@ struct BackupDataScan {
 }
 
 impl BackupDataScan {
-    /// Mirror sync_entry's non-mutating existence semantics. Skipped links and
-    /// special source entries retain destination bytes; missing sources do not.
+    /// Mirror sync_entry's non-mutating existence semantics. Its top-level
+    /// source guard refuses links; nested skipped links retain destination bytes.
+    /// Missing regular sources do not retain their mirrors.
     fn collectible_has_files(
         &mut self,
         source: &Path,
@@ -55,6 +56,9 @@ impl BackupDataScan {
             return Err(PortcoveError::unsupported(
                 "bounded backup data assessment limit reached",
             ));
+        }
+        if depth == 0 {
+            refuse_symlink_ancestors(source)?;
         }
         match fs::metadata(source) {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
@@ -475,10 +479,9 @@ impl PortcoveService {
         })();
         if result.is_err()
             && crate::runtime_data_policy::refuse_sensitive_tree(&staging_path).is_err()
+            && let Some(temporary) = temporary.take()
         {
-            if let Some(temporary) = temporary.take() {
-                let _ = temporary.keep();
-            }
+            let _ = temporary.keep();
         }
         result
     }

@@ -645,33 +645,94 @@ fn backup_create_assessment_retains_collection_recovery_and_root_safety_guards()
 
 #[cfg(unix)]
 #[test]
-fn backup_create_assessment_preserves_mirrors_when_collection_skips_a_source_link() {
-    let temporary = tempfile::tempdir().unwrap();
-    let library = Library::open(temporary.path().join("library")).unwrap();
-    let active = register_zelda_install(&library, "v1", true);
-    let service = service_with_release(library.clone(), "v1");
-    let foreign = temporary.path().join("foreign-save");
-    fs::write(&foreign, b"unowned source").unwrap();
-    std::os::unix::fs::symlink(&foreign, active.join("general.json")).unwrap();
-    fs::write(active.join(LAUNCH_MARKER), b"1").unwrap();
-    let owned = library.user_dir("zelda64-recomp").join("general.json");
-    fs::create_dir_all(owned.parent().unwrap()).unwrap();
-    fs::write(&owned, b"owned mirror").unwrap();
-    assert_eq!(
-        service
-            .list_backups("zelda64-recomp")
-            .unwrap()
-            .create_assessment
-            .reason,
-        PortActionReason::Available
-    );
-    assert_eq!(fs::read(&foreign).unwrap(), b"unowned source");
-    let backup = service.create_backup("zelda64-recomp").unwrap();
-    assert_eq!(
-        fs::read(backup.path.join("data/general.json")).unwrap(),
-        b"owned mirror"
-    );
-    assert_eq!(fs::read(&foreign).unwrap(), b"unowned source");
+fn backup_create_assessment_holds_source_links_and_preserves_mirrors() {
+    for target_exists in [true, false] {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let active = register_zelda_install(&library, "v1", true);
+        let service = service_with_release(library.clone(), "v1");
+        let foreign = temporary.path().join("foreign-save");
+        if target_exists {
+            fs::write(&foreign, b"unowned source").unwrap();
+        }
+        let source = active.join("general.json");
+        std::os::unix::fs::symlink(&foreign, &source).unwrap();
+        fs::write(active.join(LAUNCH_MARKER), b"1").unwrap();
+        let owned = library.user_dir("zelda64-recomp").join("general.json");
+        fs::create_dir_all(owned.parent().unwrap()).unwrap();
+        fs::write(&owned, b"owned mirror").unwrap();
+        let inventory = service.list_backups("zelda64-recomp").unwrap();
+        assert_eq!(
+            inventory.create_assessment.availability,
+            PortActionAvailability::Held
+        );
+        assert_eq!(
+            inventory.create_assessment.reason,
+            PortActionReason::UnsafeData
+        );
+        assert_eq!(fs::read(&owned).unwrap(), b"owned mirror");
+        let error = service.create_backup("zelda64-recomp").unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(error.message.contains("symlink"));
+        assert_eq!(fs::read(&owned).unwrap(), b"owned mirror");
+        assert!(
+            fs::symlink_metadata(&source)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        if target_exists {
+            assert_eq!(fs::read(&foreign).unwrap(), b"unowned source");
+        } else {
+            assert!(!foreign.exists());
+        }
+        assert!(
+            service
+                .list_backups("zelda64-recomp")
+                .unwrap()
+                .backups
+                .is_empty()
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn save_collection_preserves_mirrors_of_nested_live_and_dangling_links() {
+    for target_exists in [true, false] {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().canonicalize().unwrap();
+        let source = root.join("source");
+        let destination = root.join("owned");
+        fs::create_dir(&source).unwrap();
+        fs::create_dir(&destination).unwrap();
+        let foreign = root.join("foreign");
+        if target_exists {
+            fs::write(&foreign, b"foreign bytes").unwrap();
+        }
+        std::os::unix::fs::symlink(&foreign, source.join("kept")).unwrap();
+        fs::write(destination.join("kept"), b"owned mirror").unwrap();
+        fs::write(destination.join("removed"), b"deleted ordinary file").unwrap();
+        fs::write(source.join("fresh"), b"new ordinary file").unwrap();
+        sync_entry(&source, &destination).unwrap();
+        assert_eq!(fs::read(destination.join("kept")).unwrap(), b"owned mirror");
+        assert!(!destination.join("removed").exists());
+        assert_eq!(
+            fs::read(destination.join("fresh")).unwrap(),
+            b"new ordinary file"
+        );
+        assert!(
+            fs::symlink_metadata(source.join("kept"))
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        if target_exists {
+            assert_eq!(fs::read(&foreign).unwrap(), b"foreign bytes");
+        } else {
+            assert!(!foreign.exists());
+        }
+    }
 }
 
 fn assert_restore_recovers_before_and_after_user_data_publication(point: LifecycleFaultPoint) {

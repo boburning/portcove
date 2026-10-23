@@ -1200,9 +1200,7 @@ impl PortcoveService {
         port: &PortDefinition,
         install: &InstallRecord,
     ) -> Option<LaunchBlocker> {
-        if port.managed_shared_preferences.is_none() {
-            return None;
-        }
+        port.managed_shared_preferences?;
         let accepted = (|| {
             let proof =
                 Installer::new(self.library.clone())?.retained_shared_preferences(install)?;
@@ -3708,7 +3706,7 @@ impl PortcoveService {
             if staged_user.exists() {
                 copy_tree(&staged_user, &self.library.user_dir(&port_id))?;
             }
-            crate::runtime_data_policy::refuse_sensitive_tree(&operation_root)?;
+            crate::runtime_data_policy::refuse_sensitive_tree(operation_root)?;
             if let Err(error) = fs::remove_dir_all(operation_root) {
                 lifecycle.phase = LifecyclePhase::CleanupPending;
                 lifecycle.last_error = Some(error.to_string());
@@ -5506,11 +5504,16 @@ impl PortcoveService {
                 if destination.exists() {
                     copied.push(destination);
                 }
-            } else if source.exists() {
-                sync_entry(&source, &destination)?;
-                copied.push(destination);
-            } else if destination.exists() {
-                remove_managed_entry(&destination)?;
+            } else {
+                // A dangling source link is unsafe, not evidence that the
+                // player's working file was removed. Preserve the owned mirror.
+                refuse_symlink_ancestors(&source)?;
+                if source.exists() {
+                    sync_entry(&source, &destination)?;
+                    copied.push(destination);
+                } else if destination.exists() {
+                    remove_managed_entry(&destination)?;
+                }
             }
         }
         Ok(copied)
@@ -5930,8 +5933,12 @@ fn sync_entry_checked(source: &Path, destination: &Path) -> Result<()> {
         let entry = entry?;
         crate::runtime_data_policy::refuse_sensitive_entry(&entry.path())?;
         let source_entry = source.join(entry.file_name());
-        if !source_entry.exists() {
-            remove_managed_entry(&entry.path())?;
+        match fs::symlink_metadata(&source_entry) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                remove_managed_entry(&entry.path())?;
+            }
+            Err(error) => return Err(error.into()),
+            Ok(_) => {}
         }
     }
     Ok(())

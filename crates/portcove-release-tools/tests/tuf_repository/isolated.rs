@@ -262,7 +262,7 @@ async fn single_role_jobs_then_keyless_assembly_preserve_offline_bytes_history_a
         );
     }
     // Both new commands use the compiled ordinary tool, not a test key facade.
-    let invalid_role = std::process::Command::new(env!("CARGO_BIN_EXE_portcove-release-tools"))
+    let invalid_role = std::process::Command::new(release_tools_binary())
         .args(["sign-tuf-role", "root", "not-a-config.json"])
         .output()
         .unwrap();
@@ -272,7 +272,7 @@ async fn single_role_jobs_then_keyless_assembly_preserve_offline_bytes_history_a
             .unwrap()
             .contains("unsupported separately authorized online role")
     );
-    let cli = std::process::Command::new(env!("CARGO_BIN_EXE_portcove-release-tools"))
+    let cli = std::process::Command::new(release_tools_binary())
         .arg("assemble-tuf")
         .arg(fixture.assembly_config())
         .output()

@@ -24,6 +24,14 @@ mod offline_ceremony;
 
 const PAYLOAD_PUBLIC_KEY: &[u8] = b"untrusted comment: minisign public key E7620F1842B4E81F\nRWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3\n";
 
+fn release_tools_binary() -> PathBuf {
+    // The pinned nextest supplies this relocated path when running an archive.
+    // Cargo's compile-time path remains the ordinary cargo-test fallback.
+    std::env::var_os("NEXTEST_BIN_EXE_portcove-release-tools")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_portcove-release-tools").into())
+}
+
 fn key(path: PathBuf) -> Box<dyn KeySource> {
     Box::new(LocalKeySource { path })
 }

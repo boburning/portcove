@@ -118,18 +118,18 @@ pub(crate) fn require_artifact(
     if port.runtime_data_policy == Some(crate::RuntimeDataPolicy::VersionLocalRetroAchievementsV1) {
         return crate::managed_runtime_policy::require_artifact(port, version, artifact, platform);
     }
-    if port.runtime_data_policy.is_some() || known_artifact(&artifact.sha256) {
-        if port.runtime_data_policy.is_none()
+    if (port.runtime_data_policy.is_some() || known_artifact(&artifact.sha256))
+        && (port.runtime_data_policy.is_none()
             || platform != Some(crate::Platform::WindowsX86_64)
             || version != "v1.0.0"
             || artifact.asset_name != "RaceWave46-Windows-x64-v1.0.0.zip"
             || artifact.size != 35_768_574
-            || artifact.sha256 != "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
-        {
-            return Err(PortcoveError::verification(
-                "version-local credential handling requires the actual reviewed RaceWave46 Windows installation; install the official package through Portcove",
-            ));
-        }
+            || artifact.sha256
+                != "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028")
+    {
+        return Err(PortcoveError::verification(
+            "version-local credential handling requires the actual reviewed RaceWave46 Windows installation; install the official package through Portcove",
+        ));
     }
     Ok(())
 }
@@ -674,13 +674,20 @@ mod tests {
             b"arbitrary executable",
         )
         .unwrap();
-        assert!(
-            service
-                .preview_adoption(&external, Some(&port.id))
-                .unwrap_err()
-                .message
-                .contains("exact official package")
-        );
+        let policy_error = refuse_adoption(&port).unwrap_err();
+        assert!(policy_error.message.contains("exact official package"));
+        let preview_error = service
+            .preview_adoption(&external, Some(&port.id))
+            .unwrap_err();
+        if crate::Platform::current().unwrap() == crate::Platform::WindowsX86_64 {
+            assert_eq!(preview_error.code, policy_error.code);
+            assert_eq!(preview_error.message, policy_error.message);
+        } else {
+            // The real service refuses the Windows-only executable projection
+            // before adoption policy on other hosts. Both refusals stay covered.
+            assert_eq!(preview_error.code, crate::ErrorCode::Verification);
+            assert!(preview_error.message.contains("no declared executable"));
+        }
         assert!(
             service
                 .adopt(&external, Some(&port.id), "ungranted")
