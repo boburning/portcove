@@ -6,6 +6,7 @@ import App from "../App";
 import { desktopApi } from "../api";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { comparisonEntries } from "../dev-scenarios/interactive/comparison-scene";
+import type { Journey } from "../dev-scenarios/interactive/scenarios";
 import { initializeLocalization, LocalizationProvider } from "../localization";
 import "../styles/index.css";
 
@@ -22,12 +23,12 @@ afterEach(async () => {
   delete document.documentElement.dataset.theme;
 });
 
-async function mount(theme: string) {
+async function mount(theme: string, journey: Journey = "comparison") {
   localStorage.clear();
   const root = document.createElement("div");
   root.id = "root";
   document.body.append(root);
-  transport = installInteractiveTransport("comparison", (message) => {
+  transport = installInteractiveTransport(journey, (message) => {
     throw Error(message);
   });
   initializeLocalization(["en"]);
@@ -37,7 +38,9 @@ async function mount(theme: string) {
     </LocalizationProvider>,
     { container: root },
   );
-  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+  await expect
+    .poll(() => document.querySelectorAll(".collection-entry").length)
+    .toBe(journey === "comparison" ? 12 : journey === "details" ? 6 : 2);
   document.documentElement.dataset.theme = theme;
   await document.fonts.ready;
 }
@@ -61,9 +64,11 @@ function contained() {
     expect(box.right).toBeLessThanOrEqual(innerWidth);
   }
 }
-async function capture(name: string) {
-  window.scrollTo(0, 0);
-  document.querySelector<HTMLElement>("[data-focus-region=workspace]")!.scrollTop = 0;
+async function capture(name: string, atTop = true) {
+  if (atTop) {
+    window.scrollTo(0, 0);
+    document.querySelector<HTMLElement>("[data-focus-region=workspace]")!.scrollTop = 0;
+  }
   // Capture the viewport rectangle. The browser test document can be taller
   // than its iframe; a document screenshot otherwise pads below the viewport.
   const frame = document.createElement("div");
@@ -71,6 +76,8 @@ async function capture(name: string) {
   frame.style.cssText = "position:fixed;inset:0;pointer-events:none";
   document.body.append(frame);
   try {
+    await new Promise(requestAnimationFrame);
+    await new Promise(requestAnimationFrame);
     await page.screenshot({ path: `../../../../outputs/detail-tabs/${name}.png`, element: frame });
   } finally {
     frame.remove();
@@ -167,6 +174,116 @@ it("keeps whole-image portrait, landscape, square and missing artwork at a fixed
     .toHaveAttribute("aria-selected", "true");
   expect(document.querySelector(".detail-cover img")).toBeNull();
   await capture("artwork-4-dark");
+});
+
+it.each(["dark", "light"])(
+  "renders staged, external, downloaded and backup-failure panels in %s",
+  async (theme) => {
+    await page.viewport(960, 640);
+    await mount(theme, "details");
+    await page.getByRole("button", { name: "Review downloaded update", exact: true }).click();
+    await expect
+      .element(page.getByRole("heading", { name: "Versions", exact: true }))
+      .toHaveFocus();
+    await expect.element(page.getByRole("button", { name: "Play", exact: true })).toBeEnabled();
+    page
+      .getByRole("button", { name: "Use update · 1.3", exact: true })
+      .element()
+      .scrollIntoView({ block: "center" });
+    contained();
+    await capture(`staged-${theme}-960`, false);
+    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page
+      .getByRole("button", {
+        name: "View details for Summit Racer Port: Harbor upstream project · external",
+        exact: true,
+      })
+      .click();
+    await page.getByRole("tab", { name: "Files", exact: true }).click();
+    page
+      .getByRole("heading", { name: "Launch details", exact: true })
+      .element()
+      .scrollIntoView({ block: "start" });
+    contained();
+    await capture(`external-${theme}-960`, false);
+    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page
+      .getByRole("button", {
+        name: "View details for Summit Racer Port: Harbor upstream project · unknown",
+        exact: true,
+      })
+      .click();
+    await expect
+      .element(page.getByRole("tab", { name: "Files", exact: true }))
+      .toHaveAttribute("aria-selected", "true");
+    await expect
+      .element(page.getByRole("button", { name: "Play", exact: true }))
+      .not.toBeInTheDocument();
+    contained();
+    await capture(`external-unknown-${theme}-960`);
+    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page
+      .getByRole("button", {
+        name: "View details for Moonlit Harbor Port: Harbor upstream project · downloaded",
+        exact: true,
+      })
+      .click();
+    await page.getByRole("button", { name: "Continue setup", exact: true }).first().click();
+    await expect
+      .element(page.getByRole("heading", { name: "Launch details", exact: true }))
+      .toHaveFocus();
+    await page
+      .getByRole("textbox", { name: "Working directory", exact: true })
+      .fill("fixture/disposable-retained-draft");
+    await page.getByRole("tab", { name: "Versions", exact: true }).click();
+    await page.getByRole("tab", { name: "Files", exact: true }).click();
+    await expect
+      .element(page.getByRole("textbox", { name: "Working directory", exact: true }))
+      .toHaveValue("fixture/disposable-retained-draft");
+    page
+      .getByRole("heading", { name: "Launch details", exact: true })
+      .element()
+      .scrollIntoView({ block: "start" });
+    contained();
+    await capture(`downloaded-${theme}-960`, false);
+    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page
+      .getByRole("button", {
+        name: "View details for Orchard Quest Port: Harbor desktop port · Backup history unavailable",
+        exact: true,
+      })
+      .click();
+    await page.getByRole("tab", { name: "Saved data", exact: true }).click();
+    await expect
+      .element(page.getByRole("button", { name: "Retry backup history", exact: true }))
+      .toBeVisible();
+    page
+      .getByRole("button", { name: "Retry backup history", exact: true })
+      .element()
+      .scrollIntoView({ block: "center" });
+    contained();
+    await capture(`backup-error-${theme}-960`, false);
+  },
+);
+
+it.each(["dark", "light"])("renders the production preparation owner in %s", async (theme) => {
+  await page.viewport(960, 640);
+  await mount(theme, "setup");
+  await page
+    .getByRole("button", {
+      name: "View details for Harbor Adventure Port: Harbor Adventure",
+      exact: true,
+    })
+    .click();
+  await expect
+    .element(page.getByRole("tab", { name: "Files", exact: true }))
+    .toHaveAttribute("aria-selected", "true");
+  page
+    .getByRole("button", { name: "Review game preparation", exact: true })
+    .element()
+    .scrollIntoView({ block: "center" });
+  contained();
+  await capture(`preparation-${theme}-960`, false);
 });
 
 it.each(["dark", "light"])("preserves transparent artwork against the %s frame", async (theme) => {

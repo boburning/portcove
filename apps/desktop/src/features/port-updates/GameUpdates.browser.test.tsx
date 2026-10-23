@@ -12,6 +12,7 @@ vi.mock("../../desktop-events", () => ({ listenDesktopEvent: async () => () => u
 import { GameUpdateControl, UpdatePolicyControl } from "../../components/GameUpdates";
 import { UpdateCenter } from "../../components/UpdateCenter";
 import { StatusLayer } from "../../components/Chrome";
+import { DetailLayout } from "../../components/DetailLayout";
 
 const plan: GameUpdatePlan = {
   assessment: { action: "update", availability: "allowed", reason: "available" },
@@ -94,6 +95,49 @@ async function click(label: string, contains = false) {
 function dialog() {
   return document.body.querySelector("[data-game-update-review]");
 }
+
+it("retains Download for later across detail tabs and applies only its reviewed target", async () => {
+  vi.unstubAllGlobals();
+  const review = vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue(plan);
+  const apply = vi.spyOn(desktopApi, "applyGameUpdate").mockResolvedValue(stagedUpdate);
+  await root.rerender(
+    <DetailLayout
+      port={portDefinition()}
+      initialSection="versions"
+      readiness="Ready to play"
+      installation="Managed installation · 1.0"
+      action={() => null}
+      close={vi.fn()}
+    >
+      {() => ({
+        overview: null,
+        files: <p>Game files</p>,
+        saves: null,
+        versions: (
+          <GameUpdateControl
+            portId="sample"
+            generation={9}
+            policy="notify"
+            busy={false}
+            perform={perform}
+          />
+        ),
+      })}
+    </DetailLayout>,
+  );
+  await page.getByRole("combobox", { name: /^What would you like to do/ }).click();
+  await page.getByRole("option", { name: "Download for later", exact: true }).click();
+  await page.getByRole("tab", { name: "Files", exact: true }).click();
+  await page.getByRole("tab", { name: "Versions", exact: true }).click();
+  await expect
+    .element(page.getByRole("combobox", { name: /^What would you like to do/ }))
+    .toHaveAccessibleName("What would you like to do? Download for later");
+  await click("Review game update");
+  expect(review).toHaveBeenCalledExactlyOnceWith("sample", false, 9);
+  expect(apply).not.toHaveBeenCalled();
+  await click("Download update for later");
+  expect(apply.mock.calls[0]?.slice(0, 4)).toEqual(["sample", false, plan.plan_sha256, 9]);
+});
 
 it("leaves a running update with valid focus without cancelling or changing its reviewed target", async () => {
   const expected = { ...plan, activate: true, plan_sha256: "install-reviewed" };
