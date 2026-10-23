@@ -1,0 +1,87 @@
+{
+  "format_version": 1,
+  "order": 84,
+  "listing": {
+    "id": "alexbeav-blood-omen-legacy-of-kain-recomp",
+    "name": "Blood Omen: Legacy of Kain / Alexbeav PSXRecomp",
+    "summary": "Native Blood Omen: Legacy of Kain recompilation from Alexbeav’s PSXRecomp project.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp",
+    "original_game_title": "Blood Omen: Legacy of Kain",
+    "artwork": {
+      "game_id": 7894,
+      "cover_id": 425045,
+      "image_id": "co93yt",
+      "image_sha256": "6320c9e27a39922ab6a09c3f4e888805376bce3515ecd297b6d379eb735ca872",
+      "game_slug": "blood-omen-legacy-of-kain",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 434
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "direct-manifest",
+      "direct": {
+        "windows-x86-64": {
+          "version": "v0.3.6",
+          "url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+          "size": 30156064,
+          "sha256": "8a829e5913943b45cf086416e15a4a614ad8ce5b8ca407bfb70736a4c68b1759",
+          "published_at": "2026-09-04T14:48:30Z"
+        }
+      }
+    },
+    "source_profile": "blood-omen-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Blood_Omen__Legacy_of_Kain_Recompiled.exe"]
+    },
+    "persistent_paths": [
+      "saves",
+      "settings.toml",
+      "input.ini",
+      "keybinds.ini",
+      "config.ini",
+      "disc.cfg",
+      "bios.cfg",
+      "mods",
+      "overlay-captures"
+    ],
+    "runtime_mutable_paths": [
+      "cache",
+      "psx_freeze_heartbeat.json",
+      "psx_freeze_heartbeat.json.tmp",
+      "psx_last_run_report.json",
+      "psx_cps_exit_trace.json",
+      "netplay_lan_lobby.txt"
+    ],
+    "runtime_mutable_file_patterns": [
+      {
+        "prefix": "psx_freeze_dump_psx-runtime_",
+        "suffix": ".json"
+      }
+    ],
+    "launch_environment": {
+      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+    },
+    "launch_arguments": ["--no-launcher", "--bios", "bios/openbios.bin"],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "blood-omen-psx",
+          "label": "Blood Omen: Legacy of Kain (USA) disc",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Provide your own matching single-track CHD for SLUS-00027. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
+    }
+  }
+}

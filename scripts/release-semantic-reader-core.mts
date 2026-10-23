@@ -418,8 +418,72 @@ export function createSemanticSnapshotRpc(raw: FrozenSemanticSnapshot) {
       initialized &&
       request.method === "tools/call" &&
       isRecord(request.params) &&
-      Object.keys(request.params).sort().join(",") === "arguments,name"
+      ["arguments,name", "_meta,arguments,name"].includes(
+        Object.keys(request.params).sort().join(","),
+      )
     ) {
+      const meta = request.params._meta;
+      if (meta !== undefined) {
+        // Codex's pinned RMCP transport attaches call/turn/tracing metadata.
+        // These bounded transport hints grant no reader or execution authority.
+        if (
+          !isRecord(meta) ||
+          Buffer.byteLength(JSON.stringify(meta)) > 8192 ||
+          Object.keys(meta).some(
+            (key) =>
+              ![
+                "callId",
+                "threadId",
+                "sessionId",
+                "windowId",
+                "itemId",
+                "codex_bridge_mcp_call_id",
+                "x-codex-turn-metadata",
+                "traceparent",
+                "tracestate",
+                "progressToken",
+                "openai/readOnly",
+              ].includes(key),
+          ) ||
+          [
+            "callId",
+            "threadId",
+            "sessionId",
+            "windowId",
+            "itemId",
+            "codex_bridge_mcp_call_id",
+          ].some((key) => {
+            const value = meta[key];
+            return (
+              value !== undefined &&
+              (typeof value !== "string" ||
+                (key === "callId" && !value.length) ||
+                Buffer.byteLength(value) > 256 ||
+                value.includes("\0"))
+            );
+          }) ||
+          (meta["x-codex-turn-metadata"] !== undefined &&
+            (!isRecord(meta["x-codex-turn-metadata"]) ||
+              Object.keys(meta["x-codex-turn-metadata"]).length > 64 ||
+              Buffer.byteLength(JSON.stringify(meta["x-codex-turn-metadata"])) > 4096)) ||
+          (meta.traceparent !== undefined &&
+            (typeof meta.traceparent !== "string" ||
+              !/^00-[a-f0-9]{32}-[a-f0-9]{16}-[a-f0-9]{2}$/u.test(meta.traceparent))) ||
+          (meta.tracestate !== undefined &&
+            (typeof meta.tracestate !== "string" ||
+              !/^[\x20-\x7e]{1,512}$/u.test(meta.tracestate))) ||
+          (meta.progressToken !== undefined &&
+            !(
+              Number.isSafeInteger(meta.progressToken) ||
+              (typeof meta.progressToken === "string" &&
+                meta.progressToken.length > 0 &&
+                Buffer.byteLength(meta.progressToken) <= 128 &&
+                !meta.progressToken.includes("\0"))
+            )) ||
+          (meta["openai/readOnly"] !== undefined && meta["openai/readOnly"] !== true)
+        )
+          throw new Error("unsupported frozen-reader transport metadata");
+      }
       const value = read(request.params.name, request.params.arguments);
       result = { content: [{ type: "text", text: JSON.stringify(value) }], isError: false };
     } else throw new Error("unauthorized reader protocol operation");

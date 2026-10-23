@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-mega-man-legends-recomp",
+    "name": "Mega Man Legends / Alexbeav PSXRecomp",
+    "summary": "Explore Mega Man Legends / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp",
+    "issue_number": 462,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp"
+  }
+}

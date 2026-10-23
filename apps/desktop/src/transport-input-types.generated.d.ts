@@ -32,6 +32,7 @@ export interface TransportInputs {
   desktop_application_update_manual_check_request: InputDesktopApplicationUpdateManualCheckRequest;
   desktop_application_update_production_decision: InputDesktopApplicationUpdateProductionDecision;
   desktop_application_update_recovery_area: InputDesktopApplicationUpdateRecoveryArea;
+  desktop_catalog_download_request: InputDesktopCatalogDownloadRequest;
   desktop_game_file_query_request: InputGameFileQueryRequest;
   desktop_install_input: InputDesktopInstallInput;
   desktop_steam_batch_selection: InputDesktopSteamBatchSelection;
@@ -106,6 +107,13 @@ export interface ApplicationUpdateCandidateSummary {
 }
 export interface InputDesktopApplicationUpdateManualCheckRequest {
   channel?: ApplicationChannel | null;
+}
+export interface InputDesktopCatalogDownloadRequest {
+  asset_id: number;
+  destination_parent: string;
+  extract_archive: boolean;
+  port_id: string;
+  release_id: number;
 }
 export interface InputDesktopInstallInput {
   bios?: string | null;

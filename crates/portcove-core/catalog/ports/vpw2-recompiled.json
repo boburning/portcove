@@ -1,0 +1,65 @@
+{
+  "format_version": 1,
+  "order": 41,
+  "listing": {
+    "id": "vpw2-recompiled",
+    "name": "Virtual Pro Wrestling 2: Recompiled",
+    "summary": "Native Virtual Pro Wrestling 2 recompilation.",
+    "project_url": "https://github.com/jessetbh/VPW2Recomp",
+    "original_game_title": "Virtual Pro Wrestling 2",
+    "artwork": {
+      "game_id": 3625,
+      "cover_id": 3742,
+      "image_id": "tucrem7ud9pqmtee2wd9",
+      "image_sha256": "ec2679768510d6904a1a91bb7c312630c42e5b026ef382c3e045e14c9e65b946",
+      "game_slug": "virtual-pro-wrestling-2-oudou-keishou",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 94
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "n64-recomp-portable",
+    "release": {
+      "repository": "jessetbh/VPW2Recomp",
+      "asset_hints": {
+        "windows-x86-64": ["Vpw2Recompiled", "Windows"]
+      }
+    },
+    "source_profile": "vpw2",
+    "executable_hints": {
+      "windows-x86-64": ["Vpw2Recompiled.exe"]
+    },
+    "persistent_paths": [
+      "mods",
+      "mod_config",
+      "saves",
+      "mods.json",
+      "mods.json.bak",
+      "general.json",
+      "general.json.bak",
+      "graphics.json",
+      "graphics.json.bak",
+      "controls.json",
+      "controls.json.bak",
+      "sound.json",
+      "sound.json.bak",
+      "vpw.vpw2.jp.z64"
+    ],
+    "runtime_source_filename": "vpw.vpw2.jp.z64",
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "vpw2",
+          "label": "Virtual Pro Wrestling 2 (Japan) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

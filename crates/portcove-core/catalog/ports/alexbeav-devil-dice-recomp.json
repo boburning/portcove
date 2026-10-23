@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-devil-dice-recomp",
+    "name": "Devil Dice / Alexbeav PSXRecomp",
+    "summary": "Explore Devil Dice / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp",
+    "issue_number": 1591,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp"
+  }
+}

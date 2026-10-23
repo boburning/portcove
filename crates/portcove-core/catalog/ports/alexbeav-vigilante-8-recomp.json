@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-vigilante-8-recomp",
+    "name": "Vigilante 8 / Alexbeav PSXRecomp",
+    "summary": "Explore Vigilante 8 / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp",
+    "issue_number": 498,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp"
+  }
+}

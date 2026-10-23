@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "populous-the-beginning-recomp",
+    "name": "Populous: The Beginning Recomp",
+    "summary": "Explore Populous: The Beginning Recomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/veritr1x/populous-recomp",
+    "issue_number": 1537,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/veritr1x/populous-recomp"
+  }
+}

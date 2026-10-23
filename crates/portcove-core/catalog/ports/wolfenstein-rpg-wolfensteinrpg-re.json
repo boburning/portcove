@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wolfenstein-rpg-wolfensteinrpg-re",
+    "name": "Wolfenstein RPG / WolfensteinRPG-RE",
+    "summary": "Explore Wolfenstein RPG / WolfensteinRPG-RE and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/Erick194/WolfensteinRPG-RE",
+    "issue_number": 371,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Erick194/WolfensteinRPG-RE"
+  }
+}

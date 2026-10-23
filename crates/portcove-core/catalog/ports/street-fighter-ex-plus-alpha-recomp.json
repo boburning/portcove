@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "street-fighter-ex-plus-alpha-recomp",
+    "name": "Street Fighter EX Plus Alpha Recomp",
+    "summary": "Explore Street Fighter EX Plus Alpha Recomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/guimaraf/plusalpha-recomp",
+    "issue_number": 1116,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/guimaraf/plusalpha-recomp"
+  }
+}

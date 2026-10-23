@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-azure-dreams-recomp",
+    "name": "Azure Dreams / Alexbeav PSXRecomp",
+    "summary": "Explore Azure Dreams / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp",
+    "issue_number": 1587,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp"
+  }
+}

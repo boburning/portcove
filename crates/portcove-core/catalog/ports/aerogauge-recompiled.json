@@ -1,0 +1,62 @@
+{
+  "format_version": 1,
+  "order": 16,
+  "listing": {
+    "id": "aerogauge-recompiled",
+    "name": "AeroGauge: Recompiled",
+    "summary": "Native AeroGauge recompilation.",
+    "project_url": "https://github.com/alondero/aerogauge-recomp",
+    "original_game_title": "AeroGauge",
+    "artwork": {
+      "game_id": 3329,
+      "cover_id": 152868,
+      "image_id": "co39yc",
+      "image_sha256": "ccec07e860f582b6d7384a43e8010a090445f90dffa6a3f553c594f73ee8dedd",
+      "game_slug": "aerogauge",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 71
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "n64-recomp-portable",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "alondero/aerogauge-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["aerogauge-recomp-windows-x64"],
+        "linux-x86-64": ["aerogauge-recomp-linux-x64"]
+      }
+    },
+    "source_profile": "aerogauge",
+    "executable_hints": {
+      "windows-x86-64": ["aerogauge_modern.exe"],
+      "linux-x86-64": ["aerogauge_modern"]
+    },
+    "persistent_paths": [
+      "mods",
+      "mod_config",
+      "saves",
+      "graphics.json",
+      "graphics.json.bak",
+      "AeroGauge (USA).z64",
+      "aerogauge.us.z64"
+    ],
+    "runtime_source_filename": "AeroGauge (USA).z64",
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "aerogauge",
+          "label": "AeroGauge (US) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

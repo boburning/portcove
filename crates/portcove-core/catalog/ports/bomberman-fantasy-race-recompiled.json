@@ -1,0 +1,67 @@
+{
+  "format_version": 1,
+  "order": 18,
+  "listing": {
+    "id": "bomberman-fantasy-race-recompiled",
+    "name": "Bomberman Fantasy Race: Recompiled",
+    "summary": "Native Bomberman Fantasy Race recompilation.",
+    "project_url": "https://github.com/TechnicallyComputers/Bomberman-Fantasy-Race-Recomp",
+    "original_game_title": "Bomberman Fantasy Race",
+    "artwork": {
+      "game_id": 22773,
+      "cover_id": 352710,
+      "image_id": "co7k5i",
+      "image_sha256": "0cdba00dab96c296f72c408011459b7cab3ba7fb06a5cbf906575ba2e6b5cb7f",
+      "game_slug": "bomberman-fantasy-race",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 73
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "repository": "TechnicallyComputers/Bomberman-Fantasy-Race-Recomp",
+      "asset_hints": {
+        "windows-x86-64": ["windows-x64"],
+        "linux-x86-64": ["linux-x64"],
+        "macos-x86-64": ["macos-x64"],
+        "macos-aarch64": ["macos-arm64"]
+      }
+    },
+    "source_profile": "bomberman-fantasy-race-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Bomberman_Fantasy_Race__Recompiled.exe"],
+      "linux-x86-64": ["Bomberman_Fantasy_Race__Recompiled"],
+      "macos-x86-64": ["Bomberman_Fantasy_Race__Recompiled"],
+      "macos-aarch64": ["Bomberman_Fantasy_Race__Recompiled"]
+    },
+    "persistent_paths": [
+      "saves",
+      "config",
+      "mods",
+      "settings.toml",
+      "game_options.json",
+      "graphics.json",
+      "input.json",
+      "sound.json"
+    ],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "bomberman-fantasy-race-psx",
+          "label": "Bomberman Fantasy Race (USA) disc",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

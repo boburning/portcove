@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-mario-strikers-strikers",
+    "name": "Super Mario Strikers / strikers",
+    "summary": "Explore Super Mario Strikers / strikers and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/new-coke/strikers",
+    "issue_number": 816,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/new-coke/strikers"
+  }
+}

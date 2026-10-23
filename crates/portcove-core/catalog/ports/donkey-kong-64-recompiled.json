@@ -1,0 +1,71 @@
+{
+  "format_version": 1,
+  "order": 14,
+  "listing": {
+    "id": "donkey-kong-64-recompiled",
+    "name": "Donkey Kong 64: Recompiled",
+    "summary": "Native Donkey Kong 64 recompilation.",
+    "project_url": "https://github.com/Rainchus/Donkey-Kong-64-Recompiled",
+    "original_game_title": "Donkey Kong 64",
+    "artwork": {
+      "game_id": 1096,
+      "cover_id": 104022,
+      "image_id": "co289i",
+      "image_sha256": "1e158cd8901207a6d920b7efba2617194a6e7ac9cee5402ed65c414dfb1346f1",
+      "game_slug": "donkey-kong-64",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 69
+  },
+  "integration": {
+    "support_tier": "stable",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "n64-recomp-portable",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "Rainchus/Donkey-Kong-64-Recompiled",
+      "asset_hints": {
+        "windows-x86-64": ["DK64-Recompiled-Windows"],
+        "linux-x86-64": ["DK64Recompiled-Linux-X64"]
+      }
+    },
+    "source_profile": "donkey-kong-64",
+    "executable_hints": {
+      "windows-x86-64": ["DK64Recompiled.exe"],
+      "linux-x86-64": ["DK64Recompiled"]
+    },
+    "persistent_paths": [
+      "mods",
+      "mod_config",
+      "saves",
+      "mods.json",
+      "mods.json.bak",
+      "general.json",
+      "general.json.bak",
+      "graphics.json",
+      "graphics.json.bak",
+      "controls.json",
+      "controls.json.bak",
+      "sound.json",
+      "sound.json.bak",
+      "technical.json",
+      "technical.json.bak",
+      "DK64.z64"
+    ],
+    "runtime_source_filename": "DK64.z64",
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "donkey-kong-64",
+          "label": "Donkey Kong 64 (US 1.0) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

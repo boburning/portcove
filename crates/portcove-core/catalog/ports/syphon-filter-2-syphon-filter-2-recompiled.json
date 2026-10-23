@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "syphon-filter-2-syphon-filter-2-recompiled",
+    "name": "Syphon Filter 2 / Syphon Filter 2 Recompiled",
+    "summary": "Explore Syphon Filter 2 / Syphon Filter 2 Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp",
+    "issue_number": 345,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-mario-sunshine-sunpad",
+    "name": "Super Mario Sunshine / SunPad",
+    "summary": "Explore Super Mario Sunshine / SunPad and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/chrissotraidis/sunpad",
+    "issue_number": 1634,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/chrissotraidis/sunpad"
+  }
+}

@@ -1142,6 +1142,21 @@ impl Installer {
             }
             None => self.client.clone(),
         };
+        Self::download_with_client(&client, asset, destination, operation, emit).await
+    }
+
+    /// Shared bounded byte transfer; callers supply a provider-constrained
+    /// client and still own checksum verification and publication policy.
+    pub(crate) async fn download_with_client<F>(
+        client: &reqwest::Client,
+        asset: &ReleaseAsset,
+        destination: &Path,
+        operation: &OperationCoordinator,
+        emit: &mut F,
+    ) -> Result<()>
+    where
+        F: FnMut(OperationEvent),
+    {
         validate_download_progress(0, asset.size)?;
         let response = operation
             .interruptible(async {

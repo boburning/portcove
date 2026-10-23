@@ -3,8 +3,10 @@
 import errno
 import importlib.util
 import io
+import json
 import stat
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -33,6 +35,62 @@ def request():
 
 
 class SupervisorContract(unittest.TestCase):
+    def test_static_catalog_keeps_exact_model_except_client_direct_surface(self):
+        data = Path(__file__).with_name("semantic-review-model-catalog.json").read_bytes()
+        self.assertEqual(supervisor.inspect_model_catalog(data), data)
+        for field, value in (("slug", "other-model"), ("tool_mode", "code_mode_only"), ("context_window", 1), ("unreviewed", True)):
+            changed = json.loads(data)
+            changed["models"][0][field] = value
+            with self.subTest(field=field), self.assertRaises(supervisor.Refusal):
+                supervisor.inspect_model_catalog(json.dumps(changed).encode())
+        for changed in ({"models": []}, {"models": json.loads(data)["models"] * 2}, {**json.loads(data), "fallback": "remote"}):
+            with self.subTest(changed=list(changed)), self.assertRaises(supervisor.Refusal):
+                supervisor.inspect_model_catalog(json.dumps(changed).encode())
+        args = supervisor.codex_arguments("a" * 64, "codex")
+        self.assertIn('model_catalog_json="/runtime/semantic-review-model-catalog.json"', args)
+        self.assertIn('features.code_mode_host=false', args)
+        self.assertIn('mcp_servers.portcove_frozen_bundle.omit_tools_from=["deferred","code_mode"]', args)
+        self.assertIn('mcp_servers.portcove_frozen_bundle.required=true', args)
+        self.assertIn('analytics.enabled=false', args)
+        self.assertIn('feedback.enabled=false', args)
+        self.assertEqual(args[args.index("--model") + 1], "gpt-6.1-sol")
+
+    def test_unused_proxy_preconnection_has_no_remote_effect_but_partial_header_refuses(self):
+        for chunks, failed in (([b""], False), ([b"C", b""], True)):
+            tunnel = supervisor.ProviderTunnel.__new__(supervisor.ProviderTunnel)
+            peer = Mock()
+            peer.recv.side_effect = chunks
+            tunnel.lock = threading.Lock()
+            tunnel.stop = threading.Event()
+            tunnel.sockets = {peer}
+            tunnel.failure = False
+            tunnel.failures = []
+            with patch.object(supervisor, "connect_target") as target, patch.object(supervisor.socket, "socket") as remote:
+                tunnel.handle(peer)
+            target.assert_not_called()
+            remote.assert_not_called()
+            peer.close.assert_called_once()
+            self.assertEqual(tunnel.sockets, set())
+            self.assertEqual(tunnel.failure, failed)
+            self.assertEqual(tunnel.failures, [{"stage": "headers", "kind": "policy", "cause": "partial-header"}] if failed else [])
+
+    def test_network_failure_diagnostics_are_bounded_enums_and_preserve_hold(self):
+        tunnel = supervisor.ProviderTunnel.__new__(supervisor.ProviderTunnel)
+        tunnel.lock = threading.Lock()
+        tunnel.failure = False
+        tunnel.failures = []
+        for _ in range(20):
+            tunnel.record_failure("headers", "policy")
+        self.assertTrue(tunnel.failure)
+        self.assertEqual(tunnel.failures, [{"stage": "headers", "kind": "policy"}])
+        for stage in ("dns", "connect", "forward", "shutdown"):
+            for kind in ("policy", "transport", "internal"):
+                tunnel.record_failure(stage, kind)
+        self.assertEqual(len(tunnel.failures), 8)
+        with self.assertRaises(supervisor.Refusal):
+            tunnel.record_failure("https://untrusted.invalid/?secret=inert", "transport")
+        self.assertNotIn("secret", json.dumps(tunnel.failures))
+
     def test_current_codex_bound_does_not_expand_other_runtime_or_writable_storage(self):
         # Scale only the byte unit: exercise actual bounded regular-file reads
         # without allocating a production-sized executable in this inert test.

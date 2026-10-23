@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-tenchu-stealth-assassins-recomp",
+    "name": "Tenchu: Stealth Assassins / Alexbeav PSXRecomp",
+    "summary": "Explore Tenchu: Stealth Assassins / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp",
+    "issue_number": 487,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-martian-gothic-recomp",
+    "name": "Martian Gothic / Alexbeav PSXRecomp",
+    "summary": "Explore Martian Gothic / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/martian-gothic-recomp",
+    "issue_number": 460,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/martian-gothic-recomp"
+  }
+}

@@ -16,6 +16,17 @@ export type { SourceRepresentation } from "./transport-types.generated";
 export type { PortDefinition } from "./transport-types.generated";
 
 export type CatalogDocument = Generated.TransportOutputs["catalog"];
+export type {
+  CatalogListingDocument,
+  PortListing,
+  PortListingStatus,
+  PendingSetupRecord,
+  CatalogDownloadRequest,
+  CatalogDownloadCandidate,
+} from "./transport-types.generated";
+export type CatalogDownloadCandidates =
+  Generated.TransportOutputs["desktop_catalog_download_candidates"];
+export type CatalogDownloadPreview = Generated.TransportOutputs["desktop_catalog_download_preview"];
 export type CapabilityDocument = Generated.TransportOutputs["capabilities"];
 export type DefinitionCapabilityReport = Generated.TransportOutputs["definition_capability_report"];
 export type DefinitionCapabilityRequest = Requests.TransportInputs["definition_capability_request"];

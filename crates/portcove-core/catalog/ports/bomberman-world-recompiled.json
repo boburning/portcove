@@ -1,0 +1,67 @@
+{
+  "format_version": 1,
+  "order": 20,
+  "listing": {
+    "id": "bomberman-world-recompiled",
+    "name": "Bomberman World: Recompiled",
+    "summary": "Native Bomberman World recompilation.",
+    "project_url": "https://github.com/TechnicallyComputers/Bomberman-World-Recomp",
+    "original_game_title": "Bomberman World",
+    "artwork": {
+      "game_id": 27255,
+      "cover_id": 380305,
+      "image_id": "co85g1",
+      "image_sha256": "b0fe92e473c71712d10caad6648214ae23df1541c3badf7c5e6ba0e013be361e",
+      "game_slug": "bomberman-world",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 75
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "repository": "TechnicallyComputers/Bomberman-World-Recomp",
+      "asset_hints": {
+        "windows-x86-64": ["windows-x64"],
+        "linux-x86-64": ["linux-x64"],
+        "macos-x86-64": ["macos-x64"],
+        "macos-aarch64": ["macos-arm64"]
+      }
+    },
+    "source_profile": "bomberman-world-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Bomberman_World__Recompiled.exe"],
+      "linux-x86-64": ["Bomberman_World__Recompiled"],
+      "macos-x86-64": ["Bomberman_World__Recompiled"],
+      "macos-aarch64": ["Bomberman_World__Recompiled"]
+    },
+    "persistent_paths": [
+      "saves",
+      "config",
+      "mods",
+      "settings.toml",
+      "game_options.json",
+      "graphics.json",
+      "input.json",
+      "sound.json"
+    ],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "bomberman-world-psx",
+          "label": "Bomberman World (USA) disc",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

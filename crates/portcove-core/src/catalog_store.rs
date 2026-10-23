@@ -95,7 +95,9 @@ impl CatalogState {
                             Some(&value),
                             reasons,
                         )?;
-                        return Ok((value.catalog, provenance));
+                        // Bundled directory facts remain available while the
+                        // signed format continues to select strict definitions.
+                        return Ok((value.catalog.with_embedded_listings()?, provenance));
                     }
                     Ok(_) => {
                         reasons.push("cached catalog exceeds the recorded replay floor".into())
@@ -192,6 +194,10 @@ fn selected_catalog(
     expires_at: i64,
     provenance: CatalogProvenance,
 ) -> Result<(Catalog, CatalogProvenance)> {
+    // Authenticated successors select strict operational definitions. Keep the
+    // bundled discovery directory alongside that selection without changing its
+    // authoritative document, retained snapshots or operation permissions.
+    let catalog = catalog.with_embedded_listings()?;
     let catalog_sha256 =
         signed_catalog::digest(&serde_json::to_vec(&catalog.authoritative_document())?);
     Ok((

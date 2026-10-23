@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mega-man-x4-recompiled",
+    "name": "Mega Man X4 Recompiled",
+    "summary": "Explore Mega Man X4 Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/mstan/MegaManX4Recomp",
+    "issue_number": 144,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mstan/MegaManX4Recomp"
+  }
+}

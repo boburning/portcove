@@ -1,0 +1,67 @@
+{
+  "format_version": 1,
+  "order": 43,
+  "listing": {
+    "id": "mega-man-64-recompiled",
+    "name": "Mega Man 64 Recompiled",
+    "summary": "Native Mega Man 64 recompilation.",
+    "project_url": "https://github.com/MegaMan64Recomp/MegaMan64Recompiled",
+    "original_game_title": "Mega Man 64",
+    "artwork": {
+      "game_id": 400965,
+      "cover_id": 569473,
+      "image_id": "coc7ep",
+      "image_sha256": "ff35ce084c37e6a77e9ab11339a088ab37486b85aa05b40dfdd18e3586f52181",
+      "game_slug": "mega-man-64-recompiled",
+      "match_kind": "port"
+    },
+    "issue_number": 96
+  },
+  "integration": {
+    "support_tier": "stable",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "adapter": "n64-recomp-portable",
+    "release": {
+      "repository": "MegaMan64Recomp/MegaMan64Recompiled"
+    },
+    "source_profile": "mega-man-64",
+    "executable_hints": {
+      "windows-x86-64": ["MegaMan64Recompiled.exe"],
+      "linux-x86-64": ["MegaMan64Recompiled"],
+      "macos-x86-64": ["MegaMan64Recompiled"],
+      "macos-aarch64": ["MegaMan64Recompiled"]
+    },
+    "persistent_paths": [
+      "mods",
+      "mod_config",
+      "saves",
+      "mods.json",
+      "mods.json.bak",
+      "general.json",
+      "general.json.bak",
+      "graphics.json",
+      "graphics.json.bak",
+      "controls.json",
+      "controls.json.bak",
+      "sound.json",
+      "sound.json.bak",
+      "megaman.n64.us.1.0.z64"
+    ],
+    "runtime_source_filename": "megaman.n64.us.1.0.z64",
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "mega-man-64",
+          "label": "Mega Man 64 (US) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

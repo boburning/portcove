@@ -9,6 +9,8 @@ use crate::{
     Result, RuntimeSourceMaterialization, SourceKind, SourceProfile,
 };
 
+mod listings;
+
 const EMBEDDED_CATALOG: &str = include_str!("../catalog/catalog.json");
 
 /// Inert declaration checks only; neither trust nor artifact/runtime acceptance.
@@ -35,6 +37,9 @@ pub struct CatalogProposalPortInspection {
 #[derive(Debug, Clone)]
 pub struct Catalog {
     document: CatalogDocument,
+    listings: crate::CatalogListingDocument,
+    /// A retained execution-intent envelope, never an operational definition.
+    user_selected_listing: bool,
     definition_snapshot: Option<Arc<crate::definition_projection::DefinitionSnapshot>>,
     definition_selection: Option<Arc<crate::DefinitionSelectionIdentity>>,
 }
@@ -95,7 +100,7 @@ impl Catalog {
                 .map_err(|_| PortcoveError::usage("qualification catalog must be valid UTF-8"))?;
             return Self::from_json(value);
         }
-        Self::from_json(EMBEDDED_CATALOG)
+        Self::from_json(EMBEDDED_CATALOG)?.with_embedded_listings()
     }
 
     pub fn from_json(value: &str) -> Result<Self> {
@@ -131,6 +136,15 @@ impl Catalog {
             }
         }
         let catalog = Self {
+            listings: crate::CatalogListingDocument {
+                format_version: 1,
+                listings: document
+                    .ports
+                    .iter()
+                    .map(crate::PortListing::from)
+                    .collect(),
+            },
+            user_selected_listing: false,
             document,
             definition_snapshot: None,
             definition_selection: None,

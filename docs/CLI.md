@@ -12,6 +12,7 @@ for current integration development. A local candidate is not a public release.
 | Task                                                | Route                                                                                                                                                         |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Browse, register game files, install and play       | [Using the CLI](#using-the-cli)                                                                                                                               |
+| Explore all projects and finish upstream setup      | [Download and finish setup](#download-and-finish-setup)                                                                                                       |
 | Choose the library and inspect its identity         | [Library selection](#library-selection) and [identity](#library-identity)                                                                                     |
 | Inspect, find or relink original files              | [Game-file tasks](#find-and-relink-game-files)                                                                                                                |
 | Check releases, manage updates and inspect outcomes | [Automation and game management](#idempotent-automation)                                                                                                      |
@@ -88,9 +89,70 @@ argument. `portcove exec render96ex` launches the saved selection; `external
 remove render96ex` removes only Portcove's reference and preserves every external
 file. You or the selected upstream launcher manage setup and updates. Selected
 bytes are not certified as an authenticated official package, and this route
-offers no managed backup, repair, update, rollback or file deletion. The definition
-must offer it for the host platform. Script launchers and library-owned paths
+offers no managed backup, repair, update, rollback or file deletion. A descriptive
+catalog listing is sufficient; a managed definition or declared platform is not
+required for this explicit alternative. Script launchers and library-owned paths
 are refused; use a supported native executable or native upstream launcher.
+
+### Download and finish setup
+
+`portcove catalog listings` returns the complete descriptive directory, including
+projects without managed definitions. `catalog list` and `catalog export` retain
+their strict managed-definition contracts. Unknown platform or package facts in
+a listing do not establish support. Desktop uses the same directory and lets the
+player reset catalog filters with **All ports**.
+
+For a GitHub-hosted upstream project:
+
+```sh
+portcove setup candidates PORT_ID
+portcove setup preview PORT_ID --release-id RELEASE_ID --asset-id ASSET_ID --destination-parent C:/Games --extract
+portcove setup download PORT_ID --release-id RELEASE_ID --asset-id ASSET_ID --destination-parent C:/Games --extract --expected-preview PREVIEW_SHA256 --yes
+portcove setup pending
+```
+
+Choose IDs returned by `setup candidates`; the command examines a bounded recent
+release window. Review the actual package name, source, size, checksum evidence
+and new destination. It does not infer that every upstream asset is a playable
+package for this computer. Omit `--extract` for an installer or unsupported
+archive that the player will handle using upstream instructions. Acquisition
+does not run an installer or select an executable automatically.
+
+Core re-reads the selected release/asset and binds the review to the destination.
+A supplied checksum must match. Without an upstream checksum the observed
+download hash is recorded with that limitation. Supported ZIP/tar.gz extraction
+uses the existing traversal, symlink, collision and expansion bounds. Publication
+creates a fresh child folder outside the entire Library root and managed output
+locations, with atomic refusal to replace an existing destination.
+
+The downloaded folder becomes user-owned. Its durable **Downloaded—finish setup**
+record appears in Library after restart, with **Continue setup** and **Open
+folder**. Complete the upstream steps, then use `external select-preview` and
+`external select` with the chosen native executable, directory and literal
+arguments. The exact matching setup record is retired with registration;
+download provenance does not certify the resulting executable or game data.
+An interrupted handoff is reconciled from the recorded attempt and publication
+receipt. An unresolved attempt remains visible as requiring attention.
+
+`setup forget PORT_ID --pending-id RECORD_ID` forgets only that exact setup
+record. It does not remove handed-off files. Each port has one active managed
+installation, selected registration or pending setup route; choosing another
+requires explicitly resolving the existing one.
+
+When an upstream update changes the executable or working directory, use
+`external select-relink-preview PORT_ID EXECUTABLE --working-directory DIRECTORY`
+and `external select-relink` with the matching `--expected-preview` and `--yes`.
+Use `--arg=VALUE` for every reviewed argument. The registration identity and old
+external files remain intact. The player or upstream launcher remains the
+runtime-replacement owner.
+
+`catalog inspect-listings --path FILE` validates an inert format-1 listing
+projection before opening a Library. Validation neither installs an integration
+nor signs, accepts or publishes that file. Machine consumers negotiate
+`catalog.listings`, `setup.*` and `external.select-relink` through capabilities and
+use the exported DTOs; these additions do not relax `PortDefinition`.
+
+### Exact-package registration
 
 An official port that offers an exact-package user-prepared runtime uses a separate route:
 prepare the exact accepted package outside Portcove, run `portcove external

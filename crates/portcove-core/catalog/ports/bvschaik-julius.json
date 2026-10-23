@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bvschaik-julius",
+    "name": "Caesar III / Julius (bvschaik)",
+    "summary": "Explore Caesar III / Julius (bvschaik) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/bvschaik/julius",
+    "issue_number": 1832,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/bvschaik/julius"
+  }
+}

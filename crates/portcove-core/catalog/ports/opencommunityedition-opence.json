@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "opencommunityedition-opence",
+    "name": "Halo: Combat Evolved / OpenCE (OpenCommunityEdition)",
+    "summary": "Explore Halo: Combat Evolved / OpenCE (OpenCommunityEdition) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/OpenCommunityEdition/OpenCE",
+    "issue_number": 1849,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/OpenCommunityEdition/OpenCE"
+  }
+}

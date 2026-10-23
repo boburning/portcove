@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kumapauz-project-reignition",
+    "name": "Sonic and the Secret Rings / Project Reignition (kumapauz)",
+    "summary": "Explore Sonic and the Secret Rings / Project Reignition (kumapauz) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/kumapauz/project-reignition",
+    "issue_number": 1870,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/kumapauz/project-reignition"
+  }
+}

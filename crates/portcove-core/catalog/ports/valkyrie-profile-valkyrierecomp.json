@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "valkyrie-profile-valkyrierecomp",
+    "name": "Valkyrie Profile / ValkyrieRecomp",
+    "summary": "Explore Valkyrie Profile / ValkyrieRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/Ed1z19/ValkyrieRecomp",
+    "issue_number": 326,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Ed1z19/ValkyrieRecomp"
+  }
+}

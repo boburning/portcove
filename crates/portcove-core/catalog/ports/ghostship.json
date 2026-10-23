@@ -1,0 +1,70 @@
+{
+  "format_version": 1,
+  "order": 3,
+  "listing": {
+    "id": "ghostship",
+    "name": "Ghostship",
+    "summary": "Native Super Mario 64 port from HarbourMasters.",
+    "project_url": "https://github.com/HarbourMasters/Ghostship",
+    "original_game_title": "Super Mario 64",
+    "artwork": {
+      "game_id": 1074,
+      "cover_id": 329251,
+      "image_id": "co721v",
+      "image_sha256": "f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5",
+      "game_slug": "super-mario-64",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 53
+  },
+  "integration": {
+    "support_tier": "stable",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "adapter": "libultraship-portable",
+    "release": {
+      "repository": "HarbourMasters/Ghostship"
+    },
+    "source_profile": "ghostship-source",
+    "executable_hints": {
+      "windows-x86-64": ["ghostship.exe"],
+      "linux-x86-64": ["ghostship"],
+      "macos-x86-64": ["ghostship"],
+      "macos-aarch64": ["ghostship"]
+    },
+    "persistent_paths": [
+      "mods",
+      "saves",
+      "screenshots",
+      "ghostship.cfg.json",
+      "imgui.ini",
+      "sm64.o2r"
+    ],
+    "runtime_mutable_paths": [
+      "torch.hash.yml",
+      "logs/Ghostship.log",
+      "logs/Ghostship.1.log",
+      "logs/Ghostship.2.log",
+      "logs/Ghostship.3.log",
+      "logs/Ghostship.4.log",
+      "logs/Ghostship.5.log",
+      "logs/Ghostship.6.log",
+      "logs/Ghostship.7.log",
+      "logs/Ghostship.8.log",
+      "logs/Ghostship.9.log",
+      "logs/Ghostship.10.log"
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "ghostship-source",
+          "label": "Super Mario 64 (US) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

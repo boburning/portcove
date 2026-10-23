@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mstan-zeroracersvirtualboyrecomp",
+    "name": "Zero Racers / ZeroRacersVirtualBoyRecomp (mstan)",
+    "summary": "Explore Zero Racers / ZeroRacersVirtualBoyRecomp (mstan) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/mstan/ZeroRacersVirtualBoyRecomp",
+    "issue_number": 1916,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mstan/ZeroRacersVirtualBoyRecomp"
+  }
+}

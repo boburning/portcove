@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "opentyrian-opentyrian",
+    "name": "Tyrian / OpenTyrian (opentyrian)",
+    "summary": "Explore Tyrian / OpenTyrian (opentyrian) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/opentyrian/opentyrian",
+    "issue_number": 1860,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/opentyrian/opentyrian"
+  }
+}

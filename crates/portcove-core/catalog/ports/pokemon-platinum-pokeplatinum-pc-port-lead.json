@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pokemon-platinum-pokeplatinum-pc-port-lead",
+    "name": "Pokémon Platinum / pokeplatinum PC-port lead",
+    "summary": "Explore Pokémon Platinum / pokeplatinum PC-port lead and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/cybervisi0n/pokeplatinum",
+    "issue_number": 373,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/cybervisi0n/pokeplatinum"
+  }
+}

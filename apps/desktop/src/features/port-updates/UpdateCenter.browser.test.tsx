@@ -35,6 +35,43 @@ const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord =>
 });
 
 describe("update center presentation", () => {
+  it("names and links listing-only download activity without offering managed updates", () => {
+    const markup = renderToStaticMarkup(
+      <UpdateCenter
+        generation={1}
+        ports={[]}
+        activityPorts={[
+          { id: "listing-only", name: "New Upstream Game", summary: "A listing", platforms: [] },
+        ]}
+        statuses={new Map()}
+        activities={[
+          {
+            id: "download-1",
+            operation: "download_package",
+            target_kind: "port",
+            target_id: "listing-only",
+            status: "succeeded",
+            started_at: 1,
+            finished_at: 2,
+            message: null,
+            failure: null,
+            cancellation: null,
+          },
+        ]}
+        outcomes={[]}
+        diagnosticsRefreshing={false}
+        diagnosticsStale={false}
+        refreshDiagnostics={vi.fn()}
+        checkAll={vi.fn()}
+        onSelect={vi.fn()}
+        onOpenSettings={vi.fn()}
+      />,
+    );
+    expect(markup).toContain("New Upstream Game");
+    expect(markup).toContain("Upstream package download");
+    expect(markup).toContain('data-detail-origin="updates:activity:download-1:target"');
+  });
+
   it("counts displayed finished activity separately from loaded history and protected rows", () => {
     const finished: ActivityRecord[] = Array.from({ length: 10 }, (_, index) => ({
       id: `finished-${index}`,

@@ -135,6 +135,40 @@
     "title": "ApplicationUpdateRecoveryArea",
     "type": "string"
   },
+  "catalog_download_request": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "asset_id": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "destination_parent": {
+        "type": "string"
+      },
+      "extract_archive": {
+        "type": "boolean"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "release_id": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "port_id",
+      "release_id",
+      "asset_id",
+      "destination_parent",
+      "extract_archive"
+    ],
+    "title": "CatalogDownloadRequest",
+    "type": "object"
+  },
   "game_file_query_request": {
     "$defs": {
       "GameFileRouteKind": {

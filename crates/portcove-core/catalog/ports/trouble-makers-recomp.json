@@ -1,0 +1,64 @@
+{
+  "format_version": 1,
+  "order": 53,
+  "listing": {
+    "id": "trouble-makers-recomp",
+    "name": "Trouble Makers Recompiled",
+    "summary": "Native Mischief Makers recompilation.",
+    "project_url": "https://github.com/ThiagoLira/trouble-makers-pc-recomp",
+    "original_game_title": "Mischief Makers",
+    "artwork": {
+      "game_id": 3412,
+      "cover_id": 557812,
+      "image_id": "cobyes",
+      "image_sha256": "a6d4389f7a37a19bd1d31171dd7db2cc889eb8e472a88d798c5736853e4fb79c",
+      "game_slug": "mischief-makers",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 104
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "n64-recomp-portable",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "ThiagoLira/trouble-makers-pc-recomp",
+      "asset_hints": {
+        "linux-x86-64": ["TroubleMakers-x86_64.AppImage"]
+      }
+    },
+    "source_profile": "trouble-makers",
+    "executable_hints": {
+      "windows-x86-64": ["troublemakers.exe"],
+      "linux-x86-64": ["troublemakers"]
+    },
+    "persistent_paths": [
+      "mods",
+      "mod_config",
+      "saves",
+      "config",
+      "logs",
+      "display.cfg",
+      "controls.json",
+      "controls.json.bak",
+      "troublemakers.n64.us.1.z64"
+    ],
+    "runtime_source_filename": "troublemakers.n64.us.1.z64",
+    "launch_arguments": ["troublemakers.n64.us.1.z64"],
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "trouble-makers",
+          "label": "Mischief Makers (US 1.1) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

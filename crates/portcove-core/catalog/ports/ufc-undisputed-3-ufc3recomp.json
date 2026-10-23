@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ufc-undisputed-3-ufc3recomp",
+    "name": "UFC Undisputed 3 / ufc3recomp",
+    "summary": "Explore UFC Undisputed 3 / ufc3recomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/paulogaab21/ufc3recomp",
+    "issue_number": 364,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/paulogaab21/ufc3recomp"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-colony-wars-recomp",
+    "name": "Colony Wars / Alexbeav PSXRecomp",
+    "summary": "Explore Colony Wars / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp",
+    "issue_number": 437,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp"
+  }
+}

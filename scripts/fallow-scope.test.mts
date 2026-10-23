@@ -9,6 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { parse as parseYaml } from "yaml";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const binary = path.join(root, "node_modules/fallow/bin/fallow");
@@ -80,12 +81,67 @@ function deadCodeReport(value: unknown) {
   };
 }
 
+function maintainedScriptReferences(file: string, source: string) {
+  // Workflow path filters and other metadata do not execute scripts. Parsing also
+  // resolves folded commands, doubled quotes and shared anchored steps.
+  const sources = file.startsWith(".github/workflows/")
+    ? Object.values(record(record(parseYaml(source)).jobs)).flatMap((job) =>
+        values(record(job).steps ?? []).flatMap((step) => {
+          const run = record(step).run;
+          if (run === undefined) return [];
+          assert.ok(typeof run === "string");
+          return [run];
+        }),
+      )
+    : [source];
+  // Inline Node imports are dependencies.
+  // Match each occurrence so a direct command for the same file still requires an entry.
+  return sources.flatMap((command) =>
+    [
+      ...command
+        .replace(/^import .* from .*$/gm, "")
+        .matchAll(
+          /(\bimport\s*\(\s*['"](?:\.\/)?)?((?:\.\.\/\.\.\/)?(?:apps\/desktop\/)?scripts\/[A-Za-z0-9_./*-]+\.(?:[mc]?[jt]s|tsx))/g,
+        ),
+    ].map(([, imported, target]) => ({ target: target!, imported: imported !== undefined })),
+  );
+}
+
+void test("workflow script discovery distinguishes path filters and imports from commands", () => {
+  const source = `
+on:
+  push:
+    paths: [scripts/helper.mts, scripts/filter-only.mts]
+jobs:
+  example:
+    steps:
+      - run: node --input-type=module -e "await (await
+          import('./scripts/helper.mts')).check()"
+      - run: 'node --input-type=module -e "await (await
+          import(''./scripts/helper.mts'')).check()"'
+      - &command
+        run: node scripts/helper.mts
+      - *command
+      - run: |
+          node --input-type=module -e 'await import("./scripts/other.mts")'; node scripts/after.mts
+`;
+  assert.deepEqual(maintainedScriptReferences(".github/workflows/fixture.yml", source), [
+    { target: "scripts/helper.mts", imported: true },
+    { target: "scripts/helper.mts", imported: true },
+    { target: "scripts/helper.mts", imported: false },
+    { target: "scripts/helper.mts", imported: false },
+    { target: "scripts/other.mts", imported: true },
+    { target: "scripts/after.mts", imported: false },
+  ]);
+});
+
 // Inventory is inexpensive graph discovery, not the full qualification analysis.
 void test("tooling graph includes maintained command entries without promoting helpers to roots", () => {
   const inventory = inventoryReport(
     analyze(root, ["list", "--entry-points", "--files", "--plugins"]),
   );
   const entries = new Set(inventory.entry_points.map((entry) => entry.path));
+  const graphFiles = new Set(inventory.files);
   const tracked = spawnSync("git", ["ls-files"], { cwd: root, encoding: "utf8" });
   assert.equal(tracked.status, 0, tracked.stderr);
   const files = tracked.stdout.trim().split(/\r?\n/);
@@ -97,21 +153,29 @@ void test("tooling graph includes maintained command entries without promoting h
       file === "vite.config.ts",
   );
   for (const file of maintainedCommands) {
-    const source = readFileSync(path.join(root, file), "utf8").replace(/^import .* from .*$/gm, "");
-    for (const match of source.matchAll(
-      /(?:\.\.\/\.\.\/)?(?:apps\/desktop\/)?scripts\/[A-Za-z0-9_./*-]+\.(?:[mc]?[jt]s|tsx)/g,
-    )) {
-      let target = match[0];
+    const source = readFileSync(path.join(root, file), "utf8");
+    for (const reference of maintainedScriptReferences(file, source)) {
+      let target = reference.target;
       if (file === "apps/desktop/package.json")
         target = target.startsWith("../../") ? target.slice(6) : `apps/desktop/${target}`;
-      if (files.includes(target))
-        assert.ok(entries.has(target), `${file} command is absent from Fallow entries: ${target}`);
+      if (files.includes(target)) {
+        assert.ok(
+          graphFiles.has(target),
+          `${file} reference is absent from Fallow files: ${target}`,
+        );
+        if (!reference.imported)
+          assert.ok(
+            entries.has(target),
+            `${file} command is absent from Fallow entries: ${target}`,
+          );
+      }
     }
   }
   for (const representative of [
     "scripts/local-validation",
     "scripts/roadmap",
     "scripts/check-fallow-report.test",
+    "scripts/checked-git",
     "scripts/generate-catalog",
     "scripts/migrate-catalog-schema2",
     "apps/desktop/public/theme-bootstrap",
@@ -135,12 +199,10 @@ void test("tooling graph includes maintained command entries without promoting h
       `missing representative entry: ${representative}`,
     );
   }
+  assert.ok(graphFiles.has("scripts/release-authority-configuration.mts"));
   assert.ok(
-    ![...entries].some((entry) => /^scripts\/checked-git\.(?:mjs|mts)$/.test(entry)),
-    "ordinary imported helper must remain a dependency",
-  );
-  assert.ok(
-    inventory.files.some((file) => file.replace(/\.(?:mjs|mts)$/, "") === "scripts/checked-git"),
+    !entries.has("scripts/release-authority-configuration.mts"),
+    "inline workflow imports must remain dependencies",
   );
   for (const plugin of ["vitest", "typescript", "vite", "tailwind"])
     assert.ok(

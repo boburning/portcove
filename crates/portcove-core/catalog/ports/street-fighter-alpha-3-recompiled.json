@@ -1,0 +1,68 @@
+{
+  "format_version": 1,
+  "order": 30,
+  "listing": {
+    "id": "street-fighter-alpha-3-recompiled",
+    "name": "Street Fighter Alpha 3: Recompiled",
+    "summary": "Native Street Fighter Alpha 3 recompilation.",
+    "project_url": "https://github.com/TechnicallyComputers/Street-Fighter-Alpha-3-Recomp",
+    "original_game_title": "Street Fighter Alpha 3",
+    "variant_label": "PlayStation",
+    "artwork": {
+      "game_id": 6704,
+      "cover_id": 294008,
+      "image_id": "co6auw",
+      "image_sha256": "3278c5c999a04505b9702c867f3b802d5fbd1ed92ece3a9d8870579a8c04ac9b",
+      "game_slug": "street-fighter-alpha-3",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 85
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "repository": "TechnicallyComputers/Street-Fighter-Alpha-3-Recomp",
+      "asset_hints": {
+        "windows-x86-64": ["windows-x64"],
+        "linux-x86-64": ["linux-x64"],
+        "macos-x86-64": ["macos-x64"],
+        "macos-aarch64": ["macos-arm64"]
+      }
+    },
+    "source_profile": "street-fighter-alpha-3-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Street_Fighter_Alpha_3__Recompiled.exe"],
+      "linux-x86-64": ["Street_Fighter_Alpha_3__Recompiled"],
+      "macos-x86-64": ["Street_Fighter_Alpha_3__Recompiled"],
+      "macos-aarch64": ["Street_Fighter_Alpha_3__Recompiled"]
+    },
+    "persistent_paths": [
+      "saves",
+      "config",
+      "mods",
+      "settings.toml",
+      "game_options.json",
+      "graphics.json",
+      "input.json",
+      "sound.json"
+    ],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "street-fighter-alpha-3-psx",
+          "label": "Street Fighter Alpha 3 (USA) disc",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

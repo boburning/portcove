@@ -69,6 +69,9 @@ import {
 import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
 import { PortBrowser } from "./components/PortBrowser";
+import { ListingDetailPanel } from "./components/ListingDetailPanel";
+import { SelfServiceSetup } from "./components/SelfServiceSetup";
+import { catalogEntries, usesSelfServiceDetail } from "./features/browsing/catalog-entry";
 import { evaluateCatalogQuery, type CatalogQueryContext } from "./features/browsing/catalog-query";
 import {
   useGameFileFilterContext,
@@ -417,9 +420,22 @@ function Workspace({
     resetLibrary,
     ready: Boolean(data.catalog),
     installedCount: data.catalog
-      ? data.statuses.filter((status) => status.active || status.external_runtime).length
+      ? new Set([
+          ...data.statuses
+            .filter((status) => status.active || status.external_runtime)
+            .map((status) => status.port_id),
+          ...data.listingStatuses
+            .filter(({ status }) => status.active || status.external_runtime)
+            .map(({ port_id }) => port_id),
+          ...data.pendingSetups.map(({ port_id }) => port_id),
+        ]).size
       : undefined,
-    catalogCount: data.catalog?.ports.length,
+    catalogCount: data.catalog
+      ? new Set([
+          ...data.catalog.ports.map(({ id }) => id),
+          ...(data.listingCatalog?.listings.map(({ id }) => id) ?? []),
+        ]).size
+      : undefined,
   });
   const { catalog, diagnosticRevision, diagnosticsStale, doctor, refreshDiagnostics } = data;
   useEffect(() => {
@@ -440,7 +456,11 @@ function Workspace({
   const nativeSourceDrag = useNativeSourceDrop((drop) =>
     openSourceIntake(drop.portId, drop.profileId, drop.paths),
   );
-  const selectedPort = data.catalog?.ports.find((port) => port.id === ui.selectedId);
+  const selectedPort = data.statuses.some(
+    (status) => status.port_id === ui.selectedId && status.external_runtime?.user_selected,
+  )
+    ? undefined
+    : data.catalog?.ports.find((port) => port.id === ui.selectedId);
   const inspectionProfiles = useMemo(
     () =>
       ui.view === "settings"
@@ -510,8 +530,8 @@ function Workspace({
   useLibrarySelectionLanding(returnToSelection, workspace, consumeLibrarySelectionReturn);
   const { adoptOpen, selectedId, setAdoptOpen, setSelectedId, setView } = ui;
   const availablePortIds = useMemo(
-    () => (data.catalog ? new Set(data.catalog.ports.map((port) => port.id)) : undefined),
-    [data.catalog],
+    () => (data.catalog ? new Set(model.entries.map((port) => port.id)) : undefined),
+    [data.catalog, model.entries],
   );
   const {
     close: closePortDetails,
@@ -650,7 +670,7 @@ function Workspace({
   };
 
   const renderPageHeader = () =>
-    !model.port &&
+    !model.entry &&
     (addGamesOpen && ui.view === "library" ? (
       <h1 tabIndex={-1}>Add games</h1>
     ) : (
@@ -658,7 +678,7 @@ function Workspace({
         view={ui.view}
         query={ui.query}
         setQuery={ui.setQuery}
-        portCount={data.catalog?.ports.length ?? 0}
+        portCount={model.entries.length}
         libraryCount={data.catalog ? model.overview.installed : undefined}
         onOpenCommands={() => commandSurface.setOpen(true)}
       />
@@ -687,28 +707,64 @@ function Workspace({
       </Notice>
     );
   const renderWorkspaceView = () =>
-    model.port ? (
-      <SelectedPortPanel
-        model={model}
-        ui={ui}
-        operations={operations}
-        sourceHealth={sourceHealth}
-        installPlanning={installPlanning}
-        backups={backups}
-        activities={data.activities}
-        libraryGeneration={bootstrap.generation}
-        refreshAfterMutation={() => {
+    model.entry && usesSelfServiceDetail(model.entry, model.status) ? (
+      <ListingDetailPanel
+        key={`${model.entry.id}:${bootstrap.generation}`}
+        entry={model.entry}
+        status={model.status}
+        generation={bootstrap.generation}
+        perform={operations.perform}
+        onChanged={() => {
           void data.refreshAfterMutation();
-        }}
-        openSourceIntake={openSourceIntake}
-        openHostTool={openHostTool}
-        openLibraryStorage={() => {
-          ui.setSettingsCategory("library-storage");
-          setPrimaryView("settings");
-          window.requestAnimationFrame(() => focusSettingsTarget("library-storage"));
         }}
         close={closePortDetails}
       />
+    ) : model.port ? (
+      <>
+        <SelectedPortPanel
+          model={model}
+          ui={ui}
+          operations={operations}
+          sourceHealth={sourceHealth}
+          installPlanning={installPlanning}
+          backups={backups}
+          activities={data.activities}
+          libraryGeneration={bootstrap.generation}
+          refreshAfterMutation={() => {
+            void data.refreshAfterMutation();
+          }}
+          openSourceIntake={openSourceIntake}
+          openHostTool={openHostTool}
+          openLibraryStorage={() => {
+            ui.setSettingsCategory("library-storage");
+            setPrimaryView("settings");
+            window.requestAnimationFrame(() => focusSettingsTarget("library-storage"));
+          }}
+          close={closePortDetails}
+        />
+        {model.entry?.listing &&
+          !model.status?.active &&
+          !model.status?.staged &&
+          !model.status?.external_runtime && (
+            <details className="mt-6 border-t border-pc-border pt-4">
+              <summary data-focusable className="cursor-pointer font-medium">
+                Other setup options
+              </summary>
+              <div className="mt-4">
+                <SelfServiceSetup
+                  key={`${model.entry.id}:${bootstrap.generation}`}
+                  entry={model.entry}
+                  status={model.status}
+                  generation={bootstrap.generation}
+                  perform={operations.perform}
+                  onChanged={() => {
+                    void data.refreshAfterMutation();
+                  }}
+                />
+              </div>
+            </details>
+          )}
+      </>
     ) : addGamesOpen && ui.view === "library" ? null : (
       <CurrentView
         onAddGames={openAddGames}
@@ -777,7 +833,11 @@ function Workspace({
       generation={bootstrap.generation}
       pending={operations.pendingOperations}
     >
-      <ArtworkProvider generation={bootstrap.generation} catalog={data.catalog}>
+      <ArtworkProvider
+        generation={bootstrap.generation}
+        catalog={data.catalog}
+        listings={data.listingCatalog}
+      >
         <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
           <Sidebar
             view={ui.view}
@@ -798,14 +858,14 @@ function Workspace({
             data-workspace-continuity-scope={JSON.stringify([
               bootstrap.generation,
               ui.view,
-              model.port?.id ?? null,
+              model.entry?.id ?? null,
               addGamesOpen,
             ])}
             tabIndex={-1}
           >
             <div
               className={
-                !model.port && (ui.view === "catalog" || (ui.view === "library" && !addGamesOpen))
+                !model.entry && (ui.view === "catalog" || (ui.view === "library" && !addGamesOpen))
                   ? "w-full min-w-0"
                   : "w-full max-w-(--layout-content-max) min-w-0"
               }
@@ -871,7 +931,7 @@ function Workspace({
               {addGamesStarted && (
                 <AddGames
                   key={bootstrap.generation}
-                  active={addGamesOpen && ui.view === "library" && !model.port}
+                  active={addGamesOpen && ui.view === "library" && !model.entry}
                   generation={bootstrap.generation}
                   ports={data.catalog?.ports ?? []}
                   profiles={data.catalog?.source_profiles ?? []}
@@ -925,8 +985,16 @@ function useAppModel(
   gameFileQuery?: GameFileFilterState,
 ) {
   const { selectedId, setBiosPath, setSourcePath } = ui;
-  const { catalog, sources, statuses, browsing } = data;
-  const statusMap = useMemo(() => indexStatuses(statuses), [statuses]);
+  const { catalog, sources, statuses, browsing, listingCatalog, listingStatuses, pendingSetups } =
+    data;
+  const entries = useMemo(
+    () => catalogEntries(catalog, listingCatalog, listingStatuses, pendingSetups),
+    [catalog, listingCatalog, listingStatuses, pendingSetups],
+  );
+  const statusMap = useMemo(
+    () => indexStatuses([...listingStatuses.map(({ status }) => status), ...statuses]),
+    [statuses, listingStatuses],
+  );
   const gameFileQueryContext = useMemo(
     () => JSON.stringify([catalog, sources, statuses, browsing?.workspace_binding_sha256]),
     [catalog, sources, statuses, browsing?.workspace_binding_sha256],
@@ -950,14 +1018,14 @@ function useAppModel(
         ui.view === "library"
           ? ["all", "ready", "setup"].includes(ui.libraryReadiness)
             ? filterPorts(
-                data.catalog?.ports ?? [],
+                entries,
                 statusMap,
                 "library",
                 ui.libraryReadiness as "all" | "ready" | "setup",
                 "",
               )
             : []
-          : (data.catalog?.ports ?? []),
+          : entries,
         statusMap,
         ui.view,
         ui.filter,
@@ -966,7 +1034,7 @@ function useAppModel(
         queryContext,
       ),
     [
-      data.catalog,
+      entries,
       statusMap,
       ui.view,
       ui.filter,
@@ -979,25 +1047,19 @@ function useAppModel(
   const catalogFilterCandidates = useMemo(
     () =>
       ui.view === "catalog" && data.catalog
-        ? filterPorts(data.catalog.ports, statusMap, "catalog", "all", ui.query)
+        ? filterPorts(entries, statusMap, "catalog", "all", ui.query)
         : undefined,
-    [data.catalog, statusMap, ui.view, ui.query],
+    [data.catalog, entries, statusMap, ui.view, ui.query],
   );
   const libraryFilterCandidates = useMemo(
     () =>
       ui.view === "library" && data.catalog
-        ? filterPorts(data.catalog.ports, statusMap, "library", "all", ui.query)
+        ? filterPorts(entries, statusMap, "library", "all", ui.query)
         : undefined,
-    [data.catalog, statusMap, ui.view, ui.query],
+    [data.catalog, entries, statusMap, ui.view, ui.query],
   );
-  const overview = useMemo(
-    () => summarizeLibrary(data.catalog?.ports ?? [], statusMap),
-    [data.catalog, statusMap],
-  );
-  const recent = useMemo(
-    () => mostRecentPort(data.catalog?.ports ?? [], statusMap),
-    [data.catalog, statusMap],
-  );
+  const overview = useMemo(() => summarizeLibrary(entries, statusMap), [entries, statusMap]);
+  const recent = useMemo(() => mostRecentPort(entries, statusMap), [entries, statusMap]);
   const sourceNeeds = useMemo(
     () =>
       requiredSourceNeeds(
@@ -1032,6 +1094,7 @@ function useAppModel(
     setBiosPath(selection.bios?.path ?? "");
   }, [selectedId, selection.bios?.path, setBiosPath]);
   return {
+    entries,
     statusMap,
     queryContext,
     gameFileQueryContext,
@@ -1043,6 +1106,8 @@ function useAppModel(
     recent,
     sourceNeeds,
     ...selection,
+    entry: entries.find((entry) => entry.id === selectedId),
+    status: selectedId ? statusMap.get(selectedId) : undefined,
     browsingMatch,
   };
 }
@@ -1126,6 +1191,7 @@ function CurrentView({
         onSectionChange={ui.setActivitySection}
         generation={bootstrap.generation}
         ports={data.catalog?.ports ?? []}
+        activityPorts={model.entries}
         sourceProfiles={data.catalog?.source_profiles ?? []}
         statuses={model.statusMap}
         activities={data.activities}
@@ -1305,7 +1371,7 @@ function CurrentView({
       setFilter={ui.setFilter}
       onSelect={openPortDetails}
       onContinue={(portId) => {
-        const port = data.catalog?.ports.find((port) => port.id === portId);
+        const port = model.entries.find((port) => port.id === portId);
         if (port)
           void operations.perform(
             "launch",

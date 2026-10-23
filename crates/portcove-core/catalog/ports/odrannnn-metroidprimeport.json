@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "odrannnn-metroidprimeport",
+    "name": "Metroid Prime / MetroidPrimePort (Odrannnn)",
+    "summary": "Explore Metroid Prime / MetroidPrimePort (Odrannnn) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/Odrannnn/MetroidPrimePort",
+    "issue_number": 1846,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Odrannnn/MetroidPrimePort"
+  }
+}

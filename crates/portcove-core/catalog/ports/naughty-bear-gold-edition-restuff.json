@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "naughty-bear-gold-edition-restuff",
+    "name": "Naughty Bear Gold Edition / ReStuff",
+    "summary": "Explore Naughty Bear Gold Edition / ReStuff and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff",
+    "issue_number": 160,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff"
+  }
+}

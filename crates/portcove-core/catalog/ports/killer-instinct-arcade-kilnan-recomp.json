@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "killer-instinct-arcade-kilnan-recomp",
+    "name": "[Port] Killer Instinct (arcade) / ki-recomp",
+    "summary": "Explore [Port] Killer Instinct (arcade) / ki-recomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/kilnan/ki-recomp",
+    "issue_number": 2246,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/kilnan/ki-recomp"
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "format_version": 1,
+  "order": 15,
+  "listing": {
+    "id": "automobili-lamborghini-recompiled",
+    "name": "Automobili Lamborghini: Recompiled",
+    "summary": "Native Automobili Lamborghini recompilation.",
+    "project_url": "https://github.com/alondero/automobililamborghini-recomp",
+    "original_game_title": "Automobili Lamborghini",
+    "artwork": {
+      "game_id": 3442,
+      "cover_id": 195699,
+      "image_id": "co4703",
+      "image_sha256": "9c5fc948439de5aae2ff7c4d26045b96e582951af640612e2f08ef3a26ba2c2b",
+      "game_slug": "automobili-lamborghini",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 70
+  },
+  "integration": {
+    "support_tier": "stable",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "n64-recomp-portable",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "alondero/automobililamborghini-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["lamborghini-recomp-windows-x64"],
+        "linux-x86-64": ["lamborghini-recomp-linux-x64"]
+      }
+    },
+    "source_profile": "automobili-lamborghini",
+    "executable_hints": {
+      "windows-x86-64": ["lamborghini_modern.exe"],
+      "linux-x86-64": ["lamborghini_modern"]
+    },
+    "persistent_paths": [
+      "mods",
+      "mod_config",
+      "saves",
+      "graphics.json",
+      "controls.json",
+      "player.json",
+      "lambo_controller_pak.mpk",
+      "lambo_savestate.lstate",
+      "Automobili Lamborghini (USA).z64",
+      "lamborghini.us.z64"
+    ],
+    "runtime_source_filename": "Automobili Lamborghini (USA).z64",
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "automobili-lamborghini",
+          "label": "Automobili Lamborghini (US) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

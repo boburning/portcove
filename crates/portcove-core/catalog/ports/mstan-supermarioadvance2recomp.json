@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mstan-supermarioadvance2recomp",
+    "name": "Super Mario World: Super Mario Advance 2 / SuperMarioAdvance2Recomp (mstan)",
+    "summary": "Explore Super Mario World: Super Mario Advance 2 / SuperMarioAdvance2Recomp (mstan) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/mstan/SuperMarioAdvance2Recomp",
+    "issue_number": 1894,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mstan/SuperMarioAdvance2Recomp"
+  }
+}

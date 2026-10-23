@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "god-of-war-kiexster",
+    "name": "God of War Recomp (KIexster)",
+    "summary": "Explore God of War Recomp (KIexster) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/KIexster/god-of-war-recomp",
+    "issue_number": 1671,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/KIexster/god-of-war-recomp"
+  }
+}

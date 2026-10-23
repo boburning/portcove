@@ -915,6 +915,30 @@ pub(crate) fn assess_curated_artifact_operation(
     operation: CuratedArtifactOperation,
 ) -> Result<crate::DefinitionEligibility> {
     crate::curated_acquisition::require_retained_identity(connection, repository_id, record)?;
+    assess_known_artifact_operation(
+        connection,
+        repository_id,
+        record.asset_id,
+        &record.sha256,
+        operation,
+    )
+}
+
+/// The same retained hold applies when these exact bytes are requested through
+/// explicit manual acquisition. It does not require a new managed grant.
+pub(crate) fn assess_known_artifact_operation(
+    connection: &Connection,
+    repository_id: u64,
+    asset_id: u64,
+    sha256: &str,
+    operation: CuratedArtifactOperation,
+) -> Result<crate::DefinitionEligibility> {
+    crate::curated_acquisition::require_known_artifact(
+        connection,
+        repository_id,
+        asset_id,
+        sha256,
+    )?;
     let mut latest = std::collections::BTreeMap::new();
     for (document, provenance) in retained_curated_transitions(connection)? {
         if !matches!(document.decision, PolicyDecision::ManagedGithub { repository_id: id, .. } if id == repository_id)
@@ -926,7 +950,7 @@ pub(crate) fn assess_curated_artifact_operation(
             .as_ref()
             .expect("validated transition receipt");
         for artifact in &transitions.artifacts {
-            if artifact.asset_id == record.asset_id && artifact.sha256 == record.sha256 {
+            if artifact.asset_id == asset_id && artifact.sha256 == sha256 {
                 crate::curated_acquisition::require_scoped_artifact(
                     connection,
                     repository_id,

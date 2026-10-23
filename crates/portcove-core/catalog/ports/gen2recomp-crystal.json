@@ -1,0 +1,74 @@
+{
+  "format_version": 1,
+  "order": 48,
+  "listing": {
+    "id": "gen2recomp-crystal",
+    "name": "Gen2Recomped: Pokémon Crystal",
+    "summary": "Native Lua/LÖVE recreation of Pokémon Crystal.",
+    "project_url": "https://github.com/UNDERdecoded/Gen2Recomped",
+    "original_game_title": "Pokémon Crystal",
+    "artwork": {
+      "game_id": 1514,
+      "cover_id": 266349,
+      "image_id": "co5pil",
+      "image_sha256": "f5bb92cc496efd7ad1c64b57a96480255c568ae2bf2fde17a19765f0591923d4",
+      "game_slug": "pokemon-crystal-version",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 100
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "generated-cache",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "UNDERdecoded/Gen2Recomped",
+      "asset_hints": {
+        "windows-x86-64": ["windows.zip"]
+      }
+    },
+    "source_profile": "pokemon-crystal",
+    "executable_hints": {
+      "windows-x86-64": ["Gen2Recomped.exe"]
+    },
+    "portable_marker": true,
+    "source_environment": "POKEPORT_IMPORT_ROM",
+    "launch_environment": {
+      "POKEPORT_VERSION": "crystal"
+    },
+    "runtime_source_filename": "portcove-import.gbc",
+    "runtime_source_materialization": "copy",
+    "runtime_mutable_paths": ["portcove-import.gbc"],
+    "persistent_paths": [
+      "crystal",
+      "mods",
+      "imports",
+      "exports",
+      "screenshots",
+      "saves",
+      "editor",
+      "prints",
+      "save_crystal.lua",
+      "save_crystal.lua.bak",
+      "save_crystal.lua.tmp",
+      "options.lua",
+      "boot_trace.txt",
+      "crash.txt"
+    ],
+    "presentation": {
+      "installation_method": "generated-game-data",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "pokemon-crystal",
+          "label": "Pokémon Crystal (US) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

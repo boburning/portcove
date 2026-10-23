@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mstan-megamanzerorecomp",
+    "name": "Mega Man Zero / MegaManZeroRecomp (mstan)",
+    "summary": "Explore Mega Man Zero / MegaManZeroRecomp (mstan) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/mstan/MegaManZeroRecomp",
+    "issue_number": 1845,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mstan/MegaManZeroRecomp"
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "format_version": 1,
+  "order": 46,
+  "listing": {
+    "id": "gen2recomp-gold",
+    "name": "Gen2Recomped: Pokémon Gold",
+    "summary": "Native Lua/LÖVE recreation of Pokémon Gold.",
+    "project_url": "https://github.com/UNDERdecoded/Gen2Recomped",
+    "original_game_title": "Pokémon Gold",
+    "artwork": {
+      "game_id": 1558,
+      "cover_id": 266338,
+      "image_id": "co5pia",
+      "image_sha256": "c4eaf36f94396d584a5f372c6668f4330a8b076645964650279f7acd10a4381f",
+      "game_slug": "pokemon-gold-version",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 55
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "generated-cache",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "UNDERdecoded/Gen2Recomped",
+      "asset_hints": {
+        "windows-x86-64": ["windows.zip"]
+      }
+    },
+    "source_profile": "pokemon-gold",
+    "executable_hints": {
+      "windows-x86-64": ["Gen2Recomped.exe"]
+    },
+    "portable_marker": true,
+    "source_environment": "POKEPORT_IMPORT_ROM",
+    "launch_environment": {
+      "POKEPORT_VERSION": "gold"
+    },
+    "runtime_source_filename": "portcove-import.gbc",
+    "runtime_source_materialization": "copy",
+    "runtime_mutable_paths": ["portcove-import.gbc"],
+    "persistent_paths": [
+      "gold",
+      "mods",
+      "imports",
+      "exports",
+      "screenshots",
+      "saves",
+      "editor",
+      "prints",
+      "save_gold.lua",
+      "save_gold.lua.bak",
+      "save_gold.lua.tmp",
+      "options.lua",
+      "boot_trace.txt",
+      "crash.txt"
+    ],
+    "presentation": {
+      "installation_method": "generated-game-data",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "pokemon-gold",
+          "label": "Pokémon Gold (US) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

@@ -141,7 +141,36 @@ for player workflow, persistence boundaries and the removal recovery hold.
 
 ## Default covers
 
-For a whole ordinary catalog proposal, use
+Ordinary single-record preparation uses [the authoring entry point](#adding-or-changing-a-port).
+It enriches both listing-only records and integrations through the same cover
+matching, decoder and fallback policy. Shared descriptive facts live once in the
+authored record; the strict projection places the mapping in `presentation.artwork`.
+
+For bulk cover preparation across both listing-only records and integrations, use
+the same entry point with a selected workset:
+
+```text
+node scripts/prepare-port.mts --artwork-ids fragglet-sdl-sopwith,faxanadu-recomp --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/cover-preparation
+```
+
+This mode reads the complete per-ID source catalog and accepts 1–400 unique known
+IDs per invocation. It collects no upstream repository/release facts. Two bounded
+worksets can cover a 522-record directory; provider request, byte and time ceilings
+remain unchanged. Optional `--identities` and `--credentials-file` work as in
+single-record preparation. `--refresh-artwork ID,OTHER_ID` refreshes only IDs in
+the selected workset; otherwise accepted mappings are reused. Project, issue,
+record, release and route options cannot be mixed into an artwork-only batch.
+
+The checkpoint retains per-ID proposals, full generated projections and precise
+cover outcomes without editing accepted sources. A successful identical workset
+reuses its receipt. A mixed result retains useful proposals and reports
+`pending_port_ids`; review and accept the useful per-ID files, then retry only the
+pending subset. Missing credentials or a failed match does not block other records.
+Use a new checkpoint for a fresh scheduled refresh of unchanged mappings. Core
+listing inspection runs when a validator is supplied; operational projection
+changes require it. Neither mode changes local artwork choices or publishes data.
+
+For a strict operational catalog proposal, use
 `node scripts/generate-catalog.mts --prepare-proposal PROPOSAL.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir NEW_OUTPUT_DIRECTORY`.
 Optional artwork facts/credentials/refresh flags are the same as below. This
 mode snapshots the explicitly selected CLI, checks accepted/input/output catalog
@@ -241,16 +270,19 @@ uses the definition's public name and exact project URL without a supplied IGDB
 ID; a unique exact name/alias plus matching provider project website is required.
 Its optional `port` and `underlying_game` records supply public `names` and
 attributable HTTPS `evidence_url`, with an exact `project_url` for name-based port
-matching or known `platform_ids` and any specific `edition` for original-game
-matching. An independently established positive IGDB `game_id` and exact `slug`
-may pin a known identity. These are proposal inputs, not admission authority.
-Names alone, a sequel, wrong edition or truncated result set cannot establish a
-match. All required identity facts must agree before image acquisition. A coverless port falls
-through to its identified original game. Missing, ambiguous, mismatched or
+matching. A reviewed original title may use its attributable upstream project URL
+for a bounded exact-name lookup; known `platform_ids` and a specific `edition`
+narrow that match when supplied. An independently established positive IGDB
+`game_id` and exact `slug` may pin a known identity. These are proposal inputs,
+not admission authority. Original-title lookup requires one exact eligible match
+in the complete bounded result set; undeclared editions, ambiguity, sequels and
+truncated results remain fallback. All supplied identity facts must agree before
+image acquisition. A coverless port falls through to its identified original game.
+Missing, ambiguous, mismatched or
 unusable assets produce specific nonblocking cover exceptions and generated
 fallback; a decoded image cannot establish semantic identity.
 
-The current authoring catalog is the accepted baseline. Unchanged port/source
+The assembled accepted records are the baseline. Unchanged port/source
 identities reuse accepted mappings without provider requests; distinct ports may
 reuse a uniquely accepted original-game mapping without merging their identities.
 An ordinary executable release does not trigger artwork searches. For an assessed
@@ -300,9 +332,13 @@ or physical-platform evidence retain their own acceptance.
 
 ### Reference and exception maintenance
 
-Use the existing catalog/onboarding maintenance checkpoint weekly. Select at most
-50 stable port IDs per batch, oldest successful reference observation first, with
-stable ID as the tie breaker; check every accepted reference within 28 days.
+Use the existing catalog/onboarding maintenance checkpoint weekly. Select due
+stable port IDs oldest successful reference observation first, with stable ID as
+the tie breaker. Size the weekly worksets against the number of accepted
+references and the remaining checkpoints in a 28-day refresh target; split work
+into bounded batches when necessary. A fixed 50-ID batch is not a whole-catalog
+coverage guarantee. Provider outages or exhausted budgets retain the unobserved
+IDs as due rather than claiming the refresh completed.
 Use the existing preparation receipt and owning issue evidence for observation
 time, input digest, selected refresh IDs, outcome and next due checkpoint. Missing
 or uncertain observation dates are due, not evidence of healthy content. This is
@@ -310,8 +346,16 @@ an operator cadence, not a new scheduler, registry or player startup task. New o
 changed identities and assessed mistakes are investigated when encountered;
 ordinary executable updates do not refresh artwork.
 
-Refresh due IDs with `--refresh-artwork` and reuse all unaffected accepted mappings.
-The existing hard ceilings remain 400 batch entries, 800 metadata queries, 400 image
+Refresh due IDs through `prepare-port.mts` with
+`--artwork-ids ID,OTHER_ID --refresh-artwork ID,OTHER_ID` and
+reuse all unaffected accepted mappings. The full input may contain up to 10,000
+records; provider work is limited to the selected workset of at most 400 IDs.
+The authoring batch mode requires an explicit workset; it does not silently
+select the entire directory. Unknown or repeated IDs and changed artwork identities outside the
+workset are refused. Results merge by stable ID. An observed exact-image Gone
+fact removes every matching output reference, including unselected records,
+without additional provider queries.
+The existing hard ceilings remain 400 selected entries, 800 metadata queries, 400 image
 queries, 32 MiB metadata, 512 MiB images, 16 MiB per image, 15 minutes overall and 15
 seconds per request. The adapter is sequential, spaces metadata starts by at least
 300 ms, authenticates once and does not retry failed requests. Stop at those
@@ -1136,9 +1180,9 @@ future protected publication remains owned by
 activate a publisher.
 
 1. Capture or update the roadmap item and direct upstream evidence.
-2. Search the catalog and core adapters before adding behavior.
-3. Add declarative metadata or the smallest safe core capability needed for the
-   offered route; do not require a family abstraction first.
+2. Search the per-ID authored records and Core adapters before adding behavior.
+3. Prepare the listing and optional existing integration with the command below.
+   Add the smallest safe shared capability only when the offered route needs it.
 4. Run catalog and source/profile validation, release-resolution checks where
    acquisition is offered, and the lifecycle and platform checks for operations
    actually promised.
@@ -1154,9 +1198,25 @@ The embedded catalog uses schema 2. It contains reusable identities, logical
 variants, tagged physical representations, explicitly scoped conjunctive digest
 records, per-port game and BIOS contracts, validators, exact qualification facts,
 and immutable evidence
-references. Maintainers edit the complete schema-2 authority in
-`catalog-current-authoring.json`; `scripts/generate-catalog.mts` deterministically
-generates the embedded `catalog.json`, and `--check` refuses stale output. Core owns the temporary
+references. Maintainers edit one record in
+`crates/portcove-core/catalog/ports/<stable-id>.json`. Its format-1 `listing` owns
+the stable ID, name, summary, public project URL and optional original title,
+issue reference, release/setup links, setup guidance and artwork. An optional
+`integration` owns the existing strict operational fields. Common identity and
+presentation facts must not be repeated in that object. Integrated platform
+facts remain in `integration`; the listing projection derives them. A listing
+without an integration carries no managed operation or qualification claim.
+Shared source identities, contracts, validators, evidence and qualification stay
+in `catalog-shared.json`, preserving their existing order and scope.
+
+`node scripts/generate-catalog.mts` deterministically assembles these sources into
+`catalog-current-authoring.json`, the embedded `catalog.json`, and `listings.json`.
+All three are generated outputs, and `--check` refuses a stale projection.
+Filename/ID disagreement, duplicate IDs or JSON keys and a second shared port authority are
+refused. The migrated records retain their established order; new records sort
+by stable ID. Unknown retained operational metadata and ordered arrays remain
+unchanged. Reassemble after a rebase; do not hand-merge the generated aggregates.
+Core owns the temporary
 schema-1 compatibility projection required by the existing matcher and rejects
 any conflicting projection supplied by catalog input. The deterministic
 historical migration is no longer a current authoring path. It reads the frozen
@@ -1164,9 +1224,67 @@ historical migration is no longer a current authoring path. It reads the frozen
 `catalog-schema2-migration-fixture.json`; current ports, evidence, and
 qualification records must not be added to that migration.
 
+Use one thin preparation entry point for a new or updated record:
+
+```text
+node scripts/prepare-port.mts --issue 156 --output-dir /path/to/preparation
+node scripts/prepare-port.mts --project https://github.com/owner/project --id stable-id --name "Project name" --output-dir /path/to/preparation
+node scripts/prepare-port.mts --record /path/to/stable-id.json --route download --release-tag v1.2 --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/preparation
+```
+
+The command accepts a canonical Portcove issue number/URL, a direct public
+project URL or a reviewed authored record. It refuses conflicting stable IDs or
+origins and asks for a stable ID when a shared upstream is ambiguous. Supply a
+non-GitHub project's reviewed `--id`, `--name` and optional `--summary`; no generic
+web scrape is required. A listing needs identity and origin, not a save audit,
+release history, README or resolved tag. GitHub listing collection reads repository
+metadata only. `--route download` collects one 20-release candidate window or the
+explicit `--release-tag` and at most two 100-asset pages. Truncated or unavailable
+assets remain Unknown. Metadata never supplies package authenticity or executable
+acceptance.
+
+The owned output directory is a resumable preparation checkpoint. Reuse it for
+several IDs sharing a repository to reuse endpoint observations. Collection is
+bounded to 12 HTTP requests including redirects, 8 MiB and two minutes per call.
+Repository observations expire after 24 hours; issue/release/asset observations
+after one hour. Failed refreshes retain prior observations separately and do not
+report them as current; provider backoff survives resume. Malformed checkpoints
+are preserved and refused. A lock refuses concurrent writers to the same
+checkpoint. Interrupted locks require verifying the prior preparer has stopped
+before removing only that checkpoint's `active.lock` directory.
+
+Artwork preparation runs automatically for the selected ID. Reviewed
+`listing.original_game_title` supplies a name-only underlying-game declaration
+with the listing's project URL as evidence. Optional `--identities` overrides that
+default; no IGDB game, slug or platform IDs are guessed. `--credentials-file` and
+the established maintainer configuration supply provider credentials. Missing
+credentials, ambiguity or provider failure produce an independently retryable
+generated fallback. Unchanged accepted mappings remain reusable before lookup.
+Successful artwork receipts are reused only for the same input and accepted
+baseline. Operational changes require `--validator-cli`; captured Core
+`inspect-proposal` checks their exact assembled bytes. Whenever that CLI is
+supplied, `catalog inspect-listings --path` also validates the generated listing
+document, and its returned document must match the exact input semantics.
+Successful receipts bind input bytes and validator identity and survive resume.
+Without a CLI, listing-only preparation reports Core inspection as pending.
+Ordinary CI remains the final catalog/listing validation boundary.
+
+The concise completion receipt links proposed per-ID files, full generated
+projections, upstream facts, cover outcomes, Core checks and independent
+compatibility review. `preparation_costs` records monotonic elapsed time and its
+boundary, including provider/subprocess waiting and excluding final completion
+writing. This measures preparation, not authoring effort, gameplay or delivery.
+Files are content addressed; unchanged reruns do not create
+duplicate authored records or alter accepted sources. Copy reviewed proposed
+records into `catalog/ports`, regenerate, and complete normal review and delivery.
+Preparation does not download or run packages, post issue comments, install an
+unsigned catalog, publish a feed or establish actual user delivery. A malformed
+candidate does not replace previously prepared records. Keep discovery listing,
+accepted executable behavior and published client/catalog delivery separate.
+
 Current embedded ports include an additive `presentation` object for installation
 method, required game/BIOS labels, verification method, and saves/settings
-behavior. The current schema-2 authoring document records these facts beside the
+behavior. The authored integration records these facts beside the
 same adapter and source-contract authority, and core rejects labels or verification methods
 that disagree with those bindings. Existing platform, channel, support,
 upstream-state, and qualification fields remain the structured authority for

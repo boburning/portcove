@@ -27,6 +27,8 @@ pub(crate) mod shared_preferences;
 pub(crate) mod tfe_settings;
 mod user_selected;
 pub(crate) use user_selected::{
+    check_listing_identity as check_user_selected_identity,
+    check_listing_record as check_user_selected_listing_record,
     check_record as check_user_selected_record, preview as preview_user_selected,
 };
 

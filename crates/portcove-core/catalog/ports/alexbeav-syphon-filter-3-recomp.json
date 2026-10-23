@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-syphon-filter-3-recomp",
+    "name": "Syphon Filter 3 / Alexbeav PSXRecomp",
+    "summary": "Explore Syphon Filter 3 / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp",
+    "issue_number": 484,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp"
+  }
+}

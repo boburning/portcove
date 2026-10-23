@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "triaevum-ocarina-of-time-3d",
+    "name": "TriAevum (The Legend of Zelda: Ocarina of Time 3D)",
+    "summary": "Explore TriAevum (The Legend of Zelda: Ocarina of Time 3D) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/coccofresco/TriAevum",
+    "issue_number": 515,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/coccofresco/TriAevum"
+  }
+}

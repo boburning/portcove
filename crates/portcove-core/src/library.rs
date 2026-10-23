@@ -41,6 +41,19 @@ pub(crate) struct ExternalRuntimeRelinkState {
     pub row_sha256: String,
 }
 
+/// Distinct from both a raw legacy catalog and the managed InstalledContract.
+/// Historic clients must refuse this launch-intent authority instead of guessing
+/// a package contract from missing operational fields.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RetainedUserSelectedListing {
+    format: String,
+    format_version: u32,
+    listing: crate::PortListing,
+}
+
+const USER_SELECTED_LISTING_FORMAT: &str = "portcove-user-selected-listing";
+
 fn external_runtime_row_sha256(port_id: &str, record: &str, catalog: &str) -> Result<String> {
     Ok(hex::encode(Sha256::digest(serde_json::to_vec(&(
         "portcove-external-runtime-row-v1",
@@ -54,6 +67,13 @@ fn external_runtime_row_sha256(port_id: &str, record: &str, catalog: &str) -> Re
 /// semantics they cannot preserve. Reuse the existing strict retained-contract
 /// envelope for opt-in selectors; legacy registrations keep their original shape.
 fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
+    if catalog.is_user_selected_listing(port_id) {
+        return Ok(serde_json::to_string(&RetainedUserSelectedListing {
+            format: USER_SELECTED_LISTING_FORMAT.into(),
+            format_version: 1,
+            listing: catalog.listing(port_id)?.clone(),
+        })?);
+    }
     let port = catalog.port(port_id)?;
     if port.release.user_prepared.values().any(|runtime| {
         runtime.trust == crate::ExternalRuntimeTrust::UserSelected
@@ -69,7 +89,18 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
 }
 
 fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
+    let _: crate::definition_entry::strict_json::UniqueValue = serde_json::from_str(content)?;
     let value: serde_json::Value = serde_json::from_str(content)?;
+    if value.get("format").and_then(serde_json::Value::as_str) == Some(USER_SELECTED_LISTING_FORMAT)
+    {
+        let retained: RetainedUserSelectedListing = serde_json::from_value(value)?;
+        if retained.format_version != 1 || retained.listing.id != port_id {
+            return Err(PortcoveError::verification(
+                "retained listing version or port identity is not supported",
+            ));
+        }
+        return Catalog::for_user_selected_listing(retained.listing);
+    }
     if value.get("format").is_some() {
         // Never fall back to a raw catalog after an envelope decoding failure.
         // deny_unknown_fields also refuses a mixed envelope/catalog shape.
@@ -83,6 +114,14 @@ fn check_external_preferences_binding(
     record: &ExternalRuntimeRecord,
     catalog: &Catalog,
 ) -> Result<()> {
+    if catalog.is_user_selected_listing(&record.port_id) {
+        if record.retained_definition.is_some() {
+            return Err(PortcoveError::verification(
+                "user-selected listing cannot adopt managed definition authority",
+            ));
+        }
+        return crate::external_runtime::check_user_selected_identity(record);
+    }
     if let Some(spec) = catalog
         .port(&record.port_id)?
         .release
@@ -1832,6 +1871,16 @@ impl Library {
         install: &InstallRecord,
         staged: bool,
     ) -> Result<()> {
+        let pending: bool = connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM catalog_downloads WHERE port_id=?1)",
+            [&install.port_id],
+            |row| row.get(0),
+        )?;
+        if pending {
+            return Err(PortcoveError::conflict(
+                "port has a pending manual setup; it cannot acquire a managed installation",
+            ));
+        }
         crate::retained_build::require_unchanged_install(connection, install)?;
         let path = crate::path::unicode(&install.path, "install")?;
         let selected_executable =
@@ -1879,13 +1928,14 @@ impl Library {
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         let external_exists: bool = transaction.query_row(
-            "SELECT EXISTS(SELECT 1 FROM external_runtime_registrations WHERE port_id=?1)",
+            "SELECT EXISTS(SELECT 1 FROM external_runtime_registrations WHERE port_id=?1)
+                OR EXISTS(SELECT 1 FROM catalog_downloads WHERE port_id=?1)",
             [&install.port_id],
             |row| row.get(0),
         )?;
         if external_exists {
             return Err(PortcoveError::conflict(
-                "port has an external runtime registration; it cannot acquire a managed install",
+                "port has an external runtime registration or pending setup; it cannot acquire a managed install",
             ));
         }
         Self::write_install(&transaction, install, !activate)?;
@@ -2009,7 +2059,7 @@ impl Library {
         row.map(|(record, catalog)| {
             let record: ExternalRuntimeRecord = serde_json::from_str(&record)?;
             let catalog = decode_external_catalog(&catalog, port_id)?;
-            if record.port_id != port_id || catalog.port(port_id).is_err() {
+            if record.port_id != port_id || catalog.listing(port_id).is_err() {
                 return Err(PortcoveError::state(
                     "retained external runtime has a mismatched port identity",
                 ));
@@ -2018,6 +2068,21 @@ impl Library {
             Ok((record, catalog))
         })
         .transpose()
+    }
+
+    pub(crate) fn external_runtime_port_ids_from(connection: &Connection) -> Result<Vec<String>> {
+        let mut statement = connection.prepare(
+            "SELECT port_id FROM external_runtime_registrations ORDER BY port_id LIMIT 10001",
+        )?;
+        let ids = statement
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        if ids.len() > 10_000 {
+            return Err(PortcoveError::unsupported(
+                "registered listing directory exceeds its entry limit",
+            ));
+        }
+        Ok(ids)
     }
 
     pub(crate) fn external_runtime_relink_state(
@@ -2033,7 +2098,7 @@ impl Library {
             let row_sha256 = external_runtime_row_sha256(port_id, &record_json, &catalog_json)?;
             let record: ExternalRuntimeRecord = serde_json::from_str(&record_json)?;
             let catalog = decode_external_catalog(&catalog_json, port_id)?;
-            if record.port_id != port_id || catalog.port(port_id).is_err() {
+            if record.port_id != port_id || catalog.listing(port_id).is_err() {
                 return Err(PortcoveError::state(
                     "retained external runtime has a mismatched port identity",
                 ));
@@ -2090,7 +2155,7 @@ impl Library {
         *budget = budget.saturating_sub((record.len() + catalog.len()) as u64);
         let record: ExternalRuntimeRecord = serde_json::from_str(&record)?;
         let catalog = decode_external_catalog(&catalog, port_id)?;
-        if record.port_id != port_id || catalog.port(port_id).is_err() {
+        if record.port_id != port_id || catalog.listing(port_id).is_err() {
             return Err(PortcoveError::state(
                 "retained browsing metadata has a mismatched port identity",
             ));
@@ -2104,7 +2169,16 @@ impl Library {
         record: &ExternalRuntimeRecord,
         retained_catalog: &Catalog,
     ) -> Result<()> {
-        if retained_catalog.port(&record.port_id).is_err() {
+        self.register_external_runtime_finishing_setup(record, retained_catalog, None)
+    }
+
+    pub(crate) fn register_external_runtime_finishing_setup(
+        &self,
+        record: &ExternalRuntimeRecord,
+        retained_catalog: &Catalog,
+        pending: Option<(&str, &str)>,
+    ) -> Result<()> {
+        if retained_catalog.listing(&record.port_id).is_err() {
             return Err(PortcoveError::state(
                 "external runtime and retained port identities differ",
             ));
@@ -2123,6 +2197,24 @@ impl Library {
                 "port already has a managed install or external runtime registration",
             ));
         }
+        let pending_row: Option<(String, String)> = transaction
+            .query_row(
+                "SELECT pending_id,record_json FROM catalog_downloads WHERE port_id=?1",
+                [&record.port_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        match (pending, pending_row.as_ref()) {
+            (None, None) => {}
+            (Some((expected_id, expected_json)), Some((id, json)))
+                if id == expected_id && json == expected_json && record.user_selected.is_some() => {
+            }
+            _ => {
+                return Err(PortcoveError::conflict(
+                    "pending setup changed after the selected executable was reviewed",
+                ));
+            }
+        }
         transaction.execute(
             "INSERT INTO external_runtime_registrations
              (port_id, record_json, retained_catalog_json, registered_at)
@@ -2134,6 +2226,17 @@ impl Library {
                 record.registered_at,
             ],
         )?;
+        if let Some((id, json)) = pending {
+            let changed = transaction.execute(
+                "DELETE FROM catalog_downloads WHERE port_id=?1 AND pending_id=?2 AND record_json=?3",
+                params![record.port_id, id, json],
+            )?;
+            if changed != 1 {
+                return Err(PortcoveError::conflict(
+                    "pending setup changed during registration",
+                ));
+            }
+        }
         transaction.commit()?;
         Ok(())
     }
@@ -2146,6 +2249,27 @@ impl Library {
         port_id: &str,
         expected_row_sha256: &str,
         proposed: &crate::ExternalRuntimePreview,
+    ) -> Result<ExternalRuntimeRecord> {
+        self.relink_external_runtime_selection(port_id, expected_row_sha256, proposed, false)
+    }
+
+    /// Update explicitly reviewed execution intent without adopting or changing
+    /// the external files, registration identity or retained interpretation.
+    pub(crate) fn relink_user_selected_runtime(
+        &self,
+        port_id: &str,
+        expected_row_sha256: &str,
+        proposed: &crate::ExternalRuntimePreview,
+    ) -> Result<ExternalRuntimeRecord> {
+        self.relink_external_runtime_selection(port_id, expected_row_sha256, proposed, true)
+    }
+
+    fn relink_external_runtime_selection(
+        &self,
+        port_id: &str,
+        expected_row_sha256: &str,
+        proposed: &crate::ExternalRuntimePreview,
+        user_selected: bool,
     ) -> Result<ExternalRuntimeRecord> {
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -2165,47 +2289,73 @@ impl Library {
         }
         let mut record: ExternalRuntimeRecord = serde_json::from_str(&record_json)?;
         let catalog = decode_external_catalog(&catalog_json, port_id)?;
-        let port = catalog.port(port_id)?;
-        let spec = port
-            .release
-            .user_prepared
-            .get(&record.platform)
-            .ok_or_else(|| {
-                PortcoveError::verification("retained external runtime has no platform contract")
-            })?;
-        if record.port_id != port_id
-            || proposed.port_id != port_id
-            || port.release.provider != crate::ReleaseSource::UserPrepared
-            || record.version != spec.version
-            || proposed.version != record.version
-            || !record
-                .archive_sha256
-                .eq_ignore_ascii_case(&spec.archive_sha256)
-            || !record
-                .immutable_tree_sha256
-                .eq_ignore_ascii_case(&spec.immutable_tree_sha256)
-            || !proposed
-                .archive_sha256
-                .eq_ignore_ascii_case(&record.archive_sha256)
-            || !proposed
-                .immutable_tree_sha256
-                .eq_ignore_ascii_case(&record.immutable_tree_sha256)
-            || !proposed.path.is_absolute()
-        {
-            return Err(PortcoveError::verification(
-                "folder relinking cannot change the retained runtime identity",
-            ));
+        check_external_preferences_binding(&record, &catalog)?;
+        if user_selected {
+            crate::external_runtime::check_user_selected_identity(&record)?;
+            if record.port_id != port_id
+                || proposed.port_id != port_id
+                || proposed.version != record.version
+                || !proposed.archive_sha256.is_empty()
+                || !proposed.immutable_tree_sha256.is_empty()
+                || proposed.shared_preferences.is_some()
+                || proposed.user_selected.is_none()
+                || !proposed.path.is_absolute()
+                || !proposed.executable.is_absolute()
+            {
+                return Err(PortcoveError::verification(
+                    "selected-runtime relinking cannot change ownership or trust",
+                ));
+            }
+        } else {
+            let port = catalog.port(port_id)?;
+            let spec = port
+                .release
+                .user_prepared
+                .get(&record.platform)
+                .ok_or_else(|| {
+                    PortcoveError::verification(
+                        "retained external runtime has no platform contract",
+                    )
+                })?;
+            if record.port_id != port_id
+                || proposed.port_id != port_id
+                || port.release.provider != crate::ReleaseSource::UserPrepared
+                || record.version != spec.version
+                || proposed.version != record.version
+                || !record
+                    .archive_sha256
+                    .eq_ignore_ascii_case(&spec.archive_sha256)
+                || !record
+                    .immutable_tree_sha256
+                    .eq_ignore_ascii_case(&spec.immutable_tree_sha256)
+                || !proposed
+                    .archive_sha256
+                    .eq_ignore_ascii_case(&record.archive_sha256)
+                || !proposed
+                    .immutable_tree_sha256
+                    .eq_ignore_ascii_case(&record.immutable_tree_sha256)
+                || !proposed.path.is_absolute()
+            {
+                return Err(PortcoveError::verification(
+                    "folder relinking cannot change the retained runtime identity",
+                ));
+            }
+            crate::external_runtime::require_retained_executable_path(
+                &record.path,
+                &record.executable,
+                &spec.executable,
+            )?;
+            crate::external_runtime::require_retained_executable_path(
+                &proposed.path,
+                &proposed.executable,
+                &spec.executable,
+            )?;
+            if record.user_selected.is_some() || proposed.user_selected.is_some() {
+                return Err(PortcoveError::verification(
+                    "accepted-package relinking cannot change execution trust",
+                ));
+            }
         }
-        crate::external_runtime::require_retained_executable_path(
-            &record.path,
-            &record.executable,
-            &spec.executable,
-        )?;
-        crate::external_runtime::require_retained_executable_path(
-            &proposed.path,
-            &proposed.executable,
-            &spec.executable,
-        )?;
         let (active_launch, managed_install): (bool, bool) = transaction.query_row(
             "SELECT EXISTS(SELECT 1 FROM launch_sessions WHERE port_id=?1 AND outcome IS NULL),
                     EXISTS(SELECT 1 FROM installs WHERE port_id=?1)",
@@ -2224,6 +2374,7 @@ impl Library {
         }
         record.path = proposed.path.clone();
         record.executable = proposed.executable.clone();
+        record.user_selected = proposed.user_selected.clone();
         record.shared_preferences = proposed
             .shared_preferences
             .as_ref()
@@ -2748,6 +2899,35 @@ fn parse_launch_session(row: StoredLaunchSession) -> Result<LaunchSessionRecord>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn user_selected_listing_envelope_fences_old_readers_and_unknown_semantics() {
+        let listing: crate::PortListing = serde_json::from_value(serde_json::json!({
+            "id":"inert-project", "name":"Inert project", "summary":"No operational integration.",
+            "project_url":"https://example.com/upstream"
+        }))
+        .unwrap();
+        let catalog = Catalog::for_user_selected_listing(listing).unwrap();
+        let content = encode_external_catalog(&catalog, "inert-project").unwrap();
+        assert!(serde_json::from_str::<crate::CatalogDocument>(&content).is_err());
+        assert!(
+            serde_json::from_str::<crate::installed_contract::InstalledContract>(&content).is_err()
+        );
+        let retained = decode_external_catalog(&content, "inert-project").unwrap();
+        assert!(retained.port("inert-project").is_err());
+        assert!(retained.is_user_selected_listing("inert-project"));
+        assert!(decode_external_catalog(&content, "another-project").is_err());
+        let value: serde_json::Value = serde_json::from_str(&content).unwrap();
+        for (field, changed) in [
+            ("format_version", serde_json::json!(2)),
+            ("ports", serde_json::json!([])),
+            ("trusted", serde_json::json!(true)),
+        ] {
+            let mut invalid = value.clone();
+            invalid[field] = changed;
+            assert!(decode_external_catalog(&invalid.to_string(), "inert-project").is_err());
+        }
+    }
 
     #[test]
     fn prepared_source_directory_retained_envelope_refuses_prior_readers() {

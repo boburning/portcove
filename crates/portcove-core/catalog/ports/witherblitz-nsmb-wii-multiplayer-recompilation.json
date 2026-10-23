@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "witherblitz-nsmb-wii-multiplayer-recompilation",
+    "name": "New Super Mario Bros. Wii / NSMB Wii Multiplayer Decompilation (WitherBlitz)",
+    "summary": "Explore New Super Mario Bros. Wii / NSMB Wii Multiplayer Decompilation (WitherBlitz) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation",
+    "issue_number": 1847,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation"
+  }
+}

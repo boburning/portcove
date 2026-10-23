@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "silent-hill-downpour-downpourrecomp",
+    "name": "Silent Hill: Downpour / DownpourRecomp",
+    "summary": "Explore Silent Hill: Downpour / DownpourRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/LittleBitUA/DownpourRecomp",
+    "issue_number": 358,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/LittleBitUA/DownpourRecomp"
+  }
+}

@@ -468,10 +468,12 @@ fn resolve_route<'a>(
     request: &GameFileRouteRequest,
 ) -> crate::Result<ResolvedRoute<'a>> {
     use crate::source_batch::fingerprint;
-    let current = service.catalog().port(&request.port_id)?;
-    let status = service
-        .library()
-        .status(&request.port_id, current.channels[0])?;
+    let current = service.catalog().port(&request.port_id).ok();
+    service.catalog().listing(&request.port_id)?;
+    let status = service.library().status(
+        &request.port_id,
+        current.map_or(crate::ReleaseChannel::Stable, |port| port.channels[0]),
+    )?;
     let mut selected = ResolvedRoute {
         catalog: Cow::Borrowed(service.catalog()),
         context_complete: true,
@@ -481,6 +483,12 @@ fn resolve_route<'a>(
         profile_id: None,
         release: None,
         instance_sha256: None,
+    };
+    let Some(current) = current else {
+        // A directory entry does not declare a Core source contract. Keep the
+        // request honest and inert without failing unrelated batched entries.
+        selected.unknown_requirements = true;
+        return Ok(selected);
     };
     match request.route {
         GameFileRouteKind::ManagedLaunch => {
@@ -518,6 +526,12 @@ fn resolve_route<'a>(
             selected.release = Some((record.version.clone(), record.archive_sha256.clone()));
             selected.offered =
                 record.platform == request.platform && status.channel == request.channel;
+            if record.user_selected.is_some() {
+                // Upstream setup owns game data; an explicit launch selection
+                // must not inherit the current managed route's source rules.
+                selected.unknown_requirements = true;
+                return Ok(selected);
+            }
             let spec = selected
                 .catalog
                 .port(&request.port_id)?

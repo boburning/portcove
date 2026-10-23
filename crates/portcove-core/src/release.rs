@@ -21,9 +21,11 @@ use crate::{
     library::HttpCacheEntry,
 };
 
+mod catalog_download;
 #[cfg(any(test, feature = "qualification-fixtures"))]
 mod forbidden_memories_qualification;
 mod observation;
+pub(crate) use catalog_download::repository_from_url as catalog_download_repository;
 pub use observation::{
     ChannelObservation as UpstreamChannelObservation, ObservationEvidence, ObservedReleaseIdentity,
     ObservedResolution, UpstreamObservationReport, inspect_upstream_observation,

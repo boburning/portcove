@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-medievil-recomp",
+    "name": "MediEvil / Alexbeav PSXRecomp",
+    "summary": "Explore MediEvil / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp",
+    "issue_number": 461,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp"
+  }
+}
