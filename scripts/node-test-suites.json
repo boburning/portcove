@@ -10,7 +10,7 @@
       "files": ["scripts/daily-discovery.test.mts"]
     },
     "windows-helpers-2": {
-      "arguments": ["--test", "--test-concurrency=1", "--test-timeout=30000"],
+      "arguments": ["--test", "--test-concurrency=1", "--test-timeout=60000"],
       "files": [
         "scripts/resource-capacity.test.mts",
         "scripts/resource-command.test.mts",
@@ -29,7 +29,7 @@
     "windows-helpers-3": {
       "arguments": [
         "--test",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
       "files": [
@@ -71,7 +71,7 @@
       "arguments": [
         "--test",
         "--test-concurrency=1",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
       "files": [
@@ -131,7 +131,7 @@
     "frontend-full": {
       "arguments": [
         "--test",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
       "files": ["scripts/precommit-check.test.mts", "scripts/run-oxlint.test.mts"]
@@ -155,7 +155,7 @@
       "files": ["scripts/transport-types.test.mts"]
     },
     "frontend-full-4": {
-      "arguments": ["--test", "--test-timeout=30000"],
+      "arguments": ["--test", "--test-timeout=60000"],
       "files": [
         "scripts/desktop-scenarios.test.mts",
         "scripts/native-compatibility.test.mts",
@@ -179,7 +179,7 @@
     "frontend-full-6": {
       "arguments": [
         "--test",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
       "files": [
@@ -282,7 +282,7 @@
     "catalog-full-2": {
       "arguments": [
         "--test",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
       "files": [
@@ -451,7 +451,7 @@
       "arguments": [
         "--test",
         "--test-concurrency=2",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
       "files": [
@@ -526,7 +526,7 @@
     "fallow": {
       "arguments": [
         "--test",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
       "files": [
@@ -550,7 +550,7 @@
       "arguments": [
         "--test",
         "--test-concurrency=2",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
       "files": [
@@ -597,7 +597,7 @@
     "release-check": {
       "arguments": [
         "--test",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
       "files": [

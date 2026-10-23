@@ -1308,6 +1308,40 @@ void test("retired frontend tool configuration remains owned after deletion", ()
   assert.equal(selection.uiFullTests, true);
 });
 
+void test("historical browser configs keep conservative deletion and rename coverage", () => {
+  for (const previousPath of [
+    "apps/desktop/vitest.config.ts",
+    "apps/desktop/vitest.browser.config.ts",
+  ]) {
+    for (const change of [
+      { status: "D", path: previousPath },
+      { status: "R100", previousPath, path: "docs/retired-config.txt" },
+    ]) {
+      const selection = classifyChanges([change], { fileExists: () => false });
+      assert.equal(selection.ui, true, JSON.stringify(change));
+      assert.equal(selection.uiFullTests, true, JSON.stringify(change));
+      assert.equal(selection.browser, true, JSON.stringify(change));
+    }
+  }
+  for (const file of [
+    "vite.config.ts",
+    "scripts/frontend-tests.ts",
+    "apps/desktop/vite.config.ts",
+  ]) {
+    const selection = classifyChanges([{ status: "M", path: file }], { fileExists: () => true });
+    assert.equal(selection.uiFullTests, true, file);
+    const commands = buildPlan(selection);
+    assert.ok(
+      commands.some((entry) => entry.id === "ui-tests"),
+      file,
+    );
+    assert.ok(
+      commands.some((entry) => entry.id === "ui-browser-tests"),
+      file,
+    );
+  }
+});
+
 void test("retired GitHub policy JSON remains owned without a file-specific tombstone", () => {
   const selection = classifyChanges([{ status: "D", path: ".github/retired-policy.json" }], {
     fileExists: () => false,

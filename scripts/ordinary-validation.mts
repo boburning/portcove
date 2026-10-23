@@ -1446,6 +1446,8 @@ function classifyOnePath(
     file.endsWith(".module.css") ||
     [
       "apps/desktop/scripts/browser-runtime.mts",
+      // Historical names remain intentional: deleted and renamed inputs are
+      // classified on both sides of the diff, even when the old file is absent.
       "apps/desktop/vitest.config.ts",
       "apps/desktop/vitest.browser.config.ts",
       "apps/desktop/vite.config.ts",

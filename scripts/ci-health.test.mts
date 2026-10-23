@@ -92,6 +92,35 @@ void test("cancelled, failed and running attempts remain visible outside success
   });
 });
 
+void test("cancelled work retains executed cost and producer failures without inferring supersession", () => {
+  const canceled = summarizeAttempt(run({ conclusion: "cancelled" }), [
+    job({ name: "failed producer", conclusion: "failure", completed_at: stamp(40) }),
+    job({
+      name: "canceled consumer",
+      conclusion: "cancelled",
+      started_at: stamp(20),
+      completed_at: stamp(50),
+    }),
+    job({ name: "not started", conclusion: "skipped" }),
+  ]);
+  const unknown = summarizeAttempt(run({ id: 2, conclusion: "cancelled" }), [
+    job({ started_at: null }),
+  ]);
+  const summary = summarizeHistory([attempt({ id: 3 }), canceled, unknown]);
+  assert.equal(summary.successfulFirstAttempts.count, 1);
+  assert.deepEqual(summary.canceledWork, {
+    attempts: 2,
+    workflow: { count: 2, p50Seconds: 240, p95Seconds: null, maxSeconds: 240 },
+    summedRunner: { count: 1, p50Seconds: 60, p95Seconds: null, maxSeconds: 60 },
+    observedRunnerSeconds: 60,
+    missingRunnerTimings: 1,
+    unmeasuredJobs: 1,
+    failedProducerAttempts: 1,
+    cause: "unclassified",
+  });
+  assert.equal(summary.failureLeads[0]?.job, "failed producer");
+});
+
 void test("rerun recovery retains the failed jobs and requires the same run and commit", () => {
   const failed = summarizeAttempt(run({ conclusion: "failure" }), [
     job({ name: "native Intel", conclusion: "timed_out" }),

@@ -422,7 +422,27 @@ need the prefetched Chromium shell. `vp test watch --project unit` provides watc
 with literal files for exact Node/browser selection and `just test-ui-related`
 for the public import graph. Failed browser
 screenshots and traces remain under `.vitest` and `work/bt`.
-The trace-probe script deliberately fails and preserves diagnostics.
+`pnpm --dir apps/desktop test:browser:trace-probe` succeeds only after the single
+deliberate assertion fails, its fresh ZIP passes bounded structure/CRC and JSON
+event checks, and Chromium decodes the explicit PNG capture. Unexpected passes,
+launch failures, missing or corrupt artifacts fail the command. All diagnostic
+failures and the verified intentional failure remain retained under `work/bt`.
+This is a diagnostic custody check, not a product test pass.
+
+| Command                                | Execution scope                                 | What its result establishes                                                |
+| -------------------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------- |
+| `pnpm test`                            | Vite+ `unit` project                            | Node-side behavior, SSR and pure contracts; no browser binaries needed     |
+| `pnpm test:browser`                    | Chromium DOM and forced-colors projects         | Browser interaction and layout assertions in the pinned engine             |
+| `just test-ui <literal files>`         | Exact unit/browser files                        | Requested, discovered, executed and explicitly skipped file reconciliation |
+| `just test-ui-related <literal files>` | Public import graph, broad fallback when needed | Related runtime coverage, with the actual selected files reported          |
+| `pnpm test:native-tools`               | Compiler/shell integration fixtures             | Host harness behavior; no installed application or gameplay acceptance     |
+| `pnpm --dir apps/desktop test:desktop` | Owned native Desktop scenario                   | Only the scenario's recorded observations on its exact host/build          |
+
+Historical `vitest.config.ts` and `vitest.browser.config.ts` names in affected
+selectors intentionally cover deletion and rename sides of older changes. The
+current shared inputs remain root `vite.config.ts`, `scripts/frontend-tests.ts`
+and the desktop production config; an absent historical file is not a second
+configuration authority.
 
 Browser-session connection has a finite 180-second Windows budget and a
 60-second budget elsewhere. This accommodates cold startup on shared Windows
@@ -627,6 +647,14 @@ job/runner, selected test counts and observed cache outcomes. Setup action timin
 remain in the saved job step inventory. Rust's first inventory includes workspace
 compilation; filter discovery, selected tests and live transport checks have
 separate phases. Measurement does not add another compilation or acceptance gate.
+
+Browser bootstrap logs the exact executable and Chromium version, whether that
+executable existed before installation, and separate install/readiness durations.
+An existing file is only a cache-presence observation; launch remains required.
+No hosted browser-cache transfer is introduced without measured net benefit.
+CI health reports cancelled attempts' observed summed runner seconds and failed
+producers separately from successful-duration cohorts; cancellation cause stays
+unclassified rather than being inferred as supersession or flakiness.
 
 Use `node scripts/ci-metrics.mts summarize DIRECTORY` for downloaded reports.
 The delivery watcher records initial queue delay separately from workflow start

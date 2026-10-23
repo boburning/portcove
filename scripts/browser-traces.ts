@@ -7,7 +7,11 @@ import type { Reporter } from "vite-plus/test/node";
 import { resolvePhysicalPath } from "./dev-storage.mts";
 
 /** One invocation owns one namespace; previous failures never share its names. */
-export function createBrowserTraceRun(root: string, requestedNamespace?: string) {
+export function createBrowserTraceRun(
+  root: string,
+  requestedNamespace?: string,
+  retainOutcome = false,
+) {
   const traceRoot = path.resolve(root, "work/bt");
   const physicalRoot = resolvePhysicalPath(root);
   const physicalTraceRoot = resolvePhysicalPath(traceRoot);
@@ -69,7 +73,23 @@ export function createBrowserTraceRun(root: string, requestedNamespace?: string)
         throw new Error("Capture annotation directory changed physical identity");
       writeFileSync(path.join(captures, `${randomUUID()}.json`), body, { flag: "wx" });
     },
-    onTestRunEnd(_modules, _errors, reason) {
+    onTestRunEnd(_modules, errors, reason) {
+      if (retainOutcome) {
+        if (resolvePhysicalPath(parent) !== physicalParent)
+          throw new Error("Browser trace namespace changed physical identity");
+        mkdirSync(directory, { recursive: true });
+        if (resolvePhysicalPath(directory) !== physicalDirectory)
+          throw new Error("Browser trace namespace changed physical identity");
+        writeFileSync(
+          path.join(directory, "run-outcome.json"),
+          JSON.stringify({
+            reason,
+            unhandled_errors: errors.length,
+          }),
+          { flag: "wx" },
+        );
+        return;
+      }
       if (reason !== "passed" || !existsSync(directory)) return;
       // Recheck physical identity immediately before deleting this invocation's
       // successful raw resources. Keep failed retries even if the run passed.

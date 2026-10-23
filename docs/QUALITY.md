@@ -158,6 +158,18 @@ This authority does not change application cancellation, shutdown, locking,
 network, security or other behavioral deadlines, acceptance or release authority.
 A pass under a larger budget proves completion under that budget.
 
+The October 2026 test audit calibrated maintained Node suites containing
+30-second subprocess waits from a 30-second default to 60 seconds, including
+the dynamic ordinary contract runner. Explicit per-test and product deadlines
+remain in force. The controlled timeout contract retains the child's readiness
+stderr and verifies process exit before the outer runner completes.
+Main CI bounds metadata/aggregate jobs at 15 minutes, ordinary producers at
+45 minutes, and exhaustive producers at 120 minutes; the existing 10-minute
+Windows helpers and 15-minute portability limits remain. These generous outer
+envelopes include cold setup and evidence upload above the observed ordinary
+8-minute jobs and sampled 36-minute failed qualification workflow. They are hang
+limits, not latency targets or evidence that cleanup can survive a whole-job kill.
+
 ## Dependency policy
 
 Keep scanner scope, findings and original exit status truthful. Development

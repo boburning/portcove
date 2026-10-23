@@ -81,6 +81,28 @@ function requiredFixture<T>(value: T | null | undefined): T {
   return value;
 }
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+void test("every CI job has a finite envelope above its declared step limits", () => {
+  const settings: unknown = parseDocument(workflow, { uniqueKeys: true }).toJS();
+  assert.ok(isRecord(settings) && isRecord(settings.jobs));
+  for (const [name, job] of Object.entries(settings.jobs)) {
+    assert.ok(isRecord(job), name);
+    const budget = job["timeout-minutes"];
+    assert.ok(
+      typeof budget === "number" && Number.isInteger(budget) && budget > 0 && budget <= 120,
+      name,
+    );
+    if (Array.isArray(job.steps))
+      for (const step of job.steps) {
+        assert.ok(isRecord(step));
+        const limit = step["timeout-minutes"];
+        if (limit !== undefined)
+          assert.ok(
+            typeof limit === "number" && limit < budget,
+            `${name}: leave time for cleanup and uploads`,
+          );
+      }
+  }
+});
 function workflowJob(job: string) {
   const settings: unknown = parseDocument(workflow, { uniqueKeys: true }).toJS();
   assert.ok(isRecord(settings) && isRecord(settings.jobs));
@@ -687,7 +709,7 @@ void test("fixed-account cases execute on Windows in both fast and qualification
         workflowStep(job, "Test inert fixed-account setup and capability contracts on Windows").run,
       ),
       [
-        "node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts",
+        "node --test --test-timeout=60000 --test-reporter=./scripts/test-duration-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts",
       ],
     );
   }
@@ -783,7 +805,7 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
   );
 });
 
-void test("Windows diagnostics serialize file workers without changing coverage or deadlines", () => {
+void test("Windows diagnostics serialize file workers with calibrated child timeout headroom", () => {
   const command = requiredFixture(
     executableLines(
       workflowStep("windows_storage", "Test development diagnostics and evidence").run,
@@ -800,7 +822,7 @@ void test("Windows diagnostics serialize file workers without changing coverage 
     "node",
     "--test",
     "--test-concurrency=1",
-    "--test-timeout=30000",
+    "--test-timeout=60000",
     "--test-reporter=./scripts/test-duration-reporter.mts",
   ]);
   assert.deepEqual(command.slice(9), [
@@ -889,6 +911,42 @@ void test("full repository contracts run the bounded release evidence collector 
       "node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/release-run-evidence.test.mts",
     ],
   );
+});
+
+void test("qualification installs the actual YAML and release-policy dependency owners before consumers", () => {
+  const windows = workflowJob("windows_storage");
+  assert.ok(Array.isArray(windows.steps));
+  const install = windows.steps.findIndex(
+    (step: unknown) => isRecord(step) && step.name === "Install pinned contract dependencies",
+  );
+  const consume = windows.steps.findIndex(
+    (step: unknown) => isRecord(step) && step.name === "Test Windows CI setup contract",
+  );
+  assert.ok(install >= 0 && consume > install);
+  const setup: unknown = windows.steps[install];
+  assert.ok(isRecord(setup) && isRecord(setup.with));
+  const options: unknown = parseDocument(String(setup.with["run-install"])).toJS();
+  assert.ok(isRecord(options));
+  assert.deepEqual(options.args, [
+    "--filter",
+    "portcove-repository",
+    "--filter",
+    "portcove-desktop-ui",
+    "--frozen-lockfile",
+    "--ignore-scripts",
+  ]);
+  const catalog = workflowJob("catalog_full");
+  assert.ok(Array.isArray(catalog.steps));
+  const dependency = catalog.steps.findIndex(
+    (step: unknown) =>
+      isRecord(step) &&
+      step.run ===
+        "pnpm install --filter portcove-repository --filter portcove-desktop-ui --frozen-lockfile --ignore-scripts",
+  );
+  const tests = catalog.steps.findIndex(
+    (step: unknown) => isRecord(step) && step.name === "Verify repository and release contracts",
+  );
+  assert.ok(dependency >= 0 && tests > dependency);
 });
 
 void test("required CI keeps its cancellation and least-privilege contracts", () => {
