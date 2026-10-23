@@ -591,6 +591,185 @@ for (const [signal, expectedStatus] of [
   });
 }
 
+void test("invalid execution budgets refuse before admission or filesystem setup", async () => {
+  for (const executionTimeoutMilliseconds of [0, -1, 0.5, NaN, Infinity, 86_400_001])
+    await assert.rejects(
+      runRustTests(["--guard-command", "never"], {
+        executionTimeoutMilliseconds,
+        acquireLock: async () => assert.fail("invalid budget must not acquire resources"),
+      }),
+      /Execution timeout/,
+    );
+});
+
+void test("inherited non-Linux Unix budgets and output capture refuse before creating an unregistered group", async () => {
+  for (const requested of [
+    { executionTimeoutMilliseconds: 20 },
+    { output: { stdout: 42, stderr: 43 } },
+  ]) {
+    let released = false;
+    await assert.rejects(
+      runRustTests(["--guard-command", "never"], {
+        ...requested,
+        platform: "darwin",
+        spawn: () => assert.fail("unsupported inherited containment must not launch"),
+        spawnSync: () => assert.fail("unsupported inherited containment must not compile"),
+        prepareSupportArtifact: () =>
+          assert.fail("unsupported inherited containment must not prepare"),
+        acquireLock: async () => ({
+          inherited: true,
+          childEnvironment: {},
+          registerChild: async () => assert.fail("must not register a detached group"),
+          release: async () => {
+            released = true;
+          },
+        }),
+      }),
+      /Bounded inherited process custody is unavailable/,
+    );
+    assert.equal(released, true, "verified inherited release remains a no-op in production");
+  }
+});
+
+for (const platform of ["linux", "win32"])
+  for (const inherited of [false, true])
+    void test(`${platform} execution deadline contains inherited=${inherited} and proves exit before release`, async () => {
+      const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-execution-budget-"));
+      const events: string[] = [];
+      let managed: ReturnType<typeof childProcess> | undefined;
+      let launched: { command: string; options: SpawnOptions } | undefined;
+      let exited = false;
+      const finish = () => {
+        events.push("stop");
+        queueMicrotask(() => {
+          exited = true;
+          events.push("exit");
+          required(managed).emit("close", 0);
+        });
+        return true;
+      };
+      try {
+        const status = await runRustTests(["--guard-command", "never", "literal"], {
+          ...supportCacheDoubles(),
+          tempRoot,
+          platform,
+          executionTimeoutMilliseconds: 20,
+          output: { stdout: 42, stderr: 43 },
+          spawnSync: (command) => {
+            if (String(command).toLowerCase().includes("taskkill")) finish();
+            return { status: 0 };
+          },
+          spawn: (command, _args, options) => {
+            launched = { command, options };
+            managed = childProcess(723, null);
+            return managed;
+          },
+          writeGate: () => {
+            events.push("gate");
+          },
+          onExecutionTimeout: (limit) => {
+            assert.equal(limit, 20);
+            events.push("timeout");
+          },
+          closeLinuxControl: finish,
+          killProcess: finish,
+          readUnixSupervisorStatus: () => {
+            if (exited) return 0;
+            throw new Error("running", { cause: { code: "ENOENT" } });
+          },
+          readCleanupReceipt: () => {
+            events.push("proof");
+            return { outcome: "quiescent" };
+          },
+          acquireLock: async () => {
+            // This setup/admission interval exceeds the payload budget. It must
+            // finish before the registered gate starts that distinct clock.
+            await new Promise((resolve) => setTimeout(resolve, 30));
+            events.push("admitted");
+            return {
+              inherited,
+              childEnvironment: {},
+              registerChild: async () => {
+                events.push("registered");
+                return { pid: 723 };
+              },
+              release: async () => {
+                events.push("release");
+              },
+            };
+          },
+        });
+        assert.equal(status, 124);
+        assert.match(
+          required(launched).command,
+          platform === "linux" ? /linux-process-tree-reaper/ : /process-tree-supervisor/,
+        );
+        assert.deepEqual(required(launched).options.stdio, [
+          platform === "linux" ? "pipe" : "ignore",
+          42,
+          43,
+        ]);
+        assert.deepEqual(events.slice(0, 6), [
+          "admitted",
+          "registered",
+          "gate",
+          "timeout",
+          "stop",
+          "exit",
+        ]);
+        assert.equal(events.at(-1), "release");
+        if (platform === "linux") assert(events.indexOf("proof") > events.indexOf("exit"));
+      } finally {
+        await rm(tempRoot, { recursive: true, force: true });
+      }
+    });
+
+void test("execution timeout retains custody when descendant exit cannot be proven", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-execution-unproven-"));
+  let managed: ReturnType<typeof childProcess> | undefined;
+  let released = false;
+  let exited = false;
+  try {
+    await assert.rejects(
+      runRustTests(["--guard-command", "never"], {
+        ...supportCacheDoubles(),
+        tempRoot,
+        platform: "linux",
+        executionTimeoutMilliseconds: 10,
+        spawnSync: () => ({ status: 0 }),
+        spawn: () => {
+          managed = childProcess(724, null);
+          return managed;
+        },
+        writeGate: () => {},
+        readUnixSupervisorStatus: () => {
+          if (exited) return 0;
+          throw new Error("running", { cause: { code: "ENOENT" } });
+        },
+        closeLinuxControl: () => {
+          queueMicrotask(() => {
+            exited = true;
+            required(managed).emit("close", 0);
+          });
+        },
+        readCleanupReceipt: () => ({ outcome: "failed:linux-reaper" }),
+        acquireLock: async () => ({
+          inherited: true,
+          childEnvironment: {},
+          registerChild: async () => ({ pid: 724 }),
+          release: async () => {
+            released = true;
+          },
+        }),
+      }),
+      /cleanup|quiescence|failed|receipt/i,
+    );
+    assert.equal(released, false);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 void test("cancellation during registration never opens the supervisor gate", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
   const signalTarget = new EventEmitter();
