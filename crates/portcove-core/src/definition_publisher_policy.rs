@@ -25,6 +25,9 @@ pub use launch_assessment::{
 pub(crate) mod provisioning;
 pub use provisioning::{DefinitionAuthorityProvisioning, DefinitionAuthorityReview};
 
+#[path = "listing_delivery.rs"]
+pub(crate) mod listing_delivery;
+
 #[path = "definition_refresh.rs"]
 pub(crate) mod refresh;
 pub use refresh::{DefinitionRefresh, DefinitionRefreshDisposition};
@@ -110,6 +113,15 @@ async fn acquire_target_from_repository(
     trusted_root: &[u8],
     target_path: &str,
 ) -> Result<(Vec<u8>, PolicyProvenance)> {
+    acquire_target_with_limit(repository, trusted_root, target_path, MAX_POLICY_BYTES).await
+}
+
+async fn acquire_target_with_limit(
+    repository: &Repository,
+    trusted_root: &[u8],
+    target_path: &str,
+    maximum: u64,
+) -> Result<(Vec<u8>, PolicyProvenance)> {
     let role = policy_role(repository)?;
     let metadata = role
         .targets
@@ -117,7 +129,7 @@ async fn acquire_target_from_repository(
         .ok_or_else(|| PortcoveError::verification("publisher policy delegation was not loaded"))?;
     let name = TargetName::new(target_path).map_err(super::map_tough_error)?;
     let target = super::definition_target(role, repository, &name)?;
-    let bytes = super::read_target(repository, &name, target, MAX_POLICY_BYTES).await?;
+    let bytes = super::read_target(repository, &name, target, maximum).await?;
     let expiration = [
         repository.root().signed.expires,
         repository.timestamp().signed.expires,

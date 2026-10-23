@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { pickSignedCatalogPath } from "../file-picker";
 import type {
+  ListingDeliveryStatus,
   CatalogProvenance,
   CatalogStatus,
   CatalogUpdatePlan,
@@ -46,6 +47,7 @@ export function CatalogSettings({
       >
         Manage catalog updates
       </Button>
+      <ListingDeliveryControls disabled={disabled} onChanged={onChanged} />
       {open && <CatalogUpdatesDialog close={() => setOpen(false)} onChanged={onChanged} />}
     </SettingsRow>
   );
@@ -562,5 +564,89 @@ function CatalogSelection({ status, busy, run, changed }: CatalogActions) {
         Use built-in catalog
       </Button>
     </div>
+  );
+}
+
+function ListingDeliveryControls({
+  disabled,
+  onChanged,
+}: {
+  disabled: boolean;
+  onChanged?: (() => Promise<unknown>) | undefined;
+}) {
+  const [status, setStatus] = useState<ListingDeliveryStatus>();
+  const [metadata, setMetadata] = useState("");
+  const [targets, setTargets] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  useEffect(() => {
+    let current = true;
+    void desktopApi
+      .listingDeliveryStatus()
+      .then((value) => {
+        if (current) setStatus(value);
+      })
+      .catch((cause: unknown) => {
+        if (current) setError(errorText(cause));
+      });
+    return () => {
+      current = false;
+    };
+  }, []);
+  const refresh = async () => {
+    setBusy(true);
+    setError(undefined);
+    try {
+      setStatus(await desktopApi.refreshCatalogListings(metadata, targets, () => {}));
+      await onChanged?.();
+    } catch (cause) {
+      setError(errorText(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <details>
+      <summary>Directory updates</summary>
+      <p>
+        Refresh port listings, artwork and setup information from the configured official publisher.
+        Game installations keep their existing permissions and files.
+      </p>
+      {status && (
+        <p>
+          {status.selected
+            ? `Directory revision ${status.revision} · ${status.listing_count} published listings`
+            : "Using the built-in directory"}
+        </p>
+      )}
+      {status?.fallback_reason && <p>{status.fallback_reason}</p>}
+      <label>
+        Catalog metadata address
+        <Input
+          value={metadata}
+          onChange={(event) => setMetadata(event.target.value)}
+          placeholder="https://"
+          disabled={disabled || busy}
+        />
+      </label>
+      <label>
+        Catalog content address
+        <Input
+          value={targets}
+          onChange={(event) => setTargets(event.target.value)}
+          placeholder="https://"
+          disabled={disabled || busy}
+        />
+      </label>
+      <Button
+        disabled={disabled || busy || !metadata || !targets}
+        onClick={() => {
+          void refresh();
+        }}
+      >
+        {busy ? "Refreshing directory…" : "Refresh directory"}
+      </Button>
+      {error && <p role="alert">{error}</p>}
+    </details>
   );
 }

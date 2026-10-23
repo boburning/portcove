@@ -192,19 +192,58 @@ export const catalogPublicationInventory = (files: ReadonlyMap<string, Buffer>) 
     .map(([target, bytes]) => ({ target, bytes: bytes.length, sha256: catalogFileHash(bytes) }));
 /** Validates byte binding only. Semantic projection comes from the actual Core
  * invocation, never this parser or a caller-supplied success flag. */
+export const catalogListingTarget = "policy/official/catalog.listings.json";
+export function inspectCatalogListingIdentity(raw: unknown) {
+  exact(
+    raw,
+    "directory_sha256,listing_count,revision,sha256,target,withdrawals_sha256,withdrawn_count",
+  );
+  if (
+    raw.target !== catalogListingTarget ||
+    typeof raw.revision !== "number" ||
+    !Number.isSafeInteger(raw.revision) ||
+    raw.revision < 1
+  )
+    throw new Error("catalog listing identity differs");
+  for (const field of ["sha256", "directory_sha256", "withdrawals_sha256"]) sha(raw[field]);
+  for (const field of ["listing_count", "withdrawn_count"]) {
+    const count = raw[field];
+    if (typeof count !== "number" || !Number.isInteger(count) || count < 0 || count > 10000)
+      throw new Error("catalog listing count exceeds bound");
+  }
+  return structuredClone(raw);
+}
+export function catalogInspectionShape(raw: Record<string, unknown>) {
+  const listings = raw.publication_schema === 2;
+  return (
+    Object.keys(raw).sort().join(",") ===
+      (listings
+        ? "authority,definitions,files,index_sha256,listings,publication_schema,scope"
+        : "authority,definitions,files,index_sha256,publication_schema,scope") &&
+    (listings
+      ? raw.scope === "inert-catalog-publication-inspection"
+      : raw.publication_schema === 1 &&
+        raw.scope === "inert-managed-definition-publication-inspection")
+  );
+}
+
 export function inspectCatalogCoreReport(raw: unknown, files: ReadonlyMap<string, Buffer>) {
   if (
     !isRecord(raw) ||
-    Object.keys(raw).sort().join(",") !==
-      "authority,definitions,files,index_sha256,publication_schema,scope" ||
-    raw.publication_schema !== 1 ||
+    !catalogInspectionShape(raw) ||
     raw.authority !== "none" ||
-    raw.scope !== "inert-managed-definition-publication-inspection" ||
     !Array.isArray(raw.definitions) ||
     !Array.isArray(raw.files) ||
     JSON.stringify(raw.files) !== JSON.stringify(catalogPublicationInventory(files)) ||
     raw.index_sha256 !== catalogFileHash(files.get("definitions/index.json") ?? Buffer.alloc(0))
   )
     throw new Error("Core inspection does not bind exact catalog bytes");
+  if (raw.publication_schema === 2) {
+    const listing = inspectCatalogListingIdentity(raw.listings);
+    const bytes = files.get(catalogListingTarget);
+    if (!bytes || bytes.length > 8 * 1024 ** 2 || listing.sha256 !== catalogFileHash(bytes))
+      throw new Error("Core listing inspection does not bind exact catalog bytes");
+  } else if (files.has(catalogListingTarget))
+    throw new Error("listing target requires capable inspection");
   return structuredClone(raw);
 }

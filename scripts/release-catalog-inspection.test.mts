@@ -155,3 +155,49 @@ void test("imported or copied Core receipt cannot mint actual inspection capabil
     /same-process/,
   );
 });
+
+void test("listing publication requires capable exact inspection and binds every descriptive byte", () => {
+  const index = Buffer.from('{"index_schema":1,"definitions":[],"contents":[]}');
+  const target = "policy/official/catalog.listings.json";
+  const bytes = Buffer.from(
+    '{"listing_delivery_schema":1,"revision":1,"withdrawn_ids":[],"directory":{"format_version":1,"listings":[]}}',
+  );
+  const files = new Map([
+    ["definitions/index.json", index],
+    [target, bytes],
+  ]);
+  const report = {
+    publication_schema: 2,
+    authority: "none",
+    index_sha256: hash(index),
+    files: [...files]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([target, bytes]) => ({ target, bytes: bytes.length, sha256: hash(bytes) })),
+    definitions: [],
+    scope: "inert-catalog-publication-inspection",
+    listings: {
+      target,
+      revision: 1,
+      sha256: hash(bytes),
+      directory_sha256: hash(Buffer.from('{"format_version":1,"listings":[]}')),
+      withdrawals_sha256: hash(Buffer.from("[]")),
+      listing_count: 0,
+      withdrawn_count: 0,
+    },
+  };
+  assert.deepEqual(inspectCatalogCoreReport(report, files), report);
+  assert.throws(() => inspectCatalogCoreReport({ ...report, publication_schema: 1 }, files));
+  assert.throws(() =>
+    inspectCatalogCoreReport(
+      { ...report, listings: { ...report.listings, sha256: "f".repeat(64) } },
+      files,
+    ),
+  );
+  assert.throws(() =>
+    inspectCatalogCoreReport(
+      { ...report, listings: { ...report.listings, operations: ["install"] } },
+      files,
+    ),
+  );
+  assert.throws(() => inspectCatalogCoreReport({ ...report, publication_schema: 3 }, files));
+});

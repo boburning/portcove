@@ -25,6 +25,7 @@ function check(deadline: number) {
 function target(name: string) {
   return (
     name === "definitions/index.json" ||
+    name === "policy/official/catalog.listings.json" ||
     /^sha256\/[a-f0-9]{64}\.json$/u.test(name) ||
     /^policy\/official\/[a-z0-9][a-z0-9-]{0,127}(?:\.launch)?\.json$/u.test(name)
   );
@@ -72,7 +73,7 @@ export function readCatalogPublicationSourceBytes(
       authority: "none" as const,
     };
   }
-  const read = (entry: { mode: string; type: string; oid: string }) => {
+  const read = (entry: { mode: string; type: string; oid: string }, bound = 128 * 1024) => {
     if (entry.mode !== "100644" || entry.type !== "blob")
       throw new Error("catalog source must be regular inert Git blobs");
     const raw = get(`${repository}/git/blobs/${entry.oid}`);
@@ -83,9 +84,9 @@ export function readCatalogPublicationSourceBytes(
       typeof raw.size !== "number" ||
       !Number.isSafeInteger(raw.size) ||
       raw.size < 1 ||
-      raw.size > 128 * 1024 ||
+      raw.size > bound ||
       typeof raw.content !== "string" ||
-      raw.content.length > 180 * 1024
+      raw.content.length > Math.ceil(bound / 3) * 4 + Math.ceil(bound / 57)
     )
       throw new Error("catalog source blob bound or identity differs");
     const encoded = raw.content.replace(/\n/gu, ""),
@@ -110,7 +111,9 @@ export function readCatalogPublicationSourceBytes(
     request.kind !== "catalog-publication" ||
     !isRecord(request.compatibility) ||
     Object.keys(request.compatibility).sort().join(",") !== "contract,notes" ||
-    request.compatibility.contract !== "official-definition-policy-launch-v1" ||
+    !["official-definition-policy-launch-v1", "official-catalog-listings-v2"].includes(
+      String(request.compatibility.contract),
+    ) ||
     typeof request.compatibility.notes !== "string" ||
     !request.compatibility.notes.trim() ||
     Buffer.byteLength(request.compatibility.notes) > 8192
@@ -131,7 +134,13 @@ export function readCatalogPublicationSourceBytes(
     const relative = name.slice(bundlePrefix.length);
     if (!name.startsWith(bundlePrefix) || !target(relative) || files.size >= 2048)
       throw new Error("catalog source contains unlisted content or exceeds context file bound");
-    files.set(relative, read(entry));
+    files.set(
+      relative,
+      read(
+        entry,
+        relative === "policy/official/catalog.listings.json" ? 8 * 1024 ** 2 : 128 * 1024,
+      ),
+    );
   }
   if (!files.has("definitions/index.json")) throw new Error("catalog source index missing");
   check(deadline);
@@ -139,7 +148,9 @@ export function readCatalogPublicationSourceBytes(
     source: { commit: sourceCommit, tree: commit.tree },
     request: {
       compatibility: {
-        contract: "official-definition-policy-launch-v1" as const,
+        contract: request.compatibility.contract as
+          | "official-definition-policy-launch-v1"
+          | "official-catalog-listings-v2",
         notes: request.compatibility.notes,
       },
     },

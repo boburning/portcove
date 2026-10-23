@@ -5,7 +5,7 @@ use crate::definition_repository::publisher_policy::{
 };
 use crate::{DefinitionContentIndex, PortcoveError, Result};
 use schemars::JsonSchema;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -53,7 +53,34 @@ pub struct DefinitionPublicationInspection {
     pub index_sha256: String,
     pub files: Vec<DefinitionPublicationFile>,
     pub definitions: Vec<DefinitionPublicationIdentity>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub listings: Option<ListingPublicationIdentity>,
     pub scope: &'static str,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListingPublicationIdentity {
+    pub target: String,
+    pub revision: u64,
+    pub sha256: String,
+    pub listing_count: usize,
+    pub withdrawn_count: usize,
+    pub directory_sha256: String,
+    pub withdrawals_sha256: String,
+}
+
+pub(crate) fn inspect_listing_publication(bytes: &[u8]) -> Result<ListingPublicationIdentity> {
+    let document = crate::definition_repository::publisher_policy::listing_delivery::ListingDeliveryDocument::parse(bytes)?;
+    Ok(ListingPublicationIdentity {
+        target: crate::definition_repository::publisher_policy::listing_delivery::TARGET.into(),
+        revision: document.revision,
+        sha256: hash(bytes),
+        listing_count: document.directory.listings.len(),
+        withdrawn_count: document.withdrawn_ids.len(),
+        directory_sha256: hash(&serde_json::to_vec(&document.directory)?),
+        withdrawals_sha256: hash(&serde_json::to_vec(&document.withdrawn_ids)?),
+    })
 }
 
 /// Reuse existing parsers and the complete semantic projection. Unsupported
@@ -66,11 +93,14 @@ pub fn inspect_definition_publication_bytes(
     }
     let mut total = 0usize;
     for (name, bytes) in files {
-        let bound = if name.starts_with("policy/") {
-            MAX_POLICY
-        } else {
-            MAX_LEAF
-        };
+        let bound =
+            if name == crate::definition_repository::publisher_policy::listing_delivery::TARGET {
+                crate::definition_repository::publisher_policy::listing_delivery::MAX_BYTES
+            } else if name.starts_with("policy/") {
+                MAX_POLICY
+            } else {
+                MAX_LEAF
+            };
         total = total.checked_add(bytes.len()).ok_or_else(invalid)?;
         if bytes.is_empty() || bytes.len() > bound || total > MAX_TOTAL {
             return Err(invalid());
@@ -85,6 +115,14 @@ pub fn inspect_definition_publication_bytes(
         let bytes = files.get(target).ok_or_else(invalid)?;
         index.verify_content(target, bytes)?;
         expected.insert(target.to_owned());
+    }
+    let listing_target = crate::definition_repository::publisher_policy::listing_delivery::TARGET;
+    let listings = files
+        .get(listing_target)
+        .map(|bytes| inspect_listing_publication(bytes))
+        .transpose()?;
+    if listings.is_some() {
+        expected.insert(listing_target.into());
     }
     let mut definitions = Vec::new();
     for definition in index.definitions() {
@@ -148,7 +186,7 @@ pub fn inspect_definition_publication_bytes(
     }
     definitions.sort_by(|a, b| (&a.namespace, &a.stable_id).cmp(&(&b.namespace, &b.stable_id)));
     let report = DefinitionPublicationInspection {
-        publication_schema: 1,
+        publication_schema: if listings.is_some() { 2 } else { 1 },
         authority: "none",
         index_sha256,
         files: files
@@ -160,7 +198,12 @@ pub fn inspect_definition_publication_bytes(
             })
             .collect(),
         definitions,
-        scope: "inert-managed-definition-publication-inspection",
+        scope: if listings.is_some() {
+            "inert-catalog-publication-inspection"
+        } else {
+            "inert-managed-definition-publication-inspection"
+        },
+        listings,
     };
     // Leave space for the existing CLI machine envelope under its caller's
     // 4 MiB captured-manifest budget. This is a producer-only refusal.
@@ -266,7 +309,11 @@ fn read_bundle(root: &Path) -> Result<BTreeMap<String, Vec<u8>>> {
                 if !metadata.is_file() || files.len() >= MAX_FILES {
                     return Err(invalid());
                 }
-                let cap = if target.starts_with("policy/") {
+                let cap = if target
+                    == crate::definition_repository::publisher_policy::listing_delivery::TARGET
+                {
+                    crate::definition_repository::publisher_policy::listing_delivery::MAX_BYTES
+                } else if target.starts_with("policy/") {
                     MAX_POLICY
                 } else {
                     MAX_LEAF

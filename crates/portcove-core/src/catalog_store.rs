@@ -231,7 +231,7 @@ fn resolve_effective_catalog_from_baseline(
     let selected = crate::definition_candidate::selection::load_selected_definition_catalog(
         connection, &baseline, now,
     );
-    match selected {
+    let (catalog, mut provenance) = match selected {
         Ok(Some((catalog, expires_at))) => selected_catalog(catalog, expires_at, provenance),
         Ok(None) => Ok((baseline, provenance)),
         Err(error) => {
@@ -241,7 +241,17 @@ fn resolve_effective_catalog_from_baseline(
             ));
             Ok((baseline, provenance))
         }
+    }?;
+    let (catalog, listings) =
+        crate::definition_repository::publisher_policy::listing_delivery::load(
+            connection, catalog, now,
+        );
+    if let Some(reason) = listings.fallback_reason {
+        provenance
+            .fallback_reasons
+            .push(format!("listing directory was not loaded: {reason}"));
     }
+    Ok((catalog, provenance))
 }
 
 pub(crate) fn effective_catalog_status(

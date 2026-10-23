@@ -8,6 +8,8 @@ struct Inspection {
     files: Vec<DefinitionFile>,
     definitions: Vec<Definition>,
     scope: String,
+    #[serde(default)]
+    listings: Option<serde_json::Value>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -55,9 +57,15 @@ fn content_path(value: &str) -> bool {
 }
 pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
     let report: Inspection = serde_json::from_slice(manifest)?;
-    if report.publication_schema != 1
-        || report.authority != "none"
-        || report.scope != "inert-managed-definition-publication-inspection"
+    if !matches!(
+        (
+            report.publication_schema,
+            report.listings.is_some(),
+            report.scope.as_str()
+        ),
+        (1, false, "inert-managed-definition-publication-inspection")
+            | (2, true, "inert-catalog-publication-inspection")
+    ) || report.authority != "none"
         || report.files.is_empty()
         || report.files.len() > BUNDLE_FILES
         || report.definitions.len() > 4096
@@ -85,6 +93,42 @@ pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
         return invalid("catalog index/inspection definition inventory differs");
     }
     let mut allowed = BTreeSet::from(["definitions/index.json".to_owned()]);
+    if let Some(listings) = &report.listings {
+        let target = "policy/official/catalog.listings.json";
+        let bytes = files
+            .get(target)
+            .ok_or_else(|| TufRepositoryError::Invalid("listing target absent".into()))?;
+        if bytes.len() > 8 * 1024 * 1024
+            || listings.get("target").and_then(|v| v.as_str()) != Some(target)
+            || listings.get("sha256").and_then(|v| v.as_str()) != Some(sha(bytes).as_str())
+        {
+            return invalid("listing target/inspection identity differs");
+        }
+        // Core supplies semantic inspection; signing rebinds every reported summary to these bytes.
+        let document: serde_json::Value = serde_json::from_slice(bytes)?;
+        let directory = document
+            .get("directory")
+            .ok_or_else(|| TufRepositoryError::Invalid("listing directory absent".into()))?;
+        let withdrawals = document
+            .get("withdrawn_ids")
+            .ok_or_else(|| TufRepositoryError::Invalid("listing withdrawals absent".into()))?;
+        for (field, want) in [
+            ("revision", document["revision"].clone()),
+            (
+                "listing_count",
+                serde_json::json!(directory["listings"].as_array().map(Vec::len)),
+            ),
+            (
+                "withdrawn_count",
+                serde_json::json!(withdrawals.as_array().map(Vec::len)),
+            ),
+        ] {
+            if listings.get(field) != Some(&want) {
+                return invalid("listing summary differs");
+            }
+        }
+        allowed.insert(target.into());
+    }
     let mut content = BTreeMap::new();
     for c in &index.contents {
         if !content_path(&c.target)

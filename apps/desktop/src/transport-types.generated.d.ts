@@ -698,6 +698,7 @@ export interface TransportOutputs {
   library_move_plan: OutputLibraryMovePlan;
   library_move_result: OutputLibraryMoveResult;
   library_selection: LibrarySelection;
+  listing_delivery_status: OutputListingDeliveryStatus;
   listing_statuses: OutputListingStatuses;
   operation_event: OutputOperationEvent;
   output_destination_preview: OutputOutputDestinationPreview;
@@ -2528,6 +2529,19 @@ export interface OutputLibraryMoveResult {
 export interface LibrarySelection {
   root: string;
   source: LibrarySelectionSource;
+  [k: string]: unknown;
+}
+export interface OutputListingDeliveryStatus {
+  anchor_sha256: string | null;
+  delivery_schema: number;
+  expires_at: string | null;
+  fallback_reason: string | null;
+  listing_count: number;
+  repository_root_sha256: string | null;
+  revision: number | null;
+  selected: boolean;
+  target_sha256: string | null;
+  withdrawn_ids: string[];
   [k: string]: unknown;
 }
 export interface PortListingStatus {
