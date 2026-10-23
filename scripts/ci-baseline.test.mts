@@ -72,13 +72,16 @@ const make = (files: string[]) =>
     checkout: "b".repeat(40),
   });
 
-void test("a stuck inner child reports its timeout and exits before the maintained outer budget", (t) => {
-  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-nested-timeout-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const fixture = path.join(root, "timeout.test.mjs");
-  writeFileSync(
-    fixture,
-    `import {spawnSync} from 'node:child_process';
+void test(
+  "a stuck inner child reports its timeout and exits before the maintained outer budget",
+  { timeout: 20_000 },
+  (t) => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "portcove-nested-timeout-"));
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    const fixture = path.join(root, "timeout.test.mjs");
+    writeFileSync(
+      fixture,
+      `import {spawnSync} from 'node:child_process';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 test('inner timeout keeps stderr and joins its child', () => {
@@ -89,19 +92,20 @@ test('inner timeout keeps stderr and joins its child', () => {
   assert.throws(()=>process.kill(pid,0),{code:'ESRCH'});
   console.log('inner-timeout-reported-and-joined');
 });\n`,
-  );
-  const env = baselineTestEnvironment();
-  delete env.NODE_TEST_CONTEXT;
-  const result = spawnSync(process.execPath, ["--test", "--test-timeout=60000", fixture], {
-    encoding: "utf8",
-    env,
-    timeout: 75_000,
-    windowsHide: true,
-  });
-  assert.equal(result.error, undefined);
-  assert.equal(result.status, 0, result.stdout + result.stderr);
-  assert.match(result.stdout, /inner-timeout-reported-and-joined/);
-});
+    );
+    const env = baselineTestEnvironment();
+    delete env.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, ["--test", "--test-timeout=10000", fixture], {
+      encoding: "utf8",
+      env,
+      timeout: 15_000,
+      windowsHide: true,
+    });
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /inner-timeout-reported-and-joined/);
+  },
+);
 
 void test("shared diagnostics inputs keep hosted frontend and quality plans runnable", () => {
   for (const file of [
