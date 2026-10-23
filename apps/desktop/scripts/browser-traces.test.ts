@@ -37,34 +37,34 @@ afterEach(() => {
 });
 
 describe("browser trace invocation custody", () => {
-  it("gives repeated invocations distinct names and cleans only successful raw resources", () => {
+  it("gives repeated invocations distinct names and retains raw resources for shutdown", () => {
     const root = fixture();
     const failed = createBrowserTraceRun(root);
     const succeeded = createBrowserTraceRun(root);
     expect(failed.directory).not.toBe(succeeded.directory);
     const retained = raw(failed, "same-test.trace.zip");
     raw(succeeded);
-    failed.reporter.onTestRunEnd([], [], "failed");
-    succeeded.reporter.onTestRunEnd([], [], "passed");
+    failed.reporter.onTestRunEnd?.([], [], "failed");
+    succeeded.reporter.onTestRunEnd?.([], [], "passed");
     expect(existsSync(retained)).toBe(true);
-    expect(existsSync(succeeded.directory)).toBe(false);
+    expect(existsSync(succeeded.directory)).toBe(true);
   });
   it.each(["failed", "interrupted"] as const)("preserves unfinalized %s evidence", (reason) => {
     const run = createBrowserTraceRun(fixture());
     const file = raw(run);
-    run.reporter.onTestRunEnd([], [], reason);
+    run.reporter.onTestRunEnd?.([], [], reason);
     expect(existsSync(file)).toBe(true);
   });
   it("retains a failed retry trace even if the complete run passes", () => {
     const run = createBrowserTraceRun(fixture());
     const file = raw(run, "retry.trace.zip");
-    run.reporter.onTestRunEnd([], [], "passed");
+    run.reporter.onTestRunEnd?.([], [], "passed");
     expect(existsSync(file)).toBe(true);
   });
   it("retains captured screenshots even when no finalized trace is available", () => {
     const run = createBrowserTraceRun(fixture());
     const file = raw(run, "screenshots/failure.png");
-    run.reporter.onTestRunEnd([], [], "passed");
+    run.reporter.onTestRunEnd?.([], [], "passed");
     expect(existsSync(file)).toBe(true);
   });
   it("materializes exact bounded capture annotations on success and refusal", () => {
@@ -74,7 +74,7 @@ describe("browser trace invocation custody", () => {
       const body = Buffer.from(
         JSON.stringify({ capture_target: { label: "portrait 漢字", outcome } }) + "\n",
       );
-      run.reporter.onTestCaseAnnotate({} as never, {
+      run.reporter.onTestCaseAnnotate?.({} as never, {
         message: "Capture target geometry",
         type: "capture-target",
         attachment: {
@@ -91,15 +91,15 @@ describe("browser trace invocation custody", () => {
       );
     }
     raw(run);
-    run.reporter.onTestRunEnd([], [], "passed");
-    expect(existsSync(run.directory)).toBe(false);
+    run.reporter.onTestRunEnd?.([], [], "passed");
+    expect(existsSync(run.directory)).toBe(true);
     expect(readdirSync(path.join(root, ".vitest/attachments/capture-target"))).toHaveLength(2);
   });
   it("refuses malformed, oversized or redirected capture annotations without writing", () => {
     const root = fixture();
     const run = createBrowserTraceRun(root);
     const annotate = (body: string) =>
-      run.reporter.onTestCaseAnnotate({} as never, {
+      run.reporter.onTestCaseAnnotate?.({} as never, {
         message: "Capture target geometry",
         type: "capture-target",
         attachment: { contentType: "application/json", body, bodyEncoding: "base64" },
@@ -128,14 +128,15 @@ describe("browser trace invocation custody", () => {
       "owned run",
     );
   });
-  it("refuses cleanup after a directory is replaced by a link to another scope", () => {
+  it("leaves a redirected trace directory and its external target untouched on completion", () => {
     const run = createBrowserTraceRun(fixture());
     mkdirSync(path.dirname(run.directory), { recursive: true });
     const outside = fixture();
     const retained = path.join(outside, "keep.txt");
     writeFileSync(retained, "keep");
     symlinkSync(outside, run.directory, "junction");
-    expect(() => run.reporter.onTestRunEnd([], [], "passed")).toThrow("physical identity");
+    expect(() => run.reporter.onTestRunEnd?.([], [], "passed")).not.toThrow();
+    expect(readFileSync(retained, "utf8")).toBe("keep");
     expect(existsSync(retained)).toBe(true);
   });
 });
