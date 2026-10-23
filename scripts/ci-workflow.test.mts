@@ -19,6 +19,7 @@ import { encodeHostedEvidence, recoverHostedEvidence } from "./native-backup-evi
 import { AUDIT_STAGES } from "./audit.mts";
 import {
   partitionWindowsRustTests,
+  runnableWindowsRustTests,
   validateRustTimingHints,
   validateWindowsRustManifest,
   windowsPartitionConfig,
@@ -3144,6 +3145,74 @@ void test("Windows Rust partitions use timing only for placement and retain ever
   );
   assert.throws(() => partitionWindowsRustTests([], hints), /nonempty/u);
   assert.throws(() => partitionWindowsRustTests(selected, hints, 9), /one and eight/u);
+});
+
+void test("Windows Rust filtered inventory accepts nextest default-filter exclusions without weakening complete coverage", () => {
+  // Pinned nextest 0.9.100 lists a distinct status when a profile filter excludes
+  // an entire binary; partially selected binaries still list their mismatches.
+  const matched = { ignored: false, "filter-match": { status: "matches" } };
+  const inventory = {
+    "test-count": 2,
+    "rust-suites": {
+      "transfer-smoke": {
+        "package-name": "transfer-smoke",
+        "binary-id": "transfer-smoke",
+        status: "listed",
+        testcases: {
+          one: matched,
+          two: { ignored: false, "filter-match": { status: "mismatch" } },
+        },
+      },
+      "transfer-smoke::outside": {
+        "package-name": "transfer-smoke",
+        "binary-id": "transfer-smoke::outside",
+        status: "skipped-default-filter",
+        testcases: {},
+      },
+    },
+  };
+  const original = structuredClone(inventory);
+  assert.deepEqual(
+    [...runnableWindowsRustTests(inventory, { allowSkipped: true })],
+    [JSON.stringify(["transfer-smoke", "transfer-smoke", "one"])],
+  );
+  assert.deepEqual(inventory, original, "parsing must not rewrite retained inventory evidence");
+  assert.throws(() => runnableWindowsRustTests(inventory), /identity or coverage/u);
+  const changedSuite = (status: string, testcases = {}, binaryId = "transfer-smoke::outside") => ({
+    ...inventory,
+    "rust-suites": {
+      ...inventory["rust-suites"],
+      "transfer-smoke::outside": {
+        ...inventory["rust-suites"]["transfer-smoke::outside"],
+        "binary-id": binaryId,
+        status,
+        testcases,
+      },
+    },
+  });
+  for (const status of ["skipped", "skipped-default-filter"]) {
+    assert.throws(() => runnableWindowsRustTests(changedSuite(status)), /identity or coverage/u);
+    assert.throws(
+      () =>
+        runnableWindowsRustTests(changedSuite(status, { hidden: matched }), { allowSkipped: true }),
+      /Skipped nextest suite contained test records/u,
+    );
+  }
+  assert.throws(
+    () => runnableWindowsRustTests(changedSuite("unexpected"), { allowSkipped: true }),
+    /identity or coverage/u,
+  );
+  assert.throws(
+    () =>
+      runnableWindowsRustTests(changedSuite("skipped-default-filter", {}, "substituted"), {
+        allowSkipped: true,
+      }),
+    /identity or coverage/u,
+  );
+  assert.throws(
+    () => runnableWindowsRustTests({ ...inventory, "test-count": 3 }, { allowSkipped: true }),
+    /Truncated/u,
+  );
 });
 
 void test("Windows Rust archive refuses substituted provenance and incomplete or overlapping partitions", () => {

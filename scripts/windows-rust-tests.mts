@@ -312,8 +312,29 @@ function currentContext() {
   };
 }
 
+export function runnableWindowsRustTests(inventory: unknown, { allowSkipped = false } = {}) {
+  // Pinned nextest distinguishes whole-binary default-filter exclusions from
+  // explicit -E exclusions. Both are empty skipped suites in a narrowed list;
+  // complete lists must still reject either status. Reuse all identity, count
+  // and empty-skipped-suite validation without altering the retained inventory.
+  if (allowSkipped && isRecord(inventory) && isRecord(inventory["rust-suites"])) {
+    inventory = {
+      ...inventory,
+      "rust-suites": Object.fromEntries(
+        Object.entries(inventory["rust-suites"]).map(([binary, suite]) => [
+          binary,
+          isRecord(suite) && suite.status === "skipped-default-filter"
+            ? { ...suite, status: "skipped" }
+            : suite,
+        ]),
+      ),
+    };
+  }
+  return runnableWorkspaceImpactTests(inventory, { allowSkipped });
+}
+
 function listTests(args: string[], allowSkipped = true) {
-  return runnableWorkspaceImpactTests(
+  return runnableWindowsRustTests(
     JSON.parse(execute("cargo-nextest", ["nextest", "list", ...args, "--message-format", "json"])),
     { allowSkipped },
   );
