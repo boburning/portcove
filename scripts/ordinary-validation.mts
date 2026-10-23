@@ -1370,6 +1370,7 @@ const releaseContractTests = Object.freeze([
   "scripts/release-coordinator.test.mts",
   "scripts/release-coordinator-state.test.mts",
   "scripts/release-coordinator-checkpoint-authentication.test.mts",
+  "scripts/release-coordinator-checkpoint-signing.test.mts",
   "scripts/release-prepared-transport.test.mts",
   "scripts/release-run-evidence.test.mts",
   "scripts/reconstruct-application-update-records.test.mts",
