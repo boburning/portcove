@@ -1,0 +1,68 @@
+name: Job-token dispatch fixture
+run-name: Portcove job-token fixture ${{ inputs.mode }} ${{ inputs.parent_run_id || 'initial' }}
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [send, receive]
+        default: send
+        required: true
+      parent_run_id:
+        type: string
+        default: ""
+      parent_revision:
+        type: string
+        default: ""
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: portcove-job-token-fixture-${{ inputs.mode }}
+  cancel-in-progress: false
+jobs:
+  send:
+    if: ${{ inputs.mode == 'send' }}
+    name: Send inert job-token dispatch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - &checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - &node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - &qualify
+        run: node scripts/qualify-job-token-dispatch.mts
+        env:
+          GH_HOST: github.com
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_DISPATCH_FIXTURE_MODE: ${{ inputs.mode }}
+          PORTCOVE_DISPATCH_PARENT_RUN: ${{ inputs.parent_run_id }}
+          PORTCOVE_DISPATCH_PARENT_REVISION: ${{ inputs.parent_revision }}
+      - &retain
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: ${{ always() }}
+        with:
+          name: job-token-dispatch-fixture-${{ github.run_id }}-1
+          path: ${{ runner.temp }}/job-token-dispatch-fixture/receipt.jsonl
+          if-no-files-found: error
+          overwrite: false
+          retention-days: 7
+  receive:
+    if: ${{ inputs.mode == 'receive' }}
+    name: Observe inert job-token dispatch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - *checkout
+      - *node
+      - *qualify
+      - *retain
