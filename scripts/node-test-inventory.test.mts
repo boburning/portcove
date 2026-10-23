@@ -296,3 +296,191 @@ void test("generation preserves literal quoting, wrappers and exact ordered argu
     /Unsupported/,
   );
 });
+
+function ownedRegistry() {
+  return {
+    format_version: 2,
+    suites: {
+      contracts: { arguments: ["--test", "--test-timeout=30000"] },
+      reverse: { arguments: ["--test", "--test-concurrency=1"] },
+    },
+    tests: [
+      {
+        file: first,
+        memberships: [
+          ["contracts", 100],
+          ["reverse", 200],
+        ],
+      },
+      {
+        file: "scripts/second.test.mts",
+        memberships: [
+          ["contracts", 200],
+          ["reverse", 100],
+        ],
+      },
+    ],
+  };
+}
+
+void test("one ownership record projects independent suite orders and preserves executable coverage", () => {
+  const owned = ownedRegistry();
+  const registry = parseNodeTestSuites(JSON.stringify(owned));
+  assert.deepEqual(registry, {
+    format_version: 1,
+    suites: {
+      contracts: {
+        arguments: ["--test", "--test-timeout=30000"],
+        files: [first, "scripts/second.test.mts"],
+      },
+      reverse: {
+        arguments: ["--test", "--test-concurrency=1"],
+        files: ["scripts/second.test.mts", first],
+      },
+    },
+  });
+  const reordered = { ...owned, tests: [...owned.tests].reverse() };
+  assert.deepEqual(parseNodeTestSuites(JSON.stringify(reordered)), registry);
+  const workflow =
+    "jobs:\n  contracts:\n    if: needs.classify.outputs.mode == 'qualification'\n    steps:\n      - run: |\n          # node-suite: contracts\n          node --test scripts/old.test.mts\n";
+  const local = "check:\n    # node-suite: reverse\n    node --test scripts/old.test.mts\n";
+  const generatedWorkflow = generateNodeCommands(workflow, registry);
+  const generatedLocal = generateNodeCommands(local, registry);
+  requireNodeTestInventory(
+    [first, "scripts/second.test.mts"],
+    generatedWorkflow,
+    generatedLocal,
+    "",
+    JSON.stringify(owned),
+  );
+  assert.match(
+    generatedWorkflow,
+    /--test-timeout=30000 scripts\/first\.test\.mts scripts\/second\.test\.mts/u,
+  );
+  assert.match(
+    generatedLocal,
+    /--test-concurrency=1 scripts\/second\.test\.mts scripts\/first\.test\.mts/u,
+  );
+  assert.equal(generateNodeCommands(generatedWorkflow, registry), generatedWorkflow);
+  assert.equal(generateNodeCommands(generatedLocal, registry), generatedLocal);
+});
+
+void test("ownership records reject ambiguous identities, memberships, positions and mixed formats", () => {
+  const valid = ownedRegistry();
+  const firstEntry = valid.tests[0];
+  assert.ok(firstEntry);
+  const bad: unknown[] = [
+    { ...valid, tests: [] },
+    { ...valid, suites: {} },
+    { ...valid, tests: [...valid.tests, structuredClone(firstEntry)] },
+    { ...valid, tests: [{ ...firstEntry, file: "../outside.test.mts" }] },
+    { ...valid, tests: [{ ...firstEntry, memberships: [] }] },
+    { ...valid, tests: [{ ...firstEntry, memberships: [["missing", 100]] }] },
+    { ...valid, tests: [{ ...firstEntry, memberships: [["contracts", -1]] }] },
+    { ...valid, tests: [{ ...firstEntry, memberships: [["contracts", 0.5]] }] },
+    { ...valid, tests: [{ ...firstEntry, memberships: [["contracts", null]] }] },
+    {
+      ...valid,
+      tests: [{ ...firstEntry, memberships: [["contracts", Number.MAX_SAFE_INTEGER + 1]] }],
+    },
+    {
+      ...valid,
+      tests: [
+        {
+          ...firstEntry,
+          memberships: [
+            ["contracts", 100],
+            ["contracts", 200],
+          ],
+        },
+      ],
+    },
+    { ...valid, tests: [{ ...firstEntry, memberships: [["contracts", 100, "ignored"]] }] },
+    { ...valid, tests: [{ ...firstEntry, files: [first] }] },
+    { ...valid, tests: [{ ...firstEntry, memberships: { contracts: 100 } }] },
+    { ...valid, tests: [{ ...firstEntry, memberships: [["constructor", 100]] }] },
+    {
+      ...valid,
+      tests: valid.tests.map((entry) => ({
+        ...entry,
+        memberships: [
+          ["contracts", 100],
+          ["reverse", 200],
+        ],
+      })),
+    },
+    { ...valid, suites: { ...valid.suites, empty: { arguments: ["--test"] } } },
+    { ...valid, suites: { ...valid.suites, contracts: { arguments: ["--test"], files: [first] } } },
+    {
+      ...valid,
+      suites: { ...valid.suites, contracts: { arguments: ["--test", "--test-force-exit"] } },
+    },
+    { ...valid, files: [first] },
+    { ...valid, tests: "not records" },
+    { ...valid, format_version: 3 },
+  ];
+  for (const value of bad)
+    assert.throws(() => parseNodeTestSuites(JSON.stringify(value)), JSON.stringify(value));
+});
+
+void test("indexed additions, renames and removals change one ownership record before generation", (context) => {
+  const { root, git } = fixture(context);
+  const value = {
+    format_version: 2,
+    suites: { contracts: { arguments: ["--test", "--test-timeout=30000"] } },
+    tests: [{ file: first, memberships: [["contracts", 100]] }],
+  };
+  const publish = () => {
+    const registry = parseNodeTestSuites(JSON.stringify(value));
+    writeFileSync(path.join(root, "scripts/node-test-suites.json"), JSON.stringify(value));
+    for (const file of [".github/workflows/ci.yml", "justfile"]) {
+      const destination = path.join(root, file);
+      writeFileSync(destination, generateNodeCommands(readFileSync(destination, "utf8"), registry));
+    }
+    git("add", ".");
+  };
+  publish();
+  git("commit", "-qm", "single-record ownership");
+  const unchanged = git("status", "--porcelain");
+  assert.deepEqual(checkStagedNodeTestInventory(root), { checked: false, files: 0 });
+  assert.equal(git("status", "--porcelain"), unchanged);
+
+  writeFileSync(path.join(root, "scripts/added.test.mts"), "// owned added test\n");
+  value.tests.push({ file: "scripts/added.test.mts", memberships: [["contracts", 200]] });
+  publish();
+  assert.deepEqual(checkStagedNodeTestInventory(root), { checked: true, files: 2 });
+  git("commit", "-qm", "added ownership");
+
+  git("mv", "scripts/added.test.mts", "scripts/renamed.test.mts");
+  const added = value.tests[1];
+  assert.ok(added);
+  added.file = "scripts/renamed.test.mts";
+  publish();
+  assert.deepEqual(checkStagedNodeTestInventory(root), { checked: true, files: 2 });
+  git("commit", "-qm", "renamed ownership");
+
+  git("rm", "scripts/renamed.test.mts");
+  value.tests.pop();
+  publish();
+  assert.deepEqual(checkStagedNodeTestInventory(root), { checked: true, files: 1 });
+});
+
+void test("the ownership parser and registry retain independent inventory and workflow consumers", async () => {
+  const { classifyChanges } = await import("./ordinary-validation.mts");
+  for (const file of ["scripts/node-test-suites.mts", "scripts/node-test-suites.json"]) {
+    for (const change of [
+      { status: "M", path: file },
+      { status: "A", path: file },
+      { status: "D", path: file },
+      { status: "R100", path: "docs/moved.md", previousPath: file },
+      { status: "R100", previousPath: "docs/moved.md", path: file },
+    ]) {
+      const selected = classifyChanges([change], { fileExists: () => false });
+      assert.ok(
+        selected.nodeTests.has("scripts/node-test-inventory.test.mts"),
+        JSON.stringify(change),
+      );
+      assert.ok(selected.nodeTests.has("scripts/ci-workflow.test.mts"), JSON.stringify(change));
+    }
+  }
+});

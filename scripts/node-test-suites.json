@@ -1,41 +1,20 @@
 {
-  "format_version": 1,
+  "format_version": 2,
   "suites": {
     "prose-checks": {
-      "arguments": ["--test", "--test-timeout=30000"],
-      "files": ["scripts/repository-settings.test.mts", "scripts/repository-skills.test.mts"]
+      "arguments": ["--test", "--test-timeout=30000"]
     },
     "windows-helpers": {
-      "arguments": ["--test", "--test-timeout=30000", "--test-name-pattern=Windows reader sharing"],
-      "files": ["scripts/daily-discovery.test.mts"]
+      "arguments": ["--test", "--test-timeout=30000", "--test-name-pattern=Windows reader sharing"]
     },
     "windows-helpers-2": {
-      "arguments": ["--test", "--test-concurrency=1", "--test-timeout=30000"],
-      "files": [
-        "scripts/resource-capacity.test.mts",
-        "scripts/resource-command.test.mts",
-        "scripts/heavy-rust-test-lock.test.mts",
-        "scripts/run-rust-tests.test.mts",
-        "scripts/rust-test-tree-supervisor.test.mts",
-        "scripts/native-confirmation.test.mts",
-        "scripts/native-session.test.mts",
-        "scripts/native-session-lock.test.mts",
-        "scripts/native-helper-dependencies.test.mts",
-        "scripts/frontend-command-preflight.test.mts",
-        "scripts/desktop-verify.test.mts",
-        "scripts/windows-helper-checks.test.mts"
-      ]
+      "arguments": ["--test", "--test-concurrency=1", "--test-timeout=30000"]
     },
     "windows-helpers-3": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": [
-        "scripts/release-local-worker-accounts.test.mts",
-        "scripts/release-native-account-capability.test.mts",
-        "scripts/recover-local-worker-empty-setup.test.mts"
       ]
     },
     "windows-storage": {
@@ -45,18 +24,13 @@
         "--test-reporter=./scripts/test-duration-reporter.mts",
         "--test-skip-pattern",
         "pnpm uses|direct just recipes"
-      ],
-      "files": ["scripts/dev-storage.test.mts"]
+      ]
     },
     "windows-storage-2": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": [
-        "scripts/windows-qualification-session.test.mts",
-        "scripts/qualification-preparation.test.mts"
       ]
     },
     "windows-storage-3": {
@@ -64,13 +38,6 @@
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": [
-        "scripts/ci-workflow.test.mts",
-        "scripts/check-catalog-repositories.test.mts",
-        "scripts/check-retcomm-upstreams.test.mts",
-        "scripts/deep-audit-summary.test.mts",
-        "scripts/node-test-inventory.test.mts"
       ]
     },
     "windows-storage-4": {
@@ -79,40 +46,6 @@
         "--test-concurrency=1",
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": [
-        "scripts/desktop-scenarios.test.mts",
-        "scripts/native-compatibility.test.mts",
-        "scripts/desktop-execution-plan.test.mts",
-        "scripts/desktop-execution-baseline.test.mts",
-        "scripts/desktop-real-runtime.test.mts",
-        "scripts/desktop-linux-native-session.test.mts",
-        "scripts/desktop-linux-stop.test.mts",
-        "scripts/desktop-listener-probe.test.mts",
-        "scripts/desktop-verify.test.mts",
-        "scripts/dev-doctor.test.mts",
-        "scripts/development-capabilities.test.mts",
-        "scripts/development-cli-help.test.mts",
-        "scripts/development-evidence.test.mts",
-        "scripts/retained-package.test.mts",
-        "scripts/capture-target.test.mts",
-        "scripts/handoff-evidence.test.mts",
-        "scripts/native-confirmation.test.mts",
-        "scripts/native-helper-dependencies.test.mts",
-        "scripts/frontend-command-preflight.test.mts",
-        "scripts/windows-helper-checks.test.mts",
-        "scripts/heavy-rust-test-lock.test.mts",
-        "scripts/local-validation.test.mts",
-        "scripts/validation-evidence.test.mts",
-        "scripts/native-session-lock.test.mts",
-        "scripts/native-session.test.mts",
-        "scripts/run-rust-tests.test.mts",
-        "scripts/rust-support-cache.test.mts",
-        "scripts/rust-test-impact.test.mts",
-        "scripts/rust-test-tree-supervisor.test.mts",
-        "scripts/tool-cache.test.mts",
-        "scripts/resource-capacity.test.mts",
-        "scripts/resource-command.test.mts"
       ]
     },
     "rust-quality-full": {
@@ -120,28 +53,24 @@
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": ["scripts/check-rust-architecture.test.mts"]
+      ]
     },
     "rust-quality-full-2": {
-      "arguments": ["--test"],
-      "files": ["scripts/check-transport-contract.integration.test.mts"]
+      "arguments": ["--test"]
     },
     "rust-quality-full-3": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": ["scripts/run-rscheck.test.mts"]
+      ]
     },
     "frontend-full": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": ["scripts/precommit-check.test.mts", "scripts/run-oxlint.test.mts"]
+      ]
     },
     "frontend-full-2": {
       "arguments": [
@@ -150,129 +79,26 @@
         "--test-reporter=./scripts/test-duration-reporter.mts",
         "--test-name-pattern",
         "pnpm uses|direct just recipes"
-      ],
-      "files": ["scripts/dev-storage.test.mts"]
+      ]
     },
     "frontend-full-3": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": ["scripts/transport-types.test.mts"]
-    },
-    "frontend-full-4": {
-      "arguments": ["--test", "--test-timeout=30000"],
-      "files": [
-        "scripts/desktop-scenarios.test.mts",
-        "scripts/native-compatibility.test.mts",
-        "scripts/desktop-execution-plan.test.mts",
-        "scripts/desktop-execution-baseline.test.mts",
-        "scripts/desktop-real-runtime.test.mts",
-        "scripts/desktop-linux-native-session.test.mts",
-        "scripts/desktop-linux-stop.test.mts",
-        "scripts/desktop-listener-probe.test.mts",
-        "scripts/desktop-verify.test.mts",
-        "scripts/development-evidence.test.mts",
-        "scripts/retained-package.test.mts",
-        "scripts/capture-target.test.mts",
-        "scripts/handoff-evidence.test.mts",
-        "scripts/native-session-lock.test.mts"
       ]
     },
+    "frontend-full-4": {
+      "arguments": ["--test", "--test-timeout=30000"]
+    },
     "frontend-full-5": {
-      "arguments": ["--test"],
-      "files": ["scripts/transport-values.test.mts"]
+      "arguments": ["--test"]
     },
     "frontend-full-6": {
       "arguments": [
         "--test",
         "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": [
-        "scripts/controller-canary.test.mts",
-        "scripts/production-controller-admission.test.mts",
-        "scripts/release-site-composer.test.mts",
-        "scripts/release-metadata-renewal.test.mts",
-        "scripts/assembler-job-identity.test.mts",
-        "scripts/release-control-inputs.test.mts",
-        "scripts/release-capacity.test.mts",
-        "scripts/release-coordinator-journal-api.test.mts",
-        "scripts/release-semantic-review.test.mts",
-        "scripts/release-semantic-broker.test.mts",
-        "scripts/release-semantic-reader-core.test.mts",
-        "scripts/native-linux-public-network.test.mts",
-        "scripts/native-linux-public-fuse.test.mts",
-        "scripts/native-linux-public-services.test.mts",
-        "scripts/native-linux-public-plan.test.mts",
-        "scripts/semantic-review-linux-supervisor.test.mts",
-        "scripts/trusted-aggregate-attestation.test.mts",
-        "scripts/production-aggregate-steps.test.mts",
-        "scripts/acquire-release-admission.test.mts",
-        "scripts/release-source-changes.test.mts",
-        "scripts/select-release-channel.test.mts",
-        "scripts/release-coordinator.test.mts",
-        "scripts/release-coordinator-state.test.mts",
-        "scripts/release-coordinator-checkpoint-authentication.test.mts",
-        "scripts/release-coordinator-checkpoint-signing.test.mts",
-        "scripts/release-prepared-transport.test.mts",
-        "scripts/release-preparation-source.test.mts",
-        "scripts/release-coordinator-driver.test.mts",
-        "scripts/release-review-request.test.mts",
-        "scripts/release-candidate-dispatch.test.mts",
-        "scripts/release-candidate-progress-contract.test.mts",
-        "scripts/release-candidate-progress.test.mts",
-        "scripts/reconstruct-application-update-records.test.mts",
-        "scripts/release-preview-withdrawals.test.mts",
-        "scripts/release-site-readback.test.mts",
-        "scripts/release-site-deployment.test.mts",
-        "scripts/release-site-controller.test.mts",
-        "scripts/release-control-step-bridge.test.mts",
-        "scripts/release-pages-provider.test.mts",
-        "scripts/release-capacity-executor.test.mts",
-        "scripts/release-capacity-operation.test.mts",
-        "scripts/release-catalog-metadata-contract.test.mts",
-        "scripts/release-catalog-inspection.test.mts",
-        "scripts/release-catalog-authorities.test.mts",
-        "scripts/release-catalog-semantic.test.mts",
-        "scripts/release-catalog-signing.test.mts",
-        "scripts/release-catalog-source.test.mts",
-        "scripts/release-catalog-review-request.test.mts",
-        "scripts/release-catalog-review-maintenance.test.mts",
-        "scripts/release-catalog-site-controller.test.mts",
-        "scripts/release-catalog-recovery.test.mts",
-        "scripts/release-catalog-continuation.test.mts",
-        "scripts/release-catalog-context-boundary.test.mts",
-        "scripts/release-controller-catalog-routing.test.mts",
-        "scripts/release-catalog-coordinator.test.mts",
-        "scripts/release-catalog-review-disposition.test.mts",
-        "scripts/release-published-source.test.mts",
-        "scripts/release-semantic-disposition.test.mts",
-        "scripts/release-semantic-disposition-reader.test.mts",
-        "scripts/release-classification-request.test.mts",
-        "scripts/release-coordinator-deadline.test.mts",
-        "scripts/release-semantic-worker.test.mts",
-        "scripts/release-semantic-source.test.mts",
-        "scripts/release-pages-recovery.test.mts",
-        "scripts/release-pages-metadata-recovery.test.mts",
-        "scripts/release-tuf-role-artifact.test.mts",
-        "scripts/release-tuf-signing.test.mts",
-        "scripts/release-tuf-controller.test.mts",
-        "scripts/release-metadata-signing-context.test.mts",
-        "scripts/release-metadata-context-recovery.test.mts",
-        "scripts/release-run-artifact-inventory.test.mts",
-        "scripts/release-metadata-site-controller.test.mts",
-        "scripts/release-bootstrap-preparation.test.mts",
-        "scripts/release-controller-transport.test.mts",
-        "scripts/release-candidate-signing-recovery.test.mts",
-        "scripts/release-pending-release-recovery.test.mts",
-        "scripts/release-pending-result-recovery.test.mts",
-        "scripts/release-report-repair-contract.test.mts",
-        "scripts/release-report-repair-identity.test.mts",
-        "scripts/release-production-dag.test.mts",
-        "scripts/release-admitted-aggregate-controller.test.mts",
-        "scripts/release-connected-fixture.test.mts"
       ]
     },
     "catalog-full": {
@@ -280,18 +106,6 @@
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": [
-        "scripts/upstream-observer.test.mts",
-        "scripts/upstream-health.test.mts",
-        "scripts/upstream-health-plan.test.mts",
-        "scripts/upstream-health-monitor.test.mts",
-        "scripts/discovery-checkpoint.test.mts",
-        "scripts/discovery-intake.test.mts",
-        "scripts/roadmap-inventory.test.mts",
-        "scripts/repository-issue-inventory.test.mts",
-        "scripts/daily-discovery.test.mts",
-        "scripts/discovery-leads.test.mts"
       ]
     },
     "catalog-full-2": {
@@ -299,167 +113,6 @@
         "--test",
         "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": [
-        "scripts/validation-evidence.test.mts",
-        "scripts/container-browser.test.mts",
-        "scripts/container-build.test.mts",
-        "scripts/desktop-listener-probe.test.mts",
-        "scripts/container-recovery.test.mts",
-        "scripts/checked-git.test.mts",
-        "scripts/resource-status.test.mts",
-        "scripts/report-summary.test.mts",
-        "scripts/ci-metrics.test.mts",
-        "scripts/checkout-context.test.mts",
-        "scripts/github-body.test.mts",
-        "scripts/audit.test.mts",
-        "scripts/audit-evidence.test.mts",
-        "scripts/audit-archive.test.mts",
-        "scripts/audit-reuse.test.mts",
-        "scripts/check-release-metadata.test.mts",
-        "scripts/desktop-build-cache.test.mts",
-        "scripts/heavy-rust-test-lock.test.mts",
-        "scripts/release-package-policy.test.mts",
-        "scripts/release-public-build-inputs.test.mts",
-        "scripts/release-public-build-provenance.test.mts",
-        "scripts/release-live-control-admission.test.mts",
-        "scripts/release-control-handshake.test.mts",
-        "scripts/write-release-checksums.test.mts",
-        "scripts/hosted-native-continuity.test.mts",
-        "scripts/updater-artifact-inventory.test.mts",
-        "scripts/release-payload-signing.test.mts",
-        "scripts/release-payload-preparation.test.mts",
-        "scripts/release-signing-handoff.test.mts",
-        "scripts/reconcile-release-assets.test.mts",
-        "scripts/trusted-release-assembly.test.mts",
-        "scripts/release-artifact-archive.test.mts",
-        "scripts/finalize-release-assets.test.mts",
-        "scripts/generate-release-downloads.test.mts",
-        "scripts/release-workflow.test.mts",
-        "scripts/sign-catalog.test.mts",
-        "scripts/release-result-gate.test.mts",
-        "scripts/linux-beta-risk-706.test.mts",
-        "scripts/linux-beta-risk-706-controller.test.mts",
-        "scripts/dependency-security.test.mts",
-        "scripts/desktop-input-observation.test.mts",
-        "scripts/run-rust-tests.test.mts",
-        "scripts/rust-support-cache.test.mts",
-        "scripts/rust-test-tree-supervisor.test.mts",
-        "scripts/ci-workflow.test.mts",
-        "scripts/check-catalog-repositories.test.mts",
-        "scripts/check-retcomm-upstreams.test.mts",
-        "scripts/deep-audit-summary.test.mts",
-        "scripts/node-test-inventory.test.mts",
-        "scripts/ci-health.test.mts",
-        "scripts/workflow-provenance.test.mts",
-        "scripts/check-document-links.test.mts",
-        "scripts/nextest-equivalence.test.mts",
-        "scripts/ordinary-git-routing.test.mts",
-        "scripts/package-ownership-selection.test.mts",
-        "scripts/postmerge-ci.test.mts",
-        "scripts/validation-plan.test.mts",
-        "scripts/select-ci-plan.test.mts",
-        "scripts/ci-result-gate.test.mts",
-        "scripts/ci-baseline.test.mts",
-        "scripts/ci-baseline-execution.test.mts",
-        "scripts/rust-test-impact.test.mts",
-        "scripts/qualification-coverage.test.mts",
-        "scripts/test-duration-reporter.test.mts",
-        "scripts/python-test-results.test.mts",
-        "scripts/ui-test-selection.test.mts",
-        "scripts/quality-tools.test.mts",
-        "scripts/dependency-automation.test.mts",
-        "scripts/pnpm-lock-inventory.test.mts",
-        "scripts/frontend-build-compare.test.mts",
-        "scripts/renovate-engine-probe.test.mts",
-        "scripts/repository-settings.test.mts",
-        "scripts/repository-skills.test.mts",
-        "scripts/pr-conventions.test.mts",
-        "scripts/pr-delivery.test.mts",
-        "scripts/pr-delivery-snapshot.test.mts",
-        "scripts/renovate-fast-lane.test.mts",
-        "scripts/github-api.test.mts",
-        "scripts/cleanup-intel-artifacts.test.mts",
-        "scripts/process-lock.test.mts",
-        "scripts/source-provenance-audit.test.mts",
-        "scripts/check-child-process-policy.test.mts",
-        "scripts/check-transport-contract.test.mts",
-        "scripts/check-fallow-report.test.mts",
-        "scripts/run-fallow.test.mts",
-        "scripts/fallow-summary.test.mts",
-        "scripts/fallow-scope.test.mts",
-        "scripts/fallow-source.test.mts",
-        "scripts/generate-catalog.test.mts",
-        "scripts/upstream-lineage.test.mts",
-        "scripts/prepare-port.test.mts",
-        "scripts/maintainer-config.test.mts",
-        "scripts/catalog-staged-check.test.mts",
-        "scripts/catalog-proposal-costs.test.mts",
-        "scripts/migrate-catalog-schema2.test.mts",
-        "scripts/roadmap.test.mts",
-        "scripts/roadmap-scoped.test.mts",
-        "scripts/roadmap-membership-readback.test.mts",
-        "scripts/release-handshake-hosted-fixture.test.mts",
-        "scripts/release-candidate-qualification.test.mts",
-        "scripts/release-immutable-publication.test.mts",
-        "scripts/release-acceptance-evidence.test.mts",
-        "scripts/release-compiler-capture.test.mts",
-        "scripts/release-native-observation.test.mts",
-        "scripts/release-controller-tools.test.mts",
-        "scripts/release-role-key-channel.test.mts",
-        "scripts/release-compiler-outputs.test.mts",
-        "scripts/release-compiler-source.test.mts",
-        "scripts/release-compiler-source-admission.test.mts",
-        "scripts/release-compiler-evidence.test.mts",
-        "scripts/release-source-attestation.test.mts",
-        "scripts/release-native-qualification-contract.test.mts",
-        "scripts/native-qualification-account.test.mts",
-        "scripts/native-qualification-account-client.test.mts",
-        "scripts/native-qualification-account-adapter.test.mts",
-        "scripts/desktop-native-account-session.test.mts",
-        "scripts/release-native-acceptance.test.mts",
-        "scripts/release-native-admission.test.mts",
-        "scripts/release-native-check-discovery.test.mts",
-        "scripts/release-bootstrap-preparation.test.mts",
-        "scripts/release-signing-context.test.mts",
-        "scripts/release-preview-withdrawals.test.mts",
-        "scripts/release-signing-context-artifact.test.mts",
-        "scripts/release-publication-result.test.mts",
-        "scripts/release-publication-result-artifact.test.mts",
-        "scripts/release-controller-wake.test.mts",
-        "scripts/release-tuf-signing.test.mts",
-        "scripts/release-tuf-role-artifact.test.mts",
-        "scripts/release-publication-controller.test.mts",
-        "scripts/release-publication-inputs.test.mts",
-        "scripts/release-publication-source.test.mts",
-        "scripts/release-local-native-setup.test.mts",
-        "scripts/release-local-worker-tasks.test.mts",
-        "scripts/release-local-worker-accounts.test.mts",
-        "scripts/release-native-account-capability.test.mts",
-        "scripts/recover-local-worker-empty-setup.test.mts",
-        "scripts/release-native-attempt.test.mts",
-        "scripts/release-native-windows-driver.test.mts",
-        "scripts/release-native-windows-public-continuation.test.mts",
-        "scripts/release-native-source-contract.test.mts",
-        "scripts/release-native-pre-sign-report.test.mts",
-        "scripts/release-native-check-broker.test.mts",
-        "scripts/release-native-candidate.test.mts",
-        "scripts/release-native-parent.test.mts",
-        "scripts/release-native-linux-public-capture.test.mts",
-        "scripts/release-native-public-pair.test.mts",
-        "scripts/release-native-public-compiler.test.mts",
-        "scripts/release-native-public-signature.test.mts",
-        "scripts/release-native-public-attempt-contract.test.mts",
-        "scripts/release-native-scheduler.test.mts",
-        "scripts/release-native-stage-capture.test.mts",
-        "scripts/release-native-wsl-boundary.test.mts",
-        "scripts/native-linux-driver-http.test.mts",
-        "scripts/native-linux-isolated-init.test.mts",
-        "scripts/native-linux-isolated-plan.test.mts",
-        "scripts/release-native-linux-driver.test.mts",
-        "scripts/native-qualification-linux-supervisor.test.mts",
-        "scripts/native-qualification-linux-transfer.test.mts",
-        "scripts/release-native-wsl-capture.test.mts"
       ]
     },
     "catalog-full-3": {
@@ -467,8 +120,7 @@
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": ["scripts/release-run-evidence.test.mts"]
+      ]
     },
     "development-tools": {
       "arguments": [
@@ -476,59 +128,6 @@
         "--test-concurrency=2",
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": [
-        "scripts/validation-evidence.test.mts",
-        "scripts/resource-capacity.test.mts",
-        "scripts/resource-command.test.mts",
-        "scripts/container-browser.test.mts",
-        "scripts/container-build.test.mts",
-        "scripts/desktop-listener-probe.test.mts",
-        "scripts/container-recovery.test.mts",
-        "scripts/checked-git.test.mts",
-        "scripts/resource-status.test.mts",
-        "scripts/report-summary.test.mts",
-        "scripts/ci-metrics.test.mts",
-        "scripts/checkout-context.test.mts",
-        "scripts/github-body.test.mts",
-        "scripts/audit.test.mts",
-        "scripts/audit-evidence.test.mts",
-        "scripts/audit-archive.test.mts",
-        "scripts/audit-reuse.test.mts",
-        "scripts/desktop-build-cache.test.mts",
-        "scripts/desktop-scenarios.test.mts",
-        "scripts/native-compatibility.test.mts",
-        "scripts/desktop-execution-plan.test.mts",
-        "scripts/desktop-execution-baseline.test.mts",
-        "scripts/desktop-real-runtime.test.mts",
-        "scripts/desktop-linux-native-session.test.mts",
-        "scripts/desktop-linux-stop.test.mts",
-        "scripts/desktop-verify.test.mts",
-        "scripts/dev-doctor.test.mts",
-        "scripts/development-capabilities.test.mts",
-        "scripts/development-cli-help.test.mts",
-        "scripts/development-evidence.test.mts",
-        "scripts/retained-package.test.mts",
-        "scripts/capture-target.test.mts",
-        "scripts/handoff-evidence.test.mts",
-        "scripts/native-confirmation.test.mts",
-        "scripts/native-helper-dependencies.test.mts",
-        "scripts/frontend-command-preflight.test.mts",
-        "scripts/windows-helper-checks.test.mts",
-        "scripts/heavy-rust-test-lock.test.mts",
-        "scripts/local-validation.test.mts",
-        "scripts/precommit-check.test.mts",
-        "scripts/run-oxlint.test.mts",
-        "scripts/native-session-lock.test.mts",
-        "scripts/native-session.test.mts",
-        "scripts/process-lock.test.mts",
-        "scripts/renovate-fast-lane.test.mts",
-        "scripts/repository-skills.test.mts",
-        "scripts/run-rust-tests.test.mts",
-        "scripts/rust-support-cache.test.mts",
-        "scripts/rust-test-impact.test.mts",
-        "scripts/rust-test-tree-supervisor.test.mts",
-        "scripts/tool-cache.test.mts"
       ]
     },
     "process-policy": {
@@ -536,29 +135,20 @@
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": ["scripts/check-child-process-policy.test.mts"]
+      ]
     },
     "transport-contract": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": ["scripts/check-transport-contract.test.mts"]
+      ]
     },
     "fallow": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": [
-        "scripts/check-fallow-report.test.mts",
-        "scripts/run-fallow.test.mts",
-        "scripts/fallow-summary.test.mts",
-        "scripts/fallow-scope.test.mts",
-        "scripts/fallow-source.test.mts"
       ]
     },
     "repository-tools": {
@@ -567,12 +157,6 @@
         "--test-concurrency=2",
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": [
-        "scripts/upstream-observer.test.mts",
-        "scripts/upstream-health.test.mts",
-        "scripts/upstream-health-plan.test.mts",
-        "scripts/upstream-health-monitor.test.mts"
       ]
     },
     "repository-tools-2": {
@@ -581,53 +165,6 @@
         "--test-concurrency=2",
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": [
-        "scripts/ci-workflow.test.mts",
-        "scripts/check-catalog-repositories.test.mts",
-        "scripts/check-retcomm-upstreams.test.mts",
-        "scripts/deep-audit-summary.test.mts",
-        "scripts/node-test-inventory.test.mts",
-        "scripts/ci-health.test.mts",
-        "scripts/workflow-provenance.test.mts",
-        "scripts/check-document-links.test.mts",
-        "scripts/nextest-equivalence.test.mts",
-        "scripts/ordinary-git-routing.test.mts",
-        "scripts/package-ownership-selection.test.mts",
-        "scripts/postmerge-ci.test.mts",
-        "scripts/validation-plan.test.mts",
-        "scripts/select-ci-plan.test.mts",
-        "scripts/ci-result-gate.test.mts",
-        "scripts/ci-baseline.test.mts",
-        "scripts/ci-baseline-execution.test.mts",
-        "scripts/qualification-coverage.test.mts",
-        "scripts/release-result-gate.test.mts",
-        "scripts/linux-beta-risk-706.test.mts",
-        "scripts/linux-beta-risk-706-controller.test.mts",
-        "scripts/dependency-security.test.mts",
-        "scripts/desktop-input-observation.test.mts",
-        "scripts/test-duration-reporter.test.mts",
-        "scripts/python-test-results.test.mts",
-        "scripts/ui-test-selection.test.mts",
-        "scripts/quality-tools.test.mts",
-        "scripts/dependency-automation.test.mts",
-        "scripts/pnpm-lock-inventory.test.mts",
-        "scripts/frontend-build-compare.test.mts",
-        "scripts/renovate-engine-probe.test.mts",
-        "scripts/repository-settings.test.mts",
-        "scripts/pr-conventions.test.mts",
-        "scripts/pr-delivery.test.mts",
-        "scripts/pr-delivery-snapshot.test.mts",
-        "scripts/github-api.test.mts",
-        "scripts/cleanup-intel-artifacts.test.mts",
-        "scripts/dev-storage.test.mts",
-        "scripts/generate-catalog.test.mts",
-        "scripts/upstream-lineage.test.mts",
-        "scripts/prepare-port.test.mts",
-        "scripts/maintainer-config.test.mts",
-        "scripts/catalog-staged-check.test.mts",
-        "scripts/catalog-proposal-costs.test.mts",
-        "scripts/migrate-catalog-schema2.test.mts"
       ]
     },
     "release-check": {
@@ -635,169 +172,6 @@
         "--test",
         "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": [
-        "scripts/check-release-metadata.test.mts",
-        "scripts/release-package-policy.test.mts",
-        "scripts/release-public-build-inputs.test.mts",
-        "scripts/release-public-build-provenance.test.mts",
-        "scripts/write-release-checksums.test.mts",
-        "scripts/hosted-native-continuity.test.mts",
-        "scripts/updater-artifact-inventory.test.mts",
-        "scripts/reconcile-release-assets.test.mts",
-        "scripts/trusted-release-assembly.test.mts",
-        "scripts/release-artifact-archive.test.mts",
-        "scripts/finalize-release-assets.test.mts",
-        "scripts/generate-release-downloads.test.mts",
-        "scripts/select-release-channel.test.mts",
-        "scripts/controller-canary.test.mts",
-        "scripts/production-controller-admission.test.mts",
-        "scripts/release-site-composer.test.mts",
-        "scripts/release-metadata-renewal.test.mts",
-        "scripts/assembler-job-identity.test.mts",
-        "scripts/release-control-inputs.test.mts",
-        "scripts/release-capacity.test.mts",
-        "scripts/release-coordinator-journal-api.test.mts",
-        "scripts/release-semantic-review.test.mts",
-        "scripts/release-semantic-broker.test.mts",
-        "scripts/release-semantic-reader-core.test.mts",
-        "scripts/semantic-review-linux-supervisor.test.mts",
-        "scripts/trusted-aggregate-attestation.test.mts",
-        "scripts/production-aggregate-steps.test.mts",
-        "scripts/acquire-release-admission.test.mts",
-        "scripts/release-source-changes.test.mts",
-        "scripts/release-coordinator.test.mts",
-        "scripts/release-coordinator-state.test.mts",
-        "scripts/release-coordinator-checkpoint-authentication.test.mts",
-        "scripts/release-coordinator-checkpoint-signing.test.mts",
-        "scripts/release-prepared-transport.test.mts",
-        "scripts/release-preparation-source.test.mts",
-        "scripts/release-coordinator-driver.test.mts",
-        "scripts/release-review-request.test.mts",
-        "scripts/release-candidate-dispatch.test.mts",
-        "scripts/release-candidate-progress-contract.test.mts",
-        "scripts/release-candidate-progress.test.mts",
-        "scripts/release-run-evidence.test.mts",
-        "scripts/reconstruct-application-update-records.test.mts",
-        "scripts/release-workflow.test.mts",
-        "scripts/sign-catalog.test.mts",
-        "scripts/windows-qualification-session.test.mts",
-        "scripts/qualification-preparation.test.mts",
-        "scripts/release-live-control-admission.test.mts",
-        "scripts/release-control-handshake.test.mts",
-        "scripts/release-payload-signing.test.mts",
-        "scripts/release-payload-preparation.test.mts",
-        "scripts/release-handshake-hosted-fixture.test.mts",
-        "scripts/release-site-readback.test.mts",
-        "scripts/release-site-deployment.test.mts",
-        "scripts/release-site-controller.test.mts",
-        "scripts/release-control-step-bridge.test.mts",
-        "scripts/release-pages-provider.test.mts",
-        "scripts/release-capacity-executor.test.mts",
-        "scripts/release-capacity-operation.test.mts",
-        "scripts/release-catalog-metadata-contract.test.mts",
-        "scripts/release-catalog-inspection.test.mts",
-        "scripts/release-catalog-authorities.test.mts",
-        "scripts/release-catalog-semantic.test.mts",
-        "scripts/release-catalog-signing.test.mts",
-        "scripts/release-catalog-source.test.mts",
-        "scripts/release-catalog-review-request.test.mts",
-        "scripts/release-catalog-review-maintenance.test.mts",
-        "scripts/release-catalog-site-controller.test.mts",
-        "scripts/release-catalog-recovery.test.mts",
-        "scripts/release-catalog-continuation.test.mts",
-        "scripts/release-catalog-context-boundary.test.mts",
-        "scripts/release-controller-catalog-routing.test.mts",
-        "scripts/release-catalog-coordinator.test.mts",
-        "scripts/release-catalog-review-disposition.test.mts",
-        "scripts/release-candidate-qualification.test.mts",
-        "scripts/release-immutable-publication.test.mts",
-        "scripts/release-controller-tools.test.mts",
-        "scripts/release-role-key-channel.test.mts",
-        "scripts/release-acceptance-evidence.test.mts",
-        "scripts/release-compiler-capture.test.mts",
-        "scripts/release-native-observation.test.mts",
-        "scripts/release-compiler-outputs.test.mts",
-        "scripts/release-compiler-source.test.mts",
-        "scripts/release-compiler-source-admission.test.mts",
-        "scripts/release-compiler-evidence.test.mts",
-        "scripts/release-source-attestation.test.mts",
-        "scripts/release-native-qualification-contract.test.mts",
-        "scripts/release-published-source.test.mts",
-        "scripts/release-semantic-disposition.test.mts",
-        "scripts/release-semantic-disposition-reader.test.mts",
-        "scripts/release-signing-handoff.test.mts",
-        "scripts/release-native-acceptance.test.mts",
-        "scripts/release-native-admission.test.mts",
-        "scripts/release-classification-request.test.mts",
-        "scripts/native-qualification-account.test.mts",
-        "scripts/native-qualification-account-client.test.mts",
-        "scripts/native-qualification-account-adapter.test.mts",
-        "scripts/desktop-native-account-session.test.mts",
-        "scripts/release-signing-context.test.mts",
-        "scripts/release-preview-withdrawals.test.mts",
-        "scripts/release-signing-context-artifact.test.mts",
-        "scripts/release-publication-result.test.mts",
-        "scripts/release-publication-result-artifact.test.mts",
-        "scripts/release-controller-wake.test.mts",
-        "scripts/release-coordinator-deadline.test.mts",
-        "scripts/release-semantic-worker.test.mts",
-        "scripts/release-semantic-source.test.mts",
-        "scripts/release-tuf-signing.test.mts",
-        "scripts/release-tuf-role-artifact.test.mts",
-        "scripts/release-publication-controller.test.mts",
-        "scripts/release-publication-inputs.test.mts",
-        "scripts/release-publication-source.test.mts",
-        "scripts/release-local-native-setup.test.mts",
-        "scripts/release-local-worker-tasks.test.mts",
-        "scripts/release-local-worker-accounts.test.mts",
-        "scripts/release-native-account-capability.test.mts",
-        "scripts/recover-local-worker-empty-setup.test.mts",
-        "scripts/release-native-attempt.test.mts",
-        "scripts/release-native-windows-driver.test.mts",
-        "scripts/release-native-windows-public-continuation.test.mts",
-        "scripts/release-native-source-contract.test.mts",
-        "scripts/release-native-pre-sign-report.test.mts",
-        "scripts/release-native-check-broker.test.mts",
-        "scripts/release-native-candidate.test.mts",
-        "scripts/release-native-parent.test.mts",
-        "scripts/native-linux-public-fuse.test.mts",
-        "scripts/native-linux-public-plan.test.mts",
-        "scripts/native-linux-public-services.test.mts",
-        "scripts/release-native-linux-public-capture.test.mts",
-        "scripts/release-native-public-pair.test.mts",
-        "scripts/release-native-public-compiler.test.mts",
-        "scripts/release-native-public-signature.test.mts",
-        "scripts/release-native-public-attempt-contract.test.mts",
-        "scripts/release-native-scheduler.test.mts",
-        "scripts/release-native-stage-capture.test.mts",
-        "scripts/release-pages-recovery.test.mts",
-        "scripts/release-pages-metadata-recovery.test.mts",
-        "scripts/release-tuf-controller.test.mts",
-        "scripts/release-metadata-signing-context.test.mts",
-        "scripts/release-metadata-context-recovery.test.mts",
-        "scripts/release-run-artifact-inventory.test.mts",
-        "scripts/release-metadata-site-controller.test.mts",
-        "scripts/release-bootstrap-preparation.test.mts",
-        "scripts/release-controller-transport.test.mts",
-        "scripts/release-candidate-signing-recovery.test.mts",
-        "scripts/release-production-dag.test.mts",
-        "scripts/release-admitted-aggregate-controller.test.mts",
-        "scripts/release-native-check-discovery.test.mts",
-        "scripts/release-connected-fixture.test.mts",
-        "scripts/release-native-wsl-boundary.test.mts",
-        "scripts/native-linux-driver-http.test.mts",
-        "scripts/native-linux-isolated-init.test.mts",
-        "scripts/native-linux-isolated-plan.test.mts",
-        "scripts/release-native-linux-driver.test.mts",
-        "scripts/native-qualification-linux-supervisor.test.mts",
-        "scripts/native-qualification-linux-transfer.test.mts",
-        "scripts/release-native-wsl-capture.test.mts",
-        "scripts/release-pending-release-recovery.test.mts",
-        "scripts/release-pending-result-recovery.test.mts",
-        "scripts/release-report-repair-contract.test.mts",
-        "scripts/release-report-repair-identity.test.mts",
-        "scripts/native-linux-public-network.test.mts"
       ]
     },
     "roadmap-check": {
@@ -805,23 +179,2031 @@
         "--test",
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
-      ],
-      "files": [
-        "scripts/roadmap.test.mts",
-        "scripts/roadmap-scoped.test.mts",
-        "scripts/roadmap-membership-readback.test.mts",
-        "scripts/source-provenance-audit.test.mts",
-        "scripts/discovery-checkpoint.test.mts",
-        "scripts/discovery-intake.test.mts",
-        "scripts/roadmap-inventory.test.mts",
-        "scripts/repository-issue-inventory.test.mts",
-        "scripts/daily-discovery.test.mts",
-        "scripts/discovery-leads.test.mts"
       ]
     },
     "mutex-owned-payload": {
-      "arguments": ["--test"],
-      "files": ["scripts/windows-qualification-session.integration.test.mts"]
+      "arguments": ["--test"]
     }
-  }
+  },
+  "tests": [
+    {
+      "file": "scripts/acquire-release-admission.test.mts",
+      "memberships": [
+        ["frontend-full-6", 1900],
+        ["release-check", 2800]
+      ]
+    },
+    {
+      "file": "scripts/assembler-job-identity.test.mts",
+      "memberships": [
+        ["frontend-full-6", 500],
+        ["release-check", 1800]
+      ]
+    },
+    {
+      "file": "scripts/audit-archive.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1400],
+        ["development-tools", 1600]
+      ]
+    },
+    {
+      "file": "scripts/audit-evidence.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1300],
+        ["development-tools", 1500]
+      ]
+    },
+    {
+      "file": "scripts/audit-reuse.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1500],
+        ["development-tools", 1700]
+      ]
+    },
+    {
+      "file": "scripts/audit.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1200],
+        ["development-tools", 1400]
+      ]
+    },
+    {
+      "file": "scripts/capture-target.test.mts",
+      "memberships": [
+        ["windows-storage-4", 1500],
+        ["frontend-full-4", 1200],
+        ["development-tools", 3200]
+      ]
+    },
+    {
+      "file": "scripts/catalog-proposal-costs.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9400],
+        ["repository-tools-2", 4400]
+      ]
+    },
+    {
+      "file": "scripts/catalog-staged-check.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9300],
+        ["repository-tools-2", 4300]
+      ]
+    },
+    {
+      "file": "scripts/check-catalog-repositories.test.mts",
+      "memberships": [
+        ["windows-storage-3", 200],
+        ["catalog-full-2", 4600],
+        ["repository-tools-2", 200]
+      ]
+    },
+    {
+      "file": "scripts/check-child-process-policy.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8200],
+        ["process-policy", 100]
+      ]
+    },
+    {
+      "file": "scripts/check-document-links.test.mts",
+      "memberships": [
+        ["catalog-full-2", 5200],
+        ["repository-tools-2", 800]
+      ]
+    },
+    {
+      "file": "scripts/check-fallow-report.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8400],
+        ["fallow", 100]
+      ]
+    },
+    {
+      "file": "scripts/check-release-metadata.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1600],
+        ["release-check", 100]
+      ]
+    },
+    {
+      "file": "scripts/check-retcomm-upstreams.test.mts",
+      "memberships": [
+        ["windows-storage-3", 300],
+        ["catalog-full-2", 4700],
+        ["repository-tools-2", 300]
+      ]
+    },
+    {
+      "file": "scripts/check-rust-architecture.test.mts",
+      "memberships": [["rust-quality-full", 100]]
+    },
+    {
+      "file": "scripts/check-transport-contract.integration.test.mts",
+      "memberships": [["rust-quality-full-2", 100]]
+    },
+    {
+      "file": "scripts/check-transport-contract.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8300],
+        ["transport-contract", 100]
+      ]
+    },
+    {
+      "file": "scripts/checked-git.test.mts",
+      "memberships": [
+        ["catalog-full-2", 600],
+        ["development-tools", 800]
+      ]
+    },
+    {
+      "file": "scripts/checkout-context.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000],
+        ["development-tools", 1200]
+      ]
+    },
+    {
+      "file": "scripts/ci-baseline-execution.test.mts",
+      "memberships": [
+        ["catalog-full-2", 6100],
+        ["repository-tools-2", 1700]
+      ]
+    },
+    {
+      "file": "scripts/ci-baseline.test.mts",
+      "memberships": [
+        ["catalog-full-2", 6000],
+        ["repository-tools-2", 1600]
+      ]
+    },
+    {
+      "file": "scripts/ci-health.test.mts",
+      "memberships": [
+        ["catalog-full-2", 5000],
+        ["repository-tools-2", 600]
+      ]
+    },
+    {
+      "file": "scripts/ci-metrics.test.mts",
+      "memberships": [
+        ["catalog-full-2", 900],
+        ["development-tools", 1100]
+      ]
+    },
+    {
+      "file": "scripts/ci-result-gate.test.mts",
+      "memberships": [
+        ["catalog-full-2", 5900],
+        ["repository-tools-2", 1500]
+      ]
+    },
+    {
+      "file": "scripts/ci-workflow.test.mts",
+      "memberships": [
+        ["windows-storage-3", 100],
+        ["catalog-full-2", 4500],
+        ["repository-tools-2", 100]
+      ]
+    },
+    {
+      "file": "scripts/cleanup-intel-artifacts.test.mts",
+      "memberships": [
+        ["catalog-full-2", 7900],
+        ["repository-tools-2", 3700]
+      ]
+    },
+    {
+      "file": "scripts/container-browser.test.mts",
+      "memberships": [
+        ["catalog-full-2", 200],
+        ["development-tools", 400]
+      ]
+    },
+    {
+      "file": "scripts/container-build.test.mts",
+      "memberships": [
+        ["catalog-full-2", 300],
+        ["development-tools", 500]
+      ]
+    },
+    {
+      "file": "scripts/container-recovery.test.mts",
+      "memberships": [
+        ["catalog-full-2", 500],
+        ["development-tools", 700]
+      ]
+    },
+    {
+      "file": "scripts/controller-canary.test.mts",
+      "memberships": [
+        ["frontend-full-6", 100],
+        ["release-check", 1400]
+      ]
+    },
+    {
+      "file": "scripts/daily-discovery.test.mts",
+      "memberships": [
+        ["windows-helpers", 100],
+        ["catalog-full", 900],
+        ["roadmap-check", 900]
+      ]
+    },
+    {
+      "file": "scripts/deep-audit-summary.test.mts",
+      "memberships": [
+        ["windows-storage-3", 400],
+        ["catalog-full-2", 4800],
+        ["repository-tools-2", 400]
+      ]
+    },
+    {
+      "file": "scripts/dependency-automation.test.mts",
+      "memberships": [
+        ["catalog-full-2", 6800],
+        ["repository-tools-2", 2800]
+      ]
+    },
+    {
+      "file": "scripts/dependency-security.test.mts",
+      "memberships": [
+        ["catalog-full-2", 4000],
+        ["repository-tools-2", 2200]
+      ]
+    },
+    {
+      "file": "scripts/desktop-build-cache.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1700],
+        ["development-tools", 1800]
+      ]
+    },
+    {
+      "file": "scripts/desktop-execution-baseline.test.mts",
+      "memberships": [
+        ["windows-storage-4", 400],
+        ["frontend-full-4", 400],
+        ["development-tools", 2200]
+      ]
+    },
+    {
+      "file": "scripts/desktop-execution-plan.test.mts",
+      "memberships": [
+        ["windows-storage-4", 300],
+        ["frontend-full-4", 300],
+        ["development-tools", 2100]
+      ]
+    },
+    {
+      "file": "scripts/desktop-input-observation.test.mts",
+      "memberships": [
+        ["catalog-full-2", 4100],
+        ["repository-tools-2", 2300]
+      ]
+    },
+    {
+      "file": "scripts/desktop-linux-native-session.test.mts",
+      "memberships": [
+        ["windows-storage-4", 600],
+        ["frontend-full-4", 600],
+        ["development-tools", 2400]
+      ]
+    },
+    {
+      "file": "scripts/desktop-linux-stop.test.mts",
+      "memberships": [
+        ["windows-storage-4", 700],
+        ["frontend-full-4", 700],
+        ["development-tools", 2500]
+      ]
+    },
+    {
+      "file": "scripts/desktop-listener-probe.test.mts",
+      "memberships": [
+        ["windows-storage-4", 800],
+        ["frontend-full-4", 800],
+        ["catalog-full-2", 400],
+        ["development-tools", 600]
+      ]
+    },
+    {
+      "file": "scripts/desktop-native-account-session.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11600],
+        ["release-check", 9700]
+      ]
+    },
+    {
+      "file": "scripts/desktop-real-runtime.test.mts",
+      "memberships": [
+        ["windows-storage-4", 500],
+        ["frontend-full-4", 500],
+        ["development-tools", 2300]
+      ]
+    },
+    {
+      "file": "scripts/desktop-scenarios.test.mts",
+      "memberships": [
+        ["windows-storage-4", 100],
+        ["frontend-full-4", 100],
+        ["development-tools", 1900]
+      ]
+    },
+    {
+      "file": "scripts/desktop-verify.test.mts",
+      "memberships": [
+        ["windows-helpers-2", 1100],
+        ["windows-storage-4", 900],
+        ["frontend-full-4", 900],
+        ["development-tools", 2600]
+      ]
+    },
+    {
+      "file": "scripts/dev-doctor.test.mts",
+      "memberships": [
+        ["windows-storage-4", 1000],
+        ["development-tools", 2700]
+      ]
+    },
+    {
+      "file": "scripts/dev-storage.test.mts",
+      "memberships": [
+        ["windows-storage", 100],
+        ["frontend-full-2", 100],
+        ["repository-tools-2", 3800]
+      ]
+    },
+    {
+      "file": "scripts/development-capabilities.test.mts",
+      "memberships": [
+        ["windows-storage-4", 1100],
+        ["development-tools", 2800]
+      ]
+    },
+    {
+      "file": "scripts/development-cli-help.test.mts",
+      "memberships": [
+        ["windows-storage-4", 1200],
+        ["development-tools", 2900]
+      ]
+    },
+    {
+      "file": "scripts/development-evidence.test.mts",
+      "memberships": [
+        ["windows-storage-4", 1300],
+        ["frontend-full-4", 1000],
+        ["development-tools", 3000]
+      ]
+    },
+    {
+      "file": "scripts/discovery-checkpoint.test.mts",
+      "memberships": [
+        ["catalog-full", 500],
+        ["roadmap-check", 500]
+      ]
+    },
+    {
+      "file": "scripts/discovery-intake.test.mts",
+      "memberships": [
+        ["catalog-full", 600],
+        ["roadmap-check", 600]
+      ]
+    },
+    {
+      "file": "scripts/discovery-leads.test.mts",
+      "memberships": [
+        ["catalog-full", 1000],
+        ["roadmap-check", 1000]
+      ]
+    },
+    {
+      "file": "scripts/fallow-scope.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8700],
+        ["fallow", 400]
+      ]
+    },
+    {
+      "file": "scripts/fallow-source.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8800],
+        ["fallow", 500]
+      ]
+    },
+    {
+      "file": "scripts/fallow-summary.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8600],
+        ["fallow", 300]
+      ]
+    },
+    {
+      "file": "scripts/finalize-release-assets.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3300],
+        ["release-check", 1100]
+      ]
+    },
+    {
+      "file": "scripts/frontend-build-compare.test.mts",
+      "memberships": [
+        ["catalog-full-2", 7000],
+        ["repository-tools-2", 3000]
+      ]
+    },
+    {
+      "file": "scripts/frontend-command-preflight.test.mts",
+      "memberships": [
+        ["windows-helpers-2", 1000],
+        ["windows-storage-4", 1900],
+        ["development-tools", 3600]
+      ]
+    },
+    {
+      "file": "scripts/generate-catalog.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8900],
+        ["repository-tools-2", 3900]
+      ]
+    },
+    {
+      "file": "scripts/generate-release-downloads.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3400],
+        ["release-check", 1200]
+      ]
+    },
+    {
+      "file": "scripts/github-api.test.mts",
+      "memberships": [
+        ["catalog-full-2", 7800],
+        ["repository-tools-2", 3600]
+      ]
+    },
+    {
+      "file": "scripts/github-body.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1100],
+        ["development-tools", 1300]
+      ]
+    },
+    {
+      "file": "scripts/handoff-evidence.test.mts",
+      "memberships": [
+        ["windows-storage-4", 1600],
+        ["frontend-full-4", 1300],
+        ["development-tools", 3300]
+      ]
+    },
+    {
+      "file": "scripts/heavy-rust-test-lock.test.mts",
+      "memberships": [
+        ["windows-helpers-2", 300],
+        ["windows-storage-4", 2100],
+        ["catalog-full-2", 1800],
+        ["development-tools", 3800]
+      ]
+    },
+    {
+      "file": "scripts/hosted-native-continuity.test.mts",
+      "memberships": [
+        ["catalog-full-2", 2500],
+        ["release-check", 600]
+      ]
+    },
+    {
+      "file": "scripts/linux-beta-risk-706-controller.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3900],
+        ["repository-tools-2", 2100]
+      ]
+    },
+    {
+      "file": "scripts/linux-beta-risk-706.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3800],
+        ["repository-tools-2", 2000]
+      ]
+    },
+    {
+      "file": "scripts/local-validation.test.mts",
+      "memberships": [
+        ["windows-storage-4", 2200],
+        ["development-tools", 3900]
+      ]
+    },
+    {
+      "file": "scripts/maintainer-config.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9200],
+        ["repository-tools-2", 4200]
+      ]
+    },
+    {
+      "file": "scripts/migrate-catalog-schema2.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9500],
+        ["repository-tools-2", 4500]
+      ]
+    },
+    {
+      "file": "scripts/native-compatibility.test.mts",
+      "memberships": [
+        ["windows-storage-4", 200],
+        ["frontend-full-4", 200],
+        ["development-tools", 2000]
+      ]
+    },
+    {
+      "file": "scripts/native-confirmation.test.mts",
+      "memberships": [
+        ["windows-helpers-2", 600],
+        ["windows-storage-4", 1700],
+        ["development-tools", 3400]
+      ]
+    },
+    {
+      "file": "scripts/native-helper-dependencies.test.mts",
+      "memberships": [
+        ["windows-helpers-2", 900],
+        ["windows-storage-4", 1800],
+        ["development-tools", 3500]
+      ]
+    },
+    {
+      "file": "scripts/native-linux-driver-http.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15300],
+        ["release-check", 15000]
+      ]
+    },
+    {
+      "file": "scripts/native-linux-isolated-init.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15400],
+        ["release-check", 15100]
+      ]
+    },
+    {
+      "file": "scripts/native-linux-isolated-plan.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15500],
+        ["release-check", 15200]
+      ]
+    },
+    {
+      "file": "scripts/native-linux-public-fuse.test.mts",
+      "memberships": [
+        ["frontend-full-6", 1300],
+        ["release-check", 12500]
+      ]
+    },
+    {
+      "file": "scripts/native-linux-public-network.test.mts",
+      "memberships": [
+        ["frontend-full-6", 1200],
+        ["release-check", 16100]
+      ]
+    },
+    {
+      "file": "scripts/native-linux-public-plan.test.mts",
+      "memberships": [
+        ["frontend-full-6", 1500],
+        ["release-check", 12600]
+      ]
+    },
+    {
+      "file": "scripts/native-linux-public-services.test.mts",
+      "memberships": [
+        ["frontend-full-6", 1400],
+        ["release-check", 12700]
+      ]
+    },
+    {
+      "file": "scripts/native-qualification-account-adapter.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11500],
+        ["release-check", 9600]
+      ]
+    },
+    {
+      "file": "scripts/native-qualification-account-client.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11400],
+        ["release-check", 9500]
+      ]
+    },
+    {
+      "file": "scripts/native-qualification-account.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11300],
+        ["release-check", 9400]
+      ]
+    },
+    {
+      "file": "scripts/native-qualification-linux-supervisor.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15700],
+        ["release-check", 15400]
+      ]
+    },
+    {
+      "file": "scripts/native-qualification-linux-transfer.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15800],
+        ["release-check", 15500]
+      ]
+    },
+    {
+      "file": "scripts/native-session-lock.test.mts",
+      "memberships": [
+        ["windows-helpers-2", 800],
+        ["windows-storage-4", 2400],
+        ["frontend-full-4", 1400],
+        ["development-tools", 4200]
+      ]
+    },
+    {
+      "file": "scripts/native-session.test.mts",
+      "memberships": [
+        ["windows-helpers-2", 700],
+        ["windows-storage-4", 2500],
+        ["development-tools", 4300]
+      ]
+    },
+    {
+      "file": "scripts/nextest-equivalence.test.mts",
+      "memberships": [
+        ["catalog-full-2", 5300],
+        ["repository-tools-2", 900]
+      ]
+    },
+    {
+      "file": "scripts/node-test-inventory.test.mts",
+      "memberships": [
+        ["windows-storage-3", 500],
+        ["catalog-full-2", 4900],
+        ["repository-tools-2", 500]
+      ]
+    },
+    {
+      "file": "scripts/ordinary-git-routing.test.mts",
+      "memberships": [
+        ["catalog-full-2", 5400],
+        ["repository-tools-2", 1000]
+      ]
+    },
+    {
+      "file": "scripts/package-ownership-selection.test.mts",
+      "memberships": [
+        ["catalog-full-2", 5500],
+        ["repository-tools-2", 1100]
+      ]
+    },
+    {
+      "file": "scripts/pnpm-lock-inventory.test.mts",
+      "memberships": [
+        ["catalog-full-2", 6900],
+        ["repository-tools-2", 2900]
+      ]
+    },
+    {
+      "file": "scripts/postmerge-ci.test.mts",
+      "memberships": [
+        ["catalog-full-2", 5600],
+        ["repository-tools-2", 1200]
+      ]
+    },
+    {
+      "file": "scripts/pr-conventions.test.mts",
+      "memberships": [
+        ["catalog-full-2", 7400],
+        ["repository-tools-2", 3300]
+      ]
+    },
+    {
+      "file": "scripts/pr-delivery-snapshot.test.mts",
+      "memberships": [
+        ["catalog-full-2", 7600],
+        ["repository-tools-2", 3500]
+      ]
+    },
+    {
+      "file": "scripts/pr-delivery.test.mts",
+      "memberships": [
+        ["catalog-full-2", 7500],
+        ["repository-tools-2", 3400]
+      ]
+    },
+    {
+      "file": "scripts/precommit-check.test.mts",
+      "memberships": [
+        ["frontend-full", 100],
+        ["development-tools", 4000]
+      ]
+    },
+    {
+      "file": "scripts/prepare-port.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9100],
+        ["repository-tools-2", 4100]
+      ]
+    },
+    {
+      "file": "scripts/process-lock.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8000],
+        ["development-tools", 4400]
+      ]
+    },
+    {
+      "file": "scripts/production-aggregate-steps.test.mts",
+      "memberships": [
+        ["frontend-full-6", 1800],
+        ["release-check", 2700]
+      ]
+    },
+    {
+      "file": "scripts/production-controller-admission.test.mts",
+      "memberships": [
+        ["frontend-full-6", 200],
+        ["release-check", 1500]
+      ]
+    },
+    {
+      "file": "scripts/python-test-results.test.mts",
+      "memberships": [
+        ["catalog-full-2", 6500],
+        ["repository-tools-2", 2500]
+      ]
+    },
+    {
+      "file": "scripts/qualification-coverage.test.mts",
+      "memberships": [
+        ["catalog-full-2", 6300],
+        ["repository-tools-2", 1800]
+      ]
+    },
+    {
+      "file": "scripts/qualification-preparation.test.mts",
+      "memberships": [
+        ["windows-storage-2", 200],
+        ["release-check", 4600]
+      ]
+    },
+    {
+      "file": "scripts/quality-tools.test.mts",
+      "memberships": [
+        ["catalog-full-2", 6700],
+        ["repository-tools-2", 2700]
+      ]
+    },
+    {
+      "file": "scripts/reconcile-release-assets.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3000],
+        ["release-check", 800]
+      ]
+    },
+    {
+      "file": "scripts/reconstruct-application-update-records.test.mts",
+      "memberships": [
+        ["frontend-full-6", 3300],
+        ["release-check", 4200]
+      ]
+    },
+    {
+      "file": "scripts/recover-local-worker-empty-setup.test.mts",
+      "memberships": [
+        ["windows-helpers-3", 300],
+        ["catalog-full-2", 13600],
+        ["release-check", 11600]
+      ]
+    },
+    {
+      "file": "scripts/release-acceptance-evidence.test.mts",
+      "memberships": [
+        ["catalog-full-2", 10200],
+        ["release-check", 7800]
+      ]
+    },
+    {
+      "file": "scripts/release-admitted-aggregate-controller.test.mts",
+      "memberships": [
+        ["frontend-full-6", 8100],
+        ["release-check", 14600]
+      ]
+    },
+    {
+      "file": "scripts/release-artifact-archive.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3200],
+        ["release-check", 1000]
+      ]
+    },
+    {
+      "file": "scripts/release-bootstrap-preparation.test.mts",
+      "memberships": [
+        ["frontend-full-6", 7300],
+        ["catalog-full-2", 12000],
+        ["release-check", 14200]
+      ]
+    },
+    {
+      "file": "scripts/release-candidate-dispatch.test.mts",
+      "memberships": [
+        ["frontend-full-6", 3000],
+        ["release-check", 3800]
+      ]
+    },
+    {
+      "file": "scripts/release-candidate-progress-contract.test.mts",
+      "memberships": [
+        ["frontend-full-6", 3100],
+        ["release-check", 3900]
+      ]
+    },
+    {
+      "file": "scripts/release-candidate-progress.test.mts",
+      "memberships": [
+        ["frontend-full-6", 3200],
+        ["release-check", 4000]
+      ]
+    },
+    {
+      "file": "scripts/release-candidate-qualification.test.mts",
+      "memberships": [
+        ["catalog-full-2", 10000],
+        ["release-check", 7400]
+      ]
+    },
+    {
+      "file": "scripts/release-candidate-signing-recovery.test.mts",
+      "memberships": [
+        ["frontend-full-6", 7500],
+        ["release-check", 14400]
+      ]
+    },
+    {
+      "file": "scripts/release-capacity-executor.test.mts",
+      "memberships": [
+        ["frontend-full-6", 4000],
+        ["release-check", 5700]
+      ]
+    },
+    {
+      "file": "scripts/release-capacity-operation.test.mts",
+      "memberships": [
+        ["frontend-full-6", 4100],
+        ["release-check", 5800]
+      ]
+    },
+    {
+      "file": "scripts/release-capacity.test.mts",
+      "memberships": [
+        ["frontend-full-6", 700],
+        ["release-check", 2000]
+      ]
+    },
+    {
+      "file": "scripts/release-catalog-authorities.test.mts",
+      "memberships": [
+        ["frontend-full-6", 4400],
+        ["release-check", 6100]
+      ]
+    },
+    {
+      "file": "scripts/release-catalog-context-boundary.test.mts",
+      "memberships": [
+        ["frontend-full-6", 5300],
+        ["release-check", 7000]
+      ]
+    },
+    {
+      "file": "scripts/release-catalog-continuation.test.mts",
+      "memberships": [
+        ["frontend-full-6", 5200],
+        ["release-check", 6900]
+      ]
+    },
+    {
+      "file": "scripts/release-catalog-coordinator.test.mts",
+      "memberships": [
+        ["frontend-full-6", 5500],
+        ["release-check", 7200]
+      ]
+    },
+    {
+      "file": "scripts/release-catalog-inspection.test.mts",
+      "memberships": [
+        ["frontend-full-6", 4300],
+        ["release-check", 6000]
+      ]
+    },
+    {
+      "file": "scripts/release-catalog-metadata-contract.test.mts",
+      "memberships": [
+        ["frontend-full-6", 4200],
+        ["release-check", 5900]
+      ]
+    },
+    {
+      "file": "scripts/release-catalog-recovery.test.mts",
+      "memberships": [
+        ["frontend-full-6", 5100],
+        ["release-check", 6800]
+      ]
+    },
+    {
+      "file": "scripts/release-catalog-review-disposition.test.mts",
+      "memberships": [
+        ["frontend-full-6", 5600],
+        ["release-check", 7300]
+      ]
+    },
+    {
+      "file": "scripts/release-catalog-review-maintenance.test.mts",
+      "memberships": [
+        ["frontend-full-6", 4900],
+        ["release-check", 6600]
+      ]
+    },
+    {
+      "file": "scripts/release-catalog-review-request.test.mts",
+      "memberships": [
+        ["frontend-full-6", 4800],
+        ["release-check", 6500]
+      ]
+    },
+    {
+      "file": "scripts/release-catalog-semantic.test.mts",
+      "memberships": [
+        ["frontend-full-6", 4500],
+        ["release-check", 6200]
+      ]
+    },
+    {
+      "file": "scripts/release-catalog-signing.test.mts",
+      "memberships": [
+        ["frontend-full-6", 4600],
+        ["release-check", 6300]
+      ]
+    },
+    {
+      "file": "scripts/release-catalog-site-controller.test.mts",
+      "memberships": [
+        ["frontend-full-6", 5000],
+        ["release-check", 6700]
+      ]
+    },
+    {
+      "file": "scripts/release-catalog-source.test.mts",
+      "memberships": [
+        ["frontend-full-6", 4700],
+        ["release-check", 6400]
+      ]
+    },
+    {
+      "file": "scripts/release-classification-request.test.mts",
+      "memberships": [
+        ["frontend-full-6", 6000],
+        ["release-check", 9300]
+      ]
+    },
+    {
+      "file": "scripts/release-compiler-capture.test.mts",
+      "memberships": [
+        ["catalog-full-2", 10300],
+        ["release-check", 7900]
+      ]
+    },
+    {
+      "file": "scripts/release-compiler-evidence.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11000],
+        ["release-check", 8400]
+      ]
+    },
+    {
+      "file": "scripts/release-compiler-outputs.test.mts",
+      "memberships": [
+        ["catalog-full-2", 10700],
+        ["release-check", 8100]
+      ]
+    },
+    {
+      "file": "scripts/release-compiler-source-admission.test.mts",
+      "memberships": [
+        ["catalog-full-2", 10900],
+        ["release-check", 8300]
+      ]
+    },
+    {
+      "file": "scripts/release-compiler-source.test.mts",
+      "memberships": [
+        ["catalog-full-2", 10800],
+        ["release-check", 8200]
+      ]
+    },
+    {
+      "file": "scripts/release-connected-fixture.test.mts",
+      "memberships": [
+        ["frontend-full-6", 8200],
+        ["release-check", 14800]
+      ]
+    },
+    {
+      "file": "scripts/release-control-handshake.test.mts",
+      "memberships": [
+        ["catalog-full-2", 2300],
+        ["release-check", 4800]
+      ]
+    },
+    {
+      "file": "scripts/release-control-inputs.test.mts",
+      "memberships": [
+        ["frontend-full-6", 600],
+        ["release-check", 1900]
+      ]
+    },
+    {
+      "file": "scripts/release-control-step-bridge.test.mts",
+      "memberships": [
+        ["frontend-full-6", 3800],
+        ["release-check", 5500]
+      ]
+    },
+    {
+      "file": "scripts/release-controller-catalog-routing.test.mts",
+      "memberships": [
+        ["frontend-full-6", 5400],
+        ["release-check", 7100]
+      ]
+    },
+    {
+      "file": "scripts/release-controller-tools.test.mts",
+      "memberships": [
+        ["catalog-full-2", 10500],
+        ["release-check", 7600]
+      ]
+    },
+    {
+      "file": "scripts/release-controller-transport.test.mts",
+      "memberships": [
+        ["frontend-full-6", 7400],
+        ["release-check", 14300]
+      ]
+    },
+    {
+      "file": "scripts/release-controller-wake.test.mts",
+      "memberships": [
+        ["catalog-full-2", 12600],
+        ["release-check", 10300]
+      ]
+    },
+    {
+      "file": "scripts/release-coordinator-checkpoint-authentication.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2400],
+        ["release-check", 3200]
+      ]
+    },
+    {
+      "file": "scripts/release-coordinator-checkpoint-signing.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2500],
+        ["release-check", 3300]
+      ]
+    },
+    {
+      "file": "scripts/release-coordinator-deadline.test.mts",
+      "memberships": [
+        ["frontend-full-6", 6100],
+        ["release-check", 10400]
+      ]
+    },
+    {
+      "file": "scripts/release-coordinator-driver.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2800],
+        ["release-check", 3600]
+      ]
+    },
+    {
+      "file": "scripts/release-coordinator-journal-api.test.mts",
+      "memberships": [
+        ["frontend-full-6", 800],
+        ["release-check", 2100]
+      ]
+    },
+    {
+      "file": "scripts/release-coordinator-state.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2300],
+        ["release-check", 3100]
+      ]
+    },
+    {
+      "file": "scripts/release-coordinator.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2200],
+        ["release-check", 3000]
+      ]
+    },
+    {
+      "file": "scripts/release-handshake-hosted-fixture.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9900],
+        ["release-check", 5100]
+      ]
+    },
+    {
+      "file": "scripts/release-immutable-publication.test.mts",
+      "memberships": [
+        ["catalog-full-2", 10100],
+        ["release-check", 7500]
+      ]
+    },
+    {
+      "file": "scripts/release-live-control-admission.test.mts",
+      "memberships": [
+        ["catalog-full-2", 2200],
+        ["release-check", 4700]
+      ]
+    },
+    {
+      "file": "scripts/release-local-native-setup.test.mts",
+      "memberships": [
+        ["catalog-full-2", 13200],
+        ["release-check", 11200]
+      ]
+    },
+    {
+      "file": "scripts/release-local-worker-accounts.test.mts",
+      "memberships": [
+        ["windows-helpers-3", 100],
+        ["catalog-full-2", 13400],
+        ["release-check", 11400]
+      ]
+    },
+    {
+      "file": "scripts/release-local-worker-tasks.test.mts",
+      "memberships": [
+        ["catalog-full-2", 13300],
+        ["release-check", 11300]
+      ]
+    },
+    {
+      "file": "scripts/release-metadata-context-recovery.test.mts",
+      "memberships": [
+        ["frontend-full-6", 7000],
+        ["release-check", 13900]
+      ]
+    },
+    {
+      "file": "scripts/release-metadata-renewal.test.mts",
+      "memberships": [
+        ["frontend-full-6", 400],
+        ["release-check", 1700]
+      ]
+    },
+    {
+      "file": "scripts/release-metadata-signing-context.test.mts",
+      "memberships": [
+        ["frontend-full-6", 6900],
+        ["release-check", 13800]
+      ]
+    },
+    {
+      "file": "scripts/release-metadata-site-controller.test.mts",
+      "memberships": [
+        ["frontend-full-6", 7200],
+        ["release-check", 14100]
+      ]
+    },
+    {
+      "file": "scripts/release-native-acceptance.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11700],
+        ["release-check", 9100]
+      ]
+    },
+    {
+      "file": "scripts/release-native-account-capability.test.mts",
+      "memberships": [
+        ["windows-helpers-3", 200],
+        ["catalog-full-2", 13500],
+        ["release-check", 11500]
+      ]
+    },
+    {
+      "file": "scripts/release-native-admission.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11800],
+        ["release-check", 9200]
+      ]
+    },
+    {
+      "file": "scripts/release-native-attempt.test.mts",
+      "memberships": [
+        ["catalog-full-2", 13700],
+        ["release-check", 11700]
+      ]
+    },
+    {
+      "file": "scripts/release-native-candidate.test.mts",
+      "memberships": [
+        ["catalog-full-2", 14300],
+        ["release-check", 12300]
+      ]
+    },
+    {
+      "file": "scripts/release-native-check-broker.test.mts",
+      "memberships": [
+        ["catalog-full-2", 14200],
+        ["release-check", 12200]
+      ]
+    },
+    {
+      "file": "scripts/release-native-check-discovery.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11900],
+        ["release-check", 14700]
+      ]
+    },
+    {
+      "file": "scripts/release-native-linux-driver.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15600],
+        ["release-check", 15300]
+      ]
+    },
+    {
+      "file": "scripts/release-native-linux-public-capture.test.mts",
+      "memberships": [
+        ["catalog-full-2", 14500],
+        ["release-check", 12800]
+      ]
+    },
+    {
+      "file": "scripts/release-native-observation.test.mts",
+      "memberships": [
+        ["catalog-full-2", 10400],
+        ["release-check", 8000]
+      ]
+    },
+    {
+      "file": "scripts/release-native-parent.test.mts",
+      "memberships": [
+        ["catalog-full-2", 14400],
+        ["release-check", 12400]
+      ]
+    },
+    {
+      "file": "scripts/release-native-pre-sign-report.test.mts",
+      "memberships": [
+        ["catalog-full-2", 14100],
+        ["release-check", 12100]
+      ]
+    },
+    {
+      "file": "scripts/release-native-public-attempt-contract.test.mts",
+      "memberships": [
+        ["catalog-full-2", 14900],
+        ["release-check", 13200]
+      ]
+    },
+    {
+      "file": "scripts/release-native-public-compiler.test.mts",
+      "memberships": [
+        ["catalog-full-2", 14700],
+        ["release-check", 13000]
+      ]
+    },
+    {
+      "file": "scripts/release-native-public-pair.test.mts",
+      "memberships": [
+        ["catalog-full-2", 14600],
+        ["release-check", 12900]
+      ]
+    },
+    {
+      "file": "scripts/release-native-public-signature.test.mts",
+      "memberships": [
+        ["catalog-full-2", 14800],
+        ["release-check", 13100]
+      ]
+    },
+    {
+      "file": "scripts/release-native-qualification-contract.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11200],
+        ["release-check", 8600]
+      ]
+    },
+    {
+      "file": "scripts/release-native-scheduler.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15000],
+        ["release-check", 13300]
+      ]
+    },
+    {
+      "file": "scripts/release-native-source-contract.test.mts",
+      "memberships": [
+        ["catalog-full-2", 14000],
+        ["release-check", 12000]
+      ]
+    },
+    {
+      "file": "scripts/release-native-stage-capture.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15100],
+        ["release-check", 13400]
+      ]
+    },
+    {
+      "file": "scripts/release-native-windows-driver.test.mts",
+      "memberships": [
+        ["catalog-full-2", 13800],
+        ["release-check", 11800]
+      ]
+    },
+    {
+      "file": "scripts/release-native-windows-public-continuation.test.mts",
+      "memberships": [
+        ["catalog-full-2", 13900],
+        ["release-check", 11900]
+      ]
+    },
+    {
+      "file": "scripts/release-native-wsl-boundary.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15200],
+        ["release-check", 14900]
+      ]
+    },
+    {
+      "file": "scripts/release-native-wsl-capture.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15900],
+        ["release-check", 15600]
+      ]
+    },
+    {
+      "file": "scripts/release-package-policy.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1900],
+        ["release-check", 200]
+      ]
+    },
+    {
+      "file": "scripts/release-pages-metadata-recovery.test.mts",
+      "memberships": [
+        ["frontend-full-6", 6500],
+        ["release-check", 13600]
+      ]
+    },
+    {
+      "file": "scripts/release-pages-provider.test.mts",
+      "memberships": [
+        ["frontend-full-6", 3900],
+        ["release-check", 5600]
+      ]
+    },
+    {
+      "file": "scripts/release-pages-recovery.test.mts",
+      "memberships": [
+        ["frontend-full-6", 6400],
+        ["release-check", 13500]
+      ]
+    },
+    {
+      "file": "scripts/release-payload-preparation.test.mts",
+      "memberships": [
+        ["catalog-full-2", 2800],
+        ["release-check", 5000]
+      ]
+    },
+    {
+      "file": "scripts/release-payload-signing.test.mts",
+      "memberships": [
+        ["catalog-full-2", 2700],
+        ["release-check", 4900]
+      ]
+    },
+    {
+      "file": "scripts/release-pending-release-recovery.test.mts",
+      "memberships": [
+        ["frontend-full-6", 7600],
+        ["release-check", 15700]
+      ]
+    },
+    {
+      "file": "scripts/release-pending-result-recovery.test.mts",
+      "memberships": [
+        ["frontend-full-6", 7700],
+        ["release-check", 15800]
+      ]
+    },
+    {
+      "file": "scripts/release-preparation-source.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2700],
+        ["release-check", 3500]
+      ]
+    },
+    {
+      "file": "scripts/release-prepared-transport.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2600],
+        ["release-check", 3400]
+      ]
+    },
+    {
+      "file": "scripts/release-preview-withdrawals.test.mts",
+      "memberships": [
+        ["frontend-full-6", 3400],
+        ["catalog-full-2", 12200],
+        ["release-check", 9900]
+      ]
+    },
+    {
+      "file": "scripts/release-production-dag.test.mts",
+      "memberships": [
+        ["frontend-full-6", 8000],
+        ["release-check", 14500]
+      ]
+    },
+    {
+      "file": "scripts/release-public-build-inputs.test.mts",
+      "memberships": [
+        ["catalog-full-2", 2000],
+        ["release-check", 300]
+      ]
+    },
+    {
+      "file": "scripts/release-public-build-provenance.test.mts",
+      "memberships": [
+        ["catalog-full-2", 2100],
+        ["release-check", 400]
+      ]
+    },
+    {
+      "file": "scripts/release-publication-controller.test.mts",
+      "memberships": [
+        ["catalog-full-2", 12900],
+        ["release-check", 10900]
+      ]
+    },
+    {
+      "file": "scripts/release-publication-inputs.test.mts",
+      "memberships": [
+        ["catalog-full-2", 13000],
+        ["release-check", 11000]
+      ]
+    },
+    {
+      "file": "scripts/release-publication-result-artifact.test.mts",
+      "memberships": [
+        ["catalog-full-2", 12500],
+        ["release-check", 10200]
+      ]
+    },
+    {
+      "file": "scripts/release-publication-result.test.mts",
+      "memberships": [
+        ["catalog-full-2", 12400],
+        ["release-check", 10100]
+      ]
+    },
+    {
+      "file": "scripts/release-publication-source.test.mts",
+      "memberships": [
+        ["catalog-full-2", 13100],
+        ["release-check", 11100]
+      ]
+    },
+    {
+      "file": "scripts/release-published-source.test.mts",
+      "memberships": [
+        ["frontend-full-6", 5700],
+        ["release-check", 8700]
+      ]
+    },
+    {
+      "file": "scripts/release-report-repair-contract.test.mts",
+      "memberships": [
+        ["frontend-full-6", 7800],
+        ["release-check", 15900]
+      ]
+    },
+    {
+      "file": "scripts/release-report-repair-identity.test.mts",
+      "memberships": [
+        ["frontend-full-6", 7900],
+        ["release-check", 16000]
+      ]
+    },
+    {
+      "file": "scripts/release-result-gate.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3700],
+        ["repository-tools-2", 1900]
+      ]
+    },
+    {
+      "file": "scripts/release-review-request.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2900],
+        ["release-check", 3700]
+      ]
+    },
+    {
+      "file": "scripts/release-role-key-channel.test.mts",
+      "memberships": [
+        ["catalog-full-2", 10600],
+        ["release-check", 7700]
+      ]
+    },
+    {
+      "file": "scripts/release-run-artifact-inventory.test.mts",
+      "memberships": [
+        ["frontend-full-6", 7100],
+        ["release-check", 14000]
+      ]
+    },
+    {
+      "file": "scripts/release-run-evidence.test.mts",
+      "memberships": [
+        ["catalog-full-3", 100],
+        ["release-check", 4100]
+      ]
+    },
+    {
+      "file": "scripts/release-semantic-broker.test.mts",
+      "memberships": [
+        ["frontend-full-6", 1000],
+        ["release-check", 2300]
+      ]
+    },
+    {
+      "file": "scripts/release-semantic-disposition-reader.test.mts",
+      "memberships": [
+        ["frontend-full-6", 5900],
+        ["release-check", 8900]
+      ]
+    },
+    {
+      "file": "scripts/release-semantic-disposition.test.mts",
+      "memberships": [
+        ["frontend-full-6", 5800],
+        ["release-check", 8800]
+      ]
+    },
+    {
+      "file": "scripts/release-semantic-reader-core.test.mts",
+      "memberships": [
+        ["frontend-full-6", 1100],
+        ["release-check", 2400]
+      ]
+    },
+    {
+      "file": "scripts/release-semantic-review.test.mts",
+      "memberships": [
+        ["frontend-full-6", 900],
+        ["release-check", 2200]
+      ]
+    },
+    {
+      "file": "scripts/release-semantic-source.test.mts",
+      "memberships": [
+        ["frontend-full-6", 6300],
+        ["release-check", 10600]
+      ]
+    },
+    {
+      "file": "scripts/release-semantic-worker.test.mts",
+      "memberships": [
+        ["frontend-full-6", 6200],
+        ["release-check", 10500]
+      ]
+    },
+    {
+      "file": "scripts/release-signing-context-artifact.test.mts",
+      "memberships": [
+        ["catalog-full-2", 12300],
+        ["release-check", 10000]
+      ]
+    },
+    {
+      "file": "scripts/release-signing-context.test.mts",
+      "memberships": [
+        ["catalog-full-2", 12100],
+        ["release-check", 9800]
+      ]
+    },
+    {
+      "file": "scripts/release-signing-handoff.test.mts",
+      "memberships": [
+        ["catalog-full-2", 2900],
+        ["release-check", 9000]
+      ]
+    },
+    {
+      "file": "scripts/release-site-composer.test.mts",
+      "memberships": [
+        ["frontend-full-6", 300],
+        ["release-check", 1600]
+      ]
+    },
+    {
+      "file": "scripts/release-site-controller.test.mts",
+      "memberships": [
+        ["frontend-full-6", 3700],
+        ["release-check", 5400]
+      ]
+    },
+    {
+      "file": "scripts/release-site-deployment.test.mts",
+      "memberships": [
+        ["frontend-full-6", 3600],
+        ["release-check", 5300]
+      ]
+    },
+    {
+      "file": "scripts/release-site-readback.test.mts",
+      "memberships": [
+        ["frontend-full-6", 3500],
+        ["release-check", 5200]
+      ]
+    },
+    {
+      "file": "scripts/release-source-attestation.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11100],
+        ["release-check", 8500]
+      ]
+    },
+    {
+      "file": "scripts/release-source-changes.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2000],
+        ["release-check", 2900]
+      ]
+    },
+    {
+      "file": "scripts/release-tuf-controller.test.mts",
+      "memberships": [
+        ["frontend-full-6", 6800],
+        ["release-check", 13700]
+      ]
+    },
+    {
+      "file": "scripts/release-tuf-role-artifact.test.mts",
+      "memberships": [
+        ["frontend-full-6", 6600],
+        ["catalog-full-2", 12800],
+        ["release-check", 10800]
+      ]
+    },
+    {
+      "file": "scripts/release-tuf-signing.test.mts",
+      "memberships": [
+        ["frontend-full-6", 6700],
+        ["catalog-full-2", 12700],
+        ["release-check", 10700]
+      ]
+    },
+    {
+      "file": "scripts/release-workflow.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3500],
+        ["release-check", 4300]
+      ]
+    },
+    {
+      "file": "scripts/renovate-engine-probe.test.mts",
+      "memberships": [
+        ["catalog-full-2", 7100],
+        ["repository-tools-2", 3100]
+      ]
+    },
+    {
+      "file": "scripts/renovate-fast-lane.test.mts",
+      "memberships": [
+        ["catalog-full-2", 7700],
+        ["development-tools", 4500]
+      ]
+    },
+    {
+      "file": "scripts/report-summary.test.mts",
+      "memberships": [
+        ["catalog-full-2", 800],
+        ["development-tools", 1000]
+      ]
+    },
+    {
+      "file": "scripts/repository-issue-inventory.test.mts",
+      "memberships": [
+        ["catalog-full", 800],
+        ["roadmap-check", 800]
+      ]
+    },
+    {
+      "file": "scripts/repository-settings.test.mts",
+      "memberships": [
+        ["prose-checks", 100],
+        ["catalog-full-2", 7200],
+        ["repository-tools-2", 3200]
+      ]
+    },
+    {
+      "file": "scripts/repository-skills.test.mts",
+      "memberships": [
+        ["prose-checks", 200],
+        ["catalog-full-2", 7300],
+        ["development-tools", 4600]
+      ]
+    },
+    {
+      "file": "scripts/resource-capacity.test.mts",
+      "memberships": [
+        ["windows-helpers-2", 100],
+        ["windows-storage-4", 3100],
+        ["development-tools", 200]
+      ]
+    },
+    {
+      "file": "scripts/resource-command.test.mts",
+      "memberships": [
+        ["windows-helpers-2", 200],
+        ["windows-storage-4", 3200],
+        ["development-tools", 300]
+      ]
+    },
+    {
+      "file": "scripts/resource-status.test.mts",
+      "memberships": [
+        ["catalog-full-2", 700],
+        ["development-tools", 900]
+      ]
+    },
+    {
+      "file": "scripts/retained-package.test.mts",
+      "memberships": [
+        ["windows-storage-4", 1400],
+        ["frontend-full-4", 1100],
+        ["development-tools", 3100]
+      ]
+    },
+    {
+      "file": "scripts/roadmap-inventory.test.mts",
+      "memberships": [
+        ["catalog-full", 700],
+        ["roadmap-check", 700]
+      ]
+    },
+    {
+      "file": "scripts/roadmap-membership-readback.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9800],
+        ["roadmap-check", 300]
+      ]
+    },
+    {
+      "file": "scripts/roadmap-scoped.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9700],
+        ["roadmap-check", 200]
+      ]
+    },
+    {
+      "file": "scripts/roadmap.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9600],
+        ["roadmap-check", 100]
+      ]
+    },
+    {
+      "file": "scripts/run-fallow.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8500],
+        ["fallow", 200]
+      ]
+    },
+    {
+      "file": "scripts/run-oxlint.test.mts",
+      "memberships": [
+        ["frontend-full", 200],
+        ["development-tools", 4100]
+      ]
+    },
+    {
+      "file": "scripts/run-rscheck.test.mts",
+      "memberships": [["rust-quality-full-3", 100]]
+    },
+    {
+      "file": "scripts/run-rust-tests.test.mts",
+      "memberships": [
+        ["windows-helpers-2", 400],
+        ["windows-storage-4", 2600],
+        ["catalog-full-2", 4200],
+        ["development-tools", 4700]
+      ]
+    },
+    {
+      "file": "scripts/rust-support-cache.test.mts",
+      "memberships": [
+        ["windows-storage-4", 2700],
+        ["catalog-full-2", 4300],
+        ["development-tools", 4800]
+      ]
+    },
+    {
+      "file": "scripts/rust-test-impact.test.mts",
+      "memberships": [
+        ["windows-storage-4", 2800],
+        ["catalog-full-2", 6200],
+        ["development-tools", 4900]
+      ]
+    },
+    {
+      "file": "scripts/rust-test-tree-supervisor.test.mts",
+      "memberships": [
+        ["windows-helpers-2", 500],
+        ["windows-storage-4", 2900],
+        ["catalog-full-2", 4400],
+        ["development-tools", 5000]
+      ]
+    },
+    {
+      "file": "scripts/select-ci-plan.test.mts",
+      "memberships": [
+        ["catalog-full-2", 5800],
+        ["repository-tools-2", 1400]
+      ]
+    },
+    {
+      "file": "scripts/select-release-channel.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2100],
+        ["release-check", 1300]
+      ]
+    },
+    {
+      "file": "scripts/semantic-review-linux-supervisor.test.mts",
+      "memberships": [
+        ["frontend-full-6", 1600],
+        ["release-check", 2500]
+      ]
+    },
+    {
+      "file": "scripts/sign-catalog.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3600],
+        ["release-check", 4400]
+      ]
+    },
+    {
+      "file": "scripts/source-provenance-audit.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8100],
+        ["roadmap-check", 400]
+      ]
+    },
+    {
+      "file": "scripts/test-duration-reporter.test.mts",
+      "memberships": [
+        ["catalog-full-2", 6400],
+        ["repository-tools-2", 2400]
+      ]
+    },
+    {
+      "file": "scripts/tool-cache.test.mts",
+      "memberships": [
+        ["windows-storage-4", 3000],
+        ["development-tools", 5100]
+      ]
+    },
+    {
+      "file": "scripts/transport-types.test.mts",
+      "memberships": [["frontend-full-3", 100]]
+    },
+    {
+      "file": "scripts/transport-values.test.mts",
+      "memberships": [["frontend-full-5", 100]]
+    },
+    {
+      "file": "scripts/trusted-aggregate-attestation.test.mts",
+      "memberships": [
+        ["frontend-full-6", 1700],
+        ["release-check", 2600]
+      ]
+    },
+    {
+      "file": "scripts/trusted-release-assembly.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3100],
+        ["release-check", 900]
+      ]
+    },
+    {
+      "file": "scripts/ui-test-selection.test.mts",
+      "memberships": [
+        ["catalog-full-2", 6600],
+        ["repository-tools-2", 2600]
+      ]
+    },
+    {
+      "file": "scripts/updater-artifact-inventory.test.mts",
+      "memberships": [
+        ["catalog-full-2", 2600],
+        ["release-check", 700]
+      ]
+    },
+    {
+      "file": "scripts/upstream-health-monitor.test.mts",
+      "memberships": [
+        ["catalog-full", 400],
+        ["repository-tools", 400]
+      ]
+    },
+    {
+      "file": "scripts/upstream-health-plan.test.mts",
+      "memberships": [
+        ["catalog-full", 300],
+        ["repository-tools", 300]
+      ]
+    },
+    {
+      "file": "scripts/upstream-health.test.mts",
+      "memberships": [
+        ["catalog-full", 200],
+        ["repository-tools", 200]
+      ]
+    },
+    {
+      "file": "scripts/upstream-lineage.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9000],
+        ["repository-tools-2", 4000]
+      ]
+    },
+    {
+      "file": "scripts/upstream-observer.test.mts",
+      "memberships": [
+        ["catalog-full", 100],
+        ["repository-tools", 100]
+      ]
+    },
+    {
+      "file": "scripts/validation-evidence.test.mts",
+      "memberships": [
+        ["windows-storage-4", 2300],
+        ["catalog-full-2", 100],
+        ["development-tools", 100]
+      ]
+    },
+    {
+      "file": "scripts/validation-plan.test.mts",
+      "memberships": [
+        ["catalog-full-2", 5700],
+        ["repository-tools-2", 1300]
+      ]
+    },
+    {
+      "file": "scripts/windows-helper-checks.test.mts",
+      "memberships": [
+        ["windows-helpers-2", 1200],
+        ["windows-storage-4", 2000],
+        ["development-tools", 3700]
+      ]
+    },
+    {
+      "file": "scripts/windows-qualification-session.integration.test.mts",
+      "memberships": [["mutex-owned-payload", 100]]
+    },
+    {
+      "file": "scripts/windows-qualification-session.test.mts",
+      "memberships": [
+        ["windows-storage-2", 100],
+        ["release-check", 4500]
+      ]
+    },
+    {
+      "file": "scripts/workflow-provenance.test.mts",
+      "memberships": [
+        ["catalog-full-2", 5100],
+        ["repository-tools-2", 700]
+      ]
+    },
+    {
+      "file": "scripts/write-release-checksums.test.mts",
+      "memberships": [
+        ["catalog-full-2", 2400],
+        ["release-check", 500]
+      ]
+    }
+  ]
 }
