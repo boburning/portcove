@@ -5,7 +5,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
 import path from "node:path";
-import { createHash, generateKeyPairSync, verify } from "node:crypto";
+import { createHash, createPublicKey, generateKeyPairSync, verify } from "node:crypto";
 import { createServer, request as httpRequest } from "node:http";
 import { chmod, lstat, readFile, symlink } from "node:fs/promises";
 import {
@@ -71,6 +71,207 @@ import {
   inspectAppRegistrationCallback,
 } from "./release-app-registration-capture.mts";
 import { createAppRegistrationHandler } from "./register-hosted-release-app.mts";
+import { observeHostedAppInstallationScope } from "./release-hosted-app-installation.mts";
+
+function fullInstallationFixture(role: HostedReleaseAppRole = "semantic") {
+  const registration = appRegistrationFixture();
+  const expected = {
+    app_id: 123,
+    public_key_sha256: createHash("sha256")
+      .update(createPublicKey(registration.pem).export({ type: "spki", format: "der" }))
+      .digest("hex"),
+  };
+  const f = hostedAppReadback(role);
+  const calls: { url: string; options: RequestInit }[] = [];
+  const transport: typeof fetch = async (url, options) => {
+    assert(typeof url === "string");
+    assert(options);
+    calls.push({ url, options });
+    assert.equal(options.redirect, "error");
+    const endpoint = url.slice("https://api.github.com/".length);
+    if (options.method === "POST") {
+      assert.equal(endpoint, "app/installations/456/access_tokens");
+      assert(typeof options.body === "string");
+      const requested: unknown = JSON.parse(options.body);
+      assert.deepEqual(requested, { permissions: { metadata: "read" } });
+      assert(registration.privateFiles.has("token-intent.json"));
+      return Response.json(
+        {
+          token: "inert-full-installation-token",
+          permissions: { metadata: "read" },
+          expires_at: new Date(Date.now() + 3600000).toISOString(),
+        },
+        { status: 201 },
+      );
+    }
+    assert.equal(options.method, "GET");
+    if (endpoint.startsWith("installation/")) {
+      assert.equal(
+        new Headers(options.headers).get("authorization"),
+        "Bearer inert-full-installation-token",
+      );
+    } else {
+      const jwt = new Headers(options.headers).get("authorization")!.slice(7);
+      const [header, claims, signature] = jwt.split(".");
+      assert(
+        verify(
+          "RSA-SHA256",
+          Buffer.from(`${header}.${claims}`),
+          createPublicKey(registration.pem),
+          Buffer.from(signature!, "base64url"),
+        ),
+      );
+    }
+    if (endpoint === "app/installations?per_page=100") return Response.json([f.installation]);
+    assert(Object.hasOwn(f.values, endpoint));
+    return Response.json(f.values[endpoint]);
+  };
+  return { ...f, registration, expected, calls, transport };
+}
+
+void test("full installation observation mints metadata-only without repository filters and reads back stable complete selection", async () => {
+  for (const role of ["semantic", "protection_observer"] as const) {
+    const f = fullInstallationFixture(role);
+    const result = await observeHostedAppInstallationScope(
+      role,
+      Buffer.from(f.registration.pem),
+      f.expected,
+      f.registration.options.store,
+      { fetch: f.transport },
+    );
+    assert.equal(result.installation_repository_scope, "full-installation-observed");
+    assert.equal(result.evidence_scope, "injected-provider");
+    assert.equal(result.installation_id, 456);
+    assert.equal(result.api_requests, 8);
+    assert.equal(result.authority, "none");
+    assert.equal(result.acceptance, "not-established");
+    assert.equal(f.calls.filter((c) => c.options.method === "POST").length, 1);
+    assert(!JSON.stringify(result).includes("inert-full-installation-token"));
+    assert(f.registration.privateFiles.has("token-response.json"));
+    assert(f.registration.privateFiles.has("result.json"));
+  }
+});
+
+void test("full installation observation refuses wrong identity, broad selection, changed selection and pagination", async () => {
+  for (const fault of [
+    "owner",
+    "app",
+    "permissions",
+    "all",
+    "extra-repository",
+    "changed",
+    "page",
+  ]) {
+    const f = fullInstallationFixture();
+    if (fault === "owner") f.installation.account.id = 999;
+    if (fault === "app") f.app.id = 999;
+    if (fault === "permissions")
+      f.installation.permissions = {
+        metadata: "read",
+        checks: "read",
+      } as typeof f.installation.permissions;
+    if (fault === "all") f.installation.repository_selection = "all";
+    if (fault === "extra-repository") f.repositories.total_count = 2;
+    let selectedReads = 0;
+    const transport: typeof fetch = async (url, options) => {
+      const response = await f.transport(url, options);
+      if (
+        typeof url === "string" &&
+        url.endsWith("/app/installations/456") &&
+        ++selectedReads === 2 &&
+        fault === "changed"
+      )
+        return Response.json({ ...f.installation, repository_selection: "all" });
+      if (fault === "page" && typeof url === "string" && url.includes("/app/installations?"))
+        return new Response(await response.text(), {
+          headers: { link: '<https://api.github.com/app/installations?page=2>; rel="next"' },
+        });
+      return response;
+    };
+    await assert.rejects(
+      observeHostedAppInstallationScope(
+        "semantic",
+        Buffer.from(f.registration.pem),
+        f.expected,
+        f.registration.options.store,
+        { fetch: transport },
+      ),
+    );
+    assert(!f.registration.privateFiles.has("result.json"));
+    assert(f.calls.filter((c) => c.options.method === "POST").length <= 1);
+    if (["owner", "app", "permissions", "all", "page"].includes(fault))
+      assert.equal(f.calls.filter((c) => c.options.method === "POST").length, 0);
+  }
+});
+
+void test("full installation observation retains ambiguous mint and partial responses without retry or positive result", async () => {
+  for (const fault of ["mint-transport", "mint-partial", "oversized"]) {
+    const f = fullInstallationFixture();
+    const transport: typeof fetch = async (url, options) => {
+      if (fault === "mint-transport" && options?.method === "POST") {
+        assert(f.registration.privateFiles.has("token-intent.json"));
+        assert(typeof url === "string");
+        f.calls.push({ url, options });
+        throw Error("inert ambiguous transport");
+      }
+      const response = await f.transport(url, options);
+      if (fault === "mint-partial" && options?.method === "POST")
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(Buffer.from('{"token":"inert-prefix"'));
+            },
+            pull(controller) {
+              controller.error(Error("inert truncated body"));
+            },
+          }),
+          { status: 201 },
+        );
+      if (fault === "oversized" && typeof url === "string" && url.endsWith("/app"))
+        return new Response("x".repeat(65537));
+      return response;
+    };
+    await assert.rejects(
+      observeHostedAppInstallationScope(
+        "semantic",
+        Buffer.from(f.registration.pem),
+        f.expected,
+        f.registration.options.store,
+        { fetch: transport },
+      ),
+    );
+    assert(!f.registration.privateFiles.has("result.json"));
+    assert.equal(
+      f.calls.filter((c) => c.options.method === "POST").length,
+      fault === "oversized" ? 0 : 1,
+    );
+    assert(
+      f.registration.privateFiles.has(fault === "oversized" ? "app.json" : "token-response.json"),
+    );
+  }
+});
+
+void test("full installation observation requires durable mint intent and exact key before effects", async () => {
+  for (const fault of ["intent", "key"]) {
+    const f = fullInstallationFixture();
+    await assert.rejects(
+      observeHostedAppInstallationScope(
+        "semantic",
+        Buffer.from(f.registration.pem),
+        { ...f.expected, ...(fault === "key" ? { public_key_sha256: "f".repeat(64) } : {}) },
+        {
+          async write(name, bytes) {
+            if (name === "token-intent.json") throw Error("inert durable sink refusal");
+            await f.registration.options.store.write(name, bytes);
+          },
+        },
+        { fetch: f.transport },
+      ),
+    );
+    assert.equal(f.calls.filter((c) => c.options.method === "POST").length, 0);
+    if (fault === "key") assert.equal(f.calls.length, 0);
+  }
+});
 
 const appState = "a".repeat(64);
 const appCode = "inert-registration-code-123";
