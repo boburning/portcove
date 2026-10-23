@@ -199,11 +199,19 @@ it("distinguishes catalog saved-data declarations, retained installation rules a
       html.match(/<section aria-label="Saved-data coverage">([\s\S]*?)<\/section>/u)?.[1] ?? ""
     );
   };
-  const managed = coverage(port, installRecord());
-  expect(managed).toContain("Declared saved-data locations");
-  expect(managed).toContain("<code>save</code>");
-  expect(managed).toContain("backup review confirms the files included");
-  expect(managed).toContain("Other locations are not covered");
+  const catalog = coverage(port, null);
+  expect(catalog).toContain("Current catalog saved-data declarations");
+  expect(catalog).toContain("<code>save</code>");
+  expect(catalog).toContain("when creating a backup");
+  expect(catalog).toContain("Other locations are not covered");
+  const managed = coverage(
+    { ...port, persistent_paths: ["changed-provider-catalog-path"] },
+    installRecord(),
+  );
+  expect(managed).toContain("rules recorded for this installation");
+  expect(managed).toContain("Exact paths are not available");
+  expect(managed).not.toContain("changed-provider-catalog-path");
+  expect(managed).not.toContain("backup review");
   const retained = coverage(
     { ...preparedPort, persistent_paths: ["new-catalog-path"] },
     installRecord(),

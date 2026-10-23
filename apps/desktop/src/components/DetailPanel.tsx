@@ -1309,9 +1309,7 @@ function SavesAndSettingsSummary({
   port: PortDefinition;
   status?: PortStatus | undefined;
 }) {
-  const retained = Boolean(
-    (status?.active || status?.staged) && port.release.provider === "user-prepared",
-  );
+  const retained = Boolean(status?.active || status?.staged);
   const declared = [
     ...port.persistent_paths,
     ...(port.persistent_file_patterns ?? []).map(
@@ -1322,7 +1320,7 @@ function SavesAndSettingsSummary({
     <div className="grid min-w-0 gap-3 text-sm wrap-anywhere">
       <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
         <small className="mb-[5px] block text-[var(--color-text-muted)]">Saved data handling</small>
-        {(status?.active || status?.staged) && port.release.provider === "user-prepared"
+        {retained
           ? "Managed by Portcove using this installation’s recorded saved-data rules"
           : port.presentation?.saves_and_settings === "portcove-managed"
             ? "Managed by Portcove for backup and restore"
@@ -1335,12 +1333,13 @@ function SavesAndSettingsSummary({
         {retained ? (
           <p>
             Saved-data locations follow the rules recorded for this installation. Exact paths are
-            not available in this summary; the backup review checks which files can be included.
+            not available in this summary. Backups copy the saves and settings folder managed by
+            Portcove; files elsewhere are not included.
           </p>
         ) : (
           <>
             <p>
-              Declared saved-data locations
+              Current catalog saved-data declarations
               {declared.length ? ":" : " are unavailable in this catalog."}
             </p>
             {declared.length > 0 && (
@@ -1353,13 +1352,13 @@ function SavesAndSettingsSummary({
               </ul>
             )}
             <p>
-              The backup review confirms the files included from the managed saves and settings
-              folder. Other locations are not covered. Game-version rollback and library metadata
-              export are separate from saved-data backup.
+              Portcove checks the managed saves and settings folder when creating a backup. Other
+              locations are not covered.
             </p>
           </>
         )}
       </section>
+      <p>Game-version rollback and library metadata export are separate from saved-data backup.</p>
     </div>
   );
 }
@@ -1604,9 +1603,9 @@ function TechnicalDetails({
               title={persistentFiles}
             >
               <small className="mb-[5px] block text-[var(--color-text-muted)]">
-                Saved data patterns
+                Current catalog saved-data declarations
               </small>
-              {(status?.active || status?.staged) && port.release.provider === "user-prepared"
+              {status?.active || status?.staged
                 ? "Saved data follows this installation's retained contract."
                 : persistentFiles || "No saved data paths declared"}
             </span>

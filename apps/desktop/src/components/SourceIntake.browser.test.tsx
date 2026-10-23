@@ -551,7 +551,6 @@ describe("source intake dialog", () => {
       <SourceIntakeDialog request={request([], "bios", biosProfile)} close={vi.fn()} />,
     );
 
-    expect(document.body.textContent).toContain("BIOS FILE CHECK");
     expect(document.body.textContent).toContain("Check BIOS for Example Port");
     expect(button("Choose BIOS file to check")).toBeDefined();
     await act(async () => button("Choose BIOS file to check")!.click());

@@ -197,3 +197,20 @@ it("distinguishes a cancellation request from settlement and records failed setu
   expect(preview.port_id).toBe("sample");
   expect(preview.retained_path).toContain("fixture-preparation-2");
 });
+
+it("refuses another operation’s review token even when both retained tasks belong to the same port", async () => {
+  transport = installInteractiveTransport("activity", vi.fn());
+  const older = await desktopApi.previewPreparationCleanup("fixture-retained-harbor", 1);
+  const result = desktopApi.prepare("sample", preparation.plan_sha256, 1, vi.fn());
+  const failure = result.catch((error: unknown) => error);
+  transport.fail();
+  await failure;
+  const newer = await desktopApi.previewPreparationCleanup("fixture-preparation", 1);
+  expect(newer.port_id).toBe(older.port_id);
+  expect(newer.preview_sha256).not.toBe(older.preview_sha256);
+  await expect(
+    desktopApi.cleanupPreparation(newer.operation_id, older.preview_sha256, 1),
+  ).rejects.toThrow("unexpected arguments");
+  expect(await desktopApi.previewPreparationCleanup(newer.operation_id, 1)).toEqual(newer);
+  expect(await desktopApi.previewPreparationCleanup(older.operation_id, 1)).toEqual(older);
+});

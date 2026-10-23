@@ -811,10 +811,12 @@ retain the snapshot date and Core-provided port name.
 
 A current healthy backup read has a quiet refresh action, without a warning box.
 Pending reads are neutral; failed reads preserve the earlier list and describe
-its uncertainty. Saved-data declarations sit beside backup controls, with the
-exact file review authoritative. An older user-prepared installation follows its
-recorded rules: current catalog paths must not substitute for that installed
-contract. External saved data remains outside managed backups.
+its uncertainty. Saved-data scope sits beside backup controls; creation checks
+the managed folder. Installed saved-data paths are not exposed
+in this projection: every installed version follows its recorded rules, so
+current catalog paths must not substitute for its installed contract. There is
+no backup-creation review; restore and deletion have their own reviews. External
+saved data remains outside managed backups.
 
 Retained-setup inspection leads with the working object, completeness uncertainty
 and supported next step. Secondary installation/source/saves/backup/log locations

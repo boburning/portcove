@@ -3,6 +3,13 @@ import type { ActivityRecord, PreparationCleanupPreview } from "../../types";
 
 /** Disposable records for reviewing existing Activity/recovery presentation. */
 export function retainedSetup(portId: string, id: string, unknown = false) {
+  // Fixture-only review token, injective for these bounded operation IDs. This
+  // is not a security digest and never substitutes for a real Core fingerprint.
+  if (!/^[a-z0-9-]{1,32}$/u.test(id)) throw new Error("Invalid fixture operation ID");
+  const reviewToken = [...new TextEncoder().encode(id)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("")
+    .padEnd(64, "0");
   const failure = failureReport();
   failure.code = "install";
   failure.message = unknown
@@ -44,7 +51,7 @@ export function retainedSetup(portId: string, id: string, unknown = false) {
     logs_path: `fixture/library/logs/${id}`,
     cleanup_is_irreversible: true,
     interrupted_cleanup_will_retry: true,
-    preview_sha256: (portId === "sample" ? "b" : "c").repeat(64),
+    preview_sha256: reviewToken,
   };
   return { record, preview };
 }

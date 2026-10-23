@@ -201,9 +201,9 @@ export function BackupHistory({
             : restoreAssessment?.reason === "recovery_required"
               ? "Restoring requires recovery to finish. Restart Portcove, then check your backups again. If recovery still needs attention, review diagnostics in Settings → Advanced."
               : restoreAssessment?.reason === "unsafe_data"
-                ? "Restore is on hold. Review the owned backup and saved-data locations."
+                ? "Restore is on hold. Review the backup and saves folder managed by Portcove."
                 : restoreAssessment?.reason === "unreadable_data"
-                  ? "Restore is on hold because the owned saved-data location could not be read."
+                  ? "Restore is on hold because Portcove’s managed saves folder could not be read."
                   : restoreAssessment?.reason === "missing_backup"
                     ? "No usable backup is currently available to restore."
                     : "Restore eligibility is unknown. Refresh backup history before proceeding."}
