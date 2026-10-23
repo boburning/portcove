@@ -91,6 +91,7 @@ interface Evidence {
   requests: number;
   bytes: number;
   url?: string;
+  observed_at?: string;
 }
 interface Journal {
   format: 1;
@@ -109,6 +110,7 @@ interface Journal {
   checkpoint?: DiscoveryCheckpoint;
   checkpoint_preimage?: string;
   backoff_until?: string;
+  lead_state?: LeadState;
 }
 const object = (v: unknown): Record<string, unknown> => {
   if (!isRecord(v)) throw new Error("Expected structured discovery message");
@@ -294,6 +296,8 @@ export class DiscoverySession {
         ? { baseline_completed_at: cache.baseline_completed_at }
         : {}),
     };
+    if (isRecord(previous) && previous.lead_state !== undefined)
+      this.leads = parseLeadState(previous.lead_state);
     for (const [id, raw] of Object.entries(this.journal.candidates)) {
       const c = object(raw);
       if (
@@ -361,6 +365,7 @@ export class DiscoverySession {
     atomic(path.join(this.runDir, `${name}.json`), value);
   }
   persist() {
+    this.journal.lead_state = this.leads;
     this.journal.checkpoint = this.checkpoint;
     this.journal.checkpoint_preimage = this.checkpointPreimage;
     if (this.budget.usage.backoff_until)
@@ -552,6 +557,7 @@ export class DiscoverySession {
       file,
       requests: this.budget.usage.requests - before.requests,
       bytes: this.budget.usage.bytes - before.bytes,
+      observed_at: this.journal.started_at,
     };
     const lead = this.leads.records[String(data.metadata.id)];
     if (lead) {
@@ -719,7 +725,11 @@ export class DiscoverySession {
     const lead = Object.values(this.leads.records).find((r) => r.research?.evidence_id === id);
     if (
       !lead ||
+      lead.status !== "researched" ||
       !evidence ||
+      !evidence.observed_at ||
+      !Number.isFinite(Date.parse(evidence.observed_at)) ||
+      Date.parse(this.journal.started_at) - Date.parse(evidence.observed_at) >= 7 * 86400000 ||
       evidence.repository.toLowerCase() !== lead.repository.toLowerCase() ||
       !["held", "no-change", "canonical"].includes(text(v.outcome))
     )

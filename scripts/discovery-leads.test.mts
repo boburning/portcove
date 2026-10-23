@@ -10,7 +10,8 @@ import {
 } from "./discovery-leads.mts";
 import { DiscoverySession } from "./daily-discovery-session.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
-import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync } from "node:fs";
+import type { RoadmapConfig } from "./roadmap.mts";
 import path from "node:path";
 import os from "node:os";
 const now = "2026-10-23T12:56:46.011Z";
@@ -210,7 +211,7 @@ void test("runner charges complementary pages, guards rotation and retains queue
     searches: 0,
     leadCollectionAttempted: false,
     researchedLeads: new Set(),
-    journal: { started_at: now, notes: [], candidates: {}, evidence: {} },
+    journal: { format: 1, started_at: now, notes: [], candidates: {}, evidence: {} },
     source: {
       api: {
         request: (_method: string, endpoint: string) => {
@@ -242,6 +243,7 @@ void test("runner charges complementary pages, guards rotation and retains queue
   assert.equal(session.leadWorkComplete(), true);
   session.researchedLeads.clear();
   session.knownLeadUrls = () => new Set(["https://github.com/ports/game-1"]);
+  const oldLeadFile = JSON.stringify(session.leads);
   for (const id of [1, 2, 3]) {
     const evidenceId = `retained-${id}`;
     session.leads.records[String(id)]!.research = {
@@ -255,13 +257,25 @@ void test("runner charges complementary pages, guards rotation and retains queue
       file: "retained.json",
       requests: 4,
       bytes: 100,
+      observed_at: now,
     };
+    session.leads.records[String(id)]!.status = "researched";
     session.disposeLead({
       evidence_id: evidenceId,
       outcome: "held",
       reason: "No usable upstream package",
       resume: "New upstream release",
     });
+    assert.throws(
+      () =>
+        session.disposeLead({
+          evidence_id: evidenceId,
+          outcome: "held",
+          reason: "same",
+          resume: "same",
+        }),
+      /matching investigated/,
+    );
     if (id === 1)
       assert.equal(
         session.researchedLeads.size,
@@ -275,6 +289,14 @@ void test("runner charges complementary pages, guards rotation and retains queue
     "retained researched evidence can be disposed without recapture",
   );
   assert.equal(session.leadWorkComplete(), true);
+  // Simulate interruption after the evidence+lead journal commits but before leads.json replacement.
+  writeFileSync(path.join(root, "leads.json"), oldLeadFile);
+  const config = JSON.parse(
+    readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8"),
+  ) as RoadmapConfig;
+  const recovered = new DiscoverySession(root, run, config, "fixture-token", now, "fixture-head");
+  assert.equal(recovered.leads.records["2"]?.status, "held");
+  assert.equal(recovered.leads.records["2"]?.research?.evidence_id, "retained-2");
   const restored = parseLeadState(JSON.parse(JSON.stringify(session.leads)));
   assert.equal(pendingLeads(restored, new Set(), Date.parse(now)).length, 1);
   const constrained = new DiscoveryBudget("ordinary");
