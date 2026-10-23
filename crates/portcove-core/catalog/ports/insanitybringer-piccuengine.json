@@ -8,6 +8,14 @@
     "issue_number": 1868,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/InsanityBringer/PiccuEngine"
+    "setup_url": "https://github.com/InsanityBringer/PiccuEngine",
+    "artwork": {
+      "game_id": 667,
+      "cover_id": 426373,
+      "image_id": "co94zp",
+      "image_sha256": "1ae44bba5a1cebee260ad49072657ac765ba4d92b5a78b63e918caf9164d1117",
+      "game_slug": "descent-3",
+      "match_kind": "underlying-game"
+    }
   }
 }

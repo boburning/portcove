@@ -8,6 +8,14 @@
     "issue_number": 364,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/paulogaab21/ufc3recomp"
+    "setup_url": "https://github.com/paulogaab21/ufc3recomp",
+    "artwork": {
+      "game_id": 7229,
+      "cover_id": 161056,
+      "image_id": "co3g9s",
+      "image_sha256": "dea7d47110ca740c27cb6b947e0039e9b8508d791ebbad052034500943d2382c",
+      "game_slug": "ufc-undisputed-3",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -498,12 +498,29 @@ function copiedCatalog(directory: string) {
   return directory;
 }
 
+function clearFixtureArtwork(directory: string, ids: string[]) {
+  for (const id of ids) {
+    const file = join(directory, "ports", `${id}.json`);
+    const record = readCatalogSource(directory).records.find((record) => record.listing.id === id);
+    assert.ok(record);
+    delete record.listing.artwork;
+    writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
+  }
+}
+
 void test("bounded artwork batch enriches listing-only records in the complete large catalog and resumes without lookup", async () => {
   const f = fixture();
   try {
-    const accepted = readCatalogSource(catalogRoot);
+    const source = copiedCatalog(join(f.root, "source"));
+    const additions = readCatalogSource(source)
+      .records.filter((record) => !record.integration)
+      .slice(0, 2);
+    clearFixtureArtwork(
+      source,
+      additions.map((record) => record.listing.id),
+    );
+    const accepted = readCatalogSource(source);
     assert.ok(accepted.records.length > 400);
-    const additions = accepted.records.filter((record) => !record.integration).slice(0, 2);
     assert.equal(additions.length, 2);
     const acceptedCover = accepted.records.find((record) => record.listing.artwork)!;
     assert.ok(acceptedCover);
@@ -513,7 +530,7 @@ void test("bounded artwork batch enriches listing-only records in the complete l
     ];
     const queries: string[] = [];
     const options = {
-      catalogRoot,
+      catalogRoot: source,
       outputDirectory: join(f.root, "output"),
       selectedPortIds,
       artwork: {
@@ -556,7 +573,7 @@ void test("bounded artwork batch enriches listing-only records in the complete l
     assert.equal(again.report.artwork_reused, true);
     assert.equal(queries.length, 2);
     assert.deepEqual(again.report.files.records, first.report.files.records);
-    assert.deepEqual(readCatalogSource(catalogRoot), accepted);
+    assert.deepEqual(readCatalogSource(source), accepted);
   } finally {
     f.clean();
   }
@@ -566,8 +583,13 @@ void test("partial cover batch retains useful record proposals and retries only 
   const f = fixture();
   try {
     const source = copiedCatalog(join(f.root, "source"));
-    const accepted = readCatalogSource(source);
-    const entries = accepted.records.filter((record) => !record.integration).slice(0, 2);
+    const entries = readCatalogSource(source)
+      .records.filter((record) => !record.integration)
+      .slice(0, 2);
+    clearFixtureArtwork(
+      source,
+      entries.map((record) => record.listing.id),
+    );
     const good = entries[0]!.listing;
     const pending = entries[1]!.listing;
     let recovering = false;

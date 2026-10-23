@@ -8,6 +8,14 @@
     "issue_number": 1580,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled"
+    "setup_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled",
+    "artwork": {
+      "game_id": 98,
+      "cover_id": 93655,
+      "image_id": "co209j",
+      "image_sha256": "25ed7f5aa7dacdb1853021d593dcc536d240f5e757ae2db568d60b33639ad23d",
+      "game_slug": "need-for-speed-most-wanted",
+      "match_kind": "underlying-game"
+    }
   }
 }

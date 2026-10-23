@@ -8,6 +8,14 @@
     "issue_number": 2190,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/kilnan/DarkRiftRecomp"
+    "setup_url": "https://github.com/kilnan/DarkRiftRecomp",
+    "artwork": {
+      "game_id": 3468,
+      "cover_id": 196590,
+      "image_id": "co47ou",
+      "image_sha256": "7dd9cb895a1e18939bdb55e6a1739dbc31da54a12bfd17a550b46bc2918b3241",
+      "game_slug": "dark-rift",
+      "match_kind": "underlying-game"
+    }
   }
 }

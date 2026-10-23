@@ -8,6 +8,14 @@
     "issue_number": 1639,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/LoreanXavier/pt-pc"
+    "setup_url": "https://github.com/LoreanXavier/pt-pc",
+    "artwork": {
+      "game_id": 11654,
+      "cover_id": 134744,
+      "image_id": "co2vyw",
+      "image_sha256": "57171c2acf4e3198c361d252ee79caa6190ca759b0355b34d88b5a03e1c71577",
+      "game_slug": "pt",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 160,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff"
+    "setup_url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff",
+    "artwork": {
+      "game_id": 21785,
+      "cover_id": 84819,
+      "image_id": "co1tg3",
+      "image_sha256": "3ff4e67c5834bd7ffcb8f87696001633bd9bf0c45d9be1719d9fa0d5c10baf70",
+      "game_slug": "naughty-bear-gold-edition",
+      "match_kind": "underlying-game"
+    }
   }
 }

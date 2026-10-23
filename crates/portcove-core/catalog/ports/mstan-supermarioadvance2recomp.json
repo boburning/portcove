@@ -8,6 +8,14 @@
     "issue_number": 1894,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/SuperMarioAdvance2Recomp"
+    "setup_url": "https://github.com/mstan/SuperMarioAdvance2Recomp",
+    "artwork": {
+      "game_id": 16617,
+      "cover_id": 310376,
+      "image_id": "co6nhk",
+      "image_sha256": "0ac54f18b9a1fc9cfa36ba2552b1956d5ff37863eb15d95ad494ed0bb33afc0f",
+      "game_slug": "super-mario-world-super-mario-advance-2",
+      "match_kind": "underlying-game"
+    }
   }
 }

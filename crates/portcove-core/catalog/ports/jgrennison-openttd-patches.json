@@ -8,6 +8,14 @@
     "issue_number": 1859,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/JGRennison/OpenTTD-patches"
+    "setup_url": "https://github.com/JGRennison/OpenTTD-patches",
+    "artwork": {
+      "game_id": 5502,
+      "cover_id": 85659,
+      "image_id": "co1u3f",
+      "image_sha256": "3554c280028ad14f2991fc66c11dee1349690679b178a6af800b47dd160d9b0d",
+      "game_slug": "transport-tycoon-deluxe",
+      "match_kind": "underlying-game"
+    }
   }
 }

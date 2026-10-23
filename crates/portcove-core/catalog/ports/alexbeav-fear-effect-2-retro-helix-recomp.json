@@ -8,6 +8,14 @@
     "issue_number": 1594,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp",
+    "artwork": {
+      "game_id": 8601,
+      "cover_id": 126643,
+      "image_id": "co2ppv",
+      "image_sha256": "304f1d6d5eebe507e647a58f7c5b9f82a0c78d4870a6fe727acc7cde479c686f",
+      "game_slug": "fear-effect-2-retro-helix",
+      "match_kind": "underlying-game"
+    }
   }
 }

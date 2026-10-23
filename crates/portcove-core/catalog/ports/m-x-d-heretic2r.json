@@ -8,6 +8,14 @@
     "issue_number": 1826,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/m-x-d/Heretic2R"
+    "setup_url": "https://github.com/m-x-d/Heretic2R",
+    "artwork": {
+      "game_id": 20752,
+      "cover_id": 106010,
+      "image_id": "co29sq",
+      "image_sha256": "4daba6125e43283a39078923a7c3a7234d659032983c8fc0a6e42ed71863317a",
+      "game_slug": "heretic-ii",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1882,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled"
+    "setup_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled",
+    "artwork": {
+      "game_id": 44884,
+      "cover_id": 116054,
+      "image_id": "co2hjq",
+      "image_sha256": "ec3e1a158432cdef557e2121b58c6375444f8fe7056c10e096ed48ec49a91e43",
+      "game_slug": "looney-tunes-sheep-raider",
+      "match_kind": "underlying-game"
+    }
   }
 }

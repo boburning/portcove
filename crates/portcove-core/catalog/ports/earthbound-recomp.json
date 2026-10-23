@@ -7,7 +7,15 @@
     "summary": "EarthBound Recomp using an existing installation that you manage.",
     "project_url": "https://github.com/nickclyde/EarthBoundRecomp",
     "original_game_title": "EarthBound",
-    "issue_number": 173
+    "issue_number": 173,
+    "artwork": {
+      "game_id": 2899,
+      "cover_id": 320119,
+      "image_id": "co6v07",
+      "image_sha256": "0b09d1c1987b4353b9a00a4ab2ab99083745d22f78036996bab7c2d99b380c01",
+      "game_slug": "earthbound",
+      "match_kind": "underlying-game"
+    }
   },
   "integration": {
     "support_tier": "beta",

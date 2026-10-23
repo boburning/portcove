@@ -8,6 +8,14 @@
     "issue_number": 1906,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/WarioWareTwistedRecomp"
+    "setup_url": "https://github.com/mstan/WarioWareTwistedRecomp",
+    "artwork": {
+      "game_id": 1704,
+      "cover_id": 89078,
+      "image_id": "co1wqe",
+      "image_sha256": "e9c8ce1e7dfaf5c3cc581dc38280bc00565b4c0e9152a2f0e26c968862ea4c34",
+      "game_slug": "warioware-twisted",
+      "match_kind": "underlying-game"
+    }
   }
 }

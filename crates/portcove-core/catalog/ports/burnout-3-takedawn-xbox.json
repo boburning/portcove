@@ -8,6 +8,14 @@
     "issue_number": 2105,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/xenophobentx/takedawn"
+    "setup_url": "https://github.com/xenophobentx/takedawn",
+    "artwork": {
+      "game_id": 5761,
+      "cover_id": 90903,
+      "image_id": "co1y53",
+      "image_sha256": "96f35b0fd243c28e8b6f6863cbf4477cd465a296e089fa53bf971f39af98f4ca",
+      "game_slug": "burnout-3-takedown",
+      "match_kind": "underlying-game"
+    }
   }
 }

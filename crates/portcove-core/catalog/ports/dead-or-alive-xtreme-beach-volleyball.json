@@ -8,6 +8,14 @@
     "issue_number": 1355,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/NoRain211/doaxbv-re"
+    "setup_url": "https://github.com/NoRain211/doaxbv-re",
+    "artwork": {
+      "game_id": 1390,
+      "cover_id": 402248,
+      "image_id": "co8mdk",
+      "image_sha256": "cea1557c4770b1b1b5f6923c2a7ea71ddaa76cbe41702231b944e45d4739390b",
+      "game_slug": "dead-or-alive-xtreme-beach-volleyball",
+      "match_kind": "underlying-game"
+    }
   }
 }

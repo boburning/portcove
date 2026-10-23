@@ -8,6 +8,14 @@
     "issue_number": 357,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://gitlab.com/ethan4love/psx-recomp-port"
+    "setup_url": "https://gitlab.com/ethan4love/psx-recomp-port",
+    "artwork": {
+      "game_id": 8614,
+      "cover_id": 76556,
+      "image_id": "co1n2k",
+      "image_sha256": "bd8b2a3b450776072e2d55a7d8f861e1717f206e8fd6acef9e5d4f18393f56ab",
+      "game_slug": "digimon-world",
+      "match_kind": "underlying-game"
+    }
   }
 }

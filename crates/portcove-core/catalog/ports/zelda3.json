@@ -8,6 +8,14 @@
     "issue_number": 127,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/snesrev/zelda3"
+    "setup_url": "https://github.com/snesrev/zelda3",
+    "artwork": {
+      "game_id": 237542,
+      "cover_id": 287380,
+      "image_id": "co65qs",
+      "image_sha256": "e9221854a846773e843fd5d6c8d1fd9f2a9e426a20786f8ebe6acbfb01a2713f",
+      "game_slug": "zelda3",
+      "match_kind": "port"
+    }
   }
 }

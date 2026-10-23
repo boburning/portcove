@@ -8,6 +8,14 @@
     "issue_number": 1636,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/jjmhalew/WoodyRE"
+    "setup_url": "https://github.com/jjmhalew/WoodyRE",
+    "artwork": {
+      "game_id": 43561,
+      "cover_id": 223938,
+      "image_id": "co4ssi",
+      "image_sha256": "840605385971cd74fc351f87e3c34f6359bd2cbf44f19cb62e1a810000e91916",
+      "game_slug": "woody-woodpecker-escape-from-buzz-buzzard-park",
+      "match_kind": "underlying-game"
+    }
   }
 }

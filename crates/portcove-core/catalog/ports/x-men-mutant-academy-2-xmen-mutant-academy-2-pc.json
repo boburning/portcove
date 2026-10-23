@@ -8,6 +8,14 @@
     "issue_number": 356,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/GTTeancum/xmen-mutant-academy-2-pc"
+    "setup_url": "https://github.com/GTTeancum/xmen-mutant-academy-2-pc",
+    "artwork": {
+      "game_id": 4110,
+      "cover_id": 213838,
+      "image_id": "co4kzy",
+      "image_sha256": "7ddf12a8e6d4e1b082dc2892d1a04a8ba431b9cae42d31f25ae00531c8558e13",
+      "game_slug": "x-men-mutant-academy-2",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 331,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/PokemonStadiumRecomp"
+    "setup_url": "https://github.com/mstan/PokemonStadiumRecomp",
+    "artwork": {
+      "game_id": 2289,
+      "cover_id": 91957,
+      "image_id": "co1yyd",
+      "image_sha256": "313a80282d458179c2eb1f5d0a2c0e5fb3a173c1920727a166cf9ae41b930416",
+      "game_slug": "pokemon-stadium",
+      "match_kind": "underlying-game"
+    }
   }
 }

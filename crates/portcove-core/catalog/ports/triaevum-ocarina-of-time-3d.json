@@ -8,6 +8,14 @@
     "issue_number": 515,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/coccofresco/TriAevum"
+    "setup_url": "https://github.com/coccofresco/TriAevum",
+    "artwork": {
+      "game_id": 1039,
+      "cover_id": 279966,
+      "image_id": "co600u",
+      "image_sha256": "6121a7f8647fd6a1606e7406bc81841f04a5e0186e4c9bee7a7d31fd3dd92ce8",
+      "game_slug": "the-legend-of-zelda-ocarina-of-time-3d",
+      "match_kind": "underlying-game"
+    }
   }
 }

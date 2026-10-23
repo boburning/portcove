@@ -8,6 +8,14 @@
     "issue_number": 1128,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/yell0wsuit/cuttherope-dx"
+    "setup_url": "https://github.com/yell0wsuit/cuttherope-dx",
+    "artwork": {
+      "game_id": 9761,
+      "cover_id": 199143,
+      "image_id": "co49nr",
+      "image_sha256": "833aaed27ddfd1e1511a3e35b277f163917c29a50acbb1152f4cccbcd4dcb150",
+      "game_slug": "cut-the-rope",
+      "match_kind": "underlying-game"
+    }
   }
 }

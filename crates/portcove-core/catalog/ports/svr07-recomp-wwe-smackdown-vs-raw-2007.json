@@ -8,6 +8,14 @@
     "issue_number": 131,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/HollywoodAkeem/SVR07-Recomp"
+    "setup_url": "https://github.com/HollywoodAkeem/SVR07-Recomp",
+    "artwork": {
+      "game_id": 7252,
+      "cover_id": 212983,
+      "image_id": "co4kc7",
+      "image_sha256": "67695ffc1a9bc9a5b41ef3d1ce2df91b84223497b65b7ed1e351f43577744f1d",
+      "game_slug": "wwe-smackdown-vs-raw-2007",
+      "match_kind": "underlying-game"
+    }
   }
 }

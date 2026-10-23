@@ -28,6 +28,14 @@
       ],
       "warnings": ["This project has not been verified for play through Portcove."],
       "help_url": "https://github.com/OpenRCT2/OpenRCT2/blob/v0.5.6/readme.md"
+    },
+    "artwork": {
+      "game_id": 331,
+      "cover_id": 111340,
+      "image_id": "co2dws",
+      "image_sha256": "42de270c535f8959e1275cce56d5600997bf71ebd5cb2324a545ddff12329456",
+      "game_slug": "rollercoaster-tycoon-2",
+      "match_kind": "underlying-game"
     }
   }
 }

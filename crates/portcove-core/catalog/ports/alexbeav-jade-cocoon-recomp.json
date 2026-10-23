@@ -8,6 +8,14 @@
     "issue_number": 1599,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp",
+    "artwork": {
+      "game_id": 45000,
+      "cover_id": 474674,
+      "image_id": "coa69e",
+      "image_sha256": "b2f6abf34d920f98fe5c059251fb46d20df0e42fa8e7e1a55d2e1f82cbbbb32c",
+      "game_slug": "jade-cocoon-story-of-the-tamamayu",
+      "match_kind": "underlying-game"
+    }
   }
 }

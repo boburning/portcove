@@ -8,6 +8,14 @@
     "issue_number": 1864,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/kirby1237/PaRappaTheRapperRecomp"
+    "setup_url": "https://github.com/kirby1237/PaRappaTheRapperRecomp",
+    "artwork": {
+      "game_id": 6080,
+      "cover_id": 295590,
+      "image_id": "co6c2u",
+      "image_sha256": "297803dc01107ec402a33435d520abc238f8dc3020c653005b067d6dc0e9c3cb",
+      "game_slug": "parappa-the-rapper",
+      "match_kind": "underlying-game"
+    }
   }
 }

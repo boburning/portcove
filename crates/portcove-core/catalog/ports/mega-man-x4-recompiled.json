@@ -8,6 +8,14 @@
     "issue_number": 144,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/MegaManX4Recomp"
+    "setup_url": "https://github.com/mstan/MegaManX4Recomp",
+    "artwork": {
+      "game_id": 1744,
+      "cover_id": 501877,
+      "image_id": "coar91",
+      "image_sha256": "641e4110a697e73bcabbfe73b36b82fe7b234943615f7badf6f216d84f7874f9",
+      "game_slug": "mega-man-x4",
+      "match_kind": "underlying-game"
+    }
   }
 }

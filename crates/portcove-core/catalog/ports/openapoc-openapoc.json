@@ -8,6 +8,14 @@
     "issue_number": 1851,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/OpenApoc/OpenApoc"
+    "setup_url": "https://github.com/OpenApoc/OpenApoc",
+    "artwork": {
+      "game_id": 26,
+      "cover_id": 114318,
+      "image_id": "co2g7i",
+      "image_sha256": "c0abeae6419dafca83fec6b39ec5dcee2bf5bcf8b48d718e6e835e7dd7a5d254",
+      "game_slug": "x-com-apocalypse",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 455,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/kula-world-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/kula-world-recomp",
+    "artwork": {
+      "game_id": 9678,
+      "cover_id": 264068,
+      "image_id": "co5nr8",
+      "image_sha256": "37b675caecfaeb258c2a58c28807beaf61851483616769b5c79f27d2bc84b185",
+      "game_slug": "roll-away",
+      "match_kind": "underlying-game"
+    }
   }
 }

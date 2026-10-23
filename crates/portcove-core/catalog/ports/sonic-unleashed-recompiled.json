@@ -8,6 +8,14 @@
     "issue_number": 126,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/hedge-dev/UnleashedRecomp"
+    "setup_url": "https://github.com/hedge-dev/UnleashedRecomp",
+    "artwork": {
+      "game_id": 333920,
+      "cover_id": 442205,
+      "image_id": "co9h7h",
+      "image_sha256": "f6a5e21c272dc44262fc053e5e56608331bbb8fdcb59c0caa18c49d3bdf299fb",
+      "game_slug": "unleashed-recompiled",
+      "match_kind": "port"
+    }
   }
 }

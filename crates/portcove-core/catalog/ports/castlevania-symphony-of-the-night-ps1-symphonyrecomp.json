@@ -8,6 +8,14 @@
     "issue_number": 319,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/BlackLabelHQ/SymphonyRecomp"
+    "setup_url": "https://github.com/BlackLabelHQ/SymphonyRecomp",
+    "artwork": {
+      "game_id": 1128,
+      "cover_id": 237968,
+      "image_id": "co53m8",
+      "image_sha256": "cecb4ca6ff14641c5396d5d57c282c502479d630cd64f098b0c3311c1bdd0a2f",
+      "game_slug": "castlevania-symphony-of-the-night",
+      "match_kind": "underlying-game"
+    }
   }
 }

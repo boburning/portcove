@@ -8,6 +8,14 @@
     "issue_number": 1828,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/riseio/TWIPE_00Sheven"
+    "setup_url": "https://github.com/riseio/TWIPE_00Sheven",
+    "artwork": {
+      "game_id": 1641,
+      "cover_id": 277082,
+      "image_id": "co5xsq",
+      "image_sha256": "2848315056f40f067a70a18fed6418b8fb17459a399c55198ab55d06b4945cbf",
+      "game_slug": "james-bond-007-the-world-is-not-enough",
+      "match_kind": "underlying-game"
+    }
   }
 }

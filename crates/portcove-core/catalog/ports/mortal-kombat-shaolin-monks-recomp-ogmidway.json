@@ -8,6 +8,14 @@
     "issue_number": 1714,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/OGmidway/mksm-recomp"
+    "setup_url": "https://github.com/OGmidway/mksm-recomp",
+    "artwork": {
+      "game_id": 1614,
+      "cover_id": 94081,
+      "image_id": "co20ld",
+      "image_sha256": "a132d9784146dac1e62f42c8bf1ae95325200ed6a30b936af160e25ba913fda5",
+      "game_slug": "mortal-kombat-shaolin-monks",
+      "match_kind": "underlying-game"
+    }
   }
 }

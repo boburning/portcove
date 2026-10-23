@@ -8,6 +8,14 @@
     "issue_number": 166,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/sp00nznet/advancewars"
+    "setup_url": "https://github.com/sp00nznet/advancewars",
+    "artwork": {
+      "game_id": 1691,
+      "cover_id": 525738,
+      "image_id": "cob9nu",
+      "image_sha256": "26bc49cd5c5617fb10d474c370c8890d549a1fa4657b6af300472ee30eb2fd8c",
+      "game_slug": "advance-wars",
+      "match_kind": "underlying-game"
+    }
   }
 }

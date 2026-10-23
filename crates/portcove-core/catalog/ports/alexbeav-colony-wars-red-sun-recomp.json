@@ -8,6 +8,14 @@
     "issue_number": 1589,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp",
+    "artwork": {
+      "game_id": 8282,
+      "cover_id": 98214,
+      "image_id": "co23s6",
+      "image_sha256": "455e6e2b1d670ec218257f86dc79552d17ae812539cc3d856a1d9ef022b9e424",
+      "game_slug": "colony-wars-red-sun",
+      "match_kind": "underlying-game"
+    }
   }
 }

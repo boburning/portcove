@@ -8,6 +8,14 @@
     "issue_number": 1129,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/jkdansereau/goldeneye-pc-port"
+    "setup_url": "https://github.com/jkdansereau/goldeneye-pc-port",
+    "artwork": {
+      "game_id": 1638,
+      "cover_id": 576176,
+      "image_id": "cocckw",
+      "image_sha256": "6937741f1cbcd1394211af3a808040fdff0c9fc02eab5f2f506f7ea700c5f779",
+      "game_slug": "goldeneye-007",
+      "match_kind": "underlying-game"
+    }
   }
 }

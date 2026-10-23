@@ -8,6 +8,14 @@
     "issue_number": 1609,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp",
+    "artwork": {
+      "game_id": 38513,
+      "cover_id": 124484,
+      "image_id": "co2o1w",
+      "image_sha256": "dfe69e1d57c729cbeb9f1fac17bb396ed11e536f56f23b98c5964d02fc0cd611",
+      "game_slug": "tail-concerto",
+      "match_kind": "underlying-game"
+    }
   }
 }

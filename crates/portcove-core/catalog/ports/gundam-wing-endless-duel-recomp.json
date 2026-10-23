@@ -7,7 +7,15 @@
     "summary": "Gundam Wing: Endless Duel Recomp using an existing installation that you manage.",
     "project_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
     "original_game_title": "Shin Kidou Senki Gundam W: Endless Duel",
-    "issue_number": 330
+    "issue_number": 330,
+    "artwork": {
+      "game_id": 42464,
+      "cover_id": 140284,
+      "image_id": "co308s",
+      "image_sha256": "7b6ea9c333fc645047d5b911f20847a67c404150f57391886259dd91a1dbda1c",
+      "game_slug": "shin-kidou-senki-gundam-wing-endless-duel",
+      "match_kind": "underlying-game"
+    }
   },
   "integration": {
     "support_tier": "beta",

@@ -8,6 +8,14 @@
     "issue_number": 1845,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/MegaManZeroRecomp"
+    "setup_url": "https://github.com/mstan/MegaManZeroRecomp",
+    "artwork": {
+      "game_id": 1775,
+      "cover_id": 540253,
+      "image_id": "cobkv1",
+      "image_sha256": "3ed1ef20802473fa69f2657c7923a22a3f87ed200b7fdacf8b65978b4d0e47d9",
+      "game_slug": "mega-man-zero",
+      "match_kind": "underlying-game"
+    }
   }
 }

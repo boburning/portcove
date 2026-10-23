@@ -8,6 +8,14 @@
     "issue_number": 1275,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp"
+    "setup_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp",
+    "artwork": {
+      "game_id": 3573,
+      "cover_id": 257550,
+      "image_id": "co5iq6",
+      "image_sha256": "14f29e308d8b2d3c5541b1b098a0d19cf7a3e74fe871f7d0ef511437eb83f756",
+      "game_slug": "pilotwings-64",
+      "match_kind": "underlying-game"
+    }
   }
 }

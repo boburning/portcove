@@ -8,6 +8,14 @@
     "issue_number": 1888,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/ZinexDa/sonic-r-android"
+    "setup_url": "https://github.com/ZinexDa/sonic-r-android",
+    "artwork": {
+      "game_id": 19091,
+      "cover_id": 325945,
+      "image_id": "co6zi1",
+      "image_sha256": "ffed3ba38e53270366c1445363e31f546d051e9374fef8ab0dcaa8e3b3ecb1c0",
+      "game_slug": "sonic-r",
+      "match_kind": "underlying-game"
+    }
   }
 }

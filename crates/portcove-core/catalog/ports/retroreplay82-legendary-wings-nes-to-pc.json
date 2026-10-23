@@ -8,6 +8,14 @@
     "issue_number": 1839,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/retroreplay82/Legendary-Wings-NES-to-PC"
+    "setup_url": "https://github.com/retroreplay82/Legendary-Wings-NES-to-PC",
+    "artwork": {
+      "game_id": 288843,
+      "cover_id": 365147,
+      "image_id": "co7tqz",
+      "image_sha256": "d22eba829163bca403412274408dee95bf1b37c2e1b422028ca414de5eb1c730",
+      "game_slug": "legendary-wings--1",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1897,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/z3xox/Tenkaichi3Decomp"
+    "setup_url": "https://github.com/z3xox/Tenkaichi3Decomp",
+    "artwork": {
+      "game_id": 2254,
+      "cover_id": 175142,
+      "image_id": "co3r52",
+      "image_sha256": "de2b6d3f72f73f60dc65f4fa1e99ddb7d2d6c8b2834842a40af4f97024dac973",
+      "game_slug": "dragon-ball-z-budokai-tenkaichi-3",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 146,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/MegaManXSNESRecomp"
+    "setup_url": "https://github.com/mstan/MegaManXSNESRecomp",
+    "artwork": {
+      "game_id": 1741,
+      "cover_id": 178634,
+      "image_id": "co3tu2",
+      "image_sha256": "df2f2bb2209038f4f05a538a5c4e6cd10c7a9ace4c2cd3b82765da71d2604da6",
+      "game_slug": "mega-man-x",
+      "match_kind": "underlying-game"
+    }
   }
 }

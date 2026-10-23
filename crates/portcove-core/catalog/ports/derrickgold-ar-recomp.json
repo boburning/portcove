@@ -8,6 +8,14 @@
     "issue_number": 1791,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/DerrickGold/ar-recomp"
+    "setup_url": "https://github.com/DerrickGold/ar-recomp",
+    "artwork": {
+      "game_id": 6468,
+      "cover_id": 292420,
+      "image_id": "co69ms",
+      "image_sha256": "aedb4a72a76144aa114d97520dbff8883f8e5e874dec8a3439577b51aa29e401",
+      "game_slug": "actraiser",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1853,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/AlisterT/openjazz"
+    "setup_url": "https://github.com/AlisterT/openjazz",
+    "artwork": {
+      "game_id": 3167,
+      "cover_id": 104089,
+      "image_id": "co28bd",
+      "image_sha256": "8f3e4f12d81b064bf80128999fd6758c8b5404dc848c58064aea0175139e5f5a",
+      "game_slug": "jazz-jackrabbit",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 335,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/FireRedLeafGreenRecomp"
+    "setup_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
+    "artwork": {
+      "game_id": 1559,
+      "cover_id": 92690,
+      "image_id": "co1ziq",
+      "image_sha256": "118a2c3a72c7fd65b0d71dd804c31f6cfb3d674004593f455c00bd1e6a78b808",
+      "game_slug": "pokemon-firered-version",
+      "match_kind": "underlying-game"
+    }
   }
 }

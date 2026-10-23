@@ -8,6 +8,14 @@
     "issue_number": 338,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/RubySapphireRecomp"
+    "setup_url": "https://github.com/mstan/RubySapphireRecomp",
+    "artwork": {
+      "game_id": 1515,
+      "cover_id": 92653,
+      "image_id": "co1zhp",
+      "image_sha256": "0d2217a9ea352407dbc491b55a004f8aaf07b46ad7173e784acab1be41dcf073",
+      "game_slug": "pokemon-sapphire-version",
+      "match_kind": "underlying-game"
+    }
   }
 }

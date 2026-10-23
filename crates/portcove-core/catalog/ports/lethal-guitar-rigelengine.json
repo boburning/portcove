@@ -8,6 +8,14 @@
     "issue_number": 1877,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/lethal-guitar/RigelEngine"
+    "setup_url": "https://github.com/lethal-guitar/RigelEngine",
+    "artwork": {
+      "game_id": 956,
+      "cover_id": 77410,
+      "image_id": "co1nqa",
+      "image_sha256": "94e15ee0f73d092b7eabfe3ff6c6fee778b47631799c3fe8f35fed5c89443904",
+      "game_slug": "duke-nukem-ii",
+      "match_kind": "underlying-game"
+    }
   }
 }

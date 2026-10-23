@@ -8,6 +8,14 @@
     "issue_number": 1712,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/IrishBruse/nsmbu-recomp"
+    "setup_url": "https://github.com/IrishBruse/nsmbu-recomp",
+    "artwork": {
+      "game_id": 2171,
+      "cover_id": 95680,
+      "image_id": "co21ts",
+      "image_sha256": "d07a74ef95ec7c6e2531e728efb9d985f1915e0fd2c6335b31f37375a1135608",
+      "game_slug": "new-super-mario-bros-u",
+      "match_kind": "underlying-game"
+    }
   }
 }

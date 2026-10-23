@@ -8,6 +8,14 @@
     "issue_number": 1827,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/sonsegajp/HWDER"
+    "setup_url": "https://github.com/sonsegajp/HWDER",
+    "artwork": {
+      "game_id": 81147,
+      "cover_id": 516498,
+      "image_id": "cob2j6",
+      "image_sha256": "6bcb2e3eb76fd024f9f503605a3625b8beacd0bb4645301addacaa113c08def8",
+      "game_slug": "hyrule-warriors-definitive-edition",
+      "match_kind": "underlying-game"
+    }
   }
 }

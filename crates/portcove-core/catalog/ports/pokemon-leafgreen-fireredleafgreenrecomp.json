@@ -8,6 +8,14 @@
     "issue_number": 336,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/FireRedLeafGreenRecomp"
+    "setup_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
+    "artwork": {
+      "game_id": 1516,
+      "cover_id": 92689,
+      "image_id": "co1zip",
+      "image_sha256": "0d1252f456aa2893afbfe1dfb54884c984966c49aa9acc3219f8933e069d04d0",
+      "game_slug": "pokemon-leafgreen-version",
+      "match_kind": "underlying-game"
+    }
   }
 }

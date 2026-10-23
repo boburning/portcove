@@ -8,6 +8,14 @@
     "issue_number": 1568,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/spacestate1/namco22-decompile"
+    "setup_url": "https://github.com/spacestate1/namco22-decompile",
+    "artwork": {
+      "game_id": 39827,
+      "cover_id": 90748,
+      "image_id": "co1y0s",
+      "image_sha256": "14b2a90e01edc31fdb15a612d83224ce585c29841ad6f275e91a5eeb04a642e5",
+      "game_slug": "dirt-dash",
+      "match_kind": "underlying-game"
+    }
   }
 }

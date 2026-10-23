@@ -8,6 +8,14 @@
     "issue_number": 1876,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/re-rac/rerac"
+    "setup_url": "https://github.com/re-rac/rerac",
+    "artwork": {
+      "game_id": 1289,
+      "cover_id": 79006,
+      "image_id": "co1oym",
+      "image_sha256": "bf88a5ba52a820c9494d6326c0a089032096bb5c82728c43d1915cd47316ed01",
+      "game_slug": "ratchet-clank",
+      "match_kind": "underlying-game"
+    }
   }
 }

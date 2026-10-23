@@ -8,6 +8,14 @@
     "issue_number": 351,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/SlickAmogus/silent-hill-decomp"
+    "setup_url": "https://github.com/SlickAmogus/silent-hill-decomp",
+    "artwork": {
+      "game_id": 480,
+      "cover_id": 134726,
+      "image_id": "co2vye",
+      "image_sha256": "cd7fe4d5c1399b156b62e9ee46d767101b3da4a6ebb874d26cabb863a48b11f5",
+      "game_slug": "silent-hill",
+      "match_kind": "underlying-game"
+    }
   }
 }

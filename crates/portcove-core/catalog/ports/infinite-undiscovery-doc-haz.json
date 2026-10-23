@@ -8,6 +8,14 @@
     "issue_number": 1670,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/doc-haz/infinite-undiscovery-recomp"
+    "setup_url": "https://github.com/doc-haz/infinite-undiscovery-recomp",
+    "artwork": {
+      "game_id": 7019,
+      "cover_id": 157311,
+      "image_id": "co3ddr",
+      "image_sha256": "3a2351226d066b1b6aea6f1a053216d0519f30b5301e9a623b3c27a39d72e2fa",
+      "game_slug": "infinite-undiscovery",
+      "match_kind": "underlying-game"
+    }
   }
 }

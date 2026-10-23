@@ -8,6 +8,14 @@
     "issue_number": 488,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp",
+    "artwork": {
+      "game_id": 913,
+      "cover_id": 90979,
+      "image_id": "co1y77",
+      "image_sha256": "579f5a142ac8a29ac0c8df37e531b20a43ada128b6493a37115183307921ab6f",
+      "game_slug": "tony-hawk-s-pro-skater-2",
+      "match_kind": "underlying-game"
+    }
   }
 }

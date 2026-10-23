@@ -8,6 +8,14 @@
     "issue_number": 454,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp",
+    "artwork": {
+      "game_id": 7422,
+      "cover_id": 224806,
+      "image_id": "co4tgm",
+      "image_sha256": "3b4c0a90fd89f6f0f494030333abe2835f80d813dae559bc395831684508dc6d",
+      "game_slug": "king-s-field",
+      "match_kind": "underlying-game"
+    }
   }
 }

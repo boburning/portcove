@@ -8,6 +8,14 @@
     "issue_number": 1885,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Edwin2929/sma3-recomp-android."
+    "setup_url": "https://github.com/Edwin2929/sma3-recomp-android.",
+    "artwork": {
+      "game_id": 16747,
+      "cover_id": 200020,
+      "image_id": "co4ac4",
+      "image_sha256": "82c1d426dbafbac5b8121ac036f8158c7db23def20cab27d16f5484f65a48236",
+      "game_slug": "yoshis-island-super-mario-advance-3",
+      "match_kind": "underlying-game"
+    }
   }
 }

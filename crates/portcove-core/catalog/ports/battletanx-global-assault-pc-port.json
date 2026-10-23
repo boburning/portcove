@@ -8,6 +8,14 @@
     "issue_number": 2003,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port"
+    "setup_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port",
+    "artwork": {
+      "game_id": 47685,
+      "cover_id": 110864,
+      "image_id": "co2djk",
+      "image_sha256": "85a5c7bae259b9b6cb96c8b9e0caba168097c78c36470025995208cc1c645900",
+      "game_slug": "battletanx-global-assault",
+      "match_kind": "underlying-game"
+    }
   }
 }

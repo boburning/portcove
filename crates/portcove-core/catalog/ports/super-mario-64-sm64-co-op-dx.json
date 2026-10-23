@@ -8,6 +8,14 @@
     "issue_number": 322,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/coop-deluxe/sm64coopdx"
+    "setup_url": "https://github.com/coop-deluxe/sm64coopdx",
+    "artwork": {
+      "game_id": 1074,
+      "cover_id": 329251,
+      "image_id": "co721v",
+      "image_sha256": "f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5",
+      "game_slug": "super-mario-64",
+      "match_kind": "underlying-game"
+    }
   }
 }

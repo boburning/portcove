@@ -8,6 +8,14 @@
     "issue_number": 385,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Matteo842/CrashBandicoot-Launcher"
+    "setup_url": "https://github.com/Matteo842/CrashBandicoot-Launcher",
+    "artwork": {
+      "game_id": 1185,
+      "cover_id": 239961,
+      "image_id": "co555l",
+      "image_sha256": "c540e5f90bcc619f80f45c5cd074773bdb0a007e99af18ef7f56498d77a38f7d",
+      "game_slug": "crash-bandicoot",
+      "match_kind": "underlying-game"
+    }
   }
 }

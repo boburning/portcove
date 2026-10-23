@@ -8,6 +8,14 @@
     "issue_number": 1576,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/MikeSemicolonD/RogueSquadron64Recomp"
+    "setup_url": "https://github.com/MikeSemicolonD/RogueSquadron64Recomp",
+    "artwork": {
+      "game_id": 163,
+      "cover_id": 352556,
+      "image_id": "co7k18",
+      "image_sha256": "07c0866df3261563a66c21b6081029113952bdfc9205a43745fcaee4f63d6f12",
+      "game_slug": "star-wars-rogue-squadron",
+      "match_kind": "underlying-game"
+    }
   }
 }

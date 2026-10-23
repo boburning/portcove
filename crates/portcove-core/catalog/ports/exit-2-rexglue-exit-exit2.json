@@ -8,6 +8,14 @@
     "issue_number": 363,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/FluffyQuack/ReXGlue-EXIT"
+    "setup_url": "https://github.com/FluffyQuack/ReXGlue-EXIT",
+    "artwork": {
+      "game_id": 28961,
+      "cover_id": 123907,
+      "image_id": "co2nlv",
+      "image_sha256": "ab2c0b0c12c40222774b26ddde82efa94bb55a7ee6f2e81d0d21af8b3d706afd",
+      "game_slug": "exit-2",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 438,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp",
+    "artwork": {
+      "game_id": 1170,
+      "cover_id": 123322,
+      "image_id": "co2n5m",
+      "image_sha256": "1b2115d1d64e40d85cab358306d7bedefbc6d557b3920b077e21df9e713edaf1",
+      "game_slug": "destruction-derby-2",
+      "match_kind": "underlying-game"
+    }
   }
 }

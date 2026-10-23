@@ -8,6 +8,14 @@
     "issue_number": 1816,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp"
+    "setup_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp",
+    "artwork": {
+      "game_id": 19835,
+      "cover_id": 166679,
+      "image_id": "co3klz",
+      "image_sha256": "95cd13d1653e6224973ed48c83a3b7ccb65bd2f3622496fd1ee5717b6a6e511d",
+      "game_slug": "dragon-ball-z-buus-fury",
+      "match_kind": "underlying-game"
+    }
   }
 }

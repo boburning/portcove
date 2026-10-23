@@ -8,6 +8,14 @@
     "issue_number": 361,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/psxrestore/Condemned2Recomp"
+    "setup_url": "https://github.com/psxrestore/Condemned2Recomp",
+    "artwork": {
+      "game_id": 6943,
+      "cover_id": 99356,
+      "image_id": "co24nw",
+      "image_sha256": "befb6920b7ae80cb0e18600c26e5940334cffba3351873e04d093a49c73cdf33",
+      "game_slug": "condemned-2-bloodshot",
+      "match_kind": "underlying-game"
+    }
   }
 }

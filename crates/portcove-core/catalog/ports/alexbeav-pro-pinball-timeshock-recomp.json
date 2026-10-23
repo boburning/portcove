@@ -8,6 +8,14 @@
     "issue_number": 470,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/pro-pinball-timeshock-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/pro-pinball-timeshock-recomp",
+    "artwork": {
+      "game_id": 12905,
+      "cover_id": 101170,
+      "image_id": "co262a",
+      "image_sha256": "86a7025f69321486ffef5ec67a4408fc20dee074e60500073a7a7427a3821955",
+      "game_slug": "pro-pinball-timeshock",
+      "match_kind": "underlying-game"
+    }
   }
 }

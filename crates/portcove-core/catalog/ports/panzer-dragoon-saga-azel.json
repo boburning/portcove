@@ -8,6 +8,14 @@
     "issue_number": 376,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/yaz0r/Azel"
+    "setup_url": "https://github.com/yaz0r/Azel",
+    "artwork": {
+      "game_id": 1671,
+      "cover_id": 526947,
+      "image_id": "cobalf",
+      "image_sha256": "1b15a0a55737380943f5a927b9c4d74d2181058fa2ee7989a66952d5917f5cd9",
+      "game_slug": "panzer-dragoon-saga",
+      "match_kind": "underlying-game"
+    }
   }
 }

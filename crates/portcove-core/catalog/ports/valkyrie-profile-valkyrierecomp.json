@@ -8,6 +8,14 @@
     "issue_number": 326,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Ed1z19/ValkyrieRecomp"
+    "setup_url": "https://github.com/Ed1z19/ValkyrieRecomp",
+    "artwork": {
+      "game_id": 3998,
+      "cover_id": 85749,
+      "image_id": "co1u5x",
+      "image_sha256": "e9453314a3e19807fa7ee8b6d174bcc7373e0a878978b93797a50c51a6139491",
+      "game_slug": "valkyrie-profile",
+      "match_kind": "underlying-game"
+    }
   }
 }

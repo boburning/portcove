@@ -8,6 +8,14 @@
     "issue_number": 1949,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/pablocpas/OpenCMR2"
+    "setup_url": "https://github.com/pablocpas/OpenCMR2",
+    "artwork": {
+      "game_id": 642,
+      "cover_id": 351921,
+      "image_id": "co7jjl",
+      "image_sha256": "f0017034b228e12a2d22522dc6510f8e546824db874cb70a968d8e283e0e312c",
+      "game_slug": "colin-mcrae-rally-2-0",
+      "match_kind": "underlying-game"
+    }
   }
 }

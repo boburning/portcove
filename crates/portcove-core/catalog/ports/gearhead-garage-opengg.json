@@ -8,6 +8,14 @@
     "issue_number": 1637,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/tymsky/OpenGG"
+    "setup_url": "https://github.com/tymsky/OpenGG",
+    "artwork": {
+      "game_id": 73965,
+      "cover_id": 53177,
+      "image_id": "ozskcnrkpacgofnpqf4u",
+      "image_sha256": "3b3bcf884f0f11fd489398db4b034213700c2ee312a232732dd7293bbd480d79",
+      "game_slug": "gearhead-garage",
+      "match_kind": "underlying-game"
+    }
   }
 }

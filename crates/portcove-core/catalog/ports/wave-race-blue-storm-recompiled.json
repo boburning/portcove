@@ -8,6 +8,14 @@
     "issue_number": 1572,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/ethannicholas/bluestorm-recomp"
+    "setup_url": "https://github.com/ethannicholas/bluestorm-recomp",
+    "artwork": {
+      "game_id": 4232,
+      "cover_id": 79589,
+      "image_id": "co1pet",
+      "image_sha256": "35a43121de0752a802b7a511a21e0e83dda1025a1e6da8fc1d9409098bf75695",
+      "game_slug": "wave-race-blue-storm",
+      "match_kind": "underlying-game"
+    }
   }
 }

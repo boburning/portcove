@@ -8,6 +8,14 @@
     "issue_number": 343,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/GTTeancum/SotE-Recomp"
+    "setup_url": "https://github.com/GTTeancum/SotE-Recomp",
+    "artwork": {
+      "game_id": 164,
+      "cover_id": 101011,
+      "image_id": "co25xv",
+      "image_sha256": "1dd963ff17ff5fb846f44a7215c9ee73662bd9991aad4bd3110b8284920677e9",
+      "game_slug": "star-wars-shadows-of-the-empire",
+      "match_kind": "underlying-game"
+    }
   }
 }

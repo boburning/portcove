@@ -8,6 +8,14 @@
     "issue_number": 1776,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/lunarmeadow/barrett"
+    "setup_url": "https://github.com/lunarmeadow/barrett",
+    "artwork": {
+      "game_id": 2380,
+      "cover_id": 228953,
+      "image_id": "co4wnt",
+      "image_sha256": "0f1a95130bf5610207ca50f8c614203d78e58d0d2ebb998eb068aed601f9f50a",
+      "game_slug": "rise-of-the-triad-dark-war",
+      "match_kind": "underlying-game"
+    }
   }
 }

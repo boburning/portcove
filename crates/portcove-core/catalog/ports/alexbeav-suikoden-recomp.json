@@ -8,6 +8,14 @@
     "issue_number": 481,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp",
+    "artwork": {
+      "game_id": 1447,
+      "cover_id": 493093,
+      "image_id": "coakh1",
+      "image_sha256": "a8fa47a6df8d9c1318d5d9a18ec8fd730da34ad9f071be0ee1c9f63c5e742f89",
+      "game_slug": "suikoden",
+      "match_kind": "underlying-game"
+    }
   }
 }

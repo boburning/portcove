@@ -8,6 +8,14 @@
     "issue_number": 344,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Madxbio97/SF-pc-port"
+    "setup_url": "https://github.com/Madxbio97/SF-pc-port",
+    "artwork": {
+      "game_id": 4115,
+      "cover_id": 90991,
+      "image_id": "co1y7j",
+      "image_sha256": "20acf73d36a68feb7a54b5a2347279935265d80fe4ef582f6439cc58a0efea00",
+      "game_slug": "syphon-filter",
+      "match_kind": "underlying-game"
+    }
   }
 }

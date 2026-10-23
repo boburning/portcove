@@ -8,6 +8,14 @@
     "issue_number": 349,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/khasinski/rage-racer-pc"
+    "setup_url": "https://github.com/khasinski/rage-racer-pc",
+    "artwork": {
+      "game_id": 18698,
+      "cover_id": 387116,
+      "image_id": "co8ap8",
+      "image_sha256": "216e38aac33db9621d62e2c78ff04fd92edfec104a8922006028c30fdd9012d8",
+      "game_slug": "rage-racer",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1808,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Simon358/ctr-native-android"
+    "setup_url": "https://github.com/Simon358/ctr-native-android",
+    "artwork": {
+      "game_id": 1192,
+      "cover_id": 361766,
+      "image_id": "co7r52",
+      "image_sha256": "857ab4be415b6baf136a594b32afa654c830446c1e565cb8e047a9bd76bb18d6",
+      "game_slug": "crash-team-racing",
+      "match_kind": "underlying-game"
+    }
   }
 }

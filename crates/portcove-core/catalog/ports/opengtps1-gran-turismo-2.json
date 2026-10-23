@@ -8,6 +8,14 @@
     "issue_number": 743,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/GTTeancum/OpenGTPS1"
+    "setup_url": "https://github.com/GTTeancum/OpenGTPS1",
+    "artwork": {
+      "game_id": 1597,
+      "cover_id": 93687,
+      "image_id": "co20af",
+      "image_sha256": "a6f251729a583e075d008435e77d8c7aa52b966890e45e2aa8ebb20dd3a2f6c0",
+      "game_slug": "gran-turismo-2",
+      "match_kind": "underlying-game"
+    }
   }
 }

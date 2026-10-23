@@ -8,6 +8,14 @@
     "issue_number": 1598,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp",
+    "artwork": {
+      "game_id": 26637,
+      "cover_id": 456447,
+      "image_id": "co9s73",
+      "image_sha256": "20f6afd87ff34d69c2a7147894d957a13bb2049de17e29e037599e99c5a2fcdc",
+      "game_slug": "incredible-crisis",
+      "match_kind": "underlying-game"
+    }
   }
 }

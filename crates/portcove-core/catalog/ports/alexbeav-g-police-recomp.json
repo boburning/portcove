@@ -8,6 +8,14 @@
     "issue_number": 452,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/g-police-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/g-police-recomp",
+    "artwork": {
+      "game_id": 8305,
+      "cover_id": 482651,
+      "image_id": "coacez",
+      "image_sha256": "0b21f7285ec7c25347077dc2f71d36df39778758a668880e91402d8089bb3b35",
+      "game_slug": "g-police",
+      "match_kind": "underlying-game"
+    }
   }
 }

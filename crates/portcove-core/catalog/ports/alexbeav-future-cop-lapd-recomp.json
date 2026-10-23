@@ -8,6 +8,14 @@
     "issue_number": 1595,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp",
+    "artwork": {
+      "game_id": 11235,
+      "cover_id": 98577,
+      "image_id": "co2429",
+      "image_sha256": "0d65e5caa71e7f2580db82e7497a50e899942e7556b9c3ddeeafe61253be7083",
+      "game_slug": "future-cop-lapd",
+      "match_kind": "underlying-game"
+    }
   }
 }

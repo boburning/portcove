@@ -8,6 +8,14 @@
     "issue_number": 2106,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Drommedhar/mgs-reintegral"
+    "setup_url": "https://github.com/Drommedhar/mgs-reintegral",
+    "artwork": {
+      "game_id": 41037,
+      "cover_id": 545997,
+      "image_id": "cobpal",
+      "image_sha256": "1d6ded24f1d8f9f48d0f69802e0bf5adfd1be143c3b90ba7bc2d95ba99daccfb",
+      "game_slug": "metal-gear-solid-integral",
+      "match_kind": "underlying-game"
+    }
   }
 }

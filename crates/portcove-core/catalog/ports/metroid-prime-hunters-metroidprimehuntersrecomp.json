@@ -8,6 +8,14 @@
     "issue_number": 341,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/MetroidPrimeHuntersRecomp"
+    "setup_url": "https://github.com/mstan/MetroidPrimeHuntersRecomp",
+    "artwork": {
+      "game_id": 1110,
+      "cover_id": 351569,
+      "image_id": "co7j9t",
+      "image_sha256": "88f320e3b09e0184754d87712cee5f28ca0020a1001de4678129db4694985a14",
+      "game_slug": "metroid-prime-hunters",
+      "match_kind": "underlying-game"
+    }
   }
 }

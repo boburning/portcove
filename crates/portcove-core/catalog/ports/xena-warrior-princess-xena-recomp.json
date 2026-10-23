@@ -8,6 +8,14 @@
     "issue_number": 329,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp",
+    "artwork": {
+      "game_id": 3648,
+      "cover_id": 564319,
+      "image_id": "coc3fj",
+      "image_sha256": "9fda3bf2d7351e9b860656b2ee7c17a5f8e6e01e5b70fe58a007809272623575",
+      "game_slug": "xena-warrior-princess",
+      "match_kind": "underlying-game"
+    }
   }
 }

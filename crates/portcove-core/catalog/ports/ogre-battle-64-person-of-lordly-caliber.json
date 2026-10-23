@@ -8,6 +8,14 @@
     "issue_number": 1356,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/lfarroco/ogre-battle-64-recomp"
+    "setup_url": "https://github.com/lfarroco/ogre-battle-64-recomp",
+    "artwork": {
+      "game_id": 3568,
+      "cover_id": 239685,
+      "image_id": "co54xx",
+      "image_sha256": "ba5c8bcf0751d074c41c067ba347e42178039882f57d2bfe9e767be07bc279de",
+      "game_slug": "ogre-battle-64-person-of-lordly-caliber",
+      "match_kind": "underlying-game"
+    }
   }
 }

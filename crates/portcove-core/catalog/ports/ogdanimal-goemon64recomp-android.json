@@ -8,6 +8,14 @@
     "issue_number": 1823,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/ogdanimal/Goemon64Recomp-Android"
+    "setup_url": "https://github.com/ogdanimal/Goemon64Recomp-Android",
+    "artwork": {
+      "game_id": 3545,
+      "cover_id": 241636,
+      "image_id": "co56g4",
+      "image_sha256": "e3c3c516bb9ceba21e919d8e36758d5c97de20a42e6289ef61fc9e86d00ad564",
+      "game_slug": "mystical-ninja-starring-goemon",
+      "match_kind": "underlying-game"
+    }
   }
 }

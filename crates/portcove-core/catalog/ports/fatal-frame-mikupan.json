@@ -8,6 +8,14 @@
     "issue_number": 346,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Mikompilation/MikuPan"
+    "setup_url": "https://github.com/Mikompilation/MikuPan",
+    "artwork": {
+      "game_id": 5106,
+      "cover_id": 445266,
+      "image_id": "co9jki",
+      "image_sha256": "2416f2d6b5f72ad7064b72b465aaa9f6bcb14d2e3d1a9a4b07b5b1943e80eaf0",
+      "game_slug": "fatal-frame",
+      "match_kind": "underlying-game"
+    }
   }
 }

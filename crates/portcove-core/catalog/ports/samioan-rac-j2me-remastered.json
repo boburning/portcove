@@ -8,6 +8,14 @@
     "issue_number": 1872,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/samioan/rac-j2me-remastered"
+    "setup_url": "https://github.com/samioan/rac-j2me-remastered",
+    "artwork": {
+      "game_id": 225652,
+      "cover_id": 498848,
+      "image_id": "coaoww",
+      "image_sha256": "8a55d6f4e9926fdcf3c153282c3b7fbbca940db69a9470044baae4a563f28f8d",
+      "game_slug": "ratchet-and-clank-clone-home",
+      "match_kind": "underlying-game"
+    }
   }
 }

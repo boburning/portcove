@@ -8,6 +8,14 @@
     "issue_number": 1577,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/TekRantGaming/king-kong-recompiled"
+    "setup_url": "https://github.com/TekRantGaming/king-kong-recompiled",
+    "artwork": {
+      "game_id": 248543,
+      "cover_id": 301937,
+      "image_id": "co6gz5",
+      "image_sha256": "2a8e0488efda6141a852021a1c1c37eb4ec36b069a30cb03e7a36af893525b42",
+      "game_slug": "peter-jacksons-king-kong-the-official-game-of-the-movie--2",
+      "match_kind": "underlying-game"
+    }
   }
 }

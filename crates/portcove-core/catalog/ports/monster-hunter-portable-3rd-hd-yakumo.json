@@ -8,6 +8,14 @@
     "issue_number": 1120,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/TeamGDB/Yakumo"
+    "setup_url": "https://github.com/TeamGDB/Yakumo",
+    "artwork": {
+      "game_id": 78633,
+      "cover_id": 140137,
+      "image_id": "co304p",
+      "image_sha256": "cc6ccbd1f206dcf4a935c22236d60f7eb70cf214602345ef92a677b62c47811c",
+      "game_slug": "monster-hunter-portable-3rd-hd-ver",
+      "match_kind": "underlying-game"
+    }
   }
 }

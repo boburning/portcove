@@ -8,6 +8,14 @@
     "issue_number": 1833,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/dkfans/keeperfx"
+    "setup_url": "https://github.com/dkfans/keeperfx",
+    "artwork": {
+      "game_id": 35,
+      "cover_id": 182022,
+      "image_id": "co3wg6",
+      "image_sha256": "9a3409c8b4937b0a9bc70951a1e808112122847099411625581b845a97d4745a",
+      "game_slug": "dungeon-keeper",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1802,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/djultra64/Blocksphere"
+    "setup_url": "https://github.com/djultra64/Blocksphere",
+    "artwork": {
+      "game_id": 3612,
+      "cover_id": 154600,
+      "image_id": "co3bag",
+      "image_sha256": "1f36e0dc2de5ac31e008efd006545df8aa7c6d626f6ebf3a48b72c6b23250e6e",
+      "game_slug": "tetrisphere",
+      "match_kind": "underlying-game"
+    }
   }
 }

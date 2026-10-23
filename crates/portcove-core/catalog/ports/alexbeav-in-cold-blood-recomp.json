@@ -8,6 +8,14 @@
     "issue_number": 458,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp",
+    "artwork": {
+      "game_id": 9680,
+      "cover_id": 276485,
+      "image_id": "co5xc5",
+      "image_sha256": "106480e2cbf77c276dcf4492a12c716cded6cfd73303d05d38d8bb6d13a50355",
+      "game_slug": "in-cold-blood",
+      "match_kind": "underlying-game"
+    }
   }
 }

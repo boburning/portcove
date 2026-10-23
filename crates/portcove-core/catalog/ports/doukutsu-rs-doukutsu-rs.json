@@ -8,6 +8,14 @@
     "issue_number": 1813,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/doukutsu-rs/doukutsu-rs"
+    "setup_url": "https://github.com/doukutsu-rs/doukutsu-rs",
+    "artwork": {
+      "game_id": 6189,
+      "cover_id": 343222,
+      "image_id": "co7cty",
+      "image_sha256": "e4a8f52012ea95be32f9007525d6360312e5312450ed9eaeb7d0b3da51cc5d49",
+      "game_slug": "cave-story",
+      "match_kind": "underlying-game"
+    }
   }
 }

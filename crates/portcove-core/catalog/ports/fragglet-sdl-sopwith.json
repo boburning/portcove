@@ -28,6 +28,14 @@
       ],
       "warnings": ["This project has not been verified for play through Portcove."],
       "help_url": "https://github.com/fragglet/sdl-sopwith/blob/sdl-sopwith-2.9.0/README.md"
+    },
+    "artwork": {
+      "game_id": 24424,
+      "cover_id": 571515,
+      "image_id": "coc8zf",
+      "image_sha256": "4308b7dc47bea686b498f8e5788fcf5e7230177e982bd6d3e2e17f4e325d7587",
+      "game_slug": "sopwith",
+      "match_kind": "underlying-game"
     }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1838,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://gitlab.com/bighead.0/ladxhd_updated"
+    "setup_url": "https://gitlab.com/bighead.0/ladxhd_updated",
+    "artwork": {
+      "game_id": 1027,
+      "cover_id": 217879,
+      "image_id": "co4o47",
+      "image_sha256": "270128e2277a26e22faa7bcb2e24550952e1d1a9719de9d858f51cf6ffef67ea",
+      "game_slug": "the-legend-of-zelda-link-s-awakening-dx",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1789,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/OpenReliant/openreliant"
+    "setup_url": "https://github.com/OpenReliant/openreliant",
+    "artwork": {
+      "game_id": 11230,
+      "cover_id": 118864,
+      "image_id": "co2jps",
+      "image_sha256": "2a7b18ba20d6b76160e03a771f901d2c3c3d0dd095d5b01852e81f2bc9d69741",
+      "game_slug": "starlancer",
+      "match_kind": "underlying-game"
+    }
   }
 }

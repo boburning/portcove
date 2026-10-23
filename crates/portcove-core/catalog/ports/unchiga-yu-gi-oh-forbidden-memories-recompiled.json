@@ -8,6 +8,14 @@
     "issue_number": 1910,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled"
+    "setup_url": "https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled",
+    "artwork": {
+      "game_id": 4108,
+      "cover_id": 86189,
+      "image_id": "co1ui5",
+      "image_sha256": "4433b62aad4b6eb383b78541b23242c395a35fa426c5f50d217d605c19312291",
+      "game_slug": "yu-gi-oh-forbidden-memories",
+      "match_kind": "underlying-game"
+    }
   }
 }

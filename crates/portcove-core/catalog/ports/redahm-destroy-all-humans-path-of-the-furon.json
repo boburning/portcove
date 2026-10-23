@@ -8,6 +8,14 @@
     "issue_number": 130,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/masterspike52/reDAHM"
+    "setup_url": "https://github.com/masterspike52/reDAHM",
+    "artwork": {
+      "game_id": 2717,
+      "cover_id": 157627,
+      "image_id": "co3dmj",
+      "image_sha256": "006284fde5d80cb1c49e1163b7657da68b27daf7fcfb85b1d90abf887761170b",
+      "game_slug": "destroy-all-humans-path-of-the-furon",
+      "match_kind": "underlying-game"
+    }
   }
 }

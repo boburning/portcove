@@ -8,6 +8,14 @@
     "issue_number": 1856,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/omf2097/openomf"
+    "setup_url": "https://github.com/omf2097/openomf",
+    "artwork": {
+      "game_id": 14429,
+      "cover_id": 128159,
+      "image_id": "co2qvz",
+      "image_sha256": "1bc40ce34e65abbf3e01125acc5f319a1e40d2664f19a3b860c214f834e13c51",
+      "game_slug": "one-must-fall-2097",
+      "match_kind": "underlying-game"
+    }
   }
 }

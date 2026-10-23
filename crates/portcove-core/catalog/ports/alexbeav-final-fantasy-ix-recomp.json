@@ -8,6 +8,14 @@
     "issue_number": 450,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-ix-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-ix-recomp",
+    "artwork": {
+      "game_id": 421,
+      "cover_id": 133032,
+      "image_id": "co2unc",
+      "image_sha256": "379e466f02aba5ce556094222e6edd9f7b86034484323a99e7c42cfc17feabeb",
+      "game_slug": "final-fantasy-ix",
+      "match_kind": "underlying-game"
+    }
   }
 }

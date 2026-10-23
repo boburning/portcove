@@ -8,6 +8,14 @@
     "issue_number": 1844,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/BlackLabelHQ/MediEvilRecomp"
+    "setup_url": "https://github.com/BlackLabelHQ/MediEvilRecomp",
+    "artwork": {
+      "game_id": 4000,
+      "cover_id": 84944,
+      "image_id": "co1tjk",
+      "image_sha256": "a592d900ce17c971b523af9b3996c552dcee9a1b4bcf723c6bbaa71e534cebc8",
+      "game_slug": "medievil",
+      "match_kind": "underlying-game"
+    }
   }
 }

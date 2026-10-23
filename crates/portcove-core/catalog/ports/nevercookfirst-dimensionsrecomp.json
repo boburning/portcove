@@ -8,6 +8,14 @@
     "issue_number": 1817,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/NeverCookFirst/DimensionsRecomp"
+    "setup_url": "https://github.com/NeverCookFirst/DimensionsRecomp",
+    "artwork": {
+      "game_id": 11077,
+      "cover_id": 394611,
+      "image_id": "co8ghf",
+      "image_sha256": "926c7b6a37f16a6fdc45dc4d305b21e32bb3fee603ed842892f233ff24a1e80c",
+      "game_slug": "lego-dimensions",
+      "match_kind": "underlying-game"
+    }
   }
 }

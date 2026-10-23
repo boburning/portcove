@@ -8,6 +8,14 @@
     "issue_number": 1858,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/nicholas-ochoa/OpenSC2K"
+    "setup_url": "https://github.com/nicholas-ochoa/OpenSC2K",
+    "artwork": {
+      "game_id": 330,
+      "cover_id": 77917,
+      "image_id": "co1o4d",
+      "image_sha256": "e035728b695e48b6959451357f7c0e6721b62761a46c19bfc3f07de21c2ae697",
+      "game_slug": "simcity-2000",
+      "match_kind": "underlying-game"
+    }
   }
 }

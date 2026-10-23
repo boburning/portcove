@@ -8,6 +8,14 @@
     "issue_number": 1890,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/izzy2lost/Starship"
+    "setup_url": "https://github.com/izzy2lost/Starship",
+    "artwork": {
+      "game_id": 2591,
+      "cover_id": 524514,
+      "image_id": "cob8pu",
+      "image_sha256": "2c004bd7f2d6fdcdbd306a1cf9bca990bfae075dae322dda2d9fc223e0011518",
+      "game_slug": "star-fox-64",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1607,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp",
+    "artwork": {
+      "game_id": 4118,
+      "cover_id": 120899,
+      "image_id": "co2lab",
+      "image_sha256": "9208130624a36235f99803a0ca5d871821e1b5622e9abbf8793a402469375382",
+      "game_slug": "spider-man-2-enter-electro",
+      "match_kind": "underlying-game"
+    }
   }
 }
