@@ -1380,7 +1380,10 @@ void test("retired GitHub policy JSON remains owned without a file-specific tomb
   });
   assert.deepEqual([...selection.unknown], []);
   assert.deepEqual([...selection.nodeTests].sort(), [
+    "scripts/check-catalog-repositories.test.mts",
+    "scripts/check-retcomm-upstreams.test.mts",
     "scripts/ci-workflow.test.mts",
+    "scripts/deep-audit-summary.test.mts",
     "scripts/repository-settings.test.mts",
     "scripts/validation-plan.test.mts",
   ]);
