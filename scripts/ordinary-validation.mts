@@ -311,7 +311,14 @@ export const pythonContractTests = [
   "scripts/semantic-review-linux-supervisor.test.mts",
   "scripts/release-semantic-source.test.mts",
 ];
-const explicitNodeTests = new Map<string, readonly string[]>([
+function mergeNodeTestRoutes(routes: Iterable<readonly [string, readonly string[]]>) {
+  const merged = new Map<string, readonly string[]>();
+  for (const [file, tests] of routes)
+    merged.set(file, [...new Set([...(merged.get(file) ?? []), ...tests])]);
+  return merged;
+}
+
+const explicitNodeTests = mergeNodeTestRoutes([
   ...["scripts/python-test-results.py", "scripts/python-test-results.mts"].map(
     (file): [string, readonly string[]] => [file, pythonContractTests],
   ),
@@ -1200,8 +1207,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-semantic-worker.mts", ["scripts/release-catalog-review-maintenance.test.mts"]],
 ]);
 
-// Preserve transport consumers alongside generated native-helper routes. An earlier
-// Map entry would be overwritten by the helper inventory's later entry.
+// Preserve transport consumers alongside generated native-helper routes.
 for (const file of [
   "apps/desktop/scripts/native-linux-driver-http.mts",
   "apps/desktop/scripts/node-contracts/native-linux-driver-http.native.test.mts",

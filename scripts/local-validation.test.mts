@@ -49,6 +49,115 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 
 const allFilesExist = () => true;
 
+void test("repeated Node route declarations preserve every owning consumer", async (t) => {
+  const routes: [string, string[]][] = [
+    [
+      "apps/desktop/scripts/native-linux-isolated-session.mts",
+      [
+        "scripts/native-linux-isolated-plan.test.mts",
+        "scripts/desktop-linux-stop.test.mts",
+        "scripts/native-helper-dependencies.test.mts",
+        "scripts/native-confirmation.test.mts",
+        "scripts/desktop-execution-plan.test.mts",
+        "scripts/windows-helper-checks.test.mts",
+      ],
+    ],
+    [
+      "apps/desktop/scripts/native-linux-isolated-plan.mts",
+      [
+        "scripts/native-linux-isolated-plan.test.mts",
+        "scripts/native-helper-dependencies.test.mts",
+        "scripts/native-confirmation.test.mts",
+        "scripts/desktop-execution-plan.test.mts",
+        "scripts/windows-helper-checks.test.mts",
+      ],
+    ],
+    [
+      "apps/desktop/scripts/native-linux-public-plan.mts",
+      [
+        "scripts/native-linux-public-plan.test.mts",
+        "scripts/native-helper-dependencies.test.mts",
+        "scripts/native-confirmation.test.mts",
+        "scripts/desktop-execution-plan.test.mts",
+        "scripts/windows-helper-checks.test.mts",
+      ],
+    ],
+    [
+      "apps/desktop/scripts/native-linux-isolated-init.py",
+      [
+        "scripts/native-linux-isolated-init.test.mts",
+        "scripts/native-helper-dependencies.test.mts",
+        "scripts/native-confirmation.test.mts",
+        "scripts/desktop-execution-plan.test.mts",
+        "scripts/windows-helper-checks.test.mts",
+      ],
+    ],
+    [
+      "apps/desktop/scripts/desktop-native-account-session.mts",
+      [
+        "scripts/native-helper-dependencies.test.mts",
+        "scripts/native-confirmation.test.mts",
+        "scripts/desktop-execution-plan.test.mts",
+        "scripts/windows-helper-checks.test.mts",
+        "scripts/desktop-native-account-session.test.mts",
+      ],
+    ],
+    [
+      "scripts/release-semantic-worker-recovery.mts",
+      [
+        "scripts/release-semantic-worker.test.mts",
+        "scripts/release-catalog-review-maintenance.test.mts",
+      ],
+    ],
+    [
+      "scripts/release-semantic-worker.mts",
+      [
+        "scripts/release-semantic-worker.test.mts",
+        "scripts/release-catalog-review-maintenance.test.mts",
+      ],
+    ],
+  ];
+  for (const [file, consumers] of routes)
+    await t.test(file, () => {
+      for (const change of [
+        { status: "A", path: file },
+        { status: "M", path: file },
+        { status: "D", path: file },
+        { status: "R100", path: "docs/moved-owner.md", previousPath: file },
+        { status: "R100", path: file, previousPath: "docs/moved-owner.md" },
+      ]) {
+        const selected = classifyChanges([change], { fileExists: () => false });
+        for (const consumer of consumers)
+          assert.ok(
+            selected.nodeTests.has(consumer),
+            `${change.status} ${file} must select ${consumer}`,
+          );
+      }
+    });
+  const { baselineContractTests, baselineRequiresPython } = await import("./ci-baseline.mts");
+  const pythonOwner = "apps/desktop/scripts/native-linux-isolated-init.py";
+  const pythonPlan = buildValidationPlan({
+    changes: [
+      {
+        status: "M",
+        oldPath: pythonOwner,
+        newPath: pythonOwner,
+        oldMode: "100644",
+        newMode: "100644",
+      },
+    ],
+    eventName: "pull_request",
+    base: "b".repeat(40),
+    mergeBase: "b".repeat(40),
+    head: "a".repeat(40),
+    checkout: "a".repeat(40),
+  });
+  assert.ok(
+    baselineContractTests(pythonPlan).includes("scripts/native-linux-isolated-init.test.mts"),
+  );
+  assert.equal(baselineRequiresPython(pythonPlan), true);
+});
+
 void test("colocated private HTTP contracts retain their Node route and analyzer ownership without duplicate collection", () => {
   const contract = "apps/desktop/scripts/node-contracts/native-linux-driver-http.native.test.mts";
   const wrapper = "scripts/native-linux-driver-http.test.mts";
