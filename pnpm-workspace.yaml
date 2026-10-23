@@ -26,4 +26,5 @@ peerDependencyRules:
     vite: "*"
     vitest: "*"
 patchedDependencies:
+  "@sigstore/sign@5.0.0": patches/@sigstore__sign@5.0.0.patch
   "@tauri-apps/api@2.12.4": patches/@tauri-apps__api@2.12.4.patch

@@ -73,6 +73,8 @@ void test("checkpoint authentication sources retain security classification and 
   for (const file of [
     "scripts/release-checkpoint-job-identity.mts",
     "scripts/release-coordinator-checkpoint-authentication.mts",
+    "scripts/release-coordinator-checkpoint-signing.mts",
+    "scripts/release-checkpoint-signing-transport.mts",
     "scripts/release-coordinator-checkpoint-evidence.mts",
     "scripts/fixtures/checkpoint-proof-fixture.mts",
     "scripts/github-controller-attestation.mts",
@@ -83,6 +85,10 @@ void test("checkpoint authentication sources retain security classification and 
     assert.ok(selection.scopes.has("release-tooling"), file);
     assert.ok(
       selection.nodeTests.has("scripts/release-coordinator-checkpoint-authentication.test.mts"),
+      file,
+    );
+    assert.ok(
+      selection.nodeTests.has("scripts/release-coordinator-checkpoint-signing.test.mts"),
       file,
     );
     assert.ok(!selection.unknown.has(file), file);
@@ -2141,4 +2147,14 @@ void test("colocated workflow contracts retain every former route and their dire
       assert.ok(selection.nodeTests.has(companion), file);
     }
   }
+});
+
+void test("native enlargement helper edits select receipt contracts and related frontend tests", () => {
+  const helper = "apps/desktop/scripts/native-enlargement.mts";
+  const selection = classifyChanges([{ status: "M", path: helper }], {
+    fileExists: allFilesExist,
+  });
+  assert.ok(selection.nodeTests.has("scripts/desktop-execution-plan.test.mts"));
+  assert.ok(selection.uiRelatedFiles.has(helper));
+  assert.equal(selection.ui, true);
 });

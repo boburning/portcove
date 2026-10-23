@@ -322,6 +322,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ...["scripts/python-test-results.py", "scripts/python-test-results.mts"].map(
     (file): [string, readonly string[]] => [file, pythonContractTests],
   ),
+  ["apps/desktop/scripts/native-enlargement.mts", ["scripts/desktop-execution-plan.test.mts"]],
   ["scripts/prepare-port.mts", ["scripts/prepare-port.test.mts"]],
   ["scripts/port-upstream-facts.mts", ["scripts/prepare-port.test.mts"]],
   [
@@ -1384,6 +1385,7 @@ const releaseContractTests = Object.freeze([
   "scripts/release-coordinator.test.mts",
   "scripts/release-coordinator-state.test.mts",
   "scripts/release-coordinator-checkpoint-authentication.test.mts",
+  "scripts/release-coordinator-checkpoint-signing.test.mts",
   "scripts/release-prepared-transport.test.mts",
   "scripts/release-run-evidence.test.mts",
   "scripts/reconstruct-application-update-records.test.mts",

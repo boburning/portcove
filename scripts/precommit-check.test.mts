@@ -118,6 +118,43 @@ function fixture(context: FixtureContext, drain?: () => Promise<void>) {
   return cwd;
 }
 
+void test("dependency patch context survives real hooks while source whitespace remains rejected", (context) => {
+  const cwd = fixture(context);
+  configureHooks(cwd, "enable", env);
+  writeFileSync(path.join(cwd, ".gitattributes"), readFileSync(path.join(root, ".gitattributes")));
+  mkdirSync(path.join(cwd, "patches"));
+  const patch = [
+    "diff --git a/upstream.js b/upstream.js",
+    "--- a/upstream.js",
+    "+++ b/upstream.js",
+    "@@ -1,3 +1,3 @@",
+    " const before = true;",
+    " ",
+    "-const oldValue = 1;",
+    "+const newValue = 2;",
+    "",
+  ].join("\n");
+  writeFileSync(path.join(cwd, "patches/owned.patch"), patch);
+  assert.match(git(cwd, "apply", "--numstat", "patches/owned.patch"), /1\s+1\s+upstream\.js/u);
+  git(cwd, "add", ".gitattributes", "patches/owned.patch");
+  git(cwd, "diff", "--cached", "--check");
+  git(cwd, "commit", "-qm", "retain literal patch context");
+  assert.equal(git(cwd, "show", "HEAD:patches/owned.patch"), patch);
+
+  writeFileSync(path.join(cwd, "sample.js"), "export const value = 1;  \n");
+  writeFileSync(path.join(cwd, "outside.patch"), patch);
+  git(cwd, "add", "sample.js", "outside.patch");
+  for (const file of ["sample.js", "outside.patch"]) {
+    const refused = run(cwd, "git", ["diff", "--cached", "--check", "--", file], false);
+    assert.notEqual(refused.status, 0, file);
+    assert.match(refused.stdout, /trailing whitespace/u);
+  }
+  const refused = run(cwd, "git", ["commit", "-qm", "invalid source whitespace"], false);
+  assert.notEqual(refused.status, 0);
+  assert.match(refused.stdout + refused.stderr, /sample\.js.*trailing whitespace/u);
+  assert.equal(git(cwd, "show", "HEAD:patches/owned.patch"), patch);
+});
+
 void test("an unproven linked writer retains both sibling and common Git fixtures", async (context) => {
   const cleanups: (() => void | Promise<void>)[] = [];
   const fixtureContext = {

@@ -25,6 +25,7 @@
     <Compile Include="..\ExternalRuntimeReview.cs" />
     <Compile Include="..\ManagedUninstall.cs" />
     <Compile Include="ContractTests.cs" />
+    <Compile Include="ScenarioRunner.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

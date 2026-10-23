@@ -1,3 +1,4 @@
+import { captureNativeEnlargement } from "./native-enlargement.mts";
 import { fixtureObject as object } from "./desktop-scenario-state.mts";
 import { observeVisibleTarget } from "./browser-readiness.mts";
 import { prepareCaptureTarget, requireUnchangedCaptureTarget } from "../test/capture-target.ts";
@@ -415,32 +416,14 @@ export async function selectedSetupCompletionScenario({
     let baselineWidth = 0;
     const enlargedStage = async (stage: string) => {
       if (!enlargedJourney) return;
-      const observed = await executeBrowserScript(browser, () => ({
-        width: innerWidth,
-        height: innerHeight,
-        client: document.documentElement.clientWidth,
-        scroll: document.documentElement.scrollWidth,
-        zoom: localStorage.getItem("portcove.appearance.interface-size"),
-        dpr: devicePixelRatio,
-        theme: document.documentElement.dataset.theme,
-        userAgent: navigator.userAgent,
-        focus: document.activeElement?.textContent?.trim(),
-      }));
-      const nativeWindow = await browser.manage().window().getRect();
-      assert.equal(nativeWindow.width, 960);
-      assert.equal(nativeWindow.height, 640);
-      assert.equal(observed.zoom, "400", `Enlargement lost at ${stage}`);
-      assert.ok(
-        Math.abs(observed.width - baselineWidth / 4) <= 2,
-        `Native zoom ratio changed at ${stage}`,
+      artifacts.push(
+        await captureNativeEnlargement(browser, {
+          output,
+          prefix: "selected-setup",
+          stage,
+          baselineWidth,
+        }),
       );
-      assert.ok(observed.width <= 240, `Native effective width changed at ${stage}`);
-      assert.ok(observed.scroll <= observed.client + 1, `Horizontal overflow at ${stage}`);
-      const file = path.join(output, `selected-setup-400-${stage}.json`);
-      await writeFile(file, JSON.stringify({ ...observed, nativeWindow, baselineWidth }, null, 2), {
-        flag: "wx",
-      });
-      artifacts.push(file);
     };
     try {
       generation = await selectedSetupGeneration(invoke);

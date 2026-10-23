@@ -7,6 +7,10 @@
 *.jpg binary
 *.png binary
 
+# Unified diffs need a space context marker for blank upstream lines. Preserve
+# dependency patch payloads; source paths keep normal whitespace checks.
+patches/*.patch whitespace=-blank-at-eol
+
 # These three dated evidence archives are preserved verbatim, including source
 # Markdown hard breaks and final blank lines. No other documentation is exempt.
 docs/archive/2026-09-03-prelaunch-feature-implementation-plan.md whitespace=-blank-at-eof
