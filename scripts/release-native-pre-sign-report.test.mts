@@ -1,5 +1,6 @@
+import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import assert from "node:assert/strict";
-import { readFile, mkdtemp, writeFile, link } from "node:fs/promises";
+import { readFile, writeFile, link } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { readNativeCapturedStream } from "./release-native-capture-files.mts";
@@ -13,8 +14,8 @@ import {
 } from "./release-native-linux-report.mts";
 import { inspectIsolatedNativeLinuxBinding } from "../apps/desktop/scripts/native-linux-isolated-plan.mts";
 import test from "node:test";
-void test("actual captured streams preserve empty stderr without relaxing nonempty JSON/public bytes", async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), "native-empty-stream-"));
+void test("actual captured streams preserve empty stderr without relaxing nonempty JSON/public bytes", async (context) => {
+  const root = disposableDirectory(context, path.join(os.tmpdir(), "native-empty-stream-"));
   await writeFile(path.join(root, "harness.stderr.bin"), Buffer.alloc(0));
   assert.equal((await readNativeCapturedStream(root, "harness.stderr.bin")).byteLength, 0);
   await assert.rejects(readBoundedPublicBuildInputFile(root, "harness.stderr.bin", 1), /nonempty/u);

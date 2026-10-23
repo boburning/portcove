@@ -1,17 +1,11 @@
+import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { isRecord } from "./runtime-values.mts";
@@ -119,11 +113,12 @@ const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex")
 // Fixed declarations and inert validator/provider controls measure the generator,
 // independently of live catalog counts. No upstream executable or network runs.
 function fixture(
+  context: TestContext,
   mode = "success",
   failAt = "input",
   declarations: (catalog: FixtureCatalog) => void = () => {},
 ) {
-  const scratch = mkdtempSync(join(tmpdir(), "portcove-proposal-costs-"));
+  const scratch = disposableDirectory(context, join(tmpdir(), "portcove-proposal-costs-"));
   const scripts = join(scratch, "scripts");
   const catalogs = join(scratch, "crates", "portcove-core", "catalog");
   mkdirSync(scripts);
@@ -269,8 +264,8 @@ function assertInputsPreserved(f: ReturnType<typeof fixture>) {
   assert.deepEqual(readFileSync(f.proposal), f.input);
 }
 
-void test("proposal costs measure waiting with a monotonic clock and preserve exact three-check receipts", () => {
-  const f = fixture();
+void test("proposal costs measure waiting with a monotonic clock and preserve exact three-check receipts", (context) => {
+  const f = fixture(context);
   const result = f.run();
   assert.equal(result.status, 0, result.stderr);
   const report = fixtureJson(readFileSync(join(f.output, "proposal-evidence.json")));
@@ -344,8 +339,8 @@ for (const [mode, failAt, expected] of [
   ["hash", "input", /does not identify the checked input/u],
   ["bytes", "output", /does not identify the checked input/u],
 ] as const) {
-  void test(`${mode} at ${failAt} retains measured attempt and stops without fabricated later phase costs`, () => {
-    const f = fixture(mode, failAt);
+  void test(`${mode} at ${failAt} retains measured attempt and stops without fabricated later phase costs`, (context) => {
+    const f = fixture(context, mode, failAt);
     const result = f.run();
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, expected);
@@ -368,8 +363,8 @@ for (const [mode, failAt, expected] of [
   });
 }
 
-void test("retry refuses existing output without replacing prior measured failure evidence", () => {
-  const f = fixture("refusal", "input");
+void test("retry refuses existing output without replacing prior measured failure evidence", (context) => {
+  const f = fixture(context, "refusal", "input");
   assert.notEqual(f.run().status, 0);
   const path = join(f.output, "proposal-checks", "input-process.json");
   const retained = readFileSync(path);
@@ -380,8 +375,8 @@ void test("retry refuses existing output without replacing prior measured failur
   assertInputsPreserved(f);
 });
 
-void test("proposal cases retain changed and shared-source declarations without claiming reusable qualification", () => {
-  const f = fixture("success", "input", (catalog) => {
+void test("proposal cases retain changed and shared-source declarations without claiming reusable qualification", (context) => {
+  const f = fixture(context, "success", "input", (catalog) => {
     requiredFixture(catalog.ports[0]).adapter = "shared-fixture-adapter";
     requiredFixture(catalog.ports[1]).adapter = "shared-fixture-adapter";
     catalog.source_catalog.contracts = [
@@ -507,8 +502,8 @@ for (const [label, edit, expected] of [
   ],
   ["unchanged batch", () => {}, []],
 ] as const) {
-  void test(`declaration relationship cases distinguish ${label} from unrelated ports`, () => {
-    const f = fixture("success", "input", (catalog: FixtureCatalog) => {
+  void test(`declaration relationship cases distinguish ${label} from unrelated ports`, (context) => {
+    const f = fixture(context, "success", "input", (catalog: FixtureCatalog) => {
       catalog.source_catalog.contracts = [
         {
           id: "frozen-contract",
@@ -541,11 +536,11 @@ for (const [label, edit, expected] of [
   });
 }
 
-void test("many shared references retain exact records with linear report growth", () => {
+void test("many shared references retain exact records with linear report growth", (context) => {
   const sizes: number[] = [];
   for (const count of [16, 128]) {
     const originalClaim = "retained scoped claim ".repeat(3200);
-    const f = fixture("success", "input", (catalog: FixtureCatalog) => {
+    const f = fixture(context, "success", "input", (catalog: FixtureCatalog) => {
       catalog.ports = Array.from({ length: count }, (_, index) => ({
         id: `port-${index}`,
         adapter: "shared-adapter",
