@@ -80,9 +80,40 @@ type Request = {
   catalog_site_expectation?: unknown;
 };
 export interface CapacityOperationOptions {
-  remote?: { configuration: unknown; api: CoordinatorRemoteApi };
+  /** Trusted controller adapter only. A callable is not serialized evidence or
+   * executor authority; the actual private owner must establish those. */
+  remote?:
+    | { configuration: unknown; api: CoordinatorRemoteApi }
+    | { publish: (checkpoint: string) => Promise<{ checkpoint: string }> };
   executorIdentity?: unknown;
   maximumReceipts?: number;
+}
+function freezeCheckpointPublisher(repository: string, raw: CapacityOperationOptions["remote"]) {
+  if (raw === undefined) return null;
+  const keys = Object.keys(raw).sort().join(",");
+  if ("publish" in raw) {
+    if (keys !== "publish" || typeof raw.publish !== "function")
+      throw new Error("one explicit trusted checkpoint publisher required");
+    const publish = raw.publish.bind(raw);
+    return {
+      async publish(checkpoint: string) {
+        const result = await publish(checkpoint);
+        if (!isRecord(result) || result.checkpoint !== checkpoint)
+          throw new Error("checkpoint publisher did not confirm the exact checkpoint");
+      },
+    };
+  }
+  if (keys !== "api,configuration") throw new Error("one explicit remote transport required");
+  const configuration: unknown = structuredClone(raw.configuration);
+  const api = {
+    request: raw.api.request.bind(raw.api),
+    graphql: raw.api.graphql.bind(raw.api),
+  };
+  return {
+    async publish(checkpoint: string) {
+      await publishCoordinatorCheckpoint(repository, checkpoint, configuration, { api });
+    },
+  };
 }
 type PendingEffect = {
   checkpoint: string;
@@ -228,15 +259,7 @@ async function runOperation(
   if (!Number.isInteger(maximumReceipts) || maximumReceipts < 1 || maximumReceipts > 32)
     throw new Error("bounded receipt limit invalid");
   // Freeze the selected mode before any await or caller-provided callback.
-  const remote = options.remote
-    ? {
-        configuration: structuredClone(options.remote.configuration),
-        api: {
-          request: options.remote.api.request.bind(options.remote.api),
-          graphql: options.remote.api.graphql.bind(options.remote.api),
-        },
-      }
-    : null;
+  const remote = freezeCheckpointPublisher(repository, options.remote);
   const recovered = await recoverReleaseOpportunity(repository, expected);
   const input = structuredClone(recovered.input);
   if (
@@ -456,9 +479,7 @@ async function runOperation(
   const publish = async () => {
     if (!remote) return;
     try {
-      await publishCoordinatorCheckpoint(repository, current, remote.configuration, {
-        api: remote.api,
-      });
+      await remote.publish(current);
       durableCheckpoint = current;
     } catch (error) {
       remoteFailed = true;
@@ -612,15 +633,7 @@ export async function recordCapacityReadback(
     options.executorIdentity === undefined
       ? null
       : inspectCapacityExecutorIdentity(structuredClone(options.executorIdentity));
-  const remote = options.remote
-    ? {
-        configuration: structuredClone(options.remote.configuration),
-        api: {
-          request: options.remote.api.request.bind(options.remote.api),
-          graphql: options.remote.api.graphql.bind(options.remote.api),
-        },
-      }
-    : null;
+  const remote = freezeCheckpointPublisher(repository, options.remote);
   const recovered = await recoverReleaseOpportunity(repository, expected);
   const input = structuredClone(recovered.input);
   if (
@@ -658,9 +671,7 @@ export async function recordCapacityReadback(
   };
   const result = await checkpointReleaseOpportunity(repository, expected, input);
   if (remote) {
-    await publishCoordinatorCheckpoint(repository, result.checkpoint, remote.configuration, {
-      api: remote.api,
-    });
+    await remote.publish(result.checkpoint);
     return { ...result, durable_checkpoint: result.checkpoint };
   }
   return result;
@@ -744,15 +755,7 @@ async function recordPublishedComponent(
   if (!published) throw new Error("published metadata result absent");
   const cursor = site === undefined ? undefined : inspectPublishedSite(structuredClone(site));
   if (site !== undefined && !cursor) throw new Error("actual site cursor absent");
-  const remote = options.remote
-    ? {
-        configuration: structuredClone(options.remote.configuration),
-        api: {
-          request: options.remote.api.request.bind(options.remote.api),
-          graphql: options.remote.api.graphql.bind(options.remote.api),
-        },
-      }
-    : null;
+  const remote = freezeCheckpointPublisher(repository, options.remote);
   const recovered = await recoverReleaseOpportunity(repository, expected);
   const input = structuredClone(recovered.input);
   if (
@@ -783,9 +786,7 @@ async function recordPublishedComponent(
   const result = await checkpointReleaseOpportunity(repository, expected, input);
   if (remote) {
     try {
-      await publishCoordinatorCheckpoint(repository, result.checkpoint, remote.configuration, {
-        api: remote.api,
-      });
+      await remote.publish(result.checkpoint);
     } catch (error) {
       throw new CoordinatorRemoteError(
         "published metadata readback retained locally; remote journal handoff requires explicit recovery",

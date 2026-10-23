@@ -45,9 +45,11 @@ import {
   createCheckpointHistoryReader,
 } from "./release-coordinator-journal-api.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import type { CapacityBoundaryReader } from "./release-capacity-operation.mts";
+import type { CapacityOperationOptions } from "./release-capacity-operation.mts";
 import {
   inspectPublishedCatalogMetadata,
   inspectPublishedSite,
@@ -74,6 +76,7 @@ interface PrivateSession {
   identity: CapacityExecutorIdentity;
   observed: number;
   deadline?: number;
+  requiresSignedJournal: boolean;
   journalBinding?: "binding" | "bound" | "stopped";
   journal?: {
     configuration: Awaited<
@@ -85,6 +88,37 @@ interface PrivateSession {
     busy: boolean;
     stopped: boolean;
   };
+}
+/** Refusal-only discriminator, never source admission or authority. Freeze a
+ * selected-profile requirement before authentication awaits, so removing its
+ * live record cannot enable a lingering legacy App credential. The actual
+ * selected getter/history/OIDC checks still establish the usable binding. */
+function selectedJournalRequired() {
+  const environment = { ...process.env };
+  const purpose = inspectControllerExecutionPurpose(environment.PORTCOVE_EXECUTION_PURPOSE);
+  const raw =
+    purpose === "application"
+      ? environment.PORTCOVE_RELEASE_AUTHORITIES
+      : environment.PORTCOVE_CATALOG_AUTHORITIES;
+  if (raw === undefined) return false;
+  if (Buffer.byteLength(raw) > 32768)
+    throw new Error("protected journal configuration exceeds bounds");
+  const record: unknown = JSON.parse(raw);
+  if (!isRecord(record)) throw new Error("protected journal configuration schema differs");
+  if (record.schema_version === 3 || record.kind === "two-app-fixed-jobs-v1") return true;
+  if (
+    purpose === "application" &&
+    (record.schema_version === 1 || record.schema_version === 2) &&
+    !Object.hasOwn(record, "kind")
+  )
+    return false;
+  if (
+    purpose === "catalog-publication" &&
+    record.schema_version === 1 &&
+    record.kind === "catalog-publication-authorities"
+  )
+    return false;
+  throw new Error("protected journal configuration schema differs");
 }
 const sessions = new WeakMap<ExecutorSession, PrivateSession>();
 const audience = "portcove-capacity-executor";
@@ -148,6 +182,7 @@ export async function authenticateCapacityExecutor(
   directory: string,
   deadline?: number,
 ): Promise<ExecutorSession> {
+  const requiresSignedJournal = selectedJournalRequired();
   const expected = inspectAssemblerIdentityExpectation(structuredClone(rawExpected));
   const identity = await observe(role, expected, directory, deadline);
   const session: ExecutorSession = Object.freeze({ kind: "authenticated-capacity-executor" });
@@ -157,6 +192,7 @@ export async function authenticateCapacityExecutor(
     directory,
     identity,
     observed: performance.now(),
+    requiresSignedJournal,
     ...(deadline === undefined ? {} : { deadline }),
   });
   return session;
@@ -677,6 +713,9 @@ async function executeOwnedCapacityEffectWithinScope(
     checkpoint: string;
     operation_id: string;
   }) => Promise<{ remote_identity: string; evidence_sha256: string }>,
+  /** Selected private journal only: existing live controls without a stale
+   * reservation-head assertion. Pending ownership is checked separately below. */
+  beforeCheckpointMutation?: () => Promise<void>,
 ) {
   const value = sessions.get(session);
   if (!value) throw new Error("an actual authenticated executor session is required");
@@ -693,13 +732,47 @@ async function executeOwnedCapacityEffectWithinScope(
   if (state.busy || state.failed)
     throw new Error("executor is busy or stopped; explicit readback/recovery required");
   state.busy = true;
-  const remote = {
-    configuration: input.remote_configuration,
-    api: createCoordinatorJournalApi(value.directory, value.deadline),
-  };
   let ownedId: string | null = null;
   const captured: { completed?: { remote_identity: string; evidence_sha256: string } } = {};
   try {
+    let remote: NonNullable<CapacityOperationOptions["remote"]>;
+    value.requiresSignedJournal ||= selectedJournalRequired();
+    if (value.requiresSignedJournal || value.journalBinding !== undefined) {
+      if (
+        value.journalBinding !== "bound" ||
+        !value.journal ||
+        value.journal.busy ||
+        value.journal.stopped ||
+        value.journal.checkpoint !== input.checkpoint ||
+        typeof beforeCheckpointMutation !== "function" ||
+        inspectCoordinatorRemoteNamespace(input.remote_configuration) !==
+          value.journal.configuration.configuration.namespace
+      )
+        throw new Error(
+          "selected effect requires its exact bound journal and fresh control reader",
+        );
+      const controls = beforeCheckpointMutation;
+      remote = {
+        publish: (checkpoint) =>
+          publishOwnedSignedCoordinatorCheckpoint(session, input.repository, checkpoint, controls),
+      };
+    } else {
+      if (beforeCheckpointMutation !== undefined)
+        throw new Error(
+          "selected checkpoint controls cannot substitute authenticated journal history",
+        );
+      remote = {
+        configuration: input.remote_configuration,
+        api: createCoordinatorJournalApi(value.directory, value.deadline),
+      };
+    }
+    const publish = async (checkpoint: string) => {
+      if ("publish" in remote) await remote.publish(checkpoint);
+      else
+        await publishCoordinatorCheckpoint(input.repository, checkpoint, remote.configuration, {
+          api: remote.api,
+        });
+    };
     const executorIdentity = await refreshCapacityExecutor(session);
     const readOwnedBoundary: CapacityBoundaryReader = async (pending) => {
       if (!pending) return readBoundary();
@@ -726,9 +799,7 @@ async function executeOwnedCapacityEffectWithinScope(
     };
     // Existing transport checks every remote ref and returns only exact public
     // readback; no local checkpoint or public nonce can appoint this executor.
-    await publishCoordinatorCheckpoint(input.repository, input.checkpoint, remote.configuration, {
-      api: remote.api,
-    });
+    await publish(input.checkpoint);
     const perform: Parameters<typeof runBoundedCapacityOperation>[4] = async (
       recordCompleted,
       pending,
@@ -739,12 +810,7 @@ async function executeOwnedCapacityEffectWithinScope(
         throw new Error("actual capacity operation identity unavailable");
       ownedId = pending.operation.id;
       await refreshCapacityExecutor(session);
-      await publishCoordinatorCheckpoint(
-        input.repository,
-        pending.checkpoint,
-        remote.configuration,
-        { api: remote.api },
-      );
+      await publish(pending.checkpoint);
       const receipt = await effect({ checkpoint: pending.checkpoint, operation_id: ownedId });
       if (
         Object.keys(receipt).sort().join(",") !== "evidence_sha256,remote_identity" ||
@@ -793,9 +859,7 @@ async function executeOwnedCapacityEffectWithinScope(
     )
       throw new Error("durable provider handoff is unresolved");
     await refreshCapacityExecutor(session);
-    await publishCoordinatorCheckpoint(input.repository, result.checkpoint, remote.configuration, {
-      api: remote.api,
-    });
+    await publish(result.checkpoint);
     const actual = await recoverReleaseOpportunity(input.repository, result.checkpoint);
     const controller = actual.input.controller;
     const capacity =
@@ -827,6 +891,13 @@ async function executeOwnedCapacityEffectWithinScope(
     };
   } catch (error) {
     state.failed = true;
+    // The existing operation has already retained its best-effort failure
+    // checkpoint. Do not let the same failed executor keep signing through the
+    // direct journal publisher; recovery belongs to a new authenticated job.
+    if (value.requiresSignedJournal || value.journalBinding !== undefined) {
+      value.journalBinding = "stopped";
+      if (value.journal) value.journal.stopped = true;
+    }
     throw error;
   } finally {
     state.busy = false;

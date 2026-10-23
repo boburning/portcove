@@ -12,6 +12,93 @@ import {
 } from "./release-capacity-executor.mts";
 import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
 import { catalogPublicationFixture } from "./fixtures/release-catalog-publication-fixture.mts";
+import { isRecord } from "./runtime-values.mts";
+import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
+
+void test("selected journal refusal discriminator preserves current purpose and rejects malformed downgrade", async (t) => {
+  const { readFile } = await import("node:fs/promises");
+  const { stripTypeScriptTypes } = await import("node:module");
+  const { runInNewContext } = await import("node:vm");
+  const source = await readFile(
+    new URL("./release-capacity-executor.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("function selectedJournalRequired("),
+    end = source.indexOf("const sessions =", start);
+  assert.ok(start > 0 && end > start);
+  const run = (environment: NodeJS.ProcessEnv) =>
+    (
+      runInNewContext(
+        stripTypeScriptTypes(source.slice(start, end)) + "\nselectedJournalRequired",
+        { process: { env: environment }, Buffer, isRecord, inspectControllerExecutionPurpose },
+      ) as () => boolean
+    )();
+  for (const catalog of ['{"schema_version":3}', "malformed unused catalog"]) {
+    await t.test(`default application ignores ${catalog}`, () =>
+      assert.equal(
+        run({
+          PORTCOVE_RELEASE_AUTHORITIES: '{"schema_version":1}',
+          PORTCOVE_CATALOG_AUTHORITIES: catalog,
+        }),
+        false,
+      ),
+    );
+  }
+  await t.test("catalog ignores unrelated application configuration", () =>
+    assert.equal(
+      run({
+        PORTCOVE_EXECUTION_PURPOSE: "catalog-publication",
+        PORTCOVE_CATALOG_AUTHORITIES:
+          '{"schema_version":1,"kind":"catalog-publication-authorities"}',
+        PORTCOVE_RELEASE_AUTHORITIES: "malformed unused application",
+      }),
+      false,
+    ),
+  );
+  await t.test("application cannot use the legacy catalog discriminator", () =>
+    assert.throws(() =>
+      run({
+        PORTCOVE_EXECUTION_PURPOSE: "application",
+        PORTCOVE_RELEASE_AUTHORITIES:
+          '{"schema_version":1,"kind":"catalog-publication-authorities"}',
+      }),
+    ),
+  );
+  await t.test("catalog cannot use an application-only legacy discriminator", () =>
+    assert.throws(() =>
+      run({
+        PORTCOVE_EXECUTION_PURPOSE: "catalog-publication",
+        PORTCOVE_CATALOG_AUTHORITIES: '{"schema_version":2}',
+      }),
+    ),
+  );
+  await t.test("unknown purpose refuses", () =>
+    assert.throws(
+      () =>
+        run({
+          PORTCOVE_EXECUTION_PURPOSE: "unknown",
+          PORTCOVE_RELEASE_AUTHORITIES: '{"schema_version":1}',
+        }),
+      /publication purpose/,
+    ),
+  );
+  for (const raw of [
+    "null",
+    "[]",
+    '"text"',
+    "{}",
+    '{"schema_version":4}',
+    '{"schema_version":1,"kind":"unknown"}',
+  ])
+    await t.test(`malformed selected record ${raw} refuses`, () =>
+      assert.throws(() => run({ PORTCOVE_RELEASE_AUTHORITIES: raw })),
+    );
+  await t.test("absent selected record remains legacy", () => assert.equal(run({}), false));
+  for (const raw of ['{"schema_version":3}', '{"kind":"two-app-fixed-jobs-v1"}'])
+    await t.test(`selected marker ${raw} requires binding`, () =>
+      assert.equal(run({ PORTCOVE_RELEASE_AUTHORITIES: raw }), true),
+    );
+});
 void test("catalog effects require explicit catalog subject and independently appointed matching role", async () => {
   const catalog_publication = catalogPublicationFixture();
   for (const name of ["definitions", "policy", "snapshot", "timestamp"] as const) {
