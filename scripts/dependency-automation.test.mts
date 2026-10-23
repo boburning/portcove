@@ -110,7 +110,7 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
     "yaml",
   ]);
   assert.equal(repositoryPackage.devDependencies["@resvg/resvg-js"], "2.6.2");
-  for (const signingTool of ["@sigstore/bundle", "@sigstore/sign"]) {
+  for (const signingTool of ["@sigstore/bundle", "@sigstore/sign"] as const) {
     assert.equal(repositoryPackage.devDependencies[signingTool], "5.0.0");
     assert.equal(Object.hasOwn(desktopPackage.dependencies, signingTool), false);
     assert.equal(Object.hasOwn(desktopPackage.devDependencies, signingTool), false);
