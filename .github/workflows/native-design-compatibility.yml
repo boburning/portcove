@@ -81,7 +81,7 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - uses: ./.github/actions/setup-rust
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           cache-on-failure: true
           key: native-design-compatibility-${{ inputs.runner }}-${{ hashFiles('Cargo.lock') }}
@@ -218,7 +218,7 @@ jobs:
         id: media_preparation
         timeout-minutes: 15
         run: node scripts/desktop-linux-media.mts --prepare
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           key: linux-package-boundary
           cache-on-failure: true
@@ -475,7 +475,7 @@ jobs:
         shell: pwsh
         run: node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT
       - name: Provision existing pinned prebuilt quality tools
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2
         with:
           tool: ${{ steps.native-quality-pins.outputs.required_prebuilt }}
       - name: Install locked packages and existing pinned native tools
@@ -711,18 +711,18 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Install source pinned rscheck
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2
         with:
           tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
         id: local-aqua
         working-directory: source
         run: echo "version=$(tr -d '\r\n' < .aqua-version)" >> "$GITHUB_OUTPUT"
-      - uses: aquaproj/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329 # v4.1.0
+      - uses: aquaproj/aqua-installer@611554c6f0137ba41c8dd15aca8bee82504ea461 # v4.1.1
         with:
           aqua_version: ${{ steps.local-aqua.outputs.version }}
           enable_aqua_install: "false"
@@ -791,18 +791,18 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Install source pinned rscheck
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2
         with:
           tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
         id: local-aqua
         working-directory: source
         run: echo "version=$(tr -d '\r\n' < .aqua-version)" >> "$GITHUB_OUTPUT"
-      - uses: aquaproj/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329 # v4.1.0
+      - uses: aquaproj/aqua-installer@611554c6f0137ba41c8dd15aca8bee82504ea461 # v4.1.1
         with:
           aqua_version: ${{ steps.local-aqua.outputs.version }}
           enable_aqua_install: "false"
@@ -869,18 +869,18 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Install source pinned rscheck
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2
         with:
           tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
         id: local-aqua
         working-directory: source
         run: echo "version=$(tr -d '\r\n' < .aqua-version)" >> "$GITHUB_OUTPUT"
-      - uses: aquaproj/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329 # v4.1.0
+      - uses: aquaproj/aqua-installer@611554c6f0137ba41c8dd15aca8bee82504ea461 # v4.1.1
         with:
           aqua_version: ${{ steps.local-aqua.outputs.version }}
           enable_aqua_install: "false"
@@ -947,18 +947,18 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Install source pinned rscheck
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2
         with:
           tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
         id: local-aqua
         working-directory: source
         run: echo "version=$(tr -d '\r\n' < .aqua-version)" >> "$GITHUB_OUTPUT"
-      - uses: aquaproj/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329 # v4.1.0
+      - uses: aquaproj/aqua-installer@611554c6f0137ba41c8dd15aca8bee82504ea461 # v4.1.1
         with:
           aqua_version: ${{ steps.local-aqua.outputs.version }}
           enable_aqua_install: "false"
