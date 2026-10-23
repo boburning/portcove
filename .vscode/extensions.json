@@ -1,8 +1,0 @@
-{
-  "recommendations": [
-    "VoidZero.vite-plus-extension-pack",
-    "editorconfig.editorconfig",
-    "rust-lang.rust-analyzer",
-    "tamasfe.even-better-toml"
-  ]
-}

@@ -1,0 +1,136 @@
+{
+  "format_version": 1,
+  "issue": 2404,
+  "repository": "boburning/portcove",
+  "controller_branch": "test/onboarding-native-2404",
+  "source": "f5e9172aae3e812c53d6b492489c23c7dafa6e67",
+  "base": "9dfe09c08e9f88d7bbaaf7a7368f0ea53da1e8c0",
+  "runner": "windows-2022",
+  "node": "24.22.1",
+  "rust": "1.99.1",
+  "build": [
+    "build",
+    "--release",
+    "--locked",
+    "--no-default-features",
+    "-p",
+    "portcove-cli",
+    "--bin",
+    "portcove"
+  ],
+  "build_invocation": [
+    "node",
+    "scripts/dev-storage.mts",
+    "run",
+    "--scope",
+    "rust",
+    "--",
+    "node",
+    "scripts/run-rust-tests.mts",
+    "--guard-command",
+    "cargo",
+    "build",
+    "--release",
+    "--locked",
+    "--no-default-features",
+    "-p",
+    "portcove-cli",
+    "--bin",
+    "portcove"
+  ],
+  "build_jobs": 2,
+  "port_id": "fragglet-sdl-sopwith",
+  "artifact": {
+    "release_id": 268043256,
+    "asset_id": 325276947,
+    "release_tag": "sdl-sopwith-2.9.0",
+    "name": "sdl-sopwith-2.9.0-win64.zip",
+    "size": 1142869,
+    "sha256": "b664b5fac5feac3f3a23b7082909d9280a95ae40cc7f8daeff089b191bcc746c",
+    "download_url": "https://github.com/fragglet/sdl-sopwith/releases/download/sdl-sopwith-2.9.0/sdl-sopwith-2.9.0-win64.zip"
+  },
+  "executable": "sopwith.exe",
+  "arguments": [
+    "-n",
+    "-q"
+  ],
+  "package_files": [
+    {
+      "path": "COPYING.html",
+      "bytes": 23845,
+      "sha256": "60826bb2d6e270bc0e19d008a311c7301edbac14f1b2e59bffdcaa69887f0859"
+    },
+    {
+      "path": "Configuration.html",
+      "bytes": 11927,
+      "sha256": "4cb6557205bed7e1ee3bc93c5feaea1839acc6d43a397003dbaf7aaeecd307c3"
+    },
+    {
+      "path": "FAQ.html",
+      "bytes": 9336,
+      "sha256": "f378d22aab0a154a0268c84a8b8edf76d4a49e28354e2bf8bb7bbcfcf0410629"
+    },
+    {
+      "path": "Manual.html",
+      "bytes": 19948,
+      "sha256": "3956e2a3b29aad6698ddee037d4bc2f18aae11b62bbf8cf516621c65e7a27890"
+    },
+    {
+      "path": "Mission.html",
+      "bytes": 23085,
+      "sha256": "40a49f6ad424f0cacae674a5a6165d26f602beaa7d7c68bf7b388c8765b0cc22"
+    },
+    {
+      "path": "NEWS.html",
+      "bytes": 29309,
+      "sha256": "a50233445ab29b3634fb9d9e0fe68ac9ac2d50cc0825604b15ba3c3179a9f9b5"
+    },
+    {
+      "path": "README.html",
+      "bytes": 6329,
+      "sha256": "1db6362850ec49699dac11820a138e77ad22cb9bc01fc64167dba6c3743d373b"
+    },
+    {
+      "path": "SDL2.dll",
+      "bytes": 2397184,
+      "sha256": "12cb5ab3f3023ec2990a2552d847354c1cedc75369e293e8ae9d3fe165f36e32"
+    },
+    {
+      "path": "sopwith.exe",
+      "bytes": 239616,
+      "sha256": "0930401eccd11ec04c1db726042470da547bd90bf8d267d129a6e48db22c40b6"
+    }
+  ],
+  "journey": [
+    "fresh isolated Library, preferences, user profile and external destination",
+    "production CLI candidates and exact preview; independently assert reviewed package and destination",
+    "production CLI reviewed download with extraction; verify all nine upstream files and retain the new handoff receipt",
+    "review and register the explicit sopwith.exe / working directory / literal -n and -q arguments",
+    "production exec with a fresh request UUID; read running record; bind supervisor and game process identities",
+    "capture actual pixels of the owned foreground game window; ordinary close; positive game and CLI exit proof; terminal succeeded record",
+    "fresh CLI readiness; preserve the old runtime and make a byte-checked qualification-owned copy",
+    "review and apply selected-runtime relink to the copy; second exec, screenshot, ordinary close and terminal result",
+    "fresh post-game inventory of both runtime trees, the isolated profile and the actual Windows Roaming AppData SDL Sopwith subtree; reviewed registration-only removal; exact inventory equality"
+  ],
+  "bounds_seconds": {
+    "build": 2400,
+    "command": 180,
+    "launch_ready": 45,
+    "window_ready": 20,
+    "supervisor_exit": 30,
+    "native_helper": 20
+  },
+  "evidence": "existing native-backup-evidence.mts emit-hosted codec; ordinary job logs only; no Actions artifacts or caches",
+  "claim": "Real production CLI download, registration, Windows launch/window/normal close, restart readiness, relink and file-preserving registration removal for these exact bytes on the recorded hosted image. Screenshots require independent inspection. No gameplay, Desktop/Tauri, installer, minimum-OS or protected publication claim.",
+  "storage_scope": {
+    "actual_known_folder": "Roaming ApplicationData/SDL Sopwith",
+    "precondition": "Absent before launch on this disposable runner; no harness writes or cleanup of this subtree.",
+    "comparison": "Record existence plus bounded directory/file inventories after games exit and after registration removal.",
+    "other_scopes": [
+      "original runtime",
+      "relinked runtime copy",
+      "isolated child profile"
+    ],
+    "limit": "Only these observed scopes; no whole-profile preservation claim."
+  }
+}

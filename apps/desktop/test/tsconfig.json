@@ -1,6 +1,0 @@
-{
-  "extends": "../scripts/tsconfig.json",
-  "compilerOptions": { "types": ["node", "vite/client"] },
-  "include": ["*.mts"],
-  "exclude": []
-}
