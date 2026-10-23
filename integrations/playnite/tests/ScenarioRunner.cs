@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.IO;
+using System.Reflection;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 
 // Sequential fixture ownership: each action completes its existing cleanup/drain
@@ -72,6 +74,8 @@ internal static class ScenarioRunner
         }
         var failed = false;
         var executed = 0;
+        var invocation = Guid.NewGuid().ToString("N");
+        string sourceDigest = null;
         foreach (var scenario in scenarios.Where(value => selected.Count == 0 || selected.Contains(value.Id)))
         {
             var before = checks();
@@ -98,8 +102,16 @@ internal static class ScenarioRunner
             {
                 if (reportingControl && scenario.Id == "control-failure")
                     throw new IOException("Intentional scenario reporting failure.");
+                // Hash the exact executed assembly, rather than claiming that
+                // a mutable checkout describes a previously compiled binary.
+                if (sourceDigest == null) sourceDigest = AssemblyDigest();
                 Console.WriteLine("SCENARIO " + Json.Print(new {
                     format_version = 1, kind = "playnite-contract-scenario", id = scenario.Id,
+                    invocation_id = invocation, runner = "Portcove.ContractTests",
+                    source = new { kind = "compiled-contract-assembly", sha256 = sourceDigest },
+                    platform = Environment.OSVersion.Platform.ToString(),
+                    process_bits = Environment.Is64BitProcess ? 64 : 32,
+                    runtime_version = Environment.Version.ToString(),
                     status = failure != null ? "failed" : skip != null ? "skipped" : "passed",
                     elapsed_ms = timer.ElapsedMilliseconds, checks = checks() - before,
                     skip_reason = skip == null ? null : Bounded(skip),
@@ -123,6 +135,17 @@ internal static class ScenarioRunner
         }
         Console.WriteLine((failed ? "FAIL " : "PASS ") + checks() + " reference-client contract checks");
         return failed ? 1 : 0;
+    }
+
+    private static string AssemblyDigest()
+    {
+        using (var stream = File.OpenRead(Assembly.GetExecutingAssembly().Location))
+        using (var digest = SHA256.Create())
+        {
+            if (stream.Length > 16 * 1024 * 1024)
+                throw new IOException("Contract assembly exceeds reporting identity boundary.");
+            return string.Concat(digest.ComputeHash(stream).Select(value => value.ToString("x2")));
+        }
     }
 
     private static string Bounded(string value) => value.Length > 2048 ? value.Substring(0, 2048) : value;

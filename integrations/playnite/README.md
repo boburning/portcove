@@ -372,6 +372,28 @@ lifecycle qualification and packaging. Without both `-Cli` and an isolated
 Selecting only that unavailable consumer returns a failed aggregate because no
 scenario executed; listing names remains a successful metadata operation.
 
+Each scenario also carries its runner name, a per-invocation join ID, execution
+platform, process bitness and CLR version. The source identity explicitly hashes
+the executed contract assembly (`source.kind = compiled-contract-assembly`),
+rather than attributing an old binary to the current checkout. The same
+invocation ID and assembly digest join its passed, skipped and failed scenarios;
+independent runner processes receive different invocation IDs. Reporting identity
+failures use the existing failed-reporting path and cannot mask original failures
+or stop later independent scenarios. Controls compare the digest with the actual
+executable and reject changed join, source, platform, runner and runtime metadata.
+These are synthetic C# process contracts, with no Playnite-host, native-app or
+installed-package acceptance claim.
+
+The `qualification-*` consumer phases also use the same reporting path, with one
+named scenario per invocation and their original arguments, assertions and exit
+outcome. Names over 128 characters receive the explicit
+`qualification-unrecognized-mode` reporting identity; the original action still
+refuses the unknown mode. Runner controls exercise successful measurement,
+wrong-library and missing-argument dispatch with the existing synthetic CLI.
+Their `RUNNER_QUALIFICATION_CONTROL_OUTPUT` prefix keeps those results separate
+from actual Rust-producer lifecycle qualification. The fake CLI and `argv`
+service modes remain transport fixtures, not test scenarios.
+
 Full contract checks also run separate intentional failure, continuation and
 reporting-failure controls. Their retained output has a `RUNNER_CONTROL_OUTPUT`
 or `RUNNER_REPORTING_CONTROL_OUTPUT` prefix; skipped-only controls use
