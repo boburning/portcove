@@ -3,7 +3,6 @@ import type {
   ValidationChange,
   ValidationChangeInput,
   ValidationPlan,
-  ValidationPlatform,
 } from "./validation-plan.mts";
 import { errorCode, errorMessage, isRecord } from "./runtime-values.mts";
 import type { PostmergeReuseBinding } from "./postmerge-ci.mts";
@@ -31,36 +30,9 @@ import {
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
 const fullSha = /^[a-f0-9]{40}$/u;
-const platformRunners = Object.freeze({
-  "linux-x86_64": "ubuntu-22.04",
-  "macos-aarch64": "macos-15",
-  "macos-x86_64": "macos-15-intel",
-  "windows-x86_64": "windows-latest",
-});
-
 export { isInformationalPath };
-
-export function fastPlatformMatrix(plan: Pick<ValidationPlan, "platforms">) {
-  if (!plan || !Array.isArray(plan.platforms)) throw new Error("validation platforms are missing");
-  const platforms: readonly ValidationPlatform[] = plan.platforms;
-  return platforms
-    .filter((platform) => platform !== "primary-host")
-    .map((platform) => {
-      const runner = platformRunners[platform];
-      if (!runner) throw new Error(`validation platform has no runner: ${platform}`);
-      return { platform, runner };
-    });
-}
-
-export function qualificationMatrices(plan: ValidationPlan) {
-  const platforms = fastPlatformMatrix(plan);
-  return {
-    native: platforms
-      .filter(({ platform }) => platform === "linux-x86_64" || platform === "macos-aarch64")
-      .map((entry) => ({ ...entry, partition: "hash:1/1" })),
-    docs: platforms,
-  };
-}
+export { fastPlatformMatrix, qualificationMatrices } from "./validation-platforms.mts";
+import { fastPlatformMatrix, qualificationMatrices } from "./validation-platforms.mts";
 
 function normalizePath(value: unknown) {
   if (

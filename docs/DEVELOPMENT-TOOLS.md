@@ -1721,6 +1721,17 @@ envelope require an explicit custody review and expectation update. Unstaged
 workflow/recipe/registry edits cannot conceal an incomplete commit. The check
 does not modify either tree; normal staged formatting follows only after success.
 
+`node scripts/qualification-coverage.mts` validates the parsed workflow against
+the maintained qualification inventory. Supported conditions are normalized outside
+string literals. The actual pure matrix producer is checked against independent
+platform/runner/partition tuples, then connected to active workflow consumers and
+the protected aggregates' dependencies and result bindings. Display names and
+comments cannot satisfy coverage. The reviewed Windows shard dispatch has a
+pinned source oracle because it is executable PowerShell; changing its partition
+logic requires updating that expectation after review. YAML layout and folded
+equivalent conditions do not change the inventory. Actionlint retains ownership
+of the broader GitHub expression and workflow syntax checks.
+
 Native helper dependencies are declared in
 `scripts/native-helper-dependencies.mts`. Literal PowerShell dot-source imports
 and wrapper imports are checked against the declaration (using the Windows
