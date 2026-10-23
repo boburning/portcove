@@ -19,6 +19,7 @@ import type {
   HealthRequestOptions,
 } from "./check-catalog-repositories.mts";
 import { collectRepositoryHealth, renderRepositoryHealth } from "./check-catalog-repositories.mts";
+import reviewedHealthAccounting from "../.github/upstream-health-accounting.json" with { type: "json" };
 import os from "node:os";
 import path from "node:path";
 import {
@@ -2712,6 +2713,16 @@ void test("live upstream health has bounded independent triggers while catalog s
       "scripts/check-catalog-repositories.mts",
       "scripts/check-retcomm-upstreams.mts",
       "scripts/upstream-health-plan.mts",
+      "scripts/upstream-health-inputs.mts",
+      "scripts/upstream-health-monitor.mts",
+      "scripts/upstream-health-*.test.mts",
+      "scripts/upstream-lineage.mts",
+      "scripts/observe-configured-upstream.mts",
+      "scripts/release-path-safety.mts",
+      "scripts/runtime-values.mts",
+      "scripts/json-values.mts",
+      "scripts/select-ci-plan.mts",
+      ".github/upstream-health-accounting.json",
       ".node-version",
       ".github/workflows/upstream-health.yml",
     ]) {
@@ -2725,22 +2736,51 @@ void test("live upstream health has bounded independent triggers while catalog s
   assert.match(health, /PR_BASE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
   assert.match(health, /PR_HEAD_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/);
   assert.match(health, /fetch-depth: 0/);
-  assert.match(health, /full\) node scripts\/check-catalog-repositories\.mts ;;/);
-  assert.match(
-    health,
-    /node scripts\/check-catalog-repositories\.mts --port-ids="\$HEALTH_PORT_IDS"/,
-  );
-  assert.match(health, /node scripts\/check-catalog-repositories\.mts --port-ids= ;;/);
-  assert.match(health, /Missing or invalid upstream health scope/);
-  assert.match(
-    health,
-    /steps\.scope\.outcome == 'success' && steps\.scope\.outputs\.retcomm == 'true'/,
-  );
-  assert.match(health, /full\) node scripts\/check-retcomm-upstreams\.mts ;;/);
+  assert.match(health, /run: node scripts\/upstream-health-monitor\.mts/);
+  assert.match(health, /HEALTH_MODE: \$\{\{ steps\.scope\.outputs\.mode \}\}/);
+  assert.match(health, /HEALTH_PORT_IDS: \$\{\{ steps\.scope\.outputs\.port_ids \}\}/);
+  assert.match(health, /!cancelled\(\) && steps\.monitor\.outputs\.retcomm == 'true'/);
   assert.match(
     health,
     /node scripts\/check-retcomm-upstreams\.mts --port-ids="\$RETCOMM_PORT_IDS"/,
   );
+  assert.match(health, /RETCOMM_PORT_IDS: \$\{\{ steps\.monitor\.outputs\.retcomm_port_ids \}\}/);
+  const document = parseDocument(health, { uniqueKeys: true });
+  assert.deepEqual(document.errors, []);
+  const parsed: unknown = document.toJS();
+  assert.ok(isRecord(parsed) && isRecord(parsed.jobs));
+  const job = parsed.jobs["upstream-health"];
+  assert.ok(isRecord(job) && Array.isArray(job.steps));
+  const steps: unknown[] = job.steps;
+  const monitor = steps.find((entry) => isRecord(entry) && entry.id === "monitor");
+  assert.ok(isRecord(monitor));
+  assert.equal(monitor.if, "${{ !cancelled() }}");
+  const step = (name: string) => {
+    const entry: unknown = steps.find((value) => isRecord(value) && value.name === name);
+    assert.ok(isRecord(entry) && isRecord(entry.with), `Missing workflow step: ${name}`);
+    return { uses: entry.uses, if: entry.if, with: entry.with };
+  };
+  const restore = step("Restore main observation history");
+  const save = step("Preserve trusted main observation history");
+  const upload = step("Retain monitoring report");
+  assert.equal(restore.uses, "actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9");
+  assert.equal(save.uses, "actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9");
+  assert.equal(restore.with.path, "work/upstream-health/checkpoint.json");
+  assert.equal(save.with.path, restore.with.path);
+  assert.equal(restore.with["restore-keys"], "upstream-health-history-v1-main-");
+  assert.equal(save.with.key, restore.with.key);
+  assert.ok(typeof save.if === "string");
+  assert.match(save.if, /!cancelled\(\)/);
+  assert.match(save.if, /github\.repository == 'boburning\/portcove'/);
+  assert.match(save.if, /github\.ref == 'refs\/heads\/main'/);
+  assert.match(save.if, /github\.event_name != 'pull_request'/);
+  assert.match(save.if, /steps\.monitor\.outputs\.checkpoint_updated == 'true'/);
+  assert.equal(upload.if, "${{ !cancelled() }}");
+  assert.ok(typeof upload.with.path === "string");
+  assert.match(upload.with.path, /work\/upstream-health\/report\.json/);
+  assert.match(upload.with.path, /work\/upstream-health\/summary\.md/);
+  assert.doesNotMatch(upload.with.path, /checkpoint\.json/);
+  assert.equal(upload.with["retention-days"], 7);
   const release = await readFile(
     new URL("../.github/workflows/release.yml", import.meta.url),
     "utf8",
@@ -3976,25 +4016,37 @@ void test("export refuses links and oversized evidence instead of silently dropp
   void test("prior health reports cannot forward malformed comparison metadata", async () => {
     const input = catalog(port("limited"));
     const first = await collect(input, async () => response({}, 429, { "retry-after": "120" }));
-    const prior: unknown = structuredClone(first);
-    assert.ok(isRecord(prior) && Array.isArray(prior.observations));
-    const entries: unknown[] = prior.observations;
-    const location = requiredFixture(entries[0]);
-    assert.ok(isRecord(location));
-    location.http_status = { private: "untrusted prior metadata" };
-    location.comparison_http_status = "429";
-    location.comparison_observed_at = { private: "untrusted prior clock" };
-    const report = await collect(
-      input,
-      async () => assert.fail("deferred provider was requested"),
-      {
-        previousReport: prior,
-      },
-    );
-    const observed = requiredFixture(report.observations[0]);
-    assert.equal(observed.comparison_http_status, null);
-    assert.equal(observed.comparison_observed_at, first.completed_at);
-    assert.doesNotMatch(JSON.stringify(report), /untrusted prior/);
+    assert.equal(first.format_version, 3);
+    for (const [field, value] of [
+      ["http_status", { private: "untrusted prior metadata" }],
+      ["comparison_http_status", "429"],
+      ["comparison_observed_at", { private: "untrusted prior clock" }],
+    ] as const) {
+      const prior: unknown = structuredClone(first);
+      assert.ok(isRecord(prior) && Array.isArray(prior.observations));
+      const entries: unknown[] = prior.observations;
+      const location = requiredFixture(entries[0]);
+      assert.ok(isRecord(location));
+      location[field] = value;
+      let calls = 0;
+      await assert.rejects(
+        collect(
+          input,
+          async () => {
+            calls++;
+            assert.fail("invalid prior metadata reached live collection");
+          },
+          { previousReport: prior },
+        ),
+        (error: unknown) => {
+          assert.ok(error instanceof Error);
+          assert.match(error.message, /Invalid historical health comparison/);
+          assert.doesNotMatch(error.message, /untrusted prior/);
+          return true;
+        },
+      );
+      assert.equal(calls, 0);
+    }
   });
 
   void test("stable port coverage deduplicates shared GitHub repositories without merging providers", async () => {
@@ -4087,12 +4139,23 @@ void test("export refuses links and oversized evidence instead of silently dropp
   });
 
   void test("project-only prepared runtimes observe their upstream without claiming artifact delivery", async () => {
+    const reviewed = requiredFixture(
+      reviewedHealthAccounting.pins.find(
+        (pin) => pin.repository === "sergiomanzur/regaiden-recomp",
+      ),
+    );
     const report = await collect(
       catalog({
         id: "resident-evil-gaiden-recomp",
         project_url: "https://github.com/sergiomanzur/regaiden-recomp",
         release: { provider: "user-prepared" },
       }),
+      async () =>
+        response({
+          id: reviewed.repository_id,
+          full_name: reviewed.repository,
+          archived: false,
+        }),
     );
     assert.equal(report.outcome, "complete");
     assert.equal(report.coverage.monitored_ports, 1);
@@ -4100,6 +4163,7 @@ void test("export refuses links and oversized evidence instead of silently dropp
     const observed = requiredFixture(report.observations[0]);
     assert.equal(observed.repository, "sergiomanzur/regaiden-recomp");
     assert.equal(observed.status, "reachable");
+    assert.equal(observed.observed_repository_id, reviewed.repository_id);
     assert.deepEqual(observed.release_providers, ["user-prepared"]);
     assert.deepEqual(observed.original_upstream_port_ids, ["resident-evil-gaiden-recomp"]);
     for (const claim of ["upstream-continuity", "accepted-artifact-availability"])
@@ -4359,7 +4423,22 @@ void test("export refuses links and oversized evidence instead of silently dropp
       const preload = path.join(dir, "fetch.mjs");
       await writeFile(
         preload,
-        `const catalog=JSON.parse(await (await import('node:fs/promises')).readFile('crates/portcove-core/catalog/catalog.json','utf8'));
+        `const {readFile}=await import('node:fs/promises');
+    const catalog=JSON.parse(await readFile('crates/portcove-core/catalog/catalog.json','utf8'));
+    const accounting=${JSON.stringify(reviewedHealthAccounting)};
+    const repositoryIds=new Map([...accounting.pins,...accounting.source_archives].map(pin=>['github.com/'+pin.repository.toLowerCase(),pin.repository_id]));
+    const {assessUpstreamLineage}=await import(${JSON.stringify(new URL("./upstream-lineage.mts", import.meta.url).href)});
+    for(const port of catalog.ports) {
+      let record;
+      try { record=JSON.parse(await readFile('crates/portcove-core/catalog/ports/'+port.id+'.json','utf8')); }
+      catch(error) { if(error.code==='ENOENT') continue; throw error; }
+      if(!record.upstream_lineage) continue;
+      const {current}=assessUpstreamLineage(record);
+      if(current.repository) {
+        const project=new URL(current.project_url);
+        repositoryIds.set(project.host+'/'+project.pathname.slice(1).toLowerCase(),Number(current.repository.id));
+      }
+    }
     const pins=new Map(catalog.ports.flatMap(port=>Object.values(port.release.direct??{}).map(pin=>[pin.url,pin.size])));
     let calls=0; globalThis.fetch=async(url,options)=>{
       if(process.env.HEALTH_FIXTURE_FAILURE==='yes' && ++calls===1) throw new Error('private fixture error');
@@ -4374,7 +4453,9 @@ void test("export refuses links and oversized evidence instead of silently dropp
         return new Response(JSON.stringify({id:2,tag_name:tag,assets:github?digests:{links:digests}}),{headers:{'content-type':'application/json'}});
       }
       const github=url.startsWith('https://api.github.com/');
-      return new Response(JSON.stringify({id:1,archived:false,...(github?{full_name:url.split('/repos/')[1]}:{path_with_namespace:decodeURIComponent(url.split('/projects/')[1])})}),{headers:{'content-type':'application/json'}});
+      const repository=decodeURIComponent(github?url.split('/repos/')[1]:url.split('/projects/')[1]);
+      const id=repositoryIds.get((github?'github.com/':'gitlab.com/')+repository.toLowerCase())??1;
+      return new Response(JSON.stringify({id,archived:false,...(github?{full_name:repository}:{path_with_namespace:repository})}),{headers:{'content-type':'application/json'}});
     };`,
       );
       const realCatalog: unknown = JSON.parse(
