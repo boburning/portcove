@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
-$event = Get-Content -LiteralPath $env:GITHUB_EVENT_PATH -Raw | ConvertFrom-Json
-if ($event.repository.full_name -cne 'boburning/portcove' -or $event.repository.private -ne $false) { throw 'The existing public repository is required.' }
+$workflowEvent = Get-Content -LiteralPath $env:GITHUB_EVENT_PATH -Raw | ConvertFrom-Json
+if ($workflowEvent.repository.full_name -cne 'boburning/portcove' -or $workflowEvent.repository.private -ne $false) { throw 'The existing public repository is required.' }
 # A fixed, secret-free observation on an existing disposable public runner.
 # This is unrelated to protected release-controller eligibility or publication.
 if ($env:GITHUB_ACTIONS -cne 'true' -or $env:GITHUB_REPOSITORY -cne 'boburning/portcove' -or

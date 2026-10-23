@@ -50,7 +50,7 @@ function Assert-Process($Identity) {
     } finally { $process.Dispose() }
 }
 function Assert-Game {
-    $driver = Assert-Process $snapshot.driver
+    [void](Assert-Process $snapshot.driver)
     $game = Assert-Process $record
     if (-not [string]::Equals($game.path, $applicationFull, [StringComparison]::OrdinalIgnoreCase) -or
         (Get-FileHash -LiteralPath $applicationFull -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ApplicationSha256) { throw 'Reviewed game executable changed.' }
