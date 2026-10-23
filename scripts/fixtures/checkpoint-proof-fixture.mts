@@ -9,6 +9,7 @@ import { capacityExecutorJobProfile } from "../assembler-job-identity.mts";
 import type { CapacityExecutorRole } from "../assembler-job-identity.mts";
 import type { CheckpointProducerExpectation } from "../release-coordinator-checkpoint-authentication.mts";
 import type { GitHubRestReader } from "../github-api.mts";
+import { nativeQualificationFixture } from "./native-qualification-fixture.mts";
 
 type Checkpoint = Awaited<ReturnType<typeof exportCoordinatorCheckpoint>>;
 const actor = {
@@ -174,5 +175,88 @@ export function fixedJobJournalAuthoritiesFixture() {
       protection_observer: { app_id: 202, installation_id: 1002 },
     },
     journal_seed: { checkpoint: "c".repeat(40), state_sha256: "d".repeat(64) },
+  };
+}
+
+/** Inert configuration, not actual App appointment, native observation or keys. */
+export function selectedPublicationAuthoritiesFixture(
+  purpose: "application" | "catalog-publication",
+) {
+  const journal = fixedJobJournalAuthoritiesFixture();
+  const common = { schema_version: 4 as const, kind: "two-app-fixed-jobs-v1" as const, journal };
+  if (purpose === "catalog-publication")
+    return {
+      ...common,
+      purpose,
+      catalog: {
+        setup_plan_sha256: journal.setup_plan_sha256,
+        public_source: {
+          commit: "a".repeat(40),
+          root: { path: "public/catalog-root.json", bytes: 2, sha256: "b".repeat(64) },
+          offline_targets: {
+            path: "public/catalog-targets.json",
+            bytes: 2,
+            sha256: "c".repeat(64),
+          },
+        },
+        publisher_scope: [
+          {
+            namespace: "official",
+            stable_id: "fixture",
+            template: "staged-source-portable",
+            repository_id: 123,
+            artifact_hosts: ["github.com", "release-assets.githubusercontent.com"],
+            max_redirects: 2,
+            operations: ["install", "update", "prepare", "launch"],
+            policy_schemas: [1, 2, 3, 4],
+          },
+        ],
+      },
+    };
+  const native = nativeQualificationFixture();
+  const platform = (windows: boolean) => ({
+    producer: {
+      source_commit: native.producer.source_commit,
+      source_tree: native.producer.source_tree,
+      harness: native.producer.harness,
+    },
+    engine: {
+      name: windows ? "WebView2" : "WebKitGTK",
+      minimum_version: windows ? "155.0.4283.62" : "2.52.6",
+    },
+    minimum_platform: windows ? "windows-11-26h2-x64" : "ubuntu-24.04-x64",
+    compatibility: {
+      ...native.compatibility,
+      minimum_os_version: windows ? "10.0.26200" : "24.04",
+    },
+  });
+  return {
+    ...common,
+    purpose,
+    native_prepublication_profile: "signed-package-compatibility-v1",
+    hosted_native: { "windows-x86_64": platform(true), "linux-x86_64": platform(false) },
+    publication: {
+      setup_plan_sha256: journal.setup_plan_sha256,
+      initial_site_preimage_sha256: "8".repeat(64),
+      public_source: {
+        commit: "a".repeat(40),
+        root: { path: "public/application-root.json", bytes: 2, sha256: "d".repeat(64) },
+        offline_targets: {
+          path: "public/application-targets.json",
+          bytes: 2,
+          sha256: "e".repeat(64),
+        },
+        payload_key_registry: {
+          path: "public/payload-registry.json",
+          bytes: 2,
+          sha256: "f".repeat(64),
+        },
+        initial_site_preimage: {
+          path: "public/site-preimage.json",
+          bytes: 2,
+          sha256: "8".repeat(64),
+        },
+      },
+    },
   };
 }

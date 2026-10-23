@@ -56,6 +56,7 @@ import { performance } from "node:perf_hooks";
 import {
   checkpointProofFixture,
   fixedJobJournalAuthoritiesFixture,
+  selectedPublicationAuthoritiesFixture,
 } from "./fixtures/checkpoint-proof-fixture.mts";
 import { authenticateCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-authentication.mts";
 import { publishCoordinatorSigningExchange } from "./release-coordinator-signing-exchange.mts";
@@ -4878,6 +4879,7 @@ async function selectedOwnedHistoryFixture(
   captureDirectory?: string,
   bind = true,
   purpose: "application" | "catalog-publication" = "application",
+  fullScope = false,
 ) {
   const f = await remoteFixture(t);
   const bare = path.join(f.repository, "selected-empty.git");
@@ -4901,6 +4903,9 @@ async function selectedOwnedHistoryFixture(
     checkpoint: seed.checkpoint,
     state_sha256: createHash("sha256").update(checkpoint.blob.contents).digest("hex"),
   };
+  const authorityRecord = fullScope
+    ? { ...selectedPublicationAuthoritiesFixture(purpose), journal: authorities }
+    : authorities;
   const expected = {
     ...identityExpected,
     run_attempt: 1,
@@ -4928,7 +4933,7 @@ async function selectedOwnedHistoryFixture(
     revision: expected.controller_revision,
     execution_ref: expected.controller_ref,
     actor_id: expected.actor_id,
-    authority_configuration_sha256: capacityDigest(authorities),
+    authority_configuration_sha256: capacityDigest(authorityRecord),
     grant_sha256: "f".repeat(64),
     workflow_sha256: createHash("sha256").update(bytes).digest("hex"),
   };
@@ -4938,7 +4943,7 @@ async function selectedOwnedHistoryFixture(
     ACTIONS_ID_TOKEN_REQUEST_TOKEN: "inert-oidc-bearer",
     PORTCOVE_EXECUTION_PURPOSE: purpose,
     [purpose === "application" ? "PORTCOVE_RELEASE_AUTHORITIES" : "PORTCOVE_CATALOG_AUTHORITIES"]:
-      JSON.stringify(authorities),
+      JSON.stringify(authorityRecord),
     [purpose === "application"
       ? "PORTCOVE_CONTROLLER_ADMISSION"
       : "PORTCOVE_CATALOG_CONTROLLER_ADMISSION"]: JSON.stringify(policy),
@@ -5076,11 +5081,12 @@ async function selectedEffectFixture(
   t: test.TestContext,
   purpose: "application" | "catalog-publication" = "application",
   applicationReservation = purpose === "application",
+  fullScope = true,
 ) {
   const actualSpawn = childProcess.spawnSync;
   const custody = await mkdtemp(path.join(os.homedir(), ".portcove-owned-effect-test-"));
   t.after(() => rm(custody, { recursive: true, force: true }));
-  const f = await selectedOwnedHistoryFixture(t, custody, true, purpose);
+  const f = await selectedOwnedHistoryFixture(t, custody, true, purpose, fullScope);
   const oldFetch = globalThis.fetch;
   const sigstore = assemblerIdentityFixture(
     { aud: "sigstore", sub: f.expected.subject, environment: "production-release-coordinator" },
@@ -5316,6 +5322,8 @@ for (const component of ["application", "catalog"] as const) {
       const f = await selectedEffectFixture(
         t,
         component === "catalog" ? "catalog-publication" : "application",
+        component === "application",
+        true,
       );
       const metadata = metadataFixture();
       const descriptor = catalogPublicationFixture();
@@ -5490,6 +5498,172 @@ for (const component of ["application", "catalog"] as const) {
         assert.equal(retained.input.catalog_publication, null);
         assert.equal(retained.input.published_metadata, undefined);
       }
+    },
+  );
+}
+
+for (const route of [
+  "effect",
+  "operation-recovery",
+  "application-recovery",
+  "catalog-recovery",
+  "late-upgrade",
+] as const) {
+  void test(
+    `journal-only selected custody cannot authorize ${route}`,
+    {
+      timeout: 180000,
+      skip:
+        process.platform !== "linux" || process.getuid?.() === 0
+          ? "default signing custody requires an ordinary native Linux owner"
+          : false,
+    },
+    async (t) => {
+      const f = await selectedEffectFixture(
+        t,
+        route === "catalog-recovery" ? "catalog-publication" : "application",
+        true,
+        false,
+      );
+      if (route === "late-upgrade") {
+        const journal: unknown = JSON.parse(process.env.PORTCOVE_RELEASE_AUTHORITIES!);
+        const full = { ...selectedPublicationAuthoritiesFixture("application"), journal };
+        process.env.PORTCOVE_RELEASE_AUTHORITIES = JSON.stringify(full);
+        const policy: unknown = JSON.parse(process.env.PORTCOVE_CONTROLLER_ADMISSION!);
+        assert.ok(isRecord(policy));
+        policy.authority_configuration_sha256 = capacityDigest(full);
+        process.env.PORTCOVE_CONTROLLER_ADMISSION = JSON.stringify(policy);
+      }
+      let effects = 0,
+        controls = 0;
+      const calls = f.traffic.calls;
+      const posts = f.posts.length;
+      const checkpoint = f.remote.refs.get(f.remote.stateRef);
+      const input = {
+        repository: f.bare,
+        checkpoint: f.reserved.checkpoint,
+        remote_configuration: f.remote.config,
+      };
+      const read = async (): Promise<never> => {
+        effects++;
+        throw new Error("journal-only provider readback must not run");
+      };
+      const control = async () => {
+        controls++;
+      };
+      await assert.rejects(
+        route === "operation-recovery"
+          ? recoverOwnedCapacityEffect(f.session, input, read, undefined, control)
+          : route === "application-recovery"
+            ? recoverOwnedPublishedMetadata(f.session, input, read, undefined, control)
+            : route === "catalog-recovery"
+              ? recoverOwnedPublishedCatalogMetadata(f.session, input, read, undefined, control)
+              : executeOwnedCapacityEffect(
+                  f.session,
+                  {
+                    repository: f.bare,
+                    checkpoint: f.reserved.checkpoint,
+                    remote_configuration: f.remote.config,
+                    request: {
+                      kind: "dispatch",
+                      destination: "github-actions:boburning/portcove:release.yml:dispatch",
+                    },
+                  },
+                  async () => {
+                    controls++;
+                    return capacityFixture().boundary;
+                  },
+                  async () => {
+                    effects++;
+                    return {
+                      remote_identity: "inert-should-be-refused",
+                      evidence_sha256: "d".repeat(64),
+                    };
+                  },
+                  async () => {
+                    controls++;
+                  },
+                ),
+        /full selected publication scope/,
+      );
+      assert.equal(effects, 0);
+      assert.equal(controls, 0);
+      assert.equal(f.traffic.calls, calls);
+      assert.equal(f.posts.length, posts);
+      assert.equal(f.faults.originalJobReads, 0);
+      assert.equal(f.remote.refs.get(f.remote.stateRef), checkpoint);
+      await assert.rejects(
+        publishOwnedSignedCoordinatorCheckpoint(f.session, f.bare, f.reserved.checkpoint, control),
+        /stopped/,
+      );
+    },
+  );
+}
+
+for (const reratified of [false, true]) {
+  void test(
+    `full selected publication pin drift ${reratified ? "reratified during session" : "unratified"} cannot borrow unchanged journal custody`,
+    {
+      timeout: 180000,
+      skip:
+        process.platform !== "linux" || process.getuid?.() === 0
+          ? "default signing custody requires an ordinary native Linux owner"
+          : false,
+    },
+    async (t) => {
+      const f = await selectedEffectFixture(t, "application", true, true);
+      const raw: unknown = JSON.parse(process.env.PORTCOVE_RELEASE_AUTHORITIES!);
+      assert.ok(
+        isRecord(raw) &&
+          isRecord(raw.publication) &&
+          isRecord(raw.publication.public_source) &&
+          isRecord(raw.publication.public_source.root),
+      );
+      const commonBefore = capacityDigest(raw.journal);
+      raw.publication.public_source.root.sha256 = "0".repeat(64);
+      assert.equal(capacityDigest(raw.journal), commonBefore);
+      process.env.PORTCOVE_RELEASE_AUTHORITIES = JSON.stringify(raw);
+      if (reratified) {
+        const policy: unknown = JSON.parse(process.env.PORTCOVE_CONTROLLER_ADMISSION!);
+        assert.ok(isRecord(policy));
+        policy.authority_configuration_sha256 = capacityDigest(raw);
+        process.env.PORTCOVE_CONTROLLER_ADMISSION = JSON.stringify(policy);
+      }
+      const posts = f.posts.length;
+      let effects = 0;
+      await assert.rejects(
+        executeOwnedCapacityEffect(
+          f.session,
+          {
+            repository: f.bare,
+            checkpoint: f.reserved.checkpoint,
+            remote_configuration: f.remote.config,
+            request: {
+              kind: "dispatch",
+              destination: "github-actions:boburning/portcove:release.yml:dispatch",
+            },
+          },
+          async () => capacityFixture().boundary,
+          async () => {
+            effects++;
+            return { remote_identity: "must-not-run", evidence_sha256: "d".repeat(64) };
+          },
+          async () => {},
+        ),
+        reratified ? /source\/configuration changed/ : /ratification/,
+      );
+      assert.equal(effects, 0);
+      assert.equal(f.posts.length, posts);
+      assert.equal(f.remote.refs.get(f.remote.stateRef), f.reserved.checkpoint);
+      await assert.rejects(
+        publishOwnedSignedCoordinatorCheckpoint(
+          f.session,
+          f.bare,
+          f.reserved.checkpoint,
+          async () => {},
+        ),
+        /stopped/,
+      );
     },
   );
 }

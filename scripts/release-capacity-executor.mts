@@ -709,6 +709,13 @@ function ownedCheckpointTransport(
     )
       throw new Error("selected effect requires its exact bound journal and fresh control reader");
     if (purpose !== undefined) assertOwnedPublicationPurpose(value, purpose);
+    const fullScope = value.journal.configuration.authority_configuration_sha256;
+    if (
+      typeof fullScope !== "string" ||
+      !/^[a-f0-9]{64}$/.test(fullScope) ||
+      fullScope !== value.journal.configuration.source.authority_configuration_sha256
+    )
+      throw new Error("full selected publication scope required before effects or recovery");
     const controls = beforeCheckpointMutation;
     remote = {
       publish: (checkpoint) =>

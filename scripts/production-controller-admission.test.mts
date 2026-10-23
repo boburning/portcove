@@ -20,8 +20,15 @@ import {
   inspectFixedJobJournalAuthorities,
   inspectBoundFixedJobJournalAuthorities,
   requireControllerFixedJobJournalAuthorities,
+  inspectSelectedPublicationAuthorityConfiguration,
+  inspectBoundSelectedPublicationAuthorities,
+  requireControllerSelectedApplicationAuthorities,
+  requireControllerSelectedCatalogAuthorities,
 } from "./release-authority-configuration.mts";
-import { fixedJobJournalAuthoritiesFixture } from "./fixtures/checkpoint-proof-fixture.mts";
+import {
+  fixedJobJournalAuthoritiesFixture,
+  selectedPublicationAuthoritiesFixture,
+} from "./fixtures/checkpoint-proof-fixture.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import {
   capacityExecutorRolesForPurpose,
@@ -62,6 +69,254 @@ const environment = {
   PORTCOVE_CONTROLLER_REF: "refs/tags/portcove-production-controller-fixture",
 };
 const raw = JSON.stringify(policy);
+
+void test("full selected scopes have separate purpose digests and the same custody-only journal projection", () => {
+  const app = inspectSelectedPublicationAuthorityConfiguration(
+    selectedPublicationAuthoritiesFixture("application"),
+  );
+  const catalog = inspectSelectedPublicationAuthorityConfiguration(
+    selectedPublicationAuthoritiesFixture("catalog-publication"),
+  );
+  assert.deepEqual(app.journal, catalog.journal);
+  assert.notEqual(releaseCanonicalDigest(app), releaseCanonicalDigest(catalog));
+  assert.deepEqual(Object.keys(app.journal.apps).sort(), ["protection_observer", "semantic"]);
+  for (const value of [app, catalog]) {
+    assert.throws(() => inspectFixedJobJournalAuthorities(value));
+    assert.throws(() => inspectReleaseAuthorityConfiguration(value));
+    assert.throws(() => inspectCatalogAuthorityConfiguration(value));
+    const source = {
+      mode:
+        value.purpose === "application"
+          ? "bounded-application-release"
+          : "bounded-catalog-publication",
+      authority_configuration_sha256: releaseCanonicalDigest(value),
+      grant_sha256: "f".repeat(64),
+    };
+    const bound = inspectBoundSelectedPublicationAuthorities(value, source, value.purpose);
+    assert.equal(bound.journal_configuration_sha256, releaseCanonicalDigest(app.journal));
+    assert.equal(bound.configuration_sha256, source.authority_configuration_sha256);
+    assert.throws(
+      () =>
+        inspectBoundSelectedPublicationAuthorities(
+          value,
+          { ...source, authority_configuration_sha256: bound.journal_configuration_sha256 },
+          value.purpose,
+        ),
+      /ratification/,
+    );
+    assert.throws(() =>
+      inspectBoundSelectedPublicationAuthorities(
+        value,
+        { ...source, mode: "admission-only" },
+        value.purpose,
+      ),
+    );
+    assert.throws(() =>
+      inspectBoundSelectedPublicationAuthorities(
+        value,
+        source,
+        value.purpose === "application" ? "catalog-publication" : "application",
+      ),
+    );
+    assert.throws(() =>
+      inspectBoundSelectedPublicationAuthorities(
+        value,
+        { ...source, grant_sha256: "invalid" },
+        value.purpose,
+      ),
+    );
+  }
+  assert.throws(() => inspectSelectedPublicationAuthorityConfiguration(app.journal));
+});
+
+void test("selected full scope refuses obsolete App roles, weaker native floors and changed publisher boundaries", () => {
+  const app = selectedPublicationAuthoritiesFixture("application");
+  assert.ok(app.purpose === "application");
+  const catalog = selectedPublicationAuthoritiesFixture("catalog-publication");
+  assert.ok(catalog.purpose === "catalog-publication");
+  const windows = app.hosted_native["windows-x86_64"];
+  const linux = app.hosted_native["linux-x86_64"];
+  for (const changed of [
+    { ...app, schema_version: 3 },
+    { ...app, kind: "generic-actions" },
+    { ...app, purpose: "all" },
+    { ...app, purpose: "catalog-publication" },
+    { ...catalog, purpose: "application" },
+    { ...catalog, purpose: ["application"] },
+    { ...catalog, purpose: ["catalog-publication"] },
+    { ...app, apps: { dispatch: app.journal.apps.semantic } },
+    {
+      ...app,
+      journal: {
+        ...app.journal,
+        apps: { ...app.journal.apps, dispatch: app.journal.apps.semantic },
+      },
+    },
+    { ...app, native_prepublication_profile: "report-only" },
+    { ...app, publication: { ...app.publication, setup_plan_sha256: "0".repeat(64) } },
+    { ...catalog, catalog: { ...catalog.catalog, setup_plan_sha256: "0".repeat(64) } },
+    {
+      ...app,
+      hosted_native: {
+        ...app.hosted_native,
+        "windows-x86_64": {
+          ...windows,
+          engine: { ...windows.engine, minimum_version: "155.0.4283.61" },
+        },
+      },
+    },
+    {
+      ...app,
+      hosted_native: {
+        ...app.hosted_native,
+        "linux-x86_64": { ...linux, engine: { ...linux.engine, minimum_version: "2.52.5" } },
+      },
+    },
+    {
+      ...app,
+      hosted_native: {
+        ...app.hosted_native,
+        "linux-x86_64": { ...linux, minimum_platform: "ubuntu-22.04-x64" },
+      },
+    },
+    {
+      ...app,
+      hosted_native: {
+        ...app.hosted_native,
+        "windows-x86_64": { ...windows, account: { password: "must-not-be-accepted" } },
+      },
+    },
+    {
+      ...app,
+      hosted_native: {
+        ...app.hosted_native,
+        "windows-x86_64": {
+          ...windows,
+          compatibility: { ...windows.compatibility, cli_protocol: { min: 2, max: 1 } },
+        },
+      },
+    },
+    {
+      ...catalog,
+      catalog: {
+        ...catalog.catalog,
+        publisher_scope: [{ ...catalog.catalog.publisher_scope[0], namespace: "unreviewed" }],
+      },
+    },
+    {
+      ...catalog,
+      catalog: {
+        ...catalog.catalog,
+        publisher_scope: [{ ...catalog.catalog.publisher_scope[0], max_redirects: 6 }],
+      },
+    },
+    {
+      ...catalog,
+      catalog: {
+        ...catalog.catalog,
+        publisher_scope: [{ ...catalog.catalog.publisher_scope[0], policy_schemas: [5] }],
+      },
+    },
+  ])
+    assert.throws(() => inspectSelectedPublicationAuthorityConfiguration(changed));
+  const source = {
+    mode: "bounded-application-release",
+    authority_configuration_sha256: releaseCanonicalDigest(app),
+    grant_sha256: "f".repeat(64),
+  };
+  const changed = {
+    ...app,
+    publication: {
+      ...app.publication,
+      public_source: {
+        ...app.publication.public_source,
+        root: { ...app.publication.public_source.root, sha256: "1".repeat(64) },
+      },
+    },
+  };
+  assert.deepEqual(changed.journal, app.journal);
+  assert.throws(
+    () => inspectBoundSelectedPublicationAuthorities(changed, source, "application"),
+    /ratification/,
+  );
+});
+
+void test("actual full selected readers bind their own frozen source while journal readers retain only common custody", async (t) => {
+  const workflow = await readFile(
+    new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+  );
+  const app = selectedPublicationAuthoritiesFixture("application");
+  const catalog = selectedPublicationAuthoritiesFixture("catalog-publication");
+  assert.ok(app.purpose === "application" && catalog.purpose === "catalog-publication");
+  const bounded = {
+    ...policy,
+    schema_version: 2,
+    mode: "bounded-application-release",
+    authority_configuration_sha256: releaseCanonicalDigest(app),
+    grant_sha256: "f".repeat(64),
+    workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
+  };
+  const runtime = {
+    ...environment,
+    GITHUB_JOB: "coordinator",
+    PORTCOVE_EXECUTION_PURPOSE: "application",
+    PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(app),
+    PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify(bounded),
+    PORTCOVE_CATALOG_AUTHORITIES: "unavailable unused catalog record",
+    PORTCOVE_CATALOG_CONTROLLER_ADMISSION: "unavailable unused catalog policy",
+  };
+  const before = new Map(Object.keys(runtime).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, runtime);
+  t.after(() => {
+    for (const [key, value] of before)
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+  });
+  t.mock.method(globalThis, "fetch", () => {
+    throw new Error("configuration source binding must not mint or infer live OIDC acceptance");
+  });
+  const full = await requireControllerSelectedApplicationAuthorities("coordinator");
+  assert.deepEqual(full.configuration, app);
+  const journal = await requireControllerFixedJobJournalAuthorities("coordinator");
+  assert.deepEqual(journal.configuration, app.journal);
+  assert.equal(journal.configuration_sha256, full.journal_configuration_sha256);
+  assert.equal(journal.authority_configuration_sha256, full.configuration_sha256);
+  await assert.rejects(requireControllerSelectedCatalogAuthorities("coordinator"));
+  process.env.PORTCOVE_EXECUTION_PURPOSE = "catalog-publication";
+  process.env.PORTCOVE_CATALOG_AUTHORITIES = JSON.stringify(catalog);
+  process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION = JSON.stringify({
+    ...bounded,
+    mode: "bounded-catalog-publication",
+    authority_configuration_sha256: releaseCanonicalDigest(catalog),
+    grant_sha256: "e".repeat(64),
+  });
+  process.env.PORTCOVE_RELEASE_AUTHORITIES = "unavailable unused application record";
+  const other = await requireControllerSelectedCatalogAuthorities("coordinator");
+  const common = await requireControllerFixedJobJournalAuthorities("coordinator");
+  assert.equal(common.configuration_sha256, journal.configuration_sha256);
+  assert.notEqual(other.configuration_sha256, full.configuration_sha256);
+  await assert.rejects(requireControllerSelectedApplicationAuthorities("coordinator"));
+  await assert.rejects(requireControllerFixedJobJournalAuthorities("payload-signing"));
+  process.env.PORTCOVE_CATALOG_AUTHORITIES = JSON.stringify({
+    ...catalog,
+    catalog: {
+      ...catalog.catalog,
+      public_source: {
+        ...catalog.catalog.public_source,
+        root: { ...catalog.catalog.public_source.root, sha256: "1".repeat(64) },
+      },
+    },
+  });
+  await assert.rejects(requireControllerFixedJobJournalAuthorities("coordinator"), /ratification/);
+  process.env.PORTCOVE_CATALOG_AUTHORITIES = JSON.stringify(catalog.journal);
+  process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION = JSON.stringify({
+    ...bounded,
+    mode: "bounded-catalog-publication",
+    authority_configuration_sha256: releaseCanonicalDigest(catalog.journal),
+  });
+  await requireControllerFixedJobJournalAuthorities("coordinator");
+  await assert.rejects(requireControllerSelectedCatalogAuthorities("coordinator"));
+});
 
 void test("selected journal profile has exactly two distinct Apps and cannot satisfy legacy release or catalog authority", () => {
   const configuration = fixedJobJournalAuthoritiesFixture();

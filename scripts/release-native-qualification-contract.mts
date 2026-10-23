@@ -323,27 +323,7 @@ export function inspectNativeReleaseQualification(raw: unknown) {
       capture_sha256: hex(raw.runtime.teardown.capture_sha256),
     },
   };
-  exact(
-    raw.compatibility,
-    "catalog_formats,cli_protocol,library,minimum_os_version,required_capabilities",
-  );
-  exact(raw.compatibility.library, "lock_protocol,read,write_schema");
-  const compatibility = {
-    minimum_os_version: text(raw.compatibility.minimum_os_version, 128),
-    required_capabilities: unique(
-      raw.compatibility.required_capabilities,
-      (v) => text(v, 128),
-      32,
-      0,
-    ),
-    cli_protocol: range(raw.compatibility.cli_protocol),
-    catalog_formats: unique(raw.compatibility.catalog_formats, positive),
-    library: {
-      read: range(raw.compatibility.library.read),
-      write_schema: positive(raw.compatibility.library.write_schema),
-      lock_protocol: text(raw.compatibility.library.lock_protocol, 128),
-    },
-  };
+  const compatibility = inspectNativeQualificationCompatibility(raw.compatibility);
   const requiredScenarios = temporal
     ? journey && "kind" in journey
       ? nativeInitialPackageScenarios
@@ -391,3 +371,20 @@ export function inspectNativeReleaseQualification(raw: unknown) {
   };
 }
 export type NativeReleaseQualification = ReturnType<typeof inspectNativeReleaseQualification>;
+
+/** Shared static compatibility contract; parsing establishes no native observation. */
+export function inspectNativeQualificationCompatibility(raw: unknown) {
+  exact(raw, "catalog_formats,cli_protocol,library,minimum_os_version,required_capabilities");
+  exact(raw.library, "lock_protocol,read,write_schema");
+  return {
+    minimum_os_version: text(raw.minimum_os_version, 128),
+    required_capabilities: unique(raw.required_capabilities, (v) => text(v, 128), 32, 0),
+    cli_protocol: range(raw.cli_protocol),
+    catalog_formats: unique(raw.catalog_formats, positive),
+    library: {
+      read: range(raw.library.read),
+      write_schema: positive(raw.library.write_schema),
+      lock_protocol: text(raw.library.lock_protocol, 128),
+    },
+  };
+}
