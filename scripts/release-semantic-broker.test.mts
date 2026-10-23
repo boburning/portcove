@@ -206,7 +206,7 @@ void test("full installation observation refuses wrong identity, broad selection
 });
 
 void test("full installation observation retains ambiguous mint and partial responses without retry or positive result", async () => {
-  for (const fault of ["mint-transport", "mint-partial", "oversized"]) {
+  for (const fault of ["mint-transport", "mint-partial", "oversized", "non-byte"]) {
     const f = fullInstallationFixture();
     const transport: typeof fetch = async (url, options) => {
       if (fault === "mint-transport" && options?.method === "POST") {
@@ -230,6 +230,15 @@ void test("full installation observation retains ambiguous mint and partial resp
         );
       if (fault === "oversized" && typeof url === "string" && url.endsWith("/app"))
         return new Response("x".repeat(65537));
+      if (fault === "non-byte" && typeof url === "string" && url.endsWith("/app"))
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue("inert non-byte body");
+              controller.close();
+            },
+          }),
+        );
       return response;
     };
     await assert.rejects(
@@ -244,10 +253,12 @@ void test("full installation observation retains ambiguous mint and partial resp
     assert(!f.registration.privateFiles.has("result.json"));
     assert.equal(
       f.calls.filter((c) => c.options.method === "POST").length,
-      fault === "oversized" ? 0 : 1,
+      fault === "oversized" || fault === "non-byte" ? 0 : 1,
     );
     assert(
-      f.registration.privateFiles.has(fault === "oversized" ? "app.json" : "token-response.json"),
+      f.registration.privateFiles.has(
+        fault === "oversized" || fault === "non-byte" ? "app.json" : "token-response.json",
+      ),
     );
   }
 });

@@ -82,10 +82,13 @@ export async function observeHostedAppInstallationScope(
           complete = true;
           break;
         }
-        const kept = part.value.subarray(0, maximumBody - length);
+        const chunk: unknown = part.value;
+        if (!(chunk instanceof Uint8Array))
+          throw new Error("installation response is not byte data");
+        const kept = chunk.subarray(0, maximumBody - length);
         chunks.push(Buffer.from(kept));
         length += kept.length;
-        if (kept.length !== part.value.length) break;
+        if (kept.length !== chunk.length) break;
         active();
       }
     } catch {
