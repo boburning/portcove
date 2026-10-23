@@ -103,6 +103,85 @@ it("plays the distinct duplicate port from details and returns to its filtered r
     .toBe(originId);
 });
 
+it("names discovery cards from their visible distinguishing identity and readiness", async () => {
+  await page.viewport(1366, 768);
+  await mount();
+  await page.getByRole("button", { name: "Find games", exact: true }).click();
+  const card = page.getByRole("button", {
+    name: /^Super Mario 64 Mario modern port · Modern renderer Ready to play/,
+  });
+  await expect.element(card).toHaveAccessibleName(/Ready to play.*Stable/);
+  const element = card.element();
+  expect(element.textContent?.match(/Modern renderer/g)).toHaveLength(1);
+  expect(
+    element.querySelector(".collection-actions")!.getBoundingClientRect().bottom,
+  ).toBeLessThanOrEqual(innerHeight);
+  await card.click();
+  await expect
+    .element(page.getByText("Port project: Mario modern port · Modern renderer", { exact: true }))
+    .toBeVisible();
+});
+
+it("keeps Favorites in the entry menu and restores filter focus when its last result disappears", async () => {
+  await page.viewport(1366, 768);
+  await mount();
+  const favorite = vi.spyOn(desktopApi, "setPortFavorite");
+  const more = page.getByRole("button", {
+    name: "More actions for Super Mario 64 · sm64-port",
+    exact: true,
+  });
+  await more.click();
+  await userEvent.keyboard("{ArrowDown}");
+  await expect
+    .element(page.getByRole("menuitem", { name: "Add to favorites", exact: true }))
+    .toHaveFocus();
+  await userEvent.keyboard("{Enter}");
+  await expect.poll(() => favorite.mock.calls[0]).toEqual(["collection-0", true, 1]);
+  const filter = page.getByRole("button", { name: "Favorites (1)", exact: true });
+  await filter.click();
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(1);
+  await more.click();
+  await page.getByRole("menuitem", { name: "Remove from favorites", exact: true }).click();
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(0);
+  await expect
+    .element(page.getByRole("button", { name: "Favorites (0)", exact: true }))
+    .toHaveFocus();
+  expect(favorite.mock.calls[1]).toEqual(["collection-0", false, 1]);
+});
+
+it("shares the narrow filter row without losing query, independent readiness or view controls", async () => {
+  await page.viewport(320, 768);
+  await mount("light");
+  const search = page.getByRole("textbox", { name: "Search your library" });
+  await search.fill("Super Mario 64");
+  const favorites = page.getByRole("button", { name: "Favorites (0)", exact: true }).element();
+  const filters = page.getByRole("button", { name: "Filters (0)", exact: true }).element();
+  expect(
+    Math.abs(favorites.getBoundingClientRect().top - filters.getBoundingClientRect().top),
+  ).toBeLessThanOrEqual(2);
+  await page.getByRole("button", { name: "Compact rows", exact: true }).click();
+  await expect.poll(() => document.querySelectorAll(".collection-row").length).toBe(2);
+  await expect.element(search).toHaveValue("Super Mario 64");
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth);
+});
+
+it("keeps compatibility facts visible while disclosing project history on detail", async () => {
+  await page.viewport(1366, 768);
+  await mount();
+  await page
+    .getByRole("button", { name: "View details for Super Mario 64 Port: sm64-port", exact: true })
+    .click();
+  await expect.element(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
+  const disclosure = page.getByText("Project and compatibility details", { exact: true });
+  expect(disclosure.element().closest("details")?.open).toBe(false);
+  await disclosure.click();
+  await expect.element(page.getByText("Upstream project", { exact: true })).toBeVisible();
+  await expect
+    .element(page.getByRole("heading", { name: "Recorded checks", exact: true }))
+    .toBeVisible();
+  expect(document.body.textContent).not.toContain("No current check");
+});
+
 it("reopens Last played and restores its exact details trigger after Back", async () => {
   await page.viewport(1366, 768);
   const snapshot = workspace("collection");

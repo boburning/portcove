@@ -1,0 +1,145 @@
+{
+  "relevantUiDiffEmpty": true,
+  "limitations": [
+    "Browser production React renderer, not native host or real game operations",
+    "Sizing selection cannot be confirmed without native host; browser remains at 100%"
+  ],
+  "pickup": "d21b70316e5add275b5468e54307b536f7126045",
+  "baselineEvidence": "E:/Codex-Evidence/portcove-prototype-audit-2026-10-22/manifest.json",
+  "auditBaseline": "ea4dc2c38bafacac06419208a7441f943403cff5",
+  "fixture": "collection, 12 entries, simulated transport, embed=1",
+  "sources": [
+    {
+      "path": "apps/desktop/src/components/PortBrowser.tsx",
+      "sha256": "1e8c562fbff3ac3a359881ed84636f285eb8dc4e383cbffda9bcf81f91b0e9f5"
+    },
+    {
+      "path": "apps/desktop/src/components/DetailPanel.tsx",
+      "sha256": "3720fd3bffa7cbbf0fdf7a0f63d23417980381b3e7fd5bc364ff922d3869cdec"
+    },
+    {
+      "path": "apps/desktop/src/components/Chrome.tsx",
+      "sha256": "f14e61781478b79f774cbfae79c09709641bce4a117a648b4760c7bbd3bfd250"
+    },
+    {
+      "path": "apps/desktop/src/components/LanguageSettings.tsx",
+      "sha256": "706b00774415697092749f760165f2b6327fb79bab5c12869bfc7c2d02193610"
+    },
+    {
+      "path": "apps/desktop/src/components/GameFileLibraries.tsx",
+      "sha256": "d6fc4e15a43f65dba97fc2c2b036bdf4cd060615551cf4280fc012a913760f6e"
+    },
+    {
+      "path": "apps/desktop/src/components/AddGames.tsx",
+      "sha256": "5410e4e337b604a573ccb853941ffa0cdfe9c4ad5f6b1b03c1b5b94566a063c3"
+    },
+    {
+      "path": "apps/desktop/src/styles/collection.css",
+      "sha256": "b2be070fa1b633a4d4bbf19e8c1d1fe9863f4ec03bee2a86cebe58bc281ca062"
+    }
+  ],
+  "captures": [
+    {
+      "path": "add-games-dark.jpg",
+      "sha256": "5df123e1a8a2dce232258627fc17ce99b0bff76eef754095bf051cf5d97eb5af",
+      "inspected": "individual full-size visual review",
+      "method": "CUA browser capture; explicit viewport clip"
+    },
+    {
+      "path": "baseline-app-discovery-dark-1366.jpg",
+      "sha256": "afff877f8649910bf2ab8834379a039bf7aeaad6faf4fdde61eabe739fb09a48",
+      "inspected": "individual full-size visual review",
+      "method": "CUA browser capture; explicit viewport clip"
+    },
+    {
+      "path": "baseline-app-library-dark-1366.jpg",
+      "sha256": "0f5b8e04f0fd780a93725c03d6fe89ce097e0ddf8575f2df58b67ea8c55ff80f",
+      "inspected": "individual full-size visual review",
+      "method": "CUA browser capture; explicit viewport clip"
+    },
+    {
+      "path": "baseline-app-library-light-1366.jpg",
+      "sha256": "fb7a4d4366ad5f4c6f396947b1ba75cba721f40b26137c42f79e8bdd6427b483",
+      "inspected": "individual full-size visual review",
+      "method": "CUA browser capture; explicit viewport clip"
+    },
+    {
+      "path": "detail-about-dark.jpg",
+      "sha256": "f74c80f8ebeeb64ab2a90ea2bdedc48c6502ed4cc911c1f834bf372e13bc0296",
+      "inspected": "individual full-size visual review",
+      "method": "CUA browser capture; explicit viewport clip"
+    },
+    {
+      "path": "detail-dark.jpg",
+      "sha256": "75c23fcb8d12181f3b76545fe523d086c3410308344e964709de0cb3987cc96b",
+      "inspected": "individual full-size visual review",
+      "method": "CUA browser capture; explicit viewport clip"
+    },
+    {
+      "path": "discovery-dark-1366.jpg",
+      "sha256": "334be6f96f5215eba67be36c4de312b1ee703706f827c7919a02eb9f066c0e34",
+      "inspected": "individual full-size visual review",
+      "method": "CUA browser capture; explicit viewport clip"
+    },
+    {
+      "path": "discovery-light-1366.jpg",
+      "sha256": "c6a6c11f16a15953290d333629deeedcdc56305334cd73739cd9c8ec3849d902",
+      "inspected": "individual full-size visual review",
+      "method": "CUA browser capture; explicit viewport clip"
+    },
+    {
+      "path": "library-dark-1366.jpg",
+      "sha256": "db7a124eeed7327922a77aecf5a15cf5b011228236f0d9180e979cacc6ab1750",
+      "inspected": "individual full-size visual review",
+      "method": "CUA browser capture; explicit viewport clip"
+    },
+    {
+      "path": "library-dark-1600.jpg",
+      "sha256": "ee2208f873a9713374c1f37b11bdbdbfab28540b270837fc53f7d5d75602a2c9",
+      "inspected": "individual full-size visual review",
+      "method": "CUA browser capture; explicit viewport clip"
+    },
+    {
+      "path": "library-dark-960.jpg",
+      "sha256": "99e7103e0bf5adada92856c4321a67aa3f7de4bc6d16b9d39e76c8b1060389e6",
+      "inspected": "individual full-size visual review",
+      "method": "CUA browser capture; explicit viewport clip"
+    },
+    {
+      "path": "library-light-1366.jpg",
+      "sha256": "c001ce6f66dbd621c94dcf3efc98cc81aa58b8ef3bcfe9d45840f0ce432cb2b8",
+      "inspected": "individual full-size visual review",
+      "method": "CUA browser capture; explicit viewport clip"
+    },
+    {
+      "path": "library-narrow-dark.jpg",
+      "sha256": "be702ee383bbb4fd52f2ecb9f2d4bb9928461cb0f0d52d5e0c1ecd81677662a7",
+      "inspected": "individual full-size visual review",
+      "method": "CUA browser capture; explicit viewport clip"
+    },
+    {
+      "path": "rows-dark-1600.jpg",
+      "sha256": "e5c39400f434a240c622d3e4abfc78d027cf0a644602c75ca935a397b28365f6",
+      "inspected": "individual full-size visual review",
+      "method": "CUA browser capture; explicit viewport clip"
+    },
+    {
+      "path": "rows-dark-960.jpg",
+      "sha256": "9b5b44012ae9c57546d17e3a90998231de5d9978ffaea6150a2add8237cdb618",
+      "inspected": "individual full-size visual review",
+      "method": "CUA browser capture; explicit viewport clip"
+    },
+    {
+      "path": "settings-appearance-dark.jpg",
+      "sha256": "f11e8ee689594073a19a5f66907fa5fb22677c2946d11bd52bdb6ffaca2fd8a1",
+      "inspected": "individual full-size visual review",
+      "method": "CUA browser capture; explicit viewport clip"
+    },
+    {
+      "path": "settings-files-light.jpg",
+      "sha256": "f1561fec3580b17c069ee0001665f5d52bcabd7b2027bd82acece31ff013089a",
+      "inspected": "individual full-size visual review",
+      "method": "CUA browser capture; explicit viewport clip"
+    }
+  ]
+}

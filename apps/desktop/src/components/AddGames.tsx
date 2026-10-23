@@ -71,7 +71,7 @@ export function AddGames({
       >
         <li aria-current={!port ? "step" : undefined}>Choose a game or files</li>
         <li aria-current={port ? "step" : undefined}>Check requirements</li>
-        <li>Review changes before preparing</li>
+        <li>Review before continuing</li>
       </ol>
       <div
         className="my-6 grid gap-3 min-[75rem]:grid-cols-3"

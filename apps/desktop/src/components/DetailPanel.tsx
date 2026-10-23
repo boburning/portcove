@@ -631,14 +631,17 @@ function DetailBody({
         <p className="m-0 max-w-[72ch] leading-[var(--leading-relaxed)] text-pc-muted-foreground">
           {port.summary}
         </p>
-      </DetailGroup>
-      <DetailGroup title="Compatibility and testing">
         <CompatibilitySummary port={port} />
+        {port.upstream_status === "retired" && (
+          <p className="m-0 text-pc-warning-foreground">Upstream project is retired.</p>
+        )}
         <details>
           <summary data-focusable className="cursor-pointer py-2 text-sm font-medium">
-            Recorded checks
+            Project and compatibility details
           </summary>
           <div className="grid gap-4 pt-3">
+            <ProjectReleaseSummary port={port} />
+            <h3 className="m-0 text-sm font-semibold">Recorded checks</h3>
             <DetailQualificationSummary
               port={port}
               sourceInspection={sources.sourceInspection}
@@ -646,9 +649,6 @@ function DetailBody({
             />
           </div>
         </details>
-      </DetailGroup>
-      <DetailGroup title="Project and release">
-        <ProjectReleaseSummary port={port} />
       </DetailGroup>
       <DetailGroup title="Artwork">
         <ArtworkControls key={`controls:${port.id}:${libraryGeneration}`} port={port} />
@@ -1147,9 +1147,6 @@ function InstallationVersionSummary({
   selectedChannel: ReleaseChannel;
 }) {
   const checked = currentUpdateSnapshot(status)?.check;
-  const latestEligible =
-    checked?.release.version ??
-    (status?.active ? "No current check" : "Version shown when you review installation.");
   return (
     <dl
       className="installation-facts m-0 grid grid-cols-[repeat(auto-fit,_minmax(min(100%,_9.25rem),_1fr))] rounded-pc-md border border-pc-border bg-[var(--color-bg-subtle)] [&_dd]:m-0 [&_dd]:mt-1 [&_dd]:[overflow-wrap:anywhere] [&_dt]:text-xs [&_dt]:text-pc-muted-foreground [&>div]:min-w-0 [&>div]:px-3 [&>div]:py-2.5"
@@ -1171,10 +1168,12 @@ function InstallationVersionSummary({
           <dd>{releaseChannelPresentation(status.active.channel).label}</dd>
         </div>
       )}
-      <div>
-        <dt>Latest available for your settings</dt>
-        <dd>{latestEligible}</dd>
-      </div>
+      {checked && (
+        <div>
+          <dt>Latest version at last check</dt>
+          <dd>{checked.release.version}</dd>
+        </div>
+      )}
       {status?.staged && (
         <div>
           <dt>Update saved for later</dt>

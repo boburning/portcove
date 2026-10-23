@@ -169,12 +169,13 @@ it.each([
     flushSync(() => root.render(<Fixture view={view} />));
     for (const [name, label, , reason] of cases) {
       const card = gameCard(view, name);
-      await expect.element(card).toHaveAccessibleName(new RegExp(`^${name}\\b`));
-      await expect.element(card).toHaveAccessibleName(new RegExp(`\\b${label}\\b`));
+      await expect.element(card).toHaveAccessibleName(new RegExp(`^${name}.*${label}`));
       expect(card.element().querySelector(".readiness")?.textContent?.trim()).toBe(label);
       await expect.element(card).toMatchTextContent(reason);
       await expect.element(card).toHaveAccessibleDescription(new RegExp(reason));
-      await expect.element(card).toMatchTextContent("Release channel: Preview");
+      await expect
+        .element(card)
+        .toMatchTextContent(view === "library" ? "Release channel: Preview" : "Preview channel");
       await expect
         .element(card.getByRole("button", { name: "Play", exact: true }))
         .not.toBeInTheDocument();
@@ -193,9 +194,7 @@ it.each([
         .toBeInTheDocument();
       await userEvent.click(page.getByRole("button", { name: "Back to cards", exact: true }));
     }
-    await expect
-      .element(gameCard(view, "Unknown"))
-      .toHaveAccessibleName(/\bReadiness unavailable\b/);
+    await expect.element(gameCard(view, "Unknown")).toHaveAccessibleName(/Readiness unavailable/);
     for (const name of ["Ready", "Staged ready"]) {
       const card = gameCard(view, name);
       expect(card.element().querySelector(".readiness")?.textContent?.trim()).toBe("Ready to play");
