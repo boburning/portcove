@@ -1,0 +1,97 @@
+{
+  "format_version": 1,
+  "order": 112,
+  "listing": {
+    "id": "dkc2-recomp",
+    "name": "DKC2Recomp",
+    "summary": "Play Donkey Kong Country 2 with a reviewed player-prepared Windows runtime.",
+    "project_url": "https://github.com/mstan/DKC2Recomp",
+    "original_game_title": "Donkey Kong Country 2: Diddy's Kong Quest",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the exact runtime",
+          "instruction": "Extract the complete official v0.0.2 Windows x64 ZIP into a writable folder outside your Portcove library. Omit assets/img/boxart.tga and leave every other file unchanged."
+        },
+        {
+          "title": "Choose compatible folders",
+          "instruction": "Use short paths with basic Latin characters for both the runtime folder and your original game file."
+        },
+        {
+          "title": "Connect your original",
+          "instruction": "Choose and check your own stock headerless USA .sfc original in Portcove, then choose the prepared runtime folder below for review."
+        }
+      ],
+      "warnings": [
+        "Portcove selects the GDI compatibility renderer and bypasses the artwork launcher. You manage updates, settings, diagnostics and saves in this external folder; removal unregisters only.",
+        "Known upstream alpha rendering and level-dispatch limitations remain. Startup checks do not establish completed gameplay or populated save/load."
+      ]
+    },
+    "artwork": {
+      "game_id": 1092,
+      "cover_id": 94882,
+      "image_id": "co217m",
+      "image_sha256": "14026039a1de169794ab52fb49d5b5675b059ab037ebccc8a4ce6891b31bcadd",
+      "game_slug": "donkey-kong-country-2-diddy-s-kong-quest",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 722
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "mstan/DKC2Recomp",
+      "user_prepared": {
+        "windows-x86-64": {
+          "version": "v0.0.2",
+          "archive_name": "DKC2Recomp-windows-x64-v0.0.2.zip",
+          "archive_size": 8488768,
+          "archive_sha256": "33e36ad0a83b47de4a723fbe2d45e17a30c3bbbb15f6998173684317dc1abb89",
+          "executable": "DKC2Recomp.exe",
+          "immutable_tree_sha256": "980bdaf31d4ddf573b49447513abe3825f41ce0a4d2f457475d2c04599c5eb55",
+          "source_argument_extension": "sfc",
+          "mutable_paths": [
+            "launcher.cfg",
+            "rom.cfg",
+            "performance.log",
+            "diagnostics",
+            "saves",
+            ".snesrecomp_write_probe"
+          ]
+        }
+      }
+    },
+    "source_profile": "donkey-kong-country-2-snes-usa",
+    "executable_hints": {
+      "windows-x86-64": ["DKC2Recomp.exe"]
+    },
+    "launch_arguments": [],
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "donkey-kong-country-2-snes-usa",
+          "label": "Donkey Kong Country 2 (USA) stock headerless SNES source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Prepare the exact official v0.0.2 Windows runtime outside the Portcove library, omitting assets/img/boxart.tga. Keep all other executable, DLL, asset and license files unchanged. Select your own exact stock headerless USA .sfc original. Use short basic-Latin paths for both the runtime and original. Portcove bypasses the artwork launcher, fixes the GDI compatibility presenter and diagnostic destinations, and passes the checked original directly to the game. You manage saves, diagnostics, settings and runtime updates. Known upstream alpha rendering and level-dispatch limitations remain; startup acceptance is separate from gameplay completion."
+    },
+    "persistent_paths": [],
+    "windows_runtime_path_policy": "printable-ascii-max-path",
+    "launch_environment": {
+      "SNESRECOMP_NO_LAUNCHER": "1",
+      "DKC2_DESKTOP_FORCE_GDI": "1",
+      "SNESRECOMP_TIER2_MANIFEST": "diagnostics/tier2_dkc2.json",
+      "SNESRECOMP_TIER2_JOURNAL": "diagnostics/tier2_dkc2.jsonl"
+    }
+  }
+}

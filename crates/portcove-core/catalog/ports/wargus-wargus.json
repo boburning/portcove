@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wargus-wargus",
+    "name": "Warcraft II: Tides of Darkness / Wargus (Wargus)",
+    "summary": "Explore Warcraft II: Tides of Darkness / Wargus (Wargus) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/Wargus/wargus",
+    "issue_number": 1904,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Wargus/wargus"
+  }
+}

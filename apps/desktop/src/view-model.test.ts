@@ -49,6 +49,30 @@ it("does not turn current bytes or missing legacy assessment into confirmed comp
   ).toBe(true);
 });
 
+it("does not inherit managed source requirements for a user-selected installation", () => {
+  const definition = { ...portDefinition(), source_profile: sourceProfile().id };
+  const status: PortStatus = {
+    ...portStatus(),
+    external_runtime: {
+      id: "user-selected",
+      port_id: definition.id,
+      path: "/player/game",
+      executable: "/player/game/run",
+      platform: "linux-x86-64",
+      version: "user-managed",
+      registered_at: 1,
+      archive_sha256: "",
+      immutable_tree_sha256: "",
+      user_selected: { arguments: [] },
+    },
+    readiness: { launchable: true, blockers: [], pending_setup: false },
+  };
+  expect(hasUnconfirmedLaunchInput(status, definition)).toBe(false);
+  expect(
+    requiredSourceNeeds([definition], [sourceProfile()], new Map([[definition.id, status]]), []),
+  ).toEqual([]);
+});
+
 const port = (id: string, channels: PortDefinition["channels"]): PortDefinition => ({
   ...portDefinition(),
   id,

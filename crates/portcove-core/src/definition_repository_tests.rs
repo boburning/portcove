@@ -897,6 +897,21 @@ async fn selected_post_client_definition_loads_as_the_active_catalog() {
     assert!(loaded.port(&port_id).is_ok());
     assert!(loaded.definition_snapshot(&port_id).is_some());
     assert_eq!(loaded.definition_selection(&port_id), Some(&selection));
+    let directory_only = baseline
+        .listings()
+        .iter()
+        .filter(|listing| baseline.port(&listing.id).is_err())
+        .collect::<Vec<_>>();
+    assert!(!directory_only.is_empty());
+    for listing in &directory_only {
+        assert_eq!(
+            serde_json::to_value(loaded.listing(&listing.id).unwrap()).unwrap(),
+            serde_json::to_value(listing).unwrap()
+        );
+        assert!(loaded.port(&listing.id).is_err());
+        assert!(loaded.definition_snapshot(&listing.id).is_none());
+        assert!(loaded.definition_selection(&listing.id).is_none());
+    }
     let retained =
         crate::installed_contract::InstalledContract::capture(&loaded, &port_id).unwrap();
     let retained_value = serde_json::to_value(&retained).unwrap();
@@ -920,6 +935,10 @@ async fn selected_post_client_definition_loads_as_the_active_catalog() {
         provenance
     );
     assert!(service.catalog().port(&port_id).is_ok());
+    for listing in directory_only {
+        assert!(service.catalog().listing(&listing.id).is_ok());
+        assert!(service.catalog().port(&listing.id).is_err());
+    }
     let status = service.status(&port_id).unwrap();
     assert_eq!(status.port_id, port_id);
     assert_eq!(status.definition_operations.len(), 1);

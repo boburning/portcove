@@ -1325,6 +1325,27 @@ async fn curated_distribution_withdrawal_survives_renewal_without_revoking_local
     let library = Library::open(library_root).unwrap();
     assert_eq!(count(&library, "curated_transition_receipts"), 1);
     let connection = library.connection().unwrap();
+    let (known_repository, known_hash) = crate::curated_acquisition::known_download_identity(
+        &connection,
+        affected.asset_id,
+        affected.release_id,
+        &affected.acquisition_url,
+        affected.size,
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(
+        policy::assess_known_artifact_operation(
+            &connection,
+            known_repository,
+            affected.asset_id,
+            &known_hash,
+            policy::CuratedArtifactOperation::Acquisition
+        )
+        .unwrap()
+        .reason,
+        crate::DefinitionEligibilityReason::CuratedDistributionWithdrawn
+    );
     assert!(
         policy::require_curated_artifact_operation(
             &connection,
@@ -1551,6 +1572,28 @@ async fn curated_artifact_revocation_is_exact_and_missing_receipts_cannot_be_ren
     library
         .apply_definition_publisher_policy(&admission, Some(&candidate))
         .unwrap();
+    let connection = library.connection().unwrap();
+    let (known_repository, known_hash) = crate::curated_acquisition::known_download_identity(
+        &connection,
+        affected.asset_id,
+        affected.release_id,
+        &affected.acquisition_url,
+        affected.size,
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(
+        policy::assess_known_artifact_operation(
+            &connection,
+            known_repository,
+            affected.asset_id,
+            &known_hash,
+            policy::CuratedArtifactOperation::Acquisition
+        )
+        .unwrap()
+        .reason,
+        crate::DefinitionEligibilityReason::CuratedArtifactRevoked
+    );
     for operation in [
         policy::CuratedArtifactOperation::Acquisition,
         policy::CuratedArtifactOperation::LocalUse,

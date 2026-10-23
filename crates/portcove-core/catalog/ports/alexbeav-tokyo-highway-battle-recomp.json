@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-tokyo-highway-battle-recomp",
+    "name": "Tokyo Highway Battle / Alexbeav PSXRecomp",
+    "summary": "Explore Tokyo Highway Battle / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/tokyo-highway-battle-recomp",
+    "issue_number": 490,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/tokyo-highway-battle-recomp"
+  }
+}

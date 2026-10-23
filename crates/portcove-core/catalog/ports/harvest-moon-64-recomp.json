@@ -1,0 +1,70 @@
+{
+  "format_version": 1,
+  "order": 11,
+  "listing": {
+    "id": "harvest-moon-64-recomp",
+    "name": "Harvest Moon 64: Recompiled",
+    "summary": "Native Harvest Moon 64 recompilation.",
+    "project_url": "https://github.com/HarvestMoon64Recomp/HarvestMoon64Recomp",
+    "original_game_title": "Harvest Moon 64",
+    "artwork": {
+      "game_id": 3378,
+      "cover_id": 106783,
+      "image_id": "co2ae7",
+      "image_sha256": "c20365604ed292cda597a2098c3dcea13be7489661f837d9d9d1914c7bcfbb52",
+      "game_slug": "harvest-moon-64",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 67
+  },
+  "integration": {
+    "support_tier": "stable",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "adapter": "n64-recomp-portable",
+    "release": {
+      "repository": "HarvestMoon64Recomp/HarvestMoon64Recomp",
+      "asset_hints": {
+        "linux-x86-64": ["Linux-X64.zip"]
+      }
+    },
+    "source_profile": "harvest-moon-64",
+    "executable_hints": {
+      "windows-x86-64": ["HarvestMoon64Recompiled.exe"],
+      "linux-x86-64": ["HarvestMoon64Recompiled"],
+      "macos-x86-64": ["HarvestMoon64Recompiled"],
+      "macos-aarch64": ["HarvestMoon64Recompiled"]
+    },
+    "persistent_paths": [
+      "mods",
+      "mod_config",
+      "saves",
+      "mods.json",
+      "mods.json.bak",
+      "general.json",
+      "general.json.bak",
+      "graphics.json",
+      "graphics.json.bak",
+      "controls.json",
+      "controls.json.bak",
+      "sound.json",
+      "sound.json.bak",
+      "harvest_moon_64.z64"
+    ],
+    "runtime_source_filename": "harvest_moon_64.z64",
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "harvest-moon-64",
+          "label": "Harvest Moon 64 (US) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

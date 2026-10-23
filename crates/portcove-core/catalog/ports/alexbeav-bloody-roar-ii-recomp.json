@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-bloody-roar-ii-recomp",
+    "name": "Bloody Roar II / Alexbeav PSXRecomp",
+    "summary": "Explore Bloody Roar II / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp",
+    "issue_number": 432,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp"
+  }
+}

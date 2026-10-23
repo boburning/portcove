@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "project-gotham-racing-4-pgr4-recomp",
+    "name": "Project Gotham Racing 4 / PGR4-Recomp",
+    "summary": "Explore Project Gotham Racing 4 / PGR4-Recomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/beatrixzy/PGR4-Recomp",
+    "issue_number": 360,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/beatrixzy/PGR4-Recomp"
+  }
+}

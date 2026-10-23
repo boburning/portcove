@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pokemon-leafgreen-fireredleafgreenrecomp",
+    "name": "Pokémon LeafGreen / FireRedLeafGreenRecomp",
+    "summary": "Explore Pokémon LeafGreen / FireRedLeafGreenRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
+    "issue_number": 336,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mstan/FireRedLeafGreenRecomp"
+  }
+}

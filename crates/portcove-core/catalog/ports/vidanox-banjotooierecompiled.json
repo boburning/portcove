@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "vidanox-banjotooierecompiled",
+    "name": "Banjo-Tooie / Banjo-Tooie: Recompiled (Vidanox)",
+    "summary": "Explore Banjo-Tooie / Banjo-Tooie: Recompiled (Vidanox) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/Vidanox/BanjoTooieRecompiled",
+    "issue_number": 1795,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Vidanox/BanjoTooieRecompiled"
+  }
+}

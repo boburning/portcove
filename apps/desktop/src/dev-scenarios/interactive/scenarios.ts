@@ -139,6 +139,9 @@ export function workspace(journey: Journey): WorkspaceSnapshot {
         : ordinaryPorts;
   return {
     catalog: { schema_version: 1, ports, source_profiles: [] },
+    listing_catalog: null,
+    listing_statuses: [],
+    pending_setups: [],
     statuses: ports.map((port): PortStatus => ({
       ...portStatus(),
       port_id: port.id,

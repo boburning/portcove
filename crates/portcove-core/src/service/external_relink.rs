@@ -3,7 +3,8 @@ use super::*;
 use crate::{ExternalRuntimeRelinkPreview, library::ExternalRuntimeRelinkState};
 
 impl PortcoveService {
-    pub(super) fn require_managed_runtime_ownership(status: &PortStatus) -> Result<()> {
+    pub(super) fn require_managed_runtime_ownership(&self, status: &PortStatus) -> Result<()> {
+        self.require_no_pending_setup(&status.port_id)?;
         if status.external_runtime.is_some() {
             return Err(PortcoveError::conflict(
                 "this game uses an external folder; change its folder or remove its registration before installing a managed copy",

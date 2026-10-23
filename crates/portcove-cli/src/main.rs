@@ -32,6 +32,7 @@ mod progress;
 mod retained_build_human;
 use progress::HumanProgress;
 mod schema;
+mod setup;
 
 // Read-only consumers can identify a compatible standalone CLI without
 // executing an arbitrary PATH candidate. Keep this marker versioned whenever
@@ -319,6 +320,26 @@ async fn execute_with_qualification_environment(
 
 async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
     if let Commands::Catalog {
+        command: CatalogCommand::InspectListings { path },
+    } = &cli.command
+    {
+        let file = std::fs::File::open(path)?;
+        let mut bytes = String::new();
+        file.take(8 * 1024 * 1024 + 1).read_to_string(&mut bytes)?;
+        render_read_success(
+            mode,
+            "catalog.inspect-listings",
+            portcove_core::CatalogListingDocument::from_json(&bytes)?,
+            |document| {
+                format!(
+                    "Validated {} descriptive listings.",
+                    document.listings.len()
+                )
+            },
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
         command: CatalogCommand::InspectDefinitionPublication { directory },
     } = &cli.command
     {
@@ -514,10 +535,16 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 | Commands::Source {
                     command: SourceCommand::Discover(_)
                 }
+                | Commands::Setup {
+                    command: setup::SetupCommand::Download { .. }
+                }
         ))
     .then(|| cancellation::CancellationSignals::start(service.clone()))
     .transpose()?;
     match cli.command {
+        Commands::Setup { command } => {
+            setup::execute(command, &service, mode, cli.non_interactive).await?;
+        }
         Commands::Installation {
             command: InstallationCommand::Retained { port_id },
         } => render_read_success(
@@ -1869,6 +1896,79 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             )?;
         }
         Commands::External { command } => match command {
+            ExternalCommand::SelectRelinkPreview {
+                port_id,
+                executable,
+                working_directory,
+                arguments,
+            } => {
+                render_read_success(
+                    mode,
+                    "external.select-relink-preview",
+                    service.preview_user_selected_runtime_relink(
+                        &port_id,
+                        &executable,
+                        &working_directory,
+                        &arguments,
+                    )?,
+                    |review| human::external_relink_preview(review, service.catalog()),
+                )?;
+            }
+            ExternalCommand::SelectRelink {
+                port_id,
+                executable,
+                working_directory,
+                arguments,
+                expected_preview,
+                yes,
+            } => {
+                let review = service.preview_user_selected_runtime_relink(
+                    &port_id,
+                    &executable,
+                    &working_directory,
+                    &arguments,
+                )?;
+                if review.preview_sha256 != expected_preview {
+                    return Err(PortcoveError::conflict(
+                        "selected launch details changed; inspect them again",
+                    ));
+                }
+                if mode == OutputMode::Human {
+                    println!(
+                        "{}",
+                        human::external_relink_preview(&review, service.catalog())
+                    );
+                }
+                require_confirmation(
+                    &format!(
+                        "Change the selected executable to {} with working directory {} and arguments {}? All old and new external files remain in place.",
+                        executable.display(),
+                        working_directory.display(),
+                        serde_json::to_string(&arguments)?
+                    ),
+                    yes,
+                    cli.non_interactive,
+                )?;
+                let authorization = service.authorize_user_selected_runtime_relink(
+                    &port_id,
+                    &executable,
+                    &working_directory,
+                    &arguments,
+                    &expected_preview,
+                )?;
+                render_read_success(
+                    mode,
+                    "external.select-relink",
+                    service.relink_user_selected_runtime(
+                        &port_id,
+                        &executable,
+                        &working_directory,
+                        &arguments,
+                        &authorization.token,
+                    )?,
+                    |record| human::external_runtime(record, service.catalog()),
+                )?;
+            }
             ExternalCommand::SelectPreview {
                 port_id,
                 executable,
@@ -2884,6 +2984,7 @@ fn exit_code(error: &PortcoveError) -> u8 {
 
 fn command_name(command: &Commands) -> &'static str {
     match command {
+        Commands::Setup { command } => command.name(),
         Commands::Auth { command } => match command {
             AuthCommand::Status => "auth.status",
             AuthCommand::Login => "auth.login",
@@ -2941,6 +3042,8 @@ fn command_name(command: &Commands) -> &'static str {
             LaunchCommand::Recover { .. } => "launch.recover",
         },
         Commands::External { command } => match command {
+            ExternalCommand::SelectRelinkPreview { .. } => "external.select-relink-preview",
+            ExternalCommand::SelectRelink { .. } => "external.select-relink",
             ExternalCommand::Preview { .. } => "external.preview",
             ExternalCommand::SelectPreview { .. } => "external.select-preview",
             ExternalCommand::Select { .. } => "external.select",

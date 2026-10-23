@@ -6,6 +6,7 @@ import type {
 } from "../../types";
 import { observedUpdateCandidate } from "./update-query-context";
 import type { GameFileFilterContext } from "./game-file-query-context";
+import type { CatalogEntry } from "./catalog-entry";
 
 // These identifiers describe declared port facts, not installation eligibility.
 const catalogQueryOptions = {
@@ -50,8 +51,11 @@ export interface CatalogQueryResult {
   state: "matched" | "unresolved" | "unavailable";
   /** Retain the original value for correction; never drop unsupported predicates. */
   query: unknown;
-  ports: PortDefinition[];
+  ports: CatalogEntry[];
+  /** Listing facts needed by the selected filters are unknown, not negative. */
+  unavailablePortIds?: readonly string[];
   counts: Record<Group, Record<string, number | null>>;
+  unknownCounts?: Record<Group, Record<string, number>>;
   matchingContexts: ReadonlyMap<string, readonly CatalogBrowsingContext[]>;
 }
 
@@ -93,7 +97,7 @@ function validAttentionReadiness(
   );
 }
 
-function attentionMatches(port: PortDefinition, value: string, context: CatalogQueryContext) {
+function attentionMatches(port: CatalogEntry, value: string, context: CatalogQueryContext) {
   const status = context.library?.statuses.get(port.id);
   // Core supplies readiness for the accepted installation. Unknown or
   // inconsistent records do not establish a positive attention reason.
@@ -123,7 +127,7 @@ function attentionMatches(port: PortDefinition, value: string, context: CatalogQ
 }
 
 function matches(
-  port: PortDefinition,
+  port: CatalogEntry,
   group: Group,
   value: string,
   context: CatalogQueryContext,
@@ -142,7 +146,7 @@ function matches(
         (platform) => platform === (value === "this-device" ? context.devicePlatform : value),
       );
     case "channels":
-      return port.channels.some((channel) => channel === value);
+      return (port.channels ?? []).some((channel) => channel === value);
     case "installationMethods":
       return port.presentation?.installation_method === value;
     case "membership": {
@@ -166,7 +170,7 @@ function all(values: Match[]): Match {
 }
 
 function contextActionMatches(
-  port: PortDefinition,
+  port: CatalogEntry,
   fact: CatalogBrowsingContext,
   group: Group,
   value: string,
@@ -187,7 +191,7 @@ function contextActionMatches(
 }
 
 function contextGameFilesMatch(
-  port: PortDefinition,
+  port: CatalogEntry,
   fact: CatalogBrowsingContext,
   value: string,
   context: CatalogQueryContext,
@@ -213,7 +217,7 @@ function contextGameFilesMatch(
 }
 
 function contextMatches(
-  port: PortDefinition,
+  port: CatalogEntry,
   fact: CatalogBrowsingContext,
   group: Group,
   value: string,
@@ -238,14 +242,108 @@ function contextMatches(
   }
 }
 
+function listingMatch(
+  port: CatalogEntry,
+  group: Group,
+  value: string,
+  context: CatalogQueryContext,
+): Match {
+  const status = context.library?.statuses.get(port.id);
+  switch (group) {
+    case "platforms": {
+      if (port.pendingSetup && !status?.external_runtime) return undefined;
+      // A selected installation has one observed platform. Declared project
+      // platforms must not make that installation appear compatible elsewhere.
+      const platforms = status?.external_runtime
+        ? [status.external_runtime.platform]
+        : port.platforms;
+      return platforms.length
+        ? platforms.some(
+            (platform) => platform === (value === "this-device" ? context.devicePlatform : value),
+          )
+        : undefined;
+    }
+    case "membership": {
+      if (!context.library) return undefined;
+      if (status && status.port_id !== port.id) return undefined;
+      const member = Boolean(status?.external_runtime || port.pendingSetup);
+      return value === "in-library" ? member : !member;
+    }
+    case "attention":
+      return port.pendingSetup ? value === "finish-setup" : attentionMatches(port, value, context);
+    case "updates":
+      // Self-service files have no managed update contract.
+      return false;
+    case "channels":
+    case "installationMethods":
+    case "gameFiles":
+      return undefined;
+  }
+}
+
+/** Listing predicates use their own observed facts. They never manufacture a
+ * managed route, and unknown facts do not disable filters for integrated ports. */
+export function evaluateCatalogQuery(
+  ports: readonly CatalogEntry[],
+  query: unknown,
+  context: CatalogQueryContext = {},
+): CatalogQueryResult {
+  const selfService = (port: CatalogEntry) =>
+    Boolean(
+      (port.listing && !port.release) ||
+      port.pendingSetup ||
+      context.library?.statuses.get(port.id)?.external_runtime?.user_selected,
+    );
+  const listings = ports.filter(selfService);
+  const integrations = ports.filter((port) => !selfService(port));
+  const result = evaluateIntegrationQuery(integrations, query, context, listings.length > 0);
+  if (!listings.length || result.state !== "matched" || !supportedQuery(query)) return result;
+  const match = (port: CatalogEntry, override?: [Group, string]): Match =>
+    all(
+      groups.map((group) => {
+        const values = override?.[0] === group ? [override[1]] : (query[group] ?? []);
+        return (
+          !values.length || any(values.map((value) => listingMatch(port, group, value, context)))
+        );
+      }),
+    );
+  const outcomes = listings.map((port) => ({ port, matches: match(port) }));
+  const matched = new Set([
+    ...result.ports.map((port) => port.id),
+    ...outcomes.filter((entry) => entry.matches === true).map((entry) => entry.port.id),
+  ]);
+  const unknownCounts = Object.fromEntries(groups.map((group) => [group, {}])) as Record<
+    Group,
+    Record<string, number>
+  >;
+  for (const group of groups) {
+    for (const value of catalogQueryOptions[group]) {
+      const outcomes = listings.map((port) => match(port, [group, value]));
+      const count = result.counts[group][value];
+      unknownCounts[group][value] = outcomes.filter((outcome) => outcome === undefined).length;
+      result.counts[group][value] =
+        count == null ? null : count + outcomes.filter((outcome) => outcome === true).length;
+    }
+  }
+  return {
+    ...result,
+    unknownCounts,
+    ports: ports.filter((port) => matched.delete(port.id)),
+    unavailablePortIds: outcomes
+      .filter((entry) => entry.matches === undefined)
+      .map((entry) => entry.port.id),
+  };
+}
+
 /** Pure cached-snapshot evaluation. Positive groups share one Core context;
  * unknown retained facts stay unavailable rather than becoming negative facts.
  * Public declaration-only queries retain their offline evaluator.
  */
-export function evaluateCatalogQuery(
-  ports: readonly PortDefinition[],
+function evaluateIntegrationQuery(
+  ports: readonly CatalogEntry[],
   query: unknown,
   context: CatalogQueryContext = {},
+  hasListings = false,
 ): CatalogQueryResult {
   const gameFilesAvailable = Boolean(
     context.library?.id &&
@@ -282,7 +380,9 @@ export function evaluateCatalogQuery(
   const activeGroups = groups.filter((group) => query[group]?.length);
   const privateGroups: Group[] = ["membership", "attention", "updates", "gameFiles"];
   const requiresContexts =
-    activeGroups.length > 1 && activeGroups.some((group) => privateGroups.includes(group));
+    (unique.length > 0 || !hasListings) &&
+    activeGroups.length > 1 &&
+    activeGroups.some((group) => privateGroups.includes(group));
   const browsing = context.browsing;
   const coherent = Boolean(
     browsing &&
@@ -300,7 +400,7 @@ export function evaluateCatalogQuery(
       facts.push(fact);
       byPort.set(fact.port_id, facts);
     }
-    const matching = (port: PortDefinition, override?: [Group, string]) => {
+    const matching = (port: CatalogEntry, override?: [Group, string]) => {
       const selected = groups.filter((group) => query[group]?.length || override?.[0] === group);
       return (byPort.get(port.id) ?? []).map((fact) => ({
         fact,
@@ -343,12 +443,14 @@ export function evaluateCatalogQuery(
       matchingContexts,
     };
   }
-  const groupMatches = (port: PortDefinition, group: Group) =>
+  const groupMatches = (port: CatalogEntry, group: Group) =>
     !query[group]?.length || query[group].some((value) => matches(port, group, value, context));
   for (const group of groups) {
     const facetGroups = [...activeGroups.filter((active) => active !== group), group];
     const facetRequiresContexts =
-      facetGroups.length > 1 && facetGroups.some((active) => privateGroups.includes(active));
+      (unique.length > 0 || !hasListings) &&
+      facetGroups.length > 1 &&
+      facetGroups.some((active) => privateGroups.includes(active));
     const otherMatches = unique.filter((port) =>
       groups.every((other) => other === group || groupMatches(port, other)),
     );

@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "lollipop-chainsaw-re-cherry",
+    "name": "Lollipop Chainsaw / Re-Cherry",
+    "summary": "Explore Lollipop Chainsaw / Re-Cherry and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/MaxDeadBear/Re-Cherry",
+    "issue_number": 162,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/MaxDeadBear/Re-Cherry"
+  }
+}

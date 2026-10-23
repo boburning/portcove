@@ -1,0 +1,62 @@
+{
+  "format_version": 1,
+  "order": 71,
+  "listing": {
+    "id": "star-fox-enhanced",
+    "name": "Star Fox Enhanced",
+    "summary": "Expands Star Fox and Star Fox EX with widescreen presentation and configurable controls.",
+    "project_url": "https://github.com/kandowontu/starfox-enhanced",
+    "original_game_title": "Star Fox",
+    "variant_label": "SNES",
+    "artwork": {
+      "game_id": 8581,
+      "cover_id": 432448,
+      "image_id": "co99og",
+      "image_sha256": "ffed915ee076b17b762d01a4d9dc528512d4ce5d456134f1cf612a8c86add400",
+      "game_slug": "star-fox",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 124
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "staged-source-portable",
+    "release": {
+      "repository": "kandowontu/starfox-enhanced",
+      "asset_hints": {
+        "windows-x86-64": ["StarFoxEnhanced-", "windows-x64.zip"]
+      }
+    },
+    "source_profile": "star-fox-enhanced-usa-v1-0",
+    "executable_hints": {
+      "windows-x86-64": ["starfox_pc.exe"]
+    },
+    "persistent_paths": [
+      "Starfox-Assets.BIN",
+      "starfox-ex.srm",
+      "pregame.cfg",
+      "input-bindings.cfg",
+      "hud-layout.cfg",
+      "states",
+      "Starfox-MSU1.PAK"
+    ],
+    "runtime_mutable_paths": ["Starfox-Assets.BIN.tmp"],
+    "source_environment": "STARFOX_RETAIL_ROM",
+    "presentation": {
+      "installation_method": "staged-game-files",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "star-fox-enhanced-usa-v1-0",
+          "label": "Star Fox (USA) v1.0 source for Star Fox Enhanced",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

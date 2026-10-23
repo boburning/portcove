@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sonic-free-riders-recompiled",
+    "name": "Sonic Free Riders: Recompiled",
+    "summary": "Explore Sonic Free Riders: Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/YuutaTsubasa/Free-Riders-Recompiled",
+    "issue_number": 1450,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/YuutaTsubasa/Free-Riders-Recompiled"
+  }
+}

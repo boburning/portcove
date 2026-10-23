@@ -128,44 +128,62 @@ pub struct ArtworkCacheClear {
 }
 
 impl PortcoveService {
-    fn artwork_port(&self, port_id: &str) -> Result<std::borrow::Cow<'_, crate::PortDefinition>> {
-        match self.catalog().port(port_id) {
-            Ok(port) => Ok(std::borrow::Cow::Borrowed(port)),
-            Err(unknown) => {
-                // An imported installation may retain an admitted definition that
-                // the current catalog does not offer. Resolve presentation only;
-                // do not add it to discovery or grant lifecycle authority.
-                let Some(install) = self
-                    .library()
-                    .status(port_id, crate::ReleaseChannel::Stable)?
-                    .active
-                else {
-                    return Err(unknown);
-                };
-                let retained = self.installed_catalog(&install)?;
-                let Some(identity) = retained.definition_selection(port_id) else {
-                    return Err(unknown);
-                };
-                if self
-                    .library()
-                    .retained_definition_admission_role(identity)?
-                    .is_none()
-                {
-                    return Err(unknown);
-                }
-                Ok(std::borrow::Cow::Owned(retained.port(port_id)?.clone()))
+    fn artwork_port(&self, port_id: &str) -> Result<std::borrow::Cow<'_, crate::PortListing>> {
+        let unknown = match self.catalog().listing(port_id) {
+            Ok(listing) => return Ok(std::borrow::Cow::Borrowed(listing)),
+            Err(unknown) => unknown,
+        };
+        // Keep the exact admitted-definition boundary for retained managed
+        // installs. Invalid managed state must not fall through to another
+        // descriptive source and appear to have passed that boundary.
+        if let Some(install) = self
+            .library()
+            .status(port_id, crate::ReleaseChannel::Stable)?
+            .active
+        {
+            let retained = self.installed_catalog(&install)?;
+            let Some(identity) = retained.definition_selection(port_id) else {
+                return Err(unknown);
+            };
+            if self
+                .library()
+                .retained_definition_admission_role(identity)?
+                .is_none()
+            {
+                return Err(unknown);
             }
+            return Ok(std::borrow::Cow::Owned(crate::PortListing::from(
+                retained.port(port_id)?,
+            )));
         }
+        // User-owned registrations and unfinished setup retain their display
+        // identity independently of whether a newer directory still lists it.
+        // Their validated snapshots grant no managed lifecycle authority.
+        let mut budget = 8 * 1024 * 1024;
+        if let Some((_, retained)) = self
+            .library()
+            .external_runtime_with_port_bounded(port_id, &mut budget)?
+        {
+            return Ok(std::borrow::Cow::Owned(retained.listing(port_id)?.clone()));
+        }
+        if let Some(pending) = self
+            .pending_setups()?
+            .into_iter()
+            .find(|record| record.port_id == port_id)
+        {
+            return Ok(std::borrow::Cow::Owned(pending.listing));
+        }
+        Err(unknown)
     }
 
     pub fn artwork(&self, port_id: &str, slot: ArtworkSlot) -> Result<ArtworkState> {
         let port = self.artwork_port(port_id)?;
-        self.artwork_for_port(&port, slot)
+        self.artwork_for_listing(&port, slot)
     }
 
-    fn artwork_for_port(
+    fn artwork_for_listing(
         &self,
-        port: &crate::PortDefinition,
+        port: &crate::PortListing,
         slot: ArtworkSlot,
     ) -> Result<ArtworkState> {
         let port_id = &port.id;
@@ -180,7 +198,7 @@ impl PortcoveService {
         transaction.commit()?;
         let generated_fallback = generated_fallback(port_id, &port.name, slot)?;
         let (availability, reason, resolved_source) = match &selection {
-            None => match (slot, port.presentation.as_ref().and_then(|value| value.artwork.as_ref())) {
+            None => match (slot, port.artwork.as_ref()) {
                 (ArtworkSlot::Cover, Some(artwork)) => (
                     ArtworkAvailability::Available,
                     None,
@@ -294,7 +312,7 @@ impl PortcoveService {
             &proposed.sha256,
             &decoded.thumbnail,
         );
-        self.artwork_for_port(&port, slot)
+        self.artwork_for_listing(&port, slot)
     }
 
     pub fn reset_artwork(
@@ -310,7 +328,7 @@ impl PortcoveService {
         crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
         crate::artwork_store::write_choice(&transaction, port_id, slot, expected_revision, None)?;
         transaction.commit()?;
-        self.artwork_for_port(&port, slot)
+        self.artwork_for_listing(&port, slot)
     }
 
     pub fn artwork_thumbnail(
@@ -321,10 +339,7 @@ impl PortcoveService {
     ) -> Result<ArtworkThumbnail> {
         let port = self.artwork_port(port_id)?;
         let mapped_cover = match slot {
-            ArtworkSlot::Cover => port
-                .presentation
-                .as_ref()
-                .and_then(|value| value.artwork.as_ref()),
+            ArtworkSlot::Cover => port.artwork.as_ref(),
             ArtworkSlot::Detail => None,
         };
         if let Some(artwork) = mapped_cover {

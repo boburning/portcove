@@ -17,6 +17,9 @@ mod launch_contract;
 #[path = "machine_contract/artwork.rs"]
 mod artwork_contract;
 
+#[path = "machine_contract/self_service.rs"]
+mod self_service_contract;
+
 #[path = "machine_contract/definition_capabilities.rs"]
 mod definition_capability_contract;
 

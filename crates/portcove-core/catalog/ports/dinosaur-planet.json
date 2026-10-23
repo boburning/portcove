@@ -1,0 +1,67 @@
+{
+  "format_version": 1,
+  "order": 12,
+  "listing": {
+    "id": "dinosaur-planet",
+    "name": "Dinosaur Planet: Recompiled",
+    "summary": "Native recompilation of the December 2000 Dinosaur Planet prototype.",
+    "project_url": "https://github.com/DinosaurPlanetRecomp/dino-recomp",
+    "original_game_title": "Dinosaur Planet",
+    "variant_label": "December 2000 prototype",
+    "artwork": {
+      "game_id": 343047,
+      "cover_id": 507330,
+      "image_id": "coavgi",
+      "image_sha256": "094d40bab4fa4536e9f257d351767683076fa37b6eaaa3a004664fcebcf0b02e",
+      "game_slug": "dinosaur-planet-recompiled",
+      "match_kind": "port"
+    },
+    "issue_number": 68
+  },
+  "integration": {
+    "support_tier": "stable",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "n64-recomp-portable",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "DinosaurPlanetRecomp/dino-recomp"
+    },
+    "source_profile": "dinosaur-planet",
+    "executable_hints": {
+      "windows-x86-64": ["DinosaurPlanetRecompiled.exe"],
+      "linux-x86-64": ["DinosaurPlanetRecompiled"]
+    },
+    "persistent_paths": [
+      "mods",
+      "mod_config",
+      "saves",
+      "config",
+      "mods.json",
+      "mods.json.bak",
+      "general.json",
+      "general.json.bak",
+      "graphics.json",
+      "graphics.json.bak",
+      "controls.json",
+      "controls.json.bak",
+      "sound.json",
+      "sound.json.bak",
+      "dino.z64"
+    ],
+    "runtime_source_filename": "dino.z64",
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "dinosaur-planet",
+          "label": "Dinosaur Planet December 2000 prototype source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

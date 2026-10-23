@@ -1,0 +1,90 @@
+{
+  "format_version": 1,
+  "order": 73,
+  "listing": {
+    "id": "ape-escape-recompiled",
+    "name": "Ape Escape Recompiled",
+    "summary": "Native Ape Escape recompilation.",
+    "project_url": "https://github.com/mstan/ApeEscapeRecomp",
+    "original_game_title": "Ape Escape",
+    "artwork": {
+      "game_id": 3762,
+      "cover_id": 115320,
+      "image_id": "co2gzc",
+      "image_sha256": "b689ac550b7807203e88a928ff42c5906ccdce2c4f2a38229f2a3204c878f906",
+      "game_slug": "ape-escape",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 142
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "staged-source-portable",
+    "release": {
+      "repository": "mstan/ApeEscapeRecomp",
+      "asset_hints": {
+        "windows-x86-64": ["ApeEscapeRecomp-", "-windows-x64.zip"]
+      }
+    },
+    "source_profile": "ape-escape-psx",
+    "executable_hints": {
+      "windows-x86-64": ["ApeEscapeRecomp.exe"]
+    },
+    "persistent_paths": [
+      "saves",
+      "settings.toml",
+      "input.ini",
+      "keybinds.ini",
+      "disc.cfg",
+      "bios.cfg",
+      "mods"
+    ],
+    "runtime_mutable_paths": [
+      "cache",
+      "disc",
+      "overlay_captures.json",
+      "overlay_captures.json.d",
+      "psx_freeze_heartbeat.json",
+      "psx_last_run_report.json"
+    ],
+    "runtime_mutable_file_patterns": [
+      {
+        "prefix": "psx_freeze_dump_psx-runtime_",
+        "suffix": ".json"
+      }
+    ],
+    "launch_arguments": [
+      "--no-launcher",
+      "--memcard-dir",
+      "saves",
+      "--game",
+      "game.toml",
+      "--bios",
+      "bios/openbios.bin",
+      "--disc",
+      "disc/disc.cue"
+    ],
+    "runtime_source_filename": "disc",
+    "runtime_source_materialization": "psx-bin-cue",
+    "runtime_source_hashes": {
+      "disc.cue": "a5023a08a8330c83ada9bcfb75303359f353dd37e04db8ef7a0f23703ec56d41",
+      "disc1.bin": "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a"
+    },
+    "presentation": {
+      "installation_method": "staged-game-files",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "ape-escape-psx",
+          "label": "Ape Escape (USA) disc",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

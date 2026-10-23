@@ -1,0 +1,91 @@
+{
+  "format_version": 1,
+  "order": 101,
+  "listing": {
+    "id": "sonic-3-and-knuckles-recomp",
+    "name": "Sonic3KRecomp",
+    "summary": "Native Sonic & Knuckles + Sonic the Hedgehog 3 recompilation.",
+    "project_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp",
+    "original_game_title": "Sonic 3 & Knuckles",
+    "variant_label": "Combined Sonic 3 + Sonic & Knuckles",
+    "artwork": {
+      "game_id": 11219,
+      "cover_id": 342176,
+      "image_id": "co7c0w",
+      "image_sha256": "b1861fa5813026f582beb11e665cefee8eaa27e8871e154ddc91a22819c7989e",
+      "game_slug": "sonic-the-hedgehog-3-and-knuckles",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 154
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "direct-manifest",
+      "direct": {
+        "windows-x86-64": {
+          "version": "v0.5.3",
+          "url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.5.3/Sonic3KRecomp-windows-x64-v0.5.3.zip",
+          "size": 16694619,
+          "sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99",
+          "published_at": "2026-10-18T14:30:37Z"
+        }
+      }
+    },
+    "source_profile": "sonic-3-and-knuckles-genesis-usa-lockon",
+    "executable_hints": {
+      "windows-x86-64": ["Sonic3KRecomp.exe"]
+    },
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "sonic-3-and-knuckles-genesis-usa-lockon",
+          "label": "Sonic & Knuckles + Sonic the Hedgehog 3 (USA) Lock-On raw big-endian Genesis original",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Select your own Sonic & Knuckles + Sonic the Hedgehog 3 (USA) Lock-On raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted."
+    },
+    "launch_arguments": ["--no-launcher", "game.bin"],
+    "runtime_source_filename": "game.bin",
+    "runtime_source_materialization": "copy",
+    "runtime_source_hashes": {
+      "game.bin": "fba0677fde9f76df93f3e98d6310d8af68b9847bde16e253d73cd4dd8134ed23"
+    },
+    "windows_runtime_path_policy": "printable-ascii-max-path",
+    "persistent_paths": [
+      "game.bin",
+      "settings.ini",
+      "rom-Sonic3K.cfg",
+      "game.srm",
+      "sonic3k-mods.ini",
+      "sonic3k-mods.ini.tmp",
+      "native_save_1.bin",
+      "native_save_2.bin",
+      "native_save_3.bin",
+      "native_save_4.bin",
+      "native_save_5.bin",
+      "native_save_6.bin",
+      "native_save_7.bin",
+      "native_save_8.bin",
+      "native_save_9.bin"
+    ],
+    "runtime_mutable_paths": [
+      "dispatch_misses.toml",
+      "floor_coverage.toml",
+      "yield_log_native.log",
+      "floor_unsafe.log",
+      "interior_label_misses.log",
+      "ramdump_native.bin",
+      "last_error.log"
+    ]
+  }
+}

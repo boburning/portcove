@@ -2178,7 +2178,7 @@ pub(crate) fn clean(value: &str) -> String {
 }
 
 pub(crate) fn port_name(catalog: &portcove_core::Catalog, id: &str) -> String {
-    catalog.port(id).map_or_else(
+    catalog.listing(id).map_or_else(
         |_| format!("Port ({}; name unavailable)", clean(id)),
         |port| format!("{} ({})", clean(&port.name), clean(id)),
     )
@@ -2207,6 +2207,7 @@ pub(crate) fn operation_name(operation: portcove_core::ActivityOperation) -> &'s
         Operation::Restore => "Restore saves and settings",
         Operation::DeleteBackup => "Delete backup",
         Operation::Install => "Install game port",
+        Operation::DownloadPackage => "Download upstream package",
         Operation::Update => "Update game port",
         Operation::Reconcile => "Apply game update policy",
         Operation::VerifyInstall => "Check installed files",

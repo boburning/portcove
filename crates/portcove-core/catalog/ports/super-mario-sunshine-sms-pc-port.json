@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-mario-sunshine-sms-pc-port",
+    "name": "Super Mario Sunshine / sms-pc-port",
+    "summary": "Explore Super Mario Sunshine / sms-pc-port and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/chasem-dev/sms-pc-port",
+    "issue_number": 1633,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/chasem-dev/sms-pc-port"
+  }
+}

@@ -17,6 +17,9 @@ vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
 
 const snapshot: WorkspaceSnapshot = {
   catalog: { schema_version: 1, ports: [portDefinition()], source_profiles: [] },
+  listing_catalog: null,
+  listing_statuses: [],
+  pending_setups: [],
   statuses: [portStatus()],
   sources: [],
   activities: emptyActivityFeed(),
@@ -162,6 +165,47 @@ afterEach(async () => {
 });
 
 describe("workspace refresh recovery", () => {
+  it("accepts listing-only changes atomically without replacing strict catalog state", async () => {
+    await render();
+    const strictCatalog = data.catalog;
+    const listedStatus = { ...portStatus(), port_id: "listing-only" };
+    const next = {
+      ...structuredClone(snapshot),
+      listing_catalog: {
+        format_version: 1,
+        listings: [
+          {
+            id: "listing-only",
+            name: "Listing Only",
+            summary: "An upstream project.",
+            project_url: "https://example.com/project",
+            platforms: [],
+            availability: "unknown" as const,
+          },
+        ],
+      },
+      listing_statuses: [
+        {
+          port_id: "listing-only",
+          status: listedStatus,
+          actions: [{ action: "attach-existing" as const, allowed: true }],
+        },
+      ],
+    };
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue(next);
+    await act(async () => data.refresh());
+    expect(data.catalog).toBe(strictCatalog);
+    expect(data.listingCatalog).toBe(next.listing_catalog);
+    expect(data.listingStatuses).toBe(next.listing_statuses);
+    const accepted = data.listingStatuses;
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue(structuredClone(next));
+    await act(async () => data.refresh());
+    expect(data.listingStatuses).toBe(accepted);
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue(structuredClone(snapshot));
+    await act(async () => data.refresh());
+    expect(data.listingCatalog).toBeUndefined();
+    expect(data.listingStatuses).toEqual([]);
+  });
   it("accepts retained-metadata-only changes and clears a no-longer-available projection", async () => {
     await render();
     const before = { catalog: data.catalog, statuses: data.statuses, sources: data.sources };

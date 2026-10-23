@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sonic-advance-2-sat-r-sa2-repository",
+    "name": "Sonic Advance 2 / SAT-R sa2 repository",
+    "summary": "Explore Sonic Advance 2 / SAT-R sa2 repository and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/SAT-R/sa2",
+    "issue_number": 381,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/SAT-R/sa2"
+  }
+}

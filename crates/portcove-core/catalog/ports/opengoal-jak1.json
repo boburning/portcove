@@ -1,0 +1,78 @@
+{
+  "format_version": 1,
+  "order": 63,
+  "listing": {
+    "id": "opengoal-jak1",
+    "name": "OpenGOAL: Jak and Daxter",
+    "summary": "Native OpenGOAL port of Jak and Daxter: The Precursor Legacy.",
+    "project_url": "https://github.com/open-goal/jak-project",
+    "original_game_title": "Jak and Daxter: The Precursor Legacy",
+    "artwork": {
+      "game_id": 206008,
+      "cover_id": 298993,
+      "image_id": "co6epd",
+      "image_sha256": "ebe260ca49ee45b287f86a2c4be6cee4d4cc8d394bbbd2d95e8e94f7139e0b37",
+      "game_slug": "opengoal-jak-and-daxter-the-precursor-legacy",
+      "match_kind": "port"
+    },
+    "issue_number": 114
+  },
+  "integration": {
+    "support_tier": "stable",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "adapter": "upstream-managed-setup",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "open-goal/jak-project",
+      "asset_hints": {
+        "windows-x86-64": ["opengoal-windows"],
+        "linux-x86-64": ["opengoal-linux"],
+        "macos-x86-64": ["opengoal-macos-intel"],
+        "macos-aarch64": ["opengoal-macos-arm"]
+      }
+    },
+    "source_profile": "opengoal-jak1-disc",
+    "runtime_source_filename": "source.iso",
+    "runtime_source_materialization": "ps2-iso",
+    "setup_executable_hints": {
+      "windows-x86-64": ["extractor.exe"],
+      "linux-x86-64": ["extractor"],
+      "macos-x86-64": ["extractor"],
+      "macos-aarch64": ["extractor"]
+    },
+    "setup_arguments": [
+      "--game",
+      "jak1",
+      "--extract",
+      "--decompile",
+      "--compile",
+      "--validate",
+      "--disable-ansi"
+    ],
+    "setup_marker": "data/out/jak1/iso/0COMMON.TXT",
+    "launch_arguments": ["--game", "jak1", "--portable"],
+    "executable_hints": {
+      "windows-x86-64": ["gk.exe"],
+      "linux-x86-64": ["gk"],
+      "macos-x86-64": ["gk"],
+      "macos-aarch64": ["gk"]
+    },
+    "runtime_mutable_paths": ["data/log", "data/imgui.ini"],
+    "persistent_paths": ["OpenGOAL/jak1"],
+    "setup_output_paths": ["data/iso_data", "data/decompiler_out", "data/out"],
+    "presentation": {
+      "installation_method": "upstream-setup",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "opengoal-jak1-disc",
+          "label": "Jak and Daxter retail disc validated by the pinned OpenGOAL extractor",
+          "verification": "upstream-validator"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

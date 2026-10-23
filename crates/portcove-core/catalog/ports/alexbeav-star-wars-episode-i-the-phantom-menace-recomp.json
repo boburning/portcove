@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-star-wars-episode-i-the-phantom-menace-recomp",
+    "name": "Star Wars Episode I: The Phantom Menace / Alexbeav PSXRecomp",
+    "summary": "Explore Star Wars Episode I: The Phantom Menace / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/star-wars-episode-i-the-phantom-menace-recomp",
+    "issue_number": 480,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/star-wars-episode-i-the-phantom-menace-recomp"
+  }
+}

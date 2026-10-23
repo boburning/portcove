@@ -41,6 +41,8 @@ pub(crate) enum CatalogCommand {
     List,
     /// Export the complete active catalog document.
     Export,
+    /// Export every descriptive listing, including projects without a managed integration.
+    Listings,
     /// Show one port's channels, platform, and source requirements.
     Show {
         /// Catalog port ID; run `portcove catalog list` to find it.
@@ -55,6 +57,12 @@ pub(crate) enum CatalogCommand {
     InspectProposal {
         /// Inert catalog proposal JSON file; inspection does not sign, trust or publish it.
         file: PathBuf,
+    },
+    /// Validate a lightweight listing projection without opening a library or trusting it.
+    InspectListings {
+        /// Inert versioned listings JSON file to inspect.
+        #[arg(long)]
+        path: PathBuf,
     },
     /// Inspect a fixed local managed-definition publication bundle without authority or library writes.
     InspectDefinitionPublication {
@@ -154,9 +162,11 @@ impl CatalogCommand {
         match self {
             Self::List => "catalog.list",
             Self::Export => "catalog.export",
+            Self::Listings => "catalog.listings",
             Self::Show { .. } => "catalog.show",
             Self::CheckCapabilities { .. } => "catalog.check-capabilities",
             Self::InspectProposal { .. } => "catalog.inspect-proposal",
+            Self::InspectListings { .. } => "catalog.inspect-listings",
             Self::InspectDefinitionPublication { .. } => "catalog.inspect-definition-publication",
             Self::InspectObservation { .. } => "catalog.inspect-observation",
             Self::Status => "catalog.status",
@@ -187,6 +197,26 @@ pub(crate) async fn execute(
             })
         }
         CatalogCommand::Export => render_success(mode, name, service.catalog().document().clone()),
+        CatalogCommand::Listings => render_read_success(
+            mode,
+            name,
+            service.catalog().listing_document().clone(),
+            |document| {
+                document
+                    .listings
+                    .iter()
+                    .map(|listing| {
+                        format!(
+                            "{}\t{}\t{}",
+                            human::clean(&listing.id),
+                            human::clean(&listing.name),
+                            human::clean(&listing.project_url)
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            },
+        ),
         CatalogCommand::Show { port_id } => render_read_success(
             mode,
             name,
@@ -265,6 +295,9 @@ pub(crate) async fn execute(
         }
         CatalogCommand::InspectProposal { .. } => {
             unreachable!("proposal inspection executes before opening a library")
+        }
+        CatalogCommand::InspectListings { .. } => {
+            unreachable!("listing inspection executes before opening a library")
         }
         CatalogCommand::InspectDefinitionPublication { .. } => {
             unreachable!("publication inspection executes before opening a library")

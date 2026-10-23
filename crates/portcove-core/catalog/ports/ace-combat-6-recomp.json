@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ace-combat-6-recomp",
+    "name": "Ace Combat 6 Recomp",
+    "summary": "Explore Ace Combat 6 Recomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/sal063/AC6_recomp",
+    "issue_number": 159,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sal063/AC6_recomp"
+  }
+}

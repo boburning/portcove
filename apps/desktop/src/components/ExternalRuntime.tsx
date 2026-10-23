@@ -9,7 +9,13 @@ import {
 } from "../features/port-actions/port-action-presentation";
 import { pickInstallFolder, pickHostToolExecutable } from "../file-picker";
 import { LatestRequestGeneration } from "../shared/concurrency-state";
-import type { ExternalRuntimePreview, PortDefinition, PortStatus } from "../types";
+import type {
+  ExternalRuntimePreview,
+  PortDefinition,
+  PortListingStatus,
+  PortStatus,
+} from "../types";
+import { listingActionAssessment, type CatalogEntry } from "../features/browsing/catalog-entry";
 import { useActionReview } from "../use-action-review";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
@@ -54,7 +60,7 @@ export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
   );
 }
 
-function AuthoredPreparationGuidance({ port }: { port: PortDefinition }) {
+function AuthoredPreparationGuidance({ port }: { port: CatalogEntry }) {
   const guide = port.presentation?.manual_setup;
   return (
     <>
@@ -233,19 +239,52 @@ function ExternalRuntimeContext({
 
 type SelectedLaunch = { executable: string; workingDirectory: string; arguments: string[] };
 
-function UserSelectedRuntimeControl({
+type UserSelectedRuntimeProps = Omit<ExternalRuntimeControlProps, "port"> & {
+  port: CatalogEntry;
+  listingStatus?: PortListingStatus | undefined;
+  initialDirectory?: string | undefined;
+};
+
+export function UserSelectedRuntimeControl(props: UserSelectedRuntimeProps) {
+  return (
+    <UserSelectedRuntimeEditor
+      key={JSON.stringify([
+        props.port.id,
+        props.generation,
+        props.status?.external_runtime,
+        props.initialDirectory,
+      ])}
+      {...props}
+    />
+  );
+}
+
+function UserSelectedRuntimeEditor({
   port,
   status,
   generation,
   busy,
   onChanged,
-}: ExternalRuntimeControlProps) {
+  listingStatus,
+  initialDirectory,
+}: UserSelectedRuntimeProps) {
   const workingDirectoryId = useId();
-  const [executable, setExecutable] = useState("");
-  const [workingDirectory, setWorkingDirectory] = useState("");
-  const [argumentLines, setArgumentLines] = useState("");
+  const registered = status?.external_runtime;
+  const [executable, setExecutable] = useState(registered?.executable ?? "");
+  const [workingDirectory, setWorkingDirectory] = useState(
+    registered?.path ?? initialDirectory ?? "",
+  );
+  const [argumentLines, setArgumentLines] = useState(
+    registered?.user_selected?.arguments.join("\n") ?? "",
+  );
+  const [argumentsEdited, setArgumentsEdited] = useState(false);
+  const savedArguments = registered?.user_selected?.arguments ?? [];
+  const preserveStructuredArguments =
+    !argumentsEdited && savedArguments.some((argument) => !argument || /[\r\n]/u.test(argument));
+  const [editing, setEditing] = useState(false);
   const [selected, setSelected] = useState<SelectedLaunch>();
   const [removing, setRemoving] = useState(false);
+  const [pickerError, setPickerError] = useState<unknown>();
   const pickerRequests = useRef(new LatestRequestGeneration());
   useLayoutEffect(() => {
     const requests = pickerRequests.current;
@@ -253,46 +292,81 @@ function UserSelectedRuntimeControl({
       requests.begin();
     };
   }, []);
-  const registered = status?.external_runtime;
   const removal = removalReviewPresentation(status, "remove_external");
   const { registration, canRegister } = externalRegistration(status);
+  const requestedAction = registered ? "relink-existing" : "attach-existing";
+  const assessment = listingActionAssessment(listingStatus, requestedAction);
+  const requiresListingAssessment = Boolean(listingStatus || !port.release);
+  const canEdit = requiresListingAssessment
+    ? assessment.allowed
+    : registered
+      ? Boolean(registered.user_selected)
+      : canRegister;
+  const removeAssessment = listingActionAssessment(listingStatus, "remove-registration");
+  const canRemove = requiresListingAssessment ? removeAssessment.allowed : !removal.blocked;
   const chooseExecutable = async () => {
     const request = pickerRequests.current.begin();
-    const path = await pickHostToolExecutable("game", executable);
-    if (pickerRequests.current.isCurrent(request) && typeof path === "string") {
-      setExecutable(path);
-      setWorkingDirectory(path.slice(0, Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"))));
+    setPickerError(undefined);
+    try {
+      const path = await pickHostToolExecutable("game", executable || workingDirectory);
+      if (pickerRequests.current.isCurrent(request) && typeof path === "string") {
+        setExecutable(path);
+        setWorkingDirectory(path.slice(0, Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"))));
+      }
+    } catch (value) {
+      if (pickerRequests.current.isCurrent(request)) setPickerError(value);
     }
   };
   const chooseDirectory = async () => {
     const request = pickerRequests.current.begin();
-    const path = await pickInstallFolder(workingDirectory);
-    if (pickerRequests.current.isCurrent(request) && typeof path === "string")
-      setWorkingDirectory(path);
+    setPickerError(undefined);
+    try {
+      const path = await pickInstallFolder(workingDirectory);
+      if (pickerRequests.current.isCurrent(request) && typeof path === "string")
+        setWorkingDirectory(path);
+    } catch (value) {
+      if (pickerRequests.current.isCurrent(request)) setPickerError(value);
+    }
   };
   return (
     <section className="grid gap-3" aria-label="Your existing installation">
-      {registered ? (
+      <ActionReviewFailure error={pickerError} />
+      {registered && !editing ? (
         <>
           <p>
             You or the upstream launcher manage this installation and its updates. Portcove launches{" "}
             <code>{registered.executable}</code> using <code>{registered.path}</code> as its working
-            directory. It does not authenticate it as an official package or manage its files,
-            settings or saves.
+            directory. It does not manage its files, settings or saves.
+            {registered.user_selected && " It does not authenticate it as an official package."}
           </p>
           <Button
             variant="outline"
             data-focusable
-            disabled={busy || removal.blocked}
+            disabled={busy || !canEdit}
+            onClick={() => setEditing(true)}
+          >
+            Edit launch details…
+          </Button>
+          <Button
+            variant="outline"
+            data-focusable
+            disabled={busy || !canRemove}
             onClick={() => setRemoving(true)}
           >
             Remove registration
           </Button>
-          {removal.blocked && <p role="status">{removal.reason}</p>}
+          {!canEdit && <p role="status">{assessment.reason}</p>}
+          {!canRemove && (
+            <p role="status">
+              {requiresListingAssessment ? removeAssessment.reason : removal.reason}
+            </p>
+          )}
         </>
       ) : (
         <>
-          <h3 className="font-semibold">Use your existing installation</h3>
+          <h3 className="font-semibold">
+            {registered ? "Edit launch details" : "Use your existing installation"}
+          </h3>
           <p>
             Complete the upstream setup with your own game files, then choose the game executable or
             its supported native launcher. You or the upstream launcher manage setup and updates.
@@ -302,7 +376,7 @@ function UserSelectedRuntimeControl({
           <Button
             variant="outline"
             data-focusable
-            disabled={busy || !canRegister}
+            disabled={busy || !canEdit}
             onClick={() => void chooseExecutable()}
           >
             Choose game executable…
@@ -334,39 +408,97 @@ function UserSelectedRuntimeControl({
           >
             Choose working directory…
           </Button>
-          <label className="grid gap-1">
-            Arguments (one per line, optional)
-            <textarea
-              className="rounded-pc-md border border-pc-input bg-pc-surface p-2"
-              aria-label="Launch arguments"
-              value={argumentLines}
-              disabled={busy}
-              onChange={(event) => setArgumentLines(event.target.value)}
-              rows={3}
-            />
-          </label>
-          <p className="text-sm text-pc-muted-foreground">
-            Enter each argument on a separate line. A path with spaces stays one argument. Leave
-            this empty when the upstream instructions require no arguments.
-          </p>
+          <details>
+            <summary data-focusable className="cursor-pointer py-2 font-medium">
+              Advanced launch options
+            </summary>
+            {preserveStructuredArguments ? (
+              <>
+                <p className="text-sm">
+                  Your saved arguments include empty values or line breaks. They will be kept
+                  exactly when you change the executable or working directory. This editor can
+                  replace the list with one argument per line.
+                </p>
+                <pre className="min-w-0 [overflow-wrap:anywhere] whitespace-pre-wrap">
+                  {JSON.stringify(savedArguments, null, 2)}
+                </pre>
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => {
+                    setArgumentLines("");
+                    setArgumentsEdited(true);
+                  }}
+                >
+                  Replace saved arguments…
+                </Button>
+              </>
+            ) : (
+              <>
+                <label className="grid gap-1">
+                  Arguments (one per line, optional)
+                  <textarea
+                    className="rounded-pc-md border border-pc-input bg-pc-surface p-2"
+                    aria-label="Launch arguments"
+                    value={argumentLines}
+                    disabled={busy}
+                    onChange={(event) => {
+                      setArgumentLines(event.target.value);
+                      setArgumentsEdited(true);
+                    }}
+                    rows={3}
+                  />
+                </label>
+                <p className="text-sm text-pc-muted-foreground">
+                  Enter each argument on a separate line. Spaces stay within one argument, and blank
+                  lines are empty arguments. Leave the entire field empty when no arguments are
+                  required.
+                </p>
+              </>
+            )}
+          </details>
           <p>
             Only choose an executable you trust. Portcove has not authenticated your selected files
             as an official package. Removing this registration preserves every external file.
           </p>
-          {!canRegister && <p role="status">{registration?.reason}</p>}
+          {!canEdit && (
+            <p role="status">
+              {requiresListingAssessment ? assessment.reason : registration?.reason}
+            </p>
+          )}
           <Button
             data-focusable
-            disabled={busy || !canRegister || !executable || !workingDirectory}
+            disabled={busy || !canEdit || !executable || !workingDirectory}
             onClick={() =>
               setSelected({
                 executable,
                 workingDirectory,
-                arguments: argumentLines.split(/\r?\n/).filter((argument) => argument.length > 0),
+                arguments: argumentsEdited
+                  ? argumentLines
+                    ? argumentLines.split(/\r?\n/u)
+                    : []
+                  : [...savedArguments],
               })
             }
           >
             Review launch details
           </Button>
+          {registered && (
+            <Button
+              data-focusable
+              variant="ghost"
+              onClick={() => {
+                pickerRequests.current.begin();
+                setExecutable(registered.executable);
+                setWorkingDirectory(registered.path);
+                setArgumentLines(registered.user_selected?.arguments.join("\n") ?? "");
+                setArgumentsEdited(false);
+                setEditing(false);
+              }}
+            >
+              Cancel editing
+            </Button>
+          )}
         </>
       )}
       {selected && (
@@ -374,6 +506,7 @@ function UserSelectedRuntimeControl({
           port={port}
           generation={generation}
           selected={selected}
+          relink={Boolean(registered)}
           close={() => setSelected(undefined)}
           onChanged={onChanged}
         />
@@ -394,29 +527,44 @@ function SelectedRuntimeDialog({
   port,
   generation,
   selected,
+  relink,
   close,
   onChanged,
 }: {
-  port: PortDefinition;
+  port: Pick<PortDefinition, "id" | "name">;
   generation: number;
   selected: SelectedLaunch;
+  relink: boolean;
   close: () => void;
   onChanged?: (() => void) | undefined;
 }) {
   const cancelButton = useRef<HTMLButtonElement>(null);
   const { preview, pending, error, review, execute, dismiss } = useActionReview({
-    identity: JSON.stringify([port.id, generation, selected]),
+    identity: JSON.stringify([port.id, generation, selected, relink]),
     retainOnCancel: true,
-    load: () =>
-      desktopApi.previewUserSelectedRuntime(
+    load: async () => {
+      if (relink) {
+        const value = await desktopApi.previewUserSelectedRuntimeRelink(
+          port.id,
+          selected.executable,
+          selected.workingDirectory,
+          selected.arguments,
+          generation,
+        );
+        return { ...value.proposed, preview_sha256: value.preview_sha256 };
+      }
+      return desktopApi.previewUserSelectedRuntime(
         port.id,
         selected.executable,
         selected.workingDirectory,
         selected.arguments,
         generation,
-      ),
+      );
+    },
     apply: async (value) => {
-      const record = await desktopApi.registerUserSelectedRuntime(
+      const record = await (
+        relink ? desktopApi.relinkUserSelectedRuntime : desktopApi.registerUserSelectedRuntime
+      )(
         port.id,
         selected.executable,
         selected.workingDirectory,
@@ -443,7 +591,10 @@ function SelectedRuntimeDialog({
         showCloseButton={false}
         aria-describedby="selected-runtime-description"
       >
-        <DialogTitle>Use this {gameIdentityLabel(port)} installation?</DialogTitle>
+        <DialogTitle>
+          {relink ? "Change launch details for" : "Use this"} {gameIdentityLabel(port)}
+          {relink ? "?" : " installation?"}
+        </DialogTitle>
         <DialogDescription id="selected-runtime-description">
           You selected this executable. Portcove has not authenticated it as an official package.
           You or the upstream launcher own setup and updates. Portcove will launch it and can remove
@@ -459,9 +610,14 @@ function SelectedRuntimeDialog({
           <dd>
             {selected.arguments.length
               ? selected.arguments.map((argument, index) => (
-                  <code className="block" key={index}>
-                    {argument}
-                  </code>
+                  <div key={index}>
+                    <span className="text-xs text-pc-muted-foreground">Argument {index + 1}</span>
+                    {argument ? (
+                      <code className="block whitespace-pre-wrap">{argument}</code>
+                    ) : (
+                      <span className="block">Empty argument</span>
+                    )}
+                  </div>
                 ))
               : "None"}
           </dd>
@@ -476,7 +632,7 @@ function SelectedRuntimeDialog({
           />
           {preview ? (
             <Button disabled={Boolean(pending)} onClick={() => void execute()}>
-              Use this installation
+              {relink ? "Save launch details" : "Use this installation"}
             </Button>
           ) : (
             <Button disabled={Boolean(pending)} onClick={() => void review()}>
@@ -623,7 +779,7 @@ function RemoveExternalDialog({
   close,
   onChanged,
 }: {
-  port: PortDefinition;
+  port: Pick<PortDefinition, "id" | "name">;
   generation: number;
   close: () => void;
   onChanged?: (() => void) | undefined;

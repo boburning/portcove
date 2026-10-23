@@ -6,8 +6,9 @@ import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { pickInstallFolder, pickHostToolExecutable } from "../file-picker";
 import { failureReport, portDefinition, portStatus } from "../test-fixtures";
-import type { ExternalRuntimeRecord } from "../types";
-import { ExternalRuntimeControl } from "./ExternalRuntime";
+import type { ExternalRuntimeRecord, PortListingStatus } from "../types";
+import { ExternalRuntimeControl, UserSelectedRuntimeControl } from "./ExternalRuntime";
+import { catalogEntries } from "../features/browsing/catalog-entry";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 
 vi.mock("../file-picker", () => ({ pickInstallFolder: vi.fn(), pickHostToolExecutable: vi.fn() }));
@@ -57,6 +58,160 @@ async function click(label: string) {
   expect(button).toBeDefined();
   await act(async () => button?.click());
 }
+
+it("registers a listing-only identity only when Core offers the action", async () => {
+  const entry = catalogEntries(
+    undefined,
+    {
+      format_version: 1,
+      listings: [
+        {
+          id: "listing-only",
+          name: "Listing Only",
+          summary: "An upstream project.",
+          project_url: "https://example.com/project",
+          platforms: [],
+          availability: "unknown",
+        },
+      ],
+    },
+    [],
+    [],
+  )[0]!;
+  const status = { ...portStatus(), port_id: entry.id };
+  await root.rerender(
+    <UserSelectedRuntimeControl port={entry} status={status} generation={7} busy={false} />,
+  );
+  await expect
+    .element(page.getByRole("button", { name: "Choose game executable…" }))
+    .toBeDisabled();
+  expect(pickHostToolExecutable).not.toHaveBeenCalled();
+  const listingStatus: PortListingStatus = {
+    port_id: entry.id,
+    status,
+    actions: [{ action: "attach-existing", allowed: true }],
+  };
+  await root.rerender(
+    <UserSelectedRuntimeControl
+      port={entry}
+      status={status}
+      listingStatus={listingStatus}
+      generation={7}
+      busy={false}
+      initialDirectory={"C:\\Player\\Downloaded game"}
+    />,
+  );
+  await expect.element(page.getByRole("button", { name: "Choose game executable…" })).toBeEnabled();
+  await expect
+    .element(page.getByRole("textbox", { name: "Working directory" }))
+    .toHaveValue("C:\\Player\\Downloaded game");
+  expect(entry.release).toBeUndefined();
+  await root.rerender(
+    <UserSelectedRuntimeControl
+      port={entry}
+      status={status}
+      listingStatus={{
+        ...listingStatus,
+        actions: [...listingStatus.actions, ...listingStatus.actions],
+      }}
+      generation={7}
+      busy={false}
+    />,
+  );
+  await expect
+    .element(page.getByRole("button", { name: "Choose game executable…" }))
+    .toBeDisabled();
+});
+
+it.each([
+  { label: "ordinary arguments", arguments: ["--fullscreen"] },
+  { label: "empty and multiline arguments", arguments: ["--profile", "", "first\nsecond"] },
+])(
+  "edits selected paths while preserving $label through relink",
+  async ({ arguments: savedArguments }) => {
+    const selected = { ...record, user_selected: { arguments: savedArguments } };
+    const status = { ...portStatus(), external_runtime: selected };
+    const listingStatus: PortListingStatus = {
+      port_id: port.id,
+      status,
+      actions: [
+        { action: "relink-existing", allowed: true },
+        { action: "remove-registration", allowed: true },
+      ],
+    };
+    const executable = "C:\\Player\\New folder\\game.exe";
+    vi.mocked(pickHostToolExecutable).mockResolvedValue(executable);
+    const preview = vi.spyOn(desktopApi, "previewUserSelectedRuntimeRelink").mockResolvedValue({
+      port_id: port.id,
+      registration_id: record.id,
+      external_files_will_be_preserved: true,
+      previous_path: record.path,
+      preview_sha256: "edit-review",
+      proposed: {
+        port_id: port.id,
+        executable,
+        path: "C:\\Player\\New folder",
+        version: "user-managed",
+        archive_sha256: "",
+        immutable_tree_sha256: "",
+        immutable_file_count: 0,
+        preview_sha256: "proposed",
+        user_selected: selected.user_selected,
+        shared_preferences: null,
+      },
+    });
+    const apply = vi
+      .spyOn(desktopApi, "relinkUserSelectedRuntime")
+      .mockResolvedValue({ ...selected, executable });
+    const remove = vi.spyOn(desktopApi, "removeExternalRuntime");
+    const register = vi.spyOn(desktopApi, "registerUserSelectedRuntime");
+    const changed = vi.fn();
+    await root.rerender(
+      <UserSelectedRuntimeControl
+        port={port}
+        status={status}
+        listingStatus={listingStatus}
+        generation={7}
+        busy={false}
+        onChanged={changed}
+      />,
+    );
+    await click("Edit launch details…");
+    await click("Choose game executable…");
+    const keepsExactArguments = savedArguments.some(
+      (argument) => argument === "" || /[\r\n]/.test(argument),
+    );
+    await page.getByText("Advanced launch options", { exact: true }).click();
+    expect(document.body.textContent?.includes("They will be kept exactly")).toBe(
+      keepsExactArguments,
+    );
+    expect(document.querySelector('textarea[aria-label="Launch arguments"]') === null).toBe(
+      keepsExactArguments,
+    );
+    await click("Review launch details");
+    expect(preview).toHaveBeenCalledExactlyOnceWith(
+      port.id,
+      executable,
+      "C:\\Player\\New folder",
+      savedArguments,
+      7,
+    );
+    expect(apply).not.toHaveBeenCalled();
+    expect(document.body.textContent?.includes("Empty argument")).toBe(savedArguments.includes(""));
+    await click("Save launch details");
+    expect(apply).toHaveBeenCalledExactlyOnceWith(
+      port.id,
+      executable,
+      "C:\\Player\\New folder",
+      savedArguments,
+      "edit-review",
+      7,
+    );
+    expect(remove).not.toHaveBeenCalled();
+    expect(register).not.toHaveBeenCalled();
+    expect(changed).toHaveBeenCalledOnce();
+  },
+);
 
 it("reviews explicit user launch details without accepted-package or file-management claims", async () => {
   const selectedPort = {
@@ -116,6 +271,7 @@ it("reviews explicit user launch details without accepted-package or file-manage
     .toBeVisible();
   expect(document.body.textContent).not.toContain("Archive SHA-256");
   await click("Choose game executable…");
+  await page.getByText("Advanced launch options", { exact: true }).click();
   await page.getByRole("textbox", { name: "Launch arguments" }).fill("--data\nC:\\Original files");
   await click("Review launch details");
   expect(preview).toHaveBeenCalledExactlyOnceWith(

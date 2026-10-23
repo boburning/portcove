@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mdk-sdl-nemo22",
+    "name": "MDK / SDL engine (nemo22)",
+    "summary": "Explore MDK / SDL engine (nemo22) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/nemo22/mdk-sdl",
+    "issue_number": 1775,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/nemo22/mdk-sdl"
+  }
+}

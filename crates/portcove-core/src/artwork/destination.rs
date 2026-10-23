@@ -280,7 +280,7 @@ impl PortcoveService {
         port_id: &str,
         role: DestinationArtworkRole,
     ) -> Result<(DestinationArtworkHandoff, Option<Vec<u8>>)> {
-        // Use the same current/retained-admitted port boundary as existing slots.
+        // Use the same current/validated-retained listing boundary as existing slots.
         let port = self.artwork_port(port_id)?;
         let mut handoff = DestinationArtworkHandoff {
             handoff_schema: ARTWORK_HANDOFF_SCHEMA,
@@ -321,11 +321,7 @@ impl PortcoveService {
                 }
             } else {
                 handoff.source = DestinationArtworkSource::GeneratedFallback;
-                if let Some(artwork) = port
-                    .presentation
-                    .as_ref()
-                    .and_then(|presentation| presentation.artwork.as_ref())
-                {
+                if let Some(artwork) = port.artwork.as_ref() {
                     handoff.source = DestinationArtworkSource::CatalogDefault {
                         artwork: artwork.clone(),
                     };

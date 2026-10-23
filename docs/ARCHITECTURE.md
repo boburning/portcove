@@ -114,6 +114,42 @@ scope; they do not certify later builds.
 
 ## Subsystem contracts
 
+## Discovery listings and user-owned setup
+
+`catalog/ports/<id>.json` is the authored authority for one stable project
+identity. Deterministic assembly emits the strict operational catalog and a
+separately versioned descriptive listing directory. A listing grants no managed
+operation. Core overlays accepted strict presentation without retroactively
+applying new listing-admission rules to older accepted contracts. Source-only,
+unavailable and unknown projects can remain visible without invented platform,
+executable or source requirements.
+
+`service/listings.rs` owns the listing projection and available registration
+actions. `service/catalog_download.rs` owns explicit upstream asset review,
+bounded transfer, safe optional extraction and durable pending setup. It reuses
+the existing GitHub provider and archive checks. A download publishes into a new
+user-owned child folder outside the Library and managed outputs; it never runs
+an installer or guesses an executable. The final artifact-policy check and
+handoff commit share the policy-admission transaction. Recorded publication
+intent and receipts support restart recovery without adopting or deleting an
+unproven destination.
+
+The `catalog_downloads` table retains the listing, selected asset, observed
+digest and continuation identity. An atomic workspace snapshot includes
+listings, action assessments and pending setup. Explicit registration consumes
+only the reviewed pending row, and keeps the existing user-selected execution
+intent, native-file and path checks. Relinking preserves registration identity
+and history. Forgetting pending setup or removing a registration leaves user
+files in place. Neither operation grants updates, save migration, backup,
+rollback or external deletion.
+
+CLI and Tauri translate these same Core operations; React displays their
+assessments and review inputs. Artwork and favorites use the same stable listing
+identity, including a retained pending setup or registration after its current
+listing disappears. The first directory is bundled with the client. Delivery to
+an unchanged client remains with the existing protected definition-delivery
+boundary in [DEFINITION-DELIVERY.md](DEFINITION-DELIVERY.md), not a second feed.
+
 ## Source import journal interpretation
 
 Source import admits publication through the existing atomic cancellation boundary
@@ -417,14 +453,18 @@ core-resolved source and generated-fallback provenance. Catalog and signed-envel
 formats are unchanged. Local filenames, hashes and import times record provenance;
 they establish neither copyright permission nor upstream authenticity.
 
-Artwork reads, thumbnails, imports and resets prefer current catalog presentation.
-When an imported installed port is absent from that catalog, they may use its
-active installation's digest-validated retained definition only while its exact
-admission matches the library's retained active or previous selection. Missing
-installations, invalid manifests and unadmitted snapshots cannot supply this
-fallback. This private presentation lookup does not modify catalog discovery or
-lifecycle authority. An artwork change captures that validated presentation once
-and reports its committed choice without reopening the retained manifest.
+Artwork reads, thumbnails, imports, resets and destination handoffs use descriptive
+listing identity, including listings without an operational integration. Current
+catalog presentation wins. When an imported managed installation is absent, its
+digest-validated retained definition may supply presentation only while its exact
+admission matches the library's retained active or previous selection. Invalid
+manifests and unadmitted managed snapshots cannot fall through to a weaker source.
+If no managed installation exists, a validated user-owned registration or pending
+setup may retain its listing identity after removal from the current directory.
+This private lookup adds no managed definition or lifecycle authority. An artwork
+change captures validated presentation once and reports its committed choice
+without reopening the retained state. Existing local choices remain authoritative
+across listing changes; favorites retain their stable IDs independently.
 
 Imports accept static PNG/JPEG files with at most 16 MiB encoded bytes, 8192 pixels
 per dimension, 8 megapixels and 32 MiB decoded pixel storage. Decoder allocation

@@ -1,0 +1,90 @@
+{
+  "format_version": 1,
+  "order": 98,
+  "listing": {
+    "id": "sonic-the-hedgehog-recomp",
+    "name": "SonicTheHedgehogRecomp",
+    "summary": "Native Sonic the Hedgehog recompilation.",
+    "project_url": "https://github.com/mstan/SonicTheHedgehogRecomp",
+    "original_game_title": "Sonic the Hedgehog",
+    "artwork": {
+      "game_id": 3192,
+      "cover_id": 497143,
+      "image_id": "coanlj",
+      "image_sha256": "ac739a2272e2eab518c7d9814becf6f64cc61e8de57e5b357562f577d0d845d3",
+      "game_slug": "sonic-the-hedgehog",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 152
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "direct-manifest",
+      "direct": {
+        "windows-x86-64": {
+          "version": "v0.6.0",
+          "url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/download/v0.6.0/SonicTheHedgehogRecomp-v0.6.0-win64.zip",
+          "size": 3776546,
+          "sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
+          "published_at": "2026-06-17T05:17:11Z"
+        }
+      }
+    },
+    "source_profile": "sonic-the-hedgehog-genesis-jue-rev00",
+    "executable_hints": {
+      "windows-x86-64": ["SonicTheHedgehogRecomp.exe"]
+    },
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "sonic-the-hedgehog-genesis-jue-rev00",
+          "label": "Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Upstream reports Green Hill complete and later zones partial."
+    },
+    "runtime_source_filename": "game.bin",
+    "runtime_source_materialization": "copy",
+    "runtime_source_hashes": {
+      "game.bin": "46160baa06362c711c9f1a5017cb7371026444936c8af5e93a78996cf32ff2a6"
+    },
+    "windows_runtime_path_policy": "printable-ascii-max-path",
+    "launch_arguments": ["game.bin"],
+    "persistent_paths": [
+      "game.bin",
+      "settings.ini",
+      "rom-Sonic1.cfg",
+      "native_save_1.bin",
+      "native_save_2.bin",
+      "native_save_3.bin",
+      "native_save_4.bin",
+      "native_save_5.bin",
+      "native_save_6.bin",
+      "native_save_7.bin",
+      "native_save_8.bin",
+      "native_save_9.bin"
+    ],
+    "runtime_mutable_paths": [
+      "framelog_step2.txt",
+      "ramdump_native.bin",
+      "dispatch_misses.log",
+      "interior_label_misses.log",
+      "interp_fallbacks.log",
+      "last_error.log",
+      "chip_ring.txt",
+      "snd_ring.txt",
+      "yield_log_native.log",
+      "z80_ram.bin"
+    ]
+  }
+}

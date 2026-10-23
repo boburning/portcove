@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rush-2-recompiled",
+    "name": "Rush 2 Recompiled",
+    "summary": "Explore Rush 2 Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/bryantmh/rush2recompiled",
+    "issue_number": 1571,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/bryantmh/rush2recompiled"
+  }
+}

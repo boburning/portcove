@@ -1,0 +1,70 @@
+{
+  "format_version": 1,
+  "order": 8,
+  "listing": {
+    "id": "zelda64-recomp",
+    "name": "Zelda 64: Recompiled",
+    "summary": "Native Majora's Mask recompilation.",
+    "project_url": "https://github.com/Zelda64Recomp/Zelda64Recomp",
+    "original_game_title": "The Legend of Zelda: Majora's Mask",
+    "artwork": {
+      "game_id": 300982,
+      "cover_id": 396666,
+      "image_id": "co8i2i",
+      "image_sha256": "78f3367efe5e883d438cff42fd7316795e1f02bde958e54b8dd81256d120ebf7",
+      "game_slug": "zelda-64-recompiled",
+      "match_kind": "port"
+    },
+    "issue_number": 64
+  },
+  "integration": {
+    "support_tier": "stable",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "adapter": "n64-recomp-portable",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "Zelda64Recomp/Zelda64Recomp",
+      "asset_hints": {
+        "linux-x86-64": ["Linux-X64.zip"]
+      }
+    },
+    "source_profile": "majoras-mask",
+    "executable_hints": {
+      "windows-x86-64": ["zelda64recompiled.exe"],
+      "linux-x86-64": ["zelda64recompiled"],
+      "macos-x86-64": ["zelda64recompiled"],
+      "macos-aarch64": ["zelda64recompiled"]
+    },
+    "persistent_paths": [
+      "mods",
+      "mod_config",
+      "saves",
+      "mods.json",
+      "mods.json.bak",
+      "general.json",
+      "general.json.bak",
+      "graphics.json",
+      "graphics.json.bak",
+      "controls.json",
+      "controls.json.bak",
+      "sound.json",
+      "sound.json.bak",
+      "mm.n64.us.1.0.z64"
+    ],
+    "runtime_source_filename": "mm.n64.us.1.0.z64",
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "majoras-mask",
+          "label": "The Legend of Zelda: Majora's Mask source",
+          "verification": "catalog-rules"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

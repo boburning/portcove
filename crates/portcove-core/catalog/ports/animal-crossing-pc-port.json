@@ -1,0 +1,53 @@
+{
+  "format_version": 1,
+  "order": 57,
+  "listing": {
+    "id": "animal-crossing-pc-port",
+    "name": "Animal Crossing PC Port",
+    "summary": "Native Animal Crossing GameCube port.",
+    "project_url": "https://github.com/flyngmt/ACGC-PC-Port",
+    "original_game_title": "Animal Crossing",
+    "artwork": {
+      "game_id": 2655,
+      "cover_id": 182255,
+      "image_id": "co3wmn",
+      "image_sha256": "ffcc4b01733a1028a338e1d15263a040686f9da84ca9d05b8f484494c22c0575",
+      "game_slug": "animal-crossing",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 108
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "flyngmt/ACGC-PC-Port",
+      "asset_hints": {
+        "windows-x86-64": ["ACGC-PC-Port"]
+      }
+    },
+    "source_profile": "animal-crossing-gamecube",
+    "runtime_source_filename": "rom/GAFE01.iso",
+    "runtime_source_materialization": "gamecube-iso",
+    "executable_hints": {
+      "windows-x86-64": ["AnimalCrossing.exe"]
+    },
+    "persistent_paths": ["save", "settings.ini", "keybindings.ini", "texture_pack"],
+    "presentation": {
+      "installation_method": "staged-game-files",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "animal-crossing-gamecube",
+          "label": "Animal Crossing (USA Rev 0) GameCube disc",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

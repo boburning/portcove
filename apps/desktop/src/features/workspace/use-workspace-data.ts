@@ -4,6 +4,9 @@ import { listenDesktopEvent } from "../../desktop-events";
 import type {
   ActivityFeed,
   CatalogDocument,
+  CatalogListingDocument,
+  PortListingStatus,
+  PendingSetupRecord,
   DoctorReport,
   PortStatus,
   SourceRecord,
@@ -40,6 +43,7 @@ interface EssentialSnapshotIdentity {
   statuses: string;
   sources: string;
   browsing: string;
+  listings: string;
 }
 
 function essentialSnapshotIdentity(snapshot: WorkspaceSnapshot): EssentialSnapshotIdentity {
@@ -48,6 +52,11 @@ function essentialSnapshotIdentity(snapshot: WorkspaceSnapshot): EssentialSnapsh
     statuses: JSON.stringify(snapshot.statuses),
     sources: JSON.stringify(snapshot.sources),
     browsing: JSON.stringify(snapshot.browsing ?? null),
+    listings: JSON.stringify([
+      snapshot.listing_catalog,
+      snapshot.listing_statuses,
+      snapshot.pending_setups,
+    ]),
   };
 }
 
@@ -66,6 +75,11 @@ function useWorkspaceViewState() {
   const [statuses, setStatuses] = useState<PortStatus[]>([]);
   const [sources, setSources] = useState<SourceRecord[]>([]);
   const [browsing, setBrowsing] = useState<WorkspaceSnapshot["browsing"]>();
+  const [listings, setListings] = useState<{
+    catalog?: CatalogListingDocument;
+    statuses: PortListingStatus[];
+    pending: PendingSetupRecord[];
+  }>({ statuses: [], pending: [] });
   const [activityFeed, setActivityFeed] = useState<ActivityFeed>(() => emptyActivityFeed());
   const [doctor, setDoctor] = useState<DoctorReport>();
   const [refreshFailure, setRefreshFailure] = useState<{ error: unknown }>();
@@ -85,6 +99,8 @@ function useWorkspaceViewState() {
     setSources,
     browsing,
     setBrowsing,
+    listings,
+    setListings,
     activityFeed,
     setActivityFeed,
     doctor,
@@ -121,13 +137,22 @@ function essentialSnapshotUpdate(
   const statusesChanged = !sameLibrary || previousIdentity?.statuses !== identity.statuses;
   const sourcesChanged = !sameLibrary || previousIdentity?.sources !== identity.sources;
   const browsingChanged = !sameLibrary || previousIdentity?.browsing !== identity.browsing;
-  if (!catalogChanged && !statusesChanged && !sourcesChanged && !browsingChanged) return undefined;
+  const listingsChanged = !sameLibrary || previousIdentity?.listings !== identity.listings;
+  if (
+    !catalogChanged &&
+    !statusesChanged &&
+    !sourcesChanged &&
+    !browsingChanged &&
+    !listingsChanged
+  )
+    return undefined;
   return {
     identity,
     catalogChanged,
     statusesChanged,
     sourcesChanged,
     browsingChanged,
+    listingsChanged,
     nextStatuses: statusesChanged
       ? sameLibrary
         ? retainUnchangedStatuses(acceptedStatuses, snapshot.statuses)
@@ -143,6 +168,7 @@ export function usePortcoveData(libraryGeneration = 0) {
     statuses,
     sources,
     browsing,
+    listings,
     activityFeed,
     doctor,
     refreshFailure,
@@ -167,6 +193,7 @@ export function usePortcoveData(libraryGeneration = 0) {
     setStatuses,
     setSubscriptionFailure,
     setBrowsing,
+    setListings,
   } = view;
   const refreshGeneration = useRef(new LatestRequestGeneration());
   const activityGeneration = useRef(new LatestRequestGeneration());
@@ -220,6 +247,12 @@ export function usePortcoveData(libraryGeneration = 0) {
         }
         if (update.sourcesChanged) setSources(snapshot.sources);
         if (update.browsingChanged) setBrowsing(snapshot.browsing);
+        if (update.listingsChanged)
+          setListings({
+            ...(snapshot.listing_catalog ? { catalog: snapshot.listing_catalog } : {}),
+            statuses: snapshot.listing_statuses ?? [],
+            pending: snapshot.pending_setups ?? [],
+          });
       }
       lastFullReconciliationAt.current = Date.now();
       if (activityGeneration.current.isCurrent(activityRequest))
@@ -241,6 +274,7 @@ export function usePortcoveData(libraryGeneration = 0) {
     setRefreshing,
     setSources,
     setBrowsing,
+    setListings,
     setStatuses,
   ]);
   const coordinators = useRef<
@@ -451,6 +485,9 @@ export function usePortcoveData(libraryGeneration = 0) {
     statuses,
     sources,
     browsing,
+    listingCatalog: listings.catalog,
+    listingStatuses: listings.statuses,
+    pendingSetups: listings.pending,
     activities,
     activityFeed,
     doctor,

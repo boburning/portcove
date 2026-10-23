@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "exit-rexglue-exit-exit1",
+    "name": "EXIT / ReXGlue-EXIT / EXIT1",
+    "summary": "Explore EXIT / ReXGlue-EXIT / EXIT1 and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/FluffyQuack/ReXGlue-EXIT",
+    "issue_number": 362,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/FluffyQuack/ReXGlue-EXIT"
+  }
+}

@@ -1,7 +1,10 @@
 import type { PortDefinition, PortStatus } from "../types";
 
 /** Retained registrations keep their trust interpretation when the catalog changes. */
-export function usesUserSelectedRuntime(port: PortDefinition, status?: PortStatus) {
+export function usesUserSelectedRuntime(
+  port: Pick<PortDefinition, "release">,
+  status?: PortStatus,
+) {
   if (status?.active || status?.staged) return false;
   if (status?.external_runtime) return Boolean(status.external_runtime.user_selected);
   if (port.release.provider !== "user-prepared") return false;

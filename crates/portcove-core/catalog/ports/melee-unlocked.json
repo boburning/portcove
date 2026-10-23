@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "melee-unlocked",
+    "name": "Melee Unlocked",
+    "summary": "Explore Melee Unlocked and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/Hero88go/melee-unlocked",
+    "issue_number": 814,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Hero88go/melee-unlocked"
+  }
+}

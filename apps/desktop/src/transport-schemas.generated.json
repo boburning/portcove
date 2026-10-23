@@ -32,6 +32,7 @@
     "$defs": {
       "ActivityOperation": {
         "enum": [
+          "download_package",
           "prepare",
           "update_catalog",
           "discover_sources",
@@ -5628,6 +5629,520 @@
       "ports"
     ],
     "title": "CatalogDocument",
+    "type": "object"
+  },
+  "catalog_download_candidates": {
+    "$defs": {
+      "CatalogDownloadCandidate": {
+        "properties": {
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "can_extract": {
+            "type": "boolean"
+          },
+          "download_url": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "release_tag": {
+            "type": "string"
+          },
+          "release_url": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "release_id",
+          "asset_id",
+          "release_tag",
+          "release_url",
+          "name",
+          "size",
+          "download_url",
+          "sha256",
+          "can_extract"
+        ],
+        "type": "object"
+      },
+      "CatalogDownloadCoverage": {
+        "properties": {
+          "candidate_limit": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "candidates_complete": {
+            "description": "All assets from the returned published releases are represented.",
+            "type": "boolean"
+          },
+          "release_history_complete": {
+            "description": "A short first page established the end of the visible release history.",
+            "type": "boolean"
+          },
+          "release_limit": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "releases_checked": {
+            "description": "Published releases whose dedicated asset inventory was fully inspected.",
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "release_limit",
+          "candidate_limit",
+          "releases_checked",
+          "release_history_complete",
+          "candidates_complete"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "allowed": {
+        "type": "boolean"
+      },
+      "candidates": {
+        "items": {
+          "$ref": "#/$defs/CatalogDownloadCandidate"
+        },
+        "type": "array"
+      },
+      "coverage": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/CatalogDownloadCoverage"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Absent when an availability or provider refusal prevented discovery."
+      },
+      "default_destination_parent": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "reason": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "upstream_url": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "port_id",
+      "allowed",
+      "reason",
+      "candidates",
+      "coverage",
+      "default_destination_parent",
+      "upstream_url"
+    ],
+    "title": "CatalogDownloadCandidates",
+    "type": "object"
+  },
+  "catalog_download_preview": {
+    "$defs": {
+      "CatalogDownloadCandidate": {
+        "properties": {
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "can_extract": {
+            "type": "boolean"
+          },
+          "download_url": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "release_tag": {
+            "type": "string"
+          },
+          "release_url": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "release_id",
+          "asset_id",
+          "release_tag",
+          "release_url",
+          "name",
+          "size",
+          "download_url",
+          "sha256",
+          "can_extract"
+        ],
+        "type": "object"
+      },
+      "CatalogDownloadRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "destination_parent": {
+            "type": "string"
+          },
+          "extract_archive": {
+            "type": "boolean"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "port_id",
+          "release_id",
+          "asset_id",
+          "destination_parent",
+          "extract_archive"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "artifact": {
+        "$ref": "#/$defs/CatalogDownloadCandidate"
+      },
+      "destination_path": {
+        "type": "string"
+      },
+      "preview_sha256": {
+        "type": "string"
+      },
+      "request": {
+        "$ref": "#/$defs/CatalogDownloadRequest"
+      }
+    },
+    "required": [
+      "request",
+      "artifact",
+      "destination_path",
+      "preview_sha256"
+    ],
+    "title": "CatalogDownloadPreview",
+    "type": "object"
+  },
+  "catalog_download_request": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "asset_id": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "destination_parent": {
+        "type": "string"
+      },
+      "extract_archive": {
+        "type": "boolean"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "release_id": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "port_id",
+      "release_id",
+      "asset_id",
+      "destination_parent",
+      "extract_archive"
+    ],
+    "title": "CatalogDownloadRequest",
+    "type": "object"
+  },
+  "catalog_listings": {
+    "$defs": {
+      "IgdbArtwork": {
+        "additionalProperties": false,
+        "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
+        "properties": {
+          "cover_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_slug": {
+            "type": "string"
+          },
+          "image_id": {
+            "type": "string"
+          },
+          "image_sha256": {
+            "type": "string"
+          },
+          "match_kind": {
+            "$ref": "#/$defs/IgdbArtworkMatch"
+          }
+        },
+        "required": [
+          "game_id",
+          "cover_id",
+          "image_id",
+          "image_sha256",
+          "game_slug",
+          "match_kind"
+        ],
+        "type": "object"
+      },
+      "IgdbArtworkMatch": {
+        "enum": [
+          "port",
+          "underlying-game"
+        ],
+        "type": "string"
+      },
+      "ListingAvailability": {
+        "description": "A dated discovery fact, not a managed support or artifact admission decision.",
+        "enum": [
+          "unknown",
+          "packages",
+          "source-only",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "ManualSetupGuide": {
+        "additionalProperties": false,
+        "description": "Authored instructions only; these steps grant no operation or file authority.",
+        "properties": {
+          "help_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/$defs/ManualSetupStep"
+            },
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "steps",
+          "warnings"
+        ],
+        "type": "object"
+      },
+      "ManualSetupStep": {
+        "additionalProperties": false,
+        "properties": {
+          "instruction": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "instruction"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "PortListing": {
+        "additionalProperties": false,
+        "description": "Descriptive project information. A listing never grants managed installation,\nexecutable selection, source access or ownership of an external directory.",
+        "properties": {
+          "artwork": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "availability": {
+            "$ref": "#/$defs/ListingAvailability",
+            "default": "unknown"
+          },
+          "id": {
+            "type": "string"
+          },
+          "issue_number": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "manual_setup": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ManualSetupGuide"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "original_game_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platforms": {
+            "default": [],
+            "description": "Empty means unknown; it is not an execution compatibility declaration.",
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "project_url": {
+            "type": "string"
+          },
+          "release_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "setup_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "variant_label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "summary",
+          "project_url",
+          "platforms",
+          "availability"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Independently versioned inert directory projection. The operational catalog\nkeeps its existing schema and strict PortDefinition interpretation.",
+    "properties": {
+      "format_version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "listings": {
+        "items": {
+          "$ref": "#/$defs/PortListing"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "format_version",
+      "listings"
+    ],
+    "title": "CatalogListingDocument",
     "type": "object"
   },
   "catalog_provenance": {
@@ -15893,6 +16408,1394 @@
     "title": "LibrarySelection",
     "type": "object"
   },
+  "listing_statuses": {
+    "$defs": {
+      "AcceptedSharedPreferencesBinding": {
+        "additionalProperties": false,
+        "description": "Explicitly accepted account and location; mutable contents are not authority.",
+        "properties": {
+          "account_sid_sha256": {
+            "type": "string"
+          },
+          "contract": {
+            "$ref": "#/$defs/PreparedSharedPreferencesContract"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract",
+          "account_sid_sha256",
+          "path"
+        ],
+        "type": "object"
+      },
+      "ArtifactIdentity": {
+        "properties": {
+          "asset_name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_name",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "AuthenticatedDefinitionProvenance": {
+        "additionalProperties": false,
+        "description": "Authenticated metadata facts captured with a candidate. They are not a persisted replay floor.",
+        "properties": {
+          "definitions_sha256": {
+            "type": "string"
+          },
+          "definitions_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "earliest_expiration": {
+            "type": "string"
+          },
+          "index_sha256": {
+            "type": "string"
+          },
+          "root_sha256": {
+            "type": "string"
+          },
+          "root_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "snapshot_sha256": {
+            "type": "string"
+          },
+          "snapshot_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "targets_sha256": {
+            "type": "string"
+          },
+          "targets_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "timestamp_sha256": {
+            "type": "string"
+          },
+          "timestamp_version": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "root_version",
+          "root_sha256",
+          "timestamp_version",
+          "timestamp_sha256",
+          "snapshot_version",
+          "snapshot_sha256",
+          "targets_version",
+          "targets_sha256",
+          "definitions_version",
+          "definitions_sha256",
+          "earliest_expiration",
+          "index_sha256"
+        ],
+        "type": "object"
+      },
+      "DefinitionEligibility": {
+        "properties": {
+          "outcome": {
+            "$ref": "#/$defs/DefinitionEligibilityOutcome"
+          },
+          "reason": {
+            "$ref": "#/$defs/DefinitionEligibilityReason"
+          }
+        },
+        "required": [
+          "outcome",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "DefinitionEligibilityOutcome": {
+        "enum": [
+          "eligible",
+          "hold",
+          "escalate"
+        ],
+        "type": "string"
+      },
+      "DefinitionEligibilityReason": {
+        "enum": [
+          "mandatory_checks_passed",
+          "publisher_revoked",
+          "curated_artifact_revoked",
+          "curated_distribution_withdrawn",
+          "unknown_safety_semantics",
+          "publisher_scope_required",
+          "engine_capability_required",
+          "ownership_migration_required",
+          "metadata_replay",
+          "refresh_incomplete",
+          "metadata_stale",
+          "recorded_identity_changed",
+          "authenticated_integrity_required",
+          "local_integrity_failed",
+          "mandatory_check_failed",
+          "source_identity_mismatch",
+          "required_source_missing"
+        ],
+        "type": "string"
+      },
+      "DefinitionOperation": {
+        "enum": [
+          "availability",
+          "install",
+          "register_external",
+          "prepare",
+          "launch",
+          "update"
+        ],
+        "type": "string"
+      },
+      "DefinitionOperationAssessment": {
+        "description": "One operation decision exposed by the shared core status model.\n\n`retained` distinguishes an installed version's immutable admission from the\ncurrently selected definition used for new work.",
+        "properties": {
+          "eligibility": {
+            "$ref": "#/$defs/DefinitionEligibility"
+          },
+          "operation": {
+            "$ref": "#/$defs/DefinitionOperation"
+          },
+          "retained": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "operation",
+          "eligibility",
+          "retained"
+        ],
+        "type": "object"
+      },
+      "DefinitionSelectionIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "definition_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "grant_id": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "policy_revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provenance": {
+            "$ref": "#/$defs/AuthenticatedDefinitionProvenance"
+          },
+          "repository_root_sha256": {
+            "type": "string"
+          },
+          "stable_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "stable_id",
+          "definition_revision",
+          "repository_root_sha256",
+          "grant_id",
+          "policy_revision",
+          "provenance"
+        ],
+        "type": "object"
+      },
+      "ExternalRuntimeRecord": {
+        "properties": {
+          "archive_sha256": {
+            "type": "string"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "immutable_tree_sha256": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "registered_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "retained_definition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DefinitionSelectionIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shared_preferences": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/AcceptedSharedPreferencesBinding"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "user_selected": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UserSelectedLaunch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "path",
+          "executable",
+          "version",
+          "platform",
+          "archive_sha256",
+          "immutable_tree_sha256",
+          "registered_at"
+        ],
+        "type": "object"
+      },
+      "InstallRecord": {
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity",
+            "default": {
+              "asset_name": "",
+              "sha256": "",
+              "size": 0
+            }
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "id": {
+            "type": "string"
+          },
+          "installed_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "manifest_sha256": {
+            "default": "",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "selected_executable": {
+            "default": "",
+            "type": "string"
+          },
+          "staged": {
+            "type": "boolean"
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "version",
+          "path",
+          "channel",
+          "installed_at",
+          "verified",
+          "staged",
+          "artifact",
+          "runtime",
+          "manifest_sha256",
+          "selected_executable"
+        ],
+        "type": "object"
+      },
+      "LaunchBlocker": {
+        "enum": [
+          "missing_source",
+          "unreadable_source",
+          "changed_source",
+          "incompatible_source",
+          "missing_bios",
+          "unreadable_bios",
+          "changed_bios",
+          "incompatible_bios",
+          "missing_runtime",
+          "preparation_required",
+          "shared_preferences_review_required",
+          "shared_preferences_unavailable",
+          "invalid_installation"
+        ],
+        "type": "string"
+      },
+      "LaunchReadiness": {
+        "properties": {
+          "bios": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceHealth"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bios_assessment": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceAssessment"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "blockers": {
+            "items": {
+              "$ref": "#/$defs/LaunchBlocker"
+            },
+            "type": "array"
+          },
+          "launchable": {
+            "type": "boolean"
+          },
+          "pending_setup": {
+            "type": "boolean"
+          },
+          "required_source_extension": {
+            "description": "Original file representation required by the effective runtime contract.\nThis is independent of source identity health and uses the retained\ndefinition when an external runtime is registered.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceHealth"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_assessment": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceAssessment"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Descriptive input evidence for this retained installed release. Missing\nlegacy fields and unreviewed contracts never establish compatibility."
+          }
+        },
+        "required": [
+          "launchable",
+          "blockers",
+          "pending_setup"
+        ],
+        "type": "object"
+      },
+      "ListingAction": {
+        "enum": [
+          "attach-existing",
+          "relink-existing",
+          "launch",
+          "remove-registration"
+        ],
+        "type": "string"
+      },
+      "ListingActionAssessment": {
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/ListingAction"
+          },
+          "allowed": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "action",
+          "allowed"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "PortAction": {
+        "description": "A read-only projection of the existing operation guards for client presentation.\nAn `allowed` result is not an authorization token: execution rechecks current\ninputs under its own lock and may still require an exact reviewed plan.",
+        "enum": [
+          "install",
+          "register_external",
+          "launch",
+          "remove_managed",
+          "remove_external",
+          "rollback",
+          "backup_create",
+          "backup_restore",
+          "update"
+        ],
+        "type": "string"
+      },
+      "PortActionAssessment": {
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/PortAction"
+          },
+          "availability": {
+            "$ref": "#/$defs/PortActionAvailability"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DefinitionEligibility"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The authoritative signed-definition reason, when it limits this action."
+          },
+          "reason": {
+            "$ref": "#/$defs/PortActionReason"
+          }
+        },
+        "required": [
+          "action",
+          "availability",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "PortActionAvailability": {
+        "enum": [
+          "not_offered",
+          "waiting",
+          "held",
+          "allowed"
+        ],
+        "type": "string"
+      },
+      "PortActionReason": {
+        "enum": [
+          "available",
+          "route_not_offered",
+          "already_registered",
+          "unsupported_platform",
+          "not_installed",
+          "review_required",
+          "missing_source",
+          "unreadable_source",
+          "changed_source",
+          "incompatible_source",
+          "missing_bios",
+          "unreadable_bios",
+          "changed_bios",
+          "incompatible_bios",
+          "missing_runtime",
+          "preparation_required",
+          "shared_preferences_review_required",
+          "shared_preferences_unavailable",
+          "invalid_installation",
+          "definition_ineligible",
+          "missing_data",
+          "missing_backup",
+          "unreadable_data",
+          "unsafe_data",
+          "recovery_required",
+          "assessment_incomplete"
+        ],
+        "type": "string"
+      },
+      "PortListingStatus": {
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/$defs/ListingActionAssessment"
+            },
+            "type": "array"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/$defs/PortStatus"
+          }
+        },
+        "required": [
+          "port_id",
+          "status",
+          "actions"
+        ],
+        "type": "object"
+      },
+      "PortStatus": {
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstallRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "definition_operations": {
+            "description": "Successor-definition policy decisions. Legacy catalog ports retain an empty list.",
+            "items": {
+              "$ref": "#/$defs/DefinitionOperationAssessment"
+            },
+            "type": "array"
+          },
+          "external_runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExternalRuntimeRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_launched_at": {
+            "default": null,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "last_update_check": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UpdateSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "port_actions": {
+            "description": "Client-facing projection of core-owned operation guards. Execution rechecks.",
+            "items": {
+              "$ref": "#/$defs/PortActionAssessment"
+            },
+            "type": "array"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstallRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "readiness": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LaunchReadiness"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "staged": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstallRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "successful_launches": {
+            "default": 0,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "update_policy": {
+            "$ref": "#/$defs/UpdatePolicy"
+          },
+          "user_data_root": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "update_policy",
+          "active",
+          "previous",
+          "staged",
+          "last_launched_at",
+          "successful_launches"
+        ],
+        "type": "object"
+      },
+      "PreparedSharedPreferencesContract": {
+        "description": "A reviewed shared write scope, never a caller-selected external path.",
+        "oneOf": [
+          {
+            "enum": [
+              "regaiden041-windows",
+              "smb1r-1.1-stable-windows"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "gbrecompiled-windows-v1",
+            "description": "Reviewed GB Recompiled roaming preferences and installation-local fallback.\nArtifact applicability comes from the retained managed direct release.",
+            "type": "string"
+          }
+        ]
+      },
+      "ReleaseAsset": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      },
+      "ResolvedRelease": {
+        "properties": {
+          "asset": {
+            "$ref": "#/$defs/ReleaseAsset"
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "published_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "channel",
+          "published_at",
+          "asset"
+        ],
+        "type": "object"
+      },
+      "RuntimeIdentity": {
+        "properties": {
+          "archive_root": {
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/$defs/RuntimeOrigin"
+          },
+          "target_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "artifact",
+          "archive_root",
+          "target_directory",
+          "executable"
+        ],
+        "type": "object"
+      },
+      "RuntimeOrigin": {
+        "enum": [
+          "verified_download",
+          "adopted_tree"
+        ],
+        "type": "string"
+      },
+      "SourceAdmission": {
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "not_evaluated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "mode": {
+                "$ref": "#/$defs/SourceAdmissionMode"
+              },
+              "state": {
+                "const": "admitted",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "mode"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "reason": {
+                "$ref": "#/$defs/SourceRejectionReason"
+              },
+              "state": {
+                "const": "rejected",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SourceAdmissionMode": {
+        "enum": [
+          "exact_identity",
+          "structural_checks",
+          "informational_consent",
+          "upstream_validator"
+        ],
+        "type": "string"
+      },
+      "SourceAssessment": {
+        "properties": {
+          "admission": {
+            "$ref": "#/$defs/SourceAdmission"
+          },
+          "classification": {
+            "$ref": "#/$defs/SourceClassification"
+          },
+          "contract": {
+            "$ref": "#/$defs/SourceContractResult"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/$defs/SourceEvidence"
+            },
+            "type": "array"
+          },
+          "health": {
+            "$ref": "#/$defs/SourceHealth"
+          }
+        },
+        "required": [
+          "health",
+          "classification",
+          "contract",
+          "admission",
+          "evidence"
+        ],
+        "type": "object"
+      },
+      "SourceClassification": {
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "not_evaluated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "const": "unrecognized",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "identity": {
+                "$ref": "#/$defs/SourceIdentity"
+              },
+              "state": {
+                "const": "recognized",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "identity"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "candidates": {
+                "items": {
+                  "$ref": "#/$defs/SourceIdentity"
+                },
+                "type": "array"
+              },
+              "state": {
+                "const": "ambiguous",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "candidates"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SourceContractResult": {
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "not_evaluated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "const": "unreviewed_for_release",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "supported",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "recognized_not_listed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "known_incompatible",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "informational",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SourceEvidence": {
+        "properties": {
+          "evidence_ids": {
+            "description": "Reviewed catalog evidence IDs. A renderer must not treat these as URLs.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/$defs/SourceEvidenceKind"
+          },
+          "method": {
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "outcome": {
+            "$ref": "#/$defs/SourceEvidenceOutcome"
+          },
+          "portcove_commit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "portcove_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "$ref": "#/$defs/SourceEvidenceScope"
+          }
+        },
+        "required": [
+          "scope",
+          "kind",
+          "outcome",
+          "observed_at",
+          "portcove_version",
+          "portcove_commit",
+          "method",
+          "evidence_ids"
+        ],
+        "type": "object"
+      },
+      "SourceEvidenceKind": {
+        "enum": [
+          "structural_check",
+          "automated_lifecycle",
+          "hands_on",
+          "known_failure"
+        ],
+        "type": "string"
+      },
+      "SourceEvidenceOutcome": {
+        "enum": [
+          "passed",
+          "failed",
+          "not_run",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "SourceEvidenceScope": {
+        "properties": {
+          "artifact_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "check_version": {
+            "description": "Version of the tested adapter/tool/check contract, not today's app build.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "variant": {
+            "$ref": "#/$defs/SourceVariantScope",
+            "default": {
+              "state": "unspecified"
+            }
+          }
+        },
+        "required": [
+          "port_id",
+          "platform",
+          "artifact_sha256",
+          "upstream_ref",
+          "contract_id",
+          "variant",
+          "check_version"
+        ],
+        "type": "object"
+      },
+      "SourceHealth": {
+        "description": "Current relationship between a registered source path and its saved storage identity.\n`Current` means the bytes are unchanged since registration; it does not strengthen the\ncatalog profile's game-revision evidence.\n`NotBaselined` means readable selected bytes have no saved identity baseline.",
+        "enum": [
+          "unregistered",
+          "current",
+          "missing",
+          "unreadable",
+          "changed",
+          "not_checked",
+          "not_baselined"
+        ],
+        "type": "string"
+      },
+      "SourceIdentity": {
+        "description": "Stable catalog identifiers, never display names or inferred hash-array pairs.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
+        ],
+        "type": "object"
+      },
+      "SourceRejectionReason": {
+        "enum": [
+          "missing",
+          "unreadable",
+          "changed",
+          "known_mismatch",
+          "ambiguous_identity",
+          "missing_tool",
+          "check_failed",
+          "consent_required"
+        ],
+        "type": "string"
+      },
+      "SourceVariantScope": {
+        "description": "Missing legacy scope is explicit, not a wildcard for a newly selected variant.",
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "unspecified",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "identity": {
+                "$ref": "#/$defs/SourceIdentity"
+              },
+              "state": {
+                "const": "exact",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "identity"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "UpdateCheck": {
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "installed_artifact": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArtifactIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "installed_runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "installed_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "release": {
+            "$ref": "#/$defs/ResolvedRelease"
+          },
+          "required_runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "update_available": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "port_id",
+          "channel",
+          "installed_version",
+          "installed_artifact",
+          "installed_runtime",
+          "required_runtime",
+          "update_available",
+          "release"
+        ],
+        "type": "object"
+      },
+      "UpdatePolicy": {
+        "enum": [
+          "notify",
+          "stage",
+          "automatic"
+        ],
+        "type": "string"
+      },
+      "UpdateSnapshot": {
+        "properties": {
+          "check": {
+            "$ref": "#/$defs/UpdateCheck"
+          },
+          "checked_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "checked_at",
+          "check"
+        ],
+        "type": "object"
+      },
+      "UserSelectedLaunch": {
+        "additionalProperties": false,
+        "properties": {
+          "arguments": {
+            "description": "Individual arguments passed directly to the selected native executable.\nNo shell, scripts, environment overrides or hooks are interpreted.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "arguments"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "$ref": "#/$defs/PortListingStatus"
+    },
+    "title": "Array_of_PortListingStatus",
+    "type": "array"
+  },
   "operation_event": {
     "$defs": {
       "ActivityTargetKind": {
@@ -16930,6 +18833,322 @@
     ],
     "title": "OutputRelocationStatus",
     "type": "object"
+  },
+  "pending_setups": {
+    "$defs": {
+      "CatalogDownloadCandidate": {
+        "properties": {
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "can_extract": {
+            "type": "boolean"
+          },
+          "download_url": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "release_tag": {
+            "type": "string"
+          },
+          "release_url": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "release_id",
+          "asset_id",
+          "release_tag",
+          "release_url",
+          "name",
+          "size",
+          "download_url",
+          "sha256",
+          "can_extract"
+        ],
+        "type": "object"
+      },
+      "IgdbArtwork": {
+        "additionalProperties": false,
+        "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
+        "properties": {
+          "cover_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_slug": {
+            "type": "string"
+          },
+          "image_id": {
+            "type": "string"
+          },
+          "image_sha256": {
+            "type": "string"
+          },
+          "match_kind": {
+            "$ref": "#/$defs/IgdbArtworkMatch"
+          }
+        },
+        "required": [
+          "game_id",
+          "cover_id",
+          "image_id",
+          "image_sha256",
+          "game_slug",
+          "match_kind"
+        ],
+        "type": "object"
+      },
+      "IgdbArtworkMatch": {
+        "enum": [
+          "port",
+          "underlying-game"
+        ],
+        "type": "string"
+      },
+      "ListingAvailability": {
+        "description": "A dated discovery fact, not a managed support or artifact admission decision.",
+        "enum": [
+          "unknown",
+          "packages",
+          "source-only",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "ManualSetupGuide": {
+        "additionalProperties": false,
+        "description": "Authored instructions only; these steps grant no operation or file authority.",
+        "properties": {
+          "help_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/$defs/ManualSetupStep"
+            },
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "steps",
+          "warnings"
+        ],
+        "type": "object"
+      },
+      "ManualSetupStep": {
+        "additionalProperties": false,
+        "properties": {
+          "instruction": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "instruction"
+        ],
+        "type": "object"
+      },
+      "PendingSetupRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "archive_sha256": {
+            "description": "Observed archive bytes, not a curated acceptance or executable identity.",
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/$defs/CatalogDownloadCandidate"
+          },
+          "downloaded_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "listing": {
+            "$ref": "#/$defs/PortListing"
+          },
+          "path": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "$ref": "#/$defs/PendingSetupState"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "listing",
+          "path",
+          "state",
+          "artifact",
+          "archive_sha256",
+          "downloaded_at",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "PendingSetupState": {
+        "enum": [
+          "downloaded",
+          "attention-required"
+        ],
+        "type": "string"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "PortListing": {
+        "additionalProperties": false,
+        "description": "Descriptive project information. A listing never grants managed installation,\nexecutable selection, source access or ownership of an external directory.",
+        "properties": {
+          "artwork": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "availability": {
+            "$ref": "#/$defs/ListingAvailability",
+            "default": "unknown"
+          },
+          "id": {
+            "type": "string"
+          },
+          "issue_number": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "manual_setup": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ManualSetupGuide"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "original_game_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platforms": {
+            "default": [],
+            "description": "Empty means unknown; it is not an execution compatibility declaration.",
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "project_url": {
+            "type": "string"
+          },
+          "release_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "setup_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "variant_label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "summary",
+          "project_url",
+          "platforms",
+          "availability"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "$ref": "#/$defs/PendingSetupRecord"
+    },
+    "title": "Array_of_PendingSetupRecord",
+    "type": "array"
   },
   "port": {
     "$defs": {

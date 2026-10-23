@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tomba-2-recompiled",
+    "name": "Tomba! 2 Recompiled",
+    "summary": "Explore Tomba! 2 Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/mstan/Tomba2Recomp",
+    "issue_number": 169,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mstan/Tomba2Recomp"
+  }
+}

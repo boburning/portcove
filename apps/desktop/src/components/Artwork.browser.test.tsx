@@ -5,10 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { ArtworkProvider } from "../artwork";
+import { catalogEntries } from "../features/browsing/catalog-entry";
+import type { Perform } from "../features/operations/use-operation-state";
 import * as picker from "../file-picker";
 import { artworkState, portDefinition } from "../test-fixtures";
-import type { ArtworkState } from "../types";
+import type { ArtworkState, PortListing } from "../types";
 import { ArtworkControls, ArtworkImage } from "./Artwork";
+import { ListingDetailPanel } from "./ListingDetailPanel";
 
 let container: HTMLDivElement, root: RenderResult;
 
@@ -90,6 +93,86 @@ afterEach(async () => {
 });
 
 describe("local artwork controls", () => {
+  it("keeps a listing's independent artwork slots and one detail preview inside Change artwork", async () => {
+    const listing: PortListing = {
+      id: "listing-only",
+      name: "Listing Only",
+      summary: "An upstream project.",
+      project_url: "https://example.com/project",
+      platforms: [],
+      availability: "unknown",
+    };
+    const directory = { format_version: 1, listings: [listing] };
+    const entry = catalogEntries(undefined, directory, [], [])[0]!;
+    const perform: Perform = async (_name, task) => task();
+    vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
+      artworkState(port, slot, 1, true),
+    );
+    await root.rerender(
+      <ArtworkProvider generation={7} listings={directory}>
+        <ListingDetailPanel
+          entry={entry}
+          generation={7}
+          perform={perform}
+          onChanged={() => {}}
+          close={() => {}}
+        />
+      </ArtworkProvider>,
+    );
+    expect(container.querySelectorAll(".artwork-controls")).toHaveLength(1);
+    expect(
+      container.querySelector(".artwork-controls")?.parentElement?.closest("details"),
+    ).toBeNull();
+    expect(container.querySelector(".detail-artwork")).toBeNull();
+    await open();
+    await expect.poll(() => container.querySelectorAll(".detail-artwork").length).toBe(1);
+    expect(container.querySelector(".artwork-controls .detail-artwork")).not.toBeNull();
+    expect(button("cover", "Choose local image")).toBeDefined();
+    expect(button("detail", "Choose local image")).toBeDefined();
+    expect(desktopApi.artwork).toHaveBeenCalledWith(listing.id, "cover", 7);
+    expect(desktopApi.artwork).toHaveBeenCalledWith(listing.id, "detail", 7);
+  });
+  it("uses the shared cache for listing-only covers and preserves Core's local override", async () => {
+    const listing: PortListing = {
+      id: "listing-only",
+      name: "Listing Only",
+      summary: "An upstream project.",
+      project_url: "https://example.com/project",
+      platforms: [],
+      availability: "unknown",
+      artwork: {
+        game_id: 1,
+        cover_id: 2,
+        image_id: "covera",
+        image_sha256: "c".repeat(64),
+        game_slug: "listing-only",
+        match_kind: "port",
+      },
+    };
+    const local = artworkState(listing.id, "cover", 3, true);
+    vi.mocked(desktopApi.artwork).mockResolvedValue(local);
+    const reset = vi.spyOn(desktopApi, "resetArtwork");
+    const show = (item: PortListing) =>
+      root.rerender(
+        <ArtworkProvider generation={7} listings={{ format_version: 1, listings: [item] }}>
+          <ArtworkImage port={{ id: item.id }} />
+        </ArtworkProvider>,
+      );
+    await show(listing);
+    await vi.waitFor(() =>
+      expect(desktopApi.artwork).toHaveBeenCalledExactlyOnceWith(listing.id, "cover", 7),
+    );
+    await show({ ...listing, summary: "Changed description" });
+    expect(desktopApi.artwork).toHaveBeenCalledTimes(1);
+    await show({ ...listing, artwork: { ...listing.artwork!, image_id: "coverb" } });
+    await vi.waitFor(() => expect(desktopApi.artwork).toHaveBeenCalledTimes(2));
+    expect(reset).not.toHaveBeenCalled();
+    await vi.waitFor(() =>
+      expect(
+        container.querySelector("[data-artwork-source]")?.getAttribute("data-artwork-source"),
+      ).toBe("local_import"),
+    );
+  });
   it("keeps previous artwork and provenance visible during a failed refresh, holding changes until retry", async () => {
     const selected = artworkState("sample", "cover", 1, true);
     vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>

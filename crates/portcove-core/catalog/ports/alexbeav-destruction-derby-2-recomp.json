@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-destruction-derby-2-recomp",
+    "name": "Destruction Derby 2 / Alexbeav PSXRecomp",
+    "summary": "Explore Destruction Derby 2 / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp",
+    "issue_number": 438,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp"
+  }
+}

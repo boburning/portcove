@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "andyvand-opentyrian2000",
+    "name": "Tyrian 2000 / OpenTyrian2000 (andyvand)",
+    "summary": "Explore Tyrian 2000 / OpenTyrian2000 (andyvand) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/andyvand/opentyrian2000",
+    "issue_number": 1861,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/andyvand/opentyrian2000"
+  }
+}

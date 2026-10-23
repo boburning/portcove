@@ -1,0 +1,67 @@
+{
+  "format_version": 1,
+  "order": 22,
+  "listing": {
+    "id": "klonoa-door-to-phantomile-recompiled",
+    "name": "Klonoa: Door to Phantomile Recompiled",
+    "summary": "Native Klonoa: Door to Phantomile recompilation.",
+    "project_url": "https://github.com/TechnicallyComputers/Klonoa-Door-to-Phantomile",
+    "original_game_title": "Klonoa: Door to Phantomile",
+    "artwork": {
+      "game_id": 4959,
+      "cover_id": 155686,
+      "image_id": "co3c4m",
+      "image_sha256": "d91e7c0dcb7148584837201c2a0a3970b379df644fc222cda6664e42b8d875e6",
+      "game_slug": "klonoa-door-to-phantomile",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 77
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "repository": "TechnicallyComputers/Klonoa-Door-to-Phantomile",
+      "asset_hints": {
+        "windows-x86-64": ["windows-x64"],
+        "linux-x86-64": ["linux-x64"],
+        "macos-x86-64": ["macos-x64"],
+        "macos-aarch64": ["macos-arm64"]
+      }
+    },
+    "source_profile": "klonoa-door-to-phantomile-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Klonoa___Door_to_Phantomile.exe"],
+      "linux-x86-64": ["Klonoa___Door_to_Phantomile"],
+      "macos-x86-64": ["Klonoa___Door_to_Phantomile"],
+      "macos-aarch64": ["Klonoa___Door_to_Phantomile"]
+    },
+    "persistent_paths": [
+      "saves",
+      "config",
+      "mods",
+      "settings.toml",
+      "game_options.json",
+      "graphics.json",
+      "input.json",
+      "sound.json"
+    ],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "klonoa-door-to-phantomile-psx",
+          "label": "Klonoa: Door to Phantomile (USA) disc",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

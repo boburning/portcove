@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mario-kart-wii-wiicompiled",
+    "name": "Mario Kart Wii / WiiCompiled",
+    "summary": "Explore Mario Kart Wii / WiiCompiled and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/patchzyy/Wiicompiled",
+    "issue_number": 149,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/patchzyy/Wiicompiled"
+  }
+}

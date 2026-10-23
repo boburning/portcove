@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "isledecomp-isle-portable",
+    "name": "LEGO Island / isle-portable (isledecomp)",
+    "summary": "Explore LEGO Island / isle-portable (isledecomp) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/isledecomp/isle-portable",
+    "issue_number": 1831,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/isledecomp/isle-portable"
+  }
+}

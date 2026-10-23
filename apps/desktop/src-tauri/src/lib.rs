@@ -33,6 +33,7 @@ pub mod application_update_windows;
 mod artwork;
 mod backup_review;
 mod catalog;
+mod catalog_download;
 mod cli_context;
 #[doc(hidden)]
 pub mod desktop_contract;
@@ -2682,6 +2683,13 @@ pub fn run() -> std::process::ExitCode {
             external_runtime_commands::preview_external_runtime,
             external_runtime_commands::preview_user_selected_runtime,
             external_runtime_commands::register_user_selected_runtime,
+            external_runtime_commands::preview_user_selected_runtime_relink,
+            external_runtime_commands::relink_user_selected_runtime,
+            catalog_download::catalog_download_candidates,
+            catalog_download::preview_catalog_download,
+            catalog_download::download_catalog_package,
+            catalog_download::forget_pending_setup,
+            catalog_download::open_pending_setup_folder,
             external_runtime_commands::preview_external_runtime_relink,
             external_runtime_commands::relink_external_runtime,
             external_runtime_commands::register_external_runtime,

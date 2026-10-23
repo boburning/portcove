@@ -1,0 +1,87 @@
+{
+  "format_version": 1,
+  "order": 89,
+  "listing": {
+    "id": "alexbeav-fade-to-black-recomp",
+    "name": "Fade to Black / Alexbeav PSXRecomp",
+    "summary": "Native Fade to Black recompilation from Alexbeav’s PSXRecomp project.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp",
+    "original_game_title": "Fade to Black",
+    "artwork": {
+      "game_id": 12427,
+      "cover_id": 118221,
+      "image_id": "co2j7x",
+      "image_sha256": "702ab387284896258c2bbded9858d89d9d1d05d8ed2ef17cd8b237c2dcc9a154",
+      "game_slug": "fade-to-black",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 446
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "direct-manifest",
+      "direct": {
+        "windows-x86-64": {
+          "version": "v0.3.6",
+          "url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-windows-x64.zip",
+          "size": 30151839,
+          "sha256": "5daffc439d2fd33ce0da54e29f297cbf79e54ebecd277539446e2d6781860eb3",
+          "published_at": "2026-09-04T14:48:44Z"
+        }
+      }
+    },
+    "source_profile": "fade-to-black-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Fade_to_Black_Recompiled.exe"]
+    },
+    "persistent_paths": [
+      "saves",
+      "settings.toml",
+      "input.ini",
+      "keybinds.ini",
+      "config.ini",
+      "disc.cfg",
+      "bios.cfg",
+      "mods",
+      "overlay-captures"
+    ],
+    "runtime_mutable_paths": [
+      "cache",
+      "psx_freeze_heartbeat.json",
+      "psx_freeze_heartbeat.json.tmp",
+      "psx_last_run_report.json",
+      "psx_cps_exit_trace.json",
+      "netplay_lan_lobby.txt"
+    ],
+    "runtime_mutable_file_patterns": [
+      {
+        "prefix": "psx_freeze_dump_psx-runtime_",
+        "suffix": ".json"
+      }
+    ],
+    "launch_environment": {
+      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+    },
+    "launch_arguments": ["--no-launcher", "--bios", "bios/openbios.bin"],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "fade-to-black-psx",
+          "label": "Fade to Black (USA) disc",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Provide your own matching single-track CHD for SLUS-00236. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
+    }
+  }
+}

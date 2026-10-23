@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wargus-war1gus",
+    "name": "Warcraft: Orcs & Humans / War1gus (Wargus)",
+    "summary": "Explore Warcraft: Orcs & Humans / War1gus (Wargus) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/Wargus/war1gus",
+    "issue_number": 1905,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Wargus/war1gus"
+  }
+}

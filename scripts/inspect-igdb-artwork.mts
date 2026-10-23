@@ -28,6 +28,8 @@ interface ArtworkPort extends Record<string, unknown> {
   name?: unknown;
   project_url?: unknown;
   source_profile?: unknown;
+  /** Reviewed original-title facts supplied by per-record preparation. */
+  underlying_game?: unknown;
   presentation?: ({ artwork?: unknown } & Record<string, unknown>) | null;
 }
 export interface ArtworkCatalog extends Record<string, unknown> {
@@ -119,6 +121,8 @@ interface ArtworkMetrics {
 export interface ArtworkPreparationOptions {
   acceptedCatalog?: ArtworkCatalog;
   identities?: unknown;
+  /** Bound provider work without truncating the catalog or its identity checks. */
+  selectedPortIds?: readonly string[];
   refreshPortIds?: readonly string[];
   inspectGame?: (identity: DeclaredIdentity) => unknown;
   inspectImage?: (imageId: string, remainingBytes: number) => unknown;
@@ -240,9 +244,9 @@ function declaredIdentity(value: unknown, requestedKind?: IgdbArtworkMatch): Dec
   const platforms = value.platform_ids ?? [];
   if (!Array.isArray(platforms) || platforms.length > 16 || !platforms.every(positiveId))
     throw new Error("Artwork original-game platforms are invalid.");
-  if (value.game_id == null && (kind === "port" ? !projectUrl : !platforms.length))
+  if (value.game_id == null && (kind === "port" ? !projectUrl : !platforms.length && !projectUrl))
     throw new Error(
-      "Name matching requires exact upstream project or original-game platform facts.",
+      "Name matching requires attributable upstream project or original-game platform facts.",
     );
   if (value.game_id != null && !value.slug)
     throw new Error("A fixed IGDB reference requires its exact slug.");
@@ -391,6 +395,8 @@ function reusableMapping(
     port.name !== accepted.name ||
     port.project_url !== accepted.project_url ||
     port.source_profile !== accepted.source_profile ||
+    JSON.stringify(port.underlying_game ?? null) !==
+      JSON.stringify(accepted.underlying_game ?? null) ||
     !validMapping(accepted.presentation?.artwork)
   )
     return null;
@@ -572,12 +578,30 @@ function applyGoneImageFallbacks(
   records: ArtworkRecord[],
   context: ArtworkContext,
 ) {
-  for (const [index, record] of records.entries()) {
-    const mapping = record.mapping;
+  const byId = new Map(records.map((record) => [record.port_id, record]));
+  const invalidated: string[] = [];
+  for (const port of catalog.ports) {
+    const mapping = port.presentation?.artwork;
+    if (!validMapping(mapping)) continue;
     if (!mapping || !context.goneImages.has(mapping.image_id)) continue;
-    const port = catalog.ports[index];
-    if (!port?.presentation) throw new Error("Artwork output relationship disappeared.");
+    if (!port.presentation) throw new Error("Artwork output relationship disappeared.");
     delete port.presentation.artwork;
+    invalidated.push(port.id);
+    const record = byId.get(port.id);
+    if (!record) {
+      // A sparse refresh still invalidates every reference to these exact bytes.
+      records.push({
+        port_id: port.id,
+        role: "cover",
+        reason: "generated-fallback",
+        mapping: null,
+        checks: null,
+        exceptions: [goneImageException(mapping.match_kind, mapping.image_id)],
+      });
+      context.metrics.ports++;
+      context.metrics.fallback++;
+      continue;
+    }
     if (
       ["accepted-mapping-reused", "accepted-mapping-retained-after-unavailable-refresh"].includes(
         record.reason,
@@ -594,6 +618,7 @@ function applyGoneImageFallbacks(
     record.checks = null;
     record.exceptions.push(goneImageException(mapping.match_kind, mapping.image_id));
   }
+  return invalidated;
 }
 
 // Proposal preparation only. The accepted baseline is caller-selected trusted
@@ -607,19 +632,28 @@ export async function prepareCatalogArtwork(
 ) {
   if (
     !Array.isArray(catalog?.ports) ||
-    catalog.ports.length > 400 ||
+    catalog.ports.length > 10000 ||
     new Set(catalog.ports.map((port) => port.id)).size !== catalog.ports.length ||
     catalog.ports.some(
       (port) => typeof port.id !== "string" || !/^[a-z0-9][a-z0-9-]{0,127}$/.test(port.id),
     )
   ) {
-    throw new Error("Artwork batches require at most400 unique stable port ids.");
+    throw new Error("Artwork catalogs require at most10000 unique stable port ids.");
   }
   const result = structuredClone(catalog);
   const accepted = new Map((options.acceptedCatalog?.ports ?? []).map((port) => [port.id, port]));
+  const selectedIds = options.selectedPortIds ?? catalog.ports.map((port) => port.id);
+  const workset = new Set(selectedIds);
+  const allIds = new Set(catalog.ports.map((port) => port.id));
+  if (
+    workset.size > 400 ||
+    workset.size !== selectedIds.length ||
+    [...workset].some((id) => !allIds.has(id))
+  )
+    throw new Error("Artwork worksets require at most400 unique catalog port ids.");
   const refresh = new Set(options.refreshPortIds ?? []);
-  if ([...refresh].some((id) => !catalog.ports.some((port) => port.id === id)))
-    throw new Error("Artwork refresh names a port outside this batch.");
+  if ([...refresh].some((id) => !workset.has(id)))
+    throw new Error("Artwork refresh names a port outside this workset.");
   const context: ArtworkContext = {
     ...options,
     refreshing: false,
@@ -628,7 +662,7 @@ export async function prepareCatalogArtwork(
     goneImages: new Set(),
     acceptedPorts: options.acceptedCatalog?.ports ?? [],
     metrics: {
-      ports: catalog.ports.length,
+      ports: workset.size,
       reused: 0,
       original_reused: 0,
       selected: 0,
@@ -643,6 +677,16 @@ export async function prepareCatalogArtwork(
     const rawSupplied = isRecord(options.identities) ? options.identities[port.id] : undefined;
     const supplied = isRecord(rawSupplied) ? rawSupplied : undefined;
     const reused = reusableMapping(port, accepted.get(port.id), supplied);
+    if (!workset.has(port.id)) {
+      const prior = accepted.get(port.id)?.presentation?.artwork;
+      const mapping = port.presentation?.artwork;
+      if (
+        JSON.stringify(mapping ?? null) !== JSON.stringify(prior ?? null) ||
+        (mapping !== undefined && !reused)
+      )
+        throw new Error(`Changed artwork identity outside selected workset: ${port.id}`);
+      continue;
+    }
     if (reused && !refresh.has(port.id)) {
       port.presentation = { ...port.presentation, artwork: reused };
       records.push({
@@ -657,6 +701,7 @@ export async function prepareCatalogArtwork(
       continue;
     }
     const declarations: { port: unknown; underlying_game?: unknown } = {
+      underlying_game: port.underlying_game,
       ...supplied,
       port: supplied?.port ?? {
         names: [port.name],
@@ -707,9 +752,18 @@ export async function prepareCatalogArtwork(
   }
   // A later refreshed record can observe Gone for an earlier reused mapping.
   // Apply that exact-image fact to every output reference without extra requests.
-  applyGoneImageFallbacks(result, records, context);
+  const invalidatedPortIds = applyGoneImageFallbacks(result, records, context);
   assertPreparedArtwork(result);
-  return { catalog: result, records, metrics: context.metrics };
+  return {
+    catalog: result,
+    records,
+    metrics: context.metrics,
+    workset: {
+      catalog_ports: catalog.ports.length,
+      selected_port_ids: [...workset],
+      invalidated_port_ids: invalidatedPortIds,
+    },
+  };
 }
 
 function cancelBody(body: Pick<ArtworkReader, "cancel"> | null | undefined) {
