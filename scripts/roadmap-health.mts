@@ -183,6 +183,47 @@ function canonicalDiagnosticValue(value: unknown): unknown {
     );
   return value;
 }
+function declaredScope(report: Record<string, unknown>) {
+  const scope = isRecord(report.scope) ? report.scope : {};
+  return scope.kind === "issues" && Array.isArray(scope.issues)
+    ? `issues ${scope.issues.map((issue) => `#${String(issue)}`).join(", ")}`
+    : "global audit";
+}
+function observationEvidence(report: Record<string, unknown>, runUrl: string) {
+  const observation = isRecord(report.observation) ? report.observation : {};
+  const checkout =
+    typeof observation.checkout_head === "string" &&
+    /^[a-f0-9]{40}$/u.test(observation.checkout_head)
+      ? `\`${observation.checkout_head}\``
+      : "unavailable";
+  const scoped = isRecord(report.scope) && report.scope.kind === "issues";
+  const checked = isRecord(report.scope) ? report.scope.checked_issues : undefined;
+  const checkedScope = Array.isArray(checked)
+    ? `Checked issues: ${checked.map((issue) => `#${String(issue)}`).join(", ")}. `
+    : "The checked issue set was not retained. ";
+  return (
+    `Observed: ${typeof observation.observed_at === "string" ? observation.observed_at : "not retained"}. ` +
+    `Actual checkout: ${checkout}.\n\n` +
+    `[Workflow attempt and retained evidence](${runUrl}).\n\n` +
+    (configurationMissing(report)
+      ? "The doctor did not run; planning findings are unevaluated and coverage is inconclusive."
+      : scoped
+        ? `Coverage: **${String(report.coverage ?? "not retained")}**. ${checkedScope}This result applies only to its checked records; global health was not evaluated.`
+        : `Global audit coverage: **${String(report.coverage ?? "not retained")}**. Global health: **${String(report.global_health ?? "not retained")}**.`) +
+    " Unchanged results do not refresh diagnostic comments."
+  );
+}
+export function roadmapHealthSummary(report: Record<string, unknown>, runUrl: string) {
+  const diagnosis = isRecord(report.diagnosis) ? report.diagnosis : {};
+  return (
+    `Roadmap observation: **${configurationMissing(report) ? "not configured" : String(report.status)}** — ${declaredScope(report)}.\n\n` +
+    (typeof diagnosis.kind === "string"
+      ? `Classification: \`${diagnosis.kind}\`. ${typeof diagnosis.recovery_condition === "string" ? diagnosis.recovery_condition : "Inspect the retained diagnostic artifact."}\n\n`
+      : "") +
+    observationEvidence(report, runUrl) +
+    "\n"
+  );
+}
 export function roadmapHealthComment(
   report: Record<string, unknown>,
   previous: string | null,
@@ -216,19 +257,19 @@ export function roadmapHealthComment(
       `${marker}${JSON.stringify({ scope, status, digest })} -->\n` +
       "Hosted Roadmap checks: **not configured** (repository-wide setup incident).\n\n" +
       `Classification: \`${kind}\`. ${recovery}\n\n` +
-      "The Roadmap doctor did not run; planning findings are unevaluated and coverage is inconclusive. " +
       "The same missing credential affects every requested scope. Unchanged repeats share this diagnostic; " +
       "each executed check retains its original scope and failure evidence.\n\n" +
-      `[Observed run and retained evidence](${runUrl}). ` +
-      "Keep this incident as setup history until owner activation is verified by a real scoped check."
+      `Requested scope: ${declaredScope(report)}.\n\n` +
+      observationEvidence(report, runUrl) +
+      "\n\nKeep this incident as setup history until owner activation is verified by a real scoped check."
     );
   return (
     `${marker}${JSON.stringify({ scope, status, digest })} -->\n` +
-    `Latest Roadmap check: **${status}** (${scope.includes('"global"') ? "global" : "scoped"}).\n\n` +
+    `Roadmap observation: **${status}** — ${declaredScope(report)}.\n\n` +
     (status === "passed"
       ? "The previously reported check recovered. This observation establishes only its declared scope."
       : `Classification: \`${kind}\`. ${recovery}`) +
-    `\n\n[Source-bound run and retained evidence](${runUrl}). Other Roadmap records and global coverage remain outside a scoped result.`
+    `\n\n${observationEvidence(report, runUrl)}`
   );
 }
 
@@ -258,6 +299,14 @@ async function main() {
   }
   const directory = path.join(root, "work/roadmap-health", randomUUID());
   mkdirSync(directory, { recursive: true });
+  const head = spawnSync("git", ["rev-parse", "HEAD"], {
+    cwd: root,
+    encoding: "utf8",
+    timeout: 15000,
+    windowsHide: true,
+  });
+  const checkoutHead =
+    head.status === 0 && /^[a-f0-9]{40}$/u.test(head.stdout.trim()) ? head.stdout.trim() : null;
   let report: Record<string, unknown>;
   if (!process.env.GH_TOKEN) {
     report = {
@@ -275,20 +324,14 @@ async function main() {
       },
     };
   } else {
-    const head = spawnSync("git", ["rev-parse", "HEAD"], {
-      cwd: root,
-      encoding: "utf8",
-      timeout: 15000,
-      windowsHide: true,
-    });
-    if (head.status !== 0) throw new Error("Source identity unavailable");
+    if (!checkoutHead) throw new Error("Source identity unavailable");
     const result = spawnSync(
       process.execPath,
       [
         "scripts/roadmap.mts",
         "doctor",
         "--expected-head",
-        head.stdout.trim(),
+        checkoutHead,
         "--json",
         ...(selection.mode === "issues" ? ["--issue", String(selection.issue)] : []),
       ],
@@ -326,20 +369,18 @@ async function main() {
       };
     }
   }
+  const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}/attempts/${process.env.GITHUB_RUN_ATTEMPT}`;
+  report.observation = {
+    observed_at: new Date().toISOString(),
+    checkout_head: checkoutHead,
+    run_url: runUrl,
+  };
   writeFileSync(path.join(directory, "report.json"), JSON.stringify(report));
   console.log(
     `Roadmap ${selection.mode} check: ${String(report.status)}; evidence: ${path.join(directory, "report.json")}`,
   );
-  const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
   if (process.env.GITHUB_STEP_SUMMARY)
-    appendFileSync(
-      process.env.GITHUB_STEP_SUMMARY,
-      `Roadmap ${selection.mode} check: **${configurationMissing(report) ? "not configured" : String(report.status)}**. Coverage: ${String(report.coverage)}.\n\n` +
-        (isRecord(report.diagnosis)
-          ? `Classification: \`${String(report.diagnosis.kind)}\`. ${String(report.diagnosis.recovery_condition)}\n\n`
-          : "") +
-        "Evidence is retained in the Roadmap diagnostic artifact. A scoped result does not establish global health.\n",
-    );
+    appendFileSync(process.env.GITHUB_STEP_SUMMARY, roadmapHealthSummary(report, runUrl));
   if (process.env.GITHUB_TOKEN) {
     const api = new GitHubApiClient(
       createGitHubRunner({

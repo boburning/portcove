@@ -19,6 +19,10 @@ on:
         description: "Issue number for a scoped check; leave empty for substantial-change or release-readiness audit"
         required: false
         type: string
+      inventory_items:
+        description: "Read-only membership comparison instead of doctor: 1–10 space-separated exact Project issue item IDs (PVTI_...)"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -45,7 +49,7 @@ jobs:
   check:
     needs: configuration
     concurrency:
-      group: roadmap-health-${{ needs.configuration.outputs.available == 'true' && (github.event.issue.number || inputs.issue || 'global') || 'configuration' }}
+      group: roadmap-health-${{ needs.configuration.outputs.available == 'true' && (inputs.inventory_items && 'inventory-readback' || github.event.issue.number || inputs.issue || 'global') || 'configuration' }}
       cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -59,10 +63,17 @@ jobs:
         with:
           node-version-file: .node-version
       - name: Verify the affected scope and retain failure diagnostics
+        if: github.event_name != 'workflow_dispatch' || inputs.inventory_items == ''
         run: node scripts/roadmap-health.mts
         env:
           GH_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
           GITHUB_TOKEN: ${{ github.token }}
+      - name: Compare independent Project membership inventories
+        if: github.event_name == 'workflow_dispatch' && inputs.inventory_items != ''
+        run: node scripts/roadmap-membership-readback.mts
+        env:
+          ROADMAP_INVENTORY_ITEMS: ${{ inputs.inventory_items }}
+          GH_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

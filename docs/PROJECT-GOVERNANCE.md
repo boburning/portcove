@@ -628,6 +628,27 @@ retain failed, inconclusive artifacts with planning findings unevaluated while t
 token is absent. An unrelated scoped pass cannot clear another scoped or global
 failure; configured credentials alone do not establish recovery of those checks.
 
+Comments and step summaries identify the observed issue/global scope, UTC
+observation time, actual checkout SHA and exact workflow attempt. Scoped reports
+also name the checked issue set, including directly related records. The checkout
+can differ from the event SHA when an old run is retried against current main.
+The retained health report includes this observation metadata. Unchanged results
+do not refresh diagnostic comments, so their timestamp describes the retained
+observation rather than the latest execution. Preserve historical failure evidence
+when annotating a superseded incident; only a matching scoped result establishes
+recovery of that scope.
+
+For an independently diagnosed collection discrepancy such as #2406, the manual
+workflow input `inventory_items` selects a read-only membership comparison instead
+of a doctor run. Supply 1–10 space-separated exact Project issue item IDs. It uses
+the same dedicated read credential, compares complete forward and issue-side
+inventories, directly reads the selected items, and brackets the Project identity,
+revision and active count. The retained receipt distinguishes `CONSISTENT`,
+`INCONSISTENT` and `UNKNOWN`; incomplete or changing reads cannot pass. Compare the
+reported item-to-issue bindings with the original incident before claiming recovery.
+This mode performs no Project mutation or planning evaluation and publishes no
+health comment. It does not replace the applicable doctor after reconciliation.
+
 #### Hosted activation
 
 Hosted execution requires a dedicated owner-provided credential. GitHub's
