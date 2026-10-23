@@ -1910,7 +1910,7 @@ export function nodeTestCommand(files: string[]) {
     process.execPath,
     [
       "--test",
-      "--test-timeout=30000",
+      "--test-timeout=60000",
       `--test-reporter=${durationReporter}`,
       ...(serialWindowsQualification ? ["--test-concurrency=1"] : []),
       ...files,

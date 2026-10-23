@@ -81,6 +81,28 @@ function requiredFixture<T>(value: T | null | undefined): T {
   return value;
 }
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+void test("every CI job has a finite envelope above its declared step limits", () => {
+  const settings: unknown = parseDocument(workflow, { uniqueKeys: true }).toJS();
+  assert.ok(isRecord(settings) && isRecord(settings.jobs));
+  for (const [name, job] of Object.entries(settings.jobs)) {
+    assert.ok(isRecord(job), name);
+    const budget = job["timeout-minutes"];
+    assert.ok(
+      typeof budget === "number" && Number.isInteger(budget) && budget > 0 && budget <= 120,
+      name,
+    );
+    if (Array.isArray(job.steps))
+      for (const step of job.steps) {
+        assert.ok(isRecord(step));
+        const limit = step["timeout-minutes"];
+        if (limit !== undefined)
+          assert.ok(
+            typeof limit === "number" && limit < budget,
+            `${name}: leave time for cleanup and uploads`,
+          );
+      }
+  }
+});
 function workflowJob(job: string) {
   const settings: unknown = parseDocument(workflow, { uniqueKeys: true }).toJS();
   assert.ok(isRecord(settings) && isRecord(settings.jobs));
