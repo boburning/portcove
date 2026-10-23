@@ -12,6 +12,7 @@ import {
   requireJobTokenWakeConfiguration,
   inspectControllerWakeChoices,
   inspectJobTokenDispatchRun,
+  observeJobTokenDispatchRun,
 } from "./release-controller-wake.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -517,6 +518,190 @@ void test("the shared job-token readback cannot turn a different workflow or gen
       workflow: ".github/workflows/ci.yml",
     }),
   );
+});
+
+void test("post-ack title settlement retains each original readback and never repeats dispatch", async (context) => {
+  context.mock.timers.enable({ apis: ["setTimeout"] });
+  const f = fixture(true),
+    original = f.api.request.bind(f.api);
+  let reads = 0;
+  f.api.request = (method, endpoint, body) => {
+    const response = original(method, endpoint, body);
+    if (endpoint.endsWith("/actions/runs/900") && ++reads === 1)
+      return {
+        ...response,
+        body: { ...f.actualRun(), status: "queued", display_title: "pending title" },
+      };
+    return response;
+  };
+  await f.prepare();
+  const pending = f.dispatch();
+  await new Promise((resolve) => setImmediate(resolve));
+  context.mock.timers.tick(5000);
+  const result = await pending;
+  assert.equal(result.decision, "dispatch-acknowledged-only");
+  assert.equal(reads, 2);
+  assert.equal(f.calls.filter((call) => call.method === "POST").length, 1);
+  const retained = f.records.filter((row) => row.phase === "dispatch-run-readback");
+  assert.equal(retained.length, 2);
+  assert.ok(isRecord(retained[0]!.evidence) && isRecord(retained[0]!.evidence.body));
+  assert.equal(retained[0]!.evidence.body.display_title, "pending title");
+  assert.ok(isRecord(retained[1]!.evidence) && isRecord(retained[1]!.evidence.body));
+  assert.equal(retained[1]!.evidence.body.display_title, "Portcove application release wake 42");
+});
+
+void test("unsettled correlation exhausts four GETs inside the original budget without a POST", async (context) => {
+  context.mock.timers.enable({ apis: ["setTimeout"] });
+  const f = fixture(true),
+    records: unknown[] = [],
+    expected = {
+      run_id: "900",
+      revision: f.config.revision,
+      workflow: ".github/workflows/application-update-production.yml",
+      display_title: "Portcove application release wake 42",
+    };
+  let reads = 0;
+  const pending = assert.rejects(
+    observeJobTokenDispatchRun(
+      {
+        request(method, endpoint) {
+          assert.equal(method, "GET");
+          assert.equal(endpoint, "repos/boburning/portcove/actions/runs/900");
+          reads++;
+          return {
+            status: 200,
+            headers: new Map(),
+            body: {
+              ...f.actualRun(),
+              status: "queued",
+              display_title: "pending title",
+            },
+          };
+        },
+      },
+      expected,
+      async (_phase, evidence) => {
+        records.push(evidence);
+      },
+      performance.now() + 20000,
+    ),
+    /correlation remains unproven/,
+  );
+  for (let index = 0; index < 3; index++) {
+    await new Promise((resolve) => setImmediate(resolve));
+    context.mock.timers.tick(5000);
+  }
+  await pending;
+  assert.equal(reads, 4);
+  assert.equal(records.length, 4);
+});
+
+void test("a production-wrapped GET crossing expiry retains its returned body before refusing", async (context) => {
+  let monotonic = 1000;
+  context.mock.method(performance, "now", () => monotonic);
+  const f = fixture(true),
+    original = f.api.request.bind(f.api);
+  f.api.request = (method, endpoint, body) => {
+    const response = original(method, endpoint, body);
+    if (endpoint.endsWith("/actions/runs/900")) monotonic = 60000;
+    return response;
+  };
+  await f.prepare();
+  await assert.rejects(f.dispatch(), /deadline exhausted|readback unavailable/);
+  assert.equal(f.calls.filter((call) => call.method === "POST").length, 1);
+  const retained = f.records.filter((row) => row.phase === "dispatch-run-readback");
+  assert.equal(retained.length, 1);
+  assert.ok(isRecord(retained[0]!.evidence) && isRecord(retained[0]!.evidence.body));
+  assert.equal(retained[0]!.evidence.body.id, 900);
+  assert.equal(retained[0]!.evidence.body.head_sha, f.config.revision);
+});
+
+void test("immutable identity failures, unavailable responses and deadline exhaustion retain readback and stop", async () => {
+  const f = fixture(true),
+    expected = {
+      run_id: "900",
+      revision: f.config.revision,
+      workflow: ".github/workflows/application-update-production.yml",
+      display_title: "Portcove application release wake 42",
+    };
+  for (const body of [
+    { ...f.actualRun(), actor: { id: 991 }, status: "queued" },
+    { ...f.actualRun(), head_sha: "c".repeat(40), status: "queued" },
+    { ...f.actualRun(), status: "completed", display_title: "wrong correlation" },
+    { ...f.actualRun(), extra: "x".repeat(65536) },
+  ]) {
+    const records: unknown[] = [];
+    let reads = 0;
+    await assert.rejects(
+      observeJobTokenDispatchRun(
+        {
+          request(method) {
+            assert.equal(method, "GET");
+            reads++;
+            return { status: 200, headers: new Map(), body };
+          },
+        },
+        expected,
+        async (_phase, evidence) => {
+          records.push(evidence);
+        },
+        performance.now() + 55000,
+      ),
+    );
+    assert.equal(reads, 1);
+    assert.equal(records.length, 1);
+  }
+  let reads = 0;
+  const records: { phase: string; evidence: unknown }[] = [],
+    api = {
+      request() {
+        reads++;
+        throw new Error("transport unavailable");
+      },
+    };
+  const record = async (phase: string, evidence: unknown) => {
+    records.push({ phase, evidence });
+  };
+  await assert.rejects(
+    observeJobTokenDispatchRun(api, expected, record, performance.now() - 1),
+    /deadline exhausted/,
+  );
+  assert.equal(reads, 0);
+  await assert.rejects(
+    observeJobTokenDispatchRun(api, expected, record, performance.now() + 55000),
+    /readback unavailable/,
+  );
+  assert.equal(reads, 1);
+  assert.equal(records[0]!.phase, "dispatch-run-readback-unavailable");
+  await assert.rejects(
+    observeJobTokenDispatchRun(
+      {
+        request() {
+          reads++;
+          return {
+            status: 200,
+            headers: new Map(),
+            body: { ...f.actualRun(), status: "queued", display_title: "pending" },
+          };
+        },
+      },
+      expected,
+      record,
+      performance.now() + 100,
+    ),
+    /deadline exhausted/,
+  );
+  assert.equal(reads, 2);
+  await assert.rejects(
+    observeJobTokenDispatchRun(
+      api,
+      { ...expected, run_id: "../foreign" },
+      record,
+      performance.now() + 55000,
+    ),
+    /fixed job-token dispatch expectation/,
+  );
+  assert.equal(reads, 2);
 });
 void test("manual, rerun, foreign, injected policy and unprotected wake refuse before reads or effects", async () => {
   for (const change of [

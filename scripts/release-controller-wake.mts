@@ -13,6 +13,7 @@ import { productionControllerWorkflow } from "./production-controller-admission.
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
+import timers from "node:timers/promises";
 
 const repository = "boburning/portcove";
 const prefix = `repos/${repository}`;
@@ -21,24 +22,30 @@ export const jobTokenDispatchActor = "41898282";
 export const jobTokenDispatchTransport = "github-actions-job-v1";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 type Api = { request(method: string, endpoint: string, body?: unknown): IncludedResponse };
+type DispatchRunExpectation = {
+  run_id: string;
+  revision: string;
+  workflow: string;
+  display_title: string;
+};
 
-/** Provider run identity only. Neither the Actions actor nor this readback is a
- * semantic result, a coordinator reservation, or permission to execute. */
-export function inspectJobTokenDispatchRun(
-  raw: unknown,
-  expected: {
-    run_id: string;
-    revision: string;
-    workflow: string;
-    display_title: string;
-  },
-) {
+function inspectDispatchRunExpectation(expected: DispatchRunExpectation) {
   if (
     ![productionControllerWorkflow, ".github/workflows/job-token-dispatch-fixture.yml"].includes(
       expected.workflow,
     ) ||
     !/^[a-f0-9]{40}$/u.test(expected.revision) ||
     !/^[1-9][0-9]{0,15}$/u.test(expected.run_id) ||
+    typeof expected.display_title !== "string" ||
+    !expected.display_title ||
+    Buffer.byteLength(expected.display_title) > 256
+  )
+    throw new Error("fixed job-token dispatch expectation required");
+}
+
+function inspectDispatchRunIdentity(raw: unknown, expected: DispatchRunExpectation) {
+  inspectDispatchRunExpectation(expected);
+  if (
     !isRecord(raw) ||
     String(raw.id) !== expected.run_id ||
     !Number.isSafeInteger(raw.id) ||
@@ -46,7 +53,6 @@ export function inspectJobTokenDispatchRun(
     raw.path !== expected.workflow ||
     raw.event !== "workflow_dispatch" ||
     raw.run_attempt !== 1 ||
-    raw.display_title !== expected.display_title ||
     !isRecord(raw.actor) ||
     String(raw.actor.id) !== jobTokenDispatchActor ||
     !isRecord(raw.triggering_actor) ||
@@ -58,7 +64,74 @@ export function inspectJobTokenDispatchRun(
     raw.head_repository.id !== 1354613114
   )
     throw new Error("job-token dispatch run, source or actual Actions actor differs");
+  return raw;
+}
+
+/** Provider run identity only. Neither the Actions actor nor this readback is a
+ * semantic result, a coordinator reservation, or permission to execute. */
+export function inspectJobTokenDispatchRun(raw: unknown, expected: DispatchRunExpectation) {
+  const run = inspectDispatchRunIdentity(raw, expected);
+  if (run.display_title !== expected.display_title)
+    throw new Error("job-token dispatch run, source or actual Actions actor differs");
   return { run_id: expected.run_id, revision: expected.revision, actor_id: jobTokenDispatchActor };
+}
+
+/** Settle only the correlation title, using GETs for the original acknowledged
+ * run. Wrong issuer/source/repository/attempt is an immediate refusal. Every
+ * response is retained BEFORE validation. There is never another dispatch POST
+ * or a renewed deadline, including after unavailable/ambiguous responses. */
+export async function observeJobTokenDispatchRun(
+  api: Api,
+  expected: DispatchRunExpectation,
+  record: (phase: string, evidence: unknown) => Promise<void>,
+  deadline: number,
+) {
+  expected = structuredClone(expected);
+  inspectDispatchRunExpectation(expected);
+  if (!Number.isFinite(deadline) || deadline > performance.now() + 55000)
+    throw new Error("original dispatch readback deadline required");
+  const active = () => {
+    if (performance.now() >= deadline)
+      throw new Error("original dispatch readback deadline exhausted; retain original run ID");
+  };
+  for (let index = 1; index <= 4; index++) {
+    active();
+    let response: IncludedResponse;
+    try {
+      response = api.request("GET", `${prefix}/actions/runs/${expected.run_id}`);
+    } catch {
+      await record("dispatch-run-readback-unavailable", { run_id: expected.run_id, index });
+      throw new Error("acknowledged run readback unavailable; retain original run ID, no POST");
+    }
+    const oversized = Buffer.byteLength(JSON.stringify(response.body) ?? "null") > 64 * 1024;
+    await record("dispatch-run-readback", {
+      run_id: expected.run_id,
+      index,
+      status: response.status,
+      ...(oversized
+        ? { oversized: true, body_sha256: digest(response.body) }
+        : { body: response.body }),
+    });
+    active();
+    if (response.status !== 200 || oversized)
+      throw new Error("acknowledged run readback unavailable or oversized; retain original run ID");
+    const run = inspectDispatchRunIdentity(response.body, expected);
+    if (run.display_title === expected.display_title) {
+      inspectJobTokenDispatchRun(run, expected);
+      return run;
+    }
+    if (
+      index === 4 ||
+      !["queued", "requested", "waiting", "pending", "in_progress"].includes(String(run.status))
+    )
+      throw new Error(
+        "acknowledged run correlation remains unproven; retain original run ID, no POST",
+      );
+    if (performance.now() + 5000 >= deadline)
+      throw new Error("original dispatch readback deadline exhausted; retain original run ID");
+    await timers.setTimeout(5000);
+  }
+  throw new Error("dispatch readback exhausted");
 }
 
 function providerGet(api: Api, endpoint: string) {
@@ -738,10 +811,32 @@ export async function wakeRatifiedController(
     controller_run_id: runId,
     endpoint: response.body.run_url,
   });
-  const observed = api.request("GET", `${prefix}/actions/runs/${runId}`);
-  if (observed.status !== 200)
-    throw new Error("acknowledged controller run readback unavailable; retain original ID");
-  inspectWakeControllerRun(observed.body, config, environment.GITHUB_RUN_ID!, runId);
+  // Only this acknowledged-run GET may return a late body for bounded retention.
+  // All other GETs retain the ordinary after-response deadline check above.
+  const acknowledgedEndpoint = `${prefix}/actions/runs/${runId}`;
+  const acknowledgedRunReader: Api = {
+    request(method, endpoint, body) {
+      if (method !== "GET" || endpoint !== acknowledgedEndpoint || body !== undefined)
+        throw new Error("fixed acknowledged-run GET required");
+      active();
+      return request("GET", acknowledgedEndpoint);
+    },
+  };
+  const observed =
+    config.schema_version === 4
+      ? await observeJobTokenDispatchRun(
+          acknowledgedRunReader,
+          {
+            run_id: runId,
+            revision: config.revision,
+            workflow: productionControllerWorkflow,
+            display_title: `Portcove ${config.publication_purpose === "catalog-publication" ? "catalog publication" : "application release"} wake ${environment.GITHUB_RUN_ID}`,
+          },
+          record,
+          deadline,
+        )
+      : providerGet(api, `${prefix}/actions/runs/${runId}`);
+  inspectWakeControllerRun(observed, config, environment.GITHUB_RUN_ID!, runId);
   const result = {
     authority: "none",
     decision: "dispatch-acknowledged-only" as const,
