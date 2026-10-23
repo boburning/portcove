@@ -162,6 +162,7 @@ async function qualify(mode: string, configurationPath: string) {
     "release-semantic-reader-server.mts",
     "release-semantic-reader-core.mts",
     "runtime-values.mts",
+    "semantic-review-model-catalog.json",
   ])
     await put(`runtime/${name}`, await readFile(new URL(name, import.meta.url)));
   for (const [name, file] of [
