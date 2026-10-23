@@ -72,6 +72,27 @@ const make = (files: string[]) =>
     checkout: "b".repeat(40),
   });
 
+void test("Python result helpers retain every real suite consumer and its interpreter", () => {
+  const expected = [
+    "scripts/python-test-results.test.mts",
+    "scripts/native-linux-isolated-init.test.mts",
+    "scripts/native-qualification-linux-supervisor.test.mts",
+    "scripts/native-qualification-linux-transfer.test.mts",
+    "scripts/native-linux-public-fuse.test.mts",
+    "scripts/native-linux-public-network.test.mts",
+    "scripts/native-linux-public-services.test.mts",
+    "scripts/semantic-review-linux-supervisor.test.mts",
+    "scripts/release-semantic-source.test.mts",
+  ];
+  for (const file of ["scripts/python-test-results.py", "scripts/python-test-results.mts"]) {
+    const plan = make([file]);
+    const selected = baselineContractTests(plan);
+    for (const consumer of expected) assert.ok(selected.includes(consumer), `${file}: ${consumer}`);
+    assert.ok(baselineRequiresPython(plan), file);
+  }
+  for (const file of expected) assert.ok(baselineRequiresPython(make([file])), file);
+});
+
 void test(
   "a stuck inner child reports its timeout and exits before the maintained outer budget",
   { timeout: 20_000 },

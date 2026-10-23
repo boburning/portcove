@@ -300,7 +300,21 @@ const selectionContractTests = [
   "scripts/select-ci-plan.test.mts",
 ];
 
+export const pythonContractTests = [
+  "scripts/python-test-results.test.mts",
+  "scripts/native-linux-isolated-init.test.mts",
+  "scripts/native-qualification-linux-supervisor.test.mts",
+  "scripts/native-qualification-linux-transfer.test.mts",
+  "scripts/native-linux-public-fuse.test.mts",
+  "scripts/native-linux-public-network.test.mts",
+  "scripts/native-linux-public-services.test.mts",
+  "scripts/semantic-review-linux-supervisor.test.mts",
+  "scripts/release-semantic-source.test.mts",
+];
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ...["scripts/python-test-results.py", "scripts/python-test-results.mts"].map(
+    (file): [string, readonly string[]] => [file, pythonContractTests],
+  ),
   ...[
     "release-controller-configuration",
     "release-controller-job",

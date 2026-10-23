@@ -1,0 +1,296 @@
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import test, { type TestContext } from "node:test";
+import { fileURLToPath } from "node:url";
+import { readPythonReport, runPythonSuite } from "./python-test-results.mts";
+import { isRecord } from "./runtime-values.mts";
+
+function fixture(t: TestContext, source: string) {
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-python-results-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const suite = path.join(root, "cases.test.py");
+  writeFileSync(suite, `import unittest\n${source}\n`);
+  return suite;
+}
+
+function execute(suite: string) {
+  return spawnSync(
+    process.platform === "win32" ? "python" : "python3",
+    ["-I", "-S", "-B", fileURLToPath(new URL("./python-test-results.py", import.meta.url)), suite],
+    { encoding: "utf8", windowsHide: true, timeout: 10_000, maxBuffer: 3 * 1024 * 1024 },
+  );
+}
+
+void test("Python cases retain selected identities, skips, expected failures and subtests", (t) => {
+  const suite = fixture(
+    t,
+    `class Cases(unittest.TestCase):
+    def test_pass(self):
+        self.assertEqual(2 + 2, 4)
+    @unittest.skip("POSIX execution is owned by Linux qualification")
+    def test_skip(self):
+        self.fail("must not execute")
+    @unittest.expectedFailure
+    def test_expected(self):
+        self.fail("known diagnostic")
+    def test_parameters(self):
+        for value in (1, 2):
+            with self.subTest(value=value):
+                self.assertGreater(value, 0)
+`,
+  );
+  const diagnostics: string[] = [];
+  const report = runPythonSuite(suite, {
+    name: "outer-control",
+    diagnostic: (line) => diagnostics.push(String(line)),
+  });
+  assert.deepEqual(report.selected, [
+    "Cases.test_expected",
+    "Cases.test_parameters",
+    "Cases.test_pass",
+    "Cases.test_skip",
+  ]);
+  assert.equal(report.tests_run, 4);
+  assert.equal(report.cases.filter((item) => item.kind === "test").length, 4);
+  assert.equal(report.cases.filter((item) => item.kind === "subtest").length, 2);
+  assert.equal(
+    report.cases.find((item) => item.status === "skipped")?.reason,
+    "POSIX execution is owned by Linux qualification",
+  );
+  assert.ok(report.cases.some((item) => item.status === "expected-failure"));
+  assert.ok(
+    report.cases.every((item) =>
+      item.kind === "subtest" ? item.duration_ms === null : Number(item.duration_ms) >= 0,
+    ),
+  );
+  const joined = diagnostics
+    .filter((line) => line.startsWith("Python case: "))
+    .map((line): unknown => JSON.parse(line.slice("Python case: ".length)));
+  assert.equal(joined.length, 6);
+  const inventory: unknown = JSON.parse(
+    diagnostics
+      .find((line) => line.startsWith("Python inventory: "))!
+      .slice("Python inventory: ".length),
+  );
+  assert.ok(isRecord(inventory));
+  assert.equal(inventory.reporter_sha256, report.reporter_sha256);
+  assert.equal(inventory.python, report.python);
+  assert.equal(inventory.platform, report.platform);
+  assert.ok(
+    joined.every(
+      (item) =>
+        isRecord(item) &&
+        item.outer === "outer-control" &&
+        item.source === suite &&
+        item.source_sha256 === report.source_sha256,
+    ),
+  );
+});
+
+void test("Python failure, error, unexpected success and failed subtest keep the outer suite failed", (t) => {
+  const suite = fixture(
+    t,
+    `class Cases(unittest.TestCase):
+    def test_assertion(self):
+        self.fail("original assertion")
+    def tearDown(self):
+        if self._testMethodName == "test_assertion":
+            raise RuntimeError("secondary teardown failure")
+    def test_error(self):
+        raise ValueError("original error")
+    def test_subtest_error(self):
+        with self.subTest(phase="error"):
+            raise ValueError("original subtest error")
+    @unittest.expectedFailure
+    def test_unexpected(self):
+        pass
+    def test_subtests(self):
+        for value in (1, 2):
+            with self.subTest(value=value):
+                self.assertEqual(value, 1, "original subtest")
+    def test_after(self):
+        pass
+`,
+  );
+  const result = execute(suite);
+  assert.equal(result.status, 1, result.stderr);
+  const report = readPythonReport(result.stdout, suite, result.status);
+  assert.equal(report.tests_run, 6);
+  assert.ok(
+    report.cases.some(
+      (item) =>
+        item.kind === "subtest" &&
+        item.status === "error" &&
+        item.reason?.includes("original subtest error"),
+    ),
+  );
+  assert.ok(
+    report.cases.some((item) => item.id === "Cases.test_after" && item.status === "passed"),
+  );
+  for (const reason of ["original assertion", "original error", "original subtest"])
+    assert.ok(
+      report.cases.some((item) => item.reason?.includes(reason)),
+      reason,
+    );
+  assert.ok(
+    report.cases
+      .find((item) => item.id === "Cases.test_assertion")
+      ?.additional_outcomes.some((item) => item.reason.includes("secondary teardown failure")),
+  );
+  assert.ok(report.cases.some((item) => item.status === "unexpected-success"));
+  const diagnostics: string[] = [];
+  assert.throws(
+    () =>
+      runPythonSuite(suite, {
+        name: "failed-outer",
+        diagnostic: (line) => diagnostics.push(String(line)),
+      }),
+    /original status=1/u,
+  );
+  assert.ok(
+    diagnostics.some(
+      (line) => line.startsWith("Python case: ") && line.includes('"status":"failed"'),
+    ),
+  );
+});
+
+void test("Python fixture errors remain visible without claiming selected methods executed", (t) => {
+  const suite = fixture(
+    t,
+    `class Cases(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        raise RuntimeError("setup refused")
+    def test_never(self):
+        self.fail("must not execute")
+`,
+  );
+  const result = execute(suite);
+  assert.equal(result.status, 1, result.stderr);
+  const report = readPythonReport(result.stdout, suite, result.status);
+  assert.deepEqual(report.selected, ["Cases.test_never"]);
+  assert.equal(report.tests_run, 0);
+  assert.deepEqual(
+    report.cases.map(({ kind, status }) => ({ kind, status })),
+    [{ kind: "fixture", status: "error" }],
+  );
+  assert.match(report.cases[0]!.reason!, /setup refused/u);
+  assert.equal(report.cases[0]!.duration_ms, null);
+});
+
+void test("Python reporting rejects empty inventories, import failure and unstructured stdout", (t) => {
+  for (const source of [
+    "pass",
+    'raise ValueError("import refused")',
+    'print("unexpected stdout")\nclass Cases(unittest.TestCase):\n    def test_one(self): pass',
+  ]) {
+    const suite = fixture(t, source);
+    assert.throws(
+      () => runPythonSuite(suite, { name: "invalid-outer", diagnostic: () => {} }),
+      /reporting incomplete; original status=/u,
+    );
+  }
+});
+
+void test("Python report corruption cannot replace a failed process outcome or source identity", (t) => {
+  const suite = fixture(
+    t,
+    'class Cases(unittest.TestCase):\n    def test_one(self): self.fail("original failure")',
+  );
+  const result = execute(suite);
+  assert.equal(result.status, 1);
+  const report: unknown = JSON.parse(result.stdout);
+  assert.ok(isRecord(report));
+  for (const changed of [
+    { ...report, exit_status: 0 },
+    { ...report, source_sha256: "0".repeat(64) },
+    { ...report, cases: [] },
+    { ...report, selected: [] },
+    { ...report, tests_run: 7 },
+    { ...report, duration_ms: -1 },
+  ])
+    assert.throws(() => readPythonReport(JSON.stringify(changed), suite, result.status));
+  assert.throws(() => readPythonReport(result.stdout.slice(0, -10), suite, result.status));
+  assert.throws(
+    () => readPythonReport(" ".repeat(2 * 1024 * 1024 + 1), suite, result.status),
+    /byte limit/u,
+  );
+});
+
+void test("Python reporter limits retain original failures, partial cases and suite outcome", (t) => {
+  for (const source of [
+    `class Cases(unittest.TestCase):
+    def test_a_fills_report(self):
+        for value in range(2050):
+            with self.subTest(value=value):
+                self.assertGreaterEqual(value, 0)
+    def test_z_first_failure(self):
+        self.fail("ORIGINAL_ASSERTION")
+`,
+    `class Cases(unittest.TestCase):
+    def test_a_overflow(self):
+        for value in range(2050):
+            with self.subTest(value=value):
+                self.assertNotEqual(value, 0, "ORIGINAL_ASSERTION")
+    def test_z_after(self):
+        pass
+`,
+    `class Cases(unittest.TestCase):
+    def test_cleanup(self):
+        def failed_cleanup():
+            raise RuntimeError("SECONDARY_CLEANUP")
+        for _ in range(20):
+            self.addCleanup(failed_cleanup)
+        self.fail("ORIGINAL_ASSERTION")
+`,
+  ]) {
+    const suite = fixture(t, source);
+    const result = execute(suite);
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /ORIGINAL_ASSERTION/u);
+    const report = readPythonReport(result.stdout, suite, result.status);
+    assert.equal(report.suite_exit_status, 1);
+    assert.match(report.incomplete_reason!, /exceeds .*limit/u);
+    assert.ok(report.cases.length <= 2048);
+    assert.ok(report.cases.some((item) => item.reason?.includes("ORIGINAL_ASSERTION")));
+    let originalSeen = false;
+    assert.throws(
+      () =>
+        runPythonSuite(suite, {
+          name: "overflow-outer",
+          diagnostic: (line) => {
+            if (
+              String(line).startsWith("Python case: ") &&
+              String(line).includes("ORIGINAL_ASSERTION")
+            )
+              originalSeen = true;
+          },
+        }),
+      /reporting incomplete; original suite status=1/u,
+    );
+    assert.ok(originalSeen);
+  }
+});
+
+void test("Python reporter changes refuse provenance", (t) => {
+  const suite = fixture(
+    t,
+    `from unittest.mock import patch
+from pathlib import Path
+original_read = Path.read_bytes
+class Cases(unittest.TestCase):
+    def test_changed_reporter(self):
+        def changed(filename):
+            result = original_read(filename)
+            return result + b"changed" if filename.name == "python-test-results.py" else result
+        patch.object(Path, "read_bytes", changed).start()
+`,
+  );
+  const result = execute(suite);
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stderr, /Python reporter changed during execution/u);
+  assert.equal(result.stdout, "");
+});
