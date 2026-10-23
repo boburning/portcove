@@ -380,7 +380,15 @@ const explicitNodeTests = mergeNodeTestRoutes([
   ],
   [
     "apps/desktop/scripts/native-linux-isolated-session.mts",
-    ["scripts/native-linux-isolated-plan.test.mts", "scripts/desktop-linux-stop.test.mts"],
+    [
+      "scripts/native-linux-isolated-plan.test.mts",
+      "scripts/desktop-linux-stop.test.mts",
+      "scripts/release-native-linux-driver.test.mts",
+    ],
+  ],
+  [
+    "apps/desktop/scripts/node-contracts/native-linux-stream-capture.native.test.mts",
+    ["scripts/release-native-linux-driver.test.mts", "scripts/local-validation.test.mts"],
   ],
   [
     "scripts/native-qualification-linux-supervisor.py",

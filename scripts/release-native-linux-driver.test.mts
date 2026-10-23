@@ -3,19 +3,12 @@ import assert from "node:assert/strict";
 import {
   inspectNativeLinuxHomeMount,
   requireFreshNativeLinuxOutput,
-  nativeLinuxPreSignHarnessScenarios,
   inspectNativeLinuxStagePlan,
 } from "./release-native-linux-driver.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { replaceNativeLinuxPackage } from "./release-native-linux-package.mts";
 import { mkdtemp, mkdir, rm, lstat, readFile, writeFile } from "node:fs/promises";
-import { PassThrough } from "node:stream";
-import { createNativeNamespaceStreamCapture } from "../apps/desktop/scripts/native-linux-isolated-session.mts";
 import { createHash } from "node:crypto";
-import {
-  parseDesktopHarnessOptions,
-  resolveDesktopHarnessSelection,
-} from "./desktop-execution-plan.mts";
 import os from "node:os";
 import path from "node:path";
 
@@ -215,46 +208,7 @@ void test("post-sign guest recipe is a finite same-home package sequence and can
   ])
     assert.throws(() => inspectNativeLinuxStagePlan(wrong));
 });
-void test("namespace raw group capture keeps empty streams and refuses overflow without repeating or replacing retained files", async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), "native-group-stream-")),
-    id = "namespace-" + "a".repeat(32),
-    capture = createNativeNamespaceStreamCapture(root, id);
-  const stdout = new PassThrough(),
-    stderr = new PassThrough();
-  let failures = 0;
-  capture.attach({ stdout, stderr }, () => {
-    failures++;
-  });
-  stdout.write(Buffer.from([0, 255, 10]));
-  const retained = capture.finish();
-  assert.equal(retained.failed, false);
-  assert.equal(retained.stderr.bytes, 0);
-  assert.equal(
-    retained.stdout.sha256,
-    createHash("sha256")
-      .update(Buffer.from([0, 255, 10]))
-      .digest("hex"),
-  );
-  assert.deepEqual(
-    await readFile(path.join(root, retained.stdout.path)),
-    Buffer.from([0, 255, 10]),
-  );
-  assert.throws(() => createNativeNamespaceStreamCapture(root, id), /EEXIST/u);
-  const overflow = createNativeNamespaceStreamCapture(root, "namespace-" + "b".repeat(32)),
-    large = new PassThrough();
-  overflow.attach({ stdout: large, stderr: new PassThrough() }, () => {
-    failures++;
-  });
-  large.write(Buffer.alloc(4 * 1024 * 1024 + 1));
-  assert.equal(failures, 1);
-  assert.equal(overflow.finish().failed, true);
-  const selection = resolveDesktopHarnessSelection(
-    parseDesktopHarnessOptions(
-      nativeLinuxPreSignHarnessScenarios.flatMap((name) => ["--scenario", name]),
-    ).values,
-  );
-  assert.deepEqual(selection.selected_scenarios, ["empty-library", "appearance-restart"]);
-});
+await import("../apps/desktop/scripts/node-contracts/native-linux-stream-capture.native.test.mts");
 void test("guest driver leaves fresh desktop output creation to the actual harness and refuses retained state", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "native-output-"));
   t.after(() => rm(root, { recursive: true, force: true }));

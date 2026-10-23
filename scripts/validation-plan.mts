@@ -248,6 +248,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "apps/desktop/scripts/native-linux-isolated-init.py",
   "apps/desktop/scripts/native-linux-isolated-plan.mts",
   "apps/desktop/scripts/native-linux-isolated-session.mts",
+  "apps/desktop/scripts/node-contracts/native-linux-stream-capture.native.test.mts",
   "scripts/native-qualification-linux-supervisor.py",
   "scripts/native-qualification-linux-supervisor.test.py",
   "scripts/native-qualification-linux-transfer.py",
