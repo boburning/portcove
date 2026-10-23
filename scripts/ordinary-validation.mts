@@ -308,6 +308,7 @@ const upstreamHealthContractTests = [
 ];
 
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ["apps/desktop/scripts/native-enlargement.mts", ["scripts/desktop-execution-plan.test.mts"]],
   ["scripts/prepare-port.mts", ["scripts/prepare-port.test.mts"]],
   ["scripts/port-upstream-facts.mts", ["scripts/prepare-port.test.mts"]],
   [

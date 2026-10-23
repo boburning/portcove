@@ -1,3 +1,4 @@
+import { captureNativeEnlargement } from "./native-enlargement.mts";
 import type { WebDriver } from "selenium-webdriver";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
@@ -121,32 +122,14 @@ export async function sourceRemovalScenario({
       browser.actions().keyDown(modifier).sendKeys(key).keyUp(modifier).perform();
     let baselineWidth = 0;
     const enlargedStage = async (stage: string) => {
-      const observed = await executeBrowserScript(browser, () => ({
-        width: innerWidth,
-        height: innerHeight,
-        client: document.documentElement.clientWidth,
-        scroll: document.documentElement.scrollWidth,
-        zoom: localStorage.getItem("portcove.appearance.interface-size"),
-        dpr: devicePixelRatio,
-        theme: document.documentElement.dataset.theme,
-        userAgent: navigator.userAgent,
-        focus: document.activeElement?.textContent?.trim(),
-      }));
-      const nativeWindow = await browser.manage().window().getRect();
-      assert.equal(nativeWindow.width, 960);
-      assert.equal(nativeWindow.height, 640);
-      assert.equal(observed.zoom, "400", `Enlargement lost at ${stage}`);
-      assert.ok(
-        Math.abs(observed.width - baselineWidth / 4) <= 2,
-        `Native zoom ratio changed at ${stage}`,
+      artifacts.push(
+        await captureNativeEnlargement(browser, {
+          output,
+          prefix: "source-removal",
+          stage,
+          baselineWidth,
+        }),
       );
-      assert.ok(observed.width <= 240, `Native effective width changed at ${stage}`);
-      assert.ok(observed.scroll <= observed.client + 1, `Horizontal overflow at ${stage}`);
-      const file = path.join(output, `source-removal-400-${stage}.json`);
-      await writeFile(file, JSON.stringify({ ...observed, nativeWindow, baselineWidth }, null, 2), {
-        flag: "wx",
-      });
-      artifacts.push(file);
     };
     let failure: { error: unknown } | undefined;
     try {
