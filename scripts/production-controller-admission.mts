@@ -12,6 +12,10 @@ export const productionControllerWorkflow = ".github/workflows/application-updat
 const repository = "boburning/portcove";
 const repositoryId = "1354613114";
 const maximumWorkflowBytes = 64 * 1024;
+const admittedSources = new WeakMap<
+  object,
+  { workflow: string; job: string; purpose: string; snapshot: string }
+>();
 
 function refuse(reason: string): never {
   throw new Error(`production controller admission refused: ${reason}`);
@@ -102,7 +106,7 @@ function admitController(
     createHash("sha256").update(workflowBytes).digest("hex") !== policy.workflow_sha256
   )
     refuse("workflow source byte identity");
-  return {
+  const result = {
     schema_version: policy.schema_version,
     mode: policy.mode,
     ...(bounded
@@ -123,6 +127,26 @@ function admitController(
     qualification:
       "Source admission only; no candidate acceptance, platform reachability, execution, signing or publication authority",
   };
+  admittedSources.set(result, { workflow, job, purpose, snapshot: JSON.stringify(result) });
+  return result;
+}
+
+/** Same-process source validation only; still requires actual OIDC and the
+ * complete separately ratified configuration before any selected operation. */
+export function requireAdmittedProductionSource(
+  value: unknown,
+  job: string,
+  purpose: "application" | "catalog-publication",
+): asserts value is ReturnType<typeof admitProductionInputReader> {
+  const saved = isRecord(value) ? admittedSources.get(value) : undefined;
+  if (
+    !saved ||
+    saved.workflow !== productionControllerWorkflow ||
+    saved.job !== job ||
+    saved.purpose !== purpose ||
+    saved.snapshot !== JSON.stringify(value)
+  )
+    throw new Error("original unchanged admitted production source required");
 }
 
 export function admitProductionController(

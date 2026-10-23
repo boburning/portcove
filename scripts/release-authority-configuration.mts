@@ -625,6 +625,31 @@ export function requireProductionClassificationWriterAuthorities() {
 export function requireProductionClassificationObserverAuthorities() {
   return productionClassificationAuthorities("observer");
 }
+/** Selected D1 source only. The actual named writer/observer OIDC verifier is
+ * still mandatory before credentials or a persistence capability are used. */
+export async function requireSelectedProductionClassificationAuthorities(
+  role: "writer" | "observer",
+) {
+  const environment = { ...process.env };
+  const configuration = environment.PORTCOVE_RELEASE_AUTHORITIES;
+  if (!configuration || Buffer.byteLength(configuration) > 32768)
+    throw new Error("protected selected classification configuration unavailable");
+  const admit =
+    role === "writer" ? admitProductionClassificationWriter : admitProductionClassificationObserver;
+  const source = admit(
+    environment.PORTCOVE_CONTROLLER_ADMISSION,
+    environment,
+    await readProductionControllerWorkflowBytes(),
+  );
+  const selected = inspectBoundSelectedPublicationAuthorities(
+    JSON.parse(configuration),
+    source,
+    "application",
+  );
+  if (selected.configuration.purpose !== "application")
+    throw new Error("selected application classification authority required");
+  return { ...selected, configuration: selected.configuration, source };
+}
 
 /** Fixed classification writer only. Its separate workflow must be admitted
  * against its own byte digest; production workflow admission cannot substitute.
@@ -641,7 +666,7 @@ export async function requireReviewedInputsReleaseAuthorities() {
   return inspectBoundControllerAuthorities(configuration, source);
 }
 
-function inspectBoundControllerAuthorities(
+export function inspectBoundControllerAuthorities(
   configuration: string,
   source: ReturnType<typeof admitProductionInputReader>,
 ) {

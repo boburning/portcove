@@ -323,6 +323,8 @@ void test("held CLI source admission runs without installed dependencies and ref
     "runtime-values.mts",
     "release-coordinator-errors.mts",
     "release-input-protections.mts",
+    "release-classification-contract.mts",
+    "release-classification-principal.mts",
   ])
     await copyFile(new URL(file, import.meta.url), path.join(root, "scripts", file));
   const workflow = Buffer.from("fixed inert source fixture\n");

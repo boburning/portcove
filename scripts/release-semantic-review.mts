@@ -8,7 +8,8 @@ import {
   isCatalogSemanticPurpose,
 } from "./release-catalog-semantic.mts";
 
-export const semanticReviewCheckName = "Portcove independent release semantic review";
+import { semanticReviewCheckName } from "./release-control-phases.mts";
+export { semanticReviewCheckName } from "./release-control-phases.mts";
 
 /** Shape/integrity only: this does not authenticate a runtime or certify review. */
 export function inspectSemanticReviewEvidence(

@@ -4,6 +4,7 @@ import type { GitHubRestReader } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { inspectReleaseControlPhase } from "./release-control-phases.mts";
+import { requireFixedClassificationPrincipal } from "./release-classification-principal.mts";
 
 /** Transport only, emitted after the fixed production-observer verifier.
  * Authentication comes from admitted same-workflow needs, not this JSON. */
@@ -223,16 +224,32 @@ export function requireReleaseInputWriterPolicy(
 export function requireCatalogMaintenancePolicy(raw: unknown, now = Date.now()) {
   return requireInputPolicy(raw, 43177418, now, "catalog-publication");
 }
+/** Actions is a storage principal, not semantic review authority. Only an
+ * actual retained selected source/job join may interpret this named policy. */
+export function requireFixedClassificationStoragePolicy(
+  raw: unknown,
+  principal: unknown,
+  now = Date.now(),
+) {
+  requireFixedClassificationPrincipal(principal, now);
+  return {
+    ...requireInputPolicy(raw, 15368, now, "application", true),
+    authorization: "fixed-job-input-storage-policy-only",
+    provider_writer: "github-actions-integration-not-workflow-specific",
+    semantic_authority: "none",
+  };
+}
 function requireInputPolicy(
   raw: unknown,
   writerAppId: number,
   now: number,
   purpose: "application" | "catalog-publication",
+  selected = false,
 ) {
   if (
     !Number.isSafeInteger(writerAppId) ||
     writerAppId < 1 ||
-    writerAppId === 15368 ||
+    (writerAppId === 15368 && !selected) ||
     !isRecord(raw) ||
     raw.schema_version !== 1 ||
     raw.repository_id !== 1354613114 ||

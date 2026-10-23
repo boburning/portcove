@@ -41,15 +41,24 @@ import { currentClassificationJobDeadline } from "./release-signing-job-budget.m
 import {
   requireProductionClassificationWriterAuthorities,
   requireProductionClassificationObserverAuthorities,
+  requireSelectedProductionClassificationAuthorities,
 } from "./release-authority-configuration.mts";
+import {
+  prepareFixedClassificationProducer,
+  establishFixedClassificationPrincipal,
+  requireProductionFixedClassificationWriter,
+} from "./release-classification-principal.mts";
+import { requireFixedClassificationStoragePolicy } from "./release-input-protections.mts";
+import type { inspectApplicationReviewProducerConfiguration } from "./release-control-inputs.mts";
 
-type ClassificationAuthorities = Awaited<
-  ReturnType<typeof requireProductionClassificationWriterAuthorities>
->;
 async function runOperation(classification?: {
-  authorities: ClassificationAuthorities;
+  namespace: string;
+  producer: ReturnType<typeof inspectApplicationReviewProducerConfiguration>;
+  selected?: Awaited<ReturnType<typeof requireSelectedProductionClassificationAuthorities>>;
+  environment: NodeJS.ProcessEnv;
   deadline: number;
 }) {
+  const environment = classification?.environment ?? { ...process.env };
   const mode = process.argv[2];
   if (
     (process.argv.length !== 3 &&
@@ -93,8 +102,8 @@ async function runOperation(classification?: {
     console.log(
       JSON.stringify(
         admitReviewedInputsController(
-          process.env.PORTCOVE_CONTROLLER_ADMISSION,
-          process.env,
+          environment.PORTCOVE_CONTROLLER_ADMISSION,
+          environment,
           bytes,
         ),
       ),
@@ -109,7 +118,7 @@ async function runOperation(classification?: {
   const classificationProbe =
     mode === "probe-production-request" || mode === "probe-production-classification-observer";
   const catalogPurpose =
-    inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) ===
+    inspectControllerExecutionPurpose(environment.PORTCOVE_EXECUTION_PURPOSE) ===
     "catalog-publication";
   if (catalogPurpose && !mode?.startsWith("observe-production-"))
     throw new Error("catalog input command may only observe maintenance");
@@ -128,15 +137,15 @@ async function runOperation(classification?: {
   const phaseProfile = releaseControlPhaseProfile(phase);
   if (catalogPurpose)
     admitProductionCatalogProtectionObserver(
-      process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION,
-      process.env,
+      environment.PORTCOVE_CATALOG_CONTROLLER_ADMISSION,
+      environment,
       await readProductionControllerWorkflowBytes(),
       phase,
     );
   const observing = mode === "observe" || productionObservation || classificationObserver;
   const persisting =
     mode === "persist" || mode === "persist-request" || mode === "persist-production-request";
-  const temp = process.env.RUNNER_TEMP;
+  const temp = environment.RUNNER_TEMP;
   if (!temp || !path.isAbsolute(temp))
     throw new Error("private runner temporary directory unavailable");
   // Exclusive receipt opens before any source or mutation. Never persist tokens
@@ -151,8 +160,20 @@ async function runOperation(classification?: {
       JSON.stringify({ schema_version: 1, operation: mode, status: "started", authority: "none" }) +
         "\n",
     );
-    const appToken = observing || persisting ? process.env.PORTCOVE_CONTROL_APP_TOKEN : undefined;
-    if ((observing || persisting) && (!appToken || appToken.length > 16384))
+    const selectedWriter = classification?.selected !== undefined && persisting;
+    if (selectedWriter) {
+      const { assertControllerBootstrapEnvironment } =
+        await import("./release-controller-job-bootstrap.mts");
+      assertControllerBootstrapEnvironment(environment);
+    }
+    const appToken =
+      observing || (persisting && !selectedWriter)
+        ? environment.PORTCOVE_CONTROL_APP_TOKEN
+        : undefined;
+    const jobToken = selectedWriter ? environment.GH_TOKEN : undefined;
+    if (selectedWriter && (!jobToken || jobToken.length > 16384))
+      throw new Error("isolated fixed classification job token unavailable");
+    if ((observing || (persisting && !selectedWriter)) && (!appToken || appToken.length > 16384))
       throw new Error("isolated App installation token unavailable");
     const runner = (args: readonly string[], input?: string) =>
       createGitHubRunner({
@@ -163,10 +184,16 @@ async function runOperation(classification?: {
           spawnSync(command, args, {
             ...options,
             env: {
-              ...process.env,
-              GH_TOKEN: appToken ?? process.env.GH_TOKEN,
+              ...environment,
+              GH_TOKEN: appToken ?? jobToken ?? environment.GH_TOKEN,
               GITHUB_TOKEN: undefined,
               PORTCOVE_CONTROL_APP_TOKEN: undefined,
+              ...(selectedWriter
+                ? {
+                    ACTIONS_ID_TOKEN_REQUEST_TOKEN: undefined,
+                    ACTIONS_ID_TOKEN_REQUEST_URL: undefined,
+                  }
+                : {}),
             },
           }),
       })(args, input);
@@ -179,9 +206,11 @@ async function runOperation(classification?: {
         maxBuffer: 2 * 1024 * 1024,
         timeoutMs: coordinatorCommandTimeout(15000),
       })(args, input);
-    const readApi = new GitHubApiClient((args, input) =>
-      readRunner([...args, "--hostname", "github.com"], input),
-    );
+    const readApi = selectedWriter
+      ? appApi
+      : new GitHubApiClient((args, input) =>
+          readRunner([...args, "--hostname", "github.com"], input),
+        );
     const api = {
       request: (method: string, endpoint: string, body?: unknown) =>
         (/\/(?:check-runs|check-suites)(?:\/|\?)/u.test(endpoint) ? readApi : appApi).request(
@@ -193,15 +222,16 @@ async function runOperation(classification?: {
         appApi.graphql(query, variables),
     };
     let observerIdentity: unknown = null;
+    let writerPrincipal: ReturnType<typeof establishFixedClassificationPrincipal> | null = null;
     if (observing || persisting) {
       // Config is separately ratified environment data, never an input file or
       // dispatch-provided expected identity. No self-expectation from JWT claims.
-      if (process.env.GITHUB_RUN_ATTEMPT !== "1")
+      if (environment.GITHUB_RUN_ATTEMPT !== "1")
         throw new Error("review input reruns are not admitted");
       const policy: unknown = JSON.parse(
         (catalogPurpose
-          ? process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION
-          : process.env.PORTCOVE_CONTROLLER_ADMISSION) ?? "null",
+          ? environment.PORTCOVE_CATALOG_CONTROLLER_ADMISSION
+          : environment.PORTCOVE_CONTROLLER_ADMISSION) ?? "null",
       );
       if (!isRecord(policy)) throw new Error("ratified controller policy unavailable");
       const expected = inspectAssemblerIdentityExpectation({
@@ -219,12 +249,12 @@ async function runOperation(classification?: {
         controller_revision: policy.revision,
         controller_ref: policy.execution_ref,
         actor_id: policy.actor_id,
-        run_id: process.env.GITHUB_RUN_ID,
+        run_id: environment.GITHUB_RUN_ID,
         run_attempt: 1,
       });
       const token = await requestAssemblerToken(
         expected.audience,
-        process.env,
+        environment,
         fetch,
         classification?.deadline,
       );
@@ -249,6 +279,15 @@ async function runOperation(classification?: {
         phase,
       );
       if (observing) observerIdentity = identity;
+      if (classification?.selected && persisting) {
+        writerPrincipal = establishFixedClassificationPrincipal(
+          classification.selected.configuration,
+          classification.selected.source,
+          identity,
+          "classification-writer",
+        );
+        requireProductionFixedClassificationWriter(writerPrincipal);
+      }
       await receipt.writeFile(
         JSON.stringify({
           schema_version: 1,
@@ -265,26 +304,20 @@ async function runOperation(classification?: {
       const { recoverRemoteCoordinator } = await import("./release-coordinator-recovery.mts");
       const { inspectClassificationRequestReadiness } =
         await import("./release-classification-request.mts");
-      const { semanticReviewCheckName } = await import("./release-semantic-review.mts");
       const recovered = await recoverRemoteCoordinator(
         temp,
-        { schema_version: 1, namespace: classification.authorities.namespace },
+        { schema_version: 1, namespace: classification.namespace },
         { transport: { cwd: process.cwd() } },
       );
       result = inspectClassificationRequestReadiness(
         api,
-        {
-          schema_version: 1,
-          review_app_id: classification.authorities.apps.semantic.app_id,
-          writer_app_id: classification.authorities.apps.classification.app_id,
-          review_check_name: semanticReviewCheckName,
-        },
+        classification.producer,
         recovered.input.review_request,
       );
-      if (!process.env.GITHUB_OUTPUT || !isRecord(result))
+      if (!environment.GITHUB_OUTPUT || !isRecord(result))
         throw new Error("fixed classification routing channel unavailable");
       await appendFile(
-        process.env.GITHUB_OUTPUT,
+        environment.GITHUB_OUTPUT,
         `eligible=${result.eligible === true ? "true" : "false"}\n`,
       );
     } else if (observing) {
@@ -330,9 +363,9 @@ async function runOperation(classification?: {
           throw new Error("unexpected round on legacy observer");
       }
       const encoded = JSON.stringify(result);
-      if (Buffer.byteLength(encoded) > 60 * 1024 || !process.env.GITHUB_OUTPUT)
+      if (Buffer.byteLength(encoded) > 60 * 1024 || !environment.GITHUB_OUTPUT)
         throw new Error("trusted observer output channel unavailable or oversized");
-      await appendFile(process.env.GITHUB_OUTPUT, `observation=${encoded}\n`);
+      await appendFile(environment.GITHUB_OUTPUT, `observation=${encoded}\n`);
       if (productionObservation) {
         await writeFile(
           roundIndex === undefined
@@ -352,63 +385,71 @@ async function runOperation(classification?: {
     } else {
       const { persistReviewedClassification, readPublicationPause, readReviewedClassification } =
         await import("./release-control-inputs.mts");
-      const config: unknown = JSON.parse(process.env.PORTCOVE_REVIEW_PRODUCER ?? "null");
+      const config: unknown = JSON.parse(environment.PORTCOVE_REVIEW_PRODUCER ?? "null");
       if (mode === "persist-request" || mode === "persist-production-request") {
         const { requireReviewedInputsReleaseAuthorities } =
           await import("./release-authority-configuration.mts");
         const { recoverRemoteCoordinator } = await import("./release-coordinator-recovery.mts");
         const { inspectReleaseReviewRequest } = await import("./release-review-request.mts");
         const { semanticReviewCheckName } = await import("./release-semantic-review.mts");
-        const { persistReviewedClassificationForRequest } =
+        const { persistReviewedClassificationForRequest, requireCurrentClassificationRequest } =
           await import("./release-classification-request.mts");
-        const authorities =
-          classification?.authorities ?? (await requireReviewedInputsReleaseAuthorities());
-        const producer = {
-          schema_version: 1,
-          review_app_id: authorities.apps.semantic.app_id,
-          writer_app_id: authorities.apps.classification.app_id,
-          review_check_name: semanticReviewCheckName,
-        };
+        const authorities = classification ? null : await requireReviewedInputsReleaseAuthorities();
+        const producer =
+          classification?.producer ??
+          (authorities
+            ? {
+                schema_version: 1,
+                review_app_id: authorities.apps.semantic.app_id,
+                writer_app_id: authorities.apps.classification.app_id,
+                review_check_name: semanticReviewCheckName,
+              }
+            : null);
+        if (producer === null) throw new Error("classification producer unavailable");
+        const namespace = classification?.namespace ?? authorities?.namespace;
+        if (!namespace) throw new Error("classification journal namespace unavailable");
         const { inspectReviewProducerConfiguration } = await import("./release-control-inputs.mts");
         const parsed = classification ? producer : inspectReviewProducerConfiguration(config);
         if (
           parsed.review_app_id !== producer.review_app_id ||
-          parsed.writer_app_id !== producer.writer_app_id ||
+          ("writer_app_id" in producer &&
+            (!("writer_app_id" in parsed) || parsed.writer_app_id !== producer.writer_app_id)) ||
           parsed.review_check_name !== producer.review_check_name
         )
           throw new Error("writer producer roles differ from ratified release authority");
         const recovered = await recoverRemoteCoordinator(
           temp,
-          { schema_version: 1, namespace: authorities.namespace },
+          { schema_version: 1, namespace },
           { transport: { cwd: process.cwd() } },
         );
         const request = inspectReleaseReviewRequest(recovered.input.review_request);
         if (!request) throw new Error("no outstanding exact journal request for automatic writer");
-        const beforeMutation = () => {
-          requireReleaseInputWriterPolicy(
-            JSON.parse(process.env.PORTCOVE_TRUSTED_PROTECTION_OBSERVATION ?? "null"),
-            producer.writer_app_id,
+        const requireFreshWriter = () => {
+          const protection: unknown = JSON.parse(
+            environment.PORTCOVE_TRUSTED_PROTECTION_OBSERVATION ?? "null",
           );
-          const response = readApi.request(
-            "GET",
-            `repos/boburning/portcove/git/ref/heads/${authorities.namespace}-coordinator-state`,
-          );
-          if (
-            response.status !== 200 ||
-            !isRecord(response.body) ||
-            response.body.ref !== `refs/heads/${authorities.namespace}-coordinator-state` ||
-            !isRecord(response.body.object) ||
-            response.body.object.type !== "commit" ||
-            response.body.object.sha !== recovered.checkpoint
-          )
-            throw new Error("automatic writer outstanding journal request changed");
+          if (classification?.selected) {
+            requireProductionFixedClassificationWriter(writerPrincipal);
+            requireFixedClassificationStoragePolicy(protection, writerPrincipal);
+          } else {
+            if (!("writer_app_id" in producer))
+              throw new Error("legacy writer identity unavailable");
+            requireReleaseInputWriterPolicy(protection, producer.writer_app_id);
+          }
         };
+        const beforeMutation = () =>
+          requireCurrentClassificationRequest(
+            readApi,
+            namespace,
+            recovered.checkpoint,
+            requireFreshWriter,
+          );
         beforeMutation();
         result = persistReviewedClassificationForRequest(api, producer, request, beforeMutation);
         beforeMutation();
       } else if (mode === "persist") {
         const opportunity: unknown = JSON.parse(
-          process.env.PORTCOVE_REVIEWED_OPPORTUNITY ?? "null",
+          environment.PORTCOVE_REVIEWED_OPPORTUNITY ?? "null",
         );
         // Only the fixed held workflow maps this from needs.protection_observation.
         // No workflow_dispatch inputs are declared. A cross-workflow receipt is
@@ -416,21 +457,21 @@ async function runOperation(classification?: {
         if (!isRecord(config) || typeof config.writer_app_id !== "number")
           throw new Error("writer identity unconfigured");
         requireReleaseInputWriterPolicy(
-          JSON.parse(process.env.PORTCOVE_TRUSTED_PROTECTION_OBSERVATION ?? "null"),
+          JSON.parse(environment.PORTCOVE_TRUSTED_PROTECTION_OBSERVATION ?? "null"),
           config.writer_app_id,
         );
-        const check = process.env.PORTCOVE_REVIEW_CHECK_ID;
+        const check = environment.PORTCOVE_REVIEW_CHECK_ID;
         if (!check || !/^[1-9][0-9]{0,15}$/u.test(check))
           throw new Error("exact independent check identity unavailable");
         result = persistReviewedClassification(api, config, opportunity, Number(check), () => {
           requireReleaseInputWriterPolicy(
-            JSON.parse(process.env.PORTCOVE_TRUSTED_PROTECTION_OBSERVATION ?? "null"),
+            JSON.parse(environment.PORTCOVE_TRUSTED_PROTECTION_OBSERVATION ?? "null"),
             config.writer_app_id as number,
           );
         });
       } else {
         const opportunity: unknown = JSON.parse(
-          process.env.PORTCOVE_REVIEWED_OPPORTUNITY ?? "null",
+          environment.PORTCOVE_REVIEWED_OPPORTUNITY ?? "null",
         );
         result = {
           classification: readReviewedClassification(api, config, opportunity),
@@ -479,9 +520,32 @@ async function main() {
         : null;
   if (!role) return runOperation();
   if (process.argv.length !== 3) throw new Error("fixed classification operation required");
-  const authorities = await (role === "writer"
-    ? requireProductionClassificationWriterAuthorities()
-    : requireProductionClassificationObserverAuthorities());
+  const { inspectApplicationReviewProducerConfiguration } =
+    await import("./release-control-inputs.mts");
+  const environment = { ...process.env };
+  const raw: unknown = JSON.parse(environment.PORTCOVE_RELEASE_AUTHORITIES ?? "null");
+  const selected =
+    isRecord(raw) && (raw.schema_version === 4 || raw.kind === "two-app-fixed-jobs-v1")
+      ? await requireSelectedProductionClassificationAuthorities(role)
+      : undefined;
+  const authorities = selected
+    ? null
+    : await (role === "writer"
+        ? requireProductionClassificationWriterAuthorities()
+        : requireProductionClassificationObserverAuthorities());
+  const producer = selected
+    ? prepareFixedClassificationProducer(selected.configuration, selected.source)
+    : authorities
+      ? inspectApplicationReviewProducerConfiguration({
+          schema_version: 1,
+          review_app_id: authorities.apps.semantic.app_id,
+          writer_app_id: authorities.apps.classification.app_id,
+          review_check_name: "Portcove independent release semantic review",
+        })
+      : null;
+  if (!producer) throw new Error("classification producer unavailable");
+  const namespace = selected?.configuration.journal.namespace ?? authorities?.namespace;
+  if (!namespace) throw new Error("classification namespace unavailable");
   const policy: unknown = JSON.parse(process.env.PORTCOVE_CONTROLLER_ADMISSION ?? "null");
   if (!isRecord(policy)) throw new Error("ratified classification source unavailable");
   const deadline = currentClassificationJobDeadline(
@@ -495,7 +559,9 @@ async function main() {
     process.cwd(),
     performance.now() + 115000,
   );
-  return withCoordinatorDeadline(deadline, () => runOperation({ authorities, deadline }));
+  return withCoordinatorDeadline(deadline, () =>
+    runOperation({ namespace, producer, ...(selected ? { selected } : {}), environment, deadline }),
+  );
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
