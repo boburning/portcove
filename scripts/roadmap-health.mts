@@ -89,13 +89,9 @@ export function selectRoadmapHealth(
 }
 
 const marker = "<!-- portcove-roadmap-health:";
-export function roadmapHealthComment(
-  report: Record<string, unknown>,
-  previous: string | null,
-  runUrl: string,
-) {
+function roadmapHealthScope(report: Record<string, unknown>) {
   const declared = isRecord(report.scope) ? report.scope : {};
-  const scope = JSON.stringify(
+  return JSON.stringify(
     declared.kind === "issues" && Array.isArray(declared.issues)
       ? {
           kind: "issues",
@@ -107,21 +103,65 @@ export function roadmapHealthComment(
         }
       : { kind: "global" },
   );
+}
+function commentState(body: string | null): Record<string, unknown> | null {
+  const encoded = body?.match(/<!-- portcove-roadmap-health:(\{[^\n]*\}) -->/u)?.[1];
+  try {
+    const parsed: unknown = encoded ? JSON.parse(encoded) : null;
+    return isRecord(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+export function findRoadmapHealthComment(
+  comments: readonly unknown[],
+  report: Record<string, unknown>,
+) {
+  const scope = roadmapHealthScope(report);
+  return comments.findLast(
+    (value): value is Record<string, unknown> =>
+      isRecord(value) &&
+      isRecord(value.user) &&
+      value.user.type === "Bot" &&
+      value.user.login === "github-actions[bot]" &&
+      typeof value.body === "string" &&
+      value.body.startsWith(marker) &&
+      commentState(value.body)?.scope === scope,
+  );
+}
+function canonicalDiagnosticValue(value: unknown): unknown {
+  if (Array.isArray(value))
+    return value
+      .map(canonicalDiagnosticValue)
+      .sort((a, b) => String(JSON.stringify(a)).localeCompare(String(JSON.stringify(b))));
+  if (isRecord(value))
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, canonicalDiagnosticValue(value[key])]),
+    );
+  return value;
+}
+export function roadmapHealthComment(
+  report: Record<string, unknown>,
+  previous: string | null,
+  runUrl: string,
+) {
+  const scope = roadmapHealthScope(report);
   const status = report.status === "passed" ? "passed" : "failed";
   const diagnosis = isRecord(report.diagnosis) ? report.diagnosis : {};
   const digest = createHash("sha256")
     .update(
-      JSON.stringify([scope, status, diagnosis.kind, diagnosis.membership_mismatch, report.errors]),
+      JSON.stringify([
+        scope,
+        status,
+        diagnosis.kind,
+        canonicalDiagnosticValue(diagnosis.membership_mismatch),
+        canonicalDiagnosticValue(report.errors),
+      ]),
     )
     .digest("hex");
-  let old: Record<string, unknown> | null = null;
-  const encoded = previous?.match(/<!-- portcove-roadmap-health:(\{[^\n]*\}) -->/u)?.[1];
-  try {
-    const parsed: unknown = encoded ? JSON.parse(encoded) : null;
-    if (isRecord(parsed)) old = parsed;
-  } catch {
-    /* Unrecognized prior text is preserved by the caller. */
-  }
+  const old = commentState(previous);
   if (old?.digest === digest) return null;
   // A scoped success cannot clear an unrelated failure or global coverage gap.
   if (status === "passed" && (!old || old.scope !== scope || old.status === "passed")) return null;
@@ -259,18 +299,9 @@ async function main() {
       `repos/${process.env.GITHUB_REPOSITORY}/issues/2414/comments?per_page=100`,
       { identity: (value) => (isRecord(value) ? value.id : undefined) },
     );
-    const owned = comments.filter(
-      (value) =>
-        isRecord(value) &&
-        isRecord(value.user) &&
-        value.user.type === "Bot" &&
-        value.user.login === "github-actions[bot]" &&
-        typeof value.body === "string" &&
-        value.body.startsWith(marker),
-    );
-    // Concurrent first reports may both post. Preserve them and update the latest;
-    // diagnostic history is never mutation authority or a reason to delete evidence.
-    const previous = owned.at(-1);
+    // Each requested scope owns its own comment and serialized workflow group.
+    // Other scopes and unrecognized historical comments retain their evidence.
+    const previous = findRoadmapHealthComment(comments, report);
     if (isRecord(previous) && typeof previous.id !== "number")
       throw new Error("Diagnostic comment identity is unavailable");
     const body = roadmapHealthComment(

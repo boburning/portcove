@@ -8,7 +8,12 @@ import { fileURLToPath } from "node:url";
 import { RoadmapClient, executeSetMany, validateConfig } from "./roadmap.mts";
 import { runScopedDoctor, roadmapCheckScope, doctorFailureDiagnostics } from "./roadmap-scoped.mts";
 import { InventoryError, retryableInventoryRead } from "./repository-issue-inventory.mts";
-import { selectRoadmapHealth, roadmapHealthComment } from "./roadmap-health.mts";
+import {
+  selectRoadmapHealth,
+  roadmapHealthComment,
+  findRoadmapHealthComment,
+} from "./roadmap-health.mts";
+import { GitHubApiError } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
 
 const config = validateConfig(
@@ -174,6 +179,76 @@ void test("ordinary set-many runs automatic scoped validation after exact readba
   assert.equal(f.mutations(), 1);
 });
 
+void test("scoped status consistency includes closed and reopened unscheduled work", async () => {
+  for (const [state, status, valid] of [
+    ["CLOSED", "Inbox", false],
+    ["OPEN", "Done", false],
+    ["CLOSED", "Done", true],
+    ["OPEN", "Inbox", true],
+  ] as const) {
+    const f = fixture();
+    f.issue.state = state;
+    f.values.set("Status", status);
+    const check = runScopedDoctor(config, f.client, { issues: [1], catalog: { ports: [] } });
+    if (valid) await check;
+    else await assert.rejects(check, /inconsistent repository\/Project status/u);
+  }
+});
+
+void test("production batch outcomes retain typed doctor causes and completed mutation evidence", async () => {
+  const mismatch = { listed_count: 1, issue_memberships: 2, item_ids: ["PVTI1", "PVTI2"] };
+  for (const [cause, kind] of [
+    [
+      Object.assign(new InventoryError("provider_inconsistent", "Index mismatch"), {
+        membershipMismatch: mismatch,
+      }),
+      "provider_inconsistent",
+    ],
+    [
+      Object.assign(new Error("Planning conflict"), { doctorErrors: ["Status mismatch"] }),
+      "planning_findings",
+    ],
+    [new GitHubApiError("http_error", "Forbidden", { status: 403 }), "authentication"],
+    [new GitHubApiError("rate_limited", "Quota reset pending", { status: 429 }), "rate_limit"],
+    [new GitHubApiError("budget_exhausted", "Reserve exhausted"), "budget"],
+  ] as const) {
+    const f = fixture();
+    await assert.rejects(
+      executeSetMany({
+        config,
+        client: f.client,
+        apply: true,
+        spec: {
+          schema_version: 1,
+          updates: [{ target: "#1", fields: { Priority: { from: "None", to: "High" } } }],
+        },
+        doctor: () => {
+          throw cause;
+        },
+      }),
+      (error: unknown) => {
+        assert(isRecord(error) && isRecord(error.operationEvidence));
+        assert.equal(error.operationStatus, "partial");
+        assert.equal(error.operationEvidence.doctor, "failed");
+        assert.equal(error.operationEvidence.verified, 1);
+        const diagnosis = doctorFailureDiagnostics(error);
+        assert.equal(diagnosis.kind, kind);
+        assert.equal(
+          diagnosis.coverage,
+          kind === "planning_findings" ? "complete" : "inconclusive",
+        );
+        assert.equal(diagnosis.error.code, "set_many_partial");
+        assert(diagnosis.cause);
+        if (kind === "provider_inconsistent")
+          assert.deepEqual(diagnosis.membership_mismatch, mismatch);
+        return true;
+      },
+    );
+    assert.equal(f.values.get("Priority"), "High");
+    assert.equal(f.mutations(), 1);
+  }
+});
+
 void test("scoped concurrent edits invalidate success and invalid requests make no API calls", async () => {
   const f = fixture();
   const graphql = f.client.graphql.bind(f.client);
@@ -295,6 +370,73 @@ void test("hosted automation has no periodic schedule and executes trusted sourc
   assert.match(workflow, /if: always\(\)/u);
   assert.match(workflow, /PORTCOVE_ROADMAP_TOKEN/u);
   assert.doesNotMatch(workflow, /pull_request_target|issue_comment/u);
+  assert.match(
+    workflow,
+    /group: roadmap-health-\$\{\{ github\.event\.issue\.number \|\| inputs\.issue \|\| 'global' \}\}/u,
+  );
+});
+
+void test("interleaved scopes retain independent failures and unchanged diagnosis order remains quiet", () => {
+  const globalFailure = {
+    status: "failed",
+    scope: { kind: "global" },
+    diagnosis: {
+      kind: "provider_inconsistent",
+      membership_mismatch: { listed_count: 1, item_ids: ["B", "A"] },
+    },
+    errors: ["second", "first"],
+  };
+  const scoped = (issue: number, status = "failed") => ({
+    ...globalFailure,
+    status,
+    scope: { kind: "issues", issues: [issue] },
+  });
+  const comments: Record<string, unknown>[] = [];
+  const report = (value: Record<string, unknown>) => {
+    const previous = findRoadmapHealthComment(comments, value);
+    const body = roadmapHealthComment(
+      value,
+      previous ? String(previous.body) : null,
+      "https://github.test/run/1",
+    );
+    if (body) {
+      if (previous) previous.body = body;
+      else
+        comments.push({
+          id: comments.length + 1,
+          body,
+          user: { type: "Bot", login: "github-actions[bot]" },
+        });
+    }
+    return body;
+  };
+  assert(report(globalFailure));
+  assert(report(scoped(1)));
+  assert(report(scoped(2)));
+  assert.equal(report(scoped(1)), null);
+  assert.equal(
+    report({
+      ...globalFailure,
+      diagnosis: {
+        ...globalFailure.diagnosis,
+        membership_mismatch: { item_ids: ["A", "B"], listed_count: 1 },
+      },
+      errors: ["first", "second"],
+    }),
+    null,
+  );
+  assert.match(report(scoped(1, "passed"))!, /recovered/u);
+  assert.match(String(findRoadmapHealthComment(comments, globalFailure)?.body), /\*\*failed\*\*/u);
+  assert.match(String(findRoadmapHealthComment(comments, scoped(2))?.body), /\*\*failed\*\*/u);
+  assert.equal(comments.length, 3);
+  assert.equal(report(scoped(1, "passed")), null);
+  assert.equal(
+    findRoadmapHealthComment(
+      [{ ...comments[0], user: { type: "User", login: "owner" } }],
+      globalFailure,
+    ),
+    undefined,
+  );
 });
 void test("actual unattended entrypoint retains missing-credential diagnostics without contacting GitHub", () => {
   const root = fileURLToPath(new URL("..", import.meta.url));

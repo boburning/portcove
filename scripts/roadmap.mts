@@ -1674,6 +1674,14 @@ function repositoryState(item: RoadmapIssueItem | null | undefined) {
   return diagnosticText(item?.content?.state ?? item?.state ?? "").toLowerCase();
 }
 
+export function repositoryStatusConflict(item: RoadmapIssueItem) {
+  const state = repositoryState(item);
+  return (
+    (state === "open" && itemDone(item)) ||
+    (["closed", "merged"].includes(state) && !itemDone(item))
+  );
+}
+
 export function selectNextItems<T extends RoadmapIssueItem>(items: readonly T[]): T[] {
   const priority = new Map<unknown, number>([
     ["Urgent", 0],
@@ -2680,13 +2688,9 @@ export function analyzeReleaseReadiness(
   const unfinishedRequired = effectiveRequired.filter(
     (item) => !itemDone(item) && !(candidateDisposition706 && scopedRemediation706.includes(item)),
   );
-  const statusConflicts = uniqueItems([...targeted, ...effectiveRequired]).filter((item) => {
-    const state = repositoryState(item);
-    return (
-      (state === "open" && itemDone(item)) ||
-      (["closed", "merged"].includes(state) && !itemDone(item))
-    );
-  });
+  const statusConflicts = uniqueItems([...targeted, ...effectiveRequired]).filter(
+    repositoryStatusConflict,
+  );
   return {
     release: candidateIssues
       ? "Candidate implementation scope (not publication approval)"

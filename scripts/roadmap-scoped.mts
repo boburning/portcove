@@ -5,6 +5,7 @@ import {
   executionSnapshot,
   dependencyCycles,
   fieldValue,
+  repositoryStatusConflict,
   validatePortIssueCoverage,
   validatePortStageSemantics,
 } from "./roadmap.mts";
@@ -16,7 +17,11 @@ import type {
 } from "./roadmap.mts";
 import { requireRoadmapInventory } from "./roadmap-inventory.mts";
 import type { RoadmapInventory } from "./roadmap-inventory.mts";
-import { InventoryError, inventoryFailureKind } from "./repository-issue-inventory.mts";
+import {
+  InventoryError,
+  inventoryFailureKind,
+  inventoryFailureSource,
+} from "./repository-issue-inventory.mts";
 import { sanitizeOperationError } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -30,6 +35,7 @@ export function roadmapCheckScope(
 }
 
 export function doctorFailureDiagnostics(error: unknown) {
+  const source = inventoryFailureSource(error);
   const kind = inventoryFailureKind(error);
   const recovery: Record<string, string> = {
     checkout_context:
@@ -60,8 +66,9 @@ export function doctorFailureDiagnostics(error: unknown) {
     coverage: kind === "planning_findings" ? "complete" : "inconclusive",
     recovery_condition: recovery[kind],
     error: sanitizeOperationError(error),
-    ...(isRecord(error) && isRecord(error.membershipMismatch)
-      ? { membership_mismatch: error.membershipMismatch }
+    ...(source !== error ? { cause: sanitizeOperationError(source) } : {}),
+    ...(isRecord(source) && isRecord(source.membershipMismatch)
+      ? { membership_mismatch: source.membershipMismatch }
       : {}),
   };
 }
@@ -114,9 +121,9 @@ export function evaluateScopedRoadmap(
     ...readiness.migrationConflicts.map(
       (item) => `#${numberOf(item)} retains an unmigrated active target`,
     ),
-    ...readiness.statusConflicts.map(
-      (item) => `#${numberOf(item)} has inconsistent repository/Project status`,
-    ),
+    ...items
+      .filter(repositoryStatusConflict)
+      .map((item) => `#${numberOf(item)} has inconsistent repository/Project status`),
     ...readiness.unassignedRequired.map(
       (item) => `#${numberOf(item)} is Required without a target`,
     ),

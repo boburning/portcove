@@ -25,7 +25,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: roadmap-health-${{ github.event.issue.number || github.ref }}
+  group: roadmap-health-${{ github.event.issue.number || inputs.issue || 'global' }}
   cancel-in-progress: false
 
 jobs:

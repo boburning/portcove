@@ -609,9 +609,10 @@ doctor. An explicit doctor without `--issue` remains an on-demand full audit.
 The event-driven Roadmap workflow checks affected issues and materially changed
 catalog identity/qualification, schema and validator inputs on main. There is no
 hourly or other periodic audit. It executes trusted default-branch source,
-retains failure artifacts and updates one diagnostic report on #2414 only when
-the observed problem or recovery changes. An unrelated scoped pass cannot clear
-a global failure. Hosted execution requires owner-provided
+retains failure artifacts and maintains a separate diagnostic comment per requested
+scope on the single tracking issue #2414. Updates occur only when that scope's
+problem or recovery changes, and same-scope writers are serialized. An unrelated
+scoped pass cannot clear another scoped or global failure. Hosted execution requires owner-provided
 `PORTCOVE_ROADMAP_TOKEN`; missing configuration is inconclusive, never passed.
 
 Failures retain a typed diagnosis and concrete recovery condition automatically.
