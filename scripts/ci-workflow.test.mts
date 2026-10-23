@@ -17,6 +17,13 @@ import os from "node:os";
 import path from "node:path";
 import { encodeHostedEvidence, recoverHostedEvidence } from "./native-backup-evidence.mts";
 import { AUDIT_STAGES } from "./audit.mts";
+import {
+  partitionWindowsRustTests,
+  runnableWindowsRustTests,
+  validateRustTimingHints,
+  validateWindowsRustManifest,
+  windowsPartitionConfig,
+} from "./windows-rust-tests.mts";
 
 function requiredFixture<T>(value: T | null | undefined): T {
   assert.ok(value !== null && value !== undefined, "expected fixture or source section is missing");
@@ -670,6 +677,7 @@ const classify = jobSection("classify", "provenance");
 const provenance = jobSection("provenance", "prose_checks");
 const proseChecks = jobSection("prose_checks", "fast_rust");
 const fastRust = jobSection("fast_rust", "fast_rust_quality");
+const fastRustTests = jobSection("fast_rust_tests", "fast_rust_transport");
 const fastPlatform = jobSection("fast_platform", "fast_rust_quality");
 const fastRustQuality = jobSection("fast_rust_quality", "fast_frontend");
 const fastFrontend = jobSection("fast_frontend", "fast_catalog");
@@ -712,7 +720,7 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
     fastRust,
     /PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR: .*\/work\/runtime-diagnostics\/windows/u,
   );
-  assert.match(fastRust, /rust-test-impact\.mts --workspace-run/u);
+  assert.match(fastRustTests, /windows-rust-tests\.mts run/u);
   assert.match(fastRust, /PORTCOVE_DIAGNOSTICS_SOURCE_REVISION=.*GITHUB_ENV/u);
   assert.match(
     fastRustQuality,
@@ -749,7 +757,7 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
     linuxFixture,
     /cargo test --locked -p portcove-core support_bundle_export -- --test-threads=1 --nocapture/u,
   );
-  for (const lane of [fastRust, fastRustQuality]) {
+  for (const lane of [fastRustTests, fastRustQuality]) {
     assert.match(lane, /checked-git\.mts rev-parse HEAD/u);
     assert.match(lane, /rustc --version --verbose/u);
     assert.match(lane, /source_sha256:hashes/u);
@@ -774,7 +782,7 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
     ])
       assert.ok(lane.includes(source), source);
     assert.match(lane, /name: runtime-diagnostics-(?:windows|linux)-/u);
-    assert.match(lane, /path: work\/runtime-diagnostics\/(?:windows|linux)\//u);
+    assert.match(lane, /path:\s*(?:\|\s*)?work\/runtime-diagnostics\/(?:windows|linux)\//u);
   }
   assert.match(
     fastRustQuality,
@@ -974,7 +982,7 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
     assert.match(fast, /runs-on: ubuntu-22\.04/);
   }
   assert.match(fastRust, /runs-on: windows-latest/);
-  assert.match(fastRust, /rust-test-impact\.mts --workspace-run/);
+  assert.match(fastRust, /windows-rust-tests\.mts build/);
   assert.equal(fastPlatform, "");
   assert.match(fastRustQuality, /voidzero-dev\/setup-vp@/);
   assert.match(fastRustQuality, /frontend_workspace == 'true'/);
@@ -2776,7 +2784,11 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     "package(portcove-core) & test(database::tests::)",
     "package(portcove-core) & test(adapter::source_conversion_tests::failed_and_cancelled_conversion_retains_logs_and_reaps_owned_processes)",
   ])
-    assert.equal(overrideFor(filter)["threads-required"], 2);
+    assert.equal(overrideFor(filter)["threads-required"], "num-test-threads");
+  const hosted = document.profile["hosted-windows"];
+  assert.ok(isRecord(hosted));
+  assert.equal(hosted["test-threads"], 4);
+  assert.equal(hosted["default-filter"], undefined);
   assert.equal(overrideFor("package(portcove-cli)").priority, -100);
   const argumentContracts = overrideFor("package(portcove-cli) & test(/^args::tests::/)");
   assert.deepEqual(argumentContracts, {
@@ -3018,4 +3030,272 @@ void test("hosted plans use bounded transport before checkout and retain the sam
     /PORTCOVE_PLAN_GZIP_BASE64: \$\{\{ needs\.qualification\.outputs\.plan_gzip_base64 \}\}/,
   );
   assert.doesNotMatch(release, /PORTCOVE_PLAN_JSON:/);
+});
+
+void test("ordinary Windows Rust compiles once and joins every execution and live transport producer", () => {
+  const build = workflowJob("fast_rust");
+  const execution = workflowJob("fast_rust_tests");
+  const transport = workflowJob("fast_rust_transport");
+  for (const producer of [build, execution, transport]) {
+    assert.equal(producer["runs-on"], "windows-latest");
+    assert.equal(
+      producer.if,
+      "needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust')",
+    );
+    assert.equal(producer["continue-on-error"], undefined);
+  }
+  assert.deepEqual(execution.needs, ["classify", "fast_rust"]);
+  assert.equal(transport.needs, "classify");
+  assert.ok(isRecord(build.outputs));
+  assert.equal(build.outputs.manifest_sha256, "${{ steps.archive.outputs.manifest_sha256 }}");
+  assert.ok(isRecord(execution.strategy) && isRecord(execution.strategy.matrix));
+  assert.equal(execution.strategy["fail-fast"], false);
+  assert.equal(
+    execution.strategy.matrix.include,
+    "${{ fromJSON(needs.fast_rust.outputs.matrix) }}",
+  );
+  assert.ok(isRecord(execution.env));
+  assert.equal(
+    execution.env.PORTCOVE_WINDOWS_MANIFEST_SHA256,
+    "${{ needs.fast_rust.outputs.manifest_sha256 }}",
+  );
+  assert.equal(
+    workflowStep("fast_rust", "Compile workspace targets and archive balanced test partitions").run,
+    "node scripts/run-rust-tests.mts --guard-command node scripts/windows-rust-tests.mts build",
+  );
+  assert.match(
+    workflowStep("fast_rust_tests", "Execute the verified Windows test partition").run,
+    /run-rust-tests\.mts --guard-command node scripts\/windows-rust-tests\.mts run/u,
+  );
+  assert.equal(
+    workflowStep(
+      "fast_rust_transport",
+      "Compare live CLI and headless and native Desktop serialization",
+    ).run,
+    "node scripts/run-rust-tests.mts --guard-command node scripts/check-transport-contract.mts",
+  );
+  const aggregate = workflowJob("rust");
+  assert.ok(Array.isArray(aggregate.needs));
+  const gate: Record<string, unknown> = workflowStep("rust", "Require every Rust lane");
+  assert.ok(isRecord(gate.env) && typeof gate.env.PORTCOVE_FAST_RESULTS === "string");
+  const results: unknown = JSON.parse(gate.env.PORTCOVE_FAST_RESULTS);
+  assert.ok(isRecord(results));
+  assert.deepEqual(Object.keys(results).sort(), [
+    "fast_rust",
+    "fast_rust_tests",
+    "fast_rust_transport",
+  ]);
+  for (const id of Object.keys(results)) {
+    assert.ok(aggregate.needs.includes(id));
+    assert.equal(results[id], `\${{ needs.${id}.result }}`);
+  }
+  assert.ok(Array.isArray(build.steps) && Array.isArray(execution.steps));
+  const buildSteps: unknown[] = build.steps;
+  const executionSteps: unknown[] = execution.steps;
+  const uploaded = buildSteps.find(
+    (step: unknown) =>
+      isRecord(step) &&
+      typeof step.uses === "string" &&
+      step.uses.startsWith("actions/upload-artifact@") &&
+      isRecord(step.with) &&
+      String(step.with.name).startsWith("windows-rust-tests-"),
+  );
+  const downloaded = executionSteps.find(
+    (step: unknown) =>
+      isRecord(step) &&
+      typeof step.uses === "string" &&
+      step.uses.startsWith("actions/download-artifact@"),
+  );
+  assert.ok(
+    isRecord(uploaded) &&
+      isRecord(uploaded.with) &&
+      isRecord(downloaded) &&
+      isRecord(downloaded.with),
+  );
+  assert.equal(
+    uploaded.with.name,
+    "windows-rust-tests-${{ github.run_id }}-${{ github.run_attempt }}",
+  );
+  assert.equal(downloaded.with.name, uploaded.with.name);
+  assert.match(String(uploaded.with.path), /tests\.tar\.zst/u);
+  assert.match(String(uploaded.with.path), /manifest\.json/u);
+  assert.equal(uploaded.with["if-no-files-found"], "error");
+});
+
+void test("Windows Rust partitions use timing only for placement and retain every current identity", () => {
+  const hints = validateRustTimingHints({
+    format_version: 1,
+    default_seconds: 1,
+    families: [],
+    tests: [["core", "slow", 1000]],
+  });
+  const testId = (name: string) => JSON.stringify(["core", "core", name]);
+  const selected = [
+    testId("slow"),
+    ...Array.from({ length: 50 }, (_, index) => testId(`new_${index}`)),
+  ];
+  const partitions = partitionWindowsRustTests(selected, hints);
+  assert.equal(partitions.length, 6);
+  assert.deepEqual(partitions, partitionWindowsRustTests([...selected].reverse(), hints));
+  assert.deepEqual(partitions.flatMap(({ tests }) => tests).sort(), [...selected].sort());
+  assert.equal(partitionWindowsRustTests([testId("new")], hints).length, 1);
+  assert.throws(
+    () => partitionWindowsRustTests([testId("same"), testId("same")], hints),
+    /Duplicate/u,
+  );
+  assert.throws(() => partitionWindowsRustTests([], hints), /nonempty/u);
+  assert.throws(() => partitionWindowsRustTests(selected, hints, 9), /one and eight/u);
+});
+
+void test("Windows Rust filtered inventory accepts nextest default-filter exclusions without weakening complete coverage", () => {
+  // Pinned nextest 0.9.100 lists a distinct status when a profile filter excludes
+  // an entire binary; partially selected binaries still list their mismatches.
+  const matched = { ignored: false, "filter-match": { status: "matches" } };
+  const inventory = {
+    "test-count": 2,
+    "rust-suites": {
+      "transfer-smoke": {
+        "package-name": "transfer-smoke",
+        "binary-id": "transfer-smoke",
+        status: "listed",
+        testcases: {
+          one: matched,
+          two: { ignored: false, "filter-match": { status: "mismatch" } },
+        },
+      },
+      "transfer-smoke::outside": {
+        "package-name": "transfer-smoke",
+        "binary-id": "transfer-smoke::outside",
+        status: "skipped-default-filter",
+        testcases: {},
+      },
+    },
+  };
+  const original = structuredClone(inventory);
+  assert.deepEqual(
+    [...runnableWindowsRustTests(inventory, { allowSkipped: true })],
+    [JSON.stringify(["transfer-smoke", "transfer-smoke", "one"])],
+  );
+  assert.deepEqual(inventory, original, "parsing must not rewrite retained inventory evidence");
+  assert.throws(() => runnableWindowsRustTests(inventory), /identity or coverage/u);
+  const changedSuite = (status: string, testcases = {}, binaryId = "transfer-smoke::outside") => ({
+    ...inventory,
+    "rust-suites": {
+      ...inventory["rust-suites"],
+      "transfer-smoke::outside": {
+        ...inventory["rust-suites"]["transfer-smoke::outside"],
+        "binary-id": binaryId,
+        status,
+        testcases,
+      },
+    },
+  });
+  for (const status of ["skipped", "skipped-default-filter"]) {
+    assert.throws(() => runnableWindowsRustTests(changedSuite(status)), /identity or coverage/u);
+    assert.throws(
+      () =>
+        runnableWindowsRustTests(changedSuite(status, { hidden: matched }), { allowSkipped: true }),
+      /Skipped nextest suite contained test records/u,
+    );
+  }
+  assert.throws(
+    () => runnableWindowsRustTests(changedSuite("unexpected"), { allowSkipped: true }),
+    /identity or coverage/u,
+  );
+  assert.throws(
+    () =>
+      runnableWindowsRustTests(changedSuite("skipped-default-filter", {}, "substituted"), {
+        allowSkipped: true,
+      }),
+    /identity or coverage/u,
+  );
+  assert.throws(
+    () => runnableWindowsRustTests({ ...inventory, "test-count": 3 }, { allowSkipped: true }),
+    /Truncated/u,
+  );
+});
+
+void test("Windows Rust archive refuses substituted provenance and incomplete or overlapping partitions", () => {
+  const identity = {
+    source: "a".repeat(40),
+    run: "123",
+    attempt: "1",
+    plan: "b".repeat(64),
+    compiler: "rustc pinned",
+    nextest: "nextest pinned",
+    target: "x86_64-pc-windows-msvc",
+    inputs: "c".repeat(64),
+  };
+  const tests = [JSON.stringify(["core", "core", "one"]), JSON.stringify(["core", "core", "two"])];
+  const packet = {
+    format_version: 1,
+    identity,
+    archive_sha256: "d".repeat(64),
+    complete: tests,
+    selected: tests,
+    partitions: [
+      { id: 1, estimated_seconds: 1, tests: [tests[0]] },
+      { id: 2, estimated_seconds: 1, tests: [tests[1]] },
+    ],
+  };
+  assert.equal(validateWindowsRustManifest(packet, identity), packet);
+  for (const key of Object.keys(identity))
+    assert.throws(
+      () =>
+        validateWindowsRustManifest(
+          { ...packet, identity: { ...identity, [key]: "substituted" } },
+          identity,
+        ),
+      /identity/u,
+    );
+  assert.throws(
+    () => validateWindowsRustManifest({ ...packet, partitions: [packet.partitions[0]] }, identity),
+    /union/u,
+  );
+  assert.throws(
+    () =>
+      validateWindowsRustManifest(
+        {
+          ...packet,
+          partitions: [packet.partitions[0], { ...packet.partitions[1], tests: [tests[0]] }],
+        },
+        identity,
+      ),
+    /overlap/u,
+  );
+  assert.throws(
+    () =>
+      validateWindowsRustManifest(
+        { ...packet, selected: [JSON.stringify(["foreign", "foreign", "test"])] },
+        identity,
+      ),
+    /escaped/u,
+  );
+  assert.throws(
+    () => validateWindowsRustManifest({ ...packet, archive_sha256: "" }, identity),
+    /identity/u,
+  );
+  assert.throws(
+    () => validateWindowsRustManifest({ ...packet, complete: [] }, identity),
+    /nonempty/u,
+  );
+});
+
+void test("Windows Rust partition filters preserve original timeout and resource policy and escape identities", async () => {
+  const source = await readFile(new URL("../.config/nextest.toml", import.meta.url), "utf8");
+  const generated = windowsPartitionConfig(source, [
+    JSON.stringify(["core", "core::test/binary", "names::case.[1](one)"]),
+  ]);
+  const inserted = generated.replace(/default-filter = .*\n/u, "");
+  assert.equal(inserted, source);
+  assert.match(generated, /default-filter = /u);
+  assert.match(generated, /binary_id/u);
+  assert.match(generated, /test-threads = 4/u);
+  assert.throws(
+    () =>
+      windowsPartitionConfig(source + '\ndefault-filter = "all()"\n', [
+        JSON.stringify(["core", "core", "one"]),
+      ]),
+    /existing default filter/u,
+  );
 });

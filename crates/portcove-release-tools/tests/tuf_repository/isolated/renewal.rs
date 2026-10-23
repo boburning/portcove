@@ -128,7 +128,7 @@ async fn public_only_renewal_authenticates_feed_and_drives_existing_isolated_rol
         serde_json::from_slice(&fs::read(result.output.join("metadata/2.stable.json")).unwrap())
             .unwrap();
     assert!(stable["signed"]["targets"].as_object().unwrap().is_empty());
-    let cli = std::process::Command::new(env!("CARGO_BIN_EXE_portcove-release-tools"))
+    let cli = std::process::Command::new(release_tools_binary())
         .arg("prepare-tuf-renewal")
         .arg(config)
         .output()

@@ -429,6 +429,8 @@ export function selectWorkspaceRustImpact(
           "deny.toml",
           ".config/nextest.toml",
           ".config/rust-test-impact.json",
+          ".config/rust-test-timing-hints.json",
+          "scripts/windows-rust-tests.mts",
         ].includes(file) &&
           !plan.paths
             .find((entry) => entry.path === file)

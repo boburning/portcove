@@ -70,7 +70,7 @@ impl Ceremony {
         path
     }
     fn command(&self) -> Command {
-        let mut child = Command::new(env!("CARGO_BIN_EXE_portcove-release-tools"));
+        let mut child = Command::new(release_tools_binary());
         child.current_dir(self.root()).env_clear();
         for name in ["SystemRoot", "WINDIR"] {
             if let Some(value) = std::env::var_os(name) {

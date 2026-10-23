@@ -156,6 +156,15 @@ export function evaluateCiResults({
     if (prose !== "skipped")
       throw new Error(`prose lane was ${prose || "missing"}, expected skipped`);
     requireResults(qualification, "skipped", "fast");
+    if (
+      group === "rust" &&
+      (!fast ||
+        JSON.stringify(Object.keys(fast).sort()) !==
+          JSON.stringify(["fast_rust", "fast_rust_tests", "fast_rust_transport"]))
+    )
+      throw new Error(
+        "ordinary Rust requires build, partition execution and live transport results",
+      );
     requireResults(fast, selected && !reused ? "success" : "skipped", "fast");
     if (Object.keys(targeted ?? {}).length)
       requireResults(

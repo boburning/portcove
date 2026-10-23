@@ -109,6 +109,48 @@ void test("workspace impact preserves package qualification and broad fallback b
   const artwork = selectWorkspaceRustImpact(workspacePlan(["crates/portcove-core/src/artwork.rs"]));
   assert.ok(artwork.some((g) => g.packageName === "portcove-cli"));
 });
+void test("Windows runner and timing inputs keep mixed fixture plans workspace-wide across changes and renames", () => {
+  const fixture = "crates/portcove-core/src/definition_publisher_policy_tests.rs";
+  assert.deepEqual(
+    selectWorkspaceRustImpact(workspacePlan([fixture])).map((group) => group.id),
+    ["portcove-core:publisher-policy-fixtures"],
+  );
+  for (const file of ["scripts/windows-rust-tests.mts", ".config/rust-test-timing-hints.json"]) {
+    for (const change of [
+      { status: "M", path: file },
+      { status: "A", path: file },
+      { status: "D", path: file },
+      { status: "R100", path: "docs/windows-test-routing.md", previousPath: file },
+      { status: "R100", path: file, previousPath: "docs/windows-test-routing.md" },
+    ]) {
+      const label = JSON.stringify(change);
+      const plan = buildValidationPlan({
+        changes: [
+          ...workspacePlan([fixture]).changes,
+          {
+            status: change.status,
+            oldPath: change.previousPath ?? change.path,
+            newPath: change.path,
+            oldMode: change.status === "A" ? "000000" : "100644",
+            newMode: change.status === "D" ? "000000" : "100644",
+          },
+        ],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      assert.equal(plan.mode, "fast", label);
+      assert.equal(plan.fallback, null, label);
+      assert.deepEqual(
+        selectWorkspaceRustImpact(plan).map(({ id, filter }) => ({ id, filter })),
+        [{ id: "workspace", filter: "all()" }],
+        label,
+      );
+    }
+  }
+});
 void test("runtime diagnostics preserve the complete fixture binary across Desktop, Core and fixture changes", () => {
   const fixture = "crates/portcove-cli/tests/runtime_diagnostics.rs";
   // Select the binary, including nested module unit tests without this name prefix.
@@ -681,6 +723,144 @@ void test("source import selects its complete family and discovery consumers", (
     { status: "M", path: "crates/portcove-core/src/new_import_helper.rs" },
   ])
     assert.equal(selectRustTestImpact(map, "portcove-core", [change]).mode, "broad");
+});
+
+void test("publisher policy fixture changes retain nested and connected consumers", () => {
+  const paths = [
+    "crates/portcove-core/src/definition_publisher_policy_tests.rs",
+    "crates/portcove-core/src/definition_launch_assessment_tests.rs",
+    "crates/portcove-core/src/definition_authority_tests.rs",
+    "crates/portcove-core/src/definition_refresh_tests.rs",
+    "crates/portcove-core/src/definition_compiled_client_tests.rs",
+  ];
+  const expected =
+    "test(/^definition_repository::tests::publisher_policy_tests::/) | test(/^definition_repository::tests::publication_connected::/)";
+  for (const path of paths) {
+    for (const status of ["A", "M"]) {
+      const selected = selectRustTestImpact(map, "portcove-core", [{ status, path }]);
+      assert.equal(selected.mode, "focused");
+      assert.deepEqual(
+        selected.groups.map((group) => group.id),
+        ["publisher-policy-fixtures"],
+      );
+      assert.equal(requiredFixture(selected.groups[0]).filter, expected);
+    }
+    for (const change of [
+      { status: "D", path },
+      { status: "R", path, previousPath: "crates/portcove-core/src/former_policy_tests.rs" },
+      { status: "R", path: "crates/portcove-core/src/moved_policy_tests.rs", previousPath: path },
+    ])
+      assert.equal(selectRustTestImpact(map, "portcove-core", [change]).mode, "broad");
+    for (const shared of [
+      "definition_publisher_policy.rs",
+      "test_fixture.rs",
+      "service.rs",
+      "database.rs",
+      "lib.rs",
+    ]) {
+      assert.equal(
+        selectRustTestImpact(map, "portcove-core", [
+          modified(path),
+          modified(`crates/portcove-core/src/${shared}`),
+        ]).mode,
+        "broad",
+        shared,
+      );
+    }
+  }
+  const mixed = selectRustTestImpact(map, "portcove-core", [
+    modified(paths[0]!),
+    modified("crates/portcove-core/src/source_import_tests.rs"),
+  ]);
+  assert.deepEqual(
+    mixed.groups.map((group) => group.id),
+    ["publisher-policy-fixtures", "source-import"],
+  );
+});
+
+void test("private CLI fixtures select their full owned families and shared helper consumers", () => {
+  const cases = [
+    [
+      "preparation.rs",
+      "preparation-fixtures",
+      "binary(=machine_contract) & (test(/^preparation_contract::/) | test(/^launch_contract::/))",
+    ],
+    [
+      "launch.rs",
+      "preparation-fixtures",
+      "binary(=machine_contract) & (test(/^preparation_contract::/) | test(/^launch_contract::/))",
+    ],
+    [
+      "retained_builds.rs",
+      "retained-build-fixtures",
+      "binary(=machine_contract) & test(/^retained_build_contract::/)",
+    ],
+    [
+      "self_service.rs",
+      "self-service-fixtures",
+      "binary(=machine_contract) & test(/^self_service_contract::/)",
+    ],
+    [
+      "definition_capabilities.rs",
+      "definition-capability-fixtures",
+      "binary(=machine_contract) & test(/^definition_capability_contract::/)",
+    ],
+    [
+      "human_presentation.rs",
+      "human-presentation-fixtures",
+      "binary(=machine_contract) & test(/^human_presentation::/)",
+    ],
+  ] as const;
+  for (const [file, group, filter] of cases) {
+    const path = `crates/portcove-cli/tests/machine_contract/${file}`;
+    for (const status of ["A", "M"]) {
+      const selected = selectRustTestImpact(map, "portcove-cli", [{ status, path }]);
+      assert.equal(selected.mode, "focused");
+      assert.deepEqual(
+        selected.groups.map((item) => item.id),
+        [group],
+      );
+      assert.equal(requiredFixture(selected.groups[0]).filter, filter);
+    }
+    for (const change of [
+      { status: "D", path },
+      { status: "R", path, previousPath: "crates/portcove-cli/tests/old_fixture.rs" },
+      { status: "R", path: "crates/portcove-cli/tests/moved_fixture.rs", previousPath: path },
+    ])
+      assert.equal(selectRustTestImpact(map, "portcove-cli", [change]).mode, "broad");
+    for (const shared of [
+      "src/main.rs",
+      "src/args.rs",
+      "tests/machine_contract.rs",
+      "tests/new_fixture.rs",
+    ]) {
+      assert.equal(
+        selectRustTestImpact(map, "portcove-cli", [
+          modified(path),
+          modified(`crates/portcove-cli/${shared}`),
+        ]).mode,
+        "broad",
+        shared,
+      );
+    }
+  }
+  const mixed = selectRustTestImpact(map, "portcove-cli", [
+    modified("crates/portcove-cli/tests/machine_contract/launch.rs"),
+    modified("crates/portcove-cli/tests/machine_contract/preparation.rs"),
+    modified("crates/portcove-cli/tests/machine_contract/human_presentation.rs"),
+  ]);
+  assert.deepEqual(
+    mixed.groups.map((group) => group.id),
+    ["human-presentation-fixtures", "preparation-fixtures"],
+  );
+  // This module exists only in Windows qualification builds; do not give it
+  // an ordinary route whose runtime inventory would be empty.
+  assert.equal(
+    selectRustTestImpact(map, "portcove-cli", [
+      modified("crates/portcove-cli/tests/machine_contract/source_discovery.rs"),
+    ]).mode,
+    "broad",
+  );
 });
 
 void test("private library-import assertions select their whole module without narrowing implementation", () => {

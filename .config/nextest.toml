@@ -288,7 +288,7 @@ test-group = 'capacity-sensitive'
 # consuming the second slot under the unchanged thirty-second hang deadline.
 [[profile.default.overrides]]
 filter = 'package(portcove-core) & test(output_relocation::tests::)'
-threads-required = 2
+threads-required = "num-test-threads"
 
 # Argument/help contracts only construct the command tree. Run their existing
 # tests early instead of hiding metadata failures behind full Core lifecycles.
@@ -303,21 +303,21 @@ priority = 100
 # their repeated process launches at the start of an exhaustive workspace run.
 [[profile.default.overrides]]
 filter = 'package(portcove-cli)'
-threads-required = 2
+threads-required = "num-test-threads"
 priority = -100
 
 # Full signed-catalog lifecycle cases repeatedly verify complete snapshots.
 # Reserve both default CPU slots while one runs; the deadline is unchanged.
 [[profile.default.overrides]]
 filter = 'package(portcove-core) & test(catalog_update::tests::)'
-threads-required = 2
+threads-required = "num-test-threads"
 
 # Signed-definition repository cases install ordinary artifacts and repeatedly
 # admit complete authenticated snapshots. Reserve both fixed slots so unrelated
 # lifecycle work cannot overlap them within this invocation; keep the deadline.
 [[profile.default.overrides]]
 filter = 'package(portcove-core) & test(definition_repository::tests::)'
-threads-required = 2
+threads-required = "num-test-threads"
 
 # Diagnostics capture cases repeatedly redact, serialize, publish and retain
 # bounded stream snapshots. Give the cohesive family both slots so those large
@@ -325,34 +325,34 @@ threads-required = 2
 # until ordinary core tests have cleared the initial process-start burst.
 [[profile.default.overrides]]
 filter = 'package(portcove-core) & test(activity_diagnostics::tests::)'
-threads-required = 2
+threads-required = "num-test-threads"
 priority = -50
 
 # Database migration cases create, reopen and validate complete SQLite schemas.
 # Keep that cohesive disk-heavy family off the unrelated second test slot.
 [[profile.default.overrides]]
 filter = 'package(portcove-core) & test(database::tests::)'
-threads-required = 2
+threads-required = "num-test-threads"
 
 # This filesystem lifecycle contract can approach the hang deadline when another
 # process-heavy case owns the second slot on Windows. Give it the full fixed
 # two-slot budget while preserving the global thirty-second timeout.
 [[profile.default.overrides]]
 filter = 'package(portcove-core) & test(import_execution::tests::import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empty_library)'
-threads-required = 2
+threads-required = "num-test-threads"
 
 # Cancellation lifecycle cases repeatedly create and reconcile activity,
 # network-wait and publication state. Reserve the fixed two-slot budget so
 # another filesystem-heavy case cannot consume their unchanged deadline.
 [[profile.default.overrides]]
 filter = 'package(portcove-core) & test(cancellation::tests::)'
-threads-required = 2
+threads-required = "num-test-threads"
 
 # This conversion failure path spawns and reaps multiple owned native process
 # trees. Keep the exact cleanup race isolated from another filesystem-heavy test.
 [[profile.default.overrides]]
 filter = 'package(portcove-core) & test(adapter::source_conversion_tests::failed_and_cancelled_conversion_retains_logs_and_reaps_owned_processes)'
-threads-required = 2
+threads-required = "num-test-threads"
 
 # These Windows source-import fixtures reached restart recovery or original
 # cleanup at the original 30-second cutoff (fd6a3aeb). Preserve every publication,
@@ -361,3 +361,9 @@ threads-required = 2
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^source_import::tests::(changed_original_after_publication_registers_destination_and_retains_original|receipt_cleanup_failure_is_retained_and_retried_before_registration|prepared_import_refuses_cancellation_and_completes_move|recovers_before_publication_ownership_recorded_without_deleting_unverified_bytes|recovers_original_quarantined_without_deleting_unverified_bytes|recovers_publication_prepared_without_deleting_unverified_bytes|recovers_published_without_deleting_unverified_bytes|recovers_registered_without_deleting_unverified_bytes|same_content_late_destination_with_different_identity_is_still_a_collision)$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+# Standard hosted Windows runners use four slots. Explicit exclusive families
+# reserve every slot above; local/default execution retains its two-slot limit.
+[profile.hosted-windows]
+test-threads = 4
+junit.path = "junit.xml"
