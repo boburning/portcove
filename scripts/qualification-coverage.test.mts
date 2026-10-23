@@ -2,6 +2,7 @@ import inventory from "../.github/qualification-coverage.json" with { type: "jso
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { parseDocument, stringify } from "yaml";
 
 import {
   qualificationJobInventory,
@@ -80,5 +81,31 @@ void test("missing, extra, duplicate, or zero inventories fail closed", () => {
         workflow.replace(/  rust:\r?\n/u, "  rust_removed:\n"),
       ),
     /missing protected context/u,
+  );
+});
+
+void test("qualification structure is independent of YAML layout and rejects comment-only or duplicate jobs", () => {
+  const reformatted = stringify(parseDocument(workflow).toJS(), { indent: 4 });
+  assert.deepEqual(
+    validateQualificationCoverage(inventory, reformatted),
+    validateQualificationCoverage(inventory, workflow),
+  );
+  assert.deepEqual(
+    qualificationJobInventory(
+      "# phantom:\n#   if: needs.classify.outputs.mode == 'qualification'\njobs: {}",
+    ),
+    { jobs: [], pullRequestJobs: [] },
+  );
+  assert.throws(
+    () => qualificationJobInventory("jobs:\n  duplicate: {}\n  duplicate: {}\n"),
+    /Invalid workflow YAML/,
+  );
+  assert.throws(
+    () =>
+      validateQualificationCoverage(
+        inventory,
+        workflow.replace("  rust:\n", "  removed_rust:\n") + "\n#  rust:\n",
+      ),
+    /missing protected context/,
   );
 });

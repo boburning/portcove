@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, writeFile, readFile, readdir } from "node:fs/promises";
+import { mkdtemp, writeFile, readFile, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { createHash } from "node:crypto";
@@ -15,6 +15,9 @@ import {
 } from "./release-native-wsl-capture.mts";
 void test("a retained hash cannot return usable bytes after its original clock expires during a read", async (context) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "native-capture-hash-clock-"));
+  context.after(() =>
+    rm(directory, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }),
+  );
   await writeFile(path.join(directory, "retained.bin"), Buffer.alloc(65536, 1));
   let now = 0;
   const clock = context.mock.method(performance, "now", () => (now += 100));
@@ -142,10 +145,11 @@ void test("post-sign transport package preparation permits only a distinct bound
     assert.throws(() => inspectWslNativeDriverPlan(wrong));
   assert.equal(inspectWslNativeDriverPlan(old).predecessor, null);
 });
-void test("bounded guest wire retains complete raw observations and refuses oversized metadata, wrong digest and incomplete closure", async () => {
+void test("bounded guest wire retains complete raw observations and refuses oversized metadata, wrong digest and incomplete closure", async (context) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "native-wire-")),
     invocation = "a".repeat(64),
     sha = (v: Uint8Array) => createHash("sha256").update(v).digest("hex");
+  context.after(() => rm(root, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }));
   const payload = Buffer.alloc(65537, 0xff);
   const header = (name: string, bytes: number, digest: string) =>
     Buffer.from(

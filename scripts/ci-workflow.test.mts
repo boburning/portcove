@@ -81,6 +81,30 @@ function requiredFixture<T>(value: T | null | undefined): T {
   return value;
 }
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+function workflowJob(job: string) {
+  const settings: unknown = parseDocument(workflow, { uniqueKeys: true }).toJS();
+  assert.ok(isRecord(settings) && isRecord(settings.jobs));
+  const owner = settings.jobs[job];
+  assert.ok(isRecord(owner) && Array.isArray(owner.steps));
+  return owner;
+}
+function workflowStep(job: string, name: string) {
+  const owner = workflowJob(job);
+  assert.ok(Array.isArray(owner.steps));
+  const steps: unknown[] = owner.steps;
+  const step = steps.find((value) => isRecord(value) && value.name === name);
+  assert.ok(
+    isRecord(step) && typeof step.run === "string",
+    `Missing executable step: ${job}/${name}`,
+  );
+  return { ...step, run: step.run };
+}
+function executableLines(run: string) {
+  return run
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+}
 
 void test("maintained first-party sources default to checked TypeScript", () => {
   const inventory = spawnSync("git", ["ls-files", "-z", "--", "*.js", "*.jsx", "*.mjs", "*.cjs"], {
@@ -274,7 +298,6 @@ const windowsQualificationRunner = await readFile(
   new URL("./run-windows-qualification.ps1", import.meta.url),
   "utf8",
 );
-const requiredCiSurface = `${workflow}\n${windowsQualificationRunner}`;
 
 void test("reviewed hosted phases retain independent allocations, fixed commands and read-only isolation", () => {
   const source = nativeDesignCompatibilityWorkflow;
@@ -657,12 +680,15 @@ const rustWorkspaceTests = jobSection("rust_workspace_tests", "rust_clippy");
 const rustClippy = jobSection("rust_clippy", "windows_storage");
 const windowsStorage = jobSection("windows_storage", "native_rust");
 void test("fixed-account cases execute on Windows in both fast and qualification plans", () => {
-  const helpers = jobSection("windows_helpers", "fast_catalog");
-  for (const lane of [helpers, windowsStorage]) {
-    assert.match(lane, /runs-on: windows-latest/);
-    assert.match(
-      lane,
-      /run: node --test --test-timeout=30000 --test-reporter=\.\/scripts\/test-duration-reporter\.mts scripts\/release-local-worker-accounts\.test\.mts scripts\/release-native-account-capability\.test\.mts scripts\/recover-local-worker-empty-setup\.test\.mts/,
+  for (const job of ["windows_helpers", "windows_storage"]) {
+    assert.equal(workflowJob(job)["runs-on"], "windows-latest");
+    assert.deepEqual(
+      executableLines(
+        workflowStep(job, "Test inert fixed-account setup and capability contracts on Windows").run,
+      ),
+      [
+        "node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts",
+      ],
     );
   }
 });
@@ -759,9 +785,9 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
 
 void test("Windows diagnostics serialize file workers without changing coverage or deadlines", () => {
   const command = requiredFixture(
-    windowsStorage.match(
-      /- name: Test development diagnostics and evidence\r?\n\s+run: ([^\r\n]+)/u,
-    )?.[1],
+    executableLines(
+      workflowStep("windows_storage", "Test development diagnostics and evidence").run,
+    )[0],
   )
     .trim()
     .split(/\s+/u);
@@ -807,19 +833,22 @@ void test("Windows diagnostics serialize file workers without changing coverage 
     "scripts/rust-test-impact.test.mts",
     "scripts/rust-test-tree-supervisor.test.mts",
     "scripts/tool-cache.test.mts",
+    "scripts/resource-capacity.test.mts",
+    "scripts/resource-command.test.mts",
   ]);
 });
 
 void test("every Node test file is included in required CI and the local quality workflow", async () => {
   const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
-  const localQualitySurface = `${recipes}\n${windowsQualificationRunner}`;
   const files = (await readdir(new URL(".", import.meta.url))).filter((name: string) =>
     /\.test\.[cm]?[jt]s$/u.test(name),
   );
   requireNodeTestInventory(
     files.map((file) => `scripts/${file}`),
-    requiredCiSurface,
-    localQualitySurface,
+    workflow,
+    recipes,
+    windowsQualificationRunner,
+    await readFile(new URL("./node-test-suites.json", import.meta.url), "utf8"),
   );
 });
 
@@ -854,9 +883,11 @@ void test("selected release-policy contracts install their desktop-owned depende
 });
 
 void test("full repository contracts run the bounded release evidence collector controls", () => {
-  assert.match(
-    catalog,
-    /- name: Test bounded release run evidence\r?\n +run: node --test --test-timeout=30000 --test-reporter=\.\/scripts\/test-duration-reporter\.mts scripts\/release-run-evidence\.test\.mts/u,
+  assert.deepEqual(
+    executableLines(workflowStep("catalog_full", "Test bounded release run evidence").run),
+    [
+      "node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/release-run-evidence.test.mts",
+    ],
   );
 });
 
@@ -4328,11 +4359,7 @@ void test("extracted validation evidence suite remains in hosted and repository 
     /scripts\/validation-evidence\.test\.mts/u,
   );
   assert.match(
-    requiredFixture(
-      requiredFixture(workflow.split("Test development diagnostics and evidence")[1]).split(
-        "\n",
-      )[1],
-    ),
+    workflowStep("windows_storage", "Test development diagnostics and evidence").run,
     /scripts\/validation-evidence\.test\.mts/u,
   );
 });

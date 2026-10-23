@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -155,9 +155,12 @@ function byteFixture(bytes: Buffer, transform: FixtureTransform = (response) => 
   });
 }
 
-void test("retained artifact bytes bind fresh API identity without attributing producer job or attempt", async () => {
+void test("retained artifact bytes bind fresh API identity without attributing producer job or attempt", async (context) => {
   const bytes = Buffer.alloc(150_001, 37);
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-artifact-bytes-"));
+  context.after(() =>
+    rm(directory, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }),
+  );
   const filename = path.join(directory, "retained.bin");
   await writeFile(filename, bytes);
   const options = byteFixture(bytes);
@@ -218,9 +221,12 @@ void test("missing, expired, undigested and oversized artifact identities refuse
   }
 });
 
-void test("late API artifact replacement and run changes refuse after byte comparison", async () => {
+void test("late API artifact replacement and run changes refuse after byte comparison", async (context) => {
   const bytes = Buffer.from("retained");
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-artifact-drift-"));
+  context.after(() =>
+    rm(directory, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }),
+  );
   const filename = path.join(directory, "retained.bin");
   await writeFile(filename, bytes);
   for (const change of ["artifact", "run"]) {
@@ -279,9 +285,12 @@ void test("artifact growth, same-size mutation and nonregular handles refuse and
   }
 });
 
-void test("both API collections share one request cap rather than renewing it after local hashing", async () => {
+void test("both API collections share one request cap rather than renewing it after local hashing", async (context) => {
   const bytes = Buffer.alloc(100, 37);
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-artifact-request-cap-"));
+  context.after(() =>
+    rm(directory, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }),
+  );
   const filename = path.join(directory, "retained.bin");
   await writeFile(filename, bytes);
   const options = fixture((response, context) => {
@@ -695,8 +704,11 @@ void test("refuses receipt publication when final construction exceeds the monot
   assert.equal(options.calls.length, 7);
 });
 
-void test("request reader admits bounded JSON files and rejects oversized, empty and nonregular input", async () => {
+void test("request reader admits bounded JSON files and rejects oversized, empty and nonregular input", async (context) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-release-evidence-"));
+  context.after(() =>
+    rm(directory, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }),
+  );
   const filename = path.join(directory, "request.json");
   await writeFile(filename, JSON.stringify(request));
   assert.deepEqual(await readReleaseEvidenceRequest(filename), request);
@@ -768,8 +780,11 @@ void test("request reader opens without following links or blocking on a POSIX F
 void test(
   "actual POSIX FIFO is refused without waiting for a writer",
   { skip: process.platform === "win32" },
-  async () => {
+  async (context) => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-release-fifo-"));
+    context.after(() =>
+      rm(directory, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }),
+    );
     const fifo = path.join(directory, "request.fifo");
     const created = spawnSync("mkfifo", [fifo], { timeout: 3000, encoding: "utf8" });
     assert.equal(created.status, 0, created.stderr);

@@ -10,10 +10,12 @@ import {
   unlinkSync,
   copyFileSync,
   chmodSync,
+  rmSync,
+  lstatSync,
 } from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { configureHooks } from "./hooks-install.mts";
 import { vitePlusCommand } from "./viteplus-cli.mts";
@@ -41,8 +43,22 @@ function run(cwd: string, executable: string, args: readonly string[], ok = true
   return result;
 }
 const git = (cwd: string, ...args: string[]) => run(cwd, "git", args).stdout;
-function fixture() {
+function removeFixture(directory: string) {
+  assert.equal(path.dirname(path.resolve(directory)), path.resolve(base));
+  const info = lstatSync(directory, { throwIfNoEntry: false });
+  if (!info) return;
+  assert.ok(info.isDirectory() && !info.isSymbolicLink());
+  const junction = path.join(directory, "node_modules");
+  const link = lstatSync(junction, { throwIfNoEntry: false });
+  if (link) {
+    assert.ok(link.isSymbolicLink(), "Fixture cleanup refuses a real node_modules directory");
+    unlinkSync(junction);
+  }
+  rmSync(directory, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+}
+function fixture(context: TestContext) {
   const cwd = mkdtempSync(path.join(base, "staged-' space-"));
+  context.after(() => removeFixture(cwd));
   git(cwd, "init", "-q");
   git(cwd, "config", "user.name", "Portcove hook fixture");
   git(cwd, "config", "user.email", "hook-fixture@example.invalid");
@@ -59,6 +75,8 @@ function fixture() {
   mkdirSync(path.join(cwd, "scripts"));
   for (const name of [
     "node-test-inventory.mts",
+    "node-test-suites.mts",
+    "qualification-coverage.mts",
     "runtime-values.mts",
     "catalog-staged-check.mts",
     "catalog-authoring.mts",
@@ -76,8 +94,8 @@ function fixture() {
   return cwd;
 }
 
-void test("standard staged autofix preserves partial staging and unrelated work", () => {
-  const cwd = fixture();
+void test("standard staged autofix preserves partial staging and unrelated work", (context) => {
+  const cwd = fixture(context);
   configureHooks(cwd, "enable", env);
   writeFileSync(path.join(cwd, "sample.js"), "export const value={x:1}\n");
   git(cwd, "add", "sample.js");
@@ -89,8 +107,8 @@ void test("standard staged autofix preserves partial staging and unrelated work"
   assert.equal(readFileSync(path.join(cwd, "untracked.txt"), "utf8"), "unrelated work\n");
 });
 
-void test("a failed staged command restores the index and working changes", () => {
-  const cwd = fixture();
+void test("a failed staged command restores the index and working changes", (context) => {
+  const cwd = fixture(context);
   configureHooks(cwd, "enable", env);
   writeFileSync(
     path.join(cwd, "vite.config.ts"),
@@ -107,8 +125,8 @@ void test("a failed staged command restores the index and working changes", () =
   assert.equal(git(cwd, "show", ":sample.js"), index);
 });
 
-void test("the real hook rejects an unstaged-only test registration without changing either tree", () => {
-  const cwd = fixture();
+void test("the real hook rejects an unstaged-only test registration without changing either tree", (context) => {
+  const cwd = fixture(context);
   configureHooks(cwd, "enable", env);
   mkdirSync(path.join(cwd, ".github/workflows"), { recursive: true });
   writeFileSync(path.join(cwd, ".github/workflows/ci.yml"), "scripts/new.test.mts\n");
@@ -129,13 +147,14 @@ void test("the real hook rejects an unstaged-only test registration without chan
   );
 });
 
-void test("supported hooks work from a linked worktree and noninteractive Git client", () => {
-  const cwd = fixture();
+void test("supported hooks work from a linked worktree and noninteractive Git client", (context) => {
+  const cwd = fixture(context);
   git(cwd, "config", "extensions.worktreeConfig", "true");
   git(cwd, "config", "--worktree", "core.hooksPath", ".husky/_");
   const commonBefore = readFileSync(path.join(cwd, ".git/config"), "utf8");
   const sibling = `${cwd}-linked`;
   git(cwd, "worktree", "add", "-qb", "linked-fixture", sibling);
+  context.after(() => removeFixture(sibling));
   symlinkSync(path.join(root, "node_modules"), path.join(sibling, "node_modules"), "junction");
   git(sibling, "config", "--worktree", "core.hooksPath", ".husky/_");
   configureHooks(sibling, "enable", env);
@@ -153,8 +172,8 @@ void test("supported hooks work from a linked worktree and noninteractive Git cl
   assert.equal(git(cwd, "status", "--porcelain").trim(), "");
 });
 
-void test("real Git hooks use the installed runtime without ambient Node and recover through setup refresh", () => {
-  const cwd = fixture();
+void test("real Git hooks use the installed runtime without ambient Node and recover through setup refresh", (context) => {
+  const cwd = fixture(context);
   const runtimeDir = path.join(cwd, ".vite-hooks/_/runtime ' with spaces");
   mkdirSync(runtimeDir, { recursive: true });
   const runtime = path.join(runtimeDir, process.platform === "win32" ? "node.exe" : "node");
@@ -200,6 +219,7 @@ void test("real Git hooks use the installed runtime without ambient Node and rec
   git(cwd, "config", "extensions.worktreeConfig", "true");
   const sibling = `${cwd}-linked`;
   git(cwd, "worktree", "add", "-qb", "runtime-linked", sibling);
+  context.after(() => removeFixture(sibling));
   symlinkSync(path.join(root, "node_modules"), path.join(sibling, "node_modules"), "junction");
   configureHooks(sibling, "enable", env);
   writeFileSync(path.join(sibling, "sample.js"), "export const linked = true;\n");
@@ -235,8 +255,8 @@ void test("real Git hooks use the installed runtime without ambient Node and rec
   assert.equal(process.env.PATH, originalPath);
 });
 
-void test("hook status, disabled preferences and foreign managers preserve runtime setup", () => {
-  const cwd = fixture();
+void test("hook status, disabled preferences and foreign managers preserve runtime setup", (context) => {
+  const cwd = fixture(context);
   git(cwd, "config", "extensions.worktreeConfig", "true");
   configureHooks(cwd, "enable", env);
   const launcher = path.join(cwd, ".vite-hooks/_/portcove-node");
@@ -256,7 +276,9 @@ void test(
   async (t) => {
     const { spawn } = await import("node:child_process");
     const { existsSync } = await import("node:fs");
-    const cwd = fixture();
+    let cleanupChild: () => Promise<void> = async () => {};
+    t.after(() => cleanupChild());
+    const cwd = fixture(t);
     writeFileSync(
       path.join(cwd, "vite.config.ts"),
       'export default { fmt: {}, staged: { "*.js": ["vp fmt --config vite.config.ts --ignore-path .gitignore", "node slow.mjs"] } };\n',
@@ -281,13 +303,27 @@ void test(
     );
     const pid = child.pid;
     assert.ok(pid !== undefined);
-    t.after(() => {
+    cleanupChild = async () => {
       try {
         process.kill(-pid, "SIGTERM");
       } catch (error) {
         if (errorCode(error) !== "ESRCH") throw error;
       }
-    });
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          closed,
+          new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(
+              () => reject(new Error("Interrupted fixture did not stop before cleanup")),
+              5000,
+            );
+          }),
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
+    };
     const deadline = Date.now() + 15_000;
     while (!existsSync(path.join(cwd, "waiting.marker"))) {
       assert(

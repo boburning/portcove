@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, copyFile, writeFile, readFile } from "node:fs/promises";
+import { mkdtemp, mkdir, copyFile, writeFile, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import {
@@ -298,8 +298,9 @@ void test("writer policy requires fresh exact per-ref principals and unbypassabl
   assert.throws(() => requireReleaseInputWriterPolicy(make(), 202));
 });
 
-void test("held CLI source admission runs without installed dependencies and refuses before credential operations", async () => {
+void test("held CLI source admission runs without installed dependencies and refuses before credential operations", async (context) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-input-admission-"));
+  context.after(() => rm(root, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }));
   await mkdir(path.join(root, "scripts"));
   await mkdir(path.join(root, ".github/workflows"), { recursive: true });
   for (const file of [
