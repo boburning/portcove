@@ -257,10 +257,7 @@ function validateCheckpoint(value: unknown, now: number): HealthCheckpoint | nul
       throw new Error("Monitoring checkpoint contains invalid retained incident history");
     const incidents: unknown[] = port.canonical_incidents;
     for (const incident of incidents) {
-      if (
-        !isHealthIncidentHistory(incident, completion) ||
-        incident.port_id !== port.port_id
-      )
+      if (!isHealthIncidentHistory(incident, completion) || incident.port_id !== port.port_id)
         throw new Error("Monitoring checkpoint contains invalid retained incident history");
       if (incidentKeys.has(incident.key))
         throw new Error("Monitoring checkpoint repeats a retained incident");
