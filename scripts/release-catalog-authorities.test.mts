@@ -28,6 +28,7 @@ import {
   protectionFixture,
   capacityDocumentFixture,
 } from "./fixtures/release-live-control-fixture.mts";
+import { selectedPublicationAuthoritiesFixture } from "./fixtures/checkpoint-proof-fixture.mts";
 import { releaseControlInputsFixture } from "./fixtures/release-control-inputs-fixture.mts";
 
 function configuration() {
@@ -352,6 +353,10 @@ void test("appointed catalog scope limits exact Core-bound titles/templates/sche
     return assertControllerCatalogPublisherScope(rawConfig, report, files);
   };
   assert.equal(inspect(policy).authority, "none");
+  const selected = selectedPublicationAuthoritiesFixture("catalog-publication");
+  assert.ok(selected.purpose === "catalog-publication");
+  selected.catalog = { ...config.catalog, setup_plan_sha256: selected.journal.setup_plan_sha256 };
+  assert.equal(inspect(policy, selected).authority, "none");
   assert.equal(
     inspect({
       policy_schema: 1,
@@ -366,8 +371,12 @@ void test("appointed catalog scope limits exact Core-bound titles/templates/sche
     { max_redirects: 3 },
     { operations: ["launch", "sign"] },
     { template: "foreign" },
-  ])
+  ]) {
     assert.throws(() => inspect({ ...policy, decision: { ...policy.decision, ...delta } }));
+    assert.throws(() =>
+      inspect({ ...policy, decision: { ...policy.decision, ...delta } }, selected),
+    );
+  }
   assert.throws(() =>
     inspect(policy, {
       ...config,
@@ -378,6 +387,8 @@ void test("appointed catalog scope limits exact Core-bound titles/templates/sche
     }),
   );
   assert.throws(() => inspect(policy, { ...config, configuration_sha256: "0".repeat(64) }));
+  assert.throws(() => inspect(policy, { ...selected, configuration_sha256: "0".repeat(64) }));
+  assert.throws(() => inspect(policy, selectedPublicationAuthoritiesFixture("application")));
 });
 
 void test("descriptive directory requires explicit appointment without extending operational title scope", () => {

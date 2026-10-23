@@ -14,6 +14,7 @@ import {
   nativePrepublicationProfile,
   inspectNativeQualificationHarnessPath,
   inspectNativeQualificationAccount,
+  inspectNativeQualificationCompatibility,
 } from "./release-native-qualification-contract.mts";
 import {
   admitProductionInputReader,
@@ -349,6 +350,126 @@ export function inspectFixedJobJournalAuthorities(raw: unknown) {
   };
 }
 
+function inspectSelectedHostedNative(raw: unknown) {
+  exact(raw, [...platforms].sort().join(","));
+  const inspectPlatform = (platform: (typeof platforms)[number]) => {
+    const value = raw[platform];
+    exact(value, "compatibility,engine,minimum_platform,producer");
+    exact(value.producer, "harness,source_commit,source_tree");
+    exact(value.producer.harness, "path,sha256");
+    exact(value.engine, "minimum_version,name");
+    const windows = platform === "windows-x86_64";
+    const minimumPlatform = windows ? "windows-11-26h2-x64" : "ubuntu-24.04-x64";
+    const engineName = windows ? "WebView2" : "WebKitGTK";
+    if (value.minimum_platform !== minimumPlatform || value.engine.name !== engineName)
+      throw new Error("selected native minimum platform or engine family differs");
+    minimumVersion(value.engine.minimum_version, windows ? "155.0.4283.62" : "2.52.6");
+    return {
+      minimum_platform: minimumPlatform,
+      engine: { name: engineName, minimum_version: text(value.engine.minimum_version, 64) },
+      producer: {
+        source_commit: hex(value.producer.source_commit, 40),
+        source_tree: hex(value.producer.source_tree, 40),
+        harness: {
+          path: inspectNativeQualificationHarnessPath(value.producer.harness.path),
+          sha256: hex(value.producer.harness.sha256, 64),
+        },
+      },
+      compatibility: inspectNativeQualificationCompatibility(value.compatibility),
+    };
+  };
+  return {
+    "windows-x86_64": inspectPlatform("windows-x86_64"),
+    "linux-x86_64": inspectPlatform("linux-x86_64"),
+  };
+}
+
+/** Full purpose-scoped selected record. Two measured Apps belong only to its
+ * common journal projection. Fixed hosted job identity is verified separately;
+ * neither this parser nor a key/configuration digest grants acceptance. */
+export function inspectSelectedPublicationAuthorityConfiguration(raw: unknown) {
+  const value: unknown = structuredClone(raw);
+  if (
+    !isRecord(value) ||
+    (value.purpose !== "application" && value.purpose !== "catalog-publication")
+  )
+    throw new Error("selected full authority requires an explicit publication purpose");
+  const application = value.purpose === "application";
+  exact(
+    value,
+    [
+      "schema_version",
+      "kind",
+      "purpose",
+      "journal",
+      ...(application
+        ? [
+            "hosted_native",
+            "native_prepublication_profile",
+            "publication",
+            ...(Object.hasOwn(value, "linux_risk_profile") ? ["linux_risk_profile"] : []),
+          ]
+        : ["catalog"]),
+    ]
+      .sort()
+      .join(","),
+  );
+  if (
+    value.schema_version !== 4 ||
+    value.kind !== "two-app-fixed-jobs-v1" ||
+    Buffer.byteLength(JSON.stringify(value)) > 32768
+  )
+    throw new Error("selected full authority profile or bound differs");
+  const journal = inspectFixedJobJournalAuthorities(value.journal);
+  const common = { schema_version: 4 as const, kind: "two-app-fixed-jobs-v1" as const, journal };
+  if (application) {
+    if (value.native_prepublication_profile !== nativePrepublicationProfile)
+      throw new Error("selected native prepublication profile differs");
+    const publication = inspectPublicationAuthorities(value.publication, 2);
+    if (publication.setup_plan_sha256 !== journal.setup_plan_sha256)
+      throw new Error("selected publication setup differs from journal setup");
+    return {
+      ...common,
+      purpose: "application" as const,
+      publication,
+      native_prepublication_profile: nativePrepublicationProfile,
+      hosted_native: inspectSelectedHostedNative(value.hosted_native),
+      ...(value.linux_risk_profile === undefined
+        ? {}
+        : {
+            linux_risk_profile: inspectInitialProofRisk706(value.linux_risk_profile),
+          }),
+    };
+  }
+  const catalog = inspectCatalogPublisherConfiguration(value.catalog);
+  if (catalog.setup_plan_sha256 !== journal.setup_plan_sha256)
+    throw new Error("selected catalog setup differs from journal setup");
+  return { ...common, purpose: "catalog-publication" as const, catalog };
+}
+
+export function inspectBoundSelectedPublicationAuthorities(
+  raw: unknown,
+  source: { mode: unknown; authority_configuration_sha256?: string; grant_sha256?: string },
+  purpose: "application" | "catalog-publication",
+) {
+  const configuration = inspectSelectedPublicationAuthorityConfiguration(raw);
+  if (
+    configuration.purpose !== purpose ||
+    source.mode !==
+      (purpose === "application" ? "bounded-application-release" : "bounded-catalog-publication")
+  )
+    throw new Error("selected full authority source purpose differs");
+  const configuration_sha256 = releaseCanonicalDigest(configuration);
+  if (hex(source.authority_configuration_sha256, 64) !== configuration_sha256)
+    throw new Error("selected full authority changed after ratification");
+  hex(source.grant_sha256, 64);
+  return {
+    configuration,
+    configuration_sha256,
+    journal_configuration_sha256: releaseCanonicalDigest(configuration.journal),
+  };
+}
+
 export function inspectBoundFixedJobJournalAuthorities(
   configuration: string,
   source: ReturnType<typeof admitProductionInputReader>,
@@ -371,7 +492,7 @@ export function inspectBoundFixedJobJournalAuthorities(
 /** Actual source-bound role reader. The existing OIDC executor must separately
  * match this source; token availability and environment claims alone grant no
  * signing, protection, capacity, history or publication acceptance. */
-export async function requireControllerFixedJobJournalAuthorities(role: CapacityExecutorRole) {
+async function readControllerSelectedAuthoritySource(role: CapacityExecutorRole) {
   const environment = { ...process.env };
   const purpose = inspectControllerExecutionPurpose(environment.PORTCOVE_EXECUTION_PURPOSE);
   const configuration =
@@ -389,6 +510,22 @@ export async function requireControllerFixedJobJournalAuthorities(role: Capacity
   const source = (
     purpose === "application" ? admitProductionInputReader : admitProductionCatalogInputReader
   )(policy, environment, await readProductionControllerWorkflowBytes(), phase);
+  return { configuration, purpose, source } as const;
+}
+
+export async function requireControllerFixedJobJournalAuthorities(role: CapacityExecutorRole) {
+  const { configuration, purpose, source } = await readControllerSelectedAuthoritySource(role);
+  const raw: unknown = JSON.parse(configuration);
+  if (isRecord(raw) && raw.schema_version === 4) {
+    const selected = inspectBoundSelectedPublicationAuthorities(raw, source, purpose);
+    return {
+      configuration: selected.configuration.journal,
+      purpose,
+      source,
+      configuration_sha256: selected.journal_configuration_sha256,
+      authority_configuration_sha256: selected.configuration_sha256,
+    };
+  }
   const selected = inspectBoundFixedJobJournalAuthorities(configuration, source, purpose);
   return {
     configuration: selected,
@@ -396,6 +533,29 @@ export async function requireControllerFixedJobJournalAuthorities(role: Capacity
     source,
     configuration_sha256: releaseCanonicalDigest(selected),
   };
+}
+
+/** Actual immutable workflow/configuration source read, not live OIDC/control
+ * acceptance. Callers must still use the existing authenticated role consumer.
+ * Journal-only schema3 deliberately cannot satisfy these full-scope readers. */
+async function requireControllerSelectedPublicationAuthorities(role: CapacityExecutorRole) {
+  const { configuration, purpose, source } = await readControllerSelectedAuthoritySource(role);
+  return {
+    ...inspectBoundSelectedPublicationAuthorities(JSON.parse(configuration), source, purpose),
+    source,
+  };
+}
+export async function requireControllerSelectedApplicationAuthorities(role: CapacityExecutorRole) {
+  const selected = await requireControllerSelectedPublicationAuthorities(role);
+  if (selected.configuration.purpose !== "application")
+    throw new Error("selected application authority requires application source");
+  return { ...selected, configuration: selected.configuration };
+}
+export async function requireControllerSelectedCatalogAuthorities(role: CapacityExecutorRole) {
+  const selected = await requireControllerSelectedPublicationAuthorities(role);
+  if (selected.configuration.purpose !== "catalog-publication")
+    throw new Error("selected catalog authority requires catalog source");
+  return { ...selected, configuration: selected.configuration };
 }
 
 /** Fixed hosted caller only. Protected owner configuration is digest-bound to
@@ -580,6 +740,19 @@ export function inspectCatalogAuthorityConfiguration(raw: unknown) {
     new Set(catalogApps.map((role) => apps[role].installation_id)).size !== catalogApps.length
   )
     throw new Error("catalog issuer/writer/observer/journal/dispatch identities conflated");
+  return {
+    schema_version: 1 as const,
+    kind: "catalog-publication-authorities" as const,
+    namespace: inspectCoordinatorRemoteNamespace({ schema_version: 1, namespace: value.namespace }),
+    repository_id: 1354613114 as const,
+    apps,
+    catalog: inspectCatalogPublisherConfiguration(value.catalog),
+  };
+}
+
+/** Purpose scope only, shared by legacy and selected configuration readers. */
+export function inspectCatalogPublisherConfiguration(raw: unknown) {
+  const value = { catalog: structuredClone(raw) };
   const descriptive =
     isRecord(value.catalog) && Object.hasOwn(value.catalog, "descriptive_directory");
   exact(
@@ -670,29 +843,22 @@ export function inspectCatalogAuthorityConfiguration(raw: unknown) {
     };
   });
   return {
-    schema_version: 1 as const,
-    kind: "catalog-publication-authorities" as const,
-    namespace: inspectCoordinatorRemoteNamespace({ schema_version: 1, namespace: value.namespace }),
-    repository_id: 1354613114 as const,
-    apps,
-    catalog: {
-      public_source: {
-        commit: hex(source.commit, 40),
-        root,
-        offline_targets: targets,
-        ...(preimage ? { initial_site_preimage: preimage } : {}),
-      },
-      setup_plan_sha256: hex(value.catalog.setup_plan_sha256, 64),
-      publisher_scope,
-      ...(descriptive
-        ? {
-            descriptive_directory: {
-              listing_delivery_schema: 1 as const,
-              target: "policy/official/catalog.listings.json" as const,
-            },
-          }
-        : {}),
+    public_source: {
+      commit: hex(source.commit, 40),
+      root,
+      offline_targets: targets,
+      ...(preimage ? { initial_site_preimage: preimage } : {}),
     },
+    setup_plan_sha256: hex(value.catalog.setup_plan_sha256, 64),
+    publisher_scope,
+    ...(descriptive
+      ? {
+          descriptive_directory: {
+            listing_delivery_schema: 1 as const,
+            target: "policy/official/catalog.listings.json" as const,
+          },
+        }
+      : {}),
   };
 }
 /** Source/config binding only; imported policy or JSON never creates OIDC or
@@ -745,12 +911,21 @@ export async function requireControllerCatalogPublicationAuthorities(phase: unkn
 }
 /** Limits an already Core-inspected bundle to the appointed publisher. This
  * assertion does not authenticate the supplied report or create acceptance. */
+function inspectCatalogScopeAuthorities(raw: unknown) {
+  if (isRecord(raw) && raw.schema_version === 4) {
+    const selected = inspectSelectedPublicationAuthorityConfiguration(raw);
+    if (selected.purpose !== "catalog-publication")
+      throw new Error("catalog publisher requires catalog purpose");
+    return selected;
+  }
+  return inspectCatalogAuthorityConfiguration(raw);
+}
 export function assertControllerCatalogPublisherScope(
   raw: unknown,
   inspection: unknown,
   files: ReadonlyMap<string, Buffer>,
 ) {
-  const authorities = inspectCatalogAuthorityConfiguration(
+  const authorities = inspectCatalogScopeAuthorities(
     isRecord(raw) && Object.hasOwn(raw, "configuration_sha256")
       ? Object.fromEntries(Object.entries(raw).filter(([key]) => key !== "configuration_sha256"))
       : raw,
