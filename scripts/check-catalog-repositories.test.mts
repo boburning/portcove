@@ -1,3 +1,4 @@
+import reviewedHealthAccounting from "../.github/upstream-health-accounting.json" with { type: "json" };
 import assert from "node:assert/strict";
 import test from "node:test";
 import { isRecord } from "./runtime-values.mts";
@@ -92,25 +93,37 @@ function requiredFixture<T>(value: T | null | undefined): T {
   void test("prior health reports cannot forward malformed comparison metadata", async () => {
     const input = catalog(port("limited"));
     const first = await collect(input, async () => response({}, 429, { "retry-after": "120" }));
-    const prior: unknown = structuredClone(first);
-    assert.ok(isRecord(prior) && Array.isArray(prior.observations));
-    const entries: unknown[] = prior.observations;
-    const location = requiredFixture(entries[0]);
-    assert.ok(isRecord(location));
-    location.http_status = { private: "untrusted prior metadata" };
-    location.comparison_http_status = "429";
-    location.comparison_observed_at = { private: "untrusted prior clock" };
-    const report = await collect(
-      input,
-      async () => assert.fail("deferred provider was requested"),
-      {
-        previousReport: prior,
-      },
-    );
-    const observed = requiredFixture(report.observations[0]);
-    assert.equal(observed.comparison_http_status, null);
-    assert.equal(observed.comparison_observed_at, first.completed_at);
-    assert.doesNotMatch(JSON.stringify(report), /untrusted prior/);
+    assert.equal(first.format_version, 3);
+    for (const [field, value] of [
+      ["http_status", { private: "untrusted prior metadata" }],
+      ["comparison_http_status", "429"],
+      ["comparison_observed_at", { private: "untrusted prior clock" }],
+    ] as const) {
+      const prior: unknown = structuredClone(first);
+      assert.ok(isRecord(prior) && Array.isArray(prior.observations));
+      const entries: unknown[] = prior.observations;
+      const location = requiredFixture(entries[0]);
+      assert.ok(isRecord(location));
+      location[field] = value;
+      let calls = 0;
+      await assert.rejects(
+        collect(
+          input,
+          async () => {
+            calls++;
+            assert.fail("invalid prior metadata reached live collection");
+          },
+          { previousReport: prior },
+        ),
+        (error: unknown) => {
+          assert.ok(error instanceof Error);
+          assert.match(error.message, /Invalid historical health comparison/);
+          assert.doesNotMatch(error.message, /untrusted prior/);
+          return true;
+        },
+      );
+      assert.equal(calls, 0);
+    }
   });
 
   void test("stable port coverage deduplicates shared GitHub repositories without merging providers", async () => {
@@ -203,12 +216,23 @@ function requiredFixture<T>(value: T | null | undefined): T {
   });
 
   void test("project-only prepared runtimes observe their upstream without claiming artifact delivery", async () => {
+    const reviewed = requiredFixture(
+      reviewedHealthAccounting.pins.find(
+        (pin) => pin.repository === "sergiomanzur/regaiden-recomp",
+      ),
+    );
     const report = await collect(
       catalog({
         id: "resident-evil-gaiden-recomp",
         project_url: "https://github.com/sergiomanzur/regaiden-recomp",
         release: { provider: "user-prepared" },
       }),
+      async () =>
+        response({
+          id: reviewed.repository_id,
+          full_name: reviewed.repository,
+          archived: false,
+        }),
     );
     assert.equal(report.outcome, "complete");
     assert.equal(report.coverage.monitored_ports, 1);
@@ -216,6 +240,7 @@ function requiredFixture<T>(value: T | null | undefined): T {
     const observed = requiredFixture(report.observations[0]);
     assert.equal(observed.repository, "sergiomanzur/regaiden-recomp");
     assert.equal(observed.status, "reachable");
+    assert.equal(observed.observed_repository_id, reviewed.repository_id);
     assert.deepEqual(observed.release_providers, ["user-prepared"]);
     assert.deepEqual(observed.original_upstream_port_ids, ["resident-evil-gaiden-recomp"]);
     for (const claim of ["upstream-continuity", "accepted-artifact-availability"])
@@ -475,7 +500,22 @@ function requiredFixture<T>(value: T | null | undefined): T {
       const preload = path.join(dir, "fetch.mjs");
       await writeFile(
         preload,
-        `const catalog=JSON.parse(await (await import('node:fs/promises')).readFile('crates/portcove-core/catalog/catalog.json','utf8'));
+        `const {readFile}=await import('node:fs/promises');
+    const catalog=JSON.parse(await readFile('crates/portcove-core/catalog/catalog.json','utf8'));
+    const accounting=${JSON.stringify(reviewedHealthAccounting)};
+    const repositoryIds=new Map([...accounting.pins,...accounting.source_archives].map(pin=>['github.com/'+pin.repository.toLowerCase(),pin.repository_id]));
+    const {assessUpstreamLineage}=await import(${JSON.stringify(new URL("./upstream-lineage.mts", import.meta.url).href)});
+    for(const port of catalog.ports) {
+      let record;
+      try { record=JSON.parse(await readFile('crates/portcove-core/catalog/ports/'+port.id+'.json','utf8')); }
+      catch(error) { if(error.code==='ENOENT') continue; throw error; }
+      if(!record.upstream_lineage) continue;
+      const {current}=assessUpstreamLineage(record);
+      if(current.repository) {
+        const project=new URL(current.project_url);
+        repositoryIds.set(project.host+'/'+project.pathname.slice(1).toLowerCase(),Number(current.repository.id));
+      }
+    }
     const pins=new Map(catalog.ports.flatMap(port=>Object.values(port.release.direct??{}).map(pin=>[pin.url,pin.size])));
     let calls=0; globalThis.fetch=async(url,options)=>{
       if(process.env.HEALTH_FIXTURE_FAILURE==='yes' && ++calls===1) throw new Error('private fixture error');
@@ -490,7 +530,9 @@ function requiredFixture<T>(value: T | null | undefined): T {
         return new Response(JSON.stringify({id:2,tag_name:tag,assets:github?digests:{links:digests}}),{headers:{'content-type':'application/json'}});
       }
       const github=url.startsWith('https://api.github.com/');
-      return new Response(JSON.stringify({id:1,archived:false,...(github?{full_name:url.split('/repos/')[1]}:{path_with_namespace:decodeURIComponent(url.split('/projects/')[1])})}),{headers:{'content-type':'application/json'}});
+      const repository=decodeURIComponent(github?url.split('/repos/')[1]:url.split('/projects/')[1]);
+      const id=repositoryIds.get((github?'github.com/':'gitlab.com/')+repository.toLowerCase())??1;
+      return new Response(JSON.stringify({id,archived:false,...(github?{full_name:repository}:{path_with_namespace:repository})}),{headers:{'content-type':'application/json'}});
     };`,
       );
       const realCatalog: unknown = JSON.parse(

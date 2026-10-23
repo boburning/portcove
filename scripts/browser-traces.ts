@@ -7,7 +7,11 @@ import type { Reporter } from "vite-plus/test/node";
 import { resolvePhysicalPath } from "./dev-storage.mts";
 
 /** One invocation owns one namespace; previous failures never share its names. */
-export function createBrowserTraceRun(root: string, requestedNamespace?: string) {
+export function createBrowserTraceRun(
+  root: string,
+  requestedNamespace?: string,
+  retainOutcome = false,
+) {
   const traceRoot = path.resolve(root, "work/bt");
   const physicalRoot = resolvePhysicalPath(root);
   const physicalTraceRoot = resolvePhysicalPath(traceRoot);
@@ -23,6 +27,7 @@ export function createBrowserTraceRun(root: string, requestedNamespace?: string)
   )
     throw new Error("Browser trace namespace must be an owned run below the trace root");
   const directory = path.join(parent, `run-${randomUUID()}`);
+  const physicalDirectory = resolvePhysicalPath(directory);
   const screenshotDirectory = path.join(directory, "screenshots");
   if (existsSync(directory)) throw new Error("Browser trace namespace already exists");
   // Reporter completion precedes browser shutdown, and onClose still runs when
@@ -69,6 +74,19 @@ export function createBrowserTraceRun(root: string, requestedNamespace?: string)
       if (resolvePhysicalPath(captures) !== physicalCaptures)
         throw new Error("Capture annotation directory changed physical identity");
       writeFileSync(path.join(captures, `${randomUUID()}.json`), body, { flag: "wx" });
+    },
+    onTestRunEnd(_modules, errors, reason) {
+      if (!retainOutcome) return;
+      if (resolvePhysicalPath(parent) !== physicalParent)
+        throw new Error("Browser trace namespace changed physical identity");
+      mkdirSync(directory, { recursive: true });
+      if (resolvePhysicalPath(directory) !== physicalDirectory)
+        throw new Error("Browser trace namespace changed physical identity");
+      writeFileSync(
+        path.join(directory, "run-outcome.json"),
+        JSON.stringify({ reason, unhandled_errors: errors.length }),
+        { flag: "wx" },
+      );
     },
   } satisfies Reporter;
   return { directory, screenshotDirectory, reporter };

@@ -31,6 +31,7 @@ import {
   validateHealthAccountingPolicy,
 } from "./check-catalog-repositories.mts";
 import { discoverUpstreamHealthScope, selectUpstreamHealthScope } from "./upstream-health-plan.mts";
+import { healthArtifactHash, healthEndpointHash } from "./upstream-health-inputs.mts";
 
 const config = validateObserverConfig(
   JSON.parse(await readFile(new URL("../release/upstream-observer.json", import.meta.url), "utf8")),
@@ -625,8 +626,8 @@ void test("direct provider preserves original upstream and scopes HEAD separatel
   assert.equal(report.outcome, "complete");
   const health = requiredFixture(report.port_health[0]);
   assert.equal(health.original_upstream.status, "reachable");
-  assert.equal(health.lineage.status, "unresolved");
-  assert.equal(health.lineage.successor_selected, false);
+  assert.equal(health.lineage.status, "not-assessed");
+  assert.equal(health.lineage.successor_selected, null);
   assert.equal(health.accepted_artifact_obtainability.status, "unknown");
   assert.equal(
     requiredFixture(health.accepted_artifact_obtainability.identities[0]).sha256,
@@ -782,7 +783,7 @@ void test("incident identity is stable across observation times while changed ru
     requiredFixture(incident(first).resume_condition),
     /404 does not establish deletion or succession/,
   );
-  assert.equal(requiredFixture(first.port_health[0]).lineage.successor_selected, false);
+  assert.equal(requiredFixture(first.port_health[0]).lineage.successor_selected, null);
 });
 
 void test("non-hosted original project remains monitored after a provider change", async () => {
@@ -803,7 +804,7 @@ void test("non-hosted original project remains monitored after a provider change
   });
   assert.deepEqual(calls, [healthPin.url, "https://original.example.com/"]);
   assert.equal(requiredFixture(report.port_health[0]).original_upstream.status, "reachable");
-  assert.equal(requiredFixture(report.port_health[0]).lineage.status, "unresolved");
+  assert.equal(requiredFixture(report.port_health[0]).lineage.status, "not-assessed");
 });
 
 void test("rate limits defer only the affected direct origin and preserve other acquisition locations", async () => {
@@ -885,8 +886,8 @@ void test("retained Star Fox failure is an unresolved availability condition wit
   assert.equal(requiredFixture(health.canonical_incidents[0]).http_status, 404);
   assert.equal(requiredFixture(health.canonical_incidents[0]).rule, "inaccessible-or-missing");
   assert.equal(health.lineage.owner_issue, incident.lineage_issue);
-  assert.equal(health.lineage.status, "unresolved");
-  assert.equal(health.lineage.successor_selected, false);
+  assert.equal(health.lineage.status, "not-assessed");
+  assert.equal(health.lineage.successor_selected, null);
   assert.deepEqual(health.qualification.records, []);
   assert.equal(health.qualification.inherited, false);
 });
@@ -923,7 +924,7 @@ void test("hosted relocation keeps original upstream distinct from the current a
       .repository,
     "original/project",
   );
-  assert.equal(requiredFixture(report.port_health[0]).lineage.successor_selected, false);
+  assert.equal(requiredFixture(report.port_health[0]).lineage.successor_selected, null);
 });
 
 void test("shared acquisition request retains each port's exact artifact scope", async () => {
@@ -964,7 +965,7 @@ void test("reviewed catalog maintenance accounts for a known original outage wit
   );
   assert.equal(requiredFixture(known.port_health[0]).preservation.status, "unknown");
   assert.equal(requiredFixture(known.port_health[0]).applicable_holds.status, "unknown");
-  assert.equal(requiredFixture(known.port_health[0]).lineage.successor_selected, false);
+  assert.equal(requiredFixture(known.port_health[0]).lineage.successor_selected, null);
   delete requiredFixture(input.ports[0]).upstream_status;
   assert.equal((await collectRepositoryHealth(input, options)).outcome, "incomplete");
   requiredFixture(input.ports[0]).upstream_status = "retired";
@@ -976,7 +977,7 @@ void test("reviewed catalog maintenance accounts for a known original outage wit
   assert.equal(requiredFixture(artifactMissing.observations[0]).accounted_for, false);
 });
 
-void test("recent report comparison deduplicates unchanged conditions, exposes recovery and rejects stale scope", async () => {
+void test("observation history deduplicates aged conditions and exposes recovery without whole-catalog coupling", async () => {
   const input = { ports: [{ id: "tracked", release: { repository: "owner/tracked" } }] };
   const collect = (time: number, previousReport: unknown, status: number) =>
     collectRepositoryHealth(input, {
@@ -1005,11 +1006,20 @@ void test("recent report comparison deduplicates unchanged conditions, exposes r
     requiredFixture(requiredFixture(first.port_health[0]).canonical_incidents[0]).key,
   ]);
   const stale = await collect(healthTime + 25 * 3600_000, first, 404);
-  assert.match(stale.previous_report, /stale/);
-  assert.equal(stale.material_changes.length, 1);
+  assert.equal(stale.previous_report, "matching observation history");
+  assert.equal(stale.material_changes.length, 0);
+  assert.equal(
+    requiredFixture(requiredFixture(stale.port_health[0]).canonical_incidents[0]).occurrences,
+    2,
+  );
   const altered = structuredClone(first);
   altered.catalog_sha256 = "f".repeat(64);
-  assert.equal((await collect(healthTime + 1000, altered, 404)).material_changes.length, 1);
+  assert.equal((await collect(healthTime + 1000, altered, 404)).material_changes.length, 0);
+  altered.completed_at = new Date(healthTime + 2000).toISOString();
+  await assert.rejects(
+    collect(healthTime + 1000, altered, 404),
+    /Invalid historical health comparison/,
+  );
 });
 
 void test("repository-name reuse is a changed unknown condition, never continuity or inherited qualification", async () => {
@@ -1035,7 +1045,7 @@ void test("repository-name reuse is a changed unknown condition, never continuit
   const replaced = await collect(2, prior);
   assert.equal(requiredFixture(replaced.observations[0]).reason, "identity-mismatch");
   assert.equal(replaced.outcome, "incomplete");
-  assert.equal(requiredFixture(replaced.port_health[0]).lineage.status, "unresolved");
+  assert.equal(requiredFixture(replaced.port_health[0]).lineage.status, "not-assessed");
   assert.equal(requiredFixture(replaced.port_health[0]).qualification.inherited, false);
 });
 
@@ -1283,23 +1293,20 @@ void test("summary-only selection makes no requests and does not claim global he
   assert.equal(report.coverage.attempted_repositories, 0);
 });
 
-void test("semantic port contracts select affected obligations and their unknowns still block", async () => {
+void test("observed port inputs select affected obligations and retain collection failures", async () => {
   const base = healthScopeCatalog(healthScopePort("game"), healthScopePort("unavailable"));
   for (const update of [
     (p: HealthScopeFixture) => {
       p.release.repository = "owner/new-location";
     },
     (p: HealthScopeFixture) => {
-      p.release.sha256 = "a".repeat(64);
+      p.project_url = "https://github.com/owner/project-location";
     },
     (p: HealthScopeFixture) => {
       p.upstream_status = "retired";
     },
     (p: HealthScopeFixture) => {
       p.platforms.push("linux-x86-64");
-    },
-    (p: HealthScopeFixture) => {
-      p.source_profile = "changed-source";
     },
     (p: HealthScopeFixture) => {
       p.adapter = "psx-recomp-managed";
@@ -1351,42 +1358,38 @@ void test("shared endpoints retain unselected maintenance and identity obligatio
   assert.equal(report.outcome, "incomplete");
 });
 
-void test("additions select the new port; removals and root/history changes retain full scope", async () => {
+void test("additions and history select their port; removals and schema changes retain full scope", async () => {
   const base = healthScopeCatalog(healthScopePort("old"));
   const head = healthScopeCatalog(healthScopePort("old"), healthScopePort("new"));
   assert.deepEqual((await selectUpstreamHealthScope(base, head, [change()])).port_ids, ["new"]);
   assert.equal((await selectUpstreamHealthScope(head, base, [change()])).mode, "full");
-  for (const update of [
-    (c: ReturnType<typeof healthScopeCatalog>) => {
-      c.schema_version++;
-    },
-    (c: ReturnType<typeof healthScopeCatalog>) => {
-      c.source_catalog = {
-        qualification: [
-          { scope: { port_id: "old", artifact_sha256: "a".repeat(64), upstream_ref: "v1" } },
-        ],
-      };
-    },
-  ]) {
-    const changed = copy(base);
-    update(changed);
-    assert.equal((await selectUpstreamHealthScope(base, changed, [change()])).mode, "full");
-  }
+  const changedSchema = copy(base);
+  changedSchema.schema_version++;
+  assert.equal((await selectUpstreamHealthScope(base, changedSchema, [change()])).mode, "full");
+  const changedHistory = copy(base);
+  changedHistory.source_catalog = {
+    qualification: [
+      { scope: { port_id: "old", artifact_sha256: "a".repeat(64), upstream_ref: "v1" } },
+    ],
+  };
+  assert.deepEqual((await selectUpstreamHealthScope(base, changedHistory, [change()])).port_ids, [
+    "old",
+  ]);
 });
 
-void test("tools, workflows, policy, mixed changes and uncertain inventories cannot narrow monitoring", async () => {
+void test("shared tools and uncertain inventory retain full monitoring; unrelated files do not widen", async () => {
   const input = healthScopeCatalog(healthScopePort("old"));
   for (const changes of [
-    [],
     [change("scripts/check-catalog-repositories.mts")],
     [change("scripts/upstream-health-plan.mts")],
     [change(".github/workflows/upstream-health.yml")],
-    [change("AGENTS.md")],
-    [change(), change("README.md")],
+    [change(".github/upstream-health-accounting.json")],
     [change(undefined, { newMode: "120000" })],
     [change(undefined, { status: "R" })],
   ])
     assert.equal((await selectUpstreamHealthScope(input, input, changes)).mode, "full");
+  for (const changes of [[], [change("AGENTS.md")], [change(), change("README.md")]])
+    assert.equal((await selectUpstreamHealthScope(input, input, changes)).mode, "none");
   await assert.rejects(
     selectUpstreamHealthScope(
       { ports: [healthScopePort("duplicate"), healthScopePort("duplicate")] },
@@ -1405,49 +1408,18 @@ void test("tools, workflows, policy, mixed changes and uncertain inventories can
   );
 });
 
-void test("exact Git discovery binds base, merge base, head and checkout; drift and missing refs fail closed", async () => {
+void test("Git discovery refuses malformed or unavailable commit identities", async () => {
   const baseSha = "a".repeat(40),
     headSha = "b".repeat(40),
     checkoutSha = "c".repeat(40);
-  const base = healthScopeCatalog(healthScopePort("old"));
-  const head = copy(base);
-  requiredFixture(head.ports[0]).summary = "New copy.";
-  const tree = "d".repeat(40);
-  let drift = false;
-  const git = (args: string[]) => {
-    if (args[0] === "rev-parse") {
-      const value = requiredFixture(requiredFixture(args.at(-1)).split("^")[0]);
-      return Buffer.from(
-        requiredFixture(args.at(-1)).endsWith("^{commit}")
-          ? value
-          : drift && value === checkoutSha
-            ? "e".repeat(40)
-            : tree,
-      );
-    }
-    if (args[0] === "merge-base") return Buffer.from(baseSha);
-    if (args[0] === "diff")
-      return Buffer.from(
-        `:100644 100644 ${baseSha} ${headSha} M\0crates/portcove-core/catalog/catalog.json\0`,
-      );
-    if (args[0] === "show")
-      return Buffer.from(
-        JSON.stringify(requiredFixture(args[1]).startsWith(baseSha) ? base : head),
-      );
-    assert.fail(JSON.stringify(args));
-  };
+  const head = healthScopeCatalog(healthScopePort("old"));
   const context = { event: "pull_request", baseSha, headSha, checkoutSha };
-  const discover = () => discoverUpstreamHealthScope(context, git, () => JSON.stringify(head));
-  const scope = await discover();
-  assert.equal(scope.mode, "none");
-  assert.ok("identities" in scope);
-  assert.equal(scope.identities.head, headSha);
-  assert.equal(scope.identities.merge_base, baseSha);
-  assert.equal(scope.identities.checkout_tree, tree);
-  drift = true;
-  assert.equal((await discover()).mode, "full");
   await assert.rejects(
-    discoverUpstreamHealthScope({ ...context, baseSha: "main" }, git, () => JSON.stringify(head)),
+    discoverUpstreamHealthScope(
+      { ...context, baseSha: "main" },
+      () => assert.fail("Malformed Git identity must fail before Git execution"),
+      () => JSON.stringify(head),
+    ),
     /exact base/,
   );
   await assert.rejects(
@@ -1460,17 +1432,6 @@ void test("exact Git discovery binds base, merge base, head and checkout; drift 
     ),
     /missing ref/,
   );
-  for (const event of ["push", "schedule", "workflow_dispatch", "unknown"])
-    assert.equal(
-      (
-        await discoverUpstreamHealthScope(
-          { event },
-          () => assert.fail("Full monitoring does not need PR Git refs"),
-          () => JSON.stringify(head),
-        )
-      ).mode,
-      "full",
-    );
 });
 
 // Generic monitoring tests use retained independent cases, not a changing live
@@ -1479,7 +1440,7 @@ function collectRepositoryHealth(catalog: unknown, options: HealthOptions = {}) 
   return collectRepositoryHealthWithPolicy(catalog, { reviewedAccounting, ...options });
 }
 
-void test("live monitoring policy retains valid explicit port contract bindings", async () => {
+void test("live monitoring policy retains valid artifact and endpoint contract bindings", async () => {
   const policy = validateHealthAccountingPolicy(
     JSON.parse(
       await readFile(
@@ -1495,18 +1456,26 @@ void test("live monitoring policy retains valid explicit port contract bindings"
     ),
   );
   assert.ok(isRecord(catalog) && Array.isArray(catalog.ports));
+  assert.equal(policy.format_version, 2);
   const ports: unknown[] = catalog.ports;
-  for (const rule of [
-    ...policy.pins,
-    ...policy.original_conditions,
-    ...(policy.source_archives ?? []),
-  ]) {
-    const port = requiredFixture(
-      ports.find((value) => isRecord(value) && value.id === rule.port_id),
+  const portFor = (id: string) => {
+    const port = requiredFixture(ports.find((value) => isRecord(value) && value.id === id));
+    assert.ok(isRecord(port), id);
+    return port;
+  };
+  for (const rule of [...policy.pins, ...(policy.source_archives ?? [])])
+    assert.equal(
+      healthArtifactHash(portFor(rule.port_id), rule.platform),
+      rule.port_contract_sha256,
+      rule.port_id,
     );
-    assert.ok(isRecord(port), rule.port_id);
-    const { summary: _summary, ...contract } = port;
-    assert.equal(observationHash(contract), rule.port_contract_sha256, rule.port_id);
+  for (const rule of policy.original_conditions) {
+    assert.ok(rule.role === "project" || rule.role === "acquisition");
+    assert.equal(
+      healthEndpointHash(portFor(rule.port_id), rule.role, rule.provider, rule.repository),
+      rule.port_contract_sha256,
+      rule.port_id,
+    );
   }
 });
 const pinMetadata = pinCases.pins;
@@ -2261,13 +2230,13 @@ void test("reviewed exact metadata and original conditions remain degraded witho
     assert.equal(requiredFixture(record.pin_assessment).accepted_bytes, "unverified");
   }
   for (const port of report.port_health) {
-    assert.equal(port.lineage.status, "unresolved");
+    assert.equal(port.lineage.status, "not-assessed");
     assert.equal(port.accepted_artifact_obtainability.status, "unknown");
   }
   assert.ok(report.port_health.every((port) => port.lineage.catalog_upstream_status === "active"));
   assert.ok(!JSON.stringify(report).includes("synthetic-private-value"));
   assert.match(renderRepositoryHealth(report), /provider-reported-pin-present/);
-  assert.match(renderRepositoryHealth(report), /reviewed-original-condition/);
+  assert.match(renderRepositoryHealth(report), /reviewed-endpoint-condition/);
   const original = JSON.stringify(catalog);
   const comparison = await collectRepositoryHealth(catalog, {
     fetch: accountingFetch([]),
@@ -3064,13 +3033,23 @@ void test("malformed inventories refuse before requests and prior-report bounds 
               requiredFixture(requiredFixture(first.port_health[0]).canonical_incidents[0]),
             ),
         );
+      if (count > 512) {
+        await assert.rejects(
+          collectRepositoryHealth(catalog, {
+            previousReport: prior,
+            fetch: fetch404,
+          }),
+          /Invalid historical health comparison/,
+        );
+        continue;
+      }
       const report = await collectRepositoryHealth(catalog, {
         previousReport: prior,
         fetch: fetch404,
       });
       assert.equal(
         report.previous_report,
-        count === 512 ? "matching recent evidence" : "stale, mismatched or incomplete; not reused",
+        count === 512 ? "matching observation history" : "mismatched or incomplete; not reused",
         field,
       );
       assert.equal(requiredFixture(report.observations[0]).reason, "inaccessible-or-missing");

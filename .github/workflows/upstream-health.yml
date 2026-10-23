@@ -8,7 +8,16 @@ on:
       - "scripts/check-catalog-repositories.mts"
       - "scripts/check-retcomm-upstreams.mts"
       - "scripts/upstream-health-plan.mts"
+      - "scripts/upstream-health-inputs.mts"
+      - "scripts/upstream-health-monitor.mts"
+      - "scripts/upstream-health-*.test.mts"
       - "scripts/upstream-observer.mts"
+      - "scripts/upstream-lineage.mts"
+      - "scripts/observe-configured-upstream.mts"
+      - "scripts/release-path-safety.mts"
+      - "scripts/runtime-values.mts"
+      - "scripts/json-values.mts"
+      - "scripts/select-ci-plan.mts"
       - ".github/upstream-health-accounting.json"
       - ".node-version"
       - ".github/workflows/upstream-health.yml"
@@ -20,7 +29,16 @@ on:
       - "scripts/check-catalog-repositories.mts"
       - "scripts/check-retcomm-upstreams.mts"
       - "scripts/upstream-health-plan.mts"
+      - "scripts/upstream-health-inputs.mts"
+      - "scripts/upstream-health-monitor.mts"
+      - "scripts/upstream-health-*.test.mts"
       - "scripts/upstream-observer.mts"
+      - "scripts/upstream-lineage.mts"
+      - "scripts/observe-configured-upstream.mts"
+      - "scripts/release-path-safety.mts"
+      - "scripts/runtime-values.mts"
+      - "scripts/json-values.mts"
+      - "scripts/select-ci-plan.mts"
       - ".github/upstream-health-accounting.json"
       - ".node-version"
       - ".github/workflows/upstream-health.yml"
@@ -46,38 +64,46 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+      - name: Restore main observation history
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: work/upstream-health/checkpoint.json
+          key: upstream-health-history-v1-main-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: upstream-health-history-v1-main-
       - name: Select exact upstream health obligations
         id: scope
         run: node scripts/upstream-health-plan.mts
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-      - name: Check catalog locations within the selected scope
-        run: |
-          case "$HEALTH_MODE" in
-            full) node scripts/check-catalog-repositories.mts ;;
-            affected)
-              test -n "$HEALTH_PORT_IDS"
-              node scripts/check-catalog-repositories.mts --port-ids="$HEALTH_PORT_IDS" ;;
-            none)
-              test -z "$HEALTH_PORT_IDS"
-              node scripts/check-catalog-repositories.mts --port-ids= ;;
-            *) echo 'Missing or invalid upstream health scope' >&2; exit 1 ;;
-          esac
+      - name: Observe a bounded batch and retain incident history
+        if: ${{ !cancelled() }}
+        id: monitor
+        run: node scripts/upstream-health-monitor.mts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEALTH_MODE: ${{ steps.scope.outputs.mode }}
           HEALTH_PORT_IDS: ${{ steps.scope.outputs.port_ids }}
       - name: Check RetComM upstream identity
-        if: ${{ !cancelled() && steps.scope.outcome == 'success' && steps.scope.outputs.retcomm == 'true' }}
+        if: ${{ !cancelled() && steps.monitor.outputs.retcomm == 'true' }}
         run: |
-          case "$HEALTH_MODE" in
-            full) node scripts/check-retcomm-upstreams.mts ;;
-            affected)
-              test -n "$RETCOMM_PORT_IDS"
-              node scripts/check-retcomm-upstreams.mts --port-ids="$RETCOMM_PORT_IDS" ;;
-            *) echo 'Missing or invalid RetComM health scope' >&2; exit 1 ;;
-          esac
+          test -n "$RETCOMM_PORT_IDS"
+          node scripts/check-retcomm-upstreams.mts --port-ids="$RETCOMM_PORT_IDS"
         env:
-          HEALTH_MODE: ${{ steps.scope.outputs.mode }}
-          RETCOMM_PORT_IDS: ${{ steps.scope.outputs.retcomm_port_ids }}
+          RETCOMM_PORT_IDS: ${{ steps.monitor.outputs.retcomm_port_ids }}
+      - name: Preserve trusted main observation history
+        if: ${{ !cancelled() && github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && steps.monitor.outputs.checkpoint_updated == 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: work/upstream-health/checkpoint.json
+          key: upstream-health-history-v1-main-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Retain monitoring report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: upstream-health-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/upstream-health/report.json
+            work/upstream-health/summary.md
+          if-no-files-found: warn
+          retention-days: 7
