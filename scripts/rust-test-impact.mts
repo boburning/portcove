@@ -1,7 +1,8 @@
 import { errorMessage, isRecord } from "./runtime-values.mts";
 import type { SpawnSyncOptions } from "node:child_process";
 import type { ValidationPlan, ValidationChangeInput } from "./validation-plan.mts";
-import { readFileSync } from "node:fs";
+import { lstatSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { execFileSync, spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -54,6 +55,116 @@ interface ImpactDependencies {
   spawnSync?: ImpactRunner;
   report?: (message: string) => void;
   metrics?: ReturnType<typeof createCiMetrics>;
+  inventoryTempRoot?: string;
+}
+
+/** Official metadata is private to one guarded invocation, never a reusable cache. */
+function withInventoryMetadata(
+  scope: string[],
+  run: ImpactRunner,
+  metrics: ReturnType<typeof createCiMetrics>,
+  maxBuffer: number,
+  action: (argumentsForList: () => string[], verify: () => void) => number,
+  tempRoot = tmpdir(),
+) {
+  const directory = mkdtempSync(path.join(tempRoot, "portcove-nextest-inventory-"));
+  let failure: { error: unknown } | undefined;
+  let status = 1;
+  try {
+    const snapshots: { file: string; bytes: Buffer }[] = [];
+    const capture = (name: string, command: string, args: string[]) => {
+      const result = run(command, args, {
+        cwd: projectRoot,
+        encoding: "utf8",
+        maxBuffer,
+        windowsHide: true,
+      });
+      if (result.error) throw result.error;
+      if (result.status !== 0)
+        throw new Error(`Nextest ${name} preparation failed: ${String(result.stderr)}`);
+      const bytes = Buffer.from(result.stdout ?? "");
+      if (!bytes.length || bytes.length > maxBuffer)
+        throw new Error(`Invalid or oversized nextest ${name} metadata`);
+      const value: unknown = JSON.parse(bytes.toString("utf8"));
+      if (!isRecord(value)) throw new Error(`Invalid nextest ${name} metadata`);
+      const file = path.join(directory, `${name}.json`);
+      writeFileSync(file, bytes, { flag: "wx" });
+      snapshots.push({ file, bytes });
+      return { file, value };
+    };
+    const argumentsForList = metrics.measure("rust-inventory-metadata", () => {
+      const binaries = capture("binaries", "cargo-nextest", [
+        "nextest",
+        "list",
+        ...scope,
+        "--list-type",
+        "binaries-only",
+        "--message-format",
+        "json",
+      ]);
+      if (
+        !isRecord(binaries.value["rust-build-meta"]) ||
+        !isRecord(binaries.value["rust-binaries"]) ||
+        !Object.keys(binaries.value["rust-binaries"]).length
+      )
+        throw new Error("Incomplete nextest binaries metadata");
+      for (const [id, binary] of Object.entries(binaries.value["rust-binaries"]))
+        if (
+          !isRecord(binary) ||
+          binary["binary-id"] !== id ||
+          typeof binary["binary-path"] !== "string" ||
+          !path.isAbsolute(binary["binary-path"])
+        )
+          throw new Error("Invalid nextest binary metadata identity");
+      const cargo = capture("cargo", "cargo", ["metadata", "--locked", "--format-version", "1"]);
+      if (
+        !Array.isArray(cargo.value.packages) ||
+        !cargo.value.packages.length ||
+        !Array.isArray(cargo.value.workspace_members) ||
+        !cargo.value.workspace_members.length ||
+        !isRecord(cargo.value.resolve)
+      )
+        throw new Error("Incomplete Cargo metadata for nextest inventory");
+      return ["--binaries-metadata", binaries.file, "--cargo-metadata", cargo.file];
+    });
+    const verify = () => {
+      for (const { file, bytes } of snapshots) {
+        const stat = lstatSync(file);
+        if (
+          !stat.isFile() ||
+          stat.isSymbolicLink() ||
+          stat.nlink !== 1 ||
+          stat.size !== bytes.length ||
+          !readFileSync(file).equals(bytes)
+        )
+          throw new Error("Nextest inventory metadata changed during its invocation");
+      }
+    };
+    status = action(() => {
+      verify();
+      return [...argumentsForList];
+    }, verify);
+  } catch (error) {
+    failure = { error };
+  }
+  try {
+    rmSync(directory, { recursive: true, force: true });
+  } catch (error) {
+    const primary = failure
+      ? failure.error
+      : status !== 0
+        ? new Error(`Rust impact failed with status ${status}`)
+        : undefined;
+    if (failure || primary)
+      throw new AggregateError(
+        [primary, error],
+        "Rust impact failed and inventory cleanup also failed",
+        { cause: primary },
+      );
+    throw error;
+  }
+  if (failure) throw failure.error;
+  return status;
 }
 
 function normalizePath(value: unknown) {
@@ -239,41 +350,54 @@ export function runRustImpactUnion(
   });
   const run = dependencies.spawnSync ?? spawnSync;
   const report = dependencies.report ?? console.log;
-  const inventory = (filter: string) => {
-    const result = run(
-      "cargo-nextest",
-      ["nextest", "list", "--locked", "-p", packageName, "-E", filter, "--message-format", "json"],
-      {
-        cwd: projectRoot,
-        encoding: "utf8",
-        maxBuffer: 16 * 1024 * 1024,
-        windowsHide: true,
-      },
-    );
-    if (result.error) throw result.error;
-    if (result.status !== 0)
-      throw new Error(`Nextest impact inventory failed: ${String(result.stderr)}`);
-    return runnableImpactTests(JSON.parse(String(result.stdout)), packageName);
-  };
-  const expected = new Set<string>();
-  for (const group of groups) {
-    const matches = inventory(group.filter);
-    if (!matches.size) throw new Error(`Rust impact group ${group.id} has no runnable tests`);
-    for (const identity of matches) expected.add(identity);
-    report(`[rust-impact] ${group.id}: ${matches.size} runnable tests; ${group.reason}`);
-  }
-  const filter = groups.map((group) => `(${group.filter})`).join(" | ");
-  const union = inventory(filter);
-  if (union.size !== expected.size || [...expected].some((identity) => !union.has(identity)))
-    throw new Error("Nextest impact union differs from the complete selected group inventories");
-  report(`[rust-impact] union: ${union.size} distinct runnable tests`);
-  const result = run(
-    "cargo-nextest",
-    ["nextest", "run", "--locked", "-p", packageName, "-E", filter],
-    { cwd: projectRoot, stdio: "inherit", windowsHide: true },
+  return withInventoryMetadata(
+    ["--locked", "-p", packageName],
+    run,
+    dependencies.metrics ?? createCiMetrics(),
+    16 * 1024 * 1024,
+    (argumentsForList, verify) => {
+      const inventory = (filter: string) => {
+        const result = run(
+          "cargo-nextest",
+          ["nextest", "list", ...argumentsForList(), "-E", filter, "--message-format", "json"],
+          {
+            cwd: projectRoot,
+            encoding: "utf8",
+            maxBuffer: 16 * 1024 * 1024,
+            windowsHide: true,
+          },
+        );
+        if (result.error) throw result.error;
+        if (result.status !== 0)
+          throw new Error(`Nextest impact inventory failed: ${String(result.stderr)}`);
+        verify();
+        return runnableImpactTests(JSON.parse(String(result.stdout)), packageName);
+      };
+      const expected = new Set<string>();
+      for (const group of groups) {
+        const matches = inventory(group.filter);
+        if (!matches.size) throw new Error(`Rust impact group ${group.id} has no runnable tests`);
+        for (const identity of matches) expected.add(identity);
+        report(`[rust-impact] ${group.id}: ${matches.size} runnable tests; ${group.reason}`);
+      }
+      const filter = groups.map((group) => `(${group.filter})`).join(" | ");
+      const union = inventory(filter);
+      if (union.size !== expected.size || [...expected].some((identity) => !union.has(identity)))
+        throw new Error(
+          "Nextest impact union differs from the complete selected group inventories",
+        );
+      report(`[rust-impact] union: ${union.size} distinct runnable tests`);
+      verify();
+      const result = run(
+        "cargo-nextest",
+        ["nextest", "run", "--locked", "-p", packageName, "-E", filter],
+        { cwd: projectRoot, stdio: "inherit", windowsHide: true },
+      );
+      if (result.error) throw result.error;
+      return result.status ?? 1;
+    },
+    dependencies.inventoryTempRoot,
   );
-  if (result.error) throw result.error;
-  return result.status ?? 1;
 }
 
 export const rustPackagePrefixes = new Map([
@@ -501,74 +625,93 @@ export function runWorkspaceRustImpact(
   const metrics = dependencies.metrics ?? createCiMetrics();
   let initialInventory = true;
   const scope = ["--locked", "--workspace", "--all-targets"];
-  const list = (filter: string) => {
-    const result = metrics.measure(
-      initialInventory ? "workspace-build-and-initial-inventory" : "filter-inventory",
-      () =>
-        run(
-          "cargo-nextest",
-          ["nextest", "list", ...scope, "-E", filter, "--message-format", "json"],
-          { cwd: projectRoot, encoding: "utf8", maxBuffer: 32 * 1024 * 1024, windowsHide: true },
-        ),
-    );
-    initialInventory = false;
-    if (result.error) throw result.error;
-    if (result.status !== 0)
-      throw new Error(`Nextest workspace inventory failed: ${String(result.stderr)}`);
-    return runnableWorkspaceImpactTests(JSON.parse(String(result.stdout)), {
-      allowSkipped: filter !== "all()",
-    });
-  };
-  const complete = list("all()");
-  if (!complete.size) throw new Error("The complete workspace has no runnable tests");
-  const expected = new Set<string>();
-  for (const group of groups) {
-    const matches = group.filter === "all()" ? complete : list(group.filter);
-    if (!matches.size) throw new Error(`Rust impact group ${group.id} has no runnable tests`);
-    for (const identity of matches) {
-      if (!complete.has(identity))
-        throw new Error("Rust impact group escaped its complete workspace/package inventory");
-      if (group.packageName) {
-        const decoded: unknown = JSON.parse(identity);
-        if (!Array.isArray(decoded) || decoded[0] !== group.packageName)
+  const execute = (argumentsForList: () => string[], verify: () => void) => {
+    const list = (filter: string) => {
+      const result = metrics.measure(
+        initialInventory ? "workspace-build-and-initial-inventory" : "filter-inventory",
+        () =>
+          run(
+            "cargo-nextest",
+            ["nextest", "list", ...argumentsForList(), "-E", filter, "--message-format", "json"],
+            { cwd: projectRoot, encoding: "utf8", maxBuffer: 32 * 1024 * 1024, windowsHide: true },
+          ),
+      );
+      initialInventory = false;
+      if (result.error) throw result.error;
+      if (result.status !== 0)
+        throw new Error(`Nextest workspace inventory failed: ${String(result.stderr)}`);
+      verify();
+      return runnableWorkspaceImpactTests(JSON.parse(String(result.stdout)), {
+        allowSkipped: filter !== "all()",
+      });
+    };
+    const complete = list("all()");
+    if (!complete.size) throw new Error("The complete workspace has no runnable tests");
+    const expected = new Set<string>();
+    for (const group of groups) {
+      const matches = group.filter === "all()" ? complete : list(group.filter);
+      if (!matches.size) throw new Error(`Rust impact group ${group.id} has no runnable tests`);
+      for (const identity of matches) {
+        if (!complete.has(identity))
           throw new Error("Rust impact group escaped its complete workspace/package inventory");
+        if (group.packageName) {
+          const decoded: unknown = JSON.parse(identity);
+          if (!Array.isArray(decoded) || decoded[0] !== group.packageName)
+            throw new Error("Rust impact group escaped its complete workspace/package inventory");
+        }
+        expected.add(identity);
       }
-      expected.add(identity);
+      report(`[rust-impact] ${group.id}: ${matches.size} runnable tests; ${group.reason}`);
     }
-    report(`[rust-impact] ${group.id}: ${matches.size} runnable tests; ${group.reason}`);
-  }
-  const filter = groups.map((group) => `(${group.filter})`).join(" | ");
-  const union = groups.length === 1 && groups[0]?.filter === "all()" ? complete : list(filter);
-  if (union.size !== expected.size || [...expected].some((identity) => !union.has(identity)))
-    throw new Error("Nextest workspace union differs from the complete selected group inventories");
-  report(
-    `[rust-impact] union: ${union.size} of ${complete.size} runnable workspace tests; Windows baseline`,
-  );
-  metrics.record("rust-selection", {
-    selected_tests: union.size,
-    complete_tests: complete.size,
-    groups: groups.map((group) => group.id),
-  });
-  const result = metrics.measure("selected-rust-tests", () =>
-    run("cargo-nextest", ["nextest", "run", ...scope, "-E", filter], {
-      cwd: projectRoot,
-      stdio: "inherit",
-      windowsHide: true,
-    }),
-  );
-  if (result.error) throw result.error;
-  if (result.status !== 0) return result.status ?? 1;
-  // This stays inside the caller's heavyweight reservation. Cargo reuses the
-  // workspace build; compare live Rust serialization with committed snapshots.
-  const contract = metrics.measure("live-transport-contracts", () =>
-    run(process.execPath, ["scripts/check-transport-contract.mts"], {
-      cwd: projectRoot,
-      stdio: "inherit",
-      windowsHide: true,
-    }),
-  );
-  if (contract.error) throw contract.error;
-  return contract.status ?? 1;
+    const filter = groups.map((group) => `(${group.filter})`).join(" | ");
+    const union = groups.length === 1 && groups[0]?.filter === "all()" ? complete : list(filter);
+    if (union.size !== expected.size || [...expected].some((identity) => !union.has(identity)))
+      throw new Error(
+        "Nextest workspace union differs from the complete selected group inventories",
+      );
+    report(
+      `[rust-impact] union: ${union.size} of ${complete.size} runnable workspace tests; Windows baseline`,
+    );
+    metrics.record("rust-selection", {
+      selected_tests: union.size,
+      complete_tests: complete.size,
+      groups: groups.map((group) => group.id),
+    });
+    verify();
+    const result = metrics.measure("selected-rust-tests", () =>
+      run("cargo-nextest", ["nextest", "run", ...scope, "-E", filter], {
+        cwd: projectRoot,
+        stdio: "inherit",
+        windowsHide: true,
+      }),
+    );
+    if (result.error) throw result.error;
+    if (result.status !== 0) return result.status ?? 1;
+    // This stays inside the caller's heavyweight reservation. Cargo reuses the
+    // workspace build; compare live Rust serialization with committed snapshots.
+    const contract = metrics.measure("live-transport-contracts", () =>
+      run(process.execPath, ["scripts/check-transport-contract.mts"], {
+        cwd: projectRoot,
+        stdio: "inherit",
+        windowsHide: true,
+      }),
+    );
+    if (contract.error) throw contract.error;
+    return contract.status ?? 1;
+  };
+  return groups.length < 2
+    ? execute(
+        () => scope,
+        () => {},
+      )
+    : withInventoryMetadata(
+        scope,
+        run,
+        metrics,
+        32 * 1024 * 1024,
+        execute,
+        dependencies.inventoryTempRoot,
+      );
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

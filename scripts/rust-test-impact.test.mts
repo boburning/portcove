@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import {
@@ -34,6 +37,29 @@ function requiredFixture<T>(value: T | null | undefined): T {
 }
 const map = readRustTestImpactMap();
 const modified = (path: string) => ({ status: "M", path });
+
+type FixtureRunner = NonNullable<
+  NonNullable<Parameters<typeof runWorkspaceRustImpact>[1]>["spawnSync"]
+>;
+const binaryMetadata = () => ({
+  "rust-build-meta": {},
+  "rust-binaries": {
+    "portcove-core": {
+      "binary-id": "portcove-core",
+      "binary-path": path.resolve("fixture-core-binary"),
+    },
+  },
+});
+const cargoMetadata = () => ({ packages: [{}], workspace_members: ["fixture"], resolve: {} });
+function withMetadataFixture(run: FixtureRunner): FixtureRunner {
+  return (command, args, options) => {
+    if (args.includes("binaries-only"))
+      return { status: 0, stdout: JSON.stringify(binaryMetadata()) };
+    if (command === "cargo" && args[0] === "metadata")
+      return { status: 0, stdout: JSON.stringify(cargoMetadata()) };
+    return run(command, args, options);
+  };
+}
 
 const workspacePlan = (files: string[]) =>
   buildValidationPlan({
@@ -226,16 +252,20 @@ void test("workspace groups and their exact union use identical all-target build
   const status = runWorkspaceRustImpact(p, {
     map,
     report() {},
-    spawnSync(_command, args) {
+    spawnSync: withMetadataFixture((_command, args) => {
       calls.push(args);
       return args[1] === "list"
         ? { status: 0, stdout: JSON.stringify(responses.shift()) }
         : { status: 9 };
-    },
+    }),
   });
   assert.equal(status, 9);
-  for (const args of calls)
-    assert.deepEqual(args.slice(2, 5), ["--locked", "--workspace", "--all-targets"]);
+  for (const args of calls) {
+    if (args[1] === "list") {
+      assert.equal(args[2], "--binaries-metadata");
+      assert.equal(args[4], "--cargo-metadata");
+    } else assert.deepEqual(args.slice(2, 5), ["--locked", "--workspace", "--all-targets"]);
+  }
   assert.deepEqual(
     calls.map((args) => args[1]),
     ["list", "list", "list", "list", "run"],
@@ -249,10 +279,10 @@ void test("workspace groups and their exact union use identical all-target build
       runWorkspaceRustImpact(p, {
         map,
         report() {},
-        spawnSync(_command, args) {
+        spawnSync: withMetadataFixture((_command, args) => {
           assert.equal(args[1], "list");
           return { status: 0, stdout: JSON.stringify(data.shift()) };
-        },
+        }),
       }),
     );
   }
@@ -280,6 +310,233 @@ function inventory(names: string[]): FixtureInventory {
   };
 }
 
+void test("multi-group metadata prepares the original compilation scope once and cleans every terminal path", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "portcove-impact-metadata-contract-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const plan = workspacePlan([
+    "crates/portcove-core/src/source_report.rs",
+    "crates/portcove-core/src/release/observation.rs",
+  ]);
+  for (const kind of ["workspace", "package"] as const) {
+    for (const terminal of [
+      "success",
+      "test-status",
+      "list-error",
+      "run-error",
+      "transport-status",
+    ] as const) {
+      const prepared: [string, string[]][] = [];
+      const listings: string[][] = [];
+      const original = new Error(`original ${terminal}`);
+      let snapshotDirectory = "";
+      let runCalls = 0;
+      let transportCalls = 0;
+      const runner: FixtureRunner = (command, args, options) => {
+        if (args.includes("binaries-only") || command === "cargo") {
+          prepared.push([command, args]);
+          return withMetadataFixture(() => assert.fail("unexpected preparation"))(
+            command,
+            args,
+            options,
+          );
+        }
+        if (args[1] === "list") {
+          const files = [requiredFixture(args[3]), requiredFixture(args[5])];
+          assert.equal(args[2], "--binaries-metadata");
+          assert.equal(args[4], "--cargo-metadata");
+          snapshotDirectory = path.dirname(files[0]!);
+          assert.equal(path.dirname(files[1]!), snapshotDirectory);
+          assert.equal(path.dirname(snapshotDirectory), root);
+          assert.deepEqual(JSON.parse(readFileSync(files[0]!, "utf8")), binaryMetadata());
+          assert.deepEqual(JSON.parse(readFileSync(files[1]!, "utf8")), cargoMetadata());
+          if (listings.length) assert.deepEqual(files, listings[0]);
+          listings.push(files);
+          if (terminal === "list-error") return { error: original };
+          return { status: 0, stdout: JSON.stringify(inventory(["shared"])) };
+        }
+        if (command === process.execPath) {
+          transportCalls++;
+          assert.deepEqual(args, ["scripts/check-transport-contract.mts"]);
+          return { status: terminal === "transport-status" ? 8 : 0 };
+        }
+        runCalls++;
+        assert.deepEqual(args.slice(0, 5), [
+          "nextest",
+          "run",
+          "--locked",
+          ...(kind === "workspace" ? ["--workspace", "--all-targets"] : ["-p", "portcove-core"]),
+        ]);
+        assert.ok(
+          !args.includes("--binaries-metadata"),
+          "execution must retain normal compilation",
+        );
+        if (terminal === "run-error") return { error: original };
+        return { status: terminal === "test-status" ? 9 : 0 };
+      };
+      const invoke = () => {
+        const dependencies = { map, spawnSync: runner, report() {}, inventoryTempRoot: root };
+        return kind === "workspace"
+          ? runWorkspaceRustImpact(plan, dependencies)
+          : runRustImpactUnion(
+              "portcove-core",
+              ["catalog-contract", "definition-delivery"],
+              dependencies,
+            );
+      };
+      if (terminal === "list-error" || terminal === "run-error")
+        assert.throws(invoke, (error) => error === original);
+      else
+        assert.equal(
+          invoke(),
+          terminal === "test-status"
+            ? 9
+            : terminal === "transport-status" && kind === "workspace"
+              ? 8
+              : 0,
+        );
+      assert.deepEqual(prepared, [
+        [
+          "cargo-nextest",
+          [
+            "nextest",
+            "list",
+            "--locked",
+            ...(kind === "workspace" ? ["--workspace", "--all-targets"] : ["-p", "portcove-core"]),
+            "--list-type",
+            "binaries-only",
+            "--message-format",
+            "json",
+          ],
+        ],
+        ["cargo", ["metadata", "--locked", "--format-version", "1"]],
+      ]);
+      assert.equal(listings.length, terminal === "list-error" ? 1 : kind === "workspace" ? 4 : 3);
+      assert.equal(runCalls, terminal === "list-error" ? 0 : 1);
+      assert.equal(
+        transportCalls,
+        kind === "workspace" && ["success", "transport-status"].includes(terminal) ? 1 : 0,
+      );
+      assert.equal(existsSync(snapshotDirectory), false);
+      assert.deepEqual(readdirSync(root), []);
+    }
+  }
+});
+
+void test("metadata preparation refuses original process failures and incomplete identities before listing", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "portcove-impact-metadata-refusal-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const original = new Error("original metadata spawn failure");
+  const cases: {
+    stage: "binaries" | "cargo";
+    result: ReturnType<FixtureRunner>;
+    expected: RegExp | Error;
+  }[] = [
+    { stage: "binaries", result: { error: original }, expected: original },
+    {
+      stage: "binaries",
+      result: { status: 12, stderr: "retained binary failure" },
+      expected: /retained binary failure/u,
+    },
+    { stage: "cargo", result: { error: original }, expected: original },
+    {
+      stage: "cargo",
+      result: { status: 13, stderr: "retained cargo failure" },
+      expected: /retained cargo failure/u,
+    },
+    ...[
+      "",
+      "not-json",
+      "null",
+      "[]",
+      "{}",
+      JSON.stringify({ "rust-build-meta": {}, "rust-binaries": {} }),
+      JSON.stringify({
+        ...binaryMetadata(),
+        "rust-binaries": { wrong: { "binary-id": "different", "binary-path": process.execPath } },
+      }),
+      JSON.stringify({
+        ...binaryMetadata(),
+        "rust-binaries": { wrong: { "binary-id": "wrong", "binary-path": "relative" } },
+      }),
+    ].map((stdout) => ({
+      stage: "binaries" as const,
+      result: { status: 0, stdout },
+      expected: /./u,
+    })),
+    ...[
+      "null",
+      "{}",
+      JSON.stringify({ ...cargoMetadata(), resolve: null }),
+      JSON.stringify({ ...cargoMetadata(), packages: [] }),
+      JSON.stringify({ ...cargoMetadata(), workspace_members: [] }),
+    ].map((stdout) => ({ stage: "cargo" as const, result: { status: 0, stdout }, expected: /./u })),
+  ];
+  for (const { stage, result, expected } of cases) {
+    const invoke = () =>
+      runRustImpactUnion("portcove-core", ["catalog-contract", "definition-delivery"], {
+        map,
+        report() {},
+        inventoryTempRoot: root,
+        spawnSync(command, args, options) {
+          if (stage === "binaries" || command === "cargo") return result;
+          assert.ok(
+            args.includes("binaries-only"),
+            "invalid metadata must never reach listing or execution",
+          );
+          return withMetadataFixture(() => assert.fail())(command, args, options);
+        },
+      });
+    if (expected instanceof Error) assert.throws(invoke, (error) => error === expected);
+    else assert.throws(invoke, expected);
+    assert.deepEqual(readdirSync(root), []);
+  }
+});
+
+void test("missing or changed private metadata refuses after a listing and before the next listing or execution", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "portcove-impact-metadata-drift-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  for (const when of ["after-list", "between-lists", "before-run"] as const) {
+    for (const mutation of ["remove", "same-length-rewrite"] as const) {
+      let file = "";
+      let listings = 0;
+      let reports = 0;
+      const mutate = () => {
+        if (mutation === "remove") rmSync(file);
+        else {
+          const bytes = readFileSync(file);
+          bytes[0] = bytes[0] === 32 ? 123 : 32;
+          writeFileSync(file, bytes);
+        }
+      };
+      assert.throws(
+        () =>
+          runRustImpactUnion("portcove-core", ["catalog-contract", "definition-delivery"], {
+            map,
+            inventoryTempRoot: root,
+            report() {
+              reports++;
+              if (
+                (when === "between-lists" && reports === 1) ||
+                (when === "before-run" && reports === 3)
+              )
+                mutate();
+            },
+            spawnSync: withMetadataFixture((_command, args) => {
+              assert.equal(args[1], "list", "changed metadata must never reach execution");
+              file = requiredFixture(args[3]);
+              listings++;
+              if (when === "after-list") mutate();
+              return { status: 0, stdout: JSON.stringify(inventory(["shared"])) };
+            }),
+          }),
+        /metadata changed|ENOENT/u,
+      );
+      assert.equal(listings, when === "before-run" ? 3 : 1);
+      assert.deepEqual(readdirSync(root), []);
+    }
+  }
+});
+
 void test("impact union proves all groups before executing each distinct test once", () => {
   const calls: string[][] = [];
   const reports: string[] = [];
@@ -291,12 +548,12 @@ void test("impact union proves all groups before executing each distinct test on
   const status = runRustImpactUnion("portcove-core", ["catalog-contract", "definition-delivery"], {
     map,
     report: (message) => reports.push(message),
-    spawnSync(command, args) {
+    spawnSync: withMetadataFixture((command, args) => {
       calls.push([command, ...args]);
       return args[1] === "list"
         ? { status: 0, stdout: JSON.stringify(inventories.shift()) }
         : { status: 7 };
-    },
+    }),
   });
   assert.equal(status, 7);
   assert.deepEqual(
@@ -322,10 +579,10 @@ void test("empty groups, incomplete inventories and union drift stop before test
       runRustImpactUnion("portcove-core", ["catalog-contract", "definition-delivery"], {
         map,
         report() {},
-        spawnSync(_command, args) {
+        spawnSync: withMetadataFixture((_command, args) => {
           assert.equal(args[1], "list");
           return { status: 0, stdout: JSON.stringify(inventories.shift()) };
-        },
+        }),
       }),
     );
   }
@@ -355,7 +612,7 @@ void test("impact union rejects unknown or repeated group IDs and preserves inve
     assert.throws(() =>
       runRustImpactUnion("portcove-core", ["catalog-contract", "definition-delivery"], {
         map,
-        spawnSync: () => result,
+        spawnSync: withMetadataFixture(() => result),
       }),
     );
 });
