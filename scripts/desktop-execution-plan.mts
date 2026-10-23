@@ -174,6 +174,8 @@ export function planDesktopExecution(
   inputs.push({ kind: "file", path: "scripts/runtime-values.mts" });
   inputs.push({ kind: "file", path: "apps/desktop/scripts/browser-script.mts" });
   inputs.push({ kind: "file", path: "apps/desktop/scripts/browser-readiness.mts" });
+  // Both owning scenarios are statically imported by the native harness.
+  inputs.push({ kind: "file", path: "apps/desktop/scripts/native-enlargement.mts" });
   inputs.push({ kind: "file", path: "scripts/acceptance-packet.mts" });
   inputs.push(receiptSource(harnessUrl));
   if (selection.selected_scenarios.includes("native-host-publication-recovery"))

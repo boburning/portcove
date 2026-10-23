@@ -2148,3 +2148,13 @@ void test("colocated workflow contracts retain every former route and their dire
     }
   }
 });
+
+void test("native enlargement helper edits select receipt contracts and related frontend tests", () => {
+  const helper = "apps/desktop/scripts/native-enlargement.mts";
+  const selection = classifyChanges([{ status: "M", path: helper }], {
+    fileExists: allFilesExist,
+  });
+  assert.ok(selection.nodeTests.has("scripts/desktop-execution-plan.test.mts"));
+  assert.ok(selection.uiRelatedFiles.has(helper));
+  assert.equal(selection.ui, true);
+});
