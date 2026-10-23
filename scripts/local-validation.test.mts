@@ -49,6 +49,26 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 
 const allFilesExist = () => true;
 
+void test("historical desktop oracle edits retain the decoder and unchanged planner consumers", () => {
+  for (const file of [
+    "scripts/desktop-execution-baseline.mts",
+    "scripts/desktop-execution-baseline.test.mts",
+    "scripts/testdata/desktop-execution-baseline.json",
+    "scripts/desktop-execution-plan.test.mts",
+    "scripts/desktop-execution-plan.mts",
+    "scripts/desktop-scenarios.mts",
+  ]) {
+    const selection = classifyChanges([{ status: "M", path: file }], {
+      fileExists: allFilesExist,
+    });
+    for (const contract of [
+      "scripts/desktop-execution-baseline.test.mts",
+      "scripts/desktop-execution-plan.test.mts",
+    ])
+      assert.ok(selection.nodeTests.has(contract), `${file}: ${contract}`);
+  }
+});
+
 void test("Release recovery and Preview withdrawal inputs select complete test paths and serialize actual CI outputs", async (t) => {
   const files = [
     "scripts/release-pending-release-recovery.mts",
