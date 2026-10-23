@@ -1,5 +1,5 @@
 import { SettingsRow } from "./ui/patterns";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { pickSignedCatalogPath } from "../file-picker";
 import type {
@@ -574,6 +574,8 @@ function ListingDeliveryControls({
   disabled: boolean;
   onChanged?: (() => Promise<unknown>) | undefined;
 }) {
+  const metadataId = useId();
+  const targetsId = useId();
   const [status, setStatus] = useState<ListingDeliveryStatus>();
   const [metadata, setMetadata] = useState("");
   const [targets, setTargets] = useState("");
@@ -620,18 +622,20 @@ function ListingDeliveryControls({
         </p>
       )}
       {status?.fallback_reason && <p>{status.fallback_reason}</p>}
-      <label>
+      <label htmlFor={metadataId}>
         Catalog metadata address
         <Input
+          id={metadataId}
           value={metadata}
           onChange={(event) => setMetadata(event.target.value)}
           placeholder="https://"
           disabled={disabled || busy}
         />
       </label>
-      <label>
+      <label htmlFor={targetsId}>
         Catalog content address
         <Input
+          id={targetsId}
           value={targets}
           onChange={(event) => setTargets(event.target.value)}
           placeholder="https://"
