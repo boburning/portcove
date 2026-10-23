@@ -69,6 +69,26 @@ void test("historical desktop oracle edits retain the decoder and unchanged plan
   }
 });
 
+void test("checkpoint authentication sources retain security classification and their proof consumer", () => {
+  for (const file of [
+    "scripts/release-checkpoint-job-identity.mts",
+    "scripts/release-coordinator-checkpoint-authentication.mts",
+    "scripts/release-coordinator-checkpoint-evidence.mts",
+    "scripts/fixtures/checkpoint-proof-fixture.mts",
+    "scripts/github-controller-attestation.mts",
+    "scripts/assembler-job-identity.mts",
+    "scripts/release-coordinator-remote.mts",
+  ]) {
+    const selection = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
+    assert.ok(selection.scopes.has("release-tooling"), file);
+    assert.ok(
+      selection.nodeTests.has("scripts/release-coordinator-checkpoint-authentication.test.mts"),
+      file,
+    );
+    assert.ok(!selection.unknown.has(file), file);
+  }
+});
+
 void test("Release recovery and Preview withdrawal inputs select complete test paths and serialize actual CI outputs", async (t) => {
   const files = [
     "scripts/release-pending-release-recovery.mts",
@@ -1825,6 +1845,37 @@ void test("reviewed upstream accounting has an exact health-test owner without a
     { fileExists: allFilesExist },
   );
   assert.ok(other.unknown.has(".github/unreviewed-health-accounting.json"));
+});
+
+void test("upstream health sources select the affected offline contracts", () => {
+  const healthTests = [
+    "scripts/upstream-observer.test.mts",
+    "scripts/upstream-health.test.mts",
+    "scripts/upstream-health-plan.test.mts",
+    "scripts/upstream-health-monitor.test.mts",
+  ];
+  for (const file of [
+    "scripts/check-catalog-repositories.mts",
+    "scripts/upstream-health-inputs.mts",
+  ]) {
+    const owned = planFor([file]);
+    assert.equal(owned.selection.unknown.size, 0);
+    const command = requiredFixture(owned.plan.find((entry) => entry.id === "node-tests"));
+    for (const testFile of healthTests) assert.ok(command.args.includes(testFile), testFile);
+    assert.ok(!command.args.some((arg) => /release-controller|desktop-scenarios/u.test(arg)));
+  }
+  for (const [file, tests] of [
+    ["scripts/upstream-health-plan.mts", ["scripts/upstream-health-plan.test.mts"]],
+    ["scripts/upstream-health-monitor.mts", ["scripts/upstream-health-monitor.test.mts"]],
+    [
+      ".github/workflows/upstream-health.yml",
+      ["scripts/upstream-health-plan.test.mts", "scripts/upstream-health-monitor.test.mts"],
+    ],
+    ["scripts/node-test-suites.json", ["scripts/node-test-inventory.test.mts"]],
+  ] as const) {
+    const owned = planFor([file]);
+    for (const testFile of tests) assert.ok(owned.selection.nodeTests.has(testFile), testFile);
+  }
 });
 
 void test("optional local baseline compiles workspace tests once without duplicate lint/build stages", () => {

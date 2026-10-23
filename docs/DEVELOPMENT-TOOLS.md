@@ -432,7 +432,13 @@ need the prefetched Chromium shell. `vp test watch --project unit` provides watc
 with literal files for exact Node/browser selection and `just test-ui-related`
 for the public import graph. Failed browser
 screenshots and traces remain under `.vitest` and `work/bt`.
-The trace-probe script deliberately fails and preserves diagnostics.
+`pnpm --dir apps/desktop test:browser:trace-probe` succeeds only after the single
+deliberate assertion fails, the runner closes without additional errors, its
+fresh ZIP passes bounded structure/CRC and JSON event checks, and Chromium
+decodes the explicit PNG capture. Unexpected passes, launch or shutdown failures,
+missing and corrupt artifacts fail the command. All diagnostic failures and the
+verified intentional failure remain retained under `work/bt`. This is a
+diagnostic custody check; its success does not establish product test success.
 
 Browser-session connection has a finite 180-second Windows budget and a
 60-second budget elsewhere. This accommodates cold startup on shared Windows
@@ -1076,8 +1082,10 @@ cleanup command does not manage browser traces.
 In CI, the fast and full
 frontend lanes run the explicit bootstrap before browser tests and upload failure
 artifacts. The intentional failure probe is
-`pnpm --dir apps/desktop test:browser:trace-probe`; it exits nonzero and
-should be run only when validating trace retention.
+`pnpm --dir apps/desktop test:browser:trace-probe`; it exits zero only after
+verifying the expected assertion failure, completed shutdown and readable
+diagnostics. Run it when validating diagnostic retention; its result remains
+separate from product-test success.
 
 The initial browser composition mounts the shipped adoption modal, its review
 hook, shared controls, direction provider, styles, and a strict test-only Tauri
