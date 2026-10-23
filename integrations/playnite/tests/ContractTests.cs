@@ -39,12 +39,12 @@ internal static class ContractTests
         try
         {
             if (args.Length > 0 && args[0].StartsWith("qualification-", StringComparison.Ordinal))
-                RunQualification(args).GetAwaiter().GetResult();
-            else
-                return ScenarioRunner.Run(args, CreateScenarios, () => passed,
-                    () => Check(true, "runner continues the next independent scenario")).GetAwaiter().GetResult();
-            Console.WriteLine("PASS " + passed + " reference-client contract checks");
-            return 0;
+                return ScenarioRunner.Run(new string[0], (cli, library) => new[] {
+                    new ScenarioRunner.Scenario(args[0].Length <= 128 ? args[0] : "qualification-unrecognized-mode",
+                        () => RunQualification(args))
+                }, () => passed, () => { }).GetAwaiter().GetResult();
+            return ScenarioRunner.Run(args, CreateScenarios, () => passed,
+                () => Check(true, "runner continues the next independent scenario")).GetAwaiter().GetResult();
         }
         catch (Exception error) { Console.Error.WriteLine(error); return 1; }
     }

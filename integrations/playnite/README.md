@@ -384,6 +384,16 @@ executable and reject changed join, source, platform, runner and runtime metadat
 These are synthetic C# process contracts, with no Playnite-host, native-app or
 installed-package acceptance claim.
 
+The `qualification-*` consumer phases also use the same reporting path, with one
+named scenario per invocation and their original arguments, assertions and exit
+outcome. Names over 128 characters receive the explicit
+`qualification-unrecognized-mode` reporting identity; the original action still
+refuses the unknown mode. Runner controls exercise successful measurement,
+wrong-library and missing-argument dispatch with the existing synthetic CLI.
+Their `RUNNER_QUALIFICATION_CONTROL_OUTPUT` prefix keeps those results separate
+from actual Rust-producer lifecycle qualification. The fake CLI and `argv`
+service modes remain transport fixtures, not test scenarios.
+
 Full contract checks also run separate intentional failure, continuation and
 reporting-failure controls. Their retained output has a `RUNNER_CONTROL_OUTPUT`
 or `RUNNER_REPORTING_CONTROL_OUTPUT` prefix; skipped-only controls use

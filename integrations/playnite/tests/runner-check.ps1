@@ -88,4 +88,23 @@ foreach ($invalid in @(
         throw "Invalid selection executed scenarios before refusing: $refused"
     }
 }
+# Exercise actual qualification dispatch with the existing synthetic producer.
+# These controls are not real Rust producer or Playnite lifecycle qualification.
+$library = Join-Path (Split-Path $Executable) 'fixture-library'
+foreach ($item in @(
+    @{arguments = @('qualification-measurement', $Executable, $library, 'shape-a', 'owned-fixture'); exit = 0; checks = 3; failure = $null},
+    @{arguments = @('qualification-measurement', $Executable, $library, 'shape-a', 'wrong-library'); exit = 1; checks = 0; failure = 'library identity is stable across compiled-client reconnects'},
+    @{arguments = @('qualification-source-guidance'); exit = 1; checks = 0; failure = 'Qualification mode requires a CLI, library, and fixture port.'}
+)) {
+    $phase = @(Invoke-RunnerControl $Executable $item.arguments $item.exit)
+    $phaseRecords = @($phase | Where-Object { $_.StartsWith('SCENARIO ') } | ForEach-Object { $_.Substring(9) | ConvertFrom-Json })
+    Assert-ScenarioIdentity $phaseRecords $Executable
+    if ($phaseRecords.Count -ne 1 -or $phaseRecords[0].id -cne $item.arguments[0] -or
+        $phaseRecords[0].checks -ne $item.checks -or
+        $phaseRecords[0].status -cne $(if ($item.exit -eq 0) { 'passed' } else { 'failed' }) -or
+        $phaseRecords[0].failure.message -cne $item.failure) {
+        throw "Qualification dispatch lost its original outcome or joined record: $phase"
+    }
+    foreach ($line in $phase) { Write-Output "RUNNER_QUALIFICATION_CONTROL_OUTPUT $line" }
+}
 Write-Output 'PASS scenario runner failure continuation, aggregate exit, selection and joined identity controls'
