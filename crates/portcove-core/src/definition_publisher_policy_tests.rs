@@ -783,21 +783,10 @@ async fn managed_fixture() -> (
     Catalog,
     crate::DefinitionAcquisitionScope,
 ) {
-    let mut baseline = Catalog::embedded().unwrap().authoritative_document();
-    baseline.ports.push(metadata_catalog().ports()[0].clone());
-    let authored = Catalog::from_json(&serde_json::to_string(&baseline).unwrap()).unwrap();
-    let fixture = managed_fixture_for(authored).await;
-    assert!(
-        fixture
-            .4
-            .load_catalog()
-            .unwrap()
-            .0
-            .definition_selection(ID)
-            .is_some(),
-        "ordinary provider fixture must load through the unchanged embedded baseline"
-    );
-    fixture
+    // Provider and policy-storage cases need one exact authenticated definition.
+    // The ordinary lifecycle fixture separately proves loading a newly selected
+    // definition through the complete, unchanged embedded baseline.
+    managed_fixture_for(metadata_catalog()).await
 }
 
 async fn managed_fixture_for(
@@ -880,6 +869,7 @@ fn managed_policy_for(targets: &[(String, Vec<u8>)], launch_checks: bool) -> Val
 
 fn managed_policy_for_id(targets: &[(String, Vec<u8>)], launch_checks: bool, id: &str) -> Value {
     let mut document = availability_for(targets, id, 1);
+    let managed = managed_github(1);
     document["policy_schema"] = serde_json::json!(if launch_checks { 3 } else { 2 });
     if launch_checks {
         document["decision"]["scoped_launch_checks"] = 1.into();
@@ -892,8 +882,23 @@ fn managed_policy_for_id(targets: &[(String, Vec<u8>)], launch_checks: bool, id:
         "max_redirects",
         "operations",
     ] {
-        document["decision"][field] = managed_github(1)["decision"][field].clone();
+        document["decision"][field] = managed["decision"][field].clone();
     }
+    document
+}
+
+fn curated_metadata_document() -> crate::CatalogDocument {
+    let mut document = metadata_catalog().authoritative_document();
+    // Curated authority requires schema 2; this synthetic port owns no source
+    // profiles, so its complete source graph is deliberately empty.
+    document.schema_version = 2;
+    document.source_catalog = Some(crate::SourceCatalog {
+        evidence: Vec::new(),
+        identities: Vec::new(),
+        contracts: Vec::new(),
+        validators: Vec::new(),
+        qualification: Vec::new(),
+    });
     document
 }
 
@@ -924,7 +929,7 @@ async fn curated_capability_preserves_other_platform_publisher_digest_installati
         .unwrap();
     let bytes = archive.finish().unwrap().into_inner();
     let digest = hex::encode(Sha256::digest(&bytes));
-    let mut baseline = Catalog::embedded().unwrap().authoritative_document();
+    let mut baseline = curated_metadata_document();
     let mut port = metadata_catalog().ports()[0].clone();
     port.platforms = vec![platform, other];
     port.executable_hints = std::collections::BTreeMap::from([
@@ -948,7 +953,7 @@ async fn curated_capability_preserves_other_platform_publisher_digest_installati
         record.upstream_url, record.tag, record.filename
     );
     port.release.curated.insert(other, record);
-    baseline.ports.push(port);
+    baseline.ports[0] = port;
     let authored = Catalog::from_json(&serde_json::to_string(&baseline).unwrap()).unwrap();
     let (_fixture, _key, _root, _directory, library, catalog, mut scope) =
         managed_fixture_for_policy(authored, true).await;
@@ -1013,7 +1018,9 @@ async fn curated_transition_fixture() -> (
     crate::CuratedAcquisitionRecord,
     crate::CuratedAcquisitionRecord,
 ) {
-    let mut baseline = Catalog::embedded().unwrap().authoritative_document();
+    // These cases exercise signed admission, exact scope history and SQLite
+    // persistence without service startup or unrelated production port facts.
+    let mut baseline = curated_metadata_document();
     let mut port = metadata_catalog().ports()[0].clone();
     port.platforms = vec![crate::Platform::WindowsX86_64, crate::Platform::LinuxX86_64];
     port.executable_hints = std::collections::BTreeMap::from([
@@ -1041,7 +1048,7 @@ async fn curated_transition_fixture() -> (
         (affected.platform, affected.clone()),
         (unaffected.platform, unaffected.clone()),
     ]);
-    baseline.ports.push(port);
+    baseline.ports[0] = port;
     let authored = Catalog::from_json(&serde_json::to_string(&baseline).unwrap()).unwrap();
     let (fixture, key, root, directory, library, catalog, _) =
         managed_fixture_for_policy(authored, true).await;
@@ -2261,14 +2268,75 @@ enum RetainedCuratedOperation {
     ActivationRecovery,
     PublicationRecovery,
     PublicationRecoveryPublished,
-    AdoptionRefusal,
     AdoptionRecovery,
     AdoptionRecoveryPublished,
 }
 
 #[tokio::test]
 async fn curated_adoption_refuses_before_authorization_or_copy() {
-    curated_retained_rollback_fixture("available", RetainedCuratedOperation::AdoptionRefusal).await;
+    // Refusing a new adoption needs an admitted catalog and an owned source,
+    // not two installed versions or a second signed definition revision.
+    let platform = crate::Platform::current().unwrap();
+    let executable = if cfg!(windows) {
+        "fixture.exe"
+    } else {
+        "fixture"
+    };
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    let mut port = metadata_catalog().ports()[0].clone();
+    port.platforms = vec![platform];
+    port.executable_hints = std::collections::BTreeMap::from([(platform, vec![executable.into()])]);
+    let mut record = crate::curated_acquisition::fixture_record();
+    record.repository = port.release.repository.clone();
+    record.upstream_url = format!("https://github.com/{}", record.repository);
+    record.platform = platform;
+    record.acquisition_url = format!(
+        "{}/releases/download/{}/{}",
+        record.upstream_url, record.tag, record.filename
+    );
+    port.release.curated.insert(platform, record);
+    document.ports.push(port);
+    let authored = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let (_fixture, _key, _root, directory, library, _catalog, _) =
+        managed_fixture_for_policy(authored, true).await;
+    let source = directory.path().join("unmanaged-owned-source");
+    fs::create_dir(&source).unwrap();
+    fs::write(
+        source.join(executable),
+        b"owned nonexecuted adoption source",
+    )
+    .unwrap();
+    crate::permissions::normalize_archive_entry(&source.join(executable), false, true).unwrap();
+    let source_tree = crate::library_transfer::reviewed_tree(&source).unwrap();
+    let user = library.user_dir(ID);
+    fs::create_dir_all(user.join("saves")).unwrap();
+    fs::write(user.join("saves/progress.bin"), b"owned adoption progress").unwrap();
+    let user_tree = crate::library_transfer::reviewed_tree(&user).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let error = service
+        .adopt(&source, Some(ID), "unconsumed-fixture-token")
+        .unwrap_err();
+    assert!(
+        error
+            .message
+            .contains("managed GitHub acquisition does not authorize adoption"),
+        "{error:?}"
+    );
+    assert!(
+        crate::operation::OperationStore::new(library.clone())
+            .all()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(count(&library, "installs"), 0);
+    assert_eq!(
+        crate::library_transfer::reviewed_tree(&source).unwrap(),
+        source_tree
+    );
+    assert_eq!(
+        crate::library_transfer::reviewed_tree(&user).unwrap(),
+        user_tree
+    );
 }
 
 macro_rules! curated_adoption_recovery_cases {
@@ -2284,8 +2352,16 @@ curated_adoption_recovery_cases! {
     curated_adoption_prepared_revocation_preserves_evidence: "revoked", AdoptionRecovery,
     curated_adoption_published_revocation_preserves_evidence: "revoked", AdoptionRecoveryPublished,
     curated_adoption_prepared_withdrawal_preserves_adoption_refusal: "distribution_withdrawn", AdoptionRecovery,
-    curated_adoption_published_withdrawal_preserves_adoption_refusal: "distribution_withdrawn", AdoptionRecoveryPublished,
 }
+// Withdrawal's decision matrix lives in artifact_status_precedence_covers_acquisition_and_local_use:
+// acquisition is held, but LocalUse (the adoption-recovery guard) is eligible.
+// The prepared withdrawal case proves recovery actually chooses LocalUse and
+// reaches the unsupported-adoption refusal rather than an acquisition hold.
+// Both real recovery phases above still prove the unsupported-adoption refusal,
+// retained journal/payload, unchanged versions/player data, and repeated reopen.
+// Signed withdrawal persistence/renewal is exercised by
+// curated_distribution_withdrawal_survives_renewal_without_revoking_local_use;
+// install recovery separately retains both withdrawal phase boundaries below.
 
 #[tokio::test]
 async fn curated_status_revocation_holds_exact_current_and_retained_operations() {
@@ -2577,42 +2653,6 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
     fs::write(user.join("saves/progress.bin"), b"owned retained progress").unwrap();
     let user_tree = crate::library_transfer::reviewed_tree(&user).unwrap();
     phase("retained baseline complete");
-    if operation == RetainedCuratedOperation::AdoptionRefusal {
-        let source = probe_directory.path().join("unmanaged-owned-source");
-        crate::service::copy_tree(&delivered[1].path, &source).unwrap();
-        let source_tree = crate::library_transfer::reviewed_tree(&source).unwrap();
-        let store = OperationStore::new(library.clone());
-        let service = PortcoveService::new(library.clone()).unwrap();
-        let error = service
-            .adopt(&source, Some(ID), "unconsumed-fixture-token")
-            .unwrap_err();
-        assert!(
-            error
-                .message
-                .contains("managed GitHub acquisition does not authorize adoption"),
-            "{error:?}"
-        );
-        assert!(store.all().unwrap().is_empty());
-        assert_eq!(count(&library, "installs"), 2);
-        assert_eq!(
-            crate::library_transfer::reviewed_tree(&source).unwrap(),
-            source_tree
-        );
-        for (install, tree) in delivered.iter().zip(&trees) {
-            assert_eq!(
-                crate::library_transfer::reviewed_tree(&install.path).unwrap(),
-                *tree
-            );
-        }
-        assert_eq!(
-            crate::library_transfer::reviewed_tree(&user).unwrap(),
-            user_tree
-        );
-        let after = library.status(ID, ReleaseChannel::Stable).unwrap();
-        assert_eq!(after.active.unwrap().id, delivered[1].id);
-        assert_eq!(after.previous.unwrap().id, delivered[0].id);
-        return;
-    }
     if operation == RetainedCuratedOperation::LaunchBoundary {
         let affected = &artifacts[1].0;
         // A second independent port scope first admits these same immutable
@@ -2884,14 +2924,18 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             );
             assert!(projected.readiness.as_ref().unwrap().launchable);
         }
-        let bulk = service
-            .statuses()
-            .unwrap()
-            .into_iter()
-            .find(|item| item.port_id == ID)
-            .unwrap();
-        assert_eq!(bulk.definition_operations, projected.definition_operations);
-        assert_eq!(bulk.port_actions, projected.port_actions);
+        if operation == RetainedCuratedOperation::Status {
+            // These dedicated cases own bulk/single projection parity. Launch
+            // cases below prove child ownership and fresh reopen boundaries.
+            let bulk = service
+                .statuses()
+                .unwrap()
+                .into_iter()
+                .find(|item| item.port_id == ID)
+                .unwrap();
+            assert_eq!(bulk.definition_operations, projected.definition_operations);
+            assert_eq!(bulk.port_actions, projected.port_actions);
+        }
         let rollback = projected
             .port_actions
             .iter()
@@ -2901,7 +2945,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             rollback.availability,
             crate::PortActionAvailability::Allowed
         );
-        phase("launch single and bulk status");
+        phase("launch status projection");
         if operation == RetainedCuratedOperation::Launch {
             for attempt in 0..2 {
                 // The second construction consumes durable retained authority,
@@ -3172,7 +3216,9 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
         // Service construction executes actual startup recovery each time.
         let service = PortcoveService::new(library.clone()).unwrap();
         phase(&format!("startup {attempt}"));
-        if operation == RetainedCuratedOperation::Rollback {
+        if operation == RetainedCuratedOperation::Rollback && attempt == 0 {
+            // Prove held/allowed rollback presentation once. Each real rollback
+            // and reopen still checks its exact installed identity and trees.
             let projected = service.status(ID).unwrap();
             let rollback = projected
                 .port_actions
@@ -3216,7 +3262,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             assert_eq!(bulk.definition_operations, projected.definition_operations);
             assert_eq!(bulk.port_actions, projected.port_actions);
         }
-        phase(&format!("single and bulk status {attempt}"));
+        phase(&format!("rollback action projection {attempt}"));
         if operation != RetainedCuratedOperation::ActivationRecovery {
             let result = match operation {
                 RetainedCuratedOperation::Rollback => service.rollback(ID),

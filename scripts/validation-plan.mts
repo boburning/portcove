@@ -168,6 +168,7 @@ const protectedPolicyDocuments = new Set([
 
 const protectedPolicyFiles = withNodeTestCompanions([
   ".config/nextest.toml",
+  ".config/rust-test-timing-hints.json",
   ".github/qualification-coverage.json",
   ".github/repository-ruleset.json",
   ".github/repository-security.json",
@@ -199,6 +200,7 @@ const protectedPolicyFiles = withNodeTestCompanions([
   "scripts/validation-platforms.mts",
   "scripts/repository-settings.mts",
   "scripts/run-rust-tests.mts",
+  "scripts/windows-rust-tests.mts",
   "scripts/rust-test-tree-supervisor.mts",
   "scripts/fixtures/linux-process-tree-reaper.rs.txt",
   "scripts/select-ci-plan.mts",
@@ -646,6 +648,8 @@ function classifyPath(file: string): PathOwnership {
     "deny.toml",
     ".config/nextest.toml",
     ".config/rust-test-impact.json",
+    ".config/rust-test-timing-hints.json",
+    "scripts/windows-rust-tests.mts",
   ].includes(file);
   match(documentation, "documentation", ["catalog", "rust-quality"], "documentation-contract");
   // Prose and captures are inert even when their topic names a platform or schema.
@@ -893,6 +897,8 @@ function classifyAuditPath(file: string): PathOwnership {
         "rust-toolchain.toml",
         "deny.toml",
         ".config/nextest.toml",
+        ".config/rust-test-timing-hints.json",
+        "scripts/windows-rust-tests.mts",
       ].includes(file),
     "rust",
     ["rust", "rust-quality"],

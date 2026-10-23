@@ -331,6 +331,61 @@ void test("bootstrap regressions are limited to infrastructure, including old re
   });
   assert.deepEqual(baselineBootstrapTests(plan), ["scripts/rust-support-cache.test.mts"]);
 });
+void test("Windows archive helper and timing edits retain Rust execution and their causal contracts", () => {
+  const contracts = [
+    "scripts/ci-workflow.test.mts",
+    "scripts/ci-result-gate.test.mts",
+    "scripts/ci-baseline.test.mts",
+    "scripts/rust-test-impact.test.mts",
+  ];
+  for (const file of ["scripts/windows-rust-tests.mts", ".config/rust-test-timing-hints.json"]) {
+    for (const change of [
+      { status: "M", path: file },
+      { status: "A", path: file },
+      { status: "D", path: file },
+      { status: "R100", path: "docs/windows-test-routing.md", previousPath: file },
+      { status: "R100", path: file, previousPath: "docs/windows-test-routing.md" },
+    ]) {
+      const label = JSON.stringify(change);
+      const plan = buildValidationPlan({
+        changes: [
+          {
+            status: change.status,
+            oldPath: change.previousPath ?? change.path,
+            newPath: change.path,
+            oldMode: change.status === "A" ? "000000" : "100644",
+            newMode: change.status === "D" ? "000000" : "100644",
+          },
+        ],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      assert.equal(plan.mode, "fast", label);
+      assert.equal(plan.fallback, null, label);
+      assert.deepEqual(plan.groups, ["catalog", "rust", "rust-quality"], label);
+      assert.ok(plan.areas.includes("policy"), label);
+      const local = classifyChanges([change], { fileExists: () => false });
+      assert.equal(local.unknown.size, 0, label);
+      assert.ok(local.workspaceRust && local.workspaceRustTests, label);
+      assert.ok(
+        buildPlan(local, { validationPlan: plan }).some(
+          (entry) => entry.id === "rust-workspace-tests",
+        ),
+        label,
+      );
+      const hosted = baselineContractTests(plan, { fileExists: () => false });
+      for (const contract of contracts) {
+        assert.ok(local.nodeTests.has(contract), `${label}: local ${contract}`);
+        assert.equal(hosted.filter((test) => test === contract).length, 1, `${label}: ${contract}`);
+      }
+      assert.ok(hosted.includes("scripts/qualification-coverage.test.mts"), label);
+      assert.equal(baselineRequiresPython(plan), true, label);
+    }
+  }
+});
 void test("hosted contracts retain relevant script/docs/schema tests without stateful qualification", () => {
   const p = make(["scripts/run-rust-tests.mts", "docs/QUALITY.md"]);
   const tests = baselineContractTests(p);

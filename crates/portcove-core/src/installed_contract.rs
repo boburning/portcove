@@ -9,10 +9,12 @@ use std::sync::{Arc, Mutex};
 
 use crate::{Catalog, DefinitionSelectionIdentity, PortcoveError, Result};
 
-// Cache only pure decoding of one exact format and bounded content string. Installation
-// reads still verify the current manifest bytes and digest first;
-// source admission, revocation policy and filesystem integrity are not cached.
-static DECODED_CATALOG: Mutex<Option<(u32, String, Catalog)>> = Mutex::new(None);
+// Keep the active and previous immutable interpretations without evicting each
+// other on every rollback/status read. Keys retain the complete bounded bytes
+// and format, never a mutable path or an authorization result. Installation reads
+// still verify current manifest bytes/digests; policy and integrity stay fresh.
+static DECODED_CATALOGS: Mutex<Vec<(u32, String, Catalog)>> = Mutex::new(Vec::new());
+const DECODED_CATALOG_CAPACITY: usize = 2;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -139,13 +141,16 @@ impl InstalledContract {
                 cache_key,
             ))?;
         }
-        if let Ok(cache) = DECODED_CATALOG.lock()
-            && let Some((format, content, catalog)) = cache.as_ref()
-            && *format == self.format
-            && content == &cache_key
+        if let Ok(mut cache) = DECODED_CATALOGS.lock()
+            && let Some(index) = cache
+                .iter()
+                .position(|(format, content, _)| *format == self.format && content == &cache_key)
         {
+            let entry = cache.remove(index);
+            let catalog = entry.2.clone();
+            cache.push(entry);
             catalog.port(port_id)?;
-            return Ok(catalog.clone());
+            return Ok(catalog);
         }
         let mut catalog = match &self.definition {
             Some(definition) => definition.catalog()?,
@@ -177,8 +182,14 @@ impl InstalledContract {
                 "retained definition contains unsupported or noncanonical semantics",
             ));
         }
-        if let Ok(mut cache) = DECODED_CATALOG.lock() {
-            *cache = Some((self.format, cache_key, catalog.clone()));
+        if let Ok(mut cache) = DECODED_CATALOGS.lock() {
+            // Another reader may have completed the same pure interpretation
+            // while this one validated outside the lock.
+            cache.retain(|(format, content, _)| *format != self.format || content != &cache_key);
+            if cache.len() == DECODED_CATALOG_CAPACITY {
+                cache.remove(0);
+            }
+            cache.push((self.format, cache_key, catalog.clone()));
         }
         Ok(catalog)
     }
@@ -295,10 +306,16 @@ mod tests {
             .unwrap()
             .n64_windows_initial_d3d12 = false;
         let legacy = Catalog::from_json(&serde_json::to_string(&legacy_document).unwrap()).unwrap();
-        for (catalog, expected) in [(&legacy, false), (&current, true)] {
+        let contracts = [(&legacy, false), (&current, true)].map(|(catalog, expected)| {
             let captured = InstalledContract::capture(catalog, "dr-mario-64-recomp").unwrap();
             let restored: InstalledContract =
                 serde_json::from_slice(&serde_json::to_vec(&captured).unwrap()).unwrap();
+            (restored, expected)
+        });
+        // Alternate active/previous semantics through repeated reads. A cached
+        // interpretation cannot follow the most recently decoded catalog.
+        for index in [0, 1, 0, 1] {
+            let (restored, expected) = &contracts[index];
             assert_eq!(
                 restored
                     .catalog("dr-mario-64-recomp")
@@ -306,7 +323,7 @@ mod tests {
                     .port("dr-mario-64-recomp")
                     .unwrap()
                     .n64_windows_initial_d3d12,
-                expected
+                *expected
             );
         }
     }

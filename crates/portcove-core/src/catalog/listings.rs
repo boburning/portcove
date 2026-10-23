@@ -217,7 +217,7 @@ impl Catalog {
                 )));
             }
         }
-        self.listings = document;
+        self.listings = Arc::new(document);
         Ok(self)
     }
 
@@ -258,7 +258,7 @@ impl Catalog {
         listing.validate()?;
         let mut catalog =
             Self::from_json(r#"{"schema_version":1,"source_profiles":[],"ports":[]}"#)?;
-        catalog.listings.listings.push(listing);
+        Arc::make_mut(&mut catalog.listings).listings.push(listing);
         catalog.user_selected_listing = true;
         Ok(catalog)
     }
@@ -302,6 +302,25 @@ mod tests {
                 .get("adapter")
                 .is_none()
         );
+    }
+
+    #[test]
+    fn cloned_catalog_keeps_listing_changes_and_owned_documents_independent() {
+        let original =
+            Catalog::for_user_selected_listing(serde_json::from_value(listing()).unwrap()).unwrap();
+        let retained = original.clone();
+        let mut listings = original.listing_document().clone();
+        listings.listings[0].name = "Changed display name".into();
+        let changed = original.with_listing_document(listings).unwrap();
+        assert_eq!(retained.listings()[0].name, "Source-only project");
+        assert_eq!(changed.listings()[0].name, "Changed display name");
+        assert!(retained.is_user_selected_listing("source-only-project"));
+        assert!(changed.is_user_selected_listing("source-only-project"));
+        let mut owned = retained.authoritative_document();
+        owned.schema_version = 99;
+        assert_eq!(retained.document().schema_version, 1);
+        assert_eq!(changed.document().schema_version, 1);
+        assert!(Catalog::from_json(&serde_json::to_string(&owned).unwrap()).is_err());
     }
 
     #[test]

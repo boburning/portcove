@@ -57,6 +57,18 @@
           "filter": "test(/^definition_capabilities::tests::/) | test(/^definition_entry::tests::/) | test(/^definition_index::tests::/) | test(/^definition_loader::tests::/) | test(/^definition_policy_tests::/) | test(/^definition_projection::tests::/) | test(/^definition_repository::tests::/) | test(/^installed_contract::tests::/)"
         },
         {
+          "id": "publisher-policy-fixtures",
+          "reason": "private publisher-policy, authority, refresh and launch fixtures own one policy family; connected publication also consumes its availability fixture",
+          "paths": [
+            "crates/portcove-core/src/definition_publisher_policy_tests.rs",
+            "crates/portcove-core/src/definition_launch_assessment_tests.rs",
+            "crates/portcove-core/src/definition_authority_tests.rs",
+            "crates/portcove-core/src/definition_refresh_tests.rs",
+            "crates/portcove-core/src/definition_compiled_client_tests.rs"
+          ],
+          "filter": "test(/^definition_repository::tests::publisher_policy_tests::/) | test(/^definition_repository::tests::publication_connected::/)"
+        },
+        {
           "id": "library-import-fixtures",
           "reason": "the private library-import test module owns its complete preservation, retained-definition, interruption, recovery and authority assertions; shared implementation changes remain broad",
           "paths": ["crates/portcove-core/src/import_execution_tests.rs"],
@@ -112,6 +124,39 @@
       "path_prefix": "crates/portcove-cli/",
       "broad_reason": "shared or unmapped CLI changes require the complete portcove-cli test inventory",
       "groups": [
+        {
+          "id": "preparation-fixtures",
+          "reason": "private preparation scenarios consume the launch fixture's observation and recovery helpers, so both families follow either file",
+          "paths": [
+            "crates/portcove-cli/tests/machine_contract/preparation.rs",
+            "crates/portcove-cli/tests/machine_contract/launch.rs"
+          ],
+          "filter": "binary(=machine_contract) & (test(/^preparation_contract::/) | test(/^launch_contract::/))"
+        },
+        {
+          "id": "retained-build-fixtures",
+          "reason": "private retained-build CLI fixtures own their exact-byte, recovery and schema contracts; shared CLI and fixture inputs remain broad",
+          "paths": ["crates/portcove-cli/tests/machine_contract/retained_builds.rs"],
+          "filter": "binary(=machine_contract) & test(/^retained_build_contract::/)"
+        },
+        {
+          "id": "self-service-fixtures",
+          "reason": "private listing and user-selected runtime CLI fixtures own their public restart, relink and removal journeys",
+          "paths": ["crates/portcove-cli/tests/machine_contract/self_service.rs"],
+          "filter": "binary(=machine_contract) & test(/^self_service_contract::/)"
+        },
+        {
+          "id": "definition-capability-fixtures",
+          "reason": "private offline capability CLI fixtures own advertised definitions, publication, authority and listing-delivery contracts",
+          "paths": ["crates/portcove-cli/tests/machine_contract/definition_capabilities.rs"],
+          "filter": "binary(=machine_contract) & test(/^definition_capability_contract::/)"
+        },
+        {
+          "id": "human-presentation-fixtures",
+          "reason": "private human-output CLI fixtures own prompts, consent, redirected help and parity with machine errors",
+          "paths": ["crates/portcove-cli/tests/machine_contract/human_presentation.rs"],
+          "filter": "binary(=machine_contract) & test(/^human_presentation::/)"
+        },
         {
           "id": "artwork-fixtures",
           "reason": "the public artwork consumer fixture preserves catalog defaults, local choices, reset and explicit cleanup",

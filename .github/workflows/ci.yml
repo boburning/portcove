@@ -201,13 +201,15 @@ jobs:
 
   fast_rust:
     timeout-minutes: 45
-    name: fast-rust (windows-x86_64)
+    name: fast-rust-build (windows-x86_64)
     needs: classify
+    outputs:
+      matrix: ${{ steps.archive.outputs.matrix }}
+      manifest_sha256: ${{ steps.archive.outputs.manifest_sha256 }}
     if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
     runs-on: windows-latest
     env:
       PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
-      PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR: ${{ github.workspace }}/work/runtime-diagnostics/windows
       PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -243,6 +245,72 @@ jobs:
         run: node scripts/ci-metrics.mts cache rust-workspace "$env:PORTCOVE_CACHE_HIT"
       - name: Exercise relevant bootstrap regressions on Windows
         run: node scripts/ci-baseline.mts bootstrap
+      - name: Compile workspace targets and archive balanced test partitions
+        id: archive
+        run: node scripts/run-rust-tests.mts --guard-command node scripts/windows-rust-tests.mts build
+      - name: Upload this attempt's Windows test archive and manifest
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-rust-tests-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/windows-rust-tests/tests.tar.zst
+            work/windows-rust-tests/manifest.json
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 1
+      - name: Summarize diagnostic timings
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          node scripts/ci-metrics.mts summarize "$env:PORTCOVE_CI_METRICS_DIR" >> $env:GITHUB_STEP_SUMMARY
+      - name: Retain diagnostic timings
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ci-timings-${{ github.job }}-${{ github.run_attempt }}
+          path: work/ci-metrics/*.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  fast_rust_tests:
+    timeout-minutes: 45
+    name: fast-rust-test (windows-x86_64, ${{ matrix.partition }})
+    needs: [classify, fast_rust]
+    if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.fast_rust.outputs.matrix) }}
+    env:
+      PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
+      PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR: ${{ github.workspace }}/work/runtime-diagnostics/windows
+      PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
+      PORTCOVE_WINDOWS_MANIFEST_SHA256: ${{ needs.fast_rust.outputs.manifest_sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-rust
+        with:
+          test-fixtures: true
+      - name: Read pinned test runner
+        id: test-runner
+        shell: pwsh
+        run: |
+          $manifest = Get-Content .github/quality-tools.json -Raw | ConvertFrom-Json
+          $version = ($manifest.tools | Where-Object id -eq "cargo-nextest").version
+          if (-not $version) { throw "Missing cargo-nextest version" }
+          "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
+      - name: Install pinned test runner
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
+        with:
+          tool: ${{ steps.test-runner.outputs.spec }}
+      - name: Download this attempt's Windows test archive and manifest
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: windows-rust-tests-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/windows-rust-tests
       - name: Record runtime diagnostics fixture source and compiler
         shell: pwsh
         run: |
@@ -254,18 +322,57 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           rustc --version --verbose > "$env:PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/compiler.txt"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Compile workspace targets and test affected families
+      - name: Execute the verified Windows test partition
         env:
-          PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
-        run: node scripts/run-rust-tests.mts --guard-command node scripts/rust-test-impact.mts --workspace-run
+          PORTCOVE_WINDOWS_PARTITION: ${{ matrix.partition }}
+        run: node scripts/run-rust-tests.mts --guard-command node scripts/windows-rust-tests.mts run "$env:PORTCOVE_WINDOWS_PARTITION"
       - name: Retain runtime diagnostics acceptance and latency evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: runtime-diagnostics-windows-${{ github.run_id }}-${{ github.run_attempt }}
-          path: work/runtime-diagnostics/windows/
+          name: runtime-diagnostics-windows-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.partition }}
+          path: |
+            work/runtime-diagnostics/windows/
+            target/nextest/hosted-windows/junit.xml
           if-no-files-found: warn
           retention-days: 7
+      - name: Summarize diagnostic timings
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          node scripts/ci-metrics.mts summarize "$env:PORTCOVE_CI_METRICS_DIR" >> $env:GITHUB_STEP_SUMMARY
+      - name: Retain diagnostic timings
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ci-timings-${{ github.job }}-${{ matrix.partition }}-${{ github.run_attempt }}
+          path: work/ci-metrics/*.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  fast_rust_transport:
+    timeout-minutes: 45
+    name: fast-rust-transport (windows-x86_64)
+    needs: classify
+    if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
+    runs-on: windows-latest
+    env:
+      PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
+      PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          cache-on-failure: true
+          key: fast-rust-transport-${{ hashFiles('Cargo.toml') }}
+      - name: Compare live CLI and headless and native Desktop serialization
+        run: node scripts/run-rust-tests.mts --guard-command node scripts/check-transport-contract.mts
       - name: Summarize diagnostic timings
         if: always()
         continue-on-error: true
@@ -876,6 +983,8 @@ jobs:
         classify,
         prose_checks,
         fast_rust,
+        fast_rust_tests,
+        fast_rust_transport,
         rust_tests,
         rust_workspace_tests,
         rust_clippy,
@@ -894,7 +1003,7 @@ jobs:
           PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
           PORTCOVE_GROUP: rust
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
-          PORTCOVE_FAST_RESULTS: '{"fast_rust":"${{ needs.fast_rust.result }}"}'
+          PORTCOVE_FAST_RESULTS: '{"fast_rust":"${{ needs.fast_rust.result }}","fast_rust_tests":"${{ needs.fast_rust_tests.result }}","fast_rust_transport":"${{ needs.fast_rust_transport.result }}"}'
           PORTCOVE_TARGETED_RESULTS: "{}"
           PORTCOVE_QUALIFICATION_RESULTS: '{"rust_tests":"${{ needs.rust_tests.result }}","rust_workspace_tests":"${{ needs.rust_workspace_tests.result }}","rust_clippy":"${{ needs.rust_clippy.result }}","windows_storage":"${{ needs.windows_storage.result }}","native_rust":"${{ needs.native_rust.result }}","intel_build":"${{ needs.intel_build.result }}","intel_tests":"${{ needs.intel_tests.result }}","rust_docs":"${{ needs.rust_docs.result }}"}'
         run: node scripts/ci-result-gate.mts

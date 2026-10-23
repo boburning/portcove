@@ -36,11 +36,11 @@ pub struct CatalogProposalPortInspection {
 
 #[derive(Debug, Clone)]
 pub struct Catalog {
-    document: CatalogDocument,
-    listings: crate::CatalogListingDocument,
+    document: Arc<CatalogDocument>,
+    listings: Arc<crate::CatalogListingDocument>,
     /// A retained execution-intent envelope, never an operational definition.
     user_selected_listing: bool,
-    definition_snapshot: Option<Arc<crate::definition_projection::DefinitionSnapshot>>,
+    definition_snapshot: Option<(Arc<crate::definition_projection::DefinitionSnapshot>, u64)>,
     definition_selection: Option<Arc<crate::DefinitionSelectionIdentity>>,
 }
 
@@ -136,16 +136,16 @@ impl Catalog {
             }
         }
         let catalog = Self {
-            listings: crate::CatalogListingDocument {
+            listings: Arc::new(crate::CatalogListingDocument {
                 format_version: 1,
                 listings: document
                     .ports
                     .iter()
                     .map(crate::PortListing::from)
                     .collect(),
-            },
+            }),
             user_selected_listing: false,
-            document,
+            document: Arc::new(document),
             definition_snapshot: None,
             definition_selection: None,
         };
@@ -160,8 +160,9 @@ impl Catalog {
     pub(crate) fn retain_definition_snapshot(
         &mut self,
         snapshot: Arc<crate::definition_projection::DefinitionSnapshot>,
+        validated_revision: u64,
     ) {
-        self.definition_snapshot = Some(snapshot);
+        self.definition_snapshot = Some((snapshot, validated_revision));
     }
 
     pub(crate) fn definition_snapshot(
@@ -169,7 +170,8 @@ impl Catalog {
         port_id: &str,
     ) -> Option<&crate::definition_projection::DefinitionSnapshot> {
         self.definition_snapshot
-            .as_deref()
+            .as_ref()
+            .map(|(snapshot, _)| snapshot.as_ref())
             .filter(|snapshot| snapshot.port_id() == port_id)
     }
 
@@ -177,14 +179,19 @@ impl Catalog {
         &mut self,
         selection: Arc<crate::DefinitionSelectionIdentity>,
     ) -> Result<()> {
-        let snapshot = self
-            .definition_snapshot(&selection.stable_id)
+        let (snapshot, revision) = self
+            .definition_snapshot
+            .as_ref()
+            .filter(|(snapshot, _)| snapshot.port_id() == selection.stable_id)
             .ok_or_else(|| {
                 PortcoveError::state(
                     "definition admission provenance has no matching exact snapshot",
                 )
             })?;
-        selection.validate_snapshot(snapshot)?;
+        // The private snapshot/revision pair was established by the complete
+        // projection interpreter. Recheck the supplied identity against that
+        // exact immutable interpretation without interpreting the catalog again.
+        selection.validate_projected_snapshot(snapshot, *revision)?;
         self.definition_selection = Some(selection);
         Ok(())
     }
@@ -199,7 +206,7 @@ impl Catalog {
     }
 
     pub(crate) fn authoritative_document(&self) -> CatalogDocument {
-        let mut document = self.document.clone();
+        let mut document = self.document.as_ref().clone();
         if document.source_catalog.is_some() {
             document.source_profiles.clear();
         }
@@ -6093,8 +6100,7 @@ mod tests {
     #[test]
     fn psx_bin_cue_runtime_identity_requires_the_cue_and_first_track() {
         let mut catalog = Catalog::embedded().expect("catalog should load");
-        let port = catalog
-            .document
+        let port = Arc::make_mut(&mut catalog.document)
             .ports
             .iter_mut()
             .find(|port| port.id == "ape-escape-recompiled")
@@ -6405,19 +6411,20 @@ mod tests {
             .iter()
             .position(|port| port.id == "project-picori")
             .unwrap();
-        catalog.document.ports[index]
+        Arc::make_mut(&mut catalog.document).ports[index]
             .persistent_paths
             .retain(|path| path != "baserom.gba");
         assert!(catalog.validate().is_err());
 
         // A declared parent directory owns the staged file, but a similarly
         // named sibling does not.
-        catalog.document.ports[index].runtime_source_filename = Some("rom/baserom.gba".into());
-        catalog.document.ports[index]
+        Arc::make_mut(&mut catalog.document).ports[index].runtime_source_filename =
+            Some("rom/baserom.gba".into());
+        Arc::make_mut(&mut catalog.document).ports[index]
             .persistent_paths
             .push("rom-other".into());
         assert!(catalog.validate().is_err());
-        catalog.document.ports[index]
+        Arc::make_mut(&mut catalog.document).ports[index]
             .persistent_paths
             .push("rom".into());
         catalog.validate().unwrap();
@@ -6426,8 +6433,7 @@ mod tests {
     #[test]
     fn single_file_runtime_hashes_bind_the_exact_destination() {
         let mut catalog = Catalog::embedded().unwrap();
-        let port = catalog
-            .document
+        let port = Arc::make_mut(&mut catalog.document)
             .ports
             .iter_mut()
             .find(|port| port.id == "dr-mario-64-recomp")

@@ -201,7 +201,7 @@ impl DefinitionContentIndex {
             contract_json: String::from_utf8(contract_bytes.to_vec())
                 .map_err(|_| PortcoveError::verification("definition contract is not UTF-8"))?,
         });
-        catalog.retain_definition_snapshot(Arc::clone(&snapshot));
+        catalog.retain_definition_snapshot(Arc::clone(&snapshot), entry.revision());
         Ok(DefinitionCatalogProjection {
             entry,
             snapshot,

@@ -1143,6 +1143,127 @@ async fn operation_assessment_distinguishes_outage_revocation_and_local_integrit
     );
 }
 
+#[test]
+fn operation_assessment_session_keeps_contexts_distinct_and_rereads_policy() {
+    let temporary = TempDir::new().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+    let catalog =
+        crate::test_fixture::admitted_indexed_catalog(&metadata_catalog(), "tuf-metadata-fixture");
+    crate::definition_candidate::selection::trust_catalog_selection_for_test(
+        &library,
+        &catalog,
+        "tuf-metadata-fixture",
+    );
+    let identity = catalog
+        .definition_selection("tuf-metadata-fixture")
+        .unwrap();
+    let launch = DefinitionOperationContext::observed(DefinitionOperation::Launch, true, true);
+    library
+        .with_definition_operation_assessment(|assessment| {
+            assert_eq!(
+                assessment.assess(identity, launch)?.outcome,
+                DefinitionEligibilityOutcome::Eligible
+            );
+            assert_eq!(
+                assessment
+                    .assess(
+                        identity,
+                        DefinitionOperationContext {
+                            local_integrity_valid: false,
+                            ..launch
+                        }
+                    )?
+                    .reason,
+                DefinitionEligibilityReason::LocalIntegrityFailed
+            );
+            let mut stale = identity.clone();
+            stale.provenance.earliest_expiration = "1970-01-01T00:00:00Z".into();
+            assert_eq!(
+                assessment
+                    .assess(
+                        &stale,
+                        DefinitionOperationContext::observed(
+                            DefinitionOperation::Install,
+                            false,
+                            true
+                        ),
+                    )?
+                    .reason,
+                DefinitionEligibilityReason::MetadataStale
+            );
+            assert_eq!(
+                assessment.assess(&stale, launch)?.outcome,
+                DefinitionEligibilityOutcome::Eligible
+            );
+            Ok(())
+        })
+        .unwrap();
+    library.connection().unwrap().execute(
+        "UPDATE definition_publisher_policy SET status='revoked' WHERE namespace=?1 AND stable_id=?2",
+        [&identity.namespace, &identity.stable_id],
+    ).unwrap();
+    library
+        .with_definition_operation_assessment(|assessment| {
+            assert_eq!(
+                assessment.assess(identity, launch)?.reason,
+                DefinitionEligibilityReason::PublisherRevoked
+            );
+            Ok(())
+        })
+        .unwrap();
+    // Keeping an interpreted Catalog alive never keeps its operation authority.
+    assert_eq!(
+        library
+            .assess_definition_operation(identity, launch)
+            .unwrap()
+            .reason,
+        DefinitionEligibilityReason::PublisherRevoked
+    );
+}
+
+#[test]
+fn cloned_validated_catalog_rejects_changed_admission_bindings() {
+    let catalog =
+        crate::test_fixture::admitted_indexed_catalog(&metadata_catalog(), "tuf-metadata-fixture");
+    let identity = catalog
+        .definition_selection("tuf-metadata-fixture")
+        .unwrap();
+    let mut variants = Vec::new();
+    let mut changed = identity.clone();
+    changed.definition_revision += 1;
+    variants.push(changed);
+    let mut changed = identity.clone();
+    changed.namespace = "different-namespace".into();
+    variants.push(changed);
+    let mut changed = identity.clone();
+    changed.stable_id = "different-port".into();
+    variants.push(changed);
+    let mut changed = identity.clone();
+    changed.provenance.index_sha256 = "0".repeat(64);
+    variants.push(changed);
+    let mut changed = identity.clone();
+    changed.repository_root_sha256 = "0".repeat(64);
+    variants.push(changed);
+    let mut changed = identity.clone();
+    changed.policy_revision = 0;
+    variants.push(changed);
+    for changed in variants {
+        let mut copy = catalog.clone();
+        assert!(
+            copy.retain_definition_selection(std::sync::Arc::new(changed))
+                .is_err()
+        );
+        assert_eq!(
+            copy.definition_selection("tuf-metadata-fixture"),
+            Some(identity)
+        );
+        assert_eq!(
+            catalog.definition_selection("tuf-metadata-fixture"),
+            Some(identity)
+        );
+    }
+}
+
 #[tokio::test]
 async fn out_of_scope_selected_definition_falls_back_without_hiding_ports() {
     let fixture = RepositoryFixture::new();
