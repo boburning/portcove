@@ -2038,6 +2038,37 @@ void test("Windows fixture setup selects runner-owned temporary storage before c
   assert.match(windowsStorage, /scripts\/ci-workflow\.test\.mts/);
 });
 
+void test("Windows storage installs pinned root dependencies after native-only checks and before YAML consumers", () => {
+  const settings: unknown = parseDocument(workflow, { uniqueKeys: true }).toJS();
+  assert.ok(isRecord(settings) && isRecord(settings.jobs));
+  const job = settings.jobs.windows_storage;
+  assert.ok(isRecord(job) && Array.isArray(job.steps));
+  const steps: Record<string, unknown>[] = job.steps.map((step: unknown) => {
+    assert.ok(isRecord(step));
+    return step;
+  });
+  const native = steps.findIndex(
+    (step) =>
+      step.name === "Test native compiler and shell integrations without frontend dependencies",
+  );
+  const setup = steps.findIndex(
+    (step) => step.uses === "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+  );
+  const install = steps.findIndex(
+    (step) =>
+      typeof step.run === "string" &&
+      step.run.trim().split(/\s+/u).join(" ") ===
+        "pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts",
+  );
+  const consumer = steps.findIndex((step) => step.name === "Test Windows CI setup contract");
+  assert.ok(native >= 0 && setup > native && install > setup && consumer > install);
+  assert.deepEqual(steps[setup]?.with, { package_json_file: "package.json" });
+  for (const index of [setup, install]) {
+    assert.equal(steps[index]?.if, undefined);
+    assert.equal(steps[index]?.["continue-on-error"], undefined);
+  }
+});
+
 void test(
   "Windows fixture setup exports a usable directory and rejects invalid roots without partial exports",
   { skip: process.platform !== "win32" },
