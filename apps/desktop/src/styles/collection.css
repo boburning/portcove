@@ -136,11 +136,22 @@
   @media (height <= 800px) {
     .collection-covers {
       --collection-art-limit: 180px;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
     }
   }
   @media (height <= 680px) {
     .collection-covers {
       --collection-art-limit: 160px;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+    }
+  }
+  @container library-query (max-width: 32rem) {
+    .library-query-tools .filter-row {
+      flex-basis: 100%;
+      min-width: 0;
+    }
+    .library-query-tools .collection-tools {
+      gap: 8px;
     }
   }
   @container collection (max-width: 46em) {

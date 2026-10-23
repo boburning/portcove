@@ -335,7 +335,7 @@ it.each(["stable", "beta", "rolling"] as const)(
       />,
     );
     expect(html).toContain(
-      `Release channel: ${channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling"}`,
+      ` · ${channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling"} channel`,
     );
   },
 );

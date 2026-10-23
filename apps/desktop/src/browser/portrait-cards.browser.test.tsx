@@ -169,17 +169,10 @@ it.for([
         expect(frame.metadataTop).toBeGreaterThanOrEqual(frame.bottom - 0.5);
       }
       expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
-      const projectRows = [
-        ...document.querySelectorAll<HTMLElement>(
-          view === "library" ? ".collection-project" : ".card-content > p[title]",
-        ),
-      ];
+      const projectRows = [...document.querySelectorAll<HTMLElement>(".collection-project")];
       expect(projectRows).toHaveLength(5);
-      const variants = [...document.querySelectorAll<HTMLElement>(".card-variant")];
-      const variantText =
-        view === "catalog"
-          ? variants.map((variant) => variant.textContent).join(" | ")
-          : projectRows.map((row) => row.textContent).join(" | ");
+      const variants = projectRows;
+      const variantText = projectRows.map((row) => row.textContent).join(" | ");
       expect(variantText).toContain("Fictional edition");
       expect(variantText).toContain("Fictional prototype with a long edition label");
       for (const variant of variants) {
@@ -198,10 +191,8 @@ it.for([
           );
           const projectTop =
             view === "library"
-              ? row
-                  .closest("article")!
-                  .querySelector(".collection-actions")!
-                  .getBoundingClientRect().bottom
+              ? row.closest("article")!.querySelector(".collection-art")!.getBoundingClientRect()
+                  .bottom
               : row.getBoundingClientRect().top;
           if (!alignedRows.has(artworkTop)) alignedRows.set(artworkTop, projectTop);
           alignmentErrors.push(Math.abs(projectTop - alignedRows.get(artworkTop)!));
@@ -434,7 +425,8 @@ it.each([
     await render(<NavigableCards view={view} onSelect={onSelect} />);
     await document.fonts.ready;
     const controls = [...document.querySelectorAll<HTMLElement>(".port-grid button")];
-    expect(controls).toHaveLength(view === "library" ? 16 : 8);
+    // Library Favorites is reached through More actions, not a fourth card control.
+    expect(controls).toHaveLength(view === "library" ? 12 : 8);
     window.scrollTo(0, 0);
     await frame();
     const initialControlBottom = Math.max(

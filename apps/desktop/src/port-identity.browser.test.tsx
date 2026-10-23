@@ -36,7 +36,7 @@ it.each(["catalog", "library"] as const)(
       />,
     );
     const prefix = view === "library" ? "View details for " : "";
-    const separator = " Port: ";
+    const separator = view === "library" ? " Port: " : " ";
     const first = page.getByRole("button", {
       name: new RegExp(
         `^${prefix}A Familiar Adventure${separator}Cobalt Project${view === "library" ? " · US edition" : ""}`,
@@ -56,9 +56,12 @@ it.each(["catalog", "library"] as const)(
     expect(onSelect).toHaveBeenCalledTimes(2);
     await expect
       .element(
-        page.getByText(view === "library" ? "Port: Cobalt Project · US edition" : "US edition", {
-          exact: true,
-        }),
+        page.getByText(
+          view === "library" ? "Port: Cobalt Project · US edition" : "Cobalt Project · US edition",
+          {
+            exact: true,
+          },
+        ),
       )
       .toBeVisible();
   },
