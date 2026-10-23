@@ -16,10 +16,11 @@ platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^install::legacy_dkr_tests::legacy_dkr_manifests_preserve_exact_runtime_source_and_data_contracts$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 
-# These selected-runtime fixtures copy a large debug test executable and perform
-# repeated durable registration/status checks. Two local two-worker runs retained
-# four exact-case 30s timeouts. Give only these cases finite 90s harness room; keep
-# product/child deadlines, both workers, all assertions, cleanup and zero retries.
+# Historical selected-runtime fixtures copied the large debug test executable;
+# two local two-worker runs retained four exact-case 30s timeouts. The fixtures
+# now use a small owned native probe. Retain the established finite 90s budgets
+# pending current-source qualification; product/child deadlines, both workers,
+# assertions, cleanup and zero retries remain unchanged.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & (test(/^service::user_selected::tests::user_selected_production_launch_restart_and_removal_preserve_external_bytes$/) | test(/^service::user_selected::tests::user_selected_refuses_known_external_managed_outputs_and_retained_versions$/) | test(/^service::user_selected::tests::user_selected_review_refuses_changed_details_and_managed_or_script_paths$/) | test(/^service::user_selected::tests::user_selected_refuses_a_managed_output_claim_appearing_at_spawn$/))'

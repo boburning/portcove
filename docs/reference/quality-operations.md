@@ -544,6 +544,18 @@ dependency on the runner it must outlive.
 
 ## Test latency and reliability
 
+User-selected runtime fixtures use the existing first-party native host-tool
+probe at their independent player executable path. The maintained Rust wrapper
+prepares that image once; each fixture gets its own file. Direct Cargo execution
+retains the local compilation fallback, with generated source outside the player
+directory and inside the fixture's temporary root. These fixtures exercise native
+process and ownership contracts; they are not game or installed-app acceptance.
+Phase diagnostics distinguish image preparation, library/service opening and
+registration preview, authorization and commit. A started phase without its
+completion marker identifies unfinished work, not the cause of a failure.
+Compare test execution separately from compiler work, resource admission and
+fallback image compilation.
+
 The eight maintained Python unittest suites run through
 `scripts/python-test-results.py`, using the existing isolated `-I -S -B`
 interpreter route and finite outer deadlines. Direct Python execution still

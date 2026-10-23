@@ -215,10 +215,21 @@ mod tests {
         let working = temporary.path().join("user-owned game");
         fs::create_dir(&working).unwrap();
         let executable = working.join(if cfg!(windows) { "game.exe" } else { "game" });
-        fs::copy(std::env::current_exe().unwrap(), &executable).unwrap();
+        crate::test_fixture::phase("user-selected native fixture image", || {
+            let probe = crate::test_fixture::build_probe(temporary.path());
+            fs::rename(probe, &executable).unwrap();
+        });
+        eprintln!(
+            "user-selected native fixture bytes: {}",
+            fs::metadata(&executable).unwrap().len()
+        );
         fs::write(working.join("player-save.dat"), b"player save").unwrap();
-        let library = Library::open(temporary.path().join("library")).unwrap();
-        let mut service = PortcoveService::new(library).unwrap();
+        let library = crate::test_fixture::phase("user-selected library open", || {
+            Library::open(temporary.path().join("library")).unwrap()
+        });
+        let mut service = crate::test_fixture::phase("user-selected service open", || {
+            PortcoveService::new(library).unwrap()
+        });
         let platform = serde_json::to_value(Platform::current().unwrap())
             .unwrap()
             .as_str()
@@ -243,37 +254,41 @@ mod tests {
         executable: &Path,
         working: &Path,
     ) -> ExternalRuntimeRecord {
-        let arguments = vec!["--help".into()];
-        let preview = service
-            .preview_user_selected_runtime(id, executable, working, &arguments)
-            .unwrap();
+        let arguments = vec!["--success".into()];
+        let preview = crate::test_fixture::phase("user-selected registration preview", || {
+            service.preview_user_selected_runtime(id, executable, working, &arguments)
+        })
+        .unwrap();
         assert!(preview.archive_sha256.is_empty());
         assert!(preview.immutable_tree_sha256.is_empty());
         assert_eq!(preview.immutable_file_count, 0);
-        let authorization = service
-            .authorize_user_selected_runtime(
-                id,
-                executable,
-                working,
-                &arguments,
-                &preview.preview_sha256,
-            )
+        let authorization =
+            crate::test_fixture::phase("user-selected registration authorize", || {
+                service.authorize_user_selected_runtime(
+                    id,
+                    executable,
+                    working,
+                    &arguments,
+                    &preview.preview_sha256,
+                )
+            })
             .unwrap();
-        service
-            .register_user_selected_runtime(
+        crate::test_fixture::phase("user-selected registration commit", || {
+            service.register_user_selected_runtime(
                 id,
                 executable,
                 working,
                 &arguments,
                 &authorization.token,
             )
-            .unwrap()
+        })
+        .unwrap()
     }
 
     #[test]
     fn user_selected_production_launch_restart_and_removal_preserve_external_bytes() {
         // Two independent definitions reuse the same capability with case data.
-        // The executable is this Rust test harness --help, not an observed game.
+        // The executable is the first-party native probe, not an observed game.
         for id in ["selected-a", "selected-b"] {
             let (_temporary, service, executable, working) = fixture(id);
             let record = register(&service, id, &executable, &working);
