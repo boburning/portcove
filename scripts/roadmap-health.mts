@@ -201,6 +201,9 @@ function observationEvidence(report: Record<string, unknown>, runUrl: string) {
   const checkedScope = Array.isArray(checked)
     ? `Checked issues: ${checked.map((issue) => `#${String(issue)}`).join(", ")}. `
     : "The checked issue set was not retained. ";
+  const coverage = typeof report.coverage === "string" ? report.coverage : "not retained";
+  const globalHealth =
+    typeof report.global_health === "string" ? report.global_health : "not retained";
   return (
     `Observed: ${typeof observation.observed_at === "string" ? observation.observed_at : "not retained"}. ` +
     `Actual checkout: ${checkout}.\n\n` +
@@ -208,8 +211,8 @@ function observationEvidence(report: Record<string, unknown>, runUrl: string) {
     (configurationMissing(report)
       ? "The doctor did not run; planning findings are unevaluated and coverage is inconclusive."
       : scoped
-        ? `Coverage: **${String(report.coverage ?? "not retained")}**. ${checkedScope}This result applies only to its checked records; global health was not evaluated.`
-        : `Global audit coverage: **${String(report.coverage ?? "not retained")}**. Global health: **${String(report.global_health ?? "not retained")}**.`) +
+        ? `Coverage: **${coverage}**. ${checkedScope}This result applies only to its checked records; global health was not evaluated.`
+        : `Global audit coverage: **${coverage}**. Global health: **${globalHealth}**.`) +
     " Unchanged results do not refresh diagnostic comments."
   );
 }
