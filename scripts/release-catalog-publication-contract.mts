@@ -193,6 +193,28 @@ export const catalogPublicationInventory = (files: ReadonlyMap<string, Buffer>) 
 /** Validates byte binding only. Semantic projection comes from the actual Core
  * invocation, never this parser or a caller-supplied success flag. */
 export const catalogListingTarget = "policy/official/catalog.listings.json";
+/** Only the fixed descriptive target and its consistent-snapshot retained copies receive this larger bound. */
+export function catalogListingContextFileBound(name: string) {
+  return name === catalogListingTarget ||
+    name === `bundle/${catalogListingTarget}` ||
+    /^(?:prior\/)?targets\/[a-f0-9]{64}\.policy\/official\/catalog\.listings\.json$/u.test(name)
+    ? 8 * 1024 ** 2
+    : 1024 * 1024;
+}
+export function assertCatalogListingClassification(
+  report: Record<string, unknown>,
+  classification: { listings?: unknown },
+) {
+  const observed =
+    report.publication_schema === 2 ? inspectCatalogListingIdentity(report.listings) : null;
+  const classified =
+    classification.listings === undefined
+      ? null
+      : inspectCatalogListingIdentity(classification.listings);
+  if (digest(observed) !== digest(classified))
+    throw new Error("catalog listing classification differs from exact inspection");
+}
+
 export function inspectCatalogListingIdentity(raw: unknown) {
   exact(raw, "listing_count,revision,sha256,target,withdrawn_count");
   if (

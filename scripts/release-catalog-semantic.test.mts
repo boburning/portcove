@@ -36,10 +36,20 @@ import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-function fixture() {
-  const files = new Map([
+function fixture(listing?: Buffer) {
+  const files = new Map<string, Buffer>([
     ["definitions/index.json", Buffer.from('{"catalog_schema":2,"entries":[]}')],
   ]);
+  if (listing) files.set("policy/official/catalog.listings.json", listing);
+  const listings = listing
+    ? {
+        target: "policy/official/catalog.listings.json",
+        revision: 1,
+        sha256: sha(listing),
+        listing_count: 1,
+        withdrawn_count: 0,
+      }
+    : null;
   const entries = [...files].map(([target, bytes]) => ({
     target,
     bytes: bytes.length,
@@ -47,12 +57,15 @@ function fixture() {
   }));
   const inspection = Buffer.from(
     JSON.stringify({
-      publication_schema: 1,
+      publication_schema: listing ? 2 : 1,
+      ...(listings ? { listings } : {}),
       authority: "none",
       index_sha256: entries[0]!.sha256,
       files: entries,
       definitions: [],
-      scope: "inert-managed-definition-publication-inspection",
+      scope: listing
+        ? "inert-catalog-publication-inspection"
+        : "inert-managed-definition-publication-inspection",
     }),
   );
   return {
@@ -76,9 +89,14 @@ function fixture() {
         application_root_sha256: null as string | null,
         application_repository_sha256: null as string | null,
       },
-      classification: { change: "initial", index_sha256: entries[0]!.sha256, definitions: [] },
+      classification: {
+        change: "initial",
+        index_sha256: entries[0]!.sha256,
+        definitions: [],
+        ...(listings ? { listings } : {}),
+      },
       compatibility: {
-        contract: "official-definition-policy-launch-v1",
+        contract: listing ? "official-catalog-listings-v2" : "official-definition-policy-launch-v1",
         notes: "Inert empty catalog fixture; no actual Core or publisher authority.",
       },
     },
@@ -296,179 +314,207 @@ void test("same independent issuer consumer separates catalog from app and refus
   );
 });
 
-void test("catalog source freeze carries exact current and prior bytes through fixed reader; full observation is required", async (t) => {
-  const f = fixture(),
-    source = releaseSourceFixture(),
-    root = await mkdtemp(path.join(os.tmpdir(), "catalog-semantic-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  execFileSync("git", ["init", "--bare", "--quiet", root], { windowsHide: true });
-  const git = (args: string[], input?: Buffer | string) =>
-    execFileSync("git", ["-C", root, ...args], { input, windowsHide: true })
-      .toString()
-      .trim();
-  for (const text of ["readme\n", "base\n", "source\n"])
-    git(["hash-object", "-w", "--stdin"], text);
-  const readme = git(["hash-object", "--stdin"], "readme\n");
-  for (const blob of [source.oldBlob, source.newBlob])
-    git(["mktree"], `100644 blob ${readme}\tREADME.md\n100644 blob ${blob}\tapp.rs\n`);
-  for (const commit of [source.base, source.original])
-    git(
-      ["hash-object", "-t", "commit", "-w", "--stdin"],
-      inspectRemoteCommitObject(commit, commit.sha).object.bytes,
-    );
-  const prior = new Map([
-    [
-      "metadata/timestamp.json",
-      Buffer.from("inert retained prior bytes, independently authenticated only by actual caller"),
-    ],
-  ]);
-  const priorInventory = [...prior].map(([path, bytes]) => ({
-    path,
-    bytes: bytes.length,
-    sha256: sha(bytes),
-  }));
-  const opportunity = {
-    ...f.opportunity,
-    source_commit: source.original.sha,
-    source_tree: source.sourceTree,
-    base_commit: source.base.sha,
-    change_set_sha256: source.expectedHash,
-    baseline: {
-      ...f.opportunity.baseline,
-      source_commit: source.base.sha,
-      source_tree: source.base.tree.sha,
-      catalog_repository_sha256: capacityDigest(priorInventory),
-      site_generation_sha256: "7".repeat(64),
-    },
-    classification: { ...f.opportunity.classification, change: "update" },
-  };
-  const input = { files: f.files, inspection: f.inspection, prior_repository: prior };
-  const mutableInspection = Buffer.from(f.inspection);
-  const api = {
-    request(method: string, endpoint: string) {
-      mutableInspection.fill(0);
-      return source.api.request(method, endpoint);
-    },
-  };
-  const bundle = prepareFrozenCatalogSemanticInputs(api, root, opportunity, {
-    ...input,
-    inspection: mutableInspection,
-  });
-  assert.equal(
-    mutableInspection.every((byte) => byte === 0),
-    true,
-  );
-  const capturedInspection = bundle.manifest.evidence.core_inspection as {
-    raw_utf8: string;
-    sha256: string;
-  };
-  assert.equal(capturedInspection.raw_utf8, f.inspection.toString("utf8"));
-  assert.equal(sha(Buffer.from(capturedInspection.raw_utf8)), opportunity.core_inspection_sha256);
-  assert.throws(
-    () =>
-      prepareFrozenCatalogSemanticInputs(
-        {
-          request() {
-            assert.fail("oversized capture cannot invoke provider");
-          },
-        },
-        root,
-        opportunity,
-        { ...input, files: new Map([["definitions/index.json", Buffer.alloc(8 * 1024 ** 2 + 1)]]) },
-      ),
-    /capture exceeds/,
-  );
-  const index = materializeSemanticReaderIndex(bundle);
-  assert.equal(
-    inspectSemanticReaderIndex(index.bytes, index.sha256).manifest.snapshots.catalog!.length,
-    1,
-  );
-  const reader = createSemanticBundleReader(bundle);
-  assert.ok(
-    reader("read", {
-      snapshot: "catalog",
-      path: "definitions/index.json",
-      offset: 0,
-      length: 16384,
-    }),
-  );
-  assert.ok(
-    reader("read", {
-      snapshot: "catalog_prior",
-      path: "metadata/timestamp.json",
-      offset: 0,
-      length: 16384,
-    }),
-  );
-  const result = {
-    schema_version: 1,
-    outcome: "accepted",
-    opportunity_sha256: bundle.manifest.opportunity_sha256,
-    bundle_sha256: bundle.bundle_sha256,
-    coverage: { accumulated_changes: true, classification: true, compatibility: true },
-    report: "Synthetic complete observation only; no runtime brand.",
-  };
-  const read = (snapshot: string, name: string, offset: number) => {
-    const call = {
-      id: `${snapshot}:${name}:${offset}`,
-      type: "mcp_tool_call",
-      server: "portcove_frozen_bundle",
-      tool: "read",
-      arguments: { snapshot, path: name, offset, length: 16384 },
-    };
-    return [
-      { type: "item.started", item: { ...call, status: "in_progress" } },
-      {
-        type: "item.completed",
-        item: {
-          ...call,
-          status: "completed",
-          result: {
-            content: [{ type: "text", text: JSON.stringify(reader("read", call.arguments)) }],
-          },
-        },
-      },
-    ];
-  };
-  const manifest = Buffer.from(JSON.stringify(bundle.manifest));
-  const metadata = Array.from({ length: Math.ceil(manifest.length / 16384) }, (_, i) =>
-    read("manifest", "manifest.json", i * 16384),
-  ).flat();
-  const observations: unknown[] = [];
-  for (const [snapshot, rows] of Object.entries(bundle.manifest.snapshots))
-    for (const row of rows ?? []) observations.push(...read(snapshot, row.path, 0));
-  const events = (extra: unknown[]) =>
-    Buffer.from(
+for (const largeDirectory of [false, true])
+  void test(`catalog source freeze carries exact current and prior bytes through fixed reader (large directory=${largeDirectory}); full observation is required`, async (t) => {
+    const listing = largeDirectory
+      ? Buffer.from(
+          JSON.stringify({
+            listing_delivery_schema: 1,
+            revision: 1,
+            withdrawn_ids: [],
+            directory: {
+              catalog_schema: 1,
+              listings: [{ stable_id: "fixture", description: "x".repeat(2 * 1024 ** 2) }],
+            },
+          }),
+        )
+      : undefined;
+    const f = fixture(listing),
+      source = releaseSourceFixture(),
+      root = await mkdtemp(path.join(os.tmpdir(), "catalog-semantic-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    execFileSync("git", ["init", "--bare", "--quiet", root], { windowsHide: true });
+    const git = (args: string[], input?: Buffer | string) =>
+      execFileSync("git", ["-C", root, ...args], { input, windowsHide: true })
+        .toString()
+        .trim();
+    for (const text of ["readme\n", "base\n", "source\n"])
+      git(["hash-object", "-w", "--stdin"], text);
+    const readme = git(["hash-object", "--stdin"], "readme\n");
+    for (const blob of [source.oldBlob, source.newBlob])
+      git(["mktree"], `100644 blob ${readme}\tREADME.md\n100644 blob ${blob}\tapp.rs\n`);
+    for (const commit of [source.base, source.original])
+      git(
+        ["hash-object", "-t", "commit", "-w", "--stdin"],
+        inspectRemoteCommitObject(commit, commit.sha).object.bytes,
+      );
+    const prior = new Map([
       [
-        { type: "thread.started", thread_id: "01234567-0123-0123-0123-0123456789ab" },
-        { type: "turn.started" },
-        ...extra,
-        { type: "item.completed", item: { type: "agent_message", text: JSON.stringify(result) } },
-        { type: "turn.completed" },
-      ]
-        .map((x) => JSON.stringify(x))
-        .join("\n"),
+        "metadata/timestamp.json",
+        Buffer.from(
+          "inert retained prior bytes, independently authenticated only by actual caller",
+        ),
+      ],
+    ]);
+    if (listing)
+      prior.set(`targets/${sha(listing)}.policy/official/catalog.listings.json`, listing);
+    const priorInventory = [...prior].map(([path, bytes]) => ({
+      path,
+      bytes: bytes.length,
+      sha256: sha(bytes),
+    }));
+    const opportunity = {
+      ...f.opportunity,
+      source_commit: source.original.sha,
+      source_tree: source.sourceTree,
+      base_commit: source.base.sha,
+      change_set_sha256: source.expectedHash,
+      baseline: {
+        ...f.opportunity.baseline,
+        source_commit: source.base.sha,
+        source_tree: source.base.tree.sha,
+        catalog_repository_sha256: capacityDigest(priorInventory),
+        site_generation_sha256: "7".repeat(64),
+      },
+      classification: { ...f.opportunity.classification, change: "update" },
+    };
+    const input = { files: f.files, inspection: f.inspection, prior_repository: prior };
+    const mutableInspection = Buffer.from(f.inspection);
+    const api = {
+      request(method: string, endpoint: string) {
+        mutableInspection.fill(0);
+        return source.api.request(method, endpoint);
+      },
+    };
+    const bundle = prepareFrozenCatalogSemanticInputs(api, root, opportunity, {
+      ...input,
+      inspection: mutableInspection,
+    });
+    assert.equal(
+      mutableInspection.every((byte) => byte === 0),
+      true,
     );
-  assert.throws(() => inspectSemanticRuntimeEvents(events(metadata), bundle), /lacks relevant/);
-  assert.equal(
-    inspectSemanticRuntimeEvents(events([...metadata, ...observations]), bundle).result.outcome,
-    "accepted",
-  );
-  assert.throws(
-    () =>
-      prepareFrozenCatalogSemanticInputs(source.api, root, opportunity, {
-        ...input,
-        prior_repository: new Map(),
+    const capturedInspection = bundle.manifest.evidence.core_inspection as {
+      raw_utf8: string;
+      sha256: string;
+    };
+    assert.equal(capturedInspection.raw_utf8, f.inspection.toString("utf8"));
+    assert.equal(sha(Buffer.from(capturedInspection.raw_utf8)), opportunity.core_inspection_sha256);
+    assert.throws(
+      () =>
+        prepareFrozenCatalogSemanticInputs(
+          {
+            request() {
+              assert.fail("oversized capture cannot invoke provider");
+            },
+          },
+          root,
+          opportunity,
+          {
+            ...input,
+            files: new Map([["definitions/index.json", Buffer.alloc(8 * 1024 ** 2 + 1)]]),
+          },
+        ),
+      /capture exceeds/,
+    );
+    const index = materializeSemanticReaderIndex(bundle);
+    assert.equal(
+      inspectSemanticReaderIndex(index.bytes, index.sha256).manifest.snapshots.catalog!.length,
+      f.files.size,
+    );
+    const reader = createSemanticBundleReader(bundle);
+    assert.ok(
+      reader("read", {
+        snapshot: "catalog",
+        path: "definitions/index.json",
+        offset: 0,
+        length: 16384,
       }),
-    /prior repository bytes/,
-  );
-  assert.throws(() => requireFrozenSemanticInputs(structuredClone(bundle)), /imported/);
-  f.files.get("definitions/index.json")!.fill(0);
-  assert.throws(
-    () => prepareFrozenCatalogSemanticInputs(source.api, root, opportunity, input),
-    /exact catalog bytes/,
-  );
-});
+    );
+    assert.ok(
+      reader("read", {
+        snapshot: "catalog_prior",
+        path: "metadata/timestamp.json",
+        offset: 0,
+        length: 16384,
+      }),
+    );
+    const result = {
+      schema_version: 1,
+      outcome: "accepted",
+      opportunity_sha256: bundle.manifest.opportunity_sha256,
+      bundle_sha256: bundle.bundle_sha256,
+      coverage: { accumulated_changes: true, classification: true, compatibility: true },
+      report: "Synthetic complete observation only; no runtime brand.",
+    };
+    const read = (snapshot: string, name: string, offset: number) => {
+      const call = {
+        id: `${snapshot}:${name}:${offset}`,
+        type: "mcp_tool_call",
+        server: "portcove_frozen_bundle",
+        tool: "read",
+        arguments: { snapshot, path: name, offset, length: 16384 },
+      };
+      return [
+        { type: "item.started", item: { ...call, status: "in_progress" } },
+        {
+          type: "item.completed",
+          item: {
+            ...call,
+            status: "completed",
+            result: {
+              content: [{ type: "text", text: JSON.stringify(reader("read", call.arguments)) }],
+            },
+          },
+        },
+      ];
+    };
+    const manifest = Buffer.from(JSON.stringify(bundle.manifest));
+    const metadata = Array.from({ length: Math.ceil(manifest.length / 16384) }, (_, i) =>
+      read("manifest", "manifest.json", i * 16384),
+    ).flat();
+    const observations: unknown[] = [];
+    for (const [snapshot, rows] of Object.entries(bundle.manifest.snapshots))
+      for (const row of rows ?? [])
+        for (
+          let offset = 0;
+          offset <
+          bundle.files.find((file) => file.name === `objects/${row.oid}.data`)!.bytes.length;
+          offset += 16384
+        )
+          observations.push(...read(snapshot, row.path, offset));
+    const events = (extra: unknown[]) =>
+      Buffer.from(
+        [
+          { type: "thread.started", thread_id: "01234567-0123-0123-0123-0123456789ab" },
+          { type: "turn.started" },
+          ...extra,
+          { type: "item.completed", item: { type: "agent_message", text: JSON.stringify(result) } },
+          { type: "turn.completed" },
+        ]
+          .map((x) => JSON.stringify(x))
+          .join("\n"),
+      );
+    assert.throws(() => inspectSemanticRuntimeEvents(events(metadata), bundle), /lacks relevant/);
+    assert.equal(
+      inspectSemanticRuntimeEvents(events([...metadata, ...observations]), bundle).result.outcome,
+      "accepted",
+    );
+    assert.throws(
+      () =>
+        prepareFrozenCatalogSemanticInputs(source.api, root, opportunity, {
+          ...input,
+          prior_repository: new Map(),
+        }),
+      /prior repository bytes/,
+    );
+    assert.throws(() => requireFrozenSemanticInputs(structuredClone(bundle)), /imported/);
+    f.files.get("definitions/index.json")!.fill(0);
+    assert.throws(
+      () => prepareFrozenCatalogSemanticInputs(source.api, root, opportunity, input),
+      /exact catalog bytes/,
+    );
+  });
 
 void test("copied catalog data cannot acquire runtime brand or reach broker credentials/POST", async () => {
   const f = fixture(),

@@ -1,3 +1,4 @@
+import { catalogListingContextFileBound } from "./release-catalog-publication-contract.mts";
 /** Integrity-only catalog signing inputs. No parser appoints a publisher, key or executor. */
 import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
@@ -102,8 +103,8 @@ export function inspectCatalogSigningPreflight(
   priorSite: readonly { path: string; bytes: number; sha256: string }[],
 ) {
   let contextBytes = 0;
-  for (const bytes of files.values()) {
-    if (bytes.length < 1 || bytes.length > 1024 ** 2)
+  for (const [name, bytes] of files) {
+    if (bytes.length < 1 || bytes.length > catalogListingContextFileBound(name))
       throw new Error("catalog context per-file transport cap exceeded");
     contextBytes += bytes.length;
   }

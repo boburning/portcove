@@ -1135,3 +1135,15 @@ rather than silently lose its selection/replay state. Fixture tests establish
 engineering behavior only. #534's actual configured protected publication and
 public/native unchanged-binary evidence remain prerequisites to production;
 this descriptive milestone does not close #246 or qualify #144's real artifacts.
+
+The controller also requires an explicit source-bound `catalog.descriptive_directory`
+appointment with exactly `listing_delivery_schema: 1` and
+`target: "policy/official/catalog.listings.json"`. Existing title-limited
+`publisher_scope` grants do not authorize this target. A descriptive-only
+appointment may use an empty managed scope. No configuration or production
+appointment is installed by the reader implementation; #534 retains that protected
+setup/activation boundary. Existing infrastructure and Chameleon decisions remain
+in effect at their granted scope. Frozen review, preflight, context transfer and
+retained readback allow up to 8 MiB only for this exact target and its
+content-addressed historical copies; unrelated per-file and aggregate limits
+remain in effect.
