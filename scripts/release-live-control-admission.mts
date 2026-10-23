@@ -14,6 +14,7 @@ import {
 } from "./assembler-job-identity.mts";
 import {
   requireReleaseInputWriterPolicy,
+  requireFixedClassificationStoragePolicy,
   requireCatalogMaintenancePolicy,
   requireReleaseImmutabilityPolicy,
 } from "./release-input-protections.mts";
@@ -48,6 +49,7 @@ import type { ReleaseControlPhase } from "./release-control-phases.mts";
 import {
   inspectBoundCatalogControllerAuthorities,
   inspectBoundSelectedPublicationAuthorities,
+  inspectBoundControllerAuthorities,
 } from "./release-authority-configuration.mts";
 import {
   discoverIndependentSemanticDisposition,
@@ -55,6 +57,7 @@ import {
   inspectSemanticRequestCheckMatches,
 } from "./release-semantic-disposition-reader.mts";
 import { semanticReviewCheckName } from "./release-semantic-review.mts";
+import { establishFixedClassificationPrincipal } from "./release-classification-principal.mts";
 const establishedSources = new WeakSet<object>();
 const catalogSources = new WeakSet<object>();
 export function requireAuthenticatedCatalogControlSource(value: unknown, rawPhase: unknown) {
@@ -201,10 +204,42 @@ async function authenticateControlSource(
     workflowBytes,
     options,
   );
+  const applicationAuthorities = (() => {
+    if (purpose !== "application" || admitted.mode === "admission-only") return null;
+    const raw = json(env.PORTCOVE_RELEASE_AUTHORITIES, 32768);
+    if (isRecord(raw) && (raw.schema_version === 4 || raw.kind === "two-app-fixed-jobs-v1"))
+      return {
+        kind: "selected" as const,
+        principal: establishFixedClassificationPrincipal(
+          raw,
+          admitted,
+          identity,
+          phase,
+          (options.now ?? Date.now)(),
+        ),
+      };
+    return {
+      kind: "legacy" as const,
+      authorities: inspectBoundControllerAuthorities(JSON.stringify(raw), admitted),
+    };
+  })();
+  const selectedApplication =
+    applicationAuthorities?.kind === "selected" ? applicationAuthorities.principal : null;
+  const legacyApplication =
+    applicationAuthorities?.kind === "legacy" ? applicationAuthorities.authorities : null;
   const applicationConfig =
     purpose === "application"
-      ? inspectReviewProducerConfiguration(json(env.PORTCOVE_REVIEW_PRODUCER, 4096))
+      ? (selectedApplication?.producer ??
+        inspectReviewProducerConfiguration(json(env.PORTCOVE_REVIEW_PRODUCER, 4096)))
       : null;
+  if (
+    legacyApplication !== null &&
+    applicationConfig !== null &&
+    (applicationConfig.review_app_id !== legacyApplication.apps.semantic.app_id ||
+      !("writer_app_id" in applicationConfig) ||
+      applicationConfig.writer_app_id !== legacyApplication.apps.classification.app_id)
+  )
+    throw new Error("application producer roles differ from complete bound authority");
   const catalogAppId = () => {
     const raw = json(env.PORTCOVE_CATALOG_AUTHORITIES, 32 * 1024);
     if (isRecord(raw) && raw.schema_version === 4) {
@@ -326,6 +361,14 @@ async function authenticateControlSource(
         return requireCatalogMaintenancePolicy(handoff.observation, now());
       if (applicationConfig === null)
         throw new Error("application classification writer identity unavailable");
+      if (selectedApplication !== null)
+        return requireFixedClassificationStoragePolicy(
+          handoff.observation,
+          selectedApplication,
+          now(),
+        );
+      if (!("writer_app_id" in applicationConfig))
+        throw new Error("legacy application writer identity unavailable");
       return requireReleaseInputWriterPolicy(
         handoff.observation,
         applicationConfig.writer_app_id,

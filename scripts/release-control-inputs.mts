@@ -16,6 +16,7 @@ import { isRecord } from "./runtime-values.mts";
 import { assessBoundedCapacity, capacityDigest } from "./release-capacity.mts";
 import { inspectReleaseReviewRequest } from "./release-review-request.mts";
 import { inspectCatalogSemanticOpportunity } from "./release-catalog-semantic.mts";
+import { inspectFixedClassificationProducer } from "./release-classification-contract.mts";
 
 const repository = "boburning/portcove";
 const repositoryId = 1354613114;
@@ -213,7 +214,7 @@ interface ReviewProducerConfiguration {
   writer_app_id: number;
   review_check_name: string;
 }
-function configuration(value: unknown): ReviewProducerConfiguration {
+function legacyConfiguration(value: unknown): ReviewProducerConfiguration {
   exact(value, "review_app_id,review_check_name,schema_version,writer_app_id");
   numeric(value.review_app_id);
   numeric(value.writer_app_id);
@@ -236,13 +237,21 @@ function configuration(value: unknown): ReviewProducerConfiguration {
   };
 }
 export function inspectReviewProducerConfiguration(value: unknown) {
+  return legacyConfiguration(structuredClone(value));
+}
+function configuration(value: unknown) {
+  return isRecord(value) && value.schema_version === 3
+    ? inspectFixedClassificationProducer(value)
+    : legacyConfiguration(value);
+}
+export function inspectApplicationReviewProducerConfiguration(value: unknown) {
   return configuration(structuredClone(value));
 }
 /** Catalog Check authenticity has no classification persistence role. This
  * closed projection appoints no writer and cannot enter application readers. */
 export function inspectCatalogReviewProducerConfiguration(raw: unknown) {
   const value: unknown = structuredClone(raw);
-  if (isRecord(value) && value.schema_version === 1) return configuration(value);
+  if (isRecord(value) && value.schema_version === 1) return legacyConfiguration(value);
   exact(value, "purpose,review_app_id,review_check_name,schema_version");
   numeric(value.review_app_id);
   if (

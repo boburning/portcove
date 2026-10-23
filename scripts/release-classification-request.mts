@@ -8,6 +8,38 @@ import {
   readIndependentSemanticCheckInventory,
   inspectSemanticRequestCheckMatches,
 } from "./release-semantic-disposition-reader.mts";
+import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
+import { checkCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { isRecord } from "./runtime-values.mts";
+
+/** Same fixed current-request check used immediately before classification CAS.
+ * The callback belongs to trusted caller identity/protection machinery. */
+export function requireCurrentClassificationRequest(
+  api: CoordinatorRemoteApi,
+  namespace: string,
+  checkpoint: string,
+  fresh: () => void,
+) {
+  inspectCoordinatorRemoteNamespace({ schema_version: 1, namespace });
+  if (!/^[a-f0-9]{40}$/u.test(checkpoint) || typeof fresh !== "function")
+    throw new Error("exact classification request and freshness guard required");
+  fresh();
+  const response = api.request(
+    "GET",
+    `repos/boburning/portcove/git/ref/heads/${namespace}-coordinator-state`,
+  );
+  if (
+    response.status !== 200 ||
+    !isRecord(response.body) ||
+    response.body.ref !== `refs/heads/${namespace}-coordinator-state` ||
+    !isRecord(response.body.object) ||
+    response.body.object.type !== "commit" ||
+    response.body.object.sha !== checkpoint
+  )
+    throw new Error("automatic writer outstanding journal request changed");
+  fresh();
+  checkCoordinatorDeadline();
+}
 
 /** Discovery/persistence only. The fixed writer must authenticate its own
  * source/job, configured App roles, fresh isolated protections and exact current

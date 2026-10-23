@@ -1,5 +1,6 @@
 /** Fixed roles under the one ratified controller, never caller-selected job names.
  * Reserving a phase does not implement or activate its future publisher job. */
+export const semanticReviewCheckName = "Portcove independent release semantic review";
 export type ReleaseControlPhase =
   | "admission"
   | "payload"

@@ -26,6 +26,301 @@ import { createReleaseReviewRequest } from "./release-review-request.mts";
 import { semanticReviewCheckName } from "./release-semantic-review.mts";
 import { negativeSemanticDispositionFixture } from "./fixtures/release-semantic-disposition-fixture.mts";
 import { prepareNegativeSemanticDispositionCheck } from "./release-semantic-disposition.mts";
+import { selectedPublicationAuthoritiesFixture } from "./fixtures/checkpoint-proof-fixture.mts";
+import childProcess from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
+import { assemblerIdentityFixture, jwk } from "./fixtures/assembler-identity-fixture.mts";
+import {
+  admitProductionClassificationWriter,
+  productionControllerWorkflow,
+} from "./production-controller-admission.mts";
+import {
+  controllerOidcSubject,
+  verifyProductionClassificationWriterJobIdentity,
+} from "./assembler-job-identity.mts";
+import {
+  establishFixedClassificationPrincipal,
+  requireFixedClassificationPrincipal,
+  requireProductionFixedClassificationWriter,
+} from "./release-classification-principal.mts";
+import {
+  requireFixedClassificationStoragePolicy,
+  requireReleaseInputWriterPolicy,
+} from "./release-input-protections.mts";
+import {
+  readReviewedClassification,
+  inspectApplicationReviewProducerConfiguration,
+} from "./release-control-inputs.mts";
+import { requireCurrentClassificationRequest } from "./release-classification-request.mts";
+
+void test("selected full application controls bind their complete record and fixed writer instead of legacy App configuration", async () => {
+  const control = releaseControlInputsFixture(capacityDocumentFixture());
+  const observation = protectionFixture(control.head());
+  observation.inventory.rulesets[0]!.bypass_actors[0]!.actor_id = 15368;
+  observation.inventory_sha256 = capacityDigest(observation.inventory);
+  const runtime = liveControlRuntimeFixture(observation, undefined, "coordinator", true);
+  const configuration = selectedPublicationAuthoritiesFixture("application");
+  const environment = {
+    ...runtime.environment,
+    PORTCOVE_REVIEW_PRODUCER: undefined,
+    PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(configuration),
+    PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify({
+      ...runtime.policy,
+      authority_configuration_sha256: capacityDigest(configuration),
+    }),
+  };
+  const source = await authenticateReleaseControlSource(
+    environment,
+    runtime.workflow,
+    runtime.options,
+  );
+  const facts = source.readMaintenance(control.api);
+  assert.equal(facts.authority, "none");
+  assert.equal(facts.capacity_source.report.availability, "unknown");
+  assert.ok("provider_writer" in facts.protection);
+  assert.equal(
+    facts.protection.provider_writer,
+    "github-actions-integration-not-workflow-specific",
+  );
+  for (const raw of [undefined, "{}", JSON.stringify(configuration.journal)])
+    await assert.rejects(
+      authenticateReleaseControlSource(
+        {
+          ...environment,
+          PORTCOVE_RELEASE_AUTHORITIES: raw,
+          PORTCOVE_REVIEW_PRODUCER: runtime.environment.PORTCOVE_REVIEW_PRODUCER,
+        },
+        runtime.workflow,
+        runtime.options,
+      ),
+    );
+});
+
+void test("selected fixed writer joins original source/OIDC objects and preserves semantic verification, CAS and ambiguity under controlled providers", async (t) => {
+  const fixture = () =>
+    releaseControlInputsFixture(undefined, opportunity, {
+      ...config,
+      review_check_name: semanticReviewCheckName,
+    });
+  const control = fixture();
+  const observation = protectionFixture(control.head());
+  observation.inventory.rulesets[0]!.bypass_actors[0]!.actor_id = 15368;
+  observation.inventory_sha256 = capacityDigest(observation.inventory);
+  const runtime = liveControlRuntimeFixture(observation, undefined, "coordinator", true);
+  const configuration = selectedPublicationAuthoritiesFixture("application");
+  const environment = { ...runtime.environment, GITHUB_JOB: "classification_writer" };
+  const policy = {
+    ...runtime.policy,
+    authority_configuration_sha256: capacityDigest(configuration),
+  };
+  const source = admitProductionClassificationWriter(
+    JSON.stringify(policy),
+    environment,
+    runtime.workflow,
+  );
+  const expected = {
+    audience: "portcove-release-classification-v1",
+    subject: controllerOidcSubject(policy.execution_ref, "production-release-classification"),
+    controller_revision: policy.revision,
+    controller_ref: policy.execution_ref,
+    actor_id: policy.actor_id,
+    run_id: environment.GITHUB_RUN_ID,
+    run_attempt: 1,
+  };
+  const provider = assemblerIdentityFixture(
+    {
+      aud: expected.audience,
+      sub: expected.subject,
+      environment: "production-release-classification",
+    },
+    {},
+    {
+      workflow: productionControllerWorkflow,
+      job: "Persist independently reviewed classification",
+      runAttempt: 1,
+    },
+  );
+  const actualSpawn = childProcess.spawnSync;
+  t.mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ keys: [jwk] })));
+  t.mock.method(
+    childProcess,
+    "spawnSync",
+    (
+      command: string,
+      args: readonly string[],
+      options: childProcess.SpawnSyncOptionsWithStringEncoding,
+    ) =>
+      command === "gh"
+        ? provider.transport.spawn(command, args, options)
+        : actualSpawn(command, args, options),
+  );
+  syncBuiltinESMExports();
+  t.after(() => {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+  // Default verifier code, with controlled JWKS/GET responses. This is not a
+  // real GitHub issuer, credential, setup or protected acceptance observation.
+  const identity = await verifyProductionClassificationWriterJobIdentity(provider.token, expected, {
+    transport: { cwd: process.cwd() },
+  });
+  const principal = establishFixedClassificationPrincipal(
+    configuration,
+    source,
+    identity,
+    "classification-writer",
+  );
+  assert.equal(requireProductionFixedClassificationWriter(principal).role, "classification-writer");
+  const producer = principal.producer;
+  assert.equal(producer.writer.job, "classification_writer");
+  assert.equal("writer_app_id" in producer, false);
+  assert.equal(
+    requireFixedClassificationStoragePolicy(observation, principal).semantic_authority,
+    "none",
+  );
+  assert.throws(() => requireReleaseInputWriterPolicy(observation, 15368));
+  for (const copy of [{ ...principal }, producer, 15368, {}])
+    assert.throws(() => requireFixedClassificationStoragePolicy(observation, copy));
+  assert.throws(() =>
+    establishFixedClassificationPrincipal(
+      configuration,
+      { ...source },
+      identity,
+      "classification-writer",
+    ),
+  );
+  assert.throws(() =>
+    establishFixedClassificationPrincipal(
+      configuration,
+      source,
+      { ...identity },
+      "classification-writer",
+    ),
+  );
+  assert.throws(() =>
+    establishFixedClassificationPrincipal(configuration, source, identity, "coordinator"),
+  );
+  const changed = structuredClone(configuration);
+  changed.journal.setup_plan_sha256 = "f".repeat(64);
+  assert.throws(() =>
+    establishFixedClassificationPrincipal(changed, source, identity, "classification-writer"),
+  );
+  const beforeMutation = () => {
+    requireFixedClassificationStoragePolicy(observation, principal);
+  };
+  const result = persistReviewedClassification(
+    control.api,
+    producer,
+    opportunity,
+    303,
+    beforeMutation,
+  );
+  assert.equal(result.changed, true);
+  assert.equal(control.mutations(), 1);
+  assert.equal(readReviewedClassification(control.api, producer, opportunity).review_check_id, 303);
+  assert.equal(
+    persistReviewedClassification(control.api, producer, opportunity, 303, beforeMutation).changed,
+    false,
+  );
+  for (const fault of [
+    "issuer",
+    "failure",
+    "annotations",
+    "input",
+    "report-bytes",
+    "pr-scope",
+    "legacy-report",
+  ]) {
+    const f = fixture();
+    f.faults.value = fault;
+    assert.throws(() =>
+      persistReviewedClassification(f.api, producer, opportunity, 303, beforeMutation),
+    );
+    assert.equal(f.mutations(), 0);
+  }
+  const ambiguous = fixture();
+  ambiguous.faults.value = "ambiguous";
+  assert.equal(
+    persistReviewedClassification(ambiguous.api, producer, opportunity, 303, beforeMutation)
+      .recovered,
+    true,
+  );
+  assert.equal(ambiguous.mutations(), 1);
+  const expiry = fixture();
+  const observedAt = Date.parse(observation.observed_at);
+  let clock = observedAt + 59_000;
+  let heads = 0;
+  const headApi = {
+    request() {
+      heads++;
+      clock += 2_000;
+      return {
+        status: 200,
+        headers: new Map<string, string>(),
+        body: {
+          ref: `refs/heads/${producer.writer.namespace}-coordinator-state`,
+          object: { type: "commit", sha: "a".repeat(40) },
+        },
+      };
+    },
+    graphql() {
+      throw new Error("no mutation");
+    },
+  };
+  assert.throws(
+    () =>
+      persistReviewedClassification(expiry.api, producer, opportunity, 303, () =>
+        requireCurrentClassificationRequest(
+          headApi,
+          producer.writer.namespace,
+          "a".repeat(40),
+          () => {
+            requireFixedClassificationStoragePolicy(observation, principal, clock);
+          },
+        ),
+      ),
+    /protection inventory unavailable/,
+  );
+  assert.equal(heads, 1);
+  assert.equal(expiry.mutations(), 0);
+  assert.throws(() =>
+    requireFixedClassificationStoragePolicy(observation, principal, Date.now() + 60_001),
+  );
+  assert.throws(() =>
+    requireFixedClassificationPrincipal(principal, Date.parse(identity.expires_at)),
+  );
+  const bad = { ...producer, purpose: "catalog-publication" };
+  assert.throws(() => inspectApplicationReviewProducerConfiguration(bad));
+  principal.producer.writer.actor_id = "999";
+  assert.throws(() => requireFixedClassificationPrincipal(principal));
+});
+
+void test("selected full application control drift cannot hide behind an unchanged legacy producer configuration", async () => {
+  const control = releaseControlInputsFixture(capacityDocumentFixture());
+  const runtime = liveControlRuntimeFixture(
+    protectionFixture(control.head()),
+    undefined,
+    "coordinator",
+    true,
+  );
+  const configuration = selectedPublicationAuthoritiesFixture("application");
+  const policy = {
+    ...runtime.policy,
+    authority_configuration_sha256: capacityDigest(configuration),
+  };
+  configuration.journal.setup_plan_sha256 = "f".repeat(64);
+  await assert.rejects(
+    authenticateReleaseControlSource(
+      {
+        ...runtime.environment,
+        PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(configuration),
+        PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify(policy),
+      },
+      runtime.workflow,
+      runtime.options,
+    ),
+  );
+});
 
 void test("coordinator exact request reader accepts persisted independent proof and refuses conflicting outcomes", async () => {
   const selected = { ...config, review_check_name: semanticReviewCheckName };

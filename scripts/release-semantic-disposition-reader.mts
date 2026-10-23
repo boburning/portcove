@@ -3,7 +3,10 @@ import { inspectNegativeCatalogSemanticDisposition } from "./release-semantic-di
 import { inspectCatalogSemanticOpportunity } from "./release-catalog-semantic.mts";
 import { performance } from "node:perf_hooks";
 import { capacityDigest } from "./release-capacity.mts";
-import { inspectReviewProducerConfiguration } from "./release-control-inputs.mts";
+import {
+  inspectApplicationReviewProducerConfiguration,
+  inspectCatalogReviewProducerConfiguration,
+} from "./release-control-inputs.mts";
 import {
   inspectReleaseReviewRequest,
   inspectReleaseReviewDisposition,
@@ -26,7 +29,11 @@ function readDisposition(
   checkId: number,
   catalog: boolean,
 ) {
-  const config = inspectReviewProducerConfiguration(structuredClone(rawConfiguration));
+  const config = (
+    catalog
+      ? inspectCatalogReviewProducerConfiguration
+      : inspectApplicationReviewProducerConfiguration
+  )(structuredClone(rawConfiguration));
   const request = catalog
     ? inspectCatalogReviewRequest(rawRequest)
     : inspectReleaseReviewRequest(rawRequest);
@@ -161,12 +168,17 @@ export function readIndependentCatalogSemanticDisposition(
  * the producer's local POST response. GitHub's ref/check-runs endpoint silently
  * limits coverage to the most recent 1000 suites, so enumerate suites first.
  * Missing, duplicated or excessive history stays Unknown; never re-POST here. */
-export function readIndependentSemanticCheckInventory(
+function readCheckInventory(
   api: GitHubRestReader,
   rawConfiguration: unknown,
   sourceCommit: string,
+  catalog: boolean,
 ) {
-  const config = inspectReviewProducerConfiguration(structuredClone(rawConfiguration));
+  const config = (
+    catalog
+      ? inspectCatalogReviewProducerConfiguration
+      : inspectApplicationReviewProducerConfiguration
+  )(structuredClone(rawConfiguration));
   if (!/^[a-f0-9]{40}$/u.test(sourceCommit) || config.review_check_name !== semanticReviewCheckName)
     throw new Error("negative semantic discovery requires fixed producer/request identity");
   const start = performance.now();
@@ -323,6 +335,21 @@ export function readIndependentSemanticCheckInventory(
 /** Match complete fixed-App provider records to an exact neutral request. This
  * projection grants no authority; callers still use the existing specific Check
  * consumer and current protected source. Conflicting outcomes always hold. */
+export function readIndependentSemanticCheckInventory(
+  api: GitHubRestReader,
+  configuration: unknown,
+  sourceCommit: string,
+) {
+  return readCheckInventory(api, configuration, sourceCommit, false);
+}
+export function readIndependentCatalogSemanticCheckInventory(
+  api: GitHubRestReader,
+  configuration: unknown,
+  sourceCommit: string,
+) {
+  return readCheckInventory(api, configuration, sourceCommit, true);
+}
+
 export function inspectSemanticRequestCheckMatches(
   records: readonly Record<string, unknown>[],
   rawRequest: unknown,
@@ -555,7 +582,7 @@ export function discoverIndependentCatalogSemanticDisposition(
 ) {
   const request = inspectCatalogReviewRequest(rawRequest);
   if (!request) throw new Error("catalog negative discovery requires request");
-  const inventory = readIndependentSemanticCheckInventory(
+  const inventory = readIndependentCatalogSemanticCheckInventory(
       api,
       config,
       request.opportunity.source_commit,

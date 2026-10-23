@@ -6,7 +6,9 @@ import { isRecord } from "./runtime-values.mts";
 import {
   releaseControlPhaseProfile,
   inspectControllerExecutionPurpose,
+  inspectReleaseControlPhase,
 } from "./release-control-phases.mts";
+import type { ReleaseControlPhase } from "./release-control-phases.mts";
 
 const issuer = "https://token.actions.githubusercontent.com";
 const repository = "boburning/portcove";
@@ -66,6 +68,10 @@ type JobIdentityProfile = {
   job: string;
   environment?: ControllerOidcEnvironment | undefined;
 };
+const verifiedJobs = new WeakMap<
+  object,
+  { profile: JobIdentityProfile; expected: AssemblerIdentityExpectation; snapshot: string }
+>();
 const assemblerProfile = {
   workflow: productionControllerWorkflow,
   job: "Trusted package assembly",
@@ -401,7 +407,7 @@ async function verifyJobIdentity(
   const after = runIdentity(get(runPath));
   if (JSON.stringify(before) !== JSON.stringify(after))
     throw new Error("assembler run changed during collection");
-  return {
+  const result = {
     schema_version: 1,
     kind: "oidc-job-identity-only",
     evidence_scope:
@@ -423,6 +429,47 @@ async function verifyJobIdentity(
     artifact_production: "unproven",
     authority: "none",
   };
+  verifiedJobs.set(result, {
+    profile: structuredClone(profile),
+    expected: structuredClone(expected),
+    snapshot: JSON.stringify(result),
+  });
+  return result;
+}
+
+/** Only direct results of the existing verifiers qualify. Copies, mutation,
+ * legacy-workflow profiles and caller-selected audience/subject cannot join. */
+export function requireVerifiedClassificationPrincipalIdentity(
+  value: unknown,
+  role: "classification-writer" | ReleaseControlPhase,
+  now = Date.now(),
+): asserts value is Awaited<ReturnType<typeof verifyProductionClassificationWriterJobIdentity>> {
+  const saved = isRecord(value) ? verifiedJobs.get(value) : undefined;
+  const phase =
+    role === "classification-writer"
+      ? null
+      : releaseControlPhaseProfile(inspectReleaseControlPhase(role));
+  const profile: JobIdentityProfile =
+    phase === null
+      ? { ...classificationProfile, workflow: productionControllerWorkflow }
+      : {
+          workflow: productionControllerWorkflow,
+          job: phase.reader_name,
+          environment: phase.reader_environment,
+        };
+  if (
+    !saved ||
+    JSON.stringify(saved.profile) !== JSON.stringify(profile) ||
+    saved.snapshot !== JSON.stringify(value) ||
+    saved.expected.audience !==
+      (phase === null ? "portcove-release-classification-v1" : phase.reader_audience) ||
+    saved.expected.subject !==
+      controllerOidcSubject(saved.expected.controller_ref, profile.environment) ||
+    !isRecord(value) ||
+    typeof value.expires_at !== "string" ||
+    now >= Date.parse(value.expires_at)
+  )
+    throw new Error("original unexpired fixed classification/control job identity required");
 }
 
 // Fixed profiles are deliberately private: callers cannot promote another job

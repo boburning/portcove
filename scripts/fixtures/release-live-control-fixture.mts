@@ -10,6 +10,8 @@ import { releaseControlPhaseProfile } from "../release-control-phases.mts";
 import type { ReleaseControlPhase } from "../release-control-phases.mts";
 import { capacityFixture } from "./release-capacity-fixture.mts";
 import { controllerOidcSubject } from "../assembler-job-identity.mts";
+import { nativeAuthorityConfigurationFixture } from "./native-authority-configuration-fixture.mts";
+import { inspectReleaseAuthorityConfiguration } from "../release-authority-configuration.mts";
 
 export function capacityDocumentFixture() {
   return {
@@ -85,11 +87,30 @@ export function liveControlRuntimeFixture(
 ) {
   const profile = releaseControlPhaseProfile(phase);
   const workflow = Buffer.from("inert fixed same-workflow source fixture\n");
+  const authorities = nativeAuthorityConfigurationFixture();
+  assert.ok(authorities.apps.dispatch);
+  authorities.apps.dispatch.actor_id = expected.actor_id;
+  if (
+    isRecord(producerConfig) &&
+    typeof producerConfig.review_app_id === "number" &&
+    typeof producerConfig.writer_app_id === "number"
+  ) {
+    authorities.apps.semantic = { app_id: producerConfig.review_app_id, installation_id: 1001 };
+    authorities.apps.classification = {
+      app_id: producerConfig.writer_app_id,
+      installation_id: 1002,
+    };
+  }
   const policy = {
     schema_version: completeWorkflow ? 2 : 1,
     mode: completeWorkflow ? "bounded-application-release" : "admission-only",
     ...(completeWorkflow
-      ? { authority_configuration_sha256: "a".repeat(64), grant_sha256: "b".repeat(64) }
+      ? {
+          authority_configuration_sha256: capacityDigest(
+            inspectReleaseAuthorityConfiguration(authorities),
+          ),
+          grant_sha256: "b".repeat(64),
+        }
       : {}),
     revision: expected.controller_revision,
     execution_ref: expected.controller_ref,
@@ -147,6 +168,7 @@ export function liveControlRuntimeFixture(
     PORTCOVE_CONTROLLER_REF: policy.execution_ref,
     PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify(policy),
     PORTCOVE_REVIEW_PRODUCER: JSON.stringify(producerConfig),
+    ...(completeWorkflow ? { PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(authorities) } : {}),
     PORTCOVE_TRUSTED_PROTECTION_OBSERVATION: JSON.stringify(handoff),
   };
   const observerJob: Record<string, unknown> = {
