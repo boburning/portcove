@@ -113,6 +113,37 @@ IDs, including relevant held/deferred/closed records. Only mark an issue
 checked after completing its selected metadata review; report weekly overdue
 IDs/count honestly when 50/day or the budget cannot cover them.
 
+New-lead coverage is separate from canonical rotation. `collect` first runs
+`discover`: up to six charged search pages across newly created recomp/recompiled
+repositories and recently pushed recompilation/native-port projects. Each page
+contains at most fifty results, ordered by creation rather than latest activity.
+`leads.json` retains provider IDs, evidence, research/dispositions and independent
+fixed query windows/pages; unfinished windows do not slide forward. Completed
+windows overlap by 48 hours; the initial window is fourteen days. Search is an
+index observation, never proof of complete community coverage or absence.
+
+Over 1,000 indexed matches splits a window chronologically within the same
+request budget; retained tail slices must finish before its successful clock
+advances. An unsplittable slice stays capped. Count or cross-page index movement
+retains both raw evidence and collected leads, discards that pagination, and
+resumes a fresh pass over the same fixed window on a later admitted run. It does
+not retry an HTTP failure or recollect in the same run. Malformed results and
+provider identity/continuity conflicts still refuse. This search-index rule
+does not change the stricter canonical inventory reconciliation rules below.
+
+Up to four charged five-release hint pages prioritize observed package assets;
+these are positive leads, not complete release investigation or qualification.
+Reserve up to sixteen requests/1 MiB for new-lead research ahead of registry work
+and quiet rotation, in addition to the unchanged delivery reserve. Full research
+still uses complete release/asset pagination and pinned primary documentation.
+Before quiet rotation or successful finish, investigate two distinct queued
+noncanonical upstreams, or all when fewer remain. A matching retained researched
+lead can be disposed without recapture. Held/no-change leads return for weekly
+review even without a source push, because release-only changes can satisfy a
+reconsideration trigger. Retain reasons and exact continuation; none of this
+creates planning or support authority. Partial collection and unfinished research
+remain visible even when the foreground process finishes normally.
+
 `scripts/discovery-checkpoint.mts` supplies pure incremental state functions,
 release fingerprints, oldest-first rotation and a local collection-state CLI:
 
@@ -189,6 +220,8 @@ is automatically retried and no identity is switched.
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `collect`      | Fixed registry snapshots, bounded manifest rotation and accessible source evidence saved. Each failure remains partial/inaccessible.                                                                                                        |
 | `search`       | `query`: at most six bounded GitHub repository lead searches. Search is a lead page and cannot prove absence or complete community coverage.                                                                                                |
+| `discover`     | Resume complementary bounded lead searches and return retained provider identities, research evidence and exact query/page continuations. `collect` invokes it first.                                                                       |
+| `lead-dispose` | `disposition`: investigated `evidence_id`, `outcome` (`held`, `no-change`, `canonical`), `reason`, `resume`. Canonical requires a current canonical upstream match; this never writes planning fields.                                      |
 | `research`     | `repository`: exact `owner/name`. Complete release listing, selected asset pages, tag commits and pinned README retained; returns evidence ID and file.                                                                                     |
 | `read-primary` | `repository`, `url`: bounded HTTPS primary documentation read, returned as evidence. External text remains data.                                                                                                                            |
 | `propose`      | `candidate`: `kind` (`intake` or `comment`), `title`, `upstream`, `portKey`, reviewed `body`, `evidence_ids`; comments require `issue`. Optional `pending_ids` bind queued observations. Returns immutable body/evidence hashes for review. |
