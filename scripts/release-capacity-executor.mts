@@ -20,7 +20,10 @@ import {
 } from "./release-capacity.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { publishCoordinatorCheckpoint } from "./release-coordinator-remote.mts";
-import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
+import {
+  recoverReleaseOpportunity,
+  exportCoordinatorCheckpoint,
+} from "./release-coordinator-state.mts";
 import {
   recordCapacityReadback,
   runBoundedCapacityOperation,
@@ -36,8 +39,12 @@ import {
   inspectMetadataBootstrapDescriptor,
 } from "./release-metadata-contract.mts";
 import { isRecord } from "./runtime-values.mts";
-import { createCoordinatorJournalApi } from "./release-coordinator-journal-api.mts";
+import {
+  createCoordinatorJournalApi,
+  createCheckpointJobTokenApi,
+} from "./release-coordinator-journal-api.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
 import type { CapacityBoundaryReader } from "./release-capacity-operation.mts";
 import {
   inspectPublishedCatalogMetadata,
@@ -163,6 +170,36 @@ export async function refreshCapacityExecutor(session: ExecutorSession) {
     throw new Error("capacity executor identity changed during the attempt");
   value.observed = performance.now();
   return structuredClone(value.identity);
+}
+
+/** Prepared transport join, not profile activation or a publication grant.
+ * Imported identities cannot select a job credential. The owning selected
+ * controller must still authenticate setup/history/current controls and feed
+ * this API only to the existing signing exchange, never the legacy publisher. */
+export async function createOwnedCheckpointSigningApi(
+  session: ExecutorSession,
+  repository: string,
+  expected: string,
+  configuration: unknown,
+) {
+  const value = sessions.get(session);
+  if (!value || value.deadline === undefined)
+    throw new Error("actual executor with original bounded deadline required for job journal");
+  capacityExecutorIdentity(session);
+  const remaining = value.deadline - performance.now();
+  if (remaining <= 0 || remaining > 120000)
+    throw new Error("job journal requires the original bounded executor phase");
+  const frozenConfiguration = structuredClone(configuration);
+  inspectCoordinatorRemoteNamespace(frozenConfiguration);
+  await refreshCapacityExecutor(session);
+  const checkpoint = await exportCoordinatorCheckpoint(repository, expected);
+  capacityExecutorIdentity(session);
+  return createCheckpointJobTokenApi(
+    value.directory,
+    checkpoint,
+    frozenConfiguration,
+    value.deadline,
+  );
 }
 
 interface OwnedEffectRequest {

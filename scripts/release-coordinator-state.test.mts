@@ -53,6 +53,7 @@ import { performance } from "node:perf_hooks";
 import { checkpointProofFixture } from "./fixtures/checkpoint-proof-fixture.mts";
 import { authenticateCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-authentication.mts";
 import { publishCoordinatorSigningExchange } from "./release-coordinator-signing-exchange.mts";
+import { createCheckpointJobTokenApi } from "./release-coordinator-journal-api.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import childProcess from "node:child_process";
@@ -63,6 +64,7 @@ import {
   executeOwnedCapacityEffect,
   recoverOwnedPublishedMetadata,
   recoverOwnedCapacityEffect,
+  createOwnedCheckpointSigningApi,
 } from "./release-capacity-executor.mts";
 import {
   assemblerIdentityFixture,
@@ -70,7 +72,7 @@ import {
   jwk as identityJwk,
 } from "./fixtures/assembler-identity-fixture.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
-import { controllerOidcSubject } from "./assembler-job-identity.mts";
+import { controllerOidcSubject, capacityExecutorJobProfile } from "./assembler-job-identity.mts";
 import { requestTrustedSemanticReview } from "./release-coordinator-driver.mts";
 import { fileURLToPath } from "node:url";
 
@@ -4091,7 +4093,12 @@ for (const expires of ["read", "first-object", "before-cas", "mutated-options"])
   });
 }
 
-async function signingExchangeFixture(t: test.TestContext, fault = "", now?: string) {
+async function signingExchangeFixture(
+  t: test.TestContext,
+  fault = "",
+  now?: string,
+  jobToken = false,
+) {
   const f = await remoteFixture(t, now),
     proof = checkpointProofFixture(f.checkpoint, f.config);
   const directory = await mkdtemp(path.join(os.tmpdir(), "coordinator-signing-exchange-"));
@@ -4116,6 +4123,28 @@ async function signingExchangeFixture(t: test.TestContext, fault = "", now?: str
           stdout: JSON.stringify([{ verificationResult: proof.verification }]),
           stderr: "",
         };
+      if (String(options?.env?.GH_CONFIG_DIR).startsWith(path.join(directory, "journal-api-"))) {
+        assert.equal(options?.env?.GH_TOKEN, "inert-checkpoint-reader");
+        assert.ok(options?.input === undefined || typeof options.input === "string");
+        const input: unknown = options?.input === undefined ? undefined : JSON.parse(options.input);
+        let body: unknown,
+          status = 200;
+        if (args[1] === "graphql") {
+          assert.ok(
+            isRecord(input) && typeof input.query === "string" && isRecord(input.variables),
+          );
+          body = api.graphql(input.query, input.variables);
+        } else {
+          const response = api.request(args[args.indexOf("--method") + 1]!, args[2]!, input);
+          body = response.body;
+          status = response.status!;
+        }
+        return {
+          status: 0,
+          stdout: `HTTP/2.0 ${status} Fixture\r\n\r\n${JSON.stringify(body)}`,
+          stderr: "",
+        };
+      }
       const response = proof.api.request("GET", args[2]!);
       return {
         status: 0,
@@ -4198,11 +4227,14 @@ async function signingExchangeFixture(t: test.TestContext, fault = "", now?: str
     },
   };
   const deadline = performance.now() + 60000;
+  const transport = jobToken
+    ? createCheckpointJobTokenApi(directory, f.checkpoint, f.config, deadline)
+    : api;
   let retainedGate: ((stage: "fulcio" | "rekor") => Promise<void>) | undefined;
   const run = () =>
     withReadOnlyReleaseChildren(directory, () =>
       publishCoordinatorSigningExchange(f.bare, f.saved.checkpoint, f.config, deadline, {
-        api,
+        api: transport,
         async refresh(stage) {
           events.push(`refresh:${stage}`);
           await hooks.refresh(stage);
@@ -4265,6 +4297,21 @@ async function signingExchangeFixture(t: test.TestContext, fault = "", now?: str
     gate: () => retainedGate,
     stats: () => ({ calls, mutations, produces, gateDrained }),
   };
+}
+
+for (const fault of ["", "claim-after", "final-after", "partial-final"]) {
+  void test(`fixed-job token exchange ${fault || "complete"} uses exact tuple transport and preserves effects`, async (t) => {
+    const f = await signingExchangeFixture(t, fault, undefined, true);
+    if (fault === "claim-after" || fault === "partial-final") {
+      await assert.rejects(f.run(), CoordinatorRemoteError);
+      assert.equal(f.stats().produces, fault === "claim-after" ? 0 : 1);
+    } else {
+      const result = await f.run();
+      assert.equal(result.requests, 16);
+      assert.equal(result.recovered, fault === "final-after");
+    }
+    assert.equal(f.refs.get(f.intent), f.saved.checkpoint);
+  });
 }
 
 void test("same-journal signing claims its predecessor without advancing unsigned head and commits authenticated proof in sixteen requests", async (t) => {
@@ -4434,4 +4481,119 @@ void test("competing different checkpoints cannot acquire two signing intents fo
   );
   assert.equal(produced, false);
   assert.equal(first.refs.get(first.intent), first.saved.checkpoint);
+});
+
+void test("owned fixed-job factory freezes namespace across actual identity refresh before exporting checkpoint", async (t) => {
+  const f = await remoteFixture(t);
+  const expected = {
+    ...identityExpected,
+    audience: "portcove-capacity-executor",
+    subject:
+      "repo:boburning@43177418/portcove@1354613114:environment:production-release-coordinator",
+  };
+  const identity = assemblerIdentityFixture(
+    {
+      aud: expected.audience,
+      sub: expected.subject,
+      environment: "production-release-coordinator",
+    },
+    {},
+    capacityExecutorJobProfile("coordinator"),
+  );
+  const saved = new Map(
+    ["GH_TOKEN", "ACTIONS_ID_TOKEN_REQUEST_URL", "ACTIONS_ID_TOKEN_REQUEST_TOKEN"].map((key) => [
+      key,
+      process.env[key],
+    ]),
+  );
+  process.env.GH_TOKEN = "inert-owned-job-token";
+  process.env.ACTIONS_ID_TOKEN_REQUEST_URL = "https://fixture.actions.githubusercontent.com/oidc";
+  process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN = "inert-runner-token";
+  const actualSpawn = childProcess.spawnSync;
+  let mutate = false,
+    journalCalls = 0;
+  t.after(() => {
+    for (const [key, value] of saved) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+  t.mock.method(globalThis, "fetch", async (raw: Parameters<typeof fetch>[0]) => {
+    assert.ok(typeof raw === "string" || raw instanceof URL);
+    const url = typeof raw === "string" ? raw : raw.href;
+    if (url === "https://token.actions.githubusercontent.com/.well-known/jwks")
+      return new Response(JSON.stringify({ keys: [identityJwk] }));
+    assert.equal(
+      url,
+      "https://fixture.actions.githubusercontent.com/oidc?audience=portcove-capacity-executor",
+    );
+    if (mutate) f.config.namespace = "portcove-foreign";
+    return new Response(JSON.stringify({ value: identity.token }));
+  });
+  t.mock.method(
+    childProcess,
+    "spawnSync",
+    (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
+      if (command !== "gh") return actualSpawn(command, args, options);
+      if (args[1] !== "graphql") return identity.transport.spawn(command, args, options);
+      journalCalls++;
+      assert.equal(options.env?.GH_TOKEN, "inert-owned-job-token");
+      assert.ok(typeof options.input === "string");
+      const input: unknown = JSON.parse(options.input);
+      assert.ok(isRecord(input) && typeof input.query === "string" && isRecord(input.variables));
+      assert.ok(
+        Object.values(input.variables).every(
+          (value) =>
+            typeof value === "string" &&
+            value.startsWith("refs/") &&
+            value.includes("portcove-fixture"),
+        ),
+      );
+      const response = f.api.graphql(input.query, input.variables);
+      assert.ok(isRecord(response.data));
+      return {
+        status: 0,
+        stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify({ data: { repository: response.data.node } })}`,
+        stderr: "",
+      };
+    },
+  );
+  syncBuiltinESMExports();
+  const deadline = performance.now() + 60000;
+  const session = await authenticateCapacityExecutor(
+    "coordinator",
+    expected,
+    f.repository,
+    deadline,
+  );
+  mutate = true;
+  const api = await createOwnedCheckpointSigningApi(session, f.bare, f.saved.checkpoint, f.config);
+  assert.equal(f.config.namespace, "portcove-foreign", "mutation occurred during awaited refresh");
+  const names = [
+    f.stateRef,
+    ...f.checkpoint.receipts.map((receipt) =>
+      receipt.local_ref.startsWith("refs/portcove/prepared-versions/")
+        ? `refs/tags/portcove-fixture-prepared/${receipt.local_ref.slice("refs/portcove/prepared-versions/".length)}`
+        : `refs/tags/portcove-fixture-prepared-source/${receipt.local_ref.slice("refs/portcove/prepared-commits/".length)}`,
+    ),
+    `refs/tags/portcove-fixture-checkpoint-intent/${f.checkpoint.previous!}`,
+    `refs/tags/portcove-fixture-checkpoint-proof/${f.checkpoint.checkpoint}`,
+  ];
+  const declarations = names.map((_, i) => `$r${i}:String!`).join(",");
+  const fields = names
+    .map((_, i) => `r${i}:ref(qualifiedName:$r${i}){name prefix target{__typename oid}}`)
+    .join(" ");
+  api.graphql(
+    `query(${declarations}){repository(owner:"boburning",name:"portcove"){__typename id databaseId nameWithOwner ${fields}}}`,
+    Object.fromEntries(names.map((name, i) => [`r${i}`, name])),
+  );
+  assert.equal(journalCalls, 1);
+  identity.faults.value = "job-completed";
+  await assert.rejects(
+    createOwnedCheckpointSigningApi(session, f.bare, f.saved.checkpoint, f.config),
+    /job/,
+  );
+  assert.equal(journalCalls, 1, "completed executor cannot obtain another journal transport");
 });

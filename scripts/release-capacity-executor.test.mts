@@ -6,6 +6,7 @@ import {
   assertCapacityExecutorEffectScope,
   inspectCapacityExecutorSubject,
   executeOwnedCapacityEffect,
+  createOwnedCheckpointSigningApi,
 } from "./release-capacity-executor.mts";
 import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
 import { catalogPublicationFixture } from "./fixtures/release-catalog-publication-fixture.mts";
@@ -169,6 +170,10 @@ void test("serialized job claims or a copied kind cannot create an executor sess
   const imported = Object.freeze({ kind: "authenticated-capacity-executor" as const });
   assert.throws(() => capacityExecutorIdentity(imported), /actual fresh executor/u);
   await assert.rejects(refreshCapacityExecutor(imported), /imported executor/u);
+  await assert.rejects(
+    createOwnedCheckpointSigningApi(imported, "unused", "a".repeat(40), {}),
+    /actual executor/,
+  );
   let entered = false;
   await assert.rejects(
     executeOwnedCapacityEffect(
