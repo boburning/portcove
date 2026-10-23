@@ -12,7 +12,9 @@ import {
   runBoundedMetadataRenewalOperation,
   recordPublishedMetadata,
   runBoundedMetadataBootstrapOperation,
+  runBoundedCatalogPublicationOperation,
 } from "./release-capacity-operation.mts";
+import { catalogPublicationFixture } from "./fixtures/release-catalog-publication-fixture.mts";
 import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
 import { isDeepStrictEqual } from "node:util";
 import assert from "node:assert/strict";
@@ -67,7 +69,9 @@ import {
   authenticateCapacityExecutor,
   executeOwnedCapacityEffect,
   recoverOwnedPublishedMetadata,
+  recoverOwnedPublishedCatalogMetadata,
   recoverOwnedCapacityEffect,
+  capacityExecutorIdentity,
   createOwnedCheckpointSigningApi,
   authenticateOwnedCheckpointJournalHistory,
   publishOwnedSignedCoordinatorCheckpoint,
@@ -4411,6 +4415,202 @@ void test("same-journal signing claims its predecessor without advancing unsigne
   await assert.rejects(f.run(), CoordinatorRemoteError);
   assert.equal(f.stats().produces, 1, "completed or retained intent is never reminted");
 });
+for (const route of ["operation", "application", "catalog"] as const) {
+  void test(`selected ${route} recovery refuses missing history without legacy fallback`, async (t) => {
+    const f = await selectedOwnedHistoryFixture(t, undefined, false);
+    const old = process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN;
+    process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN = "inert-lingering-legacy-token";
+    t.after(() => {
+      if (old === undefined) delete process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN;
+      else process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN = old;
+    });
+    process.env.PORTCOVE_RELEASE_AUTHORITIES = '{"schema_version":1}';
+    const input = {
+      repository: f.bare,
+      checkpoint: f.seed.checkpoint,
+      remote_configuration: { schema_version: 1, namespace: "portcove-fixture" },
+    };
+    let readbacks = 0;
+    const readback = async () => {
+      readbacks++;
+      return { resolution: "effect-not-applied" as const, evidence_sha256: "e".repeat(64) };
+    };
+    const work = () =>
+      route === "operation"
+        ? recoverOwnedCapacityEffect(f.session, input, readback)
+        : route === "application"
+          ? recoverOwnedPublishedMetadata(f.session, input, readback)
+          : recoverOwnedPublishedCatalogMetadata(f.session, input, readback);
+    await assert.rejects(work(), /exact bound journal/);
+    assert.equal(readbacks, 0);
+    assert.equal(f.heads(), 0);
+    await assert.rejects(work(), /stopped/);
+    await assert.rejects(
+      authenticateOwnedCheckpointJournalHistory(f.session, f.bare, f.seed.checkpoint),
+      /stopped/,
+    );
+  });
+}
+
+for (const recovery of [
+  "effect-completed",
+  "effect-not-applied",
+  "partial-effects-retained",
+  "original-live",
+  "incomplete",
+  "controls-hold",
+  "ambiguous-settlement",
+] as const) {
+  void test(
+    `selected explicit recovery ${recovery} preserves original effects without repeating them`,
+    {
+      timeout: 180000,
+      skip:
+        process.platform !== "linux" || process.getuid?.() === 0
+          ? "default signing custody requires an ordinary native Linux owner"
+          : false,
+    },
+    async (t) => {
+      const f = await selectedEffectFixture(t);
+      // Retain an inert previous job's operation through the real selected journal.
+      // The current coordinator is independently authenticated job501; job502 is
+      // observed below, never reappointed by a supplied recovery receipt.
+      const prior = { ...capacityExecutorIdentity(f.session), job_id: 502, check_run_id: "778" };
+      let effects = 0;
+      const receipt = {
+        remote_identity: "provider:retained-original",
+        evidence_sha256: "d".repeat(64),
+      };
+      await assert.rejects(
+        runBoundedCapacityOperation(
+          f.bare,
+          f.reserved.checkpoint,
+          {
+            kind: "dispatch",
+            destination: "github-actions:boburning/portcove:release.yml:dispatch",
+          },
+          async () => capacityFixture().boundary,
+          async (record) => {
+            effects++;
+            if (recovery === "partial-effects-retained")
+              await record(receipt.remote_identity, receipt.evidence_sha256);
+            throw new Error("original provider response lost; retain exact attempt");
+          },
+          {
+            executorIdentity: prior,
+            maximumReceipts: 1,
+            remote: {
+              publish: (checkpoint) =>
+                publishOwnedSignedCoordinatorCheckpoint(
+                  f.session,
+                  f.bare,
+                  checkpoint,
+                  async () => {},
+                ),
+            },
+          },
+        ),
+        /read back before/,
+      );
+      const checkpoint = f.remote.refs.get(f.remote.stateRef)!;
+      const before = await recoverReleaseOpportunity(f.bare, checkpoint);
+      f.faults.originalTerminal = recovery !== "original-live";
+      let readbacks = 0;
+      const input = { repository: f.bare, checkpoint, remote_configuration: f.remote.config };
+      const work = () =>
+        recoverOwnedCapacityEffect(
+          f.session,
+          input,
+          async () => {
+            readbacks++;
+            if (recovery === "ambiguous-settlement") f.faults.ambiguousFinal = true;
+            return {
+              resolution:
+                recovery === "partial-effects-retained" || recovery === "effect-not-applied"
+                  ? recovery
+                  : "effect-completed",
+              evidence_sha256: recovery === "incomplete" ? "invalid" : "e".repeat(64),
+              ...(recovery === "effect-completed" || recovery === "ambiguous-settlement"
+                ? { completed_effect: receipt }
+                : {}),
+            };
+          },
+          undefined,
+          async () => {
+            if (recovery === "controls-hold") throw new Error("actual recovery controls hold");
+          },
+        );
+      if (
+        ["original-live", "incomplete", "controls-hold", "ambiguous-settlement"].includes(recovery)
+      ) {
+        await assert.rejects(work());
+        assert.equal(
+          readbacks,
+          recovery === "original-live" || recovery === "controls-hold" ? 0 : 1,
+        );
+        const calls = f.traffic.calls;
+        await assert.rejects(work(), /stopped/);
+        await assert.rejects(
+          publishOwnedSignedCoordinatorCheckpoint(
+            f.session,
+            f.bare,
+            f.remote.refs.get(f.remote.stateRef)!,
+            async () => {},
+          ),
+          /stopped/,
+        );
+        assert.equal(f.traffic.calls, calls);
+        if (recovery === "ambiguous-settlement") {
+          const head = f.remote.refs.get(f.remote.stateRef)!;
+          assert.notEqual(head, checkpoint, "partial remote settlement is retained, never reset");
+          assert.equal(
+            f.remote.refs.has(`refs/tags/portcove-fixture-checkpoint-proof/${head}`),
+            false,
+          );
+          const retained = await recoverReleaseOpportunity(f.bare, head);
+          assert.ok(
+            isRecord(retained.input.controller) &&
+              isRecord(retained.input.controller.capacity_attempt),
+          );
+          const operation = inspectCapacityOperation(
+            retained.input.controller.capacity_attempt.operation,
+          )!;
+          assert.equal(operation.recovery?.resolution, "effect-completed");
+          assert.deepEqual(operation.completed_effects, [receipt]);
+          assert.deepEqual(retained.input.active_candidate, before.input.active_candidate);
+        } else {
+          const retained = await recoverReleaseOpportunity(f.bare, checkpoint);
+          assert.deepEqual(retained.input, before.input);
+        }
+      } else {
+        const result = await work();
+        assert.equal(readbacks, 1);
+        assert.equal(f.remote.refs.get(f.remote.stateRef), result.checkpoint);
+        const retained = await recoverReleaseOpportunity(f.bare, result.checkpoint);
+        assert.ok(
+          isRecord(retained.input.controller) &&
+            isRecord(retained.input.controller.capacity_attempt),
+        );
+        const operation = inspectCapacityOperation(
+          retained.input.controller.capacity_attempt.operation,
+        )!;
+        assert.equal(operation.recovery?.resolution, recovery);
+        assert.ok(operation.recovery && isRecord(operation.recovery.executor_identity));
+        assert.equal(operation.recovery.executor_identity.job_id, 501);
+        assert.deepEqual(
+          operation.completed_effects,
+          recovery === "effect-not-applied" ? [] : [receipt],
+        );
+        assert.deepEqual(retained.input.active_candidate, before.input.active_candidate);
+        const capacity = assessBoundedCapacity(retained.input.controller.capacity_attempt);
+        assert.equal(capacity.availability, "unknown");
+        assert.equal(capacity.headroom, "unknown");
+      }
+      assert.equal(effects, 1, "recovery never repeats the provider effect");
+    },
+  );
+}
+
 for (const fault of [
   "claim-before",
   "claim-after",
@@ -4677,6 +4877,7 @@ async function selectedOwnedHistoryFixture(
   t: test.TestContext,
   captureDirectory?: string,
   bind = true,
+  purpose: "application" | "catalog-publication" = "application",
 ) {
   const f = await remoteFixture(t);
   const bare = path.join(f.repository, "selected-empty.git");
@@ -4723,7 +4924,7 @@ async function selectedOwnedHistoryFixture(
   );
   const policy = {
     schema_version: 2,
-    mode: "bounded-application-release",
+    mode: purpose === "application" ? "bounded-application-release" : "bounded-catalog-publication",
     revision: expected.controller_revision,
     execution_ref: expected.controller_ref,
     actor_id: expected.actor_id,
@@ -4735,9 +4936,12 @@ async function selectedOwnedHistoryFixture(
     GH_TOKEN: "inert-selected-job-token",
     ACTIONS_ID_TOKEN_REQUEST_URL: "https://fixture.actions.githubusercontent.com/oidc",
     ACTIONS_ID_TOKEN_REQUEST_TOKEN: "inert-oidc-bearer",
-    PORTCOVE_EXECUTION_PURPOSE: "application",
-    PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(authorities),
-    PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify(policy),
+    PORTCOVE_EXECUTION_PURPOSE: purpose,
+    [purpose === "application" ? "PORTCOVE_RELEASE_AUTHORITIES" : "PORTCOVE_CATALOG_AUTHORITIES"]:
+      JSON.stringify(authorities),
+    [purpose === "application"
+      ? "PORTCOVE_CONTROLLER_ADMISSION"
+      : "PORTCOVE_CATALOG_CONTROLLER_ADMISSION"]: JSON.stringify(policy),
     GITHUB_ACTIONS: "true",
     GITHUB_SERVER_URL: "https://github.com",
     GITHUB_API_URL: "https://api.github.com",
@@ -4868,11 +5072,15 @@ void test("selected source cannot fall back to a lingering App token before hist
   );
 });
 
-async function selectedEffectFixture(t: test.TestContext) {
+async function selectedEffectFixture(
+  t: test.TestContext,
+  purpose: "application" | "catalog-publication" = "application",
+  applicationReservation = purpose === "application",
+) {
   const actualSpawn = childProcess.spawnSync;
   const custody = await mkdtemp(path.join(os.homedir(), ".portcove-owned-effect-test-"));
   t.after(() => rm(custody, { recursive: true, force: true }));
-  const f = await selectedOwnedHistoryFixture(t, custody);
+  const f = await selectedOwnedHistoryFixture(t, custody, true, purpose);
   const oldFetch = globalThis.fetch;
   const sigstore = assemblerIdentityFixture(
     { aud: "sigstore", sub: f.expected.subject, environment: "production-release-coordinator" },
@@ -4883,7 +5091,7 @@ async function selectedEffectFixture(t: test.TestContext) {
   const remote = f.fixture;
   remote.refs.clear();
   remote.refs.set(remote.stateRef, f.seed.checkpoint);
-  const faults = { ambiguousFinal: false };
+  const faults = { ambiguousFinal: false, originalTerminal: true, originalJobReads: 0 };
   const traffic = { calls: 0 };
   const posts: string[] = [];
   const json = (value: unknown, status = 200) =>
@@ -4949,6 +5157,23 @@ async function selectedEffectFixture(t: test.TestContext) {
     (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
       if (command !== "gh") return actualSpawn(command, args, options);
       traffic.calls++;
+      if (args[2]?.endsWith("/actions/jobs/502")) {
+        faults.originalJobReads++;
+        assert.equal(args[args.indexOf("--method") + 1], "GET");
+        return {
+          status: 0,
+          stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify({
+            id: 502,
+            run_id: 9988,
+            run_attempt: 1,
+            head_sha: f.expected.controller_revision,
+            status: faults.originalTerminal ? "completed" : "in_progress",
+            conclusion: faults.originalTerminal ? "failure" : null,
+            check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/778",
+          })}`,
+          stderr: "",
+        };
+      }
       if (args[0] === "attestation") {
         const bundle: unknown = JSON.parse(
           readFileSync(args[args.indexOf("--bundle") + 1]!, "utf8"),
@@ -5059,6 +5284,12 @@ async function selectedEffectFixture(t: test.TestContext) {
   );
   const reserved = await checkpointReleaseOpportunity(f.bare, f.seed.checkpoint, {
     ...remote.input,
+    ...(!applicationReservation
+      ? {
+          active_candidate: null,
+          publication: { ...remote.input.publication, reserved_versions: [] },
+        }
+      : {}),
     schema_version: 2,
     controller: f.seedInput.controller,
   });
@@ -5070,6 +5301,429 @@ async function selectedEffectFixture(t: test.TestContext) {
   );
   return { ...f, remote, reserved, faults, posts, traffic };
 }
+
+for (const component of ["application", "catalog"] as const) {
+  void test(
+    `selected ${component} metadata recovery atomically records its component and site cursor`,
+    {
+      timeout: 180000,
+      skip:
+        process.platform !== "linux" || process.getuid?.() === 0
+          ? "default signing custody requires an ordinary native Linux owner"
+          : false,
+    },
+    async (t) => {
+      const f = await selectedEffectFixture(
+        t,
+        component === "catalog" ? "catalog-publication" : "application",
+      );
+      const metadata = metadataFixture();
+      const descriptor = catalogPublicationFixture();
+      const current = await recoverReleaseOpportunity(f.bare, f.reserved.checkpoint);
+      const input = structuredClone(current.input);
+      if (component === "catalog") {
+        input.active_candidate = null;
+        input.catalog_publication = descriptor;
+      } else input.published_metadata = metadata.published;
+      const initial = await checkpointReleaseOpportunity(f.bare, current.checkpoint, input);
+      const remote = {
+        publish: (checkpoint: string) =>
+          publishOwnedSignedCoordinatorCheckpoint(f.session, f.bare, checkpoint, async () => {}),
+      };
+      await remote.publish(initial.checkpoint);
+      const prior = {
+        ...capacityExecutorIdentity(f.session),
+        role: "site-publication",
+        job_id: 502,
+        check_run_id: "778",
+      };
+      const receipt = {
+        remote_identity: "github-pages:boburning/portcove:fixture-deployment",
+        evidence_sha256: "d".repeat(64),
+      };
+      const options = { executorIdentity: prior, maximumReceipts: 1, remote };
+      let effects = 0;
+      const effect = async (record: (identity: string, hash: string) => Promise<void>) => {
+        effects++;
+        await record(receipt.remote_identity, receipt.evidence_sha256);
+      };
+      const result =
+        component === "catalog"
+          ? await runBoundedCatalogPublicationOperation(
+              f.bare,
+              initial.checkpoint,
+              descriptor,
+              {
+                kind: "upload",
+                destination: "github-pages:boburning/portcove:complete-site",
+                catalog_site_expectation: {
+                  application_root_sha256: null,
+                  archive_sha256: "a".repeat(64),
+                  artifact_id: 1,
+                  catalog_repository_sha256: "b".repeat(64),
+                  catalog_root_sha256: descriptor.prior.catalog_root_sha256,
+                  prior_site_generation_sha256: null,
+                  site_generation_sha256: "c".repeat(64),
+                },
+              },
+              async () => capacityFixture().boundary,
+              effect,
+              options,
+            )
+          : await runBoundedCapacityOperation(
+              f.bare,
+              initial.checkpoint,
+              {
+                kind: "upload",
+                destination: "github-pages:boburning/portcove:complete-site",
+                site_expectation: {
+                  archive_sha256: "a".repeat(64),
+                  artifact_id: 1,
+                  prior_site_generation_sha256:
+                    metadata.published.publication.site_generation_sha256,
+                  repository_sha256: "9".repeat(64),
+                  root_sha256: metadata.published.root_sha256,
+                  site_generation_sha256: "c".repeat(64),
+                },
+              },
+              async () => capacityFixture().boundary,
+              effect,
+              options,
+            );
+      const publication = { ...receipt, site_generation_sha256: "c".repeat(64) };
+      const observed =
+        component === "application"
+          ? {
+              ...metadata.published,
+              repository_sha256: "9".repeat(64),
+              versions: metadata.descriptor.next_versions,
+              expires: metadata.descriptor.next_expires,
+              operation_id: result.operation.id,
+              publication,
+            }
+          : {
+              schema_version: 1,
+              source_commit: descriptor.source_commit,
+              source_tree: descriptor.source_tree,
+              root_sha256: descriptor.prior.catalog_root_sha256,
+              repository_sha256: "b".repeat(64),
+              verifier_repository_sha256: "e".repeat(64),
+              immutable_targets_sha256: capacityDigest([]),
+              offline_targets_sha256: "f".repeat(64),
+              index_sha256: "0".repeat(64),
+              snapshot_sha256: "1".repeat(64),
+              timestamp_sha256: "2".repeat(64),
+              versions: {
+                targets: "1",
+                definitions: "1",
+                policy: "1",
+                snapshot: "1",
+                timestamp: "1",
+              },
+              expires: Object.fromEntries(
+                ["targets", "definitions", "policy", "snapshot", "timestamp"].map((role) => [
+                  role,
+                  "2026-12-01T00:00:00Z",
+                ]),
+              ),
+              operation_id: result.operation.id,
+              publication,
+            };
+      const site = {
+        schema_version: 1,
+        generation_sha256: publication.site_generation_sha256,
+        operation_id: result.operation.id,
+        publication: receipt,
+        components: {
+          application: null,
+          catalog: {
+            root_sha256: observed.root_sha256,
+            repository_sha256: observed.repository_sha256,
+          },
+        },
+      };
+      const request = {
+        repository: f.bare,
+        checkpoint: (
+          await recordCapacityReadback(
+            f.bare,
+            result.checkpoint,
+            "effect-completed",
+            "e".repeat(64),
+            { remote, executorIdentity: capacityExecutorIdentity(f.session) },
+          )
+        ).checkpoint,
+        remote_configuration: f.remote.config,
+      };
+      const recovered =
+        component === "application"
+          ? await recoverOwnedPublishedMetadata(
+              f.session,
+              request,
+              async () => observed,
+              undefined,
+              async () => {},
+            )
+          : await recoverOwnedPublishedCatalogMetadata(
+              f.session,
+              request,
+              async () => ({ metadata: observed, site }),
+              undefined,
+              async () => {},
+            );
+      assert.equal(effects, 1);
+      assert.equal(f.remote.refs.get(f.remote.stateRef), recovered.checkpoint);
+      const retained = await recoverReleaseOpportunity(f.bare, recovered.checkpoint);
+      assert.deepEqual(
+        retained.input[
+          component === "application" ? "published_metadata" : "published_catalog_metadata"
+        ],
+        observed,
+      );
+      assert.equal(
+        isRecord(retained.input.published_site) && retained.input.published_site.operation_id,
+        result.operation.id,
+      );
+      assert.deepEqual(retained.input.active_candidate, input.active_candidate);
+      if (component === "catalog") {
+        assert.deepEqual(retained.input.published_site, site);
+        assert.equal(retained.input.catalog_publication, null);
+        assert.equal(retained.input.published_metadata, undefined);
+      }
+    },
+  );
+}
+
+for (const component of ["application", "catalog"] as const) {
+  void test(
+    `selected ${component} metadata recovery refuses the opposite source purpose`,
+    {
+      timeout: 180000,
+      skip:
+        process.platform !== "linux" || process.getuid?.() === 0
+          ? "default signing custody requires an ordinary native Linux owner"
+          : false,
+    },
+    async (t) => {
+      const f = await selectedEffectFixture(
+        t,
+        component === "catalog" ? "application" : "catalog-publication",
+      );
+      let controls = 0;
+      const calls = f.traffic.calls;
+      const request = {
+        repository: f.bare,
+        checkpoint: f.reserved.checkpoint,
+        remote_configuration: f.remote.config,
+      };
+      const read = async () => {
+        throw new Error("opposite-purpose readback must not run");
+      };
+      const current = async () => {
+        controls++;
+      };
+      await assert.rejects(
+        component === "catalog"
+          ? recoverOwnedPublishedCatalogMetadata(f.session, request, read, undefined, current)
+          : recoverOwnedPublishedMetadata(f.session, request, read, undefined, current),
+        /publication purpose differs/,
+      );
+      assert.equal(controls, 0);
+      assert.equal(f.traffic.calls, calls);
+    },
+  );
+}
+
+for (const purpose of ["application", "catalog-publication"] as const) {
+  void test(
+    `selected ${purpose} operation recovery refuses the opposite retained subject before provider readback`,
+    {
+      timeout: 180000,
+      skip:
+        process.platform !== "linux" || process.getuid?.() === 0
+          ? "default signing custody requires an ordinary native Linux owner"
+          : false,
+    },
+    async (t) => {
+      const f = await selectedEffectFixture(t, purpose, purpose === "catalog-publication");
+      const descriptor = catalogPublicationFixture();
+      let checkpoint = f.reserved.checkpoint;
+      const remote = {
+        publish: (head: string) =>
+          publishOwnedSignedCoordinatorCheckpoint(f.session, f.bare, head, async () => {}),
+      };
+      if (purpose === "application") {
+        const current = await recoverReleaseOpportunity(f.bare, checkpoint);
+        const saved = await checkpointReleaseOpportunity(f.bare, checkpoint, {
+          ...current.input,
+          catalog_publication: descriptor,
+        });
+        await remote.publish(saved.checkpoint);
+        checkpoint = saved.checkpoint;
+      }
+      const prior = { ...capacityExecutorIdentity(f.session), job_id: 502, check_run_id: "778" };
+      const effect = async () => {
+        throw new Error("original provider outcome unknown");
+      };
+      const options = { executorIdentity: prior, maximumReceipts: 1, remote };
+      await assert.rejects(
+        purpose === "application"
+          ? runBoundedCatalogPublicationOperation(
+              f.bare,
+              checkpoint,
+              descriptor,
+              {
+                kind: "upload",
+                destination: "github-actions:boburning/portcove:catalog-publication-context",
+              },
+              async () => capacityFixture().boundary,
+              effect,
+              options,
+            )
+          : runBoundedCapacityOperation(
+              f.bare,
+              checkpoint,
+              {
+                kind: "dispatch",
+                destination: "github-actions:boburning/portcove:release.yml:dispatch",
+              },
+              async () => capacityFixture().boundary,
+              effect,
+              options,
+            ),
+        /read back before/,
+      );
+      checkpoint = f.remote.refs.get(f.remote.stateRef)!;
+      const posts = f.posts.length;
+      let readbacks = 0;
+      await assert.rejects(
+        recoverOwnedCapacityEffect(
+          f.session,
+          {
+            repository: f.bare,
+            checkpoint,
+            remote_configuration: f.remote.config,
+          },
+          async () => {
+            readbacks++;
+            return { resolution: "effect-not-applied", evidence_sha256: "e".repeat(64) };
+          },
+          undefined,
+          async () => {},
+        ),
+        /publication purpose differs/,
+      );
+      assert.equal(readbacks, 0);
+      assert.equal(f.faults.originalJobReads, 0);
+      assert.equal(f.posts.length, posts, "wrong-purpose recovery cannot start a signing exchange");
+      assert.equal(f.remote.refs.get(f.remote.stateRef), checkpoint);
+    },
+  );
+}
+
+for (const purpose of ["application", "catalog-publication"] as const) {
+  void test(
+    `selected ${purpose} executor refuses opposite-purpose effects before controls or provider work`,
+    {
+      timeout: 180000,
+      skip:
+        process.platform !== "linux" || process.getuid?.() === 0
+          ? "default signing custody requires an ordinary native Linux owner"
+          : false,
+    },
+    async (t) => {
+      const f = await selectedEffectFixture(t, purpose);
+      let controls = 0,
+        effects = 0;
+      const calls = f.traffic.calls;
+      await assert.rejects(
+        executeOwnedCapacityEffect(
+          f.session,
+          {
+            repository: f.bare,
+            checkpoint: f.reserved.checkpoint,
+            remote_configuration: f.remote.config,
+            ...(purpose === "application"
+              ? {
+                  catalog_publication: catalogPublicationFixture(),
+                  request: {
+                    kind: "upload" as const,
+                    destination: "github-actions:boburning/portcove:catalog-publication-context",
+                  },
+                }
+              : {
+                  request: {
+                    kind: "dispatch" as const,
+                    destination: "github-actions:boburning/portcove:release.yml:dispatch",
+                  },
+                }),
+          },
+          async () => {
+            controls++;
+          },
+          async () => {
+            effects++;
+            return { remote_identity: "must-not-run", evidence_sha256: "d".repeat(64) };
+          },
+          async () => {
+            controls++;
+          },
+        ),
+        /publication purpose differs/,
+      );
+      assert.equal(controls, 0);
+      assert.equal(effects, 0);
+      assert.equal(f.traffic.calls, calls);
+    },
+  );
+}
+
+void test(
+  "selected recovery rejects a legacy guard even with bound history and live selected controls",
+  {
+    timeout: 180000,
+    skip:
+      process.platform !== "linux" || process.getuid?.() === 0
+        ? "default signing custody requires an ordinary native Linux owner"
+        : false,
+  },
+  async (t) => {
+    const f = await selectedEffectFixture(t);
+    const calls = f.traffic.calls;
+    let guards = 0;
+    await assert.rejects(
+      recoverOwnedCapacityEffect(
+        f.session,
+        {
+          repository: f.bare,
+          checkpoint: f.reserved.checkpoint,
+          remote_configuration: f.remote.config,
+        },
+        async () => {
+          throw new Error("readback must not run");
+        },
+        () => {
+          guards++;
+        },
+        async () => {
+          guards++;
+        },
+      ),
+      /exact bound journal/,
+    );
+    assert.equal(guards, 0);
+    assert.equal(f.traffic.calls, calls);
+    await assert.rejects(
+      publishOwnedSignedCoordinatorCheckpoint(
+        f.session,
+        f.bare,
+        f.reserved.checkpoint,
+        async () => {},
+      ),
+      /stopped/,
+    );
+  },
+);
 
 for (const fault of [
   "",
