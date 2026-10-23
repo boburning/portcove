@@ -49,16 +49,6 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 
 const allFilesExist = () => true;
 
-void test("native enlargement helper edits select receipt contracts and related frontend tests", () => {
-  const helper = "apps/desktop/scripts/native-enlargement.mts";
-  const selection = classifyChanges([{ status: "M", path: helper }], {
-    fileExists: allFilesExist,
-  });
-  assert.ok(selection.nodeTests.has("scripts/desktop-execution-plan.test.mts"));
-  assert.ok(selection.uiRelatedFiles.has(helper));
-  assert.equal(selection.ui, true);
-});
-
 void test("Release recovery and Preview withdrawal inputs select complete test paths and serialize actual CI outputs", async (t) => {
   const files = [
     "scripts/release-pending-release-recovery.mts",
@@ -2054,4 +2044,14 @@ void test("focused native and release selections retain independently executed c
     const args = commands.flatMap((command) => command.args);
     assert.equal(args.filter((arg) => arg === companion).length, 1, "run each companion once");
   }
+});
+
+void test("native enlargement helper edits select receipt contracts and related frontend tests", () => {
+  const helper = "apps/desktop/scripts/native-enlargement.mts";
+  const selection = classifyChanges([{ status: "M", path: helper }], {
+    fileExists: allFilesExist,
+  });
+  assert.ok(selection.nodeTests.has("scripts/desktop-execution-plan.test.mts"));
+  assert.ok(selection.uiRelatedFiles.has(helper));
+  assert.equal(selection.ui, true);
 });
