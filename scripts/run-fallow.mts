@@ -1,6 +1,7 @@
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import type { CommandObservation } from "./report-summary.mts";
 export interface FallowProcessResult extends CommandObservation {
+  evidenceFailure?: string;
   status: number | null;
   stdout: string | null;
   stderr: string | null;
@@ -9,7 +10,8 @@ export type FallowSpawn = (
   command: string,
   args: readonly string[],
   options: SpawnSyncOptionsWithStringEncoding,
-) => FallowProcessResult;
+  capture?: import("./fallow-execution.mts").FallowCapture,
+) => FallowProcessResult | Promise<FallowProcessResult>;
 export interface FallowOptions {
   spawn?: FallowSpawn;
   mode?: string;
@@ -21,9 +23,7 @@ export interface FallowOptions {
   environment?: NodeJS.ProcessEnv;
 }
 import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
-import { resourceEntrypoint } from "./resource-command.mts";
-import { frontendOutputResource } from "./resource-capacity.mts";
-import { spawnSync } from "node:child_process";
+import { executeFallow } from "./fallow-execution.mts";
 import {
   mkdirSync,
   readFileSync,
@@ -200,6 +200,7 @@ function reuseFallowReport(reuse: string, metadata: unknown): FallowProcessResul
   const previous: unknown = JSON.parse(readFileSync(path.join(reuse, "metadata.json"), "utf8"));
   if (
     !isRecord(previous) ||
+    previous.execution_complete !== true ||
     (previous.status !== null && typeof previous.status !== "number") ||
     typeof previous.stdout !== "string" ||
     typeof previous.stderr !== "string"
@@ -217,8 +218,8 @@ function reuseFallowReport(reuse: string, metadata: unknown): FallowProcessResul
   return { status: previous.status, stdout, stderr };
 }
 
-export function runFallow({
-  spawn = spawnSync,
+export async function runFallow({
+  spawn = executeFallow,
   mode = "desktop",
   base,
   reuse,
@@ -231,21 +232,32 @@ export function runFallow({
   const args = fallowArguments(mode, base, environment.PORTCOVE_FALLOW_THREADS ?? "2");
   const source = identity();
   const inputs = effectiveEvidence(mode, env);
-  const metadata = { format_version: 2, mode, version, args, source, inputs };
+  const execution_limits = { analysis_ms: 1_200_000, format_ms: 60_000 };
+  const metadata = { format_version: 3, mode, version, args, source, inputs, execution_limits };
   let result: FallowProcessResult;
   if (reuse) {
     result = reuseFallowReport(reuse, metadata);
   } else {
-    result = spawn(process.execPath, [cli, ...args], {
-      cwd: root,
-      encoding: "utf8",
-      maxBuffer: 32 * 1024 * 1024,
-      windowsHide: true,
-      env,
-    });
+    result = await spawn(
+      process.execPath,
+      [cli, ...args],
+      {
+        cwd: root,
+        encoding: "utf8",
+        maxBuffer: 32 * 1024 * 1024,
+        windowsHide: true,
+        env,
+      },
+      {
+        directory: evidenceDirectory,
+        phase: "analysis",
+        timeoutMilliseconds: execution_limits.analysis_ms,
+        identity: metadata,
+      },
+    );
   }
   const evidence = retainCommandEvidence(evidenceDirectory, result);
-  let secondary = evidence.failure;
+  let secondary = evidence.failure ?? result.evidenceFailure;
   try {
     mkdirSync(evidenceDirectory, { recursive: true });
     writeFileSync(
@@ -254,6 +266,11 @@ export function runFallow({
         {
           identity: metadata,
           status: result.status,
+          execution_complete:
+            !result.error &&
+            !result.signal &&
+            !result.evidenceFailure &&
+            (result.status === 0 || result.status === 1),
           ...evidence,
           stdout_sha256: createHash("sha256")
             .update(result.stdout ?? "")
@@ -315,13 +332,19 @@ export function runFallow({
       if (mode !== "review") {
         const reportFile = evidence.stdout;
         if (!reportFile) throw new Error("native saved-report formatting unavailable");
-        formatted = spawn(
+        formatted = await spawn(
           process.execPath,
           [cli, "report", "--from", reportFile, "--format", "github-summary"],
           { cwd: root, encoding: "utf8", maxBuffer: 1024 * 1024, windowsHide: true },
+          {
+            directory: evidenceDirectory,
+            phase: "format",
+            timeoutMilliseconds: execution_limits.format_ms,
+            identity: metadata,
+          },
         );
       }
-      if (formatted && (formatted.error || formatted.status !== 0))
+      if (formatted && (formatted.error || formatted.evidenceFailure || formatted.status !== 0))
         throw new Error("native saved-report formatting failed");
       appendFileSync(
         jobSummary,
@@ -352,15 +375,11 @@ if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
     const [mode = "desktop", base, reuse, ...extra] = process.argv.slice(2);
     if (extra.length || (mode !== "review" && base))
       throw new Error("usage: run-fallow.mts [desktop|tooling|css|review BASE [REUSE_DIRECTORY]]");
-    process.exitCode = await resourceEntrypoint(
-      "analysis",
-      () => {
-        const result = runFallow({ mode, base, reuse });
-        (result.exitCode ? console.error : console.log)(result.text);
-        return result.exitCode;
-      },
-      { exclusive: [frontendOutputResource(root)] },
-    );
+    // Each actual native phase owns admission/containment in executeFallow.
+    // Source validation and unique evidence writes need no enclosing lease.
+    const result = await runFallow({ mode, base, reuse });
+    (result.exitCode ? console.error : console.log)(result.text);
+    process.exitCode = result.exitCode;
   } catch (error) {
     console.error(formatFallowFailure(error));
     process.exitCode = 1;

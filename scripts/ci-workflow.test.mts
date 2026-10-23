@@ -103,6 +103,40 @@ void test("every CI job has a finite envelope above its declared step limits", (
       }
   }
 });
+void test("Fallow execution provisions its pinned process-custody compiler before analysis", () => {
+  const job = workflowJob("frontend_full");
+  assert.ok(Array.isArray(job.steps));
+  const steps: unknown[] = job.steps;
+  const compiler = steps.findIndex(
+    (step) => isRecord(step) && step.uses === "./.github/actions/setup-rust",
+  );
+  const analyzer = steps.findIndex(
+    (step) => isRecord(step) && step.run === "node scripts/run-fallow.mts",
+  );
+  assert.ok(compiler >= 0 && analyzer > compiler);
+});
+void test("selective Fallow workflow has compiler custody and outer timeout headroom", async () => {
+  const text = await readFile(
+    new URL("../.github/workflows/deep-quality.yml", import.meta.url),
+    "utf8",
+  );
+  const config: unknown = parseDocument(text, { uniqueKeys: true }).toJS();
+  assert.ok(isRecord(config) && isRecord(config.jobs));
+  const job = config.jobs.fallow_analysis;
+  assert.ok(isRecord(job) && Array.isArray(job.steps));
+  const steps: unknown[] = job.steps;
+  const compiler = steps.findIndex(
+    (step) => isRecord(step) && step.uses === "./.github/actions/setup-rust",
+  );
+  const analyzer = steps.findIndex(
+    (step) =>
+      isRecord(step) &&
+      typeof step.run === "string" &&
+      step.run.includes("node scripts/run-fallow.mts"),
+  );
+  assert.ok(compiler >= 0 && analyzer > compiler);
+  assert.ok(typeof job["timeout-minutes"] === "number" && job["timeout-minutes"] > 21);
+});
 function workflowJob(job: string) {
   const settings: unknown = parseDocument(workflow, { uniqueKeys: true }).toJS();
   assert.ok(isRecord(settings) && isRecord(settings.jobs));
@@ -182,7 +216,8 @@ void test("manual Fallow assistance is isolated from exhaustive audit and retain
   assert.match(selected, /node scripts\/run-fallow\.mts review "\$COMPARISON_BASE"/);
   assert.match(selected, /if: always\(\)/);
   assert.match(selected, /path: work\/fallow-reports\//);
-  assert.doesNotMatch(selected, /setup-rust|browser:bootstrap|just audit/);
+  assert.match(selected, /uses: \.\/\.github\/actions\/setup-rust/);
+  assert.doesNotMatch(selected, /browser:bootstrap|just audit/);
   assert.match(deep, /if: inputs.operation != 'local-check' && inputs.operation != 'fallow'/);
   assert.match(
     deep,
