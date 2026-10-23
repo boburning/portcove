@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
+import { pathToFileURL } from "node:url";
 import path from "node:path";
 import test from "node:test";
 import pinFixture from "./fixtures/upstream-health-fade-to-black.json" with { type: "json" };
@@ -701,7 +702,11 @@ void test("missing planner scope emits CLI failure artifacts without network wor
   const outputs = path.join(directory, "step-outputs");
   const result = spawnSync(
     process.execPath,
-    ["--import", denyNetwork, path.join(directory, "scripts/upstream-health-monitor.mts")],
+    [
+      "--import",
+      pathToFileURL(denyNetwork).href,
+      path.join(directory, "scripts/upstream-health-monitor.mts"),
+    ],
     {
       encoding: "utf8",
       timeout: 10_000,
@@ -723,7 +728,12 @@ void test("missing planner scope emits CLI failure artifacts without network wor
       },
     },
   );
+  assert.equal(result.error, undefined, result.stderr);
   assert.equal(result.status, 1, result.stderr);
+  assert.match(
+    result.stderr,
+    /Upstream health monitoring failed; retained report and prior history require inspection\./u,
+  );
   const report: unknown = JSON.parse(
     await readFile(path.join(directory, "work/upstream-health/report.json"), "utf8"),
   );
