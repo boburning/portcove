@@ -68,7 +68,7 @@ jobs:
         run: node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT
       - name: Provision existing pinned Windows prebuilt quality tools
         if: runner.os == 'Windows'
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: ${{ steps.windows-quality-pins.outputs.required_prebuilt }}
       - name: Install pinned Windows native driver for installed NSIS renderer qualification

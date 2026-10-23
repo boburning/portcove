@@ -248,6 +248,16 @@ The external evidence root retains a unique attempt, heads, input hashes, versio
 command streams and asset inventories. JS and CSS raw/gzip totals stay separate.
 Failures and build outputs are preserved; the command never cleans caller roots.
 
+GitHub Actions SHA pins use their exact full release tag in the trailing version
+comment when that tag binds the same commit. Renovate extracts the comment as the
+current version while GitHub executes the immutable SHA. Keep both representations
+consistent: a floating major comment can select a digest-only update whose
+release timestamp is lost by affected Renovate versions
+([upstream #45236](https://github.com/renovatebot/renovate/issues/45236)). Full release
+versions use normal version-update timestamps; the one-day, timestamp-required
+policy and coordinated review still apply. A retargeted tag or missing timestamp
+remains held rather than receiving a manual passing status.
+
 For the retained serde_json engine investigation, use:
 
 `node scripts/renovate-engine-probe.mts --engine ENGINE --workspace INPUT --config renovate.json --observed-at ISO_TIME --evidence-root ROOT`
