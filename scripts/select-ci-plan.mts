@@ -250,6 +250,9 @@ export async function writeGithubOutputs(
     reused_groups: JSON.stringify(reuse?.groups ?? []),
     contract_python: String((await import("./ci-baseline.mts")).baselineRequiresPython(plan)),
     contract_rust: String((await import("./ci-baseline.mts")).baselineRequiresRust(plan)),
+    contract_desktop: String(
+      (await import("./ci-baseline.mts")).baselineRequiresDesktopDependencies(plan),
+    ),
     mode: plan.mode,
     frontend_workspace: String(
       plan.mode !== "prose" &&

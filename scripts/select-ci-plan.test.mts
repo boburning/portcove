@@ -19,6 +19,7 @@ import {
   qualificationPlatforms,
   validateValidationPlan,
 } from "./validation-plan.mts";
+import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 
 const sha = (character: string) => character.repeat(40);
 
@@ -467,6 +468,40 @@ void test("explicit qualification emits tool prerequisites without invoking ordi
     const file = path.join(directory, "output");
     await writeGithubOutputs(file, plan);
     assert.match(await readFile(file, "utf8"), /^contract_rust=true$/mu);
+    assert.match(await readFile(file, "utf8"), /^contract_desktop=true$/mu);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+void test("hosted output provisions desktop dependencies for native source consumers without release qualification", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "contract-dependencies-output-"));
+  try {
+    for (const [index, source] of [
+      ...nativeCompatibilitySourcePaths,
+      "crates/portcove-core/src/source_report.rs",
+      "docs/README.md",
+    ].entries()) {
+      const plan = buildValidationPlan({
+        changes: [
+          { status: "M", oldPath: source, newPath: source, oldMode: "100644", newMode: "100644" },
+        ],
+        eventName: "pull_request",
+        base: sha("a"),
+        mergeBase: sha("a"),
+        head: sha("b"),
+        checkout: sha("c"),
+      });
+      const output = path.join(directory, String(index));
+      await writeGithubOutputs(output, plan);
+      const expected = nativeCompatibilitySourcePaths.some((file) => file === source);
+      assert.match(
+        await readFile(output, "utf8"),
+        new RegExp(`^contract_desktop=${String(expected)}$`, "mu"),
+        source,
+      );
+      assert.equal(plan.qualification_required, false, source);
+    }
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

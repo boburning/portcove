@@ -308,7 +308,7 @@ void test("self-consistent historical rewrites and repeated decisions are refuse
   assert.throws(() => assessUpstreamLineage(repeated), /Duplicate lineage/u);
 });
 
-void test("real retained decisions distinguish accepted ReCut relocation from unresolved Star Fox succession", () => {
+void test("real retained decisions preserve Star Fox history and release authority after accepted succession", () => {
   const authored = readCatalogSource(sourceRoot);
   const recut = authored.records.find((record) => record.listing.id === "paper-mario-recut")!;
   const star = authored.records.find((record) => record.listing.id === "star-fox-enhanced")!;
@@ -316,10 +316,27 @@ void test("real retained decisions distinguish accepted ReCut relocation from un
   assert.equal(moved.decisions[0]!.outcome, "accepted");
   assert.equal(moved.current.repository?.id, "1247923238");
   assert.equal(moved.history.length, 2);
-  const unresolved = assessUpstreamLineage(star);
-  assert.equal(unresolved.decisions[0]!.outcome, "unresolved");
-  assert.equal(unresolved.current.project_url, "https://github.com/kandowontu/starfox-enhanced");
-  assert.equal(unresolved.history.length, 1);
+  const successor = assessUpstreamLineage(star);
+  assert.deepEqual(
+    successor.decisions.map((entry) => entry.outcome),
+    ["unresolved", "accepted"],
+  );
+  assert.equal(successor.decisions[1]!.relationship, "successor");
+  assert.deepEqual(successor.current, {
+    project_url: "https://github.com/kandowontu2/starfox-enhanced",
+    repository: { host: "github.com", id: "1393981305" },
+  });
+  assert.deepEqual(successor.history, [
+    { project_url: "https://github.com/kandowontu/starfox-enhanced" },
+    successor.current,
+  ]);
+  assert.equal(star.listing.issue_number, 124);
+  const operational = authored.catalog.ports.find((entry) => entry.id === star.listing.id)!;
+  assert.equal(operational.project_url, successor.current.project_url);
+  assert.deepEqual(operational.release, {
+    repository: "kandowontu/starfox-enhanced",
+    asset_hints: { "windows-x86-64": ["StarFoxEnhanced-", "windows-x64.zip"] },
+  });
   const { ports: _ports, ...shared } = authored.catalog;
   const legacy = authored.records.map(({ upstream_lineage: _lineage, ...record }) => record);
   const withoutMetadata = assembleCatalogRecords(shared, legacy);
