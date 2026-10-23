@@ -1,3 +1,4 @@
+import { observeHostedReleaseApp } from "./release-hosted-app-setup.mts";
 import { inspectCatalogReviewRequest } from "./release-catalog-review-request.mts";
 import { readIndependentCatalogSemanticDisposition } from "./release-semantic-disposition-reader.mts";
 import { open, readFile } from "node:fs/promises";
@@ -100,40 +101,8 @@ function requireIssuer(
   appApi: CoordinatorRemoteApi,
   config: SemanticIssuer,
 ) {
-  const get = (client: CoordinatorRemoteApi, route: string) => {
-    const response = client.request("GET", route);
-    if (response.status !== 200) throw new Error("producer issuer readback unavailable");
-    return response.body;
-  };
-  const app = get(appApi, "app");
-  const installation = get(appApi, `app/installations/${config.installation_id}`);
-  const repositories = get(api, "installation/repositories?per_page=100");
-  if (
-    !isRecord(app) ||
-    app.id !== config.app_id ||
-    !isRecord(installation) ||
-    installation.id !== config.installation_id ||
-    installation.app_id !== config.app_id ||
-    !isRecord(installation.account) ||
-    installation.account.id !== 43177418 ||
-    installation.account.login !== "boburning" ||
-    installation.suspended_at !== null ||
-    installation.repository_selection !== "selected" ||
-    !isRecord(installation.permissions) ||
-    Object.keys(installation.permissions).sort().join(",") !== "checks,metadata" ||
-    installation.permissions.checks !== "write" ||
-    installation.permissions.metadata !== "read" ||
-    !isRecord(repositories) ||
-    repositories.total_count !== 1 ||
-    !Array.isArray(repositories.repositories) ||
-    repositories.repositories.length !== 1 ||
-    !isRecord(repositories.repositories[0]) ||
-    repositories.repositories[0].id !== 1354613114 ||
-    repositories.repositories[0].full_name !== "boburning/portcove"
-  )
-    throw new Error("producer App/installation/repository/permission boundary differs");
+  return observeHostedReleaseApp("semantic", config, { app: appApi, installation: api });
 }
-
 /** No CLI/default credential lookup. The fixed provisioned caller must supply
  * an exact grant/custody guard and separated App/installation clients. Mere
  * token availability is not authority. Capture provenance cannot be imported.

@@ -5,7 +5,7 @@
     "id": "star-fox-enhanced",
     "name": "Star Fox Enhanced",
     "summary": "Expands Star Fox and Star Fox EX with widescreen presentation and configurable controls.",
-    "project_url": "https://github.com/kandowontu/starfox-enhanced",
+    "project_url": "https://github.com/kandowontu2/starfox-enhanced",
     "original_game_title": "Star Fox",
     "variant_label": "SNES",
     "artwork": {
@@ -103,6 +103,73 @@
           }
         ],
         "reconsider_when": "Perform a bounded independent review when attributable maintainer and license/provenance continuity evidence can establish or reject succession, including any contradictory takeover evidence. No single announcement is mandatory. Keep the canonical port, historical upstream, accepted release, source/save/install contracts and qualification unchanged until that decision; artifact recovery, release admission and distribution require their separate evidence."
+      },
+      {
+        "from": {
+          "project_url": "https://github.com/kandowontu/starfox-enhanced"
+        },
+        "to": {
+          "project_url": "https://github.com/kandowontu2/starfox-enhanced",
+          "repository": {
+            "host": "github.com",
+            "id": "1393981305"
+          }
+        },
+        "relationship": "successor",
+        "outcome": "accepted",
+        "rationale": "Reviewed on 2026-10-23: the established u/kandowontu account identifies itself as the historical project's developer and explicitly designates kandowontu2/starfox-enhanced as its replacement repository. The move explanation, migration commit, retained source history and bounded credits/notice comparison corroborate attributable continuity. No contradictory project-continuity evidence was found in that bounded review. Accept the continued implementation under its observed new repository identity, retaining the canonical port and original unresolved event. This accepts project continuity only; it does not establish current artifact safety, obtainability, distribution authority or new release qualification.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://www.reddit.com/r/romhacking/comments/1w0paj5/comment/p6vyh9b/",
+            "note": "The established u/kandowontu account identifies itself as the developer in a thread linking the original kandowontu/starfox-enhanced repository; this anchors the account to the historical project."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://www.reddit.com/r/PSVitaHomebrew/comments/1wak915/comment/pcpuamz/",
+            "note": "The same u/kandowontu account explicitly designates kandowontu2/starfox-enhanced as the new repository. Directly retrieved and independently reviewed on 2026-10-23."
+          },
+          {
+            "kind": "context",
+            "reference": "https://www.reddit.com/r/PSVitaHomebrew/comments/1wak915/comment/pcpu8k2/",
+            "note": "The same account explains the move as occurring while it appeals an account suspension. This is an attributable self-report, not provider confirmation of the suspension or its cause."
+          },
+          {
+            "kind": "context",
+            "reference": "https://github.com/kandowontu2/starfox-enhanced/commit/755eb27bb95ad40ae7d7430c1c08aef8e096821b",
+            "note": "The 2026-09-28 migration commit rewrites project links from the old owner to the new one and describes GitHub republishing. GitHub associates it with kandowontu, ID 95717282; it is unsigned and corroborates rather than independently authenticates continuity."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/kandowontu2/starfox-enhanced",
+            "note": "Observed 2026-10-23: repository 1393981305, owner kandowontu2 / 335174380, created 2026-09-29. Record this as the successor identity; do not infer that the old provider repository object transferred."
+          },
+          {
+            "kind": "context",
+            "reference": "https://github.com/kandowontu2/starfox-enhanced/commit/2455f8cc7a2f71a0dcd4b9d6f0c80e0ef2d83273",
+            "note": "The historical accepted source commit and v0.0.6.7 tag remain present. They corroborate code ancestry but do not recover or verify the historical Windows ZIP."
+          },
+          {
+            "kind": "context",
+            "reference": "https://github.com/kandowontu2/starfox-enhanced/blob/0f889bdc3d605cdb2cb28abb008fd9d7ea2a8f8e/THIRD_PARTY_NOTICES.md",
+            "note": "Bounded comparison against historical commit 2455f8cc retained the prior top-level third-party notice sections, creator attribution and unchanged xBRZ license blob. This supports provenance continuity, not a complete rights audit or redistribution permission for source, game data or packages."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/kandowontu2/starfox-enhanced/releases/tags/v0.0.6.7",
+            "note": "Observed 2026-10-23: the historical release endpoint remains HTTP 404. Retain the original release repository and accepted artifact facts; no package was recovered, downloaded or executed in this review."
+          },
+          {
+            "kind": "context",
+            "reference": "https://github.com/kandowontu2/starfox-enhanced/releases/tag/v0.0.8.8",
+            "note": "The current release explicitly leaves antivirus detections against earlier Windows downloads under investigation. This unresolved artifact concern does not contradict the maintainer's repository designation and grants no new acquisition or execution approval."
+          }
+        ],
+        "reconsider_when": "New contradictory maintainer, provider-identity, takeover or source-provenance evidence requires independent reassessment and an appended decision or reviewed reversal. Artifact recovery, release admission, antivirus findings, distribution authority and runtime qualification remain separate obligations; acceptance here does not clear them.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/2440#issue-6000086700",
+          "decision_sha256": "61d2db169c62955c7dd282ff4c3e47d71721ec3c582cf8ccbbbed64cf07ad87c"
+        }
       }
     ]
   }

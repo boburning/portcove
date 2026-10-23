@@ -21,6 +21,7 @@ import {
   baselineSelection,
   baselineRequiresPython,
   baselineRequiresRust,
+  baselineRequiresDesktopDependencies,
 } from "./ci-baseline.mts";
 void test("Linux reviewer boundary edits retain protected ownership and Python contract execution", () => {
   for (const file of [
@@ -101,6 +102,7 @@ void test("native source declarations start their cheap hosted consumer without 
     assert.ok(plan.groups.includes("catalog"), source);
     assert.ok(plan.groups.includes("rust"), source);
     assert.equal(baselineContractTests(plan).filter((file) => file === contract).length, 1, source);
+    assert.equal(baselineRequiresDesktopDependencies(plan), true, source);
   }
   for (const source of [
     "crates/portcove-core/src/database.rs",
@@ -119,6 +121,29 @@ void test("native source declarations start their cheap hosted consumer without 
   }
   assert.equal(
     baselineContractTests(make(["crates/portcove-core/src/source_report.rs"])).includes(contract),
+    false,
+  );
+  assert.equal(
+    baselineRequiresDesktopDependencies(make(["crates/portcove-core/src/source_report.rs"])),
+    false,
+  );
+  assert.equal(baselineRequiresDesktopDependencies(make(["docs/README.md"])), false);
+  for (const source of [
+    "scripts/release-native-candidate.mts",
+    "scripts/release-native-source-contract.mts",
+    "scripts/release-native-source-contract.test.mts",
+  ])
+    assert.equal(baselineRequiresDesktopDependencies(make([source])), true, source);
+  assert.equal(
+    baselineRequiresDesktopDependencies(
+      buildValidationPlan({
+        changes: [],
+        eventName: "pull_request",
+        checkout: "b".repeat(40),
+        discovery: "failed",
+        blockedReason: "fixture",
+      }),
+    ),
     false,
   );
 });

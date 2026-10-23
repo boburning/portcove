@@ -196,6 +196,7 @@ const protectedPolicyFiles = withNodeTestCompanions([
 
   "scripts/report-summary.mts",
   "scripts/qualification-coverage.mts",
+  "scripts/validation-platforms.mts",
   "scripts/repository-settings.mts",
   "scripts/run-rust-tests.mts",
   "scripts/rust-test-tree-supervisor.mts",

@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "nod
 import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
+import { parseDocument } from "yaml";
 import { checkStagedNodeTestInventory, requireNodeTestInventory } from "./node-test-inventory.mts";
 import {
   annotatedNodeCommands,
@@ -70,6 +71,23 @@ void test("the shared inventory check retains required and local coverage indepe
     /local quality/,
   );
   requireNodeTestInventory([first], workflow, local, "", registry);
+});
+
+void test("equivalent qualification expressions preserve executable routes in the real workflow", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  const local = readFileSync(new URL("../justfile", import.meta.url), "utf8");
+  const runner = readFileSync(new URL("./run-windows-qualification.ps1", import.meta.url), "utf8");
+  const registryText = readFileSync(new URL("./node-test-suites.json", import.meta.url), "utf8");
+  const registry = parseNodeTestSuites(registryText);
+  const files = [...new Set(Object.values(registry.suites).flatMap((suite) => suite.files))];
+  for (const condition of [
+    "needs.classify.outputs.mode\n == 'qualification'",
+    "${{\n needs.classify.outputs.mode\n == 'qualification'\n}}",
+  ]) {
+    const document = parseDocument(workflow);
+    document.setIn(["jobs", "catalog_full", "if"], condition);
+    requireNodeTestInventory(files, document.toString(), local, runner, registryText);
+  }
 });
 
 void test("unrelated staged changes require no inventories or checkout mutation", (context) => {
