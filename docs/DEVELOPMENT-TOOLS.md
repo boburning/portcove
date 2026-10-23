@@ -711,6 +711,14 @@ a measurement target, not a new timeout or permission to omit coverage. Existing
 finite CI envelopes and zero automatic test retries remain in force.
 
 Use `node scripts/ci-metrics.mts summarize DIRECTORY` for downloaded reports.
+The Node contract reporter appends bounded `Node test file observation:` JSON
+records with the runner's file and entry-file identities, duration, outcome and
+separate test/suite/skip/TODO counts. Its invocation context includes runtime,
+platform and available outer-run labels; invalid or omitted records stay visible.
+Aggregate summaries are excluded. These diagnostics do not establish selection
+coverage, source custody or acceptance. Keep file durations separate from command
+wall time and resource queueing; overlapping file durations are not critical-path
+latency. The existing five-second slow-case report and original test exits remain.
 CI health reports cancelled attempts' observed summed runner seconds and failed
 jobs separately from successful-duration cohorts. Missing runner timings
 and unmeasured non-skipped jobs remain explicit. Observed runner time is not a
