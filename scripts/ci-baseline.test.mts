@@ -1,11 +1,8 @@
 import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { spawnSync } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import os from "node:os";
+import { readFileSync } from "node:fs";
 import path from "node:path";
-import { createCiMetrics } from "./ci-metrics.mts";
 import { buildValidationPlan } from "./validation-plan.mts";
 import { discoverCiPlan } from "./select-ci-plan.mts";
 import { buildPlan, classifyChanges } from "./local-validation.mts";
@@ -93,41 +90,6 @@ void test("Python result helpers retain every real suite consumer and its interp
   }
   for (const file of expected) assert.ok(baselineRequiresPython(make([file])), file);
 });
-
-void test(
-  "a stuck inner child reports its timeout and exits before the maintained outer budget",
-  { timeout: 20_000 },
-  (t) => {
-    const root = mkdtempSync(path.join(os.tmpdir(), "portcove-nested-timeout-"));
-    t.after(() => rmSync(root, { recursive: true, force: true }));
-    const fixture = path.join(root, "timeout.test.mjs");
-    writeFileSync(
-      fixture,
-      `import {spawnSync} from 'node:child_process';
-import assert from 'node:assert/strict';
-import test from 'node:test';
-test('inner timeout keeps stderr and joins its child', () => {
-  const result=spawnSync(process.execPath,['-e','console.log(process.pid); console.error("inner-ready"); setInterval(()=>{},1000)'],{encoding:'utf8',timeout:2000,killSignal:'SIGKILL',windowsHide:true});
-  assert.equal(result.error?.code,'ETIMEDOUT');
-  assert.match(result.stderr,/inner-ready/);
-  const pid=Number(result.stdout.trim()); assert.ok(Number.isInteger(pid)&&pid>0);
-  assert.throws(()=>process.kill(pid,0),{code:'ESRCH'});
-  console.log('inner-timeout-reported-and-joined');
-});\n`,
-    );
-    const env = baselineTestEnvironment();
-    delete env.NODE_TEST_CONTEXT;
-    const result = spawnSync(process.execPath, ["--test", "--test-timeout=10000", fixture], {
-      encoding: "utf8",
-      env,
-      timeout: 15_000,
-      windowsHide: true,
-    });
-    assert.equal(result.error, undefined);
-    assert.equal(result.status, 0, result.stdout + result.stderr);
-    assert.match(result.stdout, /inner-timeout-reported-and-joined/);
-  },
-);
 
 void test("shared diagnostics inputs keep hosted frontend and quality plans runnable", () => {
   for (const file of [
@@ -482,33 +444,6 @@ void test("selected contract tests retain cheap actual-checkout integrity", () =
   assert.ok(!docs.some((args) => args[0] === "scripts/generate-catalog.mts"));
 });
 
-void test("fixture subprocess timings cannot contaminate the hosted batch report", (t) => {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-fixture-timing-"));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
-  const environment = {
-    ...process.env,
-    PORTCOVE_CI_METRICS_DIR: directory,
-    GITHUB_RUN_ID: "actual-run",
-  };
-  const metrics = createCiMetrics({ environment });
-  const isolated = baselineTestEnvironment(environment);
-  assert.equal(isolated.GITHUB_RUN_ID, "actual-run");
-  assert.equal(environment.PORTCOVE_CI_METRICS_DIR, directory);
-  const child = metrics.measure("repository-contract-tests", () =>
-    spawnSync(
-      process.execPath,
-      [
-        "--input-type=module",
-        "-e",
-        'import {createCiMetrics} from "./scripts/ci-metrics.mts"; createCiMetrics().record("synthetic-failed-phase", {outcome:"failed"});',
-      ],
-      { cwd: new URL("..", import.meta.url), env: isolated, encoding: "utf8" },
-    ),
-  );
-  assert.equal(child.status, 0, child.stderr);
-  assert.equal(readdirSync(directory).length, 1, "only actual parent batch diagnostics survive");
-});
-
 void test("ordinary selected checking retains CSS correctness", () => {
   const manifest: unknown = JSON.parse(
     readFileSync(new URL("../package.json", import.meta.url), "utf8"),
@@ -650,4 +585,88 @@ void test("fixed controller bootstrap and shared attestation verifier retain pro
       file,
     );
   }
+});
+
+void test("baseline execution fixtures retain explicit local/hosted owners and broad fallback", () => {
+  const fixture = "scripts/ci-baseline-execution.test.mts";
+  for (const file of [
+    "scripts/ci-baseline.mts",
+    "scripts/ci-baseline.test.mts",
+    "scripts/ci-metrics.mts",
+    "scripts/ci-metrics.test.mts",
+    ".node-version",
+  ]) {
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const input = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const label = JSON.stringify(input);
+      const plan = buildValidationPlan({
+        changes: [input],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      const local = classifyChanges(
+        [
+          {
+            status: input.status,
+            path: input.newPath,
+            ...(input.oldPath !== input.newPath ? { previousPath: input.oldPath } : {}),
+          },
+        ],
+        { fileExists: () => false },
+      );
+      assert.ok(local.nodeTests.has(fixture), "local: " + label);
+      assert.equal(
+        baselineContractTests(plan, { fileExists: () => false }).filter((file) => file === fixture)
+          .length,
+        1,
+        "hosted: " + label,
+      );
+    }
+  }
+  assert.ok(baselineContractTests(make(["unknown/input.bin"])).includes(fixture));
+  const firstPush = discoverCiPlan(
+    {
+      eventName: "push",
+      baseSha: "0".repeat(40),
+      headSha: "b".repeat(40),
+      checkoutSha: "b".repeat(40),
+      fastValidationEnabled: true,
+      proseOnlyEnabled: true,
+    },
+    () => assert.fail("first push needs no historical Git reads"),
+  );
+  assert.ok(baselineContractTests(firstPush).includes(fixture));
+  for (const file of [
+    "crates/portcove-core/catalog/catalog.json",
+    "apps/desktop/src/App.tsx",
+    "crates/portcove-core/src/source_report.rs",
+    "docs/README.md",
+  ]) {
+    const selected = baselineContractTests(make([file]));
+    assert.equal(selected.includes(fixture), false, file);
+    for (const mandatory of [
+      "scripts/validation-plan.test.mts",
+      "scripts/select-ci-plan.test.mts",
+      "scripts/ci-result-gate.test.mts",
+      "scripts/ci-baseline.test.mts",
+    ])
+      assert.ok(selected.includes(mandatory), file + ": " + mandatory);
+  }
+});
+
+void test("fixture environments retain outer labels without inheriting the metrics sink", () => {
+  const original = { GITHUB_RUN_ID: "outer-run", PORTCOVE_CI_METRICS_DIR: "outer-sink" };
+  const isolated = baselineTestEnvironment(original);
+  assert.notEqual(isolated, original);
+  assert.deepEqual(original, { GITHUB_RUN_ID: "outer-run", PORTCOVE_CI_METRICS_DIR: "outer-sink" });
+  assert.deepEqual(isolated, { GITHUB_RUN_ID: "outer-run" });
 });

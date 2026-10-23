@@ -1037,6 +1037,11 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/ci-baseline.mts",
     ["scripts/ci-baseline.test.mts", "scripts/local-validation.test.mts"],
   ],
+  ["scripts/ci-baseline.test.mts", ["scripts/ci-baseline-execution.test.mts"]],
+  ...["scripts/ci-metrics.mts", "scripts/ci-metrics.test.mts"].map((file): [string, string[]] => [
+    file,
+    ["scripts/ci-baseline-execution.test.mts"],
+  ]),
   ["scripts/rust-test-impact.mts", ["scripts/rust-test-impact.test.mts"]],
   [
     "scripts/desktop-linux-x11.mts",
@@ -1184,7 +1189,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ".github/quality-tools.json",
     ["scripts/quality-tools.test.mts", "scripts/dependency-automation.test.mts"],
   ],
-  [".node-version", ["scripts/dependency-automation.test.mts"]],
+  [
+    ".node-version",
+    ["scripts/dependency-automation.test.mts", "scripts/ci-baseline-execution.test.mts"],
+  ],
   ["Cargo.toml", ["scripts/dependency-automation.test.mts"]],
   ["rust-toolchain.toml", ["scripts/dependency-automation.test.mts"]],
   [
@@ -1476,6 +1484,8 @@ function frontendTask(id: string, reason: string, task: string) {
 function addNodeTest(selection: ValidationSelection, file: string) {
   const normalized = normalizePath(file);
   selection.nodeTests.add(normalized);
+  if (normalized === "scripts/ci-baseline.test.mts")
+    selection.nodeTests.add("scripts/ci-baseline-execution.test.mts");
   // Preserve every former workflow-suite consumer after responsibility-based colocation.
   if (normalized === "scripts/ci-workflow.test.mts")
     for (const companion of [

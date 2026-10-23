@@ -719,6 +719,15 @@ Aggregate summaries are excluded. These diagnostics do not establish selection
 coverage, source custody or acceptance. Keep file durations separate from command
 wall time and resource queueing; overlapping file durations are not critical-path
 latency. The existing five-second slow-case report and original test exits remain.
+
+The always-selected Node contract quartet retains decision and environment-isolation
+assertions. Its real child-timeout and subprocess-metrics fixtures run separately
+in `ci-baseline-execution.test.mts`: relevant baseline/metrics/runtime changes,
+existing explicit baseline-test consumers, broad hosted fallbacks and full local/CI
+qualification retain them. Their finite budgets, failure assertions and cleanup
+remain unchanged. Measure the quartet and the full fixture union separately;
+moving a deliberate timeout wait does not establish a general hosted speedup.
+
 CI health reports cancelled attempts' observed summed runner seconds and failed
 jobs separately from successful-duration cohorts. Missing runner timings
 and unmeasured non-skipped jobs remain explicit. Observed runner time is not a

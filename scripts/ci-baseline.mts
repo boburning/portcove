@@ -49,6 +49,8 @@ export function baselineSelection(plan: ValidationPlan, options: ClassifyOptions
 export function baselineContractTests(plan: ValidationPlan, options: ClassifyOptions = {}) {
   const selection = baselineSelection(plan, options);
   const tests = new Set(selection.nodeTests);
+  // Keep real subprocess fixtures in affected execution routes and broad fallbacks.
+  if (plan.fallback || !plan.changes.length) tests.add("scripts/ci-baseline-execution.test.mts");
   for (const file of [
     "scripts/validation-plan.test.mts",
     "scripts/select-ci-plan.test.mts",
