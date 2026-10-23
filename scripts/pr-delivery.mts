@@ -6,7 +6,25 @@ import { renderBoundedSummary, summarizeReport, retainReportSummary } from "./re
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkClosureIntent, readClosingRelationships } from "./closure-intent.mts";
+import { readClosingRelationships } from "./closure-intent.mts";
+import {
+  assertSuccessfulWorkflowJobs,
+  requiredCheckContexts,
+  validateMergeCandidate,
+  validateMergeMessage,
+  validateMergeReadiness,
+  validateMergedCommit,
+  prepareMergeSnapshot,
+  verifyMergeSnapshotReadback,
+  readDeliverySnapshot,
+} from "./pr-delivery-snapshot.mts";
+export {
+  assertSuccessfulWorkflowJobs,
+  requiredCheckContexts,
+  validateMergeCandidate,
+  validateMergeMessage,
+  validateMergedCommit,
+} from "./pr-delivery-snapshot.mts";
 import type { GitHubRunner, OperationStatus } from "./github-api.mts";
 import type { RenovatePull, RenovateBaseEvidence } from "./renovate-fast-lane.mts";
 import {
@@ -677,55 +695,19 @@ export class PullRequestDeliveryClient {
     mergeMessage?: unknown,
   ) {
     const state = this.requiredCheckState(number, head, requiredContexts);
-    if (state.pull.draft) throw new Error(`pull request #${number} is still a draft`);
-    if (state.pull.mergeable !== true)
-      throw new Error(
-        state.pull.mergeable === false
-          ? `pull request #${number} has merge conflicts`
-          : `pull request #${number} mergeability is not determined`,
-      );
-    const incomplete = state.contexts.filter((context) => context.outcome !== "success");
-    if (incomplete.length)
-      throw new Error(
-        `required checks are not successful: ${incomplete
-          .map((context) => `${context.context}=${context.conclusion}`)
-          .join(", ")}`,
-      );
-    if (
-      !isRecord(mergeMessage) ||
-      typeof mergeMessage.title !== "string" ||
-      !mergeMessage.title.trim() ||
-      /[\r\n]/u.test(mergeMessage.title) ||
-      typeof mergeMessage.body !== "string"
-    )
-      throw new Error("An explicit squash message with title and body is required");
+    validateMergeReadiness(number, head, state.pull, state.contexts);
+    const message = validateMergeMessage(mergeMessage);
     const closing = readClosingRelationships(this.api, repository, number);
-    if (
-      closing.head !== head ||
-      closing.body !== state.pull.body ||
-      closing.title !== state.pull.title
-    )
-      throw new Error("PR body or closing relationships changed; refresh delivery review");
     const commits = this.pullCommits(number);
-    if (
-      commits.length !== state.pull.commits ||
-      commits.at(-1)?.sha !== head ||
-      commits.some((commit) => typeof commit.commit?.message !== "string")
-    )
-      throw new Error("Candidate commit message inventory is incomplete");
-    checkClosureIntent(closureIntent, {
-      repository,
-      texts: [
-        closing.body,
-        ...commits.map((commit) => {
-          if (typeof commit.commit?.message !== "string")
-            throw new Error("Candidate commit message inventory is incomplete");
-          return commit.commit.message;
-        }),
-        mergeMessage.title,
-        mergeMessage.body,
-      ],
-      relationships: closing.relationships,
+    validateMergeCandidate({
+      number,
+      head,
+      pull: state.pull,
+      contexts: state.contexts,
+      closing,
+      commits,
+      closureIntent,
+      mergeMessage: message,
     });
     const refreshed = readClosingRelationships(this.api, repository, number);
     if (refreshed.fingerprint !== closing.fingerprint)
@@ -738,8 +720,8 @@ export class PullRequestDeliveryClient {
       result = this.request("PUT", `repos/${repository}/pulls/${number}/merge`, {
         merge_method: "squash",
         sha: head,
-        commit_title: mergeMessage.title,
-        commit_message: mergeMessage.body,
+        commit_title: message.title,
+        commit_message: message.body,
       }).body;
     } catch (error) {
       requestError = error;
@@ -814,16 +796,7 @@ export class PullRequestDeliveryClient {
         `repos/${repository}/git/commits/${readback.merge_commit_sha}`,
       ).body;
       closureReadback.actual_commit = actual;
-      const expectedMessage = mergeMessage.body
-        ? `${mergeMessage.title}\n\n${mergeMessage.body}`
-        : mergeMessage.title;
-      if (
-        !isRecord(actual) ||
-        actual.sha !== readback.merge_commit_sha ||
-        (typeof actual.message === "string" ? actual.message.replace(/\n$/u, "") : undefined) !==
-          expectedMessage.replace(/\n$/u, "")
-      )
-        throw new Error("Actual merged commit message differs from the checked squash message");
+      validateMergedCommit(actual, readback.merge_commit_sha, message);
       const after = readClosingRelationships(this.api, repository, number);
       closureReadback.closing = after;
       if (after.fingerprint !== closing.fingerprint)
@@ -850,55 +823,6 @@ export class PullRequestDeliveryClient {
       closure_readback: closureReadback,
     };
   }
-}
-
-export function requiredCheckContexts(
-  checkRuns: DeliveryCheckRun[],
-  statuses: (Omit<DeliveryStatus, "id"> & { id?: number })[],
-  requiredContexts: string[],
-): RequiredContext[] {
-  const candidates = new Map<string, CheckObservation[]>(
-    requiredContexts.map((context) => [context, []]),
-  );
-  for (const run of checkRuns) {
-    if (!candidates.has(run.name)) continue;
-    const outcome =
-      run.status === "completed"
-        ? run.conclusion === "success"
-          ? "success"
-          : "failure"
-        : "pending";
-    candidates.get(run.name)?.push({
-      source: "check-run",
-      check_run_id: run.id,
-      outcome,
-      conclusion: run.conclusion ?? run.status,
-      url: run.html_url ?? null,
-    });
-  }
-  for (const status of statuses) {
-    if (!candidates.has(status.context)) continue;
-    const outcome =
-      status.state === "success" ? "success" : status.state === "pending" ? "pending" : "failure";
-    candidates.get(status.context)?.push({
-      source: "commit-status",
-      outcome,
-      conclusion: status.state,
-      description: status.description ?? null,
-      url: status.target_url ?? null,
-    });
-  }
-  const contexts = requiredContexts.map((context): RequiredContext => {
-    const matches = candidates.get(context) ?? [];
-    if (matches.length > 1)
-      return { context, outcome: "failure", conclusion: "ambiguous", observations: matches };
-    if (!matches.length)
-      return { context, outcome: "pending", conclusion: "missing", observations: [] };
-    const observation = matches[0];
-    if (!observation) throw new Error("Required check observation disappeared");
-    return { context, ...observation, observations: matches };
-  });
-  return contexts;
 }
 
 export function renovateCheckEnvelope<Evidence extends object>({
@@ -1127,51 +1051,11 @@ export async function watchRequiredChecks(
             error,
           );
         }
-        const checks = new Map<number, DeliveryJob>();
-        const latestJobs = new Map<string, DeliveryJob>();
-        const executions = new Set();
-        for (const job of jobs) {
-          const match =
-            /^https:\/\/api\.github\.com\/repos\/boburning\/portcove\/check-runs\/([1-9]\d*)$/u.exec(
-              job.check_run_url ?? "",
-            );
-          const checkId = Number(match?.[1]);
-          if (
-            job.run_id !== run ||
-            !Number.isSafeInteger(job.run_attempt) ||
-            job.run_attempt < 1 ||
-            job.run_attempt > attempt ||
-            job.head_sha !== head ||
-            !Number.isSafeInteger(checkId) ||
-            checks.has(checkId) ||
-            executions.has(`${job.name}:${job.run_attempt}`)
-          )
-            throw deliveryOutcomeError(
-              "failed",
-              "watch job inventory has invalid or duplicate run/attempt/source/check identity",
-              evidence(),
-            );
-          checks.set(checkId, job);
-          executions.add(`${job.name}:${job.run_attempt}`);
-          if ((latestJobs.get(job.name)?.run_attempt ?? 0) < job.run_attempt)
-            latestJobs.set(job.name, job);
-        }
-        for (const context of state.contexts) {
-          const job =
-            context.check_run_id === undefined ? undefined : checks.get(context.check_run_id);
-          if (
-            context.source !== "check-run" ||
-            !job ||
-            latestJobs.get(context.context) !== job ||
-            job.name !== context.context ||
-            job.status !== "completed" ||
-            job.conclusion !== "success"
-          )
-            throw deliveryOutcomeError(
-              "failed",
-              `required check ${context.context} is not a successful job of the identified run attempt`,
-              evidence(),
-            );
+        let checks;
+        try {
+          checks = assertSuccessfulWorkflowJobs(jobs, state.contexts, { head, run, attempt });
+        } catch (error) {
+          throw deliveryOutcomeError("failed", errorMessage(error), evidence(), error);
         }
         try {
           observed = client.workflowRun(run);
@@ -1678,17 +1562,63 @@ const deliveryFlags: Readonly<Record<string, readonly string[]>> = {
   watch: ["--pr", "--head", "--run", "--attempt", "--deadline", "--json", "--progress"],
   "renovate-check": ["--pr", "--head", "--queue", "--json", "--summary"],
   merge: ["--pr", "--head", "--closure-intent-file", "--merge-message-file", "--json"],
+  "prepare-merge": [
+    "--pr",
+    "--head",
+    "--target",
+    "--tree",
+    "--run",
+    "--attempt",
+    "--snapshot-file",
+    "--closure-intent-file",
+    "--merge-message-file",
+    "--verify-local-composition",
+    "--json",
+  ],
+  "verify-merge": [
+    "--pr",
+    "--head",
+    "--target",
+    "--tree",
+    "--snapshot-file",
+    "--closure-intent-file",
+    "--merge-message-file",
+    "--json",
+  ],
 };
 const deliveryRequired: Readonly<Record<string, readonly string[]>> = {
   inspect: ["--pr", "--head"],
   watch: ["--pr", "--head", "--run", "--attempt", "--deadline"],
   "renovate-check": ["--pr", "--head"],
   merge: ["--pr", "--head", "--closure-intent-file", "--merge-message-file"],
+  "prepare-merge": [
+    "--pr",
+    "--head",
+    "--target",
+    "--tree",
+    "--run",
+    "--attempt",
+    "--snapshot-file",
+    "--closure-intent-file",
+    "--merge-message-file",
+  ],
+  "verify-merge": [
+    "--pr",
+    "--head",
+    "--target",
+    "--tree",
+    "--snapshot-file",
+    "--closure-intent-file",
+    "--merge-message-file",
+  ],
 };
 const deliveryValues: Readonly<Record<string, string>> = {
   "--evidence-file": "absolute-reference-declaration.json",
   "--pr": "number-or-url",
   "--head": "40-character-sha",
+  "--target": "reviewed-target-sha",
+  "--tree": "reviewed-composed-tree-sha",
+  "--snapshot-file": "absolute-observation-file.json",
   "--run": "run-id",
   "--attempt": "positive-attempt",
   "--deadline": "UTC-time",
@@ -1719,6 +1649,10 @@ export function deliveryHelp(command: string | null | undefined = null) {
       ),
     );
   }
+  if (!command || ["prepare-merge", "verify-merge"].includes(command))
+    lines.push(
+      "  Snapshot commands perform no network, remote mutation, retry, review or acceptance. Prepare requires fresh bracketed collection within 60 seconds and complete source-bound check/job/closure inventories. --verify-local-composition independently checks stored Git objects and current composition when the provider preview is historical. Verify requires actual squash parent/tree/message and closure readback. See docs/CONTRIBUTION-CONVENTIONS.md for the snapshot contract.",
+    );
   return "usage:\n" + lines.join("\n");
 }
 
@@ -1736,7 +1670,16 @@ export function parseArguments(argv: string[]) {
     )
       throw new Error(`unsupported ${command} option: ${name}; use ${command} --help`);
     if (Object.hasOwn(options, name)) throw new Error(`duplicate option: ${name}`);
-    if (["--json", "--queue", "--help", "--summary", "--progress"].includes(name)) {
+    if (
+      [
+        "--json",
+        "--queue",
+        "--help",
+        "--summary",
+        "--progress",
+        "--verify-local-composition",
+      ].includes(name)
+    ) {
       options[name] = true;
       continue;
     }
@@ -1838,6 +1781,50 @@ async function main(argv: string[]) {
   const head = optionText(options, "--head");
   if (!/^[0-9a-f]{40}$/u.test(head ?? "")) throw new Error("--head must be a 40-character SHA");
   const contexts = await requiredContexts();
+  if (command === "prepare-merge" || command === "verify-merge") {
+    const expected = {
+      number,
+      head,
+      target: optionText(options, "--target"),
+      tree: optionText(options, "--tree"),
+      contexts,
+      closureIntent: await readDeliverySnapshot(optionText(options, "--closure-intent-file")),
+      mergeMessage: await readDeliverySnapshot(optionText(options, "--merge-message-file")),
+      ...(command === "prepare-merge"
+        ? {
+            run: Number(optionText(options, "--run")),
+            attempt: Number(optionText(options, "--attempt")),
+          }
+        : {}),
+    };
+    const snapshot = await readDeliverySnapshot(optionText(options, "--snapshot-file"));
+    let result;
+    try {
+      result =
+        command === "prepare-merge"
+          ? prepareMergeSnapshot(
+              snapshot,
+              expected,
+              options["--verify-local-composition"] ? process.cwd() : undefined,
+            )
+          : verifyMergeSnapshotReadback(snapshot, expected);
+    } catch (error) {
+      if (command !== "verify-merge") throw error;
+      throw deliveryOutcomeError(
+        "unknown",
+        `Merge readback needs reconciliation; do not retry automatically: ${errorMessage(error)}`,
+        { pull_request: number, head, snapshot_file: optionText(options, "--snapshot-file") },
+        error,
+      );
+    }
+    const output = options["--json"]
+      ? JSON.stringify(result)
+      : `${command}: supplied observations match PR #${number}, source ${head}, target ${expected.target}, tree ${expected.tree}.\n${result.boundary}\n${JSON.stringify(result)}`;
+    if (Buffer.byteLength(output + "\n") > 16 * 1024)
+      throw new Error("Snapshot output exceeds 16384 UTF-8 bytes including newline");
+    console.log(output);
+    return;
+  }
   const client =
     command === "watch" || command === "inspect"
       ? createWatchClient()
@@ -2050,7 +2037,20 @@ async function settleDirectCli() {
   if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
     try {
       await main(process.argv.slice(2));
-    } catch (error) {
+    } catch (caught) {
+      const error =
+        process.argv[2] === "verify-merge" &&
+        !(caught instanceof DeliveryOutcomeError && caught.operationStatus === "unknown")
+          ? deliveryOutcomeError(
+              "unknown",
+              `Merge readback needs reconciliation; do not retry automatically: ${errorMessage(caught)}`,
+              {
+                next_action:
+                  "Reconcile the live PR before choosing any next action; never retry a confirmed merge.",
+              },
+              caught,
+            )
+          : caught;
       const safeError = sanitizeOperationError(error);
       if (process.argv[2] === "inspect" && process.argv.slice(3).includes("--json")) {
         console.log(

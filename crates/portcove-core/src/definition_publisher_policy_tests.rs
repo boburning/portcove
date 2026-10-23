@@ -5141,8 +5141,8 @@ async fn managed_historical_admission_upgrade_preserves_retained_installation_an
         (admission, authority)
     };
     let admitted_bytes = snapshot(&library);
-    // Recreate the exact historical schema-33 admission, retaining its signed
-    // bytes and current policy but removing information that schema never knew.
+    // Build the actual schema-33 history forward and project its supported
+    // signed admission, installation and library state into that fresh database.
     assert_eq!(count(&library, "definition_launch_assessments"), 0);
     assert_eq!(count(&library, "definition_launch_decisions"), 0);
     assert_eq!(count(&library, "curated_artifact_scopes"), 0);
@@ -5165,33 +5165,7 @@ async fn managed_historical_admission_upgrade_preserves_retained_installation_an
             .unwrap(),
         0,
     );
-    library.connection().unwrap().execute_batch(
-        "BEGIN IMMEDIATE;
-         CREATE TABLE historical_admission (
-           namespace TEXT NOT NULL,stable_id TEXT NOT NULL,
-           anchor_sha256 TEXT NOT NULL REFERENCES definition_publisher_authority(anchor_sha256),
-           policy_json TEXT NOT NULL CHECK(length(policy_json)<=65536),
-           provenance_json TEXT NOT NULL CHECK(length(provenance_json)<=16384),
-           PRIMARY KEY(namespace,stable_id));
-         INSERT INTO historical_admission SELECT namespace,stable_id,anchor_sha256,policy_json,provenance_json
-           FROM definition_publisher_admission;
-         DROP TABLE definition_publisher_admission;
-         ALTER TABLE historical_admission RENAME TO definition_publisher_admission;
-         DROP TABLE definition_launch_assessments;
-         DROP TABLE definition_launch_decisions;
-         DROP TABLE curated_artifact_scopes;
-         DROP TABLE curated_artifact_admissions;
-         DROP TABLE curated_artifact_history;
-         DROP TABLE curated_transition_receipts;
-         DROP TABLE ghostship_runtime_safety;
-         DROP TABLE ghostship_qualified_backups;
-         DROP TABLE ghostship_legacy_qualifications;
-         DROP TABLE retained_build_references;
-         ALTER TABLE lifecycle_operations DROP COLUMN ghostship_recovery_json;
-         ALTER TABLE lifecycle_operations DROP COLUMN backup_deletion_json;
-         DELETE FROM schema_migrations WHERE version>33;
-         COMMIT;"
-    ).unwrap();
+    crate::database::recreate_schema_33_fixture(library.root()).unwrap();
     let historical_root = library.root().to_path_buf();
     assert!(
         Library::open(&historical_root).is_err(),
@@ -5201,6 +5175,10 @@ async fn managed_historical_admission_upgrade_preserves_retained_installation_an
     drop(scope);
     drop(library);
     let upgraded = Library::open(&historical_root).unwrap();
+    assert_eq!(
+        serde_json::to_value(upgraded.all_installs().unwrap()).unwrap(),
+        serde_json::to_value(&delivered).unwrap()
+    );
     let floor: u64 = upgraded
         .connection()
         .unwrap()
