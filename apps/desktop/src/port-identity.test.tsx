@@ -51,7 +51,7 @@ it("finds the known game, port project and variant without grouping results", ()
   expect(sorted.map((port) => port.id)).toEqual([first.id, second.id]);
 });
 
-it("renders game-led cards with separate full project and variant labels", () => {
+it("renders distinct game-led cards with full project and variant identity", () => {
   const html = renderToStaticMarkup(
     <PortBrowser
       view="catalog"
@@ -65,9 +65,8 @@ it("renders game-led cards with separate full project and variant labels", () =>
     />,
   );
   expect(html).toContain("A Familiar Adventure");
-  expect(html).toContain('title="Cobalt Project"');
-  expect(html).toContain(">US edition</span>");
-  expect(html).toContain('title="Amber Recompiled"');
+  expect(html).toContain("Cobalt Project · US edition");
+  expect(html).toContain("Amber Recompiled");
   const cards = [
     ...html.matchAll(
       /<button[^>]*data-detail-origin="catalog:card:[^"]+"[^>]*>[\s\S]*?<\/button>/gu,
@@ -77,10 +76,14 @@ it("renders game-led cards with separate full project and variant labels", () =>
   expect(cards[0]![0]).toContain("Cobalt Project");
   expect(cards[0]![0]).toContain("US edition");
   expect(cards[1]![0]).toContain("Amber Recompiled");
-  for (const [card] of cards) {
-    expect(card).toContain("A Familiar Adventure");
-    expect(card).not.toContain("aria-label=");
-  }
+  expect(cards[0]![0]).toContain(
+    'aria-label="View details for A Familiar Adventure · Cobalt Project · US edition"',
+  );
+  expect(cards[1]![0]).toContain(
+    'aria-label="View details for A Familiar Adventure · Amber Recompiled"',
+  );
+  expect(cards[0]![0]).toContain('data-detail-origin="catalog:card:project-one"');
+  expect(cards[1]![0]).toContain('data-detail-origin="catalog:card:project-two"');
 });
 
 it("finds Pokémon Red using ordinary ASCII spelling without changing the display", () => {

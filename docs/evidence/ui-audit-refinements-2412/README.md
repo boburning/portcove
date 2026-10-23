@@ -44,3 +44,7 @@ Matched discovery condition:
 ![Revised discovery](discovery-dark-1366.jpg)
 
 Further individually inspected captures: [short Library](library-dark-960.jpg), [short rows](rows-dark-960.jpg), [tall Library](library-dark-1600.jpg), [tall rows](rows-dark-1600.jpg), [narrow Library](library-narrow-dark.jpg), [light discovery](discovery-light-1366.jpg), [detail](detail-dark.jpg), [detail disclosure](detail-about-dark.jpg), [Appearance](settings-appearance-dark.jpg), [file settings](settings-files-light.jpg), and [Add games](add-games-dark.jpg).
+
+## Final check follow-through
+
+The component and maintained preparation-harness unit selection passed all 164 tests in both requested files. The seven shared installed-input/setup accessibility tests and four game-identity tests also passed after moving state checks to descriptions and retaining exact distinguishing names/IDs. The first hosted run [39875933336/1](https://github.com/boburning/portcove/actions/runs/39875933336) retained an old tooltip/name assertion in the identity test (820 other unit tests passed); the assertion was corrected, not the production identity behavior. Final exact-head required checks, independent repair review and delivery readback are recorded in PR #2416. Browser text-enlargement output from the maintained harness remains separate from native sizing.
