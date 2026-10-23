@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
+import { gameIdentityLabel } from "../port-identity";
 import { DetailPanel, InstallAction, type DetailActions } from "../components/DetailPanel";
 import { PortBrowser } from "../components/PortBrowser";
 import { BackupHistory } from "../components/BackupHistory";
@@ -388,6 +389,7 @@ function ReferenceWorkspace({
       )}
       {reviewing && (
         <InstallAction
+          gameName={gameIdentityLabel(port)}
           ready
           sourceReady
           biosReady
@@ -531,7 +533,7 @@ function Scenario({ id }: { id: ScenarioId }) {
           path: null,
           source: null,
           configuration_variable: "PORTCOVE_CHDMAN",
-          purpose: "CHD validation and disc-image materialization",
+          purpose: "Check CHD game files and prepare disc images",
           official_url: "https://docs.mamedev.org/tools/chdman.html",
         }}
       />

@@ -250,13 +250,15 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
     )
     .toBeVisible();
   await userEvent.click(page.getByRole("button", { name: "Cancel preparation", exact: true }));
+  await expect.element(page.getByText("Cancellation requested", { exact: true })).toBeVisible();
+  await userEvent.keyboard("{Alt>}{Shift>}C{/Shift}{/Alt}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
   await userEvent.click(page.getByRole("button", { name: "Review game preparation", exact: true }));
   await userEvent.click(page.getByRole("button", { name: "Prepare game data", exact: true }));
   await userEvent.keyboard("{Alt>}{Shift>}F{/Shift}{/Alt}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
   await expect
-    .element(page.getByText("Controlled fixture preparation failure", { exact: false }).first())
+    .element(page.getByText("The demo setup did not finish.", { exact: false }).first())
     .toBeVisible();
   await userEvent.click(page.getByRole("button", { name: "Review game preparation", exact: true }));
   await userEvent.click(page.getByRole("button", { name: "Prepare game data", exact: true }));

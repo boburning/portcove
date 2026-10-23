@@ -14,10 +14,16 @@ concurrency:
   cancel-in-progress: false
 jobs:
   wake:
-    if: ${{ vars.PORTCOVE_CONTROLLER_WAKE != '' || vars.PORTCOVE_CATALOG_CONTROLLER_WAKE != '' }}
+    if: >-
+      ${{ (vars.PORTCOVE_CONTROLLER_WAKE != '' || vars.PORTCOVE_CATALOG_CONTROLLER_WAKE != '') &&
+      (vars.PORTCOVE_CONTROLLER_WAKE == '' || fromJSON(vars.PORTCOVE_CONTROLLER_WAKE).schema_version == 4) &&
+      (vars.PORTCOVE_CATALOG_CONTROLLER_WAKE == '' || fromJSON(vars.PORTCOVE_CATALOG_CONTROLLER_WAKE).schema_version == 4) }}
     name: Wake fixed application controller
     runs-on: ubuntu-22.04
     timeout-minutes: 1
+    permissions:
+      contents: read
+      actions: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -35,8 +41,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PORTCOVE_CONTROLLER_WAKE: ${{ vars.PORTCOVE_CONTROLLER_WAKE }}
           PORTCOVE_CATALOG_CONTROLLER_WAKE: ${{ vars.PORTCOVE_CATALOG_CONTROLLER_WAKE }}
-          PORTCOVE_RELEASE_AUTHORITIES: ${{ vars.PORTCOVE_RELEASE_AUTHORITIES }}
-          PORTCOVE_CATALOG_AUTHORITIES: ${{ vars.PORTCOVE_CATALOG_AUTHORITIES }}
         run: node scripts/release-controller-wake.mts --prepare
         id: prepare
       - name: Retain intent before any dispatch
@@ -48,27 +52,10 @@ jobs:
           if-no-files-found: error
           overwrite: false
           retention-days: 7
-      - name: Acquire only the selected repository dispatch App
-        id: dispatch-token
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
-        with:
-          app-id: ${{ steps.prepare.outputs.dispatch_app_id }}
-          private-key: ${{ (steps.prepare.outputs.publication_purpose == 'catalog-publication' && secrets.PORTCOVE_CATALOG_DISPATCH_APP_PRIVATE_KEY) || (steps.prepare.outputs.publication_purpose == 'application' && secrets.PORTCOVE_DISPATCH_APP_PRIVATE_KEY) }}
-          owner: boburning
-          repositories: portcove
-          permission-actions: write
-      - name: Bind actual dispatch installation before use
-        shell: bash
-        env:
-          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ steps.prepare.outputs.dispatch_installation_id }}
-          PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.dispatch-token.outputs.installation-id }}
-        run:
-          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
-          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
       - name: Dispatch retained immutable controller intent
         env:
           GH_HOST: github.com
-          GH_TOKEN: ${{ steps.dispatch-token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
           PORTCOVE_CONTROLLER_WAKE: ${{ vars.PORTCOVE_CONTROLLER_WAKE }}
           PORTCOVE_WAKE_INTENT_ARTIFACT_ID: ${{ steps.intent.outputs.artifact-id }}
           PORTCOVE_WAKE_INTENT_ARTIFACT_SHA256: ${{ steps.intent.outputs.artifact-digest }}

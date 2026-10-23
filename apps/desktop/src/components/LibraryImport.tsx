@@ -85,9 +85,6 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
         reviewSize="large"
         aria-describedby="import-library-description"
       >
-        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-          RESTORE PORTCOVE LIBRARY
-        </p>
         <DialogTitle id="import-library-title" className="mb-2 text-xl">
           Restore from a library copy
         </DialogTitle>

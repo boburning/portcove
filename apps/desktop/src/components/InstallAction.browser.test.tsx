@@ -96,6 +96,30 @@ async function click(label: string) {
   await act(async () => button(label).click());
 }
 
+it("keeps full distinguishing identity in the installation dialog without changing the reviewed target", async () => {
+  const install = vi.fn();
+  const identity = "Harbor Adventure — Édition <A&B> · Modern port · Renderer 2";
+  await root.rerender(
+    <InstallAction
+      gameName={identity}
+      ready
+      sourceReady
+      biosReady
+      plan={plan}
+      install={install}
+      review={vi.fn()}
+      dismiss={vi.fn()}
+    />,
+  );
+  const dialog = document.querySelector('[role="dialog"]')!;
+  const description = document.getElementById(dialog.getAttribute("aria-describedby")!)!;
+  expect(description.textContent).toContain(identity);
+  expect(dialog.querySelector("strong")?.textContent).toBe(identity);
+  await click("Install · 64.0 MiB");
+  expect(install).toHaveBeenCalledOnce();
+  expect(plan.port_id).toBe("sample");
+});
+
 it.each([
   [240, "dark"],
   [240, "light"],
@@ -628,7 +652,7 @@ it.each([
         dismiss={vi.fn()}
       />,
     );
-    expect(document.body.textContent).toContain("INSTALL PLAN");
+    expect(document.body.textContent).toContain("Review installation");
     expect(document.body.textContent).toContain(firstDetail);
     expect(document.body.textContent).toContain(secondDetail);
     expect(document.body.textContent).toContain(

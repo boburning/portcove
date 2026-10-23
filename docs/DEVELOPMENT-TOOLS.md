@@ -952,6 +952,26 @@ App with disposable in-memory transport; game/file actions are simulated and
 unsupported actions visibly refuse. Expand the labeled demo review desk to change
 journey, reset, or settle fixture preparation. It is not the real first-use state.
 
+`journey=activity` adds two independent retained-setup records, including an
+uncertain outcome. Starting preparation creates its own typed Activity record;
+leaving, browsing another entry and returning preserves the original target.
+Completion, failure and settled cancellation update that same record. Requesting
+cancellation leaves it running until the review desk settles it. Fixture cleanup
+changes only the selected disposable record. The demo's one pending preparation
+is a fixture limitation, not product concurrency policy. Unsupported actions
+still refuse; none of these records demonstrate Core execution or real files.
+
+`journey=comparison` is a separate 12-entry scene shared by the comparison
+authoring tool and the app transport. It includes duplicate ports, a long Unicode
+identity, missing artwork and actual portrait/landscape/square PNG inputs. Run
+`node apps/desktop/scripts/prepare-library-comparison.mts <absolute-reference-root> <new-absolute-output-directory>`
+to create an isolated reference copy and viewer, with original reference and image
+hashes plus the production revision/working-tree annotation. Existing output is
+never overwritten, and changed reference entry points refuse generation. The
+viewer expects the actual app dev server on 4182 and its reference server on 4184.
+Use identical viewport, theme, view and scale; the independent realistic demos
+remain separate. Diagnostic art does not change catalog mappings or user assets.
+
 The app preview tracks the available viewport and retains the real workspace
 scroll owner. For a labeled comparison frame, append `&embed=1`; this hides review
 controls without changing application layout. Keep an explicit simulation label
@@ -1655,11 +1675,23 @@ checkpoint tests before frontend and application builds. The selected inventory
 must be nonempty, unique and fully executed without skips. This is scoped native
 feedback, not a new qualification requirement for ordinary changes.
 
-The optional Vite+ pre-commit hook also checks Node-test registration when relevant
-tests or inventory inputs are staged. It uses the same coverage assertion as CI,
-reading the Git index so unstaged workflow/recipe edits cannot conceal an
-incomplete commit. It does not modify either tree; the normal Vite+ staged
-formatting and partial-staging behavior follows only after that check succeeds.
+Root Node test commands are maintained in `scripts/node-test-suites.json`.
+Edit the owning suite there, then run `node scripts/node-test-suites.mts --write`
+to update its annotated direct commands in CI, Just recipes and the Windows
+qualification wrapper. `--check` verifies the generated commands without writing.
+Flags, file order, storage wrappers, native prerequisites and platform ownership
+remain explicit. Dynamic diff-selected `ci-baseline` routes retain their separate
+routing contracts; registry membership is not execution evidence.
+
+The optional Vite+ pre-commit hook checks the staged registry and executable
+consumers together when relevant tests or inventory inputs are staged. It uses
+the same assertion as CI: each indexed root test needs a qualification consumer
+and a local recipe. Comments, disabled jobs/steps, wrong lanes and stale paths
+cannot register coverage. The Windows payload counts only through an active
+caller and its independently pinned mutex/cleanup/exit envelope; changes to that
+envelope require an explicit custody review and expectation update. Unstaged
+workflow/recipe/registry edits cannot conceal an incomplete commit. The check
+does not modify either tree; normal staged formatting follows only after success.
 
 Native helper dependencies are declared in
 `scripts/native-helper-dependencies.mts`. Literal PowerShell dot-source imports

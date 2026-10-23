@@ -35,6 +35,7 @@ try {
 
     Push-Location $repositoryRoot
     try {
+        # node-suite: mutex-owned-payload
         & node --test scripts/windows-qualification-session.integration.test.mts
         $exitCode = $LASTEXITCODE
     }

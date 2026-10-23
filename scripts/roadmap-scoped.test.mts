@@ -372,8 +372,107 @@ void test("hosted automation has no periodic schedule and executes trusted sourc
   assert.doesNotMatch(workflow, /pull_request_target|issue_comment/u);
   assert.match(
     workflow,
-    /group: roadmap-health-\$\{\{ github\.event\.issue\.number \|\| inputs\.issue \|\| 'global' \}\}/u,
+    /group: roadmap-health-\$\{\{ needs\.configuration\.outputs\.available == 'true' && \(github\.event\.issue\.number \|\| inputs\.issue \|\| 'global'\) \|\| 'configuration' \}\}/u,
   );
+  assert.match(workflow, /needs: configuration/u);
+  assert.match(workflow, /available: \$\{\{ steps\.project-token\.outputs\.available \}\}/u);
+  assert.match(workflow, /permissions: \{\}/u);
+  assert.match(workflow, /if \[\[ -n "\$PROJECT_TOKEN" \]\]; then/u);
+  assert.match(workflow, /echo 'available=true'/u);
+  assert.match(workflow, /echo 'available=false'/u);
+  assert.doesNotMatch(workflow, /echo[^\n]*\$PROJECT_TOKEN/u);
+});
+
+void test("missing hosted configuration shares one incident across issues and global checks", () => {
+  const missing = (scope: Record<string, unknown>) => ({
+    status: "failed",
+    scope,
+    coverage: "inconclusive",
+    planning_findings_evaluated: false,
+    diagnosis: {
+      kind: "configuration_missing",
+      recovery_condition: "Configure the dedicated token",
+    },
+  });
+  const first = missing({ kind: "issues", issues: [1] });
+  const body = roadmapHealthComment(first, null, "https://github.test/run/1");
+  assert(body);
+  assert.match(body, /\*\*not configured\*\*/u);
+  assert.match(body, /doctor did not run/u);
+  assert.doesNotMatch(body, /Latest Roadmap check: \*\*failed\*\*/u);
+  const comment = { id: 1, body, user: { type: "Bot", login: "github-actions[bot]" } };
+  for (const scope of [{ kind: "issues", issues: [2] }, { kind: "global" }]) {
+    const report = missing(scope);
+    assert.equal(findRoadmapHealthComment([comment], report), comment);
+    assert.equal(roadmapHealthComment(report, body, "https://github.test/run/2"), null);
+    assert.deepEqual(report.scope, scope);
+  }
+  assert.deepEqual(first.scope, { kind: "issues", issues: [1] });
+  assert.equal(first.coverage, "inconclusive");
+  assert.equal(first.planning_findings_evaluated, false);
+  // A configured scoped success neither repurposes the incident nor claims
+  // that missing configuration was a checked planning finding.
+  const passed = { status: "passed", scope: first.scope };
+  assert.equal(findRoadmapHealthComment([comment], passed), undefined);
+  assert.equal(roadmapHealthComment(passed, body, "https://github.test/run/3"), null);
+});
+
+void test("configuration migration deterministically reuses legacy evidence without absorbing planning failures", () => {
+  const bot = { type: "Bot", login: "github-actions[bot]" };
+  const legacy = (id: number, scope: Record<string, unknown>) => ({
+    id,
+    user: bot,
+    body:
+      `<!-- portcove-roadmap-health:${JSON.stringify({ scope: JSON.stringify(scope), status: "failed", digest: "legacy" })} -->\n` +
+      "Latest Roadmap check: **failed**.\n\nClassification: `configuration_missing`. Setup required.",
+  });
+  const global = legacy(10, { kind: "global" });
+  const scoped = legacy(5, { kind: "issues", issues: [1] });
+  const otherGlobal = legacy(20, { kind: "global" });
+  const missing = {
+    status: "failed",
+    scope: { kind: "issues", issues: [2] },
+    diagnosis: { kind: "configuration_missing" },
+  };
+  const planning = {
+    ...missing,
+    scope: { kind: "issues", issues: [1] },
+    diagnosis: { kind: "planning_findings" },
+    errors: ["Missing required field"],
+  };
+  const provider = {
+    id: 2,
+    user: bot,
+    body: roadmapHealthComment(
+      { ...planning, scope: { kind: "global" }, diagnosis: { kind: "provider_inconsistent" } },
+      null,
+      "https://github.test/run/1",
+    )!,
+  };
+  const planningComment = {
+    id: 3,
+    user: bot,
+    body: roadmapHealthComment(planning, null, "https://github.test/run/2")!,
+  };
+  const unrelated = [
+    provider,
+    planningComment,
+    { ...global, id: 1, user: { type: "User", login: "owner" } },
+    { ...global, id: 4, body: "<!-- portcove-roadmap-health:invalid -->" + global.body },
+  ];
+  assert.equal(findRoadmapHealthComment(unrelated, missing), undefined);
+  const comments = [...unrelated, otherGlobal, scoped, global];
+  assert.equal(findRoadmapHealthComment(comments, missing), global);
+  assert.equal(findRoadmapHealthComment(comments.toReversed(), missing), global);
+  global.body = roadmapHealthComment(missing, global.body, "https://github.test/run/3")!;
+  assert.match(global.body, /repository-wide setup incident/u);
+  assert.equal(findRoadmapHealthComment(comments.toReversed(), missing), global);
+  assert.equal(roadmapHealthComment(missing, global.body, "https://github.test/run/4"), null);
+  assert.equal(findRoadmapHealthComment(comments, planning), planningComment);
+  assert.equal(findRoadmapHealthComment([global, scoped], planning), undefined);
+  assert.equal(findRoadmapHealthComment([scoped], { ...planning, status: "passed" }), undefined);
+  assert.match(provider.body, /provider_inconsistent/u);
+  assert.match(scoped.body, /Latest Roadmap check: \*\*failed\*\*/u);
 });
 
 void test("interleaved scopes retain independent failures and unchanged diagnosis order remains quiet", () => {
@@ -463,6 +562,7 @@ void test("actual unattended entrypoint retains missing-credential diagnostics w
     assert(
       reference &&
         path.resolve(reference).startsWith(path.join(root, "work", "roadmap-health") + path.sep),
+      result.stderr || result.stdout || String(result.error),
     );
     const report = JSON.parse(readFileSync(reference, "utf8")) as {
       diagnosis: { kind: string };
@@ -472,6 +572,11 @@ void test("actual unattended entrypoint retains missing-credential diagnostics w
     assert.equal(report.diagnosis.kind, "configuration_missing");
     assert.equal(report.coverage, "inconclusive");
     assert.equal(report.planning_findings_evaluated, false);
+    const summary = readFileSync(path.join(temporary, "summary.md"), "utf8");
+    assert.match(summary, /\*\*not configured\*\*/u);
+    assert.match(summary, /configuration_missing/u);
+    assert.match(summary, /PORTCOVE_ROADMAP_TOKEN/u);
+    assert.match(summary, /issue=2414/u);
   } finally {
     rmSync(temporary, { recursive: true, force: true });
   }

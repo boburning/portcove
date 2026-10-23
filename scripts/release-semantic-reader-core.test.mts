@@ -41,6 +41,11 @@ const call = (_meta?: unknown) => ({
 });
 const trace = {
   callId: "inert-call-id",
+  threadId: "inert-thread-id",
+  sessionId: "inert-session-id",
+  windowId: "inert-window-id",
+  itemId: "inert-item-id",
+  codex_bridge_mcp_call_id: "inert-bridge-id",
   "x-codex-turn-metadata": { codex_version: "0.162.0", source: "inert" },
   traceparent: `00-${"a".repeat(32)}-${"b".repeat(16)}-01`,
   tracestate: "portcove=inert",
@@ -72,6 +77,9 @@ await test("pinned RMCP transport metadata does not change the exact frozen read
     { traceparent: "invalid" },
     { tracestate: "x\ny" },
     { progressToken: "x".repeat(129) },
+    ...["threadId", "sessionId", "windowId", "itemId", "codex_bridge_mcp_call_id"].flatMap(
+      (key) => [{ [key]: 1 }, { [key]: "x".repeat(257) }, { [key]: "x\0" }],
+    ),
   ]) {
     const dispatch = createSemanticSnapshotRpc(inspectSemanticReaderIndex(index, sha(index)));
     dispatch(initialize);
@@ -85,9 +93,14 @@ await test("real fixed stdio reader accepts bounded tracing and refuses extra ca
   writeFileSync(file, index, { flag: "wx" });
   try {
     const server = fileURLToPath(new URL("./release-semantic-reader-server.mts", import.meta.url));
-    const run = (request: unknown) =>
+    const run = (request: unknown, after: unknown[] = []) =>
       spawnSync(process.execPath, [server, file, sha(index)], {
-        input: [initialize, { jsonrpc: "2.0", method: "notifications/initialized" }, request]
+        input: [
+          initialize,
+          { jsonrpc: "2.0", method: "notifications/initialized" },
+          request,
+          ...after,
+        ]
           .map((value) => JSON.stringify(value) + "\n")
           .join(""),
         encoding: "utf8",
@@ -99,9 +112,29 @@ await test("real fixed stdio reader accepts bounded tracing and refuses extra ca
     assert.equal(good.status, 0, good.stderr);
     const response: unknown = JSON.parse(good.stdout.trim().split("\n").at(-1)!);
     assert.equal(responsePage(response).sha256, sha(data));
-    const bad = run({ ...call(trace), params: { ...call(trace).params, name: "execute" } });
-    assert.notEqual(bad.status, 0);
-    assert.doesNotMatch(bad.stdout, /"id":1/);
+    const bad = run(
+      { ...call(trace), params: { ...call(trace).params, name: "execute-secret-fixture" } },
+      [{ ...call(trace), id: 2 }],
+    );
+    assert.equal(bad.status, 0, bad.stderr);
+    assert.match(bad.stdout, /"error":\{"code":-32602,"message":"unauthorized reader operation"\}/);
+    assert.doesNotMatch(bad.stdout + bad.stderr, /execute-secret-fixture/);
+    const afterRefusal: unknown = JSON.parse(bad.stdout.trim().split("\n").at(-1)!);
+    assert.equal(responsePage(afterRefusal).sha256, sha(data));
+    const metadata = run(call({ privateFixture: "must-not-be-reflected" }), [
+      { ...call(trace), id: 2 },
+    ]);
+    assert.equal(metadata.status, 0, metadata.stderr);
+    assert.match(metadata.stdout, /unsupported frozen-reader transport metadata/);
+    assert.doesNotMatch(metadata.stdout + metadata.stderr, /privateFixture|must-not-be-reflected/);
+    const afterMetadata: unknown = JSON.parse(metadata.stdout.trim().split("\n").at(-1)!);
+    assert.equal(responsePage(afterMetadata).sha256, sha(data));
+    const exhausted = run(
+      call(trace),
+      Array.from({ length: 1100 }, () => call(trace)),
+    );
+    assert.notEqual(exhausted.status, 0);
+    assert.match(exhausted.stderr, /reader lifetime call bound exceeded/);
   } finally {
     unlinkSync(file);
     rmdirSync(directory);

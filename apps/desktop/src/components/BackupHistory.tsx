@@ -10,6 +10,7 @@ import { FailureDetails } from "./FailureDetails";
 import type { BackupReadState } from "../features/backups/use-port-backups";
 
 export function BackupHistory({
+  gameName,
   backups,
   problems = [],
   state = "healthy",
@@ -22,6 +23,7 @@ export function BackupHistory({
   remove,
   focusFallback,
 }: {
+  gameName?: string | undefined;
   backups: BackupRecord[];
   problems?: BackupProblem[];
   state?: BackupInventory["state"];
@@ -63,10 +65,20 @@ export function BackupHistory({
         )));
   const renderReadStatus = () =>
     readState &&
-    readState.status !== "idle" && (
+    readState.status !== "idle" &&
+    (readState.status !== "current" || retryRead) && (
       <div
-        className="backup-inventory-notice rounded-pc-md border border-[var(--color-warning-border,_var(--color-border))] bg-[var(--color-bg-subtle)] p-[12px] [&.recovery_required]:border-[var(--color-danger-border,_var(--color-border))]"
-        role="status"
+        className={
+          readState.status === "current"
+            ? undefined
+            : cn(
+                "backup-inventory-notice rounded-pc-md border bg-[var(--color-bg-subtle)] p-3",
+                readState.status === "failed"
+                  ? "border-[var(--color-warning-border)]"
+                  : "border-pc-border",
+              )
+        }
+        role={readState.status === "current" ? undefined : "status"}
       >
         {readState.status === "pending" && (
           <>
@@ -96,7 +108,8 @@ export function BackupHistory({
         {retryRead && (
           <Button
             data-focusable
-            variant="outline"
+            variant={readState.status === "current" ? "ghost" : "outline"}
+            size="sm"
             disabled={readState.status === "pending"}
             onClick={() => {
               if (retryPending.current) return;
@@ -150,7 +163,10 @@ export function BackupHistory({
             <ul className="mt-1 list-disc space-y-1 pl-5">
               {problems.map((problem) => (
                 <li key={`${problem.operation_id ?? "entry"}-${problem.path}`}>
-                  {problemLabel(problem.kind)}: {problem.proposed_action}
+                  {problemLabel(problem.kind)}:{" "}
+                  {problem.kind === "recovery_required"
+                    ? "Restart Portcove, then check your backups again. If recovery still needs attention, review diagnostics in Settings → Advanced."
+                    : problem.proposed_action}
                 </li>
               ))}
             </ul>
@@ -167,6 +183,7 @@ export function BackupHistory({
             >
               <strong>{problemLabel(problem.kind)}</strong>
               <span className="[overflow-wrap:anywhere]">{problem.message}</span>
+              <span className="[overflow-wrap:anywhere]">{problem.proposed_action}</span>
               <small className="[overflow-wrap:anywhere]">{problem.path}</small>
             </div>
           ))}
@@ -182,11 +199,11 @@ export function BackupHistory({
           : !restoreConsistent
             ? "Restore eligibility is unknown. Refresh backup history before proceeding."
             : restoreAssessment?.reason === "recovery_required"
-              ? "Restoring requires recovery to finish. Restart Portcove to retry recovery and review doctor output if it remains."
+              ? "Restoring requires recovery to finish. Restart Portcove, then check your backups again. If recovery still needs attention, review diagnostics in Settings → Advanced."
               : restoreAssessment?.reason === "unsafe_data"
-                ? "Restore is on hold. Review the owned backup and saved-data locations."
+                ? "Restore is on hold. Review the backup and saves folder managed by Portcove."
                 : restoreAssessment?.reason === "unreadable_data"
-                  ? "Restore is on hold because the owned saved-data location could not be read."
+                  ? "Restore is on hold because Portcove’s managed saves folder could not be read."
                   : restoreAssessment?.reason === "missing_backup"
                     ? "No usable backup is currently available to restore."
                     : "Restore eligibility is unknown. Refresh backup history before proceeding."}
@@ -195,6 +212,7 @@ export function BackupHistory({
   const renderReview = () =>
     selection && (
       <BackupReviewDialog
+        gameName={gameName}
         key={`${selection.backup.id}:${selection.action}:${generation}`}
         backup={selection.backup}
         action={selection.action}

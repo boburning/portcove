@@ -207,6 +207,102 @@ async function temporarySession(
     session,
   };
 }
+void test("retained intake amendment preserves issue identity, all reserves and separate review across restart", async (t) => {
+  const { session, state, run } = await temporarySession(t);
+  session.inventory = collectRoadmapInventory(fixture(1).client);
+  const body =
+    "<!-- portcove-discovery-intake:fixture -->\n\n" +
+    renderPortIssueBody({
+      title: "Fixture",
+      upstream: "https://github.com/example/fixture",
+      portKey: "fixture",
+    });
+  const old = body.replace(
+    "Catalog ID: Not assigned (researched candidate)",
+    "Catalog ID: Unknown",
+  );
+  for (const id of ["a", "b"])
+    session.journal.evidence[id] = {
+      repository: "example/fixture",
+      material: id,
+      file: path.join(run, `${id}.json`),
+      requests: 3,
+      bytes: 100,
+    };
+  const c = (session.journal.candidates.fixture = {
+    id: "fixture",
+    kind: "intake",
+    title: "Fixture",
+    upstream: "https://github.com/example/fixture",
+    portKey: "fixture",
+    body: old,
+    body_sha256: observationHash(old),
+    evidence_ids: ["a", "b"],
+    evidence_sha256: observationHash(["a", "b"]),
+    status: "doctor-pending",
+    created_issue: 42,
+    review: {
+      verdict: "clear",
+      body_sha256: observationHash(old),
+      evidence_sha256: observationHash(["a", "b"]),
+    },
+  } satisfies NonNullable<typeof session.journal.candidates.fixture>);
+  session.journal.candidates.other = { ...c, id: "other", created_issue: 43 };
+  session.persist();
+  assert.throws(
+    () =>
+      session.amend({
+        candidate_id: c.id,
+        expected_body_sha256: "stale",
+        body,
+        reason: "metadata",
+      }),
+    /exact retained/,
+  );
+  session.amend({
+    candidate_id: c.id,
+    expected_body_sha256: c.body_sha256,
+    body,
+    reason: "metadata",
+  });
+  assert.equal(c.created_issue, 42);
+  assert.equal(c.status, "needs-review");
+  assert.equal(c.review, undefined);
+  const expected = discoveryDeliveryCost(
+    session.inventory,
+    Object.values(session.journal.candidates).map((candidate) => ({
+      ...candidate,
+      requests: 6,
+      bytes: 200,
+    })),
+  );
+  assert.deepEqual(session.budget.reserve, expected);
+  const resumed = new DiscoverySession(
+    state,
+    run,
+    config,
+    "fixture-token",
+    new Date().toISOString(),
+    "fixture-head",
+  );
+  assert.equal(resumed.journal.candidates.fixture?.created_issue, 42);
+  assert.equal(resumed.journal.candidates.fixture?.status, "needs-review");
+  assert.equal(resumed.journal.candidates.fixture?.amendment?.status, "prepared");
+  assert.ok(readdirSync(run).some((name) => name.startsWith("amend-history-fixture-")));
+  assert.throws(
+    () =>
+      resumed.review({
+        candidate_id: c.id,
+        verdict: "clear",
+        model: "gpt-6.1-sol",
+        reasoning: "high",
+        reviewer: "reviewer",
+        body_sha256: observationHash(old),
+        evidence_sha256: c.evidence_sha256,
+      }),
+    /does not match/,
+  );
+});
 void test("interrupted state preserves checkpoint work, matching review and the original created issue", async (t) => {
   const { state, run, session } = await temporarySession(t);
   const f = fixture(1);
@@ -360,6 +456,7 @@ void test("delivered candidates make quiet repeats write nothing and review cann
 });
 void test("unchanged finish preserves final inventory guards and records no planning doctor", async (t) => {
   const { session } = await temporarySession(t);
+  session.leadPages = 4; // Completed complementary lead collection; this fixture has no queued leads.
   const f = fixture(1);
   session.client.graphql = f.client.graphql;
   session.client.completeProjectContext = f.client.completeProjectContext;
@@ -664,6 +761,8 @@ void test("material proposal identity ignores wording and invalid replacements p
 });
 void test("quiet rotation yields a continuation at its reserved floor and cannot exceed fifty across commands", async (t) => {
   const { session } = await temporarySession(t);
+  // This fixture isolates the rotation budget after complementary collection with no new leads.
+  session.leadPages = 4;
   const f = fixture(60);
   for (const row of f.rows) {
     row.title = "[Port] Fixture " + row.number;

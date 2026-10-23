@@ -15,6 +15,7 @@ import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { isRecord } from "./runtime-values.mts";
+import { authoringRecordFromPort } from "./catalog-authoring.mts";
 function requiredFixture<T>(value: T): NonNullable<T> {
   assert.ok(value !== undefined && value !== null, "Required fixture value missing");
   return value;
@@ -127,11 +128,14 @@ function fixture(
   const catalogs = join(scratch, "crates", "portcove-core", "catalog");
   mkdirSync(scripts);
   mkdirSync(catalogs, { recursive: true });
-  copyFileSync(
-    join(root, "scripts", "generate-catalog.mts"),
-    join(scripts, "generate-catalog.mts"),
-  );
-  copyFileSync(join(root, "scripts", "runtime-values.mts"), join(scripts, "runtime-values.mts"));
+  for (const name of [
+    "generate-catalog.mts",
+    "runtime-values.mts",
+    "catalog-authoring.mts",
+    "catalog-authoring-inspector.mts",
+    "upstream-lineage.mts",
+  ])
+    copyFileSync(join(root, "scripts", name), join(scripts, name));
   const catalog: FixtureCatalog = {
     schema_version: 2,
     ports: [
@@ -147,6 +151,19 @@ function fixture(
     },
   };
   declarations(catalog);
+  for (const port of catalog.ports) {
+    port.name ??= port.id;
+    port.summary ??= "An inert proposal fixture.";
+    port.project_url ??= `https://example.org/${port.id}`;
+  }
+  const { ports, ...shared } = catalog;
+  mkdirSync(join(catalogs, "ports"));
+  writeFileSync(join(catalogs, "catalog-shared.json"), JSON.stringify(shared));
+  for (const [index, port] of ports.entries())
+    writeFileSync(
+      join(catalogs, "ports", `${port.id}.json`),
+      JSON.stringify(authoringRecordFromPort(port, index)),
+    );
   const accepted = Buffer.from(JSON.stringify(catalog));
   const input = Buffer.from(`${JSON.stringify(catalog, null, 2)}\n`);
   const source = join(catalogs, "catalog-current-authoring.json");
@@ -404,8 +421,20 @@ void test("proposal cases retain changed and shared-source declarations without 
   assert.deepEqual(added.reasons, ["port-declaration", "source-record-relationship"]);
   assert.deepEqual(frozen.reasons, ["source-record-relationship"]);
   assert.deepEqual(frozen.before.port, frozen.after.port);
-  assert.deepEqual(frozen.unchanged_port_fields, ["adapter", "id", "name"]);
-  assert.deepEqual(added.unchanged_port_fields, ["adapter", "id", "name"]);
+  assert.deepEqual(frozen.unchanged_port_fields, [
+    "adapter",
+    "id",
+    "name",
+    "project_url",
+    "summary",
+  ]);
+  assert.deepEqual(added.unchanged_port_fields, [
+    "adapter",
+    "id",
+    "name",
+    "project_url",
+    "summary",
+  ]);
   assert.equal(
     requiredFixture(
       review.source_tables.after.qualification[

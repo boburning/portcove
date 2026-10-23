@@ -804,6 +804,27 @@ Review cleanup opens a separate, freshly loaded operation/generation-bound plan.
 Only that review offers deletion or record removal and its native final approval.
 Full locations, exclusions and interruption consequences remain readable.
 
+Consequential game reviews repeat the full game/project/variant identity from
+`port-identity.ts` inside the dialog. This presentation does not replace stable
+IDs, reviewed fingerprints, generations or native consent. Backup reviews also
+retain the snapshot date and Core-provided port name.
+
+A current healthy backup read has a quiet refresh action, without a warning box.
+Pending reads are neutral; failed reads preserve the earlier list and describe
+its uncertainty. Saved-data scope sits beside backup controls; creation checks
+the managed folder. Installed saved-data paths are not exposed
+in this projection: every installed version follows its recorded rules, so
+current catalog paths must not substitute for its installed contract. There is
+no backup-creation review; restore and deletion have their own reviews. External
+saved data remains outside managed backups.
+
+Retained-setup inspection leads with the working object, completeness uncertainty
+and supported next step. Secondary installation/source/saves/backup/log locations
+are disclosed on demand. The separate cleanup review exposes all preserved
+locations before confirmation and obtains a fresh operation-bound preview.
+Routine no-results and secondary Settings sections use their ordinary headings,
+reserving warning treatments for actual problems.
+
 Change library location means copy, verify and switch, with the old copy retained.
 Its confirmation is Copy and switch. Save backups, metadata export, manual recovery
 copy and checked restore remain distinct. The full manual-copy and credential

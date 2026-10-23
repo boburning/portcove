@@ -24,6 +24,7 @@ import {
   portFieldInitialization,
   reconcilePortIssueMarkers,
   validateDurableIssueBody,
+  isNonCatalogResearchBody,
 } from "./roadmap.mts";
 import type { RoadmapInventory, InventoryCache } from "./roadmap-inventory.mts";
 import { collectRoadmapInventory } from "./roadmap-inventory.mts";
@@ -51,6 +52,17 @@ import {
   repoName,
 } from "./daily-discovery-sources.mts";
 import type { SourceContext, CollectedSource } from "./daily-discovery-sources.mts";
+import {
+  acceptLeadPage,
+  nextLeadPage,
+  parseLeadState,
+  pendingLeads,
+  leadPageSize,
+  retainLeadResults,
+  LeadSearchChanged,
+  restartLeadSlice,
+} from "./discovery-leads.mts";
+import type { LeadState } from "./discovery-leads.mts";
 
 interface Candidate {
   id: string;
@@ -72,6 +84,7 @@ interface Candidate {
   pending_ids?: string[];
   hold?: { reason: string; resume: string };
   superseded_by?: string;
+  amendment?: { expected_body_sha256: string; status: "prepared" | "attempted" | "applied" };
 }
 interface Evidence {
   repository: string;
@@ -80,6 +93,7 @@ interface Evidence {
   requests: number;
   bytes: number;
   url?: string;
+  observed_at?: string;
 }
 interface Journal {
   format: 1;
@@ -98,6 +112,7 @@ interface Journal {
   checkpoint?: DiscoveryCheckpoint;
   checkpoint_preimage?: string;
   backoff_until?: string;
+  lead_state?: LeadState;
 }
 const object = (v: unknown): Record<string, unknown> => {
   if (!isRecord(v)) throw new Error("Expected structured discovery message");
@@ -180,12 +195,13 @@ export function discoveryInventoryCost(inventory: RoadmapInventory) {
 }
 export function discoveryDeliveryCost(
   inventory: RoadmapInventory,
-  candidates: readonly { body: string; requests?: number; bytes?: number }[],
+  candidates: readonly { body: string; requests?: number; bytes?: number; amendment?: unknown }[],
 ) {
   const { requests: pages, bytes: thin } = discoveryInventoryCost(inventory);
   const requests =
     (candidates.length + 1) * pages +
     candidates.length * 8 +
+    candidates.filter((c) => c.amendment).length * 3 +
     4 +
     candidates.reduce((s, c) => s + (c.requests ?? 0), 0);
   const bytes =
@@ -197,6 +213,27 @@ export function discoveryDeliveryCost(
     requests: Math.ceil(Math.max(requests * 1.25, requests + pages)),
     bytes: Math.ceil(Math.max(bytes * 1.25, bytes + thin)),
   };
+}
+export function intakeAmendmentAction(
+  body: string,
+  current: string,
+  amendment: Candidate["amendment"],
+) {
+  if (current === body) return "observed";
+  if (!amendment || observationHash(current) !== amendment.expected_body_sha256)
+    throw new Error("Retained intake body changed; preserve and reconcile");
+  if (amendment.status !== "prepared")
+    throw new Error("Unconfirmed amendment requires readback; no repeated write");
+  return "patch";
+}
+export function validateDiscoveryIntakeBody(body: string, upstream: string, portKey: string) {
+  validateDurableIssueBody(body);
+  if (reconcilePortIssueMarkers(body, { upstream, portKey }) !== body)
+    throw new Error("Intake requires the maintained canonical body markers before review");
+  if (!isNonCatalogResearchBody(body))
+    throw new Error(
+      "Intake requires canonical research/watchlist metadata and a support disclaimer before review",
+    );
 }
 export class DiscoverySession {
   inventory!: RoadmapInventory;
@@ -218,6 +255,10 @@ export class DiscoverySession {
   readonly stateDir: string;
   readonly runDir: string;
   readonly head: string;
+  leads: LeadState;
+  leadPages = 0;
+  researchedLeads = new Set<number>();
+  leadCollectionAttempted = false;
   constructor(
     stateDir: string,
     runDir: string,
@@ -229,6 +270,10 @@ export class DiscoverySession {
     this.stateDir = stateDir;
     this.runDir = runDir;
     this.head = head;
+    const leadFile = path.join(stateDir, "leads.json");
+    this.leads = parseLeadState(
+      existsSync(leadFile) ? JSON.parse(readFileSync(leadFile, "utf8")) : undefined,
+    );
     const checkpointFile = path.join(stateDir, "checkpoint.json");
     this.checkpoint = existsSync(checkpointFile)
       ? parseDiscoveryCheckpoint(JSON.parse(readFileSync(checkpointFile, "utf8")))
@@ -275,6 +320,8 @@ export class DiscoverySession {
         ? { baseline_completed_at: cache.baseline_completed_at }
         : {}),
     };
+    if (isRecord(previous) && previous.lead_state !== undefined)
+      this.leads = parseLeadState(previous.lead_state);
     for (const [id, raw] of Object.entries(this.journal.candidates)) {
       const c = object(raw);
       if (
@@ -299,6 +346,16 @@ export class DiscoverySession {
         ].includes(c.status)
       )
         throw new Error("Interrupted candidate binding is invalid; preserve and reconcile");
+      if (
+        c.amendment !== undefined &&
+        (!isRecord(c.amendment) ||
+          c.kind !== "intake" ||
+          !c.created_issue ||
+          typeof c.amendment.expected_body_sha256 !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(c.amendment.expected_body_sha256) ||
+          !["prepared", "attempted", "applied"].includes(String(c.amendment.status)))
+      )
+        throw new Error("Interrupted amendment binding is invalid; preserve and reconcile");
       if (
         !["needs-review", "held", "superseded"].includes(String(c.status)) &&
         (!isRecord(c.review) ||
@@ -342,12 +399,15 @@ export class DiscoverySession {
     atomic(path.join(this.runDir, `${name}.json`), value);
   }
   persist() {
+    this.journal.lead_state = this.leads;
     this.journal.checkpoint = this.checkpoint;
     this.journal.checkpoint_preimage = this.checkpointPreimage;
     if (this.budget.usage.backoff_until)
       this.journal.backoff_until = this.budget.usage.backoff_until;
     atomic(this.journalFile, this.journal);
     this.save("journal", this.journal);
+    // Evidence references become visible only after their recoverable journal binding.
+    atomic(path.join(this.stateDir, "leads.json"), this.leads);
   }
   checkProviderCapacity(requests: number) {
     const response = this.client.api.request("GET", "rate_limit");
@@ -513,7 +573,8 @@ export class DiscoverySession {
         issue: c.created_issue,
       })),
       remaining: this.budget.remaining(),
-      next: "Recover unfinished candidates, or collect/research, propose, separate review, apply, finish",
+      leads: this.leadSummary(),
+      next: "Recover unfinished candidates, collect/discover, research and dispose leads before recheck, propose, separate review, apply, finish",
     };
   }
   research(repository: string) {
@@ -530,7 +591,16 @@ export class DiscoverySession {
       file,
       requests: this.budget.usage.requests - before.requests,
       bytes: this.budget.usage.bytes - before.bytes,
+      observed_at: this.journal.started_at,
     };
+    const lead = this.leads.records[String(data.metadata.id)];
+    if (lead) {
+      if (lead.repository.toLowerCase() !== text(data.metadata.full_name).toLowerCase())
+        throw new Error("Lead repository relocation needs continuity review");
+      lead.status = "researched";
+      lead.research = { evidence_id: id, file, material: fingerprint };
+      if (!this.knownLeadUrls().has(lead.url.toLowerCase())) this.researchedLeads.add(lead.id);
+    }
     this.persist();
     return { id, file, material: fingerprint };
   }
@@ -538,9 +608,17 @@ export class DiscoverySession {
     if (++this.searches > 6 || query.length > 500) throw new Error("Lead-search bound exceeded");
     const response = this.source.api.request(
       "GET",
-      `search/repositories?q=${encodeURIComponent(query)}&sort=updated&per_page=10`,
+      `search/repositories?q=${encodeURIComponent(query)}&sort=updated&per_page=${leadPageSize}`,
     );
     this.save(`lead-search-${this.searches}`, response.body);
+    const rows = object(response.body).items;
+    if (!Array.isArray(rows)) throw new Error("Malformed lead search response");
+    this.leads = retainLeadResults(
+      this.leads,
+      rows,
+      this.journal.started_at,
+      path.join(this.runDir, `lead-search-${this.searches}.json`),
+    );
     this.journal.notes.push({
       source: "primary-leads",
       scope: "One bounded repository-search page; no absence or complete community coverage claim",
@@ -549,6 +627,158 @@ export class DiscoverySession {
     });
     this.persist();
     return { file: path.join(this.runDir, `lead-search-${this.searches}.json`) };
+  }
+  knownLeadUrls() {
+    return new Set(
+      sourceProvenancePortIssues(this.inventory.issues).flatMap((issue) =>
+        sourceProvenancePortIdentity(issue).upstreams.map((url) => url.toLowerCase()),
+      ),
+    );
+  }
+  leadSummary() {
+    const pending = pendingLeads(this.leads, this.knownLeadUrls());
+    return {
+      searched_pages: this.leadPages,
+      investigated: [...this.researchedLeads],
+      pending: pending.length,
+      next: pending.slice(0, 12),
+      continuations: this.leads.slices,
+      scope: "Bounded GitHub lead searches; not complete community discovery",
+    };
+  }
+  discover() {
+    if (this.leadCollectionAttempted) return this.leadSummary();
+    this.leadCollectionAttempted = true;
+    for (let turn = 0; turn < 6 && this.searches < 6; turn++) {
+      const plan = nextLeadPage(this.leads, this.journal.started_at);
+      if (plan.current) {
+        this.leads.next_family = (this.leads.next_family + 1) % 4;
+        continue;
+      }
+      if (plan.capped) {
+        this.journal.notes.push({
+          phase: "lead-search",
+          status: "capped",
+          ...plan,
+          resume:
+            "Narrow this capped time slice before a fresh bounded search; no complete coverage claim",
+        });
+        this.leads.next_family = (this.leads.next_family + 1) % 4;
+        this.persist();
+        continue;
+      }
+      // Leave bounded capacity for two upstream investigations as well as the existing delivery reserve.
+      if (this.budget.remaining().requests < 17 || this.budget.remaining().bytes < 1024 * 1024) {
+        this.journal.notes.push({
+          phase: "lead-search",
+          status: "deferred",
+          ...plan,
+          resume: "Continue this exact query/page on the next admitted run before quiet rotation",
+        });
+        break;
+      }
+      this.budget.admit(1, 1);
+      const response = this.source.api.request(
+        "GET",
+        `search/repositories?q=${encodeURIComponent(plan.query)}&per_page=${leadPageSize}&page=${plan.page}`,
+      );
+      const name = `lead-search-${++this.searches}`;
+      this.save(name, { ...object(response.body), query: plan.query, page: plan.page });
+      try {
+        this.leads = acceptLeadPage(
+          this.leads,
+          plan,
+          response.body,
+          this.journal.started_at,
+          path.join(this.runDir, `${name}.json`),
+        );
+      } catch (error) {
+        if (!(error instanceof LeadSearchChanged)) throw error;
+        this.leads = restartLeadSlice(this.leads, plan, errorMessage(error));
+        this.journal.notes.push({
+          phase: "lead-search",
+          status: "partial",
+          error: errorMessage(error),
+          query: plan.query,
+          page: plan.page,
+          evidence: path.join(this.runDir, `${name}.json`),
+          resume:
+            "Discard failed pagination and recollect this fixed slice on a later admitted run; no same-run retry",
+        });
+        this.persist();
+        break;
+      }
+      this.leadPages++;
+      this.persist();
+    }
+    for (const lead of pendingLeads(this.leads, this.knownLeadUrls())
+      .filter(
+        (r) =>
+          !r.release_hint ||
+          Date.parse(this.journal.started_at) - Date.parse(r.release_hint.observed_at) >=
+            7 * 86400000,
+      )
+      .slice(0, 4)) {
+      if (this.budget.remaining().requests < 17 || this.budget.remaining().bytes < 1024 * 1024)
+        break;
+      const response = this.source.api.request(
+        "GET",
+        `repos/${lead.repository}/releases?per_page=5`,
+      );
+      if (!Array.isArray(response.body)) throw new Error("Malformed lead release hints");
+      const name = `lead-release-hint-${lead.id}`;
+      this.save(name, response.body);
+      lead.release_hint = {
+        assets_observed: response.body.some((raw: unknown) => {
+          const release = object(raw);
+          return (
+            release.draft === false &&
+            Array.isArray(release.assets) &&
+            release.assets.some((raw: unknown) => {
+              const asset = object(raw);
+              return (
+                asset.state === "uploaded" &&
+                typeof asset.name === "string" &&
+                /\.(?:zip|tar\.gz|AppImage|exe|msi|dmg)$/iu.test(asset.name)
+              );
+            })
+          );
+        }),
+        observed_at: this.journal.started_at,
+        evidence: path.join(this.runDir, `${name}.json`),
+      };
+      this.persist();
+    }
+    this.persist();
+    return this.leadSummary();
+  }
+  disposeLead(raw: unknown) {
+    const v = object(raw),
+      id = text(v.evidence_id),
+      evidence = this.journal.evidence[id];
+    const lead = Object.values(this.leads.records).find((r) => r.research?.evidence_id === id);
+    if (
+      !lead ||
+      lead.status !== "researched" ||
+      !evidence ||
+      !evidence.observed_at ||
+      !Number.isFinite(Date.parse(evidence.observed_at)) ||
+      Date.parse(this.journal.started_at) - Date.parse(evidence.observed_at) >= 7 * 86400000 ||
+      evidence.repository.toLowerCase() !== lead.repository.toLowerCase() ||
+      !["held", "no-change", "canonical"].includes(text(v.outcome))
+    )
+      throw new Error("Lead disposition needs its matching investigated provider identity");
+    if (v.outcome === "canonical" && !this.knownLeadUrls().has(lead.url.toLowerCase()))
+      throw new Error("Canonical lead disposition requires current canonical source identity");
+    const outcome = text(v.outcome);
+    if (outcome !== "held" && outcome !== "no-change" && outcome !== "canonical")
+      throw new Error("Invalid lead disposition");
+    lead.status = outcome;
+    lead.disposition = { reason: text(v.reason), resume: text(v.resume) };
+    lead.checked_at = this.journal.started_at;
+    if (!this.knownLeadUrls().has(lead.url.toLowerCase())) this.researchedLeads.add(lead.id);
+    this.persist();
+    return lead;
   }
   readPrimary(repository: string, url: string) {
     const binding = repoName(repository);
@@ -612,9 +842,7 @@ export class DiscoverySession {
     if (this.journal.candidates[id]) return this.journal.candidates[id];
     const marked = `<!-- portcove-discovery-${v.kind}:${id} -->\n\n${body}`;
     if (v.kind === "intake") {
-      validateDurableIssueBody(marked);
-      if (reconcilePortIssueMarkers(marked, { upstream: upstream.href, portKey: key }) !== marked)
-        throw new Error("Intake requires the maintained canonical body markers before review");
+      validateDiscoveryIntakeBody(marked, upstream.href, key);
     }
     const candidate: Candidate = {
       id,
@@ -723,10 +951,74 @@ export class DiscoverySession {
     this.persist();
     return { id: c.id, status: c.status, hold: c.hold };
   }
+  amend(raw: unknown) {
+    const v = object(raw),
+      c = this.journal.candidates[text(v.candidate_id)];
+    if (
+      !c ||
+      c.kind !== "intake" ||
+      !c.created_issue ||
+      c.status !== "doctor-pending" ||
+      v.expected_body_sha256 !== c.body_sha256
+    )
+      throw new Error("Amendment requires the exact retained doctor-pending intake");
+    const body = text(v.body);
+    if (
+      Buffer.byteLength(body) > 65536 ||
+      !body.includes(`<!-- portcove-discovery-intake:${c.id} -->`)
+    )
+      throw new Error("Amendment must preserve the intake identity and body bound");
+    validateDiscoveryIntakeBody(body, c.upstream, c.portKey);
+    const amendment = { expected_body_sha256: c.body_sha256, status: "prepared" as const };
+    const changed = { ...c, body, amendment };
+    const cost = discoveryDeliveryCost(
+      this.inventory,
+      Object.values(this.journal.candidates)
+        .filter((candidate) => !["delivered", "held", "superseded"].includes(candidate.status))
+        .map((candidate) => (candidate.id === c.id ? changed : candidate))
+        .map((candidate) => ({
+          ...candidate,
+          requests: candidate.evidence_ids.reduce(
+            (sum, id) => sum + this.journal.evidence[id]!.requests,
+            0,
+          ),
+          bytes: candidate.evidence_ids.reduce(
+            (sum, id) => sum + this.journal.evidence[id]!.bytes,
+            0,
+          ),
+        })),
+    );
+    this.budget.reserveDelivery(cost.requests, cost.bytes);
+    this.save(`amend-history-${c.id}-${c.body_sha256.slice(0, 12)}`, {
+      candidate: c,
+      reason: text(v.reason),
+    });
+    c.body = body;
+    c.body_sha256 = observationHash(body);
+    c.amendment = amendment;
+    c.status = "needs-review";
+    delete c.review;
+    this.persist();
+    return c;
+  }
   collect() {
     if (this.journal.collection_done)
       throw new Error("Source collection already completed in this run");
-    this.journal.sources.push(...collectDiscoverySources(this.source, this.checkpoint));
+    this.discover();
+    const reserve = this.budget.reserve;
+    const pending = pendingLeads(this.leads, this.knownLeadUrls());
+    if (pending.length) {
+      const left = this.budget.remaining();
+      this.budget.reserve = {
+        requests: reserve.requests + Math.min(16, Math.max(0, left.requests)),
+        bytes: reserve.bytes + Math.min(1024 * 1024, Math.max(0, left.bytes)),
+      };
+    }
+    try {
+      this.journal.sources.push(...collectDiscoverySources(this.source, this.checkpoint));
+    } finally {
+      this.budget.reserve = reserve;
+    }
     this.checkpoint = advanceDiscovery(this.checkpoint, {
       observed_at: new Date().toISOString(),
       sources: this.journal.sources,
@@ -747,6 +1039,25 @@ export class DiscoverySession {
     };
   }
   recheck() {
+    if (!this.leadWorkComplete()) {
+      const deferred = {
+        checked: [] as number[],
+        overdue: rotatingRecheck(
+          sourceProvenancePortIssues(this.inventory.issues).map((i) => Number(i.number)),
+          this.checkpoint.checked,
+          new Date().toISOString(),
+          50,
+        ).overdue,
+        phase: "quiet-recheck",
+        status: "deferred",
+        reason:
+          "Collect complementary lead searches and investigate two distinct queued upstreams before quiet rotation",
+        next: this.leadSummary(),
+      };
+      this.journal.notes.push(deferred);
+      this.persist();
+      return deferred;
+    }
     const records = sourceProvenancePortIssues(this.inventory.issues);
     const plan = rotatingRecheck(
       records.map((i) => Number(i.number)),
@@ -824,6 +1135,14 @@ export class DiscoverySession {
       ).overdue,
     };
   }
+  leadWorkComplete() {
+    const pending = pendingLeads(this.leads, this.knownLeadUrls());
+    const required = Math.min(
+      2,
+      new Set([...pending.map((r) => r.id), ...this.researchedLeads]).size,
+    );
+    return this.leadPages >= 4 && this.researchedLeads.size >= required;
+  }
   async apply() {
     const candidates = Object.values(this.journal.candidates)
       .filter((c) =>
@@ -890,6 +1209,8 @@ export class DiscoverySession {
             const issue = this.client.repositoryIssue(c.created_issue);
             if (!issue.body?.includes(`portcove-discovery-intake:${c.id}`))
               throw new Error("Retained issue does not match candidate");
+            // Guard the reviewed preimage before normalization can write any fields.
+            if (c.amendment) intakeAmendmentAction(c.body, issue.body, c.amendment);
             if (
               (typeof issue.state === "string" && issue.state.toLowerCase() === "closed") ||
               (Array.isArray(object(issue).assignees) &&
@@ -912,6 +1233,25 @@ export class DiscoverySession {
               inventory: this.inventory,
             });
             c.itemId = result.itemId;
+            if (c.amendment) {
+              const fresh = this.client.repositoryIssue(c.created_issue);
+              if (intakeAmendmentAction(c.body, text(fresh.body), c.amendment) === "patch") {
+                this.save(
+                  `amend-preimage-${c.id}-${c.amendment.expected_body_sha256.slice(0, 12)}`,
+                  fresh,
+                );
+                c.amendment.status = "attempted";
+                this.persist();
+                this.client.api.request(
+                  "PATCH",
+                  `repos/${this.client.config.repository}/issues/${c.created_issue}`,
+                  { body: c.body },
+                );
+                this.wrote = true;
+              }
+              c.amendment.status = "applied";
+              this.persist();
+            }
           } else {
             if (matches.length)
               throw new Error(
@@ -1083,7 +1423,7 @@ export class DiscoverySession {
     );
     this.journal.status = error
       ? "failed"
-      : pending
+      : pending || !this.leadWorkComplete()
         ? "deferred"
         : this.journal.collection_done
           ? "completed"
@@ -1139,6 +1479,7 @@ export class DiscoverySession {
         issue: c.created_issue ?? c.issue,
         readback: c.readback,
       })),
+      leads: this.leadSummary(),
       doctor: this.journal.doctor,
       sources: this.journal.sources.map(({ records, ...source }) => ({
         ...source,
@@ -1228,6 +1569,9 @@ export async function runDiscoverySession(
         break;
       }
       if (op === "collect") result = session.collect();
+      else if (op === "discover") result = session.discover();
+      else if (op === "lead-dispose") result = session.disposeLead(message.disposition);
+      else if (op === "amend") result = session.amend(message.amendment);
       else if (op === "research") result = session.research(text(message.repository));
       else if (op === "search") result = session.search(text(message.query));
       else if (op === "read-primary")

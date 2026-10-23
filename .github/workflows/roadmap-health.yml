@@ -24,12 +24,29 @@ permissions:
   contents: read
   issues: write
 
-concurrency:
-  group: roadmap-health-${{ github.event.issue.number || inputs.issue || 'global' }}
-  cancel-in-progress: false
-
 jobs:
+  configuration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    permissions: {}
+    outputs:
+      available: ${{ steps.project-token.outputs.available }}
+    steps:
+      - name: Identify hosted configuration without exposing the credential
+        id: project-token
+        env:
+          PROJECT_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
+        run: |
+          if [[ -n "$PROJECT_TOKEN" ]]; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+          fi
   check:
+    needs: configuration
+    concurrency:
+      group: roadmap-health-${{ needs.configuration.outputs.available == 'true' && (github.event.issue.number || inputs.issue || 'global') || 'configuration' }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

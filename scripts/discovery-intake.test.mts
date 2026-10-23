@@ -12,6 +12,8 @@ import {
 import { GitHubApiClient } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
 import type { RoadmapIssueItem } from "./roadmap.mts";
+import { intakeAmendmentAction, validateDiscoveryIntakeBody } from "./daily-discovery-session.mts";
+import { observationHash } from "./upstream-observer.mts";
 const config = validateConfig(
   JSON.parse(readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8")),
 );
@@ -20,6 +22,41 @@ function required<T>(value: T | null | undefined): T {
   return value;
 }
 type Issue = ReturnType<RoadmapClient["repositoryIssue"]>;
+void test("discovery rejects the Brawl metadata omission before public creation", () => {
+  const upstream = "https://github.com/example/brawl";
+  const valid = renderPortIssueBody({ title: "Brawl", upstream, portKey: "brawl" });
+  validateDiscoveryIntakeBody(valid, upstream, "brawl");
+  for (const invalid of [
+    valid.replace("Catalog ID: Not assigned (researched candidate)", "Catalog ID: Unknown"),
+    valid
+      .replace("does not grant support", "leaves support Unknown")
+      .replace("does not change catalog.json", "leaves catalog unchanged"),
+  ])
+    assert.throws(
+      () => validateDiscoveryIntakeBody(invalid, upstream, "brawl"),
+      /research\/watchlist/,
+    );
+  assert.throws(
+    () => validateDiscoveryIntakeBody(valid, upstream, "different-game"),
+    /canonical body markers/,
+  );
+});
+void test("amendment recovery observes successful writes and refuses repetition or owner edits", () => {
+  const amendment = { expected_body_sha256: observationHash("old"), status: "prepared" as const };
+  assert.equal(intakeAmendmentAction("new", "old", amendment), "patch");
+  for (const status of ["prepared", "attempted", "applied"] as const) {
+    assert.equal(intakeAmendmentAction("new", "new", { ...amendment, status }), "observed");
+    assert.throws(
+      () => intakeAmendmentAction("new", "owner-edited", { ...amendment, status }),
+      /body changed/,
+    );
+  }
+  for (const status of ["attempted", "applied"] as const)
+    assert.throws(
+      () => intakeAmendmentAction("new", "old", { ...amendment, status }),
+      /no repeated write/,
+    );
+});
 void test("catalog-ID direct intake recovery keeps its existing catalog identity without inventing a port key", () => {
   const body = renderPortIssueBody({
     title: "Catalog Game",

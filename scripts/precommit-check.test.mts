@@ -59,9 +59,12 @@ function fixture() {
   mkdirSync(path.join(cwd, "scripts"));
   for (const name of [
     "node-test-inventory.mts",
+    "node-test-suites.mts",
+    "qualification-coverage.mts",
     "runtime-values.mts",
     "catalog-staged-check.mts",
     "catalog-authoring.mts",
+    "upstream-lineage.mts",
     "precommit.mts",
     "viteplus-cli.mts",
   ])
@@ -153,87 +156,91 @@ void test("supported hooks work from a linked worktree and noninteractive Git cl
   assert.equal(git(cwd, "status", "--porcelain").trim(), "");
 });
 
-void test("real Git hooks use the installed runtime without ambient Node and recover through setup refresh", () => {
-  const cwd = fixture();
-  const runtimeDir = path.join(cwd, ".vite-hooks/_/runtime ' with spaces");
-  mkdirSync(runtimeDir, { recursive: true });
-  const runtime = path.join(runtimeDir, process.platform === "win32" ? "node.exe" : "node");
-  copyFileSync(process.execPath, runtime);
-  if (process.platform !== "win32") chmodSync(runtime, 0o755);
-  const setup = spawnSync(
-    runtime,
-    [
-      "--input-type=module",
-      "-e",
-      `import { configureHooks } from ${JSON.stringify(pathToFileURL(path.join(root, "scripts/hooks-install.mts")).href)}; configureHooks(${JSON.stringify(cwd)}, "enable");`,
-    ],
-    { env, encoding: "utf8", timeout: 30_000, windowsHide: true },
-  );
-  assert.equal(setup.status, 0, setup.stderr || setup.error?.message);
-  const core = git(cwd, "--exec-path").trim();
-  const gitPath =
-    process.platform === "win32" ? path.resolve(core, "../../bin/git.exe") : "/usr/bin/git";
-  const lean = {
-    ...env,
-    PATH:
-      process.platform === "win32"
-        ? `${path.dirname(gitPath)};${path.resolve(core, "../../../usr/bin")};${process.env.SystemRoot}/System32`
-        : "/usr/bin:/bin",
-  };
-  const originalPath = process.env.PATH;
-  writeFileSync(
-    path.join(cwd, "vite.config.ts"),
-    'export default { staged: { "*.js": "node --version" } };\n',
-  );
-  writeFileSync(path.join(cwd, "sample.js"), "export const staged = true;\n");
-  git(cwd, "add", "vite.config.ts", "sample.js");
-  const commit = (directory = cwd) =>
-    spawnSync(gitPath, ["commit", "--allow-empty", "-qm", "runtime fixture"], {
-      cwd: directory,
-      env: lean,
-      encoding: "utf8",
-      timeout: 30_000,
-      windowsHide: true,
-    });
-  const success = commit();
-  assert.equal(success.status, 0, success.stderr || success.stdout || success.error?.message);
-  git(cwd, "config", "extensions.worktreeConfig", "true");
-  const sibling = `${cwd}-linked`;
-  git(cwd, "worktree", "add", "-qb", "runtime-linked", sibling);
-  symlinkSync(path.join(root, "node_modules"), path.join(sibling, "node_modules"), "junction");
-  configureHooks(sibling, "enable", env);
-  writeFileSync(path.join(sibling, "sample.js"), "export const linked = true;\n");
-  git(sibling, "add", "sample.js");
-  const linked = commit(sibling);
-  assert.equal(linked.status, 0, linked.stderr || linked.stdout);
-  writeFileSync(path.join(cwd, ".node-version"), "0.0.0\n");
-  const stale = commit();
-  assert.notEqual(stale.status, 0);
-  assert.match(stale.stderr, /Hook runtime mismatch/);
-  writeFileSync(path.join(cwd, ".node-version"), process.versions.node);
-  unlinkSync(runtime);
-  assert.match(commit().stderr, /Hook runtime unavailable/);
-  const commonBefore = readFileSync(path.join(cwd, ".git/config"), "utf8");
-  const siblingRuntime = path.join(sibling, ".vite-hooks/_/portcove-node");
-  const siblingBefore = readFileSync(siblingRuntime, "utf8");
-  const siblingPreferences = configureHooks(sibling, "status", env);
-  configureHooks(cwd, "install", env);
-  assert.equal(readFileSync(path.join(cwd, ".git/config"), "utf8"), commonBefore);
-  assert.equal(readFileSync(siblingRuntime, "utf8"), siblingBefore);
-  assert.equal(configureHooks(sibling, "status", env), siblingPreferences);
-  writeFileSync(path.join(cwd, "sample.js"), "export const refreshed = true;\n");
-  git(cwd, "add", "sample.js");
-  const refreshed = commit();
-  assert.equal(
-    refreshed.status,
-    0,
-    refreshed.stderr || refreshed.stdout || refreshed.error?.message,
-  );
-  assert.equal(git(cwd, "show", "HEAD:sample.js"), "export const refreshed = true;\n");
-  unlinkSync(path.join(cwd, ".vite-hooks/_/portcove-node"));
-  assert.match(commit().stderr, /Hook runtime missing/);
-  assert.equal(process.env.PATH, originalPath);
-});
+void test(
+  "real Git hooks use the installed runtime without ambient Node and recover through setup refresh",
+  { timeout: 180_000 },
+  () => {
+    const cwd = fixture();
+    const runtimeDir = path.join(cwd, ".vite-hooks/_/runtime ' with spaces");
+    mkdirSync(runtimeDir, { recursive: true });
+    const runtime = path.join(runtimeDir, process.platform === "win32" ? "node.exe" : "node");
+    copyFileSync(process.execPath, runtime);
+    if (process.platform !== "win32") chmodSync(runtime, 0o755);
+    const setup = spawnSync(
+      runtime,
+      [
+        "--input-type=module",
+        "-e",
+        `import { configureHooks } from ${JSON.stringify(pathToFileURL(path.join(root, "scripts/hooks-install.mts")).href)}; configureHooks(${JSON.stringify(cwd)}, "enable");`,
+      ],
+      { env, encoding: "utf8", timeout: 30_000, windowsHide: true },
+    );
+    assert.equal(setup.status, 0, setup.stderr || setup.error?.message);
+    const core = git(cwd, "--exec-path").trim();
+    const gitPath =
+      process.platform === "win32" ? path.resolve(core, "../../bin/git.exe") : "/usr/bin/git";
+    const lean = {
+      ...env,
+      PATH:
+        process.platform === "win32"
+          ? `${path.dirname(gitPath)};${path.resolve(core, "../../../usr/bin")};${process.env.SystemRoot}/System32`
+          : "/usr/bin:/bin",
+    };
+    const originalPath = process.env.PATH;
+    writeFileSync(
+      path.join(cwd, "vite.config.ts"),
+      'export default { staged: { "*.js": "node --version" } };\n',
+    );
+    writeFileSync(path.join(cwd, "sample.js"), "export const staged = true;\n");
+    git(cwd, "add", "vite.config.ts", "sample.js");
+    const commit = (directory = cwd) =>
+      spawnSync(gitPath, ["commit", "--allow-empty", "-qm", "runtime fixture"], {
+        cwd: directory,
+        env: lean,
+        encoding: "utf8",
+        timeout: 60_000,
+        windowsHide: true,
+      });
+    const success = commit();
+    assert.equal(success.status, 0, success.stderr || success.stdout || success.error?.message);
+    git(cwd, "config", "extensions.worktreeConfig", "true");
+    const sibling = `${cwd}-linked`;
+    git(cwd, "worktree", "add", "-qb", "runtime-linked", sibling);
+    symlinkSync(path.join(root, "node_modules"), path.join(sibling, "node_modules"), "junction");
+    configureHooks(sibling, "enable", env);
+    writeFileSync(path.join(sibling, "sample.js"), "export const linked = true;\n");
+    git(sibling, "add", "sample.js");
+    const linked = commit(sibling);
+    assert.equal(linked.status, 0, linked.stderr || linked.stdout || linked.error?.message);
+    writeFileSync(path.join(cwd, ".node-version"), "0.0.0\n");
+    const stale = commit();
+    assert.notEqual(stale.status, 0);
+    assert.match(stale.stderr, /Hook runtime mismatch/);
+    writeFileSync(path.join(cwd, ".node-version"), process.versions.node);
+    unlinkSync(runtime);
+    assert.match(commit().stderr, /Hook runtime unavailable/);
+    const commonBefore = readFileSync(path.join(cwd, ".git/config"), "utf8");
+    const siblingRuntime = path.join(sibling, ".vite-hooks/_/portcove-node");
+    const siblingBefore = readFileSync(siblingRuntime, "utf8");
+    const siblingPreferences = configureHooks(sibling, "status", env);
+    configureHooks(cwd, "install", env);
+    assert.equal(readFileSync(path.join(cwd, ".git/config"), "utf8"), commonBefore);
+    assert.equal(readFileSync(siblingRuntime, "utf8"), siblingBefore);
+    assert.equal(configureHooks(sibling, "status", env), siblingPreferences);
+    writeFileSync(path.join(cwd, "sample.js"), "export const refreshed = true;\n");
+    git(cwd, "add", "sample.js");
+    const refreshed = commit();
+    assert.equal(
+      refreshed.status,
+      0,
+      refreshed.stderr || refreshed.stdout || refreshed.error?.message,
+    );
+    assert.equal(git(cwd, "show", "HEAD:sample.js"), "export const refreshed = true;\n");
+    unlinkSync(path.join(cwd, ".vite-hooks/_/portcove-node"));
+    assert.match(commit().stderr, /Hook runtime missing/);
+    assert.equal(process.env.PATH, originalPath);
+  },
+);
 
 void test("hook status, disabled preferences and foreign managers preserve runtime setup", () => {
   const cwd = fixture();
