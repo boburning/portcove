@@ -1046,6 +1046,8 @@ jobs:
           cache: true
           run-install: |
             args: [--frozen-lockfile]
+      - name: Install pinned compiler for analyzer process custody
+        uses: ./.github/actions/setup-rust
       - name: Fallow quality gate
         working-directory: .
         run: node scripts/run-fallow.mts

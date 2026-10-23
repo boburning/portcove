@@ -51,7 +51,7 @@ jobs:
   fallow_analysis:
     if: inputs.operation == 'fallow'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -63,6 +63,8 @@ jobs:
           cache: true
           run-install: |
             args: [--frozen-lockfile]
+      - name: Install pinned compiler for analyzer process custody
+        uses: ./.github/actions/setup-rust
       - name: Run selected Fallow analysis
         env:
           FALLOW_SCOPE: ${{ inputs.fallow_scope }}
