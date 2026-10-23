@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -20,6 +22,7 @@ import {
   exportDesktopSchemas,
 } from "./check-transport-contract.mts";
 import { renderTransportSchemas } from "./transport-schemas.mts";
+import { readCiMetrics } from "./ci-metrics.mts";
 
 const schemas = {
   response: {
@@ -166,6 +169,55 @@ void test("exporters build once per package and execute Cargo's exact artifacts 
   );
   assert.equal(stderr.filter((line) => /completed \(\d+ms\)/u.test(line)).length, 7);
   assert.deepEqual(stdout, ["Headless Desktop contracts match the compiled native host.\n"]);
+});
+
+void test("transport metrics distinguish schema status from execution failure", (t) => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-transport-metrics-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const module = new URL("./check-transport-contract.mts", import.meta.url);
+  // A fresh process enables the real module-level metrics without changing the
+  // parent environment or injecting a replacement metrics implementation.
+  const script = `
+    import assert from "node:assert/strict";
+    import { spawnSync } from "node:child_process";
+    import { exportSchemas } from ${JSON.stringify(module.href)};
+    const data = ${JSON.stringify({ ...schemas, status: schemas.response })};
+    let fail = false;
+    const exporters = {
+      root: process.cwd(), cli: process.execPath, headless: process.execPath,
+      execute: () => fail
+        ? spawnSync(process.execPath, ["--eval", "console.error('intentional exporter failure'); process.exit(23)"], { encoding: "utf8", windowsHide: true })
+        : { status: 0, stderr: "", stdout: JSON.stringify({ ok: true, command: "schema.export", data }) },
+    };
+    assert.deepEqual(exportSchemas(exporters, "output"), data);
+    assert.deepEqual(exportSchemas(exporters, "input"), data);
+    fail = true;
+    try {
+      exportSchemas(exporters, "failure");
+      assert.fail("export failure did not throw");
+    } catch (error) {
+      assert.ok(error instanceof Error && "exitCode" in error);
+      assert.equal(error.exitCode, 23);
+      process.exitCode = error.exitCode;
+    }
+  `;
+  const result = spawnSync(process.execPath, ["--input-type=module", "--eval", script], {
+    env: { ...process.env, PORTCOVE_CI_METRICS_DIR: directory },
+    encoding: "utf8",
+    timeout: 15_000,
+    windowsHide: true,
+  });
+  assert.equal(result.status, 23, result.stderr);
+  assert.match(result.stderr, /core-output completed[\s\S]*core-input completed/u);
+  assert.match(result.stderr, /intentional exporter failure[\s\S]*core-failure failed/u);
+  const { records } = readCiMetrics(directory);
+  assert.equal(records.length, 3);
+  assert.deepEqual(Object.fromEntries(records.map(({ phase, outcome }) => [phase, outcome])), {
+    "transport.core-output": "completed",
+    "transport.core-input": "completed",
+    "transport.core-failure": "failed",
+  });
+  assert.ok(records.find(({ phase }) => phase === "transport.core-failure")?.failure);
 });
 
 void test("failed or unconfirmed Cargo builds never supply executable artifacts", (t) => {

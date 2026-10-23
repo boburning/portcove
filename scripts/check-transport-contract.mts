@@ -34,7 +34,9 @@ function exportPhase<T>(phase: string, operation: () => T): T {
   const start = performance.now();
   process.stderr.write(`[transport] ${phase} started\n`);
   try {
-    const result = metrics.measure(`transport.${phase}`, operation);
+    // Schema fields such as `status` are data, not subprocess outcomes. Command
+    // and envelope failures already throw and remain failed timing records.
+    const { value: result } = metrics.measure(`transport.${phase}`, () => ({ value: operation() }));
     process.stderr.write(
       `[transport] ${phase} completed (${Math.round(performance.now() - start)}ms)\n`,
     );
