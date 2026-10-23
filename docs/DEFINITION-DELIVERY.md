@@ -1147,3 +1147,10 @@ in effect at their granted scope. Frozen review, preflight, context transfer and
 retained readback allow up to 8 MiB only for this exact target and its
 content-addressed historical copies; unrelated per-file and aggregate limits
 remain in effect.
+
+These are per-file limits, not guaranteed complete-publication capacity. The
+unchanged fixed-reader session permits 8 MiB of output in total, including
+manifest, encoded current/prior content and changed-source evidence. Attempts
+that exhaust that budget refuse complete review and remain held. The transport
+fixture exercises a 2 MiB current directory and retained prior copy; it supplies
+no actual semantic-review acceptance or production qualification.
