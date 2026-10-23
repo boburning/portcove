@@ -31,6 +31,19 @@ const executableNames = {
   "preparation-tool": "baseline-tool.exe",
 };
 
+void test("native enlargement observations bind their statically imported helper exactly once", () => {
+  const helper = "apps/desktop/scripts/native-enlargement.mts";
+  for (const platform of ["win32", "linux", "darwin"] as const)
+    for (const profile of ["smoke", "presentation", "full"])
+      assert.equal(
+        planDesktopExecution(resolveDesktopSelection({ platform, profile }), {
+          platform,
+        }).receiptInputs.filter((input) => input.kind === "file" && input.path === helper).length,
+        1,
+        `${platform}/${profile}`,
+      );
+});
+
 void test("native display identity dependency retains the exact helper consumed by preparation", async () => {
   const preparation = new URL(
     "../apps/desktop/scripts/desktop-preparation-test.mts",
@@ -540,6 +553,7 @@ void test("execution planning preserves the independently reviewed pre-change or
           nativeTransportReceiptSources.some((source) => source === added) ||
           added === "apps/desktop/scripts/browser-script.mts" ||
           added === "apps/desktop/scripts/browser-readiness.mts" ||
+          added === "apps/desktop/scripts/native-enlargement.mts" ||
           (added === "apps/desktop/scripts/desktop-completion-focus.mts" &&
             selection.selected_scenarios.includes("native-selected-setup-completion")) ||
           added === "scripts/native-readiness.mts" ||
