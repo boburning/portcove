@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { readCiMetrics } from "./ci-metrics.mts";
 import test from "node:test";
 import {
   checkDesktopCommandContract,
@@ -37,6 +41,58 @@ const schemas = {
     },
   },
 };
+
+void test("schema fields cannot masquerade as failed exporter timing results", (context) => {
+  const directory = mkdtempSync(path.join(tmpdir(), "portcove-schema-metrics-"));
+  context.after(() => rmSync(directory, { recursive: true, force: true }));
+  const module = new URL("./check-transport-contract.mts", import.meta.url).href;
+  const child = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+    import assert from 'node:assert/strict';
+    import { exportSchemas, exportDesktopSchemas } from ${JSON.stringify(module)};
+    const schemas = { error: { type: 'object' }, status: { type: 'string' }, signal: { type: 'null' } };
+    const execute = (args) => ({status: 0, stderr: '', stdout: JSON.stringify(
+      args.includes('--contract') ? {ok: true, command: 'schema.export', data: schemas}
+      : {input: schemas, output: schemas, events: schemas, error: schemas.error})});
+    assert.deepEqual(exportSchemas('fixture', 'output', execute), schemas);
+    assert.deepEqual(exportSchemas('fixture', 'input', execute), schemas);
+    assert.deepEqual(exportDesktopSchemas('fixture', true, execute).output, schemas);
+    assert.throws(() => exportSchemas('fixture', 'failed', () => ({status: 7, stdout: '', stderr: 'original compiler failure'})),
+      error => error.exitCode === 7);
+  `,
+    ],
+    {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 15_000,
+      env: { ...process.env, PORTCOVE_CI_METRICS_DIR: directory },
+    },
+  );
+  assert.equal(child.status, 0, child.stderr);
+  const { records } = readCiMetrics(directory);
+  assert.equal(records.length, 6);
+  assert.deepEqual(
+    records
+      .filter((record) => record.outcome === "completed")
+      .map((record) => record.phase)
+      .sort((left, right) => left.localeCompare(right)),
+    [
+      "transport.core-input",
+      "transport.core-output",
+      "transport.desktop-headless",
+      "transport.desktop-native",
+      "transport.desktop-parity",
+    ],
+  );
+  assert.deepEqual(
+    records.filter((record) => record.outcome === "failed").map((record) => record.phase),
+    ["transport.core-failed"],
+  );
+});
 
 void test("production exporters report sequential phases separately from their returned contracts", (t) => {
   const stderr: string[] = [];

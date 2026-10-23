@@ -34,7 +34,9 @@ function exportPhase<T>(phase: string, operation: () => T): T {
   const start = performance.now();
   process.stderr.write(`[transport] ${phase} started\n`);
   try {
-    const result = metrics.measure(`transport.${phase}`, operation);
+    // Exported schemas may themselves declare error/status/signal fields. Only
+    // checkedExport's thrown execution failure determines this phase outcome.
+    const result = metrics.measure(`transport.${phase}`, () => ({ value: operation() })).value;
     process.stderr.write(
       `[transport] ${phase} completed (${Math.round(performance.now() - start)}ms)\n`,
     );
