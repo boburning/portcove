@@ -1,3 +1,4 @@
+import { catalogListingContextFileBound } from "./release-catalog-publication-contract.mts";
 /** Same-process release record preparation. This is neither publication admission
  * nor a constructor for imported qualification reports. */
 import { createHash } from "node:crypto";
@@ -69,7 +70,7 @@ export async function readBoundedReleaseContextFiles(directory: string) {
       else {
         if (!entry.isFile() || (await lstat(file)).nlink !== 1)
           throw new Error("release context file is linked or not regular");
-        const bytes = await readControllerToolFile(file, 1024 * 1024);
+        const bytes = await readControllerToolFile(file, catalogListingContextFileBound(name));
         total += bytes.length;
         if (total > 128 * 1024 * 1024 || output.size >= 2208)
           throw new Error("release context bytes/count exceed bound");

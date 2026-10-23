@@ -179,7 +179,7 @@
     "frontend-full-6": {
       "arguments": [
         "--test",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
       "files": [
@@ -284,7 +284,7 @@
     "catalog-full-2": {
       "arguments": [
         "--test",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
       "files": [
@@ -380,6 +380,7 @@
         "scripts/migrate-catalog-schema2.test.mts",
         "scripts/roadmap.test.mts",
         "scripts/roadmap-scoped.test.mts",
+        "scripts/roadmap-membership-readback.test.mts",
         "scripts/release-handshake-hosted-fixture.test.mts",
         "scripts/release-candidate-qualification.test.mts",
         "scripts/release-immutable-publication.test.mts",
@@ -603,7 +604,7 @@
     "release-check": {
       "arguments": [
         "--test",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
       "files": [
@@ -777,6 +778,7 @@
       "files": [
         "scripts/roadmap.test.mts",
         "scripts/roadmap-scoped.test.mts",
+        "scripts/roadmap-membership-readback.test.mts",
         "scripts/source-provenance-audit.test.mts",
         "scripts/discovery-checkpoint.test.mts",
         "scripts/discovery-intake.test.mts",

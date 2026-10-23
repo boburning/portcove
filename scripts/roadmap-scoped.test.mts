@@ -11,6 +11,7 @@ import { InventoryError, retryableInventoryRead } from "./repository-issue-inven
 import {
   selectRoadmapHealth,
   roadmapHealthComment,
+  roadmapHealthSummary,
   findRoadmapHealthComment,
 } from "./roadmap-health.mts";
 import { GitHubApiError } from "./github-api.mts";
@@ -459,7 +460,7 @@ void test("hosted automation has no periodic schedule and executes trusted sourc
   assert.doesNotMatch(workflow, /pull_request_target|issue_comment/u);
   assert.match(
     workflow,
-    /group: roadmap-health-\$\{\{ needs\.configuration\.outputs\.available == 'true' && \(github\.event\.issue\.number \|\| inputs\.issue \|\| 'global'\) \|\| 'configuration' \}\}/u,
+    /group: roadmap-health-\$\{\{ needs\.configuration\.outputs\.available == 'true' && \(inputs\.inventory_items && 'inventory-readback' \|\| github\.event\.issue\.number \|\| inputs\.issue \|\| 'global'\) \|\| 'configuration' \}\}/u,
   );
   assert.match(workflow, /needs: configuration/u);
   assert.match(workflow, /available: \$\{\{ steps\.project-token\.outputs\.available \}\}/u);
@@ -468,6 +469,55 @@ void test("hosted automation has no periodic schedule and executes trusted sourc
   assert.match(workflow, /echo 'available=true'/u);
   assert.match(workflow, /echo 'available=false'/u);
   assert.doesNotMatch(workflow, /echo[^\n]*\$PROJECT_TOKEN/u);
+});
+
+void test("retained observations expose scope and source without refreshing unchanged diagnoses", () => {
+  const runUrl = "https://github.test/actions/runs/1/attempts/2";
+  const failure = {
+    status: "failed",
+    scope: { kind: "issues", issues: [42], checked_issues: [42, 71] },
+    coverage: "inconclusive",
+    observation: { observed_at: "2026-10-23T12:00:00.000Z", checkout_head: "b".repeat(40) },
+    diagnosis: { kind: "transport", recovery_condition: "Restore a complete receipt" },
+  };
+  const comment = roadmapHealthComment(failure, null, runUrl);
+  assert(comment);
+  for (const text of [comment, roadmapHealthSummary(failure, runUrl)]) {
+    assert.match(text, /issues #42\./u);
+    assert.match(text, /Checked issues: #42, #71/u);
+    assert.match(text, /Observed: 2026-10-23T12:00:00.000Z/u);
+    assert(text.includes(`Actual checkout: \`${"b".repeat(40)}\``));
+    assert(text.includes(runUrl));
+    assert.match(text, /Coverage: \*\*inconclusive\*\*/u);
+    assert.match(text, /global health was not evaluated/u);
+    assert.doesNotMatch(text, /Latest Roadmap check/u);
+  }
+  assert.equal(
+    roadmapHealthComment(
+      {
+        ...failure,
+        observation: { observed_at: "2026-10-23T13:00:00.000Z", checkout_head: "c".repeat(40) },
+      },
+      comment,
+      "https://github.test/actions/runs/1/attempts/3",
+    ),
+    null,
+  );
+  const global = {
+    ...failure,
+    scope: { kind: "global" },
+    coverage: "complete",
+    global_health: "failed",
+  };
+  for (const text of [
+    roadmapHealthComment(global, null, runUrl)!,
+    roadmapHealthSummary(global, runUrl),
+  ]) {
+    assert.match(text, /global audit/u);
+    assert.match(text, /Global audit coverage: \*\*complete\*\*/u);
+    assert.match(text, /Global health: \*\*failed\*\*/u);
+    assert.doesNotMatch(text, /global health was not evaluated|scoped result/u);
+  }
 });
 
 void test("missing hosted configuration shares one incident across issues and global checks", () => {
@@ -642,6 +692,11 @@ void test("actual unattended entrypoint retains missing-credential diagnostics w
         GITHUB_EVENT_PATH: event,
         GITHUB_EVENT_NAME: "issues",
         GITHUB_STEP_SUMMARY: path.join(temporary, "summary.md"),
+        GITHUB_SERVER_URL: "https://github.test",
+        GITHUB_REPOSITORY: "owner/repository",
+        GITHUB_RUN_ID: "123",
+        GITHUB_RUN_ATTEMPT: "2",
+        GITHUB_SHA: "0".repeat(40),
       },
     });
     assert.equal(result.status, 1, result.stderr);
@@ -655,15 +710,28 @@ void test("actual unattended entrypoint retains missing-credential diagnostics w
       diagnosis: { kind: string };
       planning_findings_evaluated: boolean;
       coverage: string;
+      observation: { observed_at: string; checkout_head: string; run_url: string };
     };
     assert.equal(report.diagnosis.kind, "configuration_missing");
     assert.equal(report.coverage, "inconclusive");
     assert.equal(report.planning_findings_evaluated, false);
+    assert.equal(
+      report.observation.run_url,
+      "https://github.test/owner/repository/actions/runs/123/attempts/2",
+    );
+    const actualHead = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" });
+    assert.equal(actualHead.status, 0);
+    assert.equal(report.observation.checkout_head, actualHead.stdout.trim());
+    assert.notEqual(report.observation.checkout_head, "0".repeat(40));
+    assert(Number.isFinite(Date.parse(report.observation.observed_at)));
     const summary = readFileSync(path.join(temporary, "summary.md"), "utf8");
     assert.match(summary, /\*\*not configured\*\*/u);
     assert.match(summary, /configuration_missing/u);
     assert.match(summary, /PORTCOVE_ROADMAP_TOKEN/u);
     assert.match(summary, /issue=2414/u);
+    assert.match(summary, /issues #42/u);
+    assert(summary.includes(report.observation.run_url));
+    assert(summary.includes(report.observation.checkout_head));
   } finally {
     rmSync(temporary, { recursive: true, force: true });
   }

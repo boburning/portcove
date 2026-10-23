@@ -228,6 +228,25 @@ Use the repository-pinned Fallow through the maintained wrappers so reports reta
 their source identity and Portcove's enforcement mapping. Ordinary fast PR CI
 and default focused local checks do not run an exhaustive Fallow scan.
 
+Each native analysis has a finite 20-minute payload budget; saved-report formatting
+has one minute. Admission, compiler preparation and source identity collection are
+separate phases. The owned-tree executor proves termination before releasing its
+reservation. Raw stdout/stderr are retained live, bounded to 32 MiB per analysis
+stream and 1 MiB per formatting stream, with initial and final execution records.
+Timeouts, missing exit proof and incomplete evidence remain failed or incomplete;
+they cannot establish reusable success. A native exit code of 124 remains distinct
+from a supervisor deadline. Formatter or retention failure cannot replace an
+earlier analyzer failure. Existing refusal to release on an escaped or unproven
+descendant remains in force.
+
+Windows and Linux inherited invocations establish their own inner containment.
+On other Unix platforms, a bounded invocation inside an inherited reservation is
+refused before launch because a second detached group lacks registration in that
+outer receipt. Standalone execution retains the existing registered group and
+watchdog route. The CLI acquires resources at each actual native phase; source
+validation and unique evidence writes need no redundant enclosing reservation.
+Hosted analyzer routes explicitly install the repository-pinned custody compiler.
+
 The [October 19 audit and dispositions](fallow-audit-2026-10-19.md) retain original
 finding identities, corrections and source-review limits.
 

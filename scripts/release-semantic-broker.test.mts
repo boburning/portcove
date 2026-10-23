@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
+import { performance } from "node:perf_hooks";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
 import path from "node:path";
-import { createHash, generateKeyPairSync, verify } from "node:crypto";
+import { createHash, createPublicKey, generateKeyPairSync, verify } from "node:crypto";
+import { createServer, request as httpRequest } from "node:http";
+import { chmod, lstat, readFile, symlink } from "node:fs/promises";
 import {
   authenticateCapturedSemanticIssuer,
   prepareSemanticAppJwt,
@@ -63,6 +66,588 @@ import {
   inspectHostedReleaseAppSeparation,
   type HostedReleaseAppRole,
 } from "./release-hosted-app-setup.mts";
+import {
+  createAppRegistrationCapture,
+  createAppRegistrationStore,
+  inspectAppRegistrationCallback,
+} from "./release-app-registration-capture.mts";
+import { createAppRegistrationHandler } from "./register-hosted-release-app.mts";
+import { observeHostedAppInstallationScope } from "./release-hosted-app-installation.mts";
+
+function fullInstallationFixture(role: HostedReleaseAppRole = "semantic") {
+  const registration = appRegistrationFixture();
+  const expected = {
+    app_id: 123,
+    public_key_sha256: createHash("sha256")
+      .update(createPublicKey(registration.pem).export({ type: "spki", format: "der" }))
+      .digest("hex"),
+  };
+  const f = hostedAppReadback(role);
+  const calls: { url: string; options: RequestInit }[] = [];
+  const transport: typeof fetch = async (url, options) => {
+    assert(typeof url === "string");
+    assert(options);
+    calls.push({ url, options });
+    assert.equal(options.redirect, "error");
+    const endpoint = url.slice("https://api.github.com/".length);
+    if (options.method === "POST") {
+      assert.equal(endpoint, "app/installations/456/access_tokens");
+      assert(typeof options.body === "string");
+      const requested: unknown = JSON.parse(options.body);
+      assert.deepEqual(requested, { permissions: { metadata: "read" } });
+      assert(registration.privateFiles.has("token-intent.json"));
+      return Response.json(
+        {
+          token: "inert-full-installation-token",
+          permissions: { metadata: "read" },
+          expires_at: new Date(Date.now() + 3600000).toISOString(),
+        },
+        { status: 201 },
+      );
+    }
+    assert.equal(options.method, "GET");
+    if (endpoint.startsWith("installation/")) {
+      assert.equal(
+        new Headers(options.headers).get("authorization"),
+        "Bearer inert-full-installation-token",
+      );
+    } else {
+      const jwt = new Headers(options.headers).get("authorization")!.slice(7);
+      const [header, claims, signature] = jwt.split(".");
+      assert(
+        verify(
+          "RSA-SHA256",
+          Buffer.from(`${header}.${claims}`),
+          createPublicKey(registration.pem),
+          Buffer.from(signature!, "base64url"),
+        ),
+      );
+    }
+    if (endpoint === "app/installations?per_page=100") return Response.json([f.installation]);
+    assert(Object.hasOwn(f.values, endpoint));
+    return Response.json(f.values[endpoint]);
+  };
+  return { ...f, registration, expected, calls, transport };
+}
+
+void test("full installation observation mints metadata-only without repository filters and reads back stable complete selection", async () => {
+  for (const role of ["semantic", "protection_observer"] as const) {
+    const f = fullInstallationFixture(role);
+    const result = await observeHostedAppInstallationScope(
+      role,
+      Buffer.from(f.registration.pem),
+      f.expected,
+      f.registration.options.store,
+      { fetch: f.transport },
+    );
+    assert.equal(result.installation_repository_scope, "full-installation-observed");
+    assert.equal(result.evidence_scope, "injected-provider");
+    assert.equal(result.installation_id, 456);
+    assert.equal(result.api_requests, 8);
+    assert.equal(result.authority, "none");
+    assert.equal(result.acceptance, "not-established");
+    assert.equal(f.calls.filter((c) => c.options.method === "POST").length, 1);
+    assert(!JSON.stringify(result).includes("inert-full-installation-token"));
+    assert(f.registration.privateFiles.has("token-response.json"));
+    assert(f.registration.privateFiles.has("result.json"));
+  }
+});
+
+void test("full installation observation refuses wrong identity, broad selection, changed selection and pagination", async () => {
+  for (const fault of [
+    "owner",
+    "app",
+    "permissions",
+    "all",
+    "extra-repository",
+    "changed",
+    "page",
+  ]) {
+    const f = fullInstallationFixture();
+    if (fault === "owner") f.installation.account.id = 999;
+    if (fault === "app") f.app.id = 999;
+    if (fault === "permissions")
+      f.installation.permissions = {
+        metadata: "read",
+        checks: "read",
+      } as typeof f.installation.permissions;
+    if (fault === "all") f.installation.repository_selection = "all";
+    if (fault === "extra-repository") f.repositories.total_count = 2;
+    let selectedReads = 0;
+    const transport: typeof fetch = async (url, options) => {
+      const response = await f.transport(url, options);
+      if (
+        typeof url === "string" &&
+        url.endsWith("/app/installations/456") &&
+        ++selectedReads === 2 &&
+        fault === "changed"
+      )
+        return Response.json({ ...f.installation, repository_selection: "all" });
+      if (fault === "page" && typeof url === "string" && url.includes("/app/installations?"))
+        return new Response(await response.text(), {
+          headers: { link: '<https://api.github.com/app/installations?page=2>; rel="next"' },
+        });
+      return response;
+    };
+    await assert.rejects(
+      observeHostedAppInstallationScope(
+        "semantic",
+        Buffer.from(f.registration.pem),
+        f.expected,
+        f.registration.options.store,
+        { fetch: transport },
+      ),
+    );
+    assert(!f.registration.privateFiles.has("result.json"));
+    assert(f.calls.filter((c) => c.options.method === "POST").length <= 1);
+    if (["owner", "app", "permissions", "all", "page"].includes(fault))
+      assert.equal(f.calls.filter((c) => c.options.method === "POST").length, 0);
+  }
+});
+
+void test("full installation observation retains ambiguous mint and partial responses without retry or positive result", async () => {
+  for (const fault of ["mint-transport", "mint-partial", "oversized", "non-byte"]) {
+    const f = fullInstallationFixture();
+    const transport: typeof fetch = async (url, options) => {
+      if (fault === "mint-transport" && options?.method === "POST") {
+        assert(f.registration.privateFiles.has("token-intent.json"));
+        assert(typeof url === "string");
+        f.calls.push({ url, options });
+        throw Error("inert ambiguous transport");
+      }
+      const response = await f.transport(url, options);
+      if (fault === "mint-partial" && options?.method === "POST")
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(Buffer.from('{"token":"inert-prefix"'));
+            },
+            pull(controller) {
+              controller.error(Error("inert truncated body"));
+            },
+          }),
+          { status: 201 },
+        );
+      if (fault === "oversized" && typeof url === "string" && url.endsWith("/app"))
+        return new Response("x".repeat(65537));
+      if (fault === "non-byte" && typeof url === "string" && url.endsWith("/app"))
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              // Deliberately violate the provider stream type at this boundary.
+              controller.enqueue("inert non-byte body" as unknown as Uint8Array);
+              controller.close();
+            },
+          }),
+        );
+      return response;
+    };
+    await assert.rejects(
+      observeHostedAppInstallationScope(
+        "semantic",
+        Buffer.from(f.registration.pem),
+        f.expected,
+        f.registration.options.store,
+        { fetch: transport },
+      ),
+    );
+    assert(!f.registration.privateFiles.has("result.json"));
+    assert.equal(
+      f.calls.filter((c) => c.options.method === "POST").length,
+      fault === "oversized" || fault === "non-byte" ? 0 : 1,
+    );
+    assert(
+      f.registration.privateFiles.has(
+        fault === "oversized" || fault === "non-byte" ? "app.json" : "token-response.json",
+      ),
+    );
+  }
+});
+
+void test("full installation observation requires durable mint intent and exact key before effects", async () => {
+  for (const fault of ["intent", "key"]) {
+    const f = fullInstallationFixture();
+    await assert.rejects(
+      observeHostedAppInstallationScope(
+        "semantic",
+        Buffer.from(f.registration.pem),
+        { ...f.expected, ...(fault === "key" ? { public_key_sha256: "f".repeat(64) } : {}) },
+        {
+          async write(name, bytes) {
+            if (name === "token-intent.json") throw Error("inert durable sink refusal");
+            await f.registration.options.store.write(name, bytes);
+          },
+        },
+        { fetch: f.transport },
+      ),
+    );
+    assert.equal(f.calls.filter((c) => c.options.method === "POST").length, 0);
+    if (fault === "key") assert.equal(f.calls.length, 0);
+  }
+});
+
+void test("full installation observation refuses a final durable result after its original deadline", async (context) => {
+  const f = fullInstallationFixture();
+  let now = 0;
+  context.mock.method(performance, "now", () => now);
+  await assert.rejects(
+    observeHostedAppInstallationScope(
+      "semantic",
+      Buffer.from(f.registration.pem),
+      f.expected,
+      {
+        async write(name, bytes) {
+          await f.registration.options.store.write(name, bytes);
+          if (name === "result.json") now = 120001;
+        },
+      },
+      { fetch: f.transport },
+    ),
+    /deadline exhausted/,
+  );
+  assert(
+    f.registration.privateFiles.has("result.json"),
+    "late retained effects stay available without successful public return",
+  );
+  assert.equal(f.calls.length, 8);
+  assert.equal(f.calls.filter((call) => call.options.method === "POST").length, 1);
+});
+
+const appState = "a".repeat(64);
+const appCode = "inert-registration-code-123";
+const appCallback = {
+  method: "GET",
+  host: "127.0.0.1:1456",
+  remote_address: "127.0.0.1",
+  url: `/portcove-app-setup/semantic?code=${appCode}&state=${appState}`,
+};
+function appRegistrationFixture() {
+  const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const pem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+  const app = {
+    id: 123,
+    slug: "portcove-inert-producer",
+    owner: { id: 43177418, login: "boburning" },
+    permissions: { checks: "write", metadata: "read" },
+    events: [],
+  };
+  const privateFiles = new Map<string, Buffer>();
+  const calls: { url: string; options: RequestInit }[] = [];
+  const transport: typeof fetch = async (url, options) => {
+    assert(options);
+    assert(typeof url === "string");
+    calls.push({ url, options });
+    assert.equal(options.redirect, "error");
+    if (options.method === "POST") {
+      assert.equal(url, `https://api.github.com/app-manifests/${appCode}/conversions`);
+      assert.equal(new Headers(options.headers).has("authorization"), false);
+      assert(privateFiles.has("conversion-intent.json"));
+      return Response.json(
+        { ...app, pem, client_secret: "inert-private-client-secret" },
+        { status: 201 },
+      );
+    }
+    assert.equal(options.method, "GET");
+    assert.equal(url, "https://api.github.com/app");
+    const jwt = new Headers(options.headers).get("authorization")!.slice(7);
+    const [header, payload, signature] = jwt.split(".");
+    assert(
+      verify(
+        "RSA-SHA256",
+        Buffer.from(`${header}.${payload}`),
+        publicKey,
+        Buffer.from(signature!, "base64url"),
+      ),
+    );
+    const claims = JSON.parse(Buffer.from(payload!, "base64url").toString("utf8")) as Record<
+      string,
+      unknown
+    >;
+    assert.equal(claims.iss, "123");
+    return Response.json(app);
+  };
+  const store = {
+    async write(name: string, bytes: Buffer) {
+      assert(!privateFiles.has(name), "retained bytes cannot be overwritten");
+      privateFiles.set(name, Buffer.from(bytes));
+    },
+  };
+  const options = {
+    role: "semantic" as const,
+    state: appState,
+    deadline: Date.now() + 60000,
+    store,
+    transport,
+  };
+  const record = (name: string) => {
+    const value: unknown = JSON.parse(privateFiles.get(name)!.toString());
+    assert(isRecord(value));
+    return value;
+  };
+  return { app, pem, privateFiles, calls, options, record };
+}
+
+void test("registration callback admits only fixed loopback, role, state and unique code fields", () => {
+  assert.equal(inspectAppRegistrationCallback("semantic", appState, appCallback), appCode);
+  for (const change of [
+    { method: "POST" },
+    { host: "localhost:1456" },
+    { remote_address: "192.0.2.1" },
+    { url: appCallback.url.replace("/semantic?", "/protection_observer?") },
+    { url: appCallback.url.replace(appState, "b".repeat(64)) },
+    { url: `${appCallback.url}&code=${appCode}` },
+    { url: `${appCallback.url}#fragment` },
+    { url: `https://elsewhere.invalid${appCallback.url}` },
+  ])
+    assert.throws(() =>
+      inspectAppRegistrationCallback("semantic", appState, { ...appCallback, ...change }),
+    );
+});
+
+void test("App registration directly captures one conversion and authenticates the generated key without public secrets", async () => {
+  const f = appRegistrationFixture();
+  const capture = createAppRegistrationCapture(f.options);
+  const result = await capture(appCallback);
+  assert.equal(result.app_id, 123);
+  assert.equal(result.installation_repository_scope, "not-established");
+  assert.equal(result.authority, "none");
+  assert.equal(f.calls.length, 2);
+  assert.equal(f.privateFiles.get("app.pem")!.toString(), f.pem);
+  assert(
+    f.privateFiles.get("conversion.body")!.includes(Buffer.from("inert-private-client-secret")),
+  );
+  assert(!JSON.stringify(result).includes("PRIVATE KEY"));
+  assert(!JSON.stringify(result).includes("inert-private-client-secret"));
+  assert(!JSON.stringify(result).includes(appCode));
+  await assert.rejects(capture(appCallback), /already consumed/u);
+  assert.equal(f.calls.length, 2);
+});
+
+void test("App conversion retains wrong-owner or expanded-permission effects without installing or retrying", async () => {
+  for (const change of [
+    { owner: { id: 1, login: "other" } },
+    { permissions: { checks: "write", metadata: "read", contents: "write" } },
+  ]) {
+    const f = appRegistrationFixture();
+    let posts = 0;
+    const capture = createAppRegistrationCapture({
+      ...f.options,
+      transport: async () => {
+        posts++;
+        return Response.json({ ...f.app, ...change, pem: f.pem }, { status: 201 });
+      },
+    });
+    await assert.rejects(capture(appCallback), /boundary differs/u);
+    assert(f.privateFiles.has("conversion.body"));
+    assert(!f.privateFiles.has("result.json"));
+    await assert.rejects(capture(appCallback), /already consumed/u);
+    assert.equal(posts, 1);
+  }
+});
+
+void test("ambiguous conversion preserves pending intent and refuses a second POST", async () => {
+  const f = appRegistrationFixture();
+  let posts = 0;
+  const capture = createAppRegistrationCapture({
+    ...f.options,
+    transport: async () => {
+      posts++;
+      throw new Error("inert lost response");
+    },
+  });
+  await assert.rejects(capture(appCallback), /transport ambiguous/u);
+  assert.equal(f.record("conversion-intent.json").effect, "unresolved");
+  assert.equal(f.record("conversion-transport.json").effect, "unknown");
+  await assert.rejects(capture(appCallback), /already consumed/u);
+  assert.equal(posts, 1);
+});
+
+void test("registration preserves incomplete and oversized private response prefixes and stops", async () => {
+  for (const oversized of [false, true]) {
+    const f = appRegistrationFixture();
+    let pulls = 0,
+      posts = 0;
+    const stream = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          if (pulls++ === 0)
+            controller.enqueue(
+              Buffer.from(oversized ? "x".repeat(128 * 1024 + 1) : "inert-partial"),
+            );
+          else controller.error(new Error("inert interrupted body"));
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const capture = createAppRegistrationCapture({
+      ...f.options,
+      transport: async () => {
+        posts++;
+        return new Response(stream, { status: 201 });
+      },
+    });
+    await assert.rejects(capture(appCallback), /registration (body|response)/u);
+    assert.equal(f.privateFiles.get("conversion.body")!.length, oversized ? 128 * 1024 : 13);
+    assert.equal(f.record("conversion-response.json").complete, false);
+    assert.equal(posts, 1);
+  }
+});
+
+void test("registration refuses expired input and failed pending retention before any provider mutation", async () => {
+  const f = appRegistrationFixture();
+  await assert.rejects(
+    createAppRegistrationCapture({ ...f.options, deadline: Date.now() - 1 })(appCallback),
+    /expired/u,
+  );
+  const capture = createAppRegistrationCapture({
+    ...f.options,
+    store: {
+      async write() {
+        throw new Error("inert retention failure");
+      },
+    },
+  });
+  await assert.rejects(capture(appCallback), /retention failure/u);
+  await assert.rejects(capture(appCallback), /already consumed/u);
+  assert.equal(f.calls.length, 0);
+});
+
+void test("registration page/callback/replay path captures privately and leaves no listener after teardown", async () => {
+  const f = appRegistrationFixture();
+  let finishes = 0;
+  const handler = createAppRegistrationHandler({
+    role: "semantic",
+    state: appState,
+    capture: createAppRegistrationCapture(f.options),
+    recordBegin: async () => {
+      await f.options.store.write("registration-intent.json", Buffer.from("{}"));
+    },
+    finish: async () => {
+      finishes++;
+    },
+  });
+  const server = createServer((request, response) => {
+    void handler(request, response);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert(address && typeof address !== "string");
+  const origin = `http://127.0.0.1:${address.port}`;
+  const get = (url: string) =>
+    new Promise<{ status: number; text: () => Promise<string> }>((resolve, reject) => {
+      const request = httpRequest(
+        `${origin}${url}`,
+        { headers: { Host: "127.0.0.1:1456" } },
+        (response) => {
+          const chunks: Buffer[] = [];
+          response.on("data", (chunk: Buffer) => {
+            chunks.push(chunk);
+          });
+          response.once("error", reject);
+          response.once("end", () =>
+            resolve({
+              status: response.statusCode ?? 0,
+              text: async () => Buffer.concat(chunks).toString("utf8"),
+            }),
+          );
+        },
+      );
+      request.once("error", reject);
+      request.end();
+    });
+  try {
+    const page = await get("/portcove-app-setup/semantic/begin");
+    assert.equal(page.status, 200);
+    assert.match(
+      await page.text(),
+      /form method="post" action="https:\/\/github.com\/settings\/apps\/new/u,
+    );
+    const wrong = await get(appCallback.url.replace(appState, "b".repeat(64)));
+    assert.equal(wrong.status, 400);
+    assert.equal(f.calls.length, 0);
+    const completed = await get(appCallback.url);
+    assert.equal(completed.status, 200);
+    assert(!(await completed.text()).includes("PRIVATE KEY"));
+    const replay = await get(appCallback.url);
+    assert.equal(replay.status, 409);
+    assert.equal(finishes, 1);
+    assert.equal(f.calls.filter((call) => call.options.method === "POST").length, 1);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+  assert.equal(server.listening, false);
+});
+
+void test(
+  "Linux registration custody rejects reuse and linked paths and keeps private regular files",
+  { skip: process.platform !== "linux" },
+  async () => {
+    const root = await mkdtemp(path.join(os.homedir(), ".portcove-app-registration-inert-"));
+    try {
+      const destination = path.join(root, "semantic");
+      const store = await createAppRegistrationStore(destination);
+      await store.write("app.pem", Buffer.from("inert credential-free fixture"));
+      const file = await lstat(path.join(destination, "app.pem"));
+      assert.equal(file.mode & 0o077, 0);
+      assert.equal(file.nlink, 1);
+      assert.equal(
+        (await readFile(path.join(destination, "app.pem"))).toString(),
+        "inert credential-free fixture",
+      );
+      await assert.rejects(store.write("app.pem", Buffer.from("replace")), /EEXIST/u);
+      await assert.rejects(createAppRegistrationStore(destination), /EEXIST/u);
+      await symlink(destination, path.join(root, "linked"));
+      await assert.rejects(
+        createAppRegistrationStore(path.join(root, "linked", "other")),
+        /linked/u,
+      );
+      await chmod(destination, 0o777);
+      await assert.rejects(store.write("result.json", Buffer.from("{}")), /custody changed/u);
+      await chmod(destination, 0o700);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+void test(
+  "Linux registration directory-sync failure blocks conversion and preserves its pending file",
+  { skip: process.platform !== "linux" },
+  async () => {
+    const root = await mkdtemp(path.join(os.homedir(), ".portcove-app-registration-sync-inert-"));
+    try {
+      const events: string[] = [];
+      const destination = path.join(root, "semantic");
+      const store = await createAppRegistrationStore(destination, async (directory) => {
+        events.push(directory);
+        if (directory === destination) {
+          assert.match(
+            (await readFile(path.join(destination, "conversion-intent.json"))).toString(),
+            /pending/u,
+          );
+          throw new Error("inert directory-sync failure");
+        }
+      });
+      const f = appRegistrationFixture();
+      const capture = createAppRegistrationCapture({ ...f.options, store });
+      await assert.rejects(capture(appCallback), /directory-sync failure/u);
+      assert.deepEqual(events, [root, destination]);
+      assert.equal(f.calls.length, 0);
+      await assert.rejects(capture(appCallback), /already consumed/u);
+      assert.equal((await lstat(path.join(destination, "conversion-intent.json"))).isFile(), true);
+      await assert.rejects(
+        createAppRegistrationStore(path.join(root, "observer"), async () => {
+          throw new Error("inert parent-sync failure");
+        }),
+        /parent-sync failure/u,
+      );
+      assert.equal((await lstat(path.join(root, "observer"))).isDirectory(), true);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
 
 function hostedAppReadback(role: HostedReleaseAppRole, appId = 123, installationId = 456) {
   const manifest = prepareHostedReleaseAppManifest(role);

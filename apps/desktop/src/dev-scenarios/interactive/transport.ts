@@ -168,6 +168,24 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         recovery_required: [],
       } satisfies Awaited<ReturnType<typeof desktopApi.applicationUpdateStatus>>;
     },
+    get_listing_delivery_status: (args) => {
+      requireArgs("get_listing_delivery_status", args, {});
+      return {
+        delivery_schema: 1,
+        revision: null,
+        selected: false,
+        anchor_sha256: null,
+        repository_root_sha256: null,
+        target_sha256: null,
+        expires_at: null,
+        listing_count: 0,
+        withdrawn_ids: [],
+        fallback_reason: null,
+      } satisfies Awaited<ReturnType<typeof desktopApi.listingDeliveryStatus>>;
+    },
+    refresh_catalog_listings: () => {
+      throw new Error("Directory publication requires configured official authority.");
+    },
     get_catalog_status: (args) => {
       requireArgs("get_catalog_status", args, {});
       return {

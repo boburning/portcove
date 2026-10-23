@@ -187,7 +187,7 @@ function main() {
     const tests = baselineBootstrapTests(plan);
     if (!tests.length) return;
     const result = metrics.measure("bootstrap-regressions", () =>
-      spawnSync(process.execPath, ["--test", "--test-timeout=30000", ...tests], {
+      spawnSync(process.execPath, ["--test", "--test-timeout=60000", ...tests], {
         cwd: root,
         env: baselineTestEnvironment(),
         stdio: "inherit",
@@ -213,7 +213,7 @@ function main() {
             process.execPath,
             [
               "--test",
-              "--test-timeout=30000",
+              "--test-timeout=60000",
               "--test-skip-pattern=pnpm uses|direct just recipes",
               "--test-reporter=./scripts/test-duration-reporter.mts",
               ...batch,

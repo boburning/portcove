@@ -38,6 +38,29 @@ function providerId(value: unknown): asserts value is number {
     throw new Error("hosted App measured provider identity unavailable");
 }
 
+export function inspectHostedReleaseAppIdentity(
+  role: HostedReleaseAppRole,
+  appId: number,
+  app: unknown,
+) {
+  providerId(appId);
+  const permissions = rolePermissions(role);
+  if (
+    appId === 15368 ||
+    !isRecord(app) ||
+    app.id !== appId ||
+    !isRecord(app.owner) ||
+    app.owner.id !== 43177418 ||
+    app.owner.login !== "boburning" ||
+    !isRecord(app.permissions) ||
+    releaseCanonicalDigest(app.permissions) !== releaseCanonicalDigest(permissions) ||
+    !Array.isArray(app.events) ||
+    app.events.length !== 0
+  )
+    throw new Error("hosted App owner, identity, permission or repository boundary differs");
+  return { role, app_id: appId, owner_id: 43177418 as const, permissions };
+}
+
 /** Verify one already provisioned role using its separate App-authenticated and
  * installation-authenticated GET clients. No token acquisition, default CLI
  * credential, mutation, semantic acceptance or candidate authority is supplied.
@@ -73,14 +96,8 @@ export function observeHostedReleaseApp(
   const exactPermissions = (value: unknown) =>
     isRecord(value) && releaseCanonicalDigest(value) === releaseCanonicalDigest(permissions);
   const noEvents = (value: unknown) => Array.isArray(value) && value.length === 0;
+  inspectHostedReleaseAppIdentity(role, selected.app_id, app);
   if (
-    !isRecord(app) ||
-    app.id !== selected.app_id ||
-    !isRecord(app.owner) ||
-    app.owner.id !== 43177418 ||
-    app.owner.login !== "boburning" ||
-    !exactPermissions(app.permissions) ||
-    !noEvents(app.events) ||
     !isRecord(installation) ||
     installation.id !== selected.installation_id ||
     installation.app_id !== selected.app_id ||
