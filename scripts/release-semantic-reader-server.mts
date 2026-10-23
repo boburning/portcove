@@ -1,5 +1,6 @@
 import { openSync, fstatSync, readFileSync, closeSync, writeSync } from "node:fs";
 import path from "node:path";
+import { isRecord } from "./runtime-values.mts";
 import {
   createSemanticSnapshotRpc,
   inspectSemanticReaderIndex,
@@ -20,6 +21,15 @@ try {
   closeSync(descriptor);
 }
 const dispatch = createSemanticSnapshotRpc(inspectSemanticReaderIndex(bytes, process.argv[3]!));
+// Refuse a bounded individual request without dropping its transport. Only
+// fixed public reasons are returned; lifetime/resource failures remain terminal.
+const requestRefusals = new Set([
+  "unauthorized reader operation",
+  "reader path absent from frozen snapshot",
+  "path is not in the frozen net delta",
+  "unsupported frozen-reader transport metadata",
+  "unauthorized reader protocol operation",
+]);
 let pending = Buffer.alloc(0),
   outputBytes = 0;
 for await (const chunk of process.stdin) {
@@ -31,7 +41,24 @@ for await (const chunk of process.stdin) {
     const line = data.subarray(cursor, end);
     if (line.length > 16 * 1024 || !Buffer.from(line.toString("utf8")).equals(line))
       throw new Error("reader protocol line exceeds bound or invalid UTF8");
-    const response = dispatch(JSON.parse(line.toString("utf8")) as unknown);
+    const request: unknown = JSON.parse(line.toString("utf8"));
+    let response: unknown;
+    try {
+      response = dispatch(request);
+    } catch (error) {
+      if (
+        !(error instanceof Error) ||
+        !requestRefusals.has(error.message) ||
+        !isRecord(request) ||
+        !(typeof request.id === "string" || Number.isSafeInteger(request.id))
+      )
+        throw error;
+      response = {
+        jsonrpc: "2.0",
+        id: request.id,
+        error: { code: -32602, message: error.message },
+      };
+    }
     if (response !== null) {
       const output = Buffer.from(JSON.stringify(response) + "\n");
       outputBytes += output.length;
