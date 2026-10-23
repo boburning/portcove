@@ -99,6 +99,9 @@ jobs:
             work/updater-rehearsal/rehearsal-result.json
             work/updater-rehearsal/windows-installed-update.json
             work/updater-rehearsal/windows-installed-update-summary.json
+            work/updater-rehearsal/windows-renderer-evidence/*.json
+            work/updater-rehearsal/windows-renderer-evidence/*.png
+            work/updater-rehearsal/windows-renderer-evidence/failure.html
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.json
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.png
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/failure.html
