@@ -158,6 +158,18 @@ bytes is a conflict. Display names, upstream tags and download URLs are not
 definition identity. Existing official IDs remain externally unchanged: the
 internal namespace `official` must not rewrite installed IDs or CLI arguments.
 
+Upstream continuity is recorded by the shared
+[catalog lineage policy](CATALOG.md#upstream-lineage-and-alternative-implementations).
+Its per-port authoring metadata is deliberately absent from signed definitions
+and runtime projections. Stable port/issue identity, upstream lineage, accepted
+release identity and acquisition locations remain separate. A reviewed relocation
+or successor decision may support a separately reviewed acquisition change; it
+does not grant a publisher namespace, accept artifact bytes, clear holds or
+reinterpret installed source/execution/persistence contracts. Forks and
+alternative implementations retain distinct port identities. Unresolved lineage
+retains the existing origin and historical qualification. Consumers must use the
+shared decision boundary instead of inferring continuity from names or redirects.
+
 | Identity          | Exact binding                                                                                                                                                                       |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Engine capability | Installed engine capability identifier and supported contract version; capabilities are shipped/reviewed code.                                                                      |
