@@ -1,11 +1,93 @@
+import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { writeFile, mkdir, symlink, readFile, readdir, access } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+
+void test("disposable fixtures clean successful and failed roots while preserving declared diagnostics and shared targets", async (context) => {
+  const root = disposableDirectory(context, path.join(os.tmpdir(), "portcove-disposable-control-"));
+  const shared = path.join(root, "shared");
+  const diagnostics = path.join(root, "diagnostics");
+  await mkdir(shared);
+  await mkdir(diagnostics);
+  await writeFile(path.join(shared, "sentinel.txt"), "shared bytes");
+  const helper = new URL("./fixtures/disposable-directory.mts", import.meta.url).href;
+  const child = path.join(root, "controlled.test.mjs");
+  const scratchPrefix = path.join(root, "scratch-");
+  await writeFile(
+    child,
+    `
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { writeFileSync, symlinkSync } from 'node:fs';
+import { disposableDirectory } from ${JSON.stringify(helper)};
+test('successful fixture assertion', (context) => {
+  const scratch = disposableDirectory(context, ${JSON.stringify(scratchPrefix)});
+  writeFileSync(${JSON.stringify(path.join(root, "success.path"))}, scratch);
+  writeFileSync(scratch + '/disposable.bin', 'scratch bytes');
+  assert.ok(true);
+});
+test('controlled fixture assertion', (context) => {
+  const scratch = disposableDirectory(context, ${JSON.stringify(scratchPrefix)});
+  writeFileSync(${JSON.stringify(path.join(diagnostics, "failure.json"))}, JSON.stringify({scratch, reason:'controlled assertion'}));
+  symlinkSync(${JSON.stringify(shared)}, scratch + '/shared', 'junction');
+  writeFileSync(scratch + '/disposable.bin', 'scratch bytes');
+  assert.fail('controlled fixture assertion');
+});
+`,
+  );
+  const environment = { ...process.env };
+  delete environment.NODE_TEST_CONTEXT;
+  const result = spawnSync(process.execPath, ["--test", "--test-timeout=10000", child], {
+    encoding: "utf8",
+    timeout: 15000,
+    windowsHide: true,
+    env: environment,
+  });
+  assert.ifError(result.error);
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stdout + result.stderr, /controlled fixture assertion/);
+  const retained: unknown = JSON.parse(
+    await readFile(path.join(diagnostics, "failure.json"), "utf8"),
+  );
+  assert.ok(isRecord(retained) && typeof retained.scratch === "string");
+  await assert.rejects(access(retained.scratch), { code: "ENOENT" });
+  await assert.rejects(access(await readFile(path.join(root, "success.path"), "utf8")), {
+    code: "ENOENT",
+  });
+  assert.equal(await readFile(path.join(shared, "sentinel.txt"), "utf8"), "shared bytes");
+  assert.deepEqual(await readdir(diagnostics), ["failure.json"]);
+});
+
+void test("disposable fixture teardown refuses a replaced root and preserves its target", async (context) => {
+  const root = disposableDirectory(
+    context,
+    path.join(os.tmpdir(), "portcove-disposable-replaced-"),
+  );
+  const target = path.join(root, "target");
+  await mkdir(target);
+  await writeFile(path.join(target, "sentinel.txt"), "preserved");
+  let cleanup: () => void = () => {
+    throw new Error("Cleanup was not registered");
+  };
+  const scratch = disposableDirectory(
+    {
+      after(callback) {
+        cleanup = callback;
+      },
+    },
+    path.join(root, "scratch-"),
+  );
+  const { rm } = await import("node:fs/promises");
+  await rm(scratch, { recursive: true });
+  await symlink(target, scratch, "junction");
+  assert.throws(cleanup, /root was replaced/);
+  assert.equal(await readFile(path.join(target, "sentinel.txt"), "utf8"), "preserved");
+});
 
 import { isRecord } from "./runtime-values.mts";
 import type { ReleaseEvidenceOptions, EvidenceFileHandle } from "./release-run-evidence.mts";
@@ -155,9 +237,12 @@ function byteFixture(bytes: Buffer, transform: FixtureTransform = (response) => 
   });
 }
 
-void test("retained artifact bytes bind fresh API identity without attributing producer job or attempt", async () => {
+void test("retained artifact bytes bind fresh API identity without attributing producer job or attempt", async (context) => {
   const bytes = Buffer.alloc(150_001, 37);
-  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-artifact-bytes-"));
+  const directory = disposableDirectory(
+    context,
+    path.join(os.tmpdir(), "portcove-artifact-bytes-"),
+  );
   const filename = path.join(directory, "retained.bin");
   await writeFile(filename, bytes);
   const options = byteFixture(bytes);
@@ -218,9 +303,12 @@ void test("missing, expired, undigested and oversized artifact identities refuse
   }
 });
 
-void test("late API artifact replacement and run changes refuse after byte comparison", async () => {
+void test("late API artifact replacement and run changes refuse after byte comparison", async (context) => {
   const bytes = Buffer.from("retained");
-  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-artifact-drift-"));
+  const directory = disposableDirectory(
+    context,
+    path.join(os.tmpdir(), "portcove-artifact-drift-"),
+  );
   const filename = path.join(directory, "retained.bin");
   await writeFile(filename, bytes);
   for (const change of ["artifact", "run"]) {
@@ -279,9 +367,12 @@ void test("artifact growth, same-size mutation and nonregular handles refuse and
   }
 });
 
-void test("both API collections share one request cap rather than renewing it after local hashing", async () => {
+void test("both API collections share one request cap rather than renewing it after local hashing", async (context) => {
   const bytes = Buffer.alloc(100, 37);
-  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-artifact-request-cap-"));
+  const directory = disposableDirectory(
+    context,
+    path.join(os.tmpdir(), "portcove-artifact-request-cap-"),
+  );
   const filename = path.join(directory, "retained.bin");
   await writeFile(filename, bytes);
   const options = fixture((response, context) => {
@@ -695,8 +786,11 @@ void test("refuses receipt publication when final construction exceeds the monot
   assert.equal(options.calls.length, 7);
 });
 
-void test("request reader admits bounded JSON files and rejects oversized, empty and nonregular input", async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-release-evidence-"));
+void test("request reader admits bounded JSON files and rejects oversized, empty and nonregular input", async (context) => {
+  const directory = disposableDirectory(
+    context,
+    path.join(os.tmpdir(), "portcove-release-evidence-"),
+  );
   const filename = path.join(directory, "request.json");
   await writeFile(filename, JSON.stringify(request));
   assert.deepEqual(await readReleaseEvidenceRequest(filename), request);
@@ -768,8 +862,11 @@ void test("request reader opens without following links or blocking on a POSIX F
 void test(
   "actual POSIX FIFO is refused without waiting for a writer",
   { skip: process.platform === "win32" },
-  async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-release-fifo-"));
+  async (context) => {
+    const directory = disposableDirectory(
+      context,
+      path.join(os.tmpdir(), "portcove-release-fifo-"),
+    );
     const fifo = path.join(directory, "request.fifo");
     const created = spawnSync("mkfifo", [fifo], { timeout: 3000, encoding: "utf8" });
     assert.equal(created.status, 0, created.stderr);
