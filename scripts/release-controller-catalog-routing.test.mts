@@ -456,7 +456,7 @@ void test("wake priority uses one stable bounded data snapshot and never turns m
   );
 });
 
-void test("actual workflow secret expressions never fall back to the other purpose on a missing selected secret", async () => {
+void test("production secret selection never falls back across purposes and job-token wake has no App secrets", async () => {
   for (const file of [
     "../.github/workflows/application-update-production.yml",
     "../.github/workflows/application-update-wake.yml",
@@ -488,7 +488,11 @@ void test("actual workflow secret expressions never fall back to the other purpo
       assert.equal(evaluate("application", "CATALOG", "APP"), "APP");
       count++;
     }
-    assert.ok(count > 0);
+    if (file.endsWith("application-update-wake.yml")) {
+      assert.equal(count, 0);
+      assert.doesNotMatch(bytes, /secrets\.|create-github-app-token/u);
+      assert.match(bytes, /GH_TOKEN: \$\{\{ github\.token \}\}/u);
+    } else assert.ok(count > 0);
   }
 });
 

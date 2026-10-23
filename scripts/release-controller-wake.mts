@@ -793,7 +793,7 @@ export function inspectControllerWakeChoices(application: unknown, catalog: unkn
       a!.schema_version < 3 ||
       b!.schema_version < 3 ||
       a!.schema_version !== b!.schema_version ||
-      a!.dispatch_actor_id !== b!.dispatch_actor_id ||
+      (a!.schema_version === 4 && a!.dispatch_actor_id !== b!.dispatch_actor_id) ||
       a!.namespace !== b!.namespace ||
       a!.revision !== b!.revision ||
       a!.execution_ref !== b!.execution_ref ||
