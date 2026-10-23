@@ -811,10 +811,21 @@ export async function wakeRatifiedController(
     controller_run_id: runId,
     endpoint: response.body.run_url,
   });
+  // Only this acknowledged-run GET may return a late body for bounded retention.
+  // All other GETs retain the ordinary after-response deadline check above.
+  const acknowledgedEndpoint = `${prefix}/actions/runs/${runId}`;
+  const acknowledgedRunReader: Api = {
+    request(method, endpoint, body) {
+      if (method !== "GET" || endpoint !== acknowledgedEndpoint || body !== undefined)
+        throw new Error("fixed acknowledged-run GET required");
+      active();
+      return request("GET", acknowledgedEndpoint);
+    },
+  };
   const observed =
     config.schema_version === 4
       ? await observeJobTokenDispatchRun(
-          api,
+          acknowledgedRunReader,
           {
             run_id: runId,
             revision: config.revision,

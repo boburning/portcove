@@ -596,6 +596,26 @@ void test("unsettled correlation exhausts four GETs inside the original budget w
   assert.equal(records.length, 4);
 });
 
+void test("a production-wrapped GET crossing expiry retains its returned body before refusing", async (context) => {
+  let monotonic = 1000;
+  context.mock.method(performance, "now", () => monotonic);
+  const f = fixture(true),
+    original = f.api.request.bind(f.api);
+  f.api.request = (method, endpoint, body) => {
+    const response = original(method, endpoint, body);
+    if (endpoint.endsWith("/actions/runs/900")) monotonic = 60000;
+    return response;
+  };
+  await f.prepare();
+  await assert.rejects(f.dispatch(), /deadline exhausted|readback unavailable/);
+  assert.equal(f.calls.filter((call) => call.method === "POST").length, 1);
+  const retained = f.records.filter((row) => row.phase === "dispatch-run-readback");
+  assert.equal(retained.length, 1);
+  assert.ok(isRecord(retained[0]!.evidence) && isRecord(retained[0]!.evidence.body));
+  assert.equal(retained[0]!.evidence.body.id, 900);
+  assert.equal(retained[0]!.evidence.body.head_sha, f.config.revision);
+});
+
 void test("immutable identity failures, unavailable responses and deadline exhaustion retain readback and stop", async () => {
   const f = fixture(true),
     expected = {
