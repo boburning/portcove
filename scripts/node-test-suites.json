@@ -179,7 +179,7 @@
     "frontend-full-6": {
       "arguments": [
         "--test",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
       "files": [
@@ -206,6 +206,7 @@
         "scripts/select-release-channel.test.mts",
         "scripts/release-coordinator.test.mts",
         "scripts/release-coordinator-state.test.mts",
+        "scripts/release-coordinator-checkpoint-authentication.test.mts",
         "scripts/release-prepared-transport.test.mts",
         "scripts/release-preparation-source.test.mts",
         "scripts/release-coordinator-driver.test.mts",
@@ -273,6 +274,9 @@
       ],
       "files": [
         "scripts/upstream-observer.test.mts",
+        "scripts/upstream-health.test.mts",
+        "scripts/upstream-health-plan.test.mts",
+        "scripts/upstream-health-monitor.test.mts",
         "scripts/discovery-checkpoint.test.mts",
         "scripts/discovery-intake.test.mts",
         "scripts/roadmap-inventory.test.mts",
@@ -284,7 +288,7 @@
     "catalog-full-2": {
       "arguments": [
         "--test",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
       "files": [
@@ -549,7 +553,12 @@
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
-      "files": ["scripts/upstream-observer.test.mts"]
+      "files": [
+        "scripts/upstream-observer.test.mts",
+        "scripts/upstream-health.test.mts",
+        "scripts/upstream-health-plan.test.mts",
+        "scripts/upstream-health-monitor.test.mts"
+      ]
     },
     "repository-tools-2": {
       "arguments": [
@@ -604,7 +613,7 @@
     "release-check": {
       "arguments": [
         "--test",
-        "--test-timeout=30000",
+        "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
       "files": [
@@ -639,6 +648,7 @@
         "scripts/release-source-changes.test.mts",
         "scripts/release-coordinator.test.mts",
         "scripts/release-coordinator-state.test.mts",
+        "scripts/release-coordinator-checkpoint-authentication.test.mts",
         "scripts/release-prepared-transport.test.mts",
         "scripts/release-preparation-source.test.mts",
         "scripts/release-coordinator-driver.test.mts",

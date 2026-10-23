@@ -170,3 +170,36 @@ pub(crate) async fn use_cached_catalog(
     })
     .await
 }
+
+#[tauri::command]
+pub(crate) async fn get_listing_delivery_status(
+    state: tauri::State<'_, DesktopState>,
+) -> DesktopResult<portcove_core::ListingDeliveryStatus> {
+    blocking_service(state.inner().clone(), |service| {
+        service
+            .library()
+            .listing_delivery_status()
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn refresh_catalog_listings(
+    state: tauri::State<'_, DesktopState>,
+    metadata_base_url: String,
+    targets_base_url: String,
+    on_event: tauri::ipc::Channel<OperationEvent>,
+) -> DesktopResult<portcove_core::ListingDeliveryStatus> {
+    let source =
+        portcove_core::DefinitionRepositorySource::new(&metadata_base_url, &targets_base_url)?;
+    blocking_async_service(state.inner().clone(), move |service| async move {
+        service
+            .refresh_listings(&source, |event| {
+                let _ = on_event.send(event);
+            })
+            .await
+            .map_err(Into::into)
+    })
+    .await
+}

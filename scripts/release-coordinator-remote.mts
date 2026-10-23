@@ -7,13 +7,18 @@ import { isRecord } from "./runtime-values.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { inspectCoordinatorRemoteNamespace as namespace } from "./release-coordinator-namespace.mts";
 export { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+import {
+  coordinatorCheckpointUpdates,
+  inspectCoordinatorCheckpointEvidence,
+} from "./release-coordinator-checkpoint-evidence.mts";
+import type { CoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
+import { requireAuthenticatedCheckpointEvidence } from "./release-coordinator-checkpoint-authentication.mts";
+import type { AuthenticatedCheckpointEvidence } from "./release-coordinator-checkpoint-authentication.mts";
 
 export interface CoordinatorRemoteApi {
   request(method: string, endpoint: string, body?: unknown): IncludedResponse;
   graphql(query: string, variables: Readonly<Record<string, unknown>>): { data: unknown };
 }
-type Export = Awaited<ReturnType<typeof exportCoordinatorCheckpoint>>;
-type RefChange = { name: string; beforeOid: string; afterOid: string; force: false };
 const repository = "boburning/portcove";
 const repositoryId = 1354613114;
 const zero = "0".repeat(40);
@@ -23,41 +28,6 @@ const collectionMilliseconds = 30_000;
 
 export { namespace as inspectCoordinatorRemoteNamespace };
 
-function changes(checkpoint: Export, scope: string): RefChange[] {
-  if (checkpoint.previous === null)
-    throw new Error("remote coordinator advancement requires an initialized previous checkpoint");
-  const result: RefChange[] = [
-    {
-      name: `refs/heads/${scope}-coordinator-state`,
-      beforeOid: checkpoint.previous,
-      afterOid: checkpoint.checkpoint,
-      force: false,
-    },
-  ];
-  for (const receipt of checkpoint.receipts) {
-    const version = "refs/portcove/prepared-versions/";
-    const source = "refs/portcove/prepared-commits/";
-    const name = receipt.local_ref.startsWith(version)
-      ? `refs/tags/${scope}-prepared/${receipt.local_ref.slice(version.length)}`
-      : receipt.local_ref.startsWith(source)
-        ? `refs/tags/${scope}-prepared-source/${receipt.local_ref.slice(source.length)}`
-        : null;
-    if (
-      !name ||
-      receipt.oid === zero ||
-      (receipt.before_oid !== zero && receipt.before_oid !== receipt.oid)
-    )
-      throw new Error("remote preparation receipt differs from its validated allocation");
-    result.push({ name, beforeOid: receipt.before_oid, afterOid: receipt.oid, force: false });
-  }
-  if (
-    ![1, 3].includes(result.length) ||
-    new Set(result.map((ref) => ref.name)).size !== result.length
-  )
-    throw new Error("remote coordinator requires one complete duplicate-free receipt set");
-  return result;
-}
-
 /** Persist a caller-authenticated journal, not an execution authorization.
  * Production callers must independently establish fixed controller identity,
  * protected principal/ref policy, fresh facts and ownership of the bare path.
@@ -66,14 +36,34 @@ function changes(checkpoint: Export, scope: string): RefChange[] {
 export async function publishCoordinatorCheckpoint(
   localRepository: string,
   expected: string,
-  configuration: unknown,
-  options: { api?: CoordinatorRemoteApi } = {},
+  rawConfiguration: unknown,
+  options: {
+    api?: CoordinatorRemoteApi;
+    evidence?: CoordinatorCheckpointEvidence;
+    authenticatedEvidence?: AuthenticatedCheckpointEvidence;
+  } = {},
 ) {
+  const configuration: unknown = structuredClone(rawConfiguration);
   const scope = namespace(configuration);
   const api = options.api;
+  const authenticatedEvidence = options.authenticatedEvidence;
+  const rawEvidence = options.evidence;
   if (!api) throw new Error("remote coordinator transport is unconfigured");
   const checkpoint = await exportCoordinatorCheckpoint(localRepository, expected);
-  const updates = changes(checkpoint, scope);
+  if (rawEvidence !== undefined && authenticatedEvidence !== undefined)
+    throw new Error("checkpoint evidence transport and authenticated receipt cannot be mixed");
+  const suppliedEvidence =
+    authenticatedEvidence === undefined
+      ? rawEvidence
+      : requireAuthenticatedCheckpointEvidence(authenticatedEvidence, expected, configuration);
+  const updates = coordinatorCheckpointUpdates(checkpoint, scope);
+  // Only durable transport: a syntactically bound envelope is not authenticated
+  // writer identity. Job-token authority must still use the existing verifier.
+  const evidence =
+    suppliedEvidence === undefined
+      ? null
+      : inspectCoordinatorCheckpointEvidence(checkpoint, configuration, suppliedEvidence);
+  if (evidence) updates.push(evidence.update);
   const started = performance.now();
   let requests = 0;
   const budget = (collecting = false) => {
@@ -181,7 +171,27 @@ export async function publishCoordinatorCheckpoint(
     return { checkpoint: expected, changed: false, recovered: false, updates, observed: before };
 
   const objects: { kind: string; expected: string; observed: string | null }[] = [];
+  const revalidateEvidence = (phase: string) => {
+    if (authenticatedEvidence === undefined) return;
+    try {
+      requireAuthenticatedCheckpointEvidence(authenticatedEvidence, expected, configuration);
+    } catch (error) {
+      throw new CoordinatorRemoteError(
+        "authenticated checkpoint evidence expired or changed before the next mutation",
+        {
+          checkpoint: expected,
+          updates,
+          before,
+          objects,
+          phase,
+          attempted: false,
+          error: sanitizeOperationError(error),
+        },
+      );
+    }
+  };
   const upload = (kind: string, body: unknown, oid: string) => {
+    revalidateEvidence(`before-POST-${kind}`);
     let result: unknown;
     try {
       result = rest("POST", `repos/${repository}/git/${kind}`, body);
@@ -221,8 +231,10 @@ export async function publishCoordinatorCheckpoint(
   upload("trees", { tree: checkpoint.tree.entries }, checkpoint.tree.oid);
   const { oid: _oid, ...commit } = checkpoint.commit;
   upload("commits", commit, checkpoint.commit.oid);
+  for (const object of evidence?.objects ?? []) upload(object.kind, object.body, object.oid);
   const mutationId = createHash("sha256").update(JSON.stringify({ nodeId, updates })).digest("hex");
   let mutationError: ReturnType<typeof sanitizeOperationError> | null = null;
+  revalidateEvidence("before-ref-CAS");
   budget();
   try {
     const response = api.graphql(

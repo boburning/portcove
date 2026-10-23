@@ -120,14 +120,9 @@ export function createAppRegistrationHandler(options: {
   };
 }
 
-async function main() {
-  const args = process.argv.slice(2);
+export function requireOrdinaryHostedAppSetupSource(source: string) {
   if (
-    args.length !== 4 ||
-    args[0] !== "--role" ||
-    !["semantic", "protection_observer"].includes(args[1] ?? "") ||
-    args[2] !== "--expected-source" ||
-    !/^[a-f0-9]{40}$/u.test(args[3] ?? "") ||
+    !/^[a-f0-9]{40}$/u.test(source) ||
     process.platform !== "linux" ||
     process.getuid?.() === 0 ||
     userInfo().username !== "boburning" ||
@@ -136,7 +131,6 @@ async function main() {
     process.env.SUDO_UID
   )
     throw new Error("fixed ordinary-owner Linux App registration required");
-  const source = args[3]!;
   const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
   const git = (gitArgs: string[]) =>
     execFileSync("/usr/bin/git", ["--no-optional-locks", "-C", root, ...gitArgs], {
@@ -156,6 +150,19 @@ async function main() {
     git(["status", "--porcelain", "--untracked-files=no"]) !== ""
   )
     throw new Error("reviewed App registration source changed");
+}
+
+async function main() {
+  const args = process.argv.slice(2);
+  if (
+    args.length !== 4 ||
+    args[0] !== "--role" ||
+    !["semantic", "protection_observer"].includes(args[1] ?? "") ||
+    args[2] !== "--expected-source"
+  )
+    throw new Error("fixed App setup role and source required");
+  const source = args[3]!;
+  requireOrdinaryHostedAppSetupSource(source);
   const role = args[1] as HostedReleaseAppRole;
   const state = randomBytes(32).toString("hex");
   const deadline = Date.now() + 600000;

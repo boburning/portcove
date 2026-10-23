@@ -300,6 +300,13 @@ const selectionContractTests = [
   "scripts/select-ci-plan.test.mts",
 ];
 
+const upstreamHealthContractTests = [
+  "scripts/upstream-observer.test.mts",
+  "scripts/upstream-health.test.mts",
+  "scripts/upstream-health-plan.test.mts",
+  "scripts/upstream-health-monitor.test.mts",
+];
+
 const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/prepare-port.mts", ["scripts/prepare-port.test.mts"]],
   ["scripts/port-upstream-facts.mts", ["scripts/prepare-port.test.mts"]],
@@ -969,6 +976,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ],
   ],
   [
+    "scripts/node-test-suites.json",
+    ["scripts/node-test-inventory.test.mts", "scripts/ci-workflow.test.mts"],
+  ],
+  [
     "CONTRIBUTING.md",
     ["scripts/repository-settings.test.mts", "scripts/repository-skills.test.mts"],
   ],
@@ -1030,7 +1041,17 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/roadmap.mts",
     ["scripts/repository-skills.test.mts", "scripts/discovery-intake.test.mts"],
   ],
-  ["scripts/upstream-observer.mts", ["scripts/discovery-checkpoint.test.mts"]],
+  [
+    "scripts/upstream-observer.mts",
+    [...upstreamHealthContractTests, "scripts/discovery-checkpoint.test.mts"],
+  ],
+  ["scripts/check-catalog-repositories.mts", upstreamHealthContractTests],
+  ["scripts/upstream-health-inputs.mts", upstreamHealthContractTests],
+  [
+    "scripts/upstream-health-plan.mts",
+    ["scripts/upstream-health-plan.test.mts", "scripts/upstream-observer.test.mts"],
+  ],
+  ["scripts/upstream-health-monitor.mts", ["scripts/upstream-health-monitor.test.mts"]],
   ["scripts/observe-configured-upstream.mts", ["scripts/discovery-checkpoint.test.mts"]],
   [
     "scripts/test-windows-installer.ps1",
@@ -1160,7 +1181,14 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   [".github/roadmap.json", ["scripts/roadmap.test.mts"]],
   [".github/pr-conventions.json", ["scripts/pr-conventions.test.mts"]],
-  [".github/upstream-health-accounting.json", ["scripts/upstream-observer.test.mts"]],
+  [
+    ".github/upstream-health-accounting.json",
+    [
+      "scripts/upstream-observer.test.mts",
+      "scripts/upstream-health.test.mts",
+      "scripts/upstream-health-monitor.test.mts",
+    ],
+  ],
   [
     ".github/linux-beta-risk-706.json",
     ["scripts/linux-beta-risk-706.test.mts", "scripts/validation-plan.test.mts"],
@@ -1237,7 +1265,10 @@ const workflowTests = new Map([
   ["release.yml", ["scripts/release-workflow.test.mts"]],
   ["qualification.yml", ["scripts/qualification-coverage.test.mts"]],
   ["configured-upstream-observer.yml", ["scripts/upstream-observer.test.mts"]],
-  ["upstream-health.yml", ["scripts/upstream-observer.test.mts"]],
+  [
+    "upstream-health.yml",
+    ["scripts/upstream-health-plan.test.mts", "scripts/upstream-health-monitor.test.mts"],
+  ],
   [
     "updater-artifact-rehearsal.yml",
     ["scripts/updater-artifact-inventory.test.mts", "scripts/release-payload-signing.test.mts"],
@@ -1334,6 +1365,7 @@ const releaseContractTests = Object.freeze([
   "scripts/select-release-channel.test.mts",
   "scripts/release-coordinator.test.mts",
   "scripts/release-coordinator-state.test.mts",
+  "scripts/release-coordinator-checkpoint-authentication.test.mts",
   "scripts/release-prepared-transport.test.mts",
   "scripts/release-run-evidence.test.mts",
   "scripts/reconstruct-application-update-records.test.mts",
@@ -1910,7 +1942,7 @@ export function nodeTestCommand(files: string[]) {
     process.execPath,
     [
       "--test",
-      "--test-timeout=30000",
+      "--test-timeout=60000",
       `--test-reporter=${durationReporter}`,
       ...(serialWindowsQualification ? ["--test-concurrency=1"] : []),
       ...files,

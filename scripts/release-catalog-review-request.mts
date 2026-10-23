@@ -1,4 +1,8 @@
 import {
+  catalogInspectionShape,
+  inspectCatalogListingIdentity,
+} from "./release-catalog-publication-contract.mts";
+import {
   inspectPublishedMetadata,
   validatePublishedMetadataTransition,
 } from "./release-metadata-contract.mts";
@@ -41,11 +45,8 @@ export function inspectCatalogReviewRequest(raw: unknown) {
   const inspection: unknown = JSON.parse(raw.core_inspection);
   if (
     !isRecord(inspection) ||
-    Object.keys(inspection).sort().join(",") !==
-      "authority,definitions,files,index_sha256,publication_schema,scope" ||
-    inspection.publication_schema !== 1 ||
+    !catalogInspectionShape(inspection) ||
     inspection.authority !== "none" ||
-    inspection.scope !== "inert-managed-definition-publication-inspection" ||
     !Array.isArray(inspection.files) ||
     !Array.isArray(inspection.definitions) ||
     digest(inspection.definitions) !== digest(opportunity.classification.definitions) ||
@@ -55,6 +56,14 @@ export function inspectCatalogReviewRequest(raw: unknown) {
       opportunity.core_inspection_sha256
   )
     throw new Error("neutral catalog request does not bind exact Core bytes and identities");
+  if (inspection.publication_schema === 2) {
+    if (
+      digest(inspectCatalogListingIdentity(inspection.listings)) !==
+      digest(opportunity.classification.listings)
+    )
+      throw new Error("neutral catalog request listing classification differs");
+  } else if (opportunity.classification.listings)
+    throw new Error("listing classification requires capable inspection");
   const { request_id, ...identity } = raw;
   if (digest(identity) !== request_id) throw new Error("neutral catalog request digest differs");
   return {

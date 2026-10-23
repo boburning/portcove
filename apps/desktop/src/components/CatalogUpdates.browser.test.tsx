@@ -264,7 +264,7 @@ it("keeps fallback diagnostics in distinct technical disclosures with safe summa
   expect(html).toContain("A saved catalog could not be used");
   const host = document.createElement("div");
   host.innerHTML = html;
-  const disclosures = [...host.querySelectorAll("details")];
+  const disclosures = [...host.querySelectorAll(".catalog-fallback-reason details")];
   expect(disclosures).toHaveLength(reasons.length);
   expect(
     fixtureValue(disclosures[3], "disclosures[3]").parentElement?.querySelector("p")?.textContent,
@@ -283,3 +283,50 @@ it("keeps fallback diagnostics in distinct technical disclosures with safe summa
 });
 
 vi.mock("../file-picker", { spy: true });
+
+it("refreshes descriptive directory data through Core and reloads the workspace", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const initial = {
+    delivery_schema: 1,
+    revision: null,
+    selected: false,
+    anchor_sha256: null,
+    repository_root_sha256: null,
+    target_sha256: null,
+    expires_at: null,
+    listing_count: 0,
+    withdrawn_ids: [],
+    fallback_reason: null,
+  } satisfies Awaited<ReturnType<typeof desktopApi.listingDeliveryStatus>>;
+  vi.spyOn(desktopApi, "listingDeliveryStatus").mockResolvedValue(initial);
+  const apply = vi
+    .spyOn(desktopApi, "refreshCatalogListings")
+    .mockResolvedValue({ ...initial, revision: 2, selected: true, listing_count: 1 });
+  const changed = vi.fn().mockResolvedValue(undefined);
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(<CatalogSettings disabled={false} onChanged={changed} />));
+    await page.getByText("Directory updates", { exact: true }).click();
+    await page
+      .getByRole("textbox", { name: "Catalog metadata address" })
+      .fill("https://catalog.example/metadata/");
+    await page
+      .getByRole("textbox", { name: "Catalog content address" })
+      .fill("https://catalog.example/targets/");
+    await page.getByRole("button", { name: "Refresh directory", exact: true }).click();
+    await expect.poll(() => changed.mock.calls.length).toBe(1);
+    expect(apply).toHaveBeenCalledWith(
+      "https://catalog.example/metadata/",
+      "https://catalog.example/targets/",
+      expect.any(Function),
+    );
+    expect(document.body.textContent).toContain("Directory revision 2 · 1 published listings");
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  }
+});

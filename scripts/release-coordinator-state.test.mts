@@ -43,6 +43,16 @@ import {
   CoordinatorRemoteError,
 } from "./release-coordinator-remote.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import {
+  coordinatorCheckpointEvidenceSubject,
+  coordinatorCheckpointPredicateType,
+  inspectCoordinatorCheckpointEvidence,
+  readCoordinatorCheckpointEvidence,
+} from "./release-coordinator-checkpoint-evidence.mts";
+import { performance } from "node:perf_hooks";
+import { checkpointProofFixture } from "./fixtures/checkpoint-proof-fixture.mts";
+import { authenticateCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-authentication.mts";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import childProcess from "node:child_process";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
@@ -1481,6 +1491,7 @@ async function remoteFixture(t: test.TestContext) {
   let snapshots = 0;
   let requests = 0;
   const blobs = new Set<string>();
+  const objects = new Map<string, { kind: string; body: Record<string, unknown>; bytes: Buffer }>();
   const faults = { object: "", mutation: "", snapshot: "" };
   const api: CoordinatorRemoteApi = {
     request(method, endpoint, body) {
@@ -1498,6 +1509,21 @@ async function remoteFixture(t: test.TestContext) {
         });
       if (method === "GET") {
         const oid = endpoint.split("/").at(-1)!;
+        const stored = objects.get(oid);
+        if (stored) {
+          const value =
+            stored.kind === "blobs"
+              ? {
+                  sha: oid,
+                  encoding: "base64",
+                  content: stored.bytes.toString("base64"),
+                  size: stored.bytes.length,
+                }
+              : stored.kind === "trees"
+                ? { sha: oid, tree: stored.body.tree, truncated: false }
+                : { ...stored.body, sha: oid, tree: { sha: stored.body.tree } };
+          return reply(value);
+        }
         const value = commits.get(oid);
         return value
           ? reply(value)
@@ -1512,17 +1538,22 @@ async function remoteFixture(t: test.TestContext) {
         assert.equal(typeof body.content, "string");
         bytes = Buffer.from(body.content as string, "base64");
       } else if (kind === "trees") {
-        assert.ok(Array.isArray(body.tree) && body.tree.length === 1);
-        const entry: unknown = body.tree[0];
-        assert.ok(isRecord(entry));
-        assert.equal(entry.path, "state.json");
-        assert.equal(entry.mode, "100644");
-        assert.equal(entry.type, "blob");
-        assert.ok(typeof entry.sha === "string" && blobs.has(entry.sha));
-        bytes = Buffer.concat([
-          Buffer.from("100644 state.json\0"),
-          Buffer.from(String(entry.sha), "hex"),
-        ]);
+        assert.ok(Array.isArray(body.tree));
+        assert.ok([1, 2].includes(body.tree.length));
+        const names = body.tree.map((entry: unknown) => (isRecord(entry) ? entry.path : null));
+        assert.deepEqual(
+          names,
+          body.tree.length === 1 ? ["state.json"] : ["bundle.sigstore.json", "transition.json"],
+        );
+        bytes = Buffer.concat(
+          body.tree.flatMap((entry: unknown) => {
+            assert.ok(isRecord(entry));
+            assert.equal(entry.mode, "100644");
+            assert.equal(entry.type, "blob");
+            assert.ok(typeof entry.sha === "string" && blobs.has(entry.sha));
+            return [Buffer.from(`100644 ${String(entry.path)}\0`), Buffer.from(entry.sha, "hex")];
+          }),
+        );
       } else {
         assert.equal(kind, "commits");
         assert.ok(isRecord(body.author) && isRecord(body.committer));
@@ -1535,6 +1566,9 @@ async function remoteFixture(t: test.TestContext) {
       }
       const oid = gitObject(kind.slice(0, -1), bytes);
       if (kind === "blobs") blobs.add(oid);
+      objects.set(oid, { kind, body, bytes });
+      if (faults.object === "evidence-commits" && posts === 7)
+        throw new Error("proof object response lost");
       return reply({ sha: faults.object === kind ? "f".repeat(40) : oid });
     },
     graphql(query, variables) {
@@ -1557,20 +1591,42 @@ async function remoteFixture(t: test.TestContext) {
           assert.notEqual(value.afterOid, "0".repeat(40));
           assert.match(
             String(value.name),
-            /^refs\/(?:heads\/portcove-fixture-coordinator-state|tags\/portcove-fixture-prepared(?:-source)?\/.+)$/u,
+            /^refs\/(?:heads\/portcove-fixture-coordinator-state|tags\/portcove-fixture-(?:prepared(?:-source)?|checkpoint-proof)\/.+)$/u,
           );
         }
         if (faults.mutation === "before")
           throw new Error("bounded fixture response lost before CAS");
         for (const value of updates) {
           assert.ok(isRecord(value));
-          refs.set(String(value.name), String(value.afterOid));
+          if (
+            faults.mutation !== "partial-proof" ||
+            !String(value.name).includes("-checkpoint-proof/")
+          )
+            refs.set(String(value.name), String(value.afterOid));
         }
+        if (faults.mutation === "partial-proof") throw new Error("partial provider effect");
         if (faults.mutation === "after") throw new Error("bounded fixture response lost after CAS");
         if (faults.mutation === "concurrent") refs.set(stateRef, "e".repeat(40));
         return { data: { updateRefs: { clientMutationId: input.clientMutationId } } };
       }
       snapshots++;
+      if (typeof variables.name === "string") {
+        const name = variables.name;
+        const oid = refs.get(name);
+        const split = name.indexOf("/", 5) + 1;
+        const ref = oid
+          ? {
+              name: name.slice(split),
+              prefix: name.slice(0, split),
+              target: { __typename: "Commit", oid },
+            }
+          : null;
+        return {
+          data: {
+            repository: { databaseId: 1354613114, nameWithOwner: "boburning/portcove", ref },
+          },
+        };
+      }
       if (faults.snapshot === "after" && snapshots > 1) throw new Error("readback unavailable");
       const node: Record<string, unknown> = {
         __typename: "Repository",
@@ -1608,6 +1664,7 @@ async function remoteFixture(t: test.TestContext) {
     refs,
     stateRef,
     commits,
+    objects,
     faults,
     api,
     counts: () => ({ posts, mutations, snapshots }),
@@ -1794,6 +1851,201 @@ void test("remote checkpoint exports exact Git objects, atomically persists rece
   assert.equal(next.updates.length, 3);
   assert.ok(next.updates.slice(1).every((ref) => ref.beforeOid === ref.afterOid));
 });
+
+function checkpointEvidence(f: Awaited<ReturnType<typeof remoteFixture>>, salt = "first") {
+  const subject = coordinatorCheckpointEvidenceSubject(f.checkpoint, f.config, {
+    actor_id: "41898282",
+    check_run_id: "111",
+    configuration_sha256: "1".repeat(64),
+    controller_ref: "refs/tags/portcove-production-controller-fixture",
+    controller_revision: "2".repeat(40),
+    job_id: "222",
+    run_attempt: 1,
+    run_id: "333",
+    setup_sha256: "3".repeat(64),
+    workflow_sha256: "4".repeat(64),
+  });
+  const sha256 = createHash("sha256").update(subject).digest("hex");
+  const parsed = JSON.parse(subject.toString()) as { producer: unknown };
+  const statement = {
+    _type: "https://in-toto.io/Statement/v1",
+    subject: [{ name: "portcove-coordinator-checkpoint-transition", digest: { sha256 } }],
+    predicateType: coordinatorCheckpointPredicateType,
+    predicate: { schema_version: 1, transition_sha256: sha256, producer: parsed.producer },
+  };
+  // Deliberately NOT a signed/verified bundle. Transport must never promote it.
+  const bundle = Buffer.from(
+    JSON.stringify({
+      dsseEnvelope: {
+        payloadType: "application/vnd.in-toto+json",
+        payload: Buffer.from(JSON.stringify(statement)).toString("base64"),
+        signatures: [{ keyid: "inert", sig: Buffer.from(salt).toString("base64") }],
+      },
+    }),
+  );
+  return { subject, bundle };
+}
+
+void test("checkpoint proof travels in the existing CAS and reads back exact bytes without asserting signature authority", async (t) => {
+  const f = await remoteFixture(t);
+  const evidence = checkpointEvidence(f);
+  const checked = inspectCoordinatorCheckpointEvidence(f.checkpoint, f.config, evidence);
+  const result = await publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, {
+    api: f.api,
+    evidence,
+  });
+  assert.equal(result.updates.length, 4);
+  assert.deepEqual(f.counts(), { posts: 7, mutations: 1, snapshots: 2 });
+  assert.equal(f.refs.get(checked.update.name), checked.update.afterOid);
+  const read = readCoordinatorCheckpointEvidence(
+    f.checkpoint,
+    f.config,
+    f.api,
+    performance.now() + 60000,
+  );
+  assert.deepEqual(read.subject, evidence.subject);
+  assert.deepEqual(read.bundle, evidence.bundle);
+  assert.equal(read.authority, "none");
+  assert.equal(read.signature_verification, "not-performed");
+  assert.equal(read.requests, 6);
+  const again = await publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, {
+    api: f.api,
+    evidence,
+  });
+  assert.equal(again.changed, false);
+  assert.equal(f.counts().posts, 7);
+  await assert.rejects(
+    publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, {
+      api: f.api,
+      evidence: checkpointEvidence(f, "a different signing attempt"),
+    }),
+    /preimage conflicts/,
+  );
+  assert.equal(f.counts().mutations, 1);
+  assert.equal(f.counts().posts, 7);
+});
+
+void test("checkpoint proof readback refuses changed refs, malformed objects and an exhausted original deadline", async (t) => {
+  const f = await remoteFixture(t);
+  const evidence = checkpointEvidence(f);
+  await publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, {
+    api: f.api,
+    evidence,
+  });
+  for (const fault of ["tree", "blob-size", "blob-bytes", "ref", "late"]) {
+    let queries = 0,
+      reads = 0;
+    let clock = performance.now();
+    const now = t.mock.method(performance, "now", () => clock);
+    const api: CoordinatorRemoteApi = {
+      request(method, endpoint, body) {
+        assert.equal(method, "GET");
+        reads++;
+        const response = f.api.request(method, endpoint, body);
+        const value: unknown = structuredClone(response.body);
+        assert.ok(isRecord(value));
+        if (fault === "tree" && endpoint.includes("/trees/")) value.truncated = true;
+        if (fault === "blob-size" && endpoint.includes("/blobs/")) value.size = 65537;
+        if (fault === "blob-bytes" && endpoint.includes("/blobs/")) value.content = "YQ==";
+        return { ...response, body: value };
+      },
+      graphql(query, variables) {
+        queries++;
+        const response = structuredClone(f.api.graphql(query, variables));
+        if (queries === 2) {
+          if (fault === "late") clock += 60001;
+          if (fault === "ref") {
+            assert.ok(isRecord(response.data) && isRecord(response.data.repository));
+            const ref = response.data.repository.ref;
+            assert.ok(isRecord(ref) && isRecord(ref.target));
+            ref.target.oid = "f".repeat(40);
+          }
+        }
+        return response;
+      },
+    };
+    try {
+      assert.throws(
+        () => readCoordinatorCheckpointEvidence(f.checkpoint, f.config, api, clock + 60000),
+        /checkpoint evidence/,
+      );
+      assert.ok(reads + queries <= 6);
+      assert.equal(f.counts().posts, 7);
+      assert.equal(f.counts().mutations, 1);
+    } finally {
+      now.mock.restore();
+    }
+  }
+  const before = f.requests();
+  for (const deadline of [performance.now() - 1, Infinity, performance.now() + 120001])
+    assert.throws(
+      () => readCoordinatorCheckpointEvidence(f.checkpoint, f.config, f.api, deadline),
+      /original bounded read deadline/,
+    );
+  assert.equal(f.requests(), before);
+});
+
+for (const changed of [
+  "checkpoint",
+  "state_sha256",
+  "updates",
+  "proof_ref",
+  "producer",
+  "extra",
+  "oversized",
+  "bundle",
+]) {
+  void test(`checkpoint proof refuses ${changed} before any provider operation`, async (t) => {
+    const f = await remoteFixture(t);
+    const evidence = checkpointEvidence(f);
+    const subject = JSON.parse(evidence.subject.toString()) as Record<string, unknown>;
+    if (changed === "extra") subject.extra = true;
+    else if (changed === "updates") subject.updates = [];
+    else if (changed === "producer") subject.producer = { run_id: "333" };
+    else if (changed !== "oversized" && changed !== "bundle") subject[changed] = "f".repeat(64);
+    evidence.subject = Buffer.from(JSON.stringify(subject));
+    if (changed === "oversized") evidence.bundle = Buffer.alloc(65537, 32);
+    if (changed === "bundle") evidence.bundle = Buffer.from("{}");
+    await assert.rejects(
+      publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, { api: f.api, evidence }),
+      /checkpoint evidence/,
+    );
+    assert.equal(f.requests(), 0);
+  });
+}
+
+for (const fault of ["evidence-commits", "partial-proof", "after", "readback"]) {
+  void test(`checkpoint proof retains ${fault} effects without another CAS or signing attempt`, async (t) => {
+    const f = await remoteFixture(t);
+    const evidence = checkpointEvidence(f);
+    const checked = inspectCoordinatorCheckpointEvidence(f.checkpoint, f.config, evidence);
+    if (fault === "evidence-commits") f.faults.object = fault;
+    else if (fault === "readback") f.faults.snapshot = "after";
+    else f.faults.mutation = fault;
+    const run = () =>
+      publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, { api: f.api, evidence });
+    if (fault === "after") {
+      const result = await run();
+      assert.equal(result.recovered, true);
+      assert.equal(f.refs.get(checked.update.name), checked.update.afterOid);
+    } else {
+      await assert.rejects(run, (error: unknown) => {
+        assert.ok(error instanceof CoordinatorRemoteError);
+        assert.ok(isRecord(error.evidence));
+        assert.ok(Array.isArray(error.evidence.updates));
+        assert.deepEqual(error.evidence.updates.at(-1), checked.update);
+        return true;
+      });
+    }
+    assert.equal(f.counts().posts, 7);
+    assert.equal(f.counts().mutations, fault === "evidence-commits" ? 0 : 1);
+    assert.equal(f.objects.has(checked.update.afterOid), true);
+    if (fault === "partial-proof") {
+      assert.equal(f.refs.get(f.stateRef), f.saved.checkpoint);
+      assert.equal(f.refs.has(checked.update.name), false);
+    }
+  });
+}
 
 for (const mode of ["before", "after", "concurrent", "readback"]) {
   void test(`remote checkpoint preserves ambiguous CAS outcome ${mode} without automatic retry`, async (t) => {
@@ -3744,3 +3996,95 @@ void test(
     );
   },
 );
+
+for (const expires of ["read", "first-object", "before-cas", "mutated-options"]) {
+  void test(`authenticated checkpoint expiry after ${expires} stops the next mutation and retains completed effects`, async (t) => {
+    const f = await remoteFixture(t),
+      proof = checkpointProofFixture(f.checkpoint, f.config);
+    const directory = await mkdtemp(path.join(os.tmpdir(), "checkpoint-publisher-auth-"));
+    t.after(() => rm(directory, { recursive: true, force: true }));
+    const previous = process.env.GH_TOKEN;
+    process.env.GH_TOKEN = "inert-metadata-token";
+    t.after(() => {
+      if (previous === undefined) delete process.env.GH_TOKEN;
+      else process.env.GH_TOKEN = previous;
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+    });
+    let clock = performance.now();
+    t.mock.method(performance, "now", () => clock);
+    t.mock.method(childProcess, "spawnSync", (_command: string, args: readonly string[]) => {
+      if (args[0] === "attestation")
+        return {
+          status: 0,
+          stdout: JSON.stringify([{ verificationResult: proof.verification }]),
+          stderr: "",
+        };
+      const response = proof.api.request("GET", args[2]!);
+      return {
+        status: 0,
+        stdout: `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify(response.body)}`,
+        stderr: "",
+      };
+    });
+    syncBuiltinESMExports();
+    await withReadOnlyReleaseChildren(directory, async () => {
+      const receipt = await authenticateCoordinatorCheckpointEvidence(
+        directory,
+        f.checkpoint,
+        f.config,
+        proof.evidence,
+        proof.expected,
+        clock + 60000,
+      );
+      let posts = 0,
+        expired = false;
+      const api: CoordinatorRemoteApi = {
+        request(method, endpoint, body) {
+          const response = f.api.request(method, endpoint, body);
+          if (method === "POST") posts++;
+          if (
+            (expires === "read" && method === "GET" && endpoint.includes("/git/commits/")) ||
+            (expires === "first-object" && posts === 1) ||
+            (expires === "before-cas" && posts === 7)
+          ) {
+            if (!expired) {
+              clock += 60001;
+              expired = true;
+            }
+          }
+          return response;
+        },
+        graphql: (...args) => f.api.graphql(...args),
+      };
+      if (expires === "mutated-options") {
+        const mutable: Parameters<typeof publishCoordinatorCheckpoint>[3] = {
+          api,
+          authenticatedEvidence: receipt,
+        };
+        const pending = publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, mutable);
+        delete mutable.authenticatedEvidence;
+        mutable.evidence = checkpointEvidence(f, "replacement-inert-bundle");
+        const result = await pending;
+        const expectedProof = inspectCoordinatorCheckpointEvidence(
+          f.checkpoint,
+          f.config,
+          proof.evidence,
+        );
+        assert.deepEqual(result.updates.at(-1), expectedProof.update);
+        assert.equal(f.refs.get(expectedProof.update.name), expectedProof.update.afterOid);
+        return;
+      }
+      await assert.rejects(
+        publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, {
+          api,
+          authenticatedEvidence: receipt,
+        }),
+        /authenticated checkpoint/,
+      );
+      assert.equal(f.counts().mutations, 0);
+      assert.equal(f.counts().posts, expires === "read" ? 0 : expires === "first-object" ? 1 : 7);
+      assert.equal(f.refs.get(f.stateRef), f.initial.checkpoint);
+    });
+  });
+}

@@ -4,18 +4,252 @@ import { runInNewContext } from "node:vm";
 import { errorCode } from "./runtime-values.mts";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { inspectLinuxSupervisor } from "./run-rust-tests.mts";
 import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
 import { prepareRustSupportArtifact, rustSupportCompilerIdentity } from "./rust-support-cache.mts";
+import { executeFallow } from "./fallow-execution.mts";
+import { runResourceCommand } from "./resource-command.mts";
+import { frontendOutputResource } from "./resource-capacity.mts";
 
 interface ProcessExit {
   code: number | null;
   signal: NodeJS.Signals | null;
 }
+
+void test(
+  "analyzer deadline retains live partial streams and proves ordinary descendant exit",
+  { timeout: 120000 },
+  async (context) => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-analyzer-deadline-"));
+    const ready = path.join(directory, "ready.json");
+    const fixture = `
+    const {spawn} = require('node:child_process');
+    const {writeFileSync} = require('node:fs');
+    const child = spawn(process.execPath, ['-e', "process.stdout.write('ready');setInterval(()=>{},1000)"], {stdio:['ignore','pipe','ignore']});
+    child.stdout.once('data', () => {
+      writeFileSync(${JSON.stringify(ready)}, JSON.stringify({parent:process.pid, child:child.pid}));
+      process.stdout.write('ANALYZER_READY\\n'); process.stderr.write('partial analyzer diagnostics\\n');
+    });
+    setInterval(()=>{},1000);
+  `;
+    let observedExit = false;
+    const pending = executeFallow(
+      process.execPath,
+      ["-e", fixture],
+      {
+        cwd: process.cwd(),
+        env: process.env,
+        encoding: "utf8",
+        maxBuffer: 4096,
+      },
+      {
+        directory,
+        phase: "analysis",
+        timeoutMilliseconds: 5000,
+        identity: { fixture: "owned-hanging-analyzer" },
+      },
+    ).finally(() => {
+      observedExit = true;
+    });
+    let complete = false;
+    try {
+      const capture = path.join(
+        directory,
+        required((await readdir(directory)).find((name) => name.startsWith("analysis-"))),
+      );
+      await Promise.race([
+        pending.then(() => {
+          throw new Error("Analyzer exited before readiness observations");
+        }),
+        (async () => {
+          const deadline = performance.now() + 90000;
+          while (
+            !existsSync(ready) ||
+            !readFileSync(path.join(capture, "stdout.txt"), "utf8").includes("ANALYZER_READY") ||
+            !readFileSync(path.join(capture, "stderr.txt"), "utf8").includes(
+              "partial analyzer diagnostics",
+            )
+          ) {
+            if (observedExit)
+              throw new Error("Analyzer exited before its live streams were observed");
+            if (performance.now() > deadline)
+              throw new Error("Analyzer readiness was not observed");
+            await new Promise((resolve) => setTimeout(resolve, 25));
+          }
+        })(),
+      ]);
+      const ids = json(await readFile(ready, "utf8"));
+      assert.equal(typeof ids.parent, "number");
+      assert.equal(typeof ids.child, "number");
+      const parent = Number(ids.parent),
+        child = Number(ids.child);
+      const parentIdentity = readProcessIdentity(parent),
+        childIdentity = readProcessIdentity(child);
+      assert.ok(parentIdentity && childIdentity);
+      assert.equal(
+        json(await readFile(path.join(capture, "running.json"), "utf8")).outcome,
+        "running",
+      );
+      assert.match(await readFile(path.join(capture, "stdout.txt"), "utf8"), /ANALYZER_READY/);
+      assert.match(
+        await readFile(path.join(capture, "stderr.txt"), "utf8"),
+        /partial analyzer diagnostics/,
+      );
+      const result = await pending;
+      assert.equal(result.status, 124);
+      assert.equal(errorCode(result.error), "ETIMEDOUT");
+      assert.notEqual(readProcessIdentity(parent), parentIdentity);
+      assert.notEqual(readProcessIdentity(child), childIdentity);
+      const finished = json(await readFile(path.join(capture, "finished.json"), "utf8"));
+      assert.equal(finished.outcome, "timed-out");
+      assert.equal(finished.quiescent, true);
+      complete = true;
+    } finally {
+      const result = await pending;
+      complete = complete && result.status === 124;
+      if (complete) await rm(directory, { recursive: true, force: true });
+      else context.diagnostic(`Retained incomplete analyzer control: ${directory}`);
+    }
+  },
+);
+
+for (const mode of ["format-timeout", "native-124", "output-limit", "finalization-error"] as const)
+  void test(
+    `bounded analyzer distinguishes ${mode} with retained custody`,
+    { timeout: 120000 },
+    async (context) => {
+      const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-analyzer-control-"));
+      let verified = false;
+      try {
+        const result = await executeFallow(
+          process.execPath,
+          [
+            "-e",
+            mode === "native-124"
+              ? "process.exit(124)"
+              : mode === "output-limit"
+                ? "process.stdout.write('x'.repeat(8192));setInterval(()=>{},1000)"
+                : mode === "finalization-error"
+                  ? `const fs=require('node:fs'),p=require('node:path'),d=${JSON.stringify(directory)};fs.writeFileSync(p.join(d,fs.readdirSync(d).find(n=>n.startsWith('analysis-')),'finished.json'),'reserved marker',{flag:'wx'});process.stdout.write('original stdout');process.stderr.write('original exit7');process.exit(7)`
+                  : "process.stderr.write('formatter partial');setInterval(()=>{},1000)",
+          ],
+          {
+            cwd: process.cwd(),
+            env: process.env,
+            encoding: "utf8",
+            maxBuffer: 1024,
+          },
+          {
+            directory,
+            phase: mode === "format-timeout" ? "format" : "analysis",
+            timeoutMilliseconds: mode === "format-timeout" ? 1500 : 5000,
+            identity: { fixture: mode },
+          },
+        );
+        if (mode === "native-124") {
+          assert.equal(result.status, 124);
+          assert.equal(result.error, undefined);
+        } else if (mode === "output-limit") {
+          assert.equal(errorCode(result.error), "ENOBUFS");
+          assert.equal(Buffer.byteLength(result.stdout ?? ""), 1024);
+        } else if (mode === "finalization-error") {
+          assert.equal(result.status, 7);
+          assert.equal(result.stdout, "original stdout");
+          assert.equal(result.stderr, "original exit7");
+          assert.match(result.evidenceFailure ?? "", /EEXIST/);
+        } else {
+          assert.equal(errorCode(result.error), "ETIMEDOUT");
+          assert.match(result.stderr ?? "", /formatter partial/);
+        }
+        const capture = path.join(
+          directory,
+          required(
+            (await readdir(directory)).find((name) =>
+              name.startsWith(mode === "format-timeout" ? "format-" : "analysis-"),
+            ),
+          ),
+        );
+        if (mode === "finalization-error")
+          assert.equal(
+            await readFile(path.join(capture, "finished.json"), "utf8"),
+            "reserved marker",
+          );
+        else
+          assert.equal(
+            json(await readFile(path.join(capture, "finished.json"), "utf8")).quiescent,
+            true,
+          );
+        verified = true;
+      } finally {
+        if (verified) await rm(directory, { recursive: true, force: true });
+        else context.diagnostic(`Retained failed analyzer control: ${directory}`);
+      }
+    },
+  );
+void test(
+  "inherited analyzer deadline establishes inner custody before releasing its outer owner",
+  {
+    timeout: 120000,
+    skip:
+      process.platform !== "win32" && process.platform !== "linux"
+        ? "Inherited bounded custody is supported on Windows/Linux; standalone Unix watchdog is covered separately."
+        : false,
+  },
+  async (context) => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-analyzer-inherited-"));
+    const driver = path.join(directory, "driver.mjs");
+    const observed = path.join(directory, "observed.json");
+    await writeFile(
+      driver,
+      `
+    import {writeFileSync} from 'node:fs';
+    import {resourceEntrypoint} from ${JSON.stringify(new URL("./resource-command.mts", import.meta.url).href)};
+    import {executeFallow} from ${JSON.stringify(new URL("./fallow-execution.mts", import.meta.url).href)};
+    process.exitCode = await resourceEntrypoint('analysis', async () => {
+      const result = await executeFallow(process.execPath, ['-e', "process.stderr.write('inner ready');setInterval(()=>{},1000)"],
+        {cwd:process.cwd(), env:process.env, encoding:'utf8', maxBuffer:1024},
+        {directory:${JSON.stringify(directory)}, phase:'analysis', timeoutMilliseconds:1500, identity:{fixture:'verified inherited'}});
+      writeFileSync(${JSON.stringify(observed)}, JSON.stringify({status:result.status, code:result.error?.code, stderr:result.stderr}));
+      return result.status ?? 1;
+    });
+  `,
+    );
+    let verified = false;
+    let outerTimedOut = false;
+    try {
+      const status = await runResourceCommand("analysis", process.execPath, [driver], {
+        exclusive: [frontendOutputResource(process.cwd())],
+        executionTimeoutMilliseconds: 25000,
+        onExecutionTimeout: () => {
+          outerTimedOut = true;
+        },
+      });
+      assert.equal(status, 124);
+      assert.equal(outerTimedOut, false);
+      const result = json(await readFile(observed, "utf8"));
+      assert.equal(result.status, 124);
+      assert.equal(result.code, "ETIMEDOUT");
+      assert.match(String(result.stderr), /inner ready/);
+      const capture = path.join(
+        directory,
+        required((await readdir(directory)).find((name) => name.startsWith("analysis-"))),
+      );
+      assert.equal(
+        json(await readFile(path.join(capture, "finished.json"), "utf8")).quiescent,
+        true,
+      );
+      verified = true;
+    } finally {
+      if (verified) await rm(directory, { recursive: true, force: true });
+      else context.diagnostic(`Retained inherited analyzer control: ${directory}`);
+    }
+  },
+);
+
 interface LinuxCapture {
   pid: number;
   state: string;

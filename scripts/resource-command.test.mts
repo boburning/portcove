@@ -17,9 +17,15 @@ void test("resource command delegates unchanged payload/cwd and failure to the e
     {
       cwd: process.cwd(),
       environment: { GITHUB_ACTIONS: "true" },
+      executionTimeoutMilliseconds: 1234,
+      onExecutionTimeout: () => {},
+      output: { stdout: 42, stderr: 43 },
       supervise: async (args, options) => {
         assert.deepEqual(args, ["--guard-command", "owned-executable", "literal argument", "--"]);
         assert.equal(options.cwd, process.cwd());
+        assert.equal(options.executionTimeoutMilliseconds, 1234);
+        assert.equal(typeof options.onExecutionTimeout, "function");
+        assert.deepEqual(options.output, { stdout: 42, stderr: 43 });
         assert.equal(typeof options.acquireLock, "function");
         return 23;
       },

@@ -155,6 +155,7 @@ pub use definition_publication::{
     DefinitionPublicationFile, DefinitionPublicationIdentity, DefinitionPublicationInspection,
     inspect_definition_publication, inspect_definition_publication_bytes,
 };
+pub use definition_repository::publisher_policy::listing_delivery::ListingDeliveryStatus;
 pub use definition_repository::{
     AuthenticatedDefinitionCandidate, AuthenticatedDefinitionProvenance,
     DefinitionReplayDisposition, DefinitionReplayFloor, DefinitionRepositorySource,

@@ -252,6 +252,18 @@ reported and bounded separately from test execution. The lock is per host, not
 per drive, so moving an isolated checkout to the SSD does not authorize an
 overlapping compiler/test tree.
 
+### Disposable Node fixtures
+
+`scripts/fixtures/disposable-directory.mts` creates a fresh owned scratch root and
+immediately registers test teardown. Cleanup checks the original root identity
+and parent before removal; it refuses a replaced root. Tests must finish and
+drain child writers before teardown. Declared diagnostic bundles belong outside
+the disposable root. An unproven writer exit makes cleanup fail and retains the
+root for investigation. The helper neither adopts old scratch trees nor removes
+retained verification evidence. Shared directory links remain links during
+recursive removal; hook fixtures additionally unlink their shared `node_modules`
+junction explicitly before deleting the owned root.
+
 ## Migration and recovery
 
 Before replacing an existing workspace, record `git status --short --branch --untracked-files=all`, `git rev-parse HEAD`, branches, remotes, worktrees, submodules, and rebase state. Stop or wait for Cargo, rust-analyzer, Tauri, Node, test, mutation, and packaging processes using that workspace. Copy first, excluding only verified rebuildable directories, then compare relative file paths and sizes and run Git integrity checks in both locations. Keep the old checkout as rollback until the new checkout passes representative Rust and UI checks.

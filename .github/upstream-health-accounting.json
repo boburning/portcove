@@ -1,11 +1,11 @@
 {
-  "format_version": 1,
+  "format_version": 2,
   "authority": "reviewed monitoring conditions only; no catalog, lineage, artifact, hold or publication authority",
-  "decision": "Owner approved the narrow extension proposed in #247 comment6082358982 on2026-10-09; no failed-run exception. Owner approved the exact Armored Core v0.3.6 pin on2026-10-09 (#254 comment6086584582), and future exact pins satisfying the unchanged strict metadata checks; this record retains unknown destination availability and unverified accepted bytes. Presentation-only contract bindings refreshed by #2186 after exact approved-hash preimage verification against 93259eb and equality of every other contract field; no pin, condition, metadata requirement or authority changed. Owner requested all upstream-health errors be addressed on2026-10-20; #247 comment6293990348 scopes the independently reviewed exact release/source-commit metadata accounting and bounded capacity repair. Source-commit presence never verifies generated archive bytes or destination availability. The 2026-10-23 cover batch refreshed five presentation-only contract bindings after exact approved-hash verification against 5afae06256d1552a619ff88b290bc93642247b5d and equality of every other non-summary contract field; no pin, condition, metadata check, destination/byte claim or authority changed. The 2026-10-23 target reconciliation retains the accepted #2441 Star Fox successor project URL and unchanged historical release repository; its original-location monitoring binding was refreshed after proving project_url was the only changed contract field. The original repository, 404 condition, rule, evidence and unresolved destination/byte scope remain unchanged.",
+  "decision": "Monitoring-only identity bindings and bounded endpoint conditions. Format 2 binds the relevant artifact or explicit endpoint role using health inputs version 1. Preserve reviewed provider IDs and exact pin facts; ordinary declared GitHub pin metadata may be observed without granting an identity binding. Project lineage, artifact obtainability, accepted bytes, holds and qualification remain separate.",
   "pins": [
     {
       "port_id": "road-rash-64-recompiled",
-      "port_contract_sha256": "88ed43f44f03207800a58c3602e24d48483d840c560fc55ab8ea033df1d764c6",
+      "port_contract_sha256": "fd2414af820dff87b4ce8bc328537b607ee1079ad9ac8e3e87444a53548f0e94",
       "platform": "windows-x86-64",
       "repository": "linkssy2/RoadRash64Recompiled",
       "tag": "v1.4.3",
@@ -22,7 +22,7 @@
     },
     {
       "port_id": "alexbeav-ape-escape-recomp",
-      "port_contract_sha256": "166e5c7bd33ac6dcbff3df33690203d84ef8d759795ad9fd0d7a784ffb5e03c9",
+      "port_contract_sha256": "7e3d9dafb451de9463a69e9b6a54563c99709b1e15a4306fd06fc7c6e4c54cc8",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/ape-escape-recomp",
       "tag": "v0.3.6",
@@ -39,7 +39,7 @@
     },
     {
       "port_id": "alexbeav-alundra-recomp",
-      "port_contract_sha256": "7dd0be4a412611e8e1eb16ca0d9a57282b85b54ffde3f4af33a5b0dbf32c53c7",
+      "port_contract_sha256": "ac2a12b92d19f37be919b9d3ff8351b6dfc65643cad619c3a9d0ccf1ad98acbc",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/alundra-recomp",
       "tag": "v0.3.6",
@@ -56,7 +56,7 @@
     },
     {
       "port_id": "alexbeav-armored-core-recomp",
-      "port_contract_sha256": "67f17130e1147bc072ecf52fa5ac6430caa5133d9019aadf1044c18cabaa7dd0",
+      "port_contract_sha256": "e919caac4be1cc887aad0ecd285311419f06c7b503423f27842af29e45aa043f",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/armored-core-recomp",
       "tag": "v0.3.6",
@@ -73,7 +73,7 @@
     },
     {
       "port_id": "alexbeav-blood-omen-legacy-of-kain-recomp",
-      "port_contract_sha256": "19e51d0dd7eb282aeb51a7d39504599143687d6c198242e93a85a4432e427d98",
+      "port_contract_sha256": "b819a8cacdf34f37742773f72db1902a6f457d40d7bcd846e67263ef8084b4a9",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp",
       "tag": "v0.3.6",
@@ -90,7 +90,7 @@
     },
     {
       "port_id": "alexbeav-digimon-world-2003-recomp",
-      "port_contract_sha256": "b19bcd320ef8565d4e4617000252c4b1449acd71c4f76f40622110b54b52f858",
+      "port_contract_sha256": "b9fefc9f6e175bb4c63dc1477d4378d9f60f67b5667bb99bc11e92359039c94e",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/digimon-world-2003-recomp",
       "tag": "v0.3.6",
@@ -107,7 +107,7 @@
     },
     {
       "port_id": "alexbeav-duke-nukem-land-of-the-babes-recomp",
-      "port_contract_sha256": "703b9b13f575bd400d6381989be02a76ea48520711095d9b583a9f33d35d7278",
+      "port_contract_sha256": "faf5df00cae449db110f0a318ac4dcf6f92d98b89c54d00fe492f6e999e16d9e",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp",
       "tag": "v0.3.6",
@@ -124,7 +124,7 @@
     },
     {
       "port_id": "alexbeav-driver-recomp",
-      "port_contract_sha256": "d2c5cc8374f906d8d8095e2be7624f01792d76df2cb6e4f40e9c70917b5cf151",
+      "port_contract_sha256": "e65c422cbea4e07d28856da9741c501cc80ffe82eb1a02f1a9191b1dce863a44",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/driver-recomp",
       "tag": "v0.3.6",
@@ -141,7 +141,7 @@
     },
     {
       "port_id": "alexbeav-duke-nukem-time-to-kill-recomp",
-      "port_contract_sha256": "5d3996606224a665cfd6f80c6c9cd2457ce88cfcf46bf79a591578769a4cb71a",
+      "port_contract_sha256": "c5bc8c92fb2728df2154bc47dc4c55f453b6be2d4b08c80d7e45838e9a71add0",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp",
       "tag": "v0.3.6",
@@ -158,7 +158,7 @@
     },
     {
       "port_id": "alexbeav-fade-to-black-recomp",
-      "port_contract_sha256": "2b07bf0b8d8175d2b97004a2a37d9e8753f49a3c10c775d9186e240bd335ae1d",
+      "port_contract_sha256": "04b2cee1f1721cfd923e13be3bf44bb6e75881e90dc2dcbfee39c5596ae2c0c5",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/fade-to-black-recomp",
       "tag": "v0.3.6",
@@ -175,7 +175,7 @@
     },
     {
       "port_id": "alexbeav-diablo-recomp",
-      "port_contract_sha256": "74da9a1a222c27216f22876a1e4ea668b1c45c1136c964fe87a7b3308f2980e7",
+      "port_contract_sha256": "cb79fa58d6e0145621100586cac73b9f1c1bbcdfb55ed5a43a1b96ccc8ac8541",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/diablo-recomp",
       "tag": "v0.1.4",
@@ -192,7 +192,7 @@
     },
     {
       "port_id": "alexbeav-diablo-recomp",
-      "port_contract_sha256": "74da9a1a222c27216f22876a1e4ea668b1c45c1136c964fe87a7b3308f2980e7",
+      "port_contract_sha256": "1878854c06454141b885e8f95de6a63247c3674150032cc071ee4b4f02a99e49",
       "platform": "linux-x86-64",
       "repository": "alexbeavs-ps1-ports/diablo-recomp",
       "tag": "v0.1.4",
@@ -209,7 +209,7 @@
     },
     {
       "port_id": "alexbeav-ace-combat-3-electrosphere-recomp",
-      "port_contract_sha256": "e2c750fa042eb19faf0b5349eea6041ca39e67b4ae8cf6c517e3617f298abcc3",
+      "port_contract_sha256": "d2a21c2aacf7c89f8b70c20433add7183fc93a8cdf351da80b369ef17ae25e48",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp",
       "tag": "v0.3.6",
@@ -226,7 +226,7 @@
     },
     {
       "port_id": "alexbeav-ace-combat-3-electrosphere-recomp",
-      "port_contract_sha256": "e2c750fa042eb19faf0b5349eea6041ca39e67b4ae8cf6c517e3617f298abcc3",
+      "port_contract_sha256": "20fdb82ad06bcf7116c4048fe54d508c2ffce18c16fd83470fbe08c1ef1359ba",
       "platform": "linux-x86-64",
       "repository": "alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp",
       "tag": "v0.3.6",
@@ -243,7 +243,7 @@
     },
     {
       "port_id": "alexbeav-dino-crisis-recomp",
-      "port_contract_sha256": "5279ddc17de8d4a76f82e929f11022a5df047ec0526b6f4e0af53e216b9975c5",
+      "port_contract_sha256": "5cd8c8ac5b6ee4d95c2633d068fb2ac32f8936c3c8ef21cbcae96138e4cb411d",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/dino-crisis-recomp",
       "tag": "v0.1.1",
@@ -260,7 +260,7 @@
     },
     {
       "port_id": "alexbeav-dino-crisis-recomp",
-      "port_contract_sha256": "5279ddc17de8d4a76f82e929f11022a5df047ec0526b6f4e0af53e216b9975c5",
+      "port_contract_sha256": "e3800f12177690f0bbcc1137952e88da34b1c23af4a905115e83492bb20eb297",
       "platform": "linux-x86-64",
       "repository": "alexbeavs-ps1-ports/dino-crisis-recomp",
       "tag": "v0.1.1",
@@ -277,7 +277,7 @@
     },
     {
       "port_id": "alexbeav-dino-crisis-2-recomp",
-      "port_contract_sha256": "a11550bdcf63aeca89210ce48b3316ad979953808ef2715d62241d72751e9eae",
+      "port_contract_sha256": "6e0bc28170f3d2a309c6ad6b9983a1cce75a9dff15d72e49f0643819fac53574",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/dino-crisis-2-recomp",
       "tag": "v0.1.1",
@@ -294,7 +294,7 @@
     },
     {
       "port_id": "alexbeav-dino-crisis-2-recomp",
-      "port_contract_sha256": "a11550bdcf63aeca89210ce48b3316ad979953808ef2715d62241d72751e9eae",
+      "port_contract_sha256": "901011b9505dccda9da9cca0baad501386bf5965516d21db9fb1fdb7bc1e9e62",
       "platform": "linux-x86-64",
       "repository": "alexbeavs-ps1-ports/dino-crisis-2-recomp",
       "tag": "v0.1.1",
@@ -311,7 +311,7 @@
     },
     {
       "port_id": "alexbeav-alien-resurrection-recomp",
-      "port_contract_sha256": "e78011088bfdf6dfceec15b55844a75515a4525c28a75d97a2d8d7195ebe5fa6",
+      "port_contract_sha256": "179044b81e025ee62b75c720539287965dd681469860e97efabd8573191c5624",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/alien-resurrection-recomp",
       "tag": "v0.1.4",
@@ -328,7 +328,7 @@
     },
     {
       "port_id": "alexbeav-alien-resurrection-recomp",
-      "port_contract_sha256": "e78011088bfdf6dfceec15b55844a75515a4525c28a75d97a2d8d7195ebe5fa6",
+      "port_contract_sha256": "b34e28b31b43ad804234f19acc37d14c0550b6262908c46306ca559004c44278",
       "platform": "linux-x86-64",
       "repository": "alexbeavs-ps1-ports/alien-resurrection-recomp",
       "tag": "v0.1.4",
@@ -345,7 +345,7 @@
     },
     {
       "port_id": "alexbeav-brave-fencer-musashi-recomp",
-      "port_contract_sha256": "05b2e89b35747291a994461bf9d9a481540f7ac90f5d39054f1339200123c33e",
+      "port_contract_sha256": "7949aa36a99eb044eaee19034bf8dbd69490e40090caa1d04a3880091f21e922",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/brave-fencer-musashi-recomp",
       "tag": "v0.1.3",
@@ -362,7 +362,7 @@
     },
     {
       "port_id": "alexbeav-brave-fencer-musashi-recomp",
-      "port_contract_sha256": "05b2e89b35747291a994461bf9d9a481540f7ac90f5d39054f1339200123c33e",
+      "port_contract_sha256": "de68a1912958f4322ab39edf7e85a44e303ed2c9fd2032626894d0587d8d5a59",
       "platform": "linux-x86-64",
       "repository": "alexbeavs-ps1-ports/brave-fencer-musashi-recomp",
       "tag": "v0.1.3",
@@ -379,7 +379,7 @@
     },
     {
       "port_id": "super-metroid-recomp",
-      "port_contract_sha256": "04584ed88df186d21ff1b87b0865b2bb3a512aa9ddc6bd53569f8a8b7a16b3c4",
+      "port_contract_sha256": "aff66f68da3d00694af40e0e85ebc8455f6326a8c8b846364f93783cc9b57841",
       "platform": "windows-x86-64",
       "repository": "mstan/SuperMetroidRecomp",
       "tag": "v0.3.12",
@@ -396,7 +396,7 @@
     },
     {
       "port_id": "mega-man-x2-snes-recomp",
-      "port_contract_sha256": "d5c8d6bd2c2b9feceedd5ba6ccf561986640deb92373316004e57884b92bc913",
+      "port_contract_sha256": "07d2013c920e69f2a4d8901c09b08a100109a4c939bb4cb1cd7504a75e5523ed",
       "platform": "windows-x86-64",
       "repository": "mstan/MegaManX2Recomp",
       "tag": "v0.1.4",
@@ -413,7 +413,7 @@
     },
     {
       "port_id": "wave-race-64-racewave46",
-      "port_contract_sha256": "eafaca09ef9cb9ab56ae113e2ec15ba7a21dfb05f0036f8714358c8489568bf4",
+      "port_contract_sha256": "2797f532f945a953cc0fba746ce9730edc277f1ada44104dd7273a4cbb4c92ae",
       "platform": "windows-x86-64",
       "url": "https://github.com/DomazinUS/RaceWave46/releases/download/v1.0.0/RaceWave46-Windows-x64-v1.0.0.zip",
       "size": 35768574,
@@ -430,7 +430,7 @@
     },
     {
       "port_id": "f-zero-snes-recomp",
-      "port_contract_sha256": "ee7184fb0a5c9f9a9cd5e54292ccec98ec6f478279f64db0f835057d06e306d2",
+      "port_contract_sha256": "329175ad591253c04b8cee4baac67b313ddbeea830fd2f7597f65ff7bdbeb0b3",
       "platform": "windows-x86-64",
       "url": "https://github.com/mstan/FZeroSNESRecomp/releases/download/v1.8.3/FZeroSNESRecomp-1.8.3-windows-x64.zip",
       "size": 8247843,
@@ -447,7 +447,7 @@
     },
     {
       "port_id": "dkc3-recomp",
-      "port_contract_sha256": "1e52a0d5c3b81f0dbd990f88073299e691e71574b0c253eb1c9a0f61c9425b79",
+      "port_contract_sha256": "e465e02beb32a69bad9892b875d3945fc32eab5309c7750b3ed235ef4e08350e",
       "platform": "windows-x86-64",
       "url": "https://github.com/elliotttate/DKC3Recomp/releases/download/v0.0.6/DKC3Recomp-v0.0.6-windows-x64.zip",
       "size": 6009000,
@@ -464,7 +464,7 @@
     },
     {
       "port_id": "super-mario-world-recomp",
-      "port_contract_sha256": "994a2ea440a560567d4fe63c767904dd9dec125ddaab3049f063e4606a4d5296",
+      "port_contract_sha256": "2de545d0cfb519a85223c6f729ffee89bea28786bc82afdff6854c7524c0bd33",
       "platform": "windows-x86-64",
       "url": "https://github.com/mstan/SuperMarioWorldRecomp/releases/download/v0.12.0/SuperMarioWorldRecomp-windows-x64-v0.12.0.zip",
       "size": 9490376,
@@ -481,7 +481,7 @@
     },
     {
       "port_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
-      "port_contract_sha256": "1f125a21fe98ede734b54b4b8705712e0a9ccff7dd0fabfd1c8ef8cd389a0e63",
+      "port_contract_sha256": "b1fb3a9a0d2fc4a31b36c625832c1fbc75f5c4341ca35f1bb9e5418adda40535",
       "platform": "windows-x86-64",
       "url": "https://github.com/mstan/ZeldaAlttPSNESRecomp/releases/download/v0.6.1/ZeldaALttPSNESRecomp-windows-x64-v0.6.1.zip",
       "size": 11388312,
@@ -498,7 +498,7 @@
     },
     {
       "port_id": "sonic-the-hedgehog-recomp",
-      "port_contract_sha256": "fce338f7b042be52ddb83b0002a77f1e6265bf3f5926f86f7a88e562991c3144",
+      "port_contract_sha256": "e518d7e5835efaed0b2faa0794d9670699da0ebaceaabbd73f0b5aef091de317",
       "platform": "windows-x86-64",
       "url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/download/v0.6.0/SonicTheHedgehogRecomp-v0.6.0-win64.zip",
       "size": 3776546,
@@ -515,7 +515,7 @@
     },
     {
       "port_id": "the-force-engine-dark-forces",
-      "port_contract_sha256": "3e70d8c3530efdcdfea797f993b05904bb84f2d592c202f2ba82dc4cb7cbeeb1",
+      "port_contract_sha256": "9bf07811435112204a4aba68bdbb82966599ccce665f5639bab604abec479c9e",
       "platform": "windows-x86-64",
       "url": "https://github.com/TheForceEngine/TheForceEngine/releases/download/v1.22.420/TheForceEngine-v1.22.420.zip",
       "size": 10561878,
@@ -532,7 +532,7 @@
     },
     {
       "port_id": "sonic-the-hedgehog-2-recomp",
-      "port_contract_sha256": "d78557c7d6eb6e42a52eeea8930627d37d231ac7144ed6d8a32b4b9342eccf80",
+      "port_contract_sha256": "59c063d48b5dd676a3aca38190a69267ce87ac8e162e8f5fdaffb516c03fba27",
       "platform": "windows-x86-64",
       "url": "https://github.com/mstan/SonicTheHedgehog2Recomp/releases/download/v0.8.3/SonicTheHedgehog2Recomp-windows-x64-v0.8.3.zip",
       "size": 7204657,
@@ -549,7 +549,7 @@
     },
     {
       "port_id": "sonic-3-and-knuckles-recomp",
-      "port_contract_sha256": "ec86debe400f014c9790d1768c6cce00cfc8890ffd460ef8699222194c11134d",
+      "port_contract_sha256": "52704884b170d5cfde798103ef79293354037d7ba9c1847b12f9fb214b902267",
       "platform": "windows-x86-64",
       "url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.5.3/Sonic3KRecomp-windows-x64-v0.5.3.zip",
       "size": 16694619,
@@ -566,7 +566,7 @@
     },
     {
       "port_id": "resident-evil-gaiden-recomp",
-      "port_contract_sha256": "ff3c744fda0c93c6d42f6e9ace96835be42ffd576ea76cd295bf83ad7c8937ac",
+      "port_contract_sha256": "b116f50dc10e58ac37f15fb04527fce2660dafb9d049b86f4ce18b9674624b13",
       "platform": "windows-x86-64",
       "url": "https://github.com/sergiomanzur/regaiden-recomp/releases/download/v0.4.1/Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip",
       "size": 33085815,
@@ -583,7 +583,7 @@
     },
     {
       "port_id": "super-bomberman-recomp",
-      "port_contract_sha256": "5b7cbea162d172c58a110a75a7018f93ffcdeb6b9d9e62a88f09f4fc0733e7cf",
+      "port_contract_sha256": "4d4b8d7b858539b2e47cd7871d5359e8ac588d3764b730793703cc8f0ef489b6",
       "platform": "windows-x86-64",
       "url": "https://github.com/elliotttate/BombermanRecomp/releases/download/v0.1.1/BombermanRecomp-windows-x64-v0.1.1.zip",
       "size": 1245795,
@@ -602,7 +602,7 @@
   "original_conditions": [
     {
       "port_id": "mortal-kombat-4-recompiled",
-      "port_contract_sha256": "07ee2647f19defec5c8e745909e8b71af113244945d4adfdf735c4f479612c52",
+      "port_contract_sha256": "15521f7c3979c51ed98fa6169445b4148738c2b261dd971f2253bf092ff8d414",
       "provider": "github",
       "repository": "Alexbeav/mortal-kombat-4-recomp",
       "operation": "observe-availability",
@@ -610,11 +610,12 @@
       "reason": "provider-redirect",
       "redirect_repository_id": 1352192597,
       "evidence": "https://github.com/boburning/portcove/issues/247#issuecomment-6082358982",
-      "resume_condition": "Reconsider exact original-location evidence under #247/#139. Lineage, destination availability and accepted bytes remain unassessed; any changed condition requires review."
+      "resume_condition": "Reconsider exact original-location evidence under #247/#139. Lineage, destination availability and accepted bytes remain unassessed; any changed condition requires review.",
+      "role": "project"
     },
     {
       "port_id": "alexbeav-ape-escape-recomp",
-      "port_contract_sha256": "166e5c7bd33ac6dcbff3df33690203d84ef8d759795ad9fd0d7a784ffb5e03c9",
+      "port_contract_sha256": "e01b0e4420e27fa86ea256a45ec3a8a014444ff7a091ba138dab03b99a285fcf",
       "provider": "github",
       "repository": "Alexbeav/ape-escape-recomp",
       "operation": "observe-availability",
@@ -622,11 +623,12 @@
       "reason": "provider-redirect",
       "redirect_repository_id": 1352790768,
       "evidence": "https://github.com/boburning/portcove/issues/247#issuecomment-6082358982",
-      "resume_condition": "Reconsider exact original-location evidence under #247/#139. Lineage, destination availability and accepted bytes remain unassessed; any changed condition requires review."
+      "resume_condition": "Reconsider exact original-location evidence under #247/#139. Lineage, destination availability and accepted bytes remain unassessed; any changed condition requires review.",
+      "role": "project"
     },
     {
       "port_id": "alexbeav-alundra-recomp",
-      "port_contract_sha256": "7dd0be4a412611e8e1eb16ca0d9a57282b85b54ffde3f4af33a5b0dbf32c53c7",
+      "port_contract_sha256": "22d24ecb6256b115f476f307eda397219e13661c11eaa3b7cc35fbdc5e8708ea",
       "provider": "github",
       "repository": "Alexbeav/alundra-recomp",
       "operation": "observe-availability",
@@ -634,11 +636,12 @@
       "reason": "provider-redirect",
       "redirect_repository_id": 1352789184,
       "evidence": "https://github.com/boburning/portcove/issues/247#issuecomment-6082358982",
-      "resume_condition": "Reconsider exact original-location evidence under #247/#139. Lineage, destination availability and accepted bytes remain unassessed; any changed condition requires review."
+      "resume_condition": "Reconsider exact original-location evidence under #247/#139. Lineage, destination availability and accepted bytes remain unassessed; any changed condition requires review.",
+      "role": "project"
     },
     {
       "port_id": "star-fox-enhanced",
-      "port_contract_sha256": "af645a06d3e6ee1ff747e60bffe4bda936e256a25170263c0e697cb329eee6e5",
+      "port_contract_sha256": "21e56afc722928189d8cd0e8b87c06a5628acaa766cf039285a92f620da35c30",
       "provider": "github",
       "repository": "kandowontu/starfox-enhanced",
       "operation": "observe-availability",
@@ -646,8 +649,10 @@
       "reason": "inaccessible-or-missing",
       "redirect_repository_id": null,
       "evidence": "https://github.com/boburning/portcove/issues/247#issuecomment-6082358982",
-      "resume_condition": "Reconsider exact original-location evidence under #247/#139. Lineage, destination availability and accepted bytes remain unassessed; any changed condition requires review."
+      "resume_condition": "Recheck the retained historical acquisition repository and exact accepted release independently of the reviewed current project successor. The known original endpoint 404 does not recover historical bytes, clear holds, grant distribution authority or qualify another release.",
+      "role": "acquisition"
     }
   ],
-  "source_archives": []
+  "source_archives": [],
+  "input_version": 1
 }
