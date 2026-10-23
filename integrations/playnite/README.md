@@ -372,6 +372,18 @@ lifecycle qualification and packaging. Without both `-Cli` and an isolated
 Selecting only that unavailable consumer returns a failed aggregate because no
 scenario executed; listing names remains a successful metadata operation.
 
+Each scenario also carries its runner name, a per-invocation join ID, execution
+platform, process bitness and CLR version. The source identity explicitly hashes
+the executed contract assembly (`source.kind = compiled-contract-assembly`),
+rather than attributing an old binary to the current checkout. The same
+invocation ID and assembly digest join its passed, skipped and failed scenarios;
+independent runner processes receive different invocation IDs. Reporting identity
+failures use the existing failed-reporting path and cannot mask original failures
+or stop later independent scenarios. Controls compare the digest with the actual
+executable and reject changed join, source, platform, runner and runtime metadata.
+These are synthetic C# process contracts, with no Playnite-host, native-app or
+installed-package acceptance claim.
+
 Full contract checks also run separate intentional failure, continuation and
 reporting-failure controls. Their retained output has a `RUNNER_CONTROL_OUTPUT`
 or `RUNNER_REPORTING_CONTROL_OUTPUT` prefix; skipped-only controls use
