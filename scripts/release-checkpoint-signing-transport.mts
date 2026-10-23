@@ -17,6 +17,7 @@ export function createCheckpointSigningTransport(
   deadline: number,
   fetcher: typeof fetch = fetch,
   secrets: readonly string[] = [],
+  beforePost?: (stage: "fulcio" | "rekor") => Promise<void>,
 ) {
   const forbidden = [...secrets];
   if (
@@ -88,6 +89,10 @@ export function createCheckpointSigningTransport(
             }),
           ),
         );
+        // Custody can await/fsync. Recheck the owning journal/session/control
+        // boundary AFTER those writes, immediately before the provider POST.
+        remaining();
+        await beforePost?.(stage);
         const timeout = remaining();
         const controller = new AbortController();
         let timer: ReturnType<typeof setTimeout> | undefined;

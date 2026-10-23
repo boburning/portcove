@@ -39,6 +39,10 @@ export async function signCoordinatorCheckpointEvidence(
     fetcher?: typeof fetch;
     identity?: NonNullable<Parameters<typeof verifyCapacityExecutorJobIdentity>[3]>;
     createStore?: (directory: string) => Promise<AppRegistrationStore>;
+    /** Trusted coordinator callback, not an authority grant. The selected
+     * journal exchange supplies this to recheck its owned remote intent and
+     * current controls immediately before EACH irreversible provider POST. */
+    beforePost?: (stage: "fulcio" | "rekor") => Promise<void>;
   } = {},
 ) {
   // Everything the caller can retain is selected before the first await.
@@ -152,6 +156,11 @@ export async function signCoordinatorCheckpointEvidence(
       signingDeadline,
       selected.fetcher ?? fetch,
       [token, environment.ACTIONS_ID_TOKEN_REQUEST_TOKEN ?? ""].filter(Boolean),
+      async (stage) => {
+        requireCurrent();
+        await selected.beforePost?.(stage);
+        requireCurrent();
+      },
     );
     stage = "signing";
     const signed = await withPortcoveSigningTransport(
