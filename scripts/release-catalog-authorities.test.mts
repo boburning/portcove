@@ -256,6 +256,66 @@ void test("catalog OIDC control source is purpose-separated and retains existing
     /changed after ratification/,
   );
 });
+void test("selected full catalog controls retain actual fixed reader and isolated observer verification without a Classification App", async () => {
+  const f = runtime();
+  const configuration = selectedPublicationAuthoritiesFixture("catalog-publication");
+  const environment = {
+    ...f.environment,
+    PORTCOVE_CATALOG_AUTHORITIES: JSON.stringify(configuration),
+    PORTCOVE_CATALOG_CONTROLLER_ADMISSION: JSON.stringify({
+      ...f.policy,
+      authority_configuration_sha256: digest(configuration),
+    }),
+  };
+  const source = await authenticateCatalogReleaseControlSource(
+    environment,
+    f.actual.workflow,
+    f.actual.options,
+  );
+  requireAuthenticatedCatalogControlSource(source, "coordinator");
+  assert.throws(() => requireAuthenticatedReleaseControlSource(source, "coordinator"));
+  const facts = source.readMaintenance(f.control.api);
+  assert.equal(facts.purpose, "catalog-coordinator-controls");
+  assert.equal(facts.capacity_source.report.availability, "unknown");
+  assert.equal(facts.capacity_source.report.headroom, "unknown");
+  assert.equal(facts.capacity_source.report.reservation, "none");
+  assert.equal(facts.authority, "none");
+  for (const raw of [
+    configuration.journal,
+    selectedPublicationAuthoritiesFixture("application"),
+    { ...configuration, purpose: ["catalog-publication"] },
+    { ...configuration, journal: { ...configuration.journal, setup_plan_sha256: "f".repeat(64) } },
+  ]) {
+    await assert.rejects(
+      authenticateCatalogReleaseControlSource(
+        {
+          ...environment,
+          PORTCOVE_CATALOG_AUTHORITIES: JSON.stringify(raw),
+        },
+        f.actual.workflow,
+        f.actual.options,
+      ),
+    );
+  }
+  await assert.rejects(
+    authenticateCatalogReleaseControlSource(
+      {
+        ...environment,
+        GITHUB_JOB: "classification",
+      },
+      f.actual.workflow,
+      f.actual.options,
+    ),
+  );
+  f.actual.observerJob.head_sha = "f".repeat(40);
+  await assert.rejects(
+    authenticateCatalogReleaseControlSource(environment, f.actual.workflow, f.actual.options),
+    /observer/,
+  );
+  f.actual.observerJob.head_sha = f.actual.policy.revision;
+  f.actual.advance(60_001);
+  assert.throws(() => source.readMaintenance(f.control.api), /protection inventory unavailable/);
+});
 void test("catalog live controls reject application-coverage observations rather than requiring its classification ref", async () => {
   const oldAppObservation = runtime(false);
   await assert.rejects(
