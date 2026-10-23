@@ -177,12 +177,31 @@ function requiredFixture<T>(value: T | null | undefined): T {
 }
 
 void test("listener lifetime helper selects its actual callback cleanup regression", () => {
-  const helper = "apps/desktop/scripts/desktop-listener-lifetime-test.mts";
-  const selection = classifyChanges([{ status: "M", path: helper }], {
-    fileExists: () => false,
-  });
-  assert.ok(selection.nodeTests.has("scripts/desktop-listener-probe.test.mts"));
-  assert.ok(!selection.unknown.has(helper));
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  for (const helper of [
+    "apps/desktop/scripts/desktop-listener-lifetime-test.mts",
+    "apps/desktop/scripts/desktop-listener-lifetime-probe.mts",
+  ]) {
+    const selection = classifyChanges([{ status: "M", path: helper }], {
+      fileExists: () => false,
+    });
+    assert.ok(selection.nodeTests.has("scripts/desktop-listener-probe.test.mts"));
+    assert.ok(!selection.unknown.has(helper));
+    assert.ok(selection.uiRelatedFiles.has(helper));
+    const commands = buildPlan(selection);
+    assert.ok(
+      commands
+        .find((entry) => entry.id === "node-tests")
+        ?.args.includes("scripts/desktop-listener-probe.test.mts"),
+    );
+    assert.ok(
+      commands
+        .find((entry) => entry.id === "ui-related-tests")
+        ?.args.includes(path.resolve(root, helper)),
+    );
+    if (helper.endsWith("desktop-listener-lifetime-probe.mts"))
+      assert.ok(selection.nodeTests.has("scripts/desktop-execution-plan.test.mts"));
+  }
   assert.ok(!classifyChanges([]).nodeTests.has("scripts/desktop-listener-probe.test.mts"));
 });
 

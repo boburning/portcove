@@ -1,18 +1,11 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
-import { stripTypeScriptTypes } from "node:module";
 
-const source = stripTypeScriptTypes(
-  await readFile(
-    new URL("../apps/desktop/scripts/desktop-listener-lifetime-test.mts", import.meta.url),
-    "utf8",
-  ),
-);
-const marker = "function install(";
-assert.equal(source.indexOf(marker), source.lastIndexOf(marker));
-assert.ok(source.indexOf(marker) > 0);
+import {
+  activateManualRefresh,
+  installListenerLifetimeProbe,
+} from "../apps/desktop/scripts/desktop-listener-lifetime-probe.mts";
 
 void test("manual refresh arms only an idle unique visible owner and activates it in the same turn", () => {
   const calls: string[] = [];
@@ -42,28 +35,23 @@ void test("manual refresh arms only an idle unique visible owner and activates i
         : [button];
     },
   };
-  const activation = "function activateManualRefresh(";
-  assert.equal(source.indexOf(activation), source.lastIndexOf(activation));
-  const raw: unknown = runInNewContext(
-    source.slice(source.indexOf(activation), source.indexOf(marker)) + "\nactivateManualRefresh",
-    {
-      document: {
-        querySelectorAll(selector: string) {
-          assert.equal(selector, '[role="status"][aria-busy="false"]');
-          return busy ? [] : duplicates ? [notice, notice] : [notice];
-        },
+  const raw: unknown = runInNewContext(`(${activateManualRefresh.toString()})`, {
+    document: {
+      querySelectorAll(selector: string) {
+        assert.equal(selector, '[role="status"][aria-busy="false"]');
+        return busy ? [] : duplicates ? [notice, notice] : [notice];
       },
-      window: {
-        probe: {
-          armRefresh() {
-            calls.push("arm");
-          },
-        },
-      },
-      HTMLButtonElement: Button,
-      getComputedStyle: () => ({ display: "inline-flex", visibility }),
     },
-  );
+    window: {
+      probe: {
+        armRefresh() {
+          calls.push("arm");
+        },
+      },
+    },
+    HTMLButtonElement: Button,
+    getComputedStyle: () => ({ display: "inline-flex", visibility }),
+  });
   assert.equal(typeof raw, "function");
   const activate = raw as (key: string) => boolean;
   assert.equal(activate("probe"), false);
@@ -123,17 +111,14 @@ for (const outcome of ["ok", "error"])
         ),
     };
     const original = window.fetch;
-    const rawInstall: unknown = runInNewContext(
-      `${source.slice(source.indexOf(marker))}\ninstall`,
-      {
-        window,
-        Headers,
-        Response,
-        TextDecoder,
-        setTimeout,
-        Map,
-      },
-    );
+    const rawInstall: unknown = runInNewContext(`(${installListenerLifetimeProbe.toString()})`, {
+      window,
+      Headers,
+      Response,
+      TextDecoder,
+      setTimeout,
+      Map,
+    });
     assert.ok(typeof rawInstall === "function");
     const install = rawInstall as (key: string, reviewed: string, currentRoot: string) => void;
     install("probe", "owned-reviewed", "owned-current");

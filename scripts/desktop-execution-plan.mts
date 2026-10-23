@@ -273,6 +273,7 @@ export function planDesktopExecution(
     inputs.push(receiptSource(new URL("./desktop-review-controls.mts", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-native-confirmation.mts", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-listener-lifetime-test.mts", harnessUrl)));
+    inputs.push(receiptSource(new URL("./desktop-listener-lifetime-probe.mts", harnessUrl)));
   }
   if (selection.selected_scenarios.includes("native-library-browsing-context")) {
     for (const name of ["desktop-native-confirmation.mts"]) {
