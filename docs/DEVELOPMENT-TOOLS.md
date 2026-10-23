@@ -769,8 +769,12 @@ The Linux package-ownership rehearsal gives its packaging-prerequisite APT insta
 a finite 600-second budget within a 30-minute step. The longer step covers the
 existing bounded index/mirror fallback and cleanup; an interrupted install still
 refuses a retry. Package/runtime assertions and the 45-minute build-job limit
-remain unchanged. A pass under this budget establishes completion, not a mirror
-performance improvement.
+remain unchanged. This disposable rehearsal opts into the helper's Ubuntu
+archive mirror before installation, avoiding the observed slow Azure route;
+other callers keep their configured-mirror default. The helper rewrites only
+the exact Azure host and Ubuntu root in the selected Ubuntu source and runner
+mirror list. A pass establishes completion, not a measured mirror performance
+improvement.
 The hosted native prerequisite selects `native-drivers` to avoid provisioning unrelated
 development tools. It preserves driver pin/hash receipts, Microsoft Authenticode-before-execution,
 actual runtime matching, cache promotion and the selected doctor's readback. Its

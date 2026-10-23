@@ -1086,7 +1086,7 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
   assert.match(updaterRehearsal, /work\/updater-rehearsal\/linux-host-baseline\.txt/g);
   assert.match(
     packageOwnershipRehearsal,
-    /timeout-minutes: 30\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh --include-rpm --install-timeout-seconds=600/,
+    /timeout-minutes: 30\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh --include-rpm --install-timeout-seconds=600 --prefer-archive-mirror/,
   );
   for (const hostedWorkflow of [
     workflow,
@@ -1133,8 +1133,8 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
     /install_from_current_mirror "the archive mirror fallback" 4m "\$fallback_install_deadline"/,
   );
   assert.ok(
-    installer.indexOf('"the runner-configured mirror"') <
-      installer.indexOf("archive.ubuntu.com/ubuntu"),
+    installer.indexOf('if install_from_current_mirror "the runner-configured mirror"') <
+      installer.indexOf('echo "Retrying Linux desktop prerequisites'),
   );
   assert.match(installer, /--include-rpm\) packages\+=\(rpm\)/);
   assert.match(installer, /VERSION_ID:-} == 24\.04[\s\S]*fuse_package=libfuse2t64/);
