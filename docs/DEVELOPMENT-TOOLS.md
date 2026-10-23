@@ -100,7 +100,10 @@ signing, publication or destructive operations.
 
 Use `just test-ui FILES` for literal test files. It validates every path before
 execution and reconciles requested files with Vitest's executed report. A successful
-partial match is a failure; skip counts are reported separately. Use
+partial match or an unexpectedly wholly skipped file is a failure. Individual
+skipped tests are reported separately. The disabled intentional browser-failure
+probe has one explicit file-level skip reason; enabling the probe removes that
+permission, and a selection with no runnable tests always fails. Use
 `just test-ui-related FILES` for source files and import-graph coverage instead.
 Both routes retain the existing isolation, timing and resource contracts.
 Use the literal-file wrapper rather than direct Vitest filename filters, which
@@ -1036,10 +1039,14 @@ under `work/browser-cache`, then launches it to verify the result. A warm invoca
 rechecks the same artifact. `test:browser` checks the existing binary and never
 downloads one. It runs Vitest Browser Mode with a Chromium instance and the
 selected bundle's scheduling and timeout defaults. Playwright traces stay in a per-run directory under
-`work/bt` when a run fails. Successful runs remove only their own raw
-trace directory. Failure screenshots share that invocation's namespace; Vitest
-attachments may also remain in `apps/desktop/.vitest`. Both locations are ignored
-by Git and retained for diagnosis. Repeated runs preserve earlier failure files.
+`work/bt` when a run fails. Failure screenshots share that invocation's namespace;
+Vitest attachments may also remain in `apps/desktop/.vitest`. Both locations are
+ignored by Git and retained for diagnosis. Repeated runs preserve earlier failure
+files. Raw provider traces also remain after successful runs: reporter completion
+precedes browser shutdown, and the pinned runner's close hook can run after a
+shutdown failure. Reclaim these files only through an explicit owned-path cleanup
+decision after confirming that their owning process has exited; the Cargo target
+cleanup command does not manage browser traces.
 In CI, the fast and full
 frontend lanes run the explicit bootstrap before browser tests and upload failure
 artifacts. The intentional failure probe is

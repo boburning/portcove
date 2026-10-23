@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { requireNodeTestInventory } from "./node-test-inventory.mts";
+import { createBrowserTraceRun } from "./browser-traces.ts";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import type {
   SpawnOptions,
@@ -2390,6 +2391,102 @@ void test("full frontend qualification provisions browser artifacts before compo
     assert.doesNotMatch(upload, /^ +work\/bt\r?$/m);
   }
 });
+
+void test("browser uploads select the actual trace and screenshot output layout", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-browser-upload-layout-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const run = createBrowserTraceRun(root);
+  await mkdir(run.screenshotDirectory, { recursive: true });
+  const trace = path.join(run.directory, "failure.trace.zip");
+  const screenshot = path.join(run.screenshotDirectory, "failure.png");
+  await writeFile(trace, "owned layout fixture, not an executed browser trace");
+  await writeFile(screenshot, "owned screenshot layout fixture");
+  const files = [trace, screenshot].map((file) => path.relative(root, file).replaceAll("\\", "/"));
+  const document = parseDocument(workflow, { uniqueKeys: true });
+  assert.deepEqual(document.errors, []);
+  const parsed: unknown = document.toJS();
+  assert.ok(isRecord(parsed) && isRecord(parsed.jobs));
+  for (const id of ["fast_frontend", "frontend_full", "frontend_portability"]) {
+    const job = parsed.jobs[id];
+    assert.ok(isRecord(job) && Array.isArray(job.steps));
+    const upload: unknown = job.steps.find(
+      (step: unknown) =>
+        isRecord(step) &&
+        isRecord(step.with) &&
+        typeof step.with.name === "string" &&
+        step.with.name.startsWith("browser-traces-"),
+    );
+    assert.ok(isRecord(upload) && isRecord(upload.with) && typeof upload.with.path === "string");
+    const patterns = upload.with.path
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    for (const file of files)
+      assert.ok(
+        patterns.some((pattern) => path.posix.matchesGlob(file, pattern)),
+        `${id} does not upload the actual output ${file}`,
+      );
+    const withoutScreenshots = patterns.filter(
+      (pattern) => !path.posix.matchesGlob(files[1]!, pattern),
+    );
+    assert.ok(withoutScreenshots.some((pattern) => path.posix.matchesGlob(files[0]!, pattern)));
+    assert.ok(!withoutScreenshots.some((pattern) => path.posix.matchesGlob(files[1]!, pattern)));
+  }
+});
+
+for (const closeFails of [false, true]) {
+  void test(`a passing run retains raw traces after ${closeFails ? "failed" : "successful"} pool shutdown`, async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-browser-close-control-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const run = createBrowserTraceRun(root);
+    const { createVitest } = await import("vite-plus/test/node");
+    const runner = await createVitest({
+      root,
+      config: false,
+      watch: false,
+      reporters: [run.reporter],
+    });
+    const originalExitCode = process.exitCode;
+    const originalLogger = runner.logger.error;
+    const diagnostics: unknown[][] = [];
+    runner.logger.error = (...args: unknown[]) => {
+      diagnostics.push(args);
+    };
+    try {
+      await runner.standalone();
+      await mkdir(run.directory, { recursive: true });
+      const raw = path.join(run.directory, "provider.trace");
+      await writeFile(raw, "pending browser trace");
+      await run.reporter.onTestRunEnd?.([], [], "passed");
+      const failure = new Error("owned pool-close failure control");
+      let closed = false;
+      // Fault injection uses the pinned runner's real close implementation.
+      // Its pool is private; production code never replaces or observes it.
+      Reflect.set(runner, "pool", {
+        async close() {
+          assert.equal(await readFile(raw, "utf8"), "pending browser trace");
+          await writeFile(raw, "browser shutdown flushed its final trace chunk");
+          closed = true;
+          if (closeFails) throw failure;
+        },
+      });
+      await runner.close();
+      assert.equal(closed, true);
+      if (closeFails) {
+        assert.equal(process.exitCode, 1);
+        assert.ok(diagnostics.some((args) => args.includes(failure)));
+      } else {
+        assert.equal(process.exitCode, originalExitCode);
+        assert.deepEqual(diagnostics, []);
+      }
+      assert.equal(await readFile(raw, "utf8"), "browser shutdown flushed its final trace chunk");
+    } finally {
+      await runner.close();
+      runner.logger.error = originalLogger;
+      process.exitCode = originalExitCode;
+    }
+  });
+}
 
 void test("frontend tools resolve through the pinned Vite+ bundle", async () => {
   const manifest: unknown = JSON.parse(
