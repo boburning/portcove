@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "vite-plus/test";
 import { createVitest } from "vite-plus/test/node";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { createBrowserTraceRun } from "../../../scripts/browser-traces.ts";
@@ -12,7 +20,57 @@ import {
   probeName,
   verifyProbeResult,
   closeProbeRunner,
+  createProbeArtifactReader,
 } from "./browser-trace-probe.mts";
+
+test("artifact reads reject missing, empty, oversized, foreign and replaced output roots", () => {
+  const parent = mkdtempSync(path.join(os.tmpdir(), "portcove-probe-read-"));
+  const root = path.join(parent, "run");
+  mkdirSync(root);
+  const file = path.join(root, "report.json");
+  const foreign = path.join(parent, "foreign.json");
+  writeFileSync(file, "abc");
+  writeFileSync(foreign, "external bytes");
+  const reader = createProbeArtifactReader(root);
+  try {
+    assert.equal(reader.read(file, 3).toString(), "abc");
+    assert.throws(() => reader.read(file, 2), /oversized/u);
+    assert.throws(() => reader.read(foreign, 32), /outside/u);
+    assert.throws(() => reader.read(file, 0), /limit/u);
+    assert.throws(() => reader.read(path.join(root, "missing.json"), 32));
+    writeFileSync(file, "");
+    assert.throws(() => reader.read(file, 32), /empty/u);
+    renameSync(root, path.join(parent, "original"));
+    mkdirSync(root);
+    writeFileSync(path.join(root, "report.json"), "replacement");
+    assert.throws(() => reader.list(), /changed identity/u);
+    assert.throws(() => reader.read(path.join(root, "report.json"), 32), /changed identity/u);
+    assert.equal(readFileSync(foreign, "utf8"), "external bytes");
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("redirecting the run root refuses stale artifacts and preserves the external target", () => {
+  const parent = mkdtempSync(path.join(os.tmpdir(), "portcove-probe-redirect-"));
+  const root = path.join(parent, "run");
+  const external = path.join(parent, "external");
+  mkdirSync(root);
+  mkdirSync(external);
+  const marker = path.join(external, "report.json");
+  writeFileSync(marker, "external stale artifact");
+  const reader = createProbeArtifactReader(root);
+  try {
+    renameSync(root, path.join(parent, "original"));
+    symlinkSync(external, root, "junction");
+    assert.throws(() => reader.list(), /changed identity/u);
+    assert.throws(() => reader.read(path.join(root, "report.json"), 128), /changed identity/u);
+    assert.throws(() => createProbeArtifactReader(root), /Invalid/u);
+    assert.equal(readFileSync(marker, "utf8"), "external stale artifact");
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
 
 test("a swallowed pinned-runner pool-close failure cannot satisfy the expected assertion failure", async () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "portcove-probe-close-"));
@@ -113,6 +171,16 @@ test("only the exact intentional assertion failure satisfies the diagnostic", ()
   const wrong = result();
   wrong.testResults[0]!.assertionResults[0]!.failureMessages = ["browser unavailable"];
   assert.throws(() => verifyProbeResult(1, wrong, completed()));
+  for (const message of [
+    `TypeError: ${probeFailure}`,
+    `Error: browser startup failed: ${probeFailure}`,
+    `AssertionError: prefix ${probeFailure}`,
+    `AssertionError: ${probeFailure} suffix`,
+  ]) {
+    const wrongIdentity = result();
+    wrongIdentity.testResults[0]!.assertionResults[0]!.failureMessages = [message];
+    assert.throws(() => verifyProbeResult(1, wrongIdentity, completed()), message);
+  }
   const skipped = result();
   skipped.testResults[0]!.assertionResults[0]!.status = "pending";
   assert.throws(() => verifyProbeResult(1, skipped, completed()));

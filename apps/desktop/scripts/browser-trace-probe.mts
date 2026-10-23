@@ -1,9 +1,92 @@
 import { crc32, inflateRawSync } from "node:zlib";
+import {
+  closeSync,
+  constants,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readSync,
+  readdirSync,
+  realpathSync,
+} from "node:fs";
+import path from "node:path";
 import { inspectBoundedZip } from "../../../scripts/bounded-zip.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 
 export const probeName = "retains an intentional browser UI failure trace";
 export const probeFailure = "PORTCOVE_EXPECTED_BROWSER_TRACE_FAILURE";
+
+/** Bind fresh output custody before launch; a redirected or replaced run cannot
+ * supply artifacts. Reads keep their byte bound even if a file changes. */
+export function createProbeArtifactReader(directory: string) {
+  const physical = realpathSync(directory);
+  const original = lstatSync(directory, { bigint: true });
+  if (!original.isDirectory() || original.isSymbolicLink())
+    throw new Error("Invalid browser probe run root");
+  const verify = () => {
+    const current = lstatSync(directory, { bigint: true });
+    if (
+      !current.isDirectory() ||
+      current.isSymbolicLink() ||
+      current.dev !== original.dev ||
+      current.ino !== original.ino ||
+      realpathSync(directory) !== physical
+    )
+      throw new Error("Browser probe run root changed identity");
+  };
+  return {
+    list: () => {
+      verify();
+      return readdirSync(directory, { recursive: true, withFileTypes: true });
+    },
+    read: (file: string, limit: number) => {
+      verify();
+      if (!Number.isSafeInteger(limit) || limit < 1 || limit > 16 * 1024 * 1024)
+        throw new Error("Invalid browser probe read limit");
+      const expected = lstatSync(file, { bigint: true });
+      const relative = path.relative(physical, realpathSync(file));
+      if (
+        !expected.isFile() ||
+        expected.size < 1n ||
+        expected.size > BigInt(limit) ||
+        path.isAbsolute(relative) ||
+        relative === ".." ||
+        relative.startsWith(`..${path.sep}`)
+      )
+        throw new Error("Browser probe artifact is empty, oversized or outside its run");
+      const handle = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+      try {
+        const opened = fstatSync(handle, { bigint: true });
+        if (
+          !opened.isFile() ||
+          opened.dev !== expected.dev ||
+          opened.ino !== expected.ino ||
+          opened.size !== expected.size
+        )
+          throw new Error("Browser probe artifact changed before read");
+        const bytes = Buffer.allocUnsafe(limit + 1);
+        let length = 0;
+        while (length < bytes.length) {
+          const count = readSync(handle, bytes, length, bytes.length - length, null);
+          if (!count) break;
+          length += count;
+        }
+        const after = fstatSync(handle, { bigint: true });
+        verify();
+        if (
+          length !== Number(opened.size) ||
+          length > limit ||
+          after.size !== opened.size ||
+          after.mtimeNs !== opened.mtimeNs
+        )
+          throw new Error("Browser probe artifact changed during bounded read");
+        return bytes.subarray(0, length);
+      } finally {
+        closeSync(handle);
+      }
+    },
+  };
+}
 
 /** Pinned Vitest records swallowed teardown errors through process.exitCode. */
 export async function closeProbeRunner(runner: { close(): Promise<unknown> }) {
@@ -53,7 +136,7 @@ export function verifyProbeResult(status: number | null, report: unknown, outcom
     !Array.isArray(assertion.failureMessages) ||
     assertion.failureMessages.length !== 1 ||
     typeof assertion.failureMessages[0] !== "string" ||
-    !assertion.failureMessages[0].includes(probeFailure) ||
+    assertion.failureMessages[0].split(/\r?\n/u)[0] !== `AssertionError: ${probeFailure}` ||
     (Array.isArray(report.unhandledErrors) && report.unhandledErrors.length !== 0)
   )
     throw new Error("Browser probe assertion differs or has unhandled errors");

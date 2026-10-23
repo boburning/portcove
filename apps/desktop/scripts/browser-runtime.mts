@@ -1,16 +1,14 @@
 import { resourceEntrypoint } from "../../../scripts/resource-command.mts";
-import {
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  lstatSync,
-  realpathSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolvePhysicalPath, spawnCommand } from "../../../scripts/dev-storage.mts";
-import { closeProbeRunner, inspectProbeTrace, verifyProbeResult } from "./browser-trace-probe.mts";
+import {
+  closeProbeRunner,
+  createProbeArtifactReader,
+  inspectProbeTrace,
+  verifyProbeResult,
+} from "./browser-trace-probe.mts";
 
 const desktop = fileURLToPath(new URL("../", import.meta.url));
 const root = path.resolve(desktop, "../..");
@@ -75,6 +73,7 @@ async function probeBrowserTrace() {
     throw new Error(`Browser trace run resolves outside the trace root: ${traceRun}`);
   }
   process.env.PORTCOVE_BROWSER_TRACE_DIR = traceRun;
+  const artifacts = createProbeArtifactReader(traceRun);
   const reportFile = path.join(traceRun, "result.json");
   const { createVitest } = await import("vite-plus/test/node");
   const runner = await createVitest({
@@ -98,18 +97,8 @@ async function probeBrowserTrace() {
     // of rejecting close(). Keep that result distinct from the expected failure.
     await closeProbeRunner(runner);
   }
-  const files = readdirSync(traceRun, { recursive: true, withFileTypes: true });
-  const read = (file: string, limit: number) => {
-    const stat = lstatSync(file);
-    if (!stat.isFile() || stat.size < 1 || stat.size > limit)
-      throw new Error("Browser probe artifact is empty, oversized or not a regular file");
-    const relative = path.relative(resolvePhysicalPath(traceRun), realpathSync(file));
-    if (path.isAbsolute(relative) || relative === ".." || relative.startsWith(`..${path.sep}`))
-      throw new Error("Browser probe artifact resolves outside its run");
-    const bytes = readFileSync(file);
-    if (bytes.length !== stat.size) throw new Error("Browser probe artifact changed during read");
-    return bytes;
-  };
+  const files = artifacts.list();
+  const read = artifacts.read;
   const outcomes = files.filter((file) => file.isFile() && file.name === "run-outcome.json");
   if (outcomes.length !== 1) throw new Error("Browser probe has no unique runner outcome");
   const outcome = outcomes[0]!;
