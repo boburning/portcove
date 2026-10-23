@@ -10,6 +10,7 @@ import { isRecord } from "./runtime-values.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
 import { coordinatorCheckpointUpdates } from "./release-coordinator-checkpoint-evidence.mts";
 import type { exportCoordinatorCheckpoint } from "./release-coordinator-state.mts";
+import { withCoordinatorReadback } from "./release-coordinator-deadline.mts";
 
 /** Credential transport only. The existing remote verifier owns repository,
  * namespace, object and CAS checks; this API grants no caller/job authority.
@@ -123,7 +124,10 @@ export function createCheckpointJobTokenApi(
         isDeepStrictEqual(variables, { id: nodeId, ...refs });
       if (initial || snapshot) {
         admit(snapshot);
-        const result = api.graphql(query, variables);
+        const result =
+          snapshot && casAttempted
+            ? withCoordinatorReadback(deadline, () => api.graphql(query, variables))
+            : api.graphql(query, variables);
         const node = isRecord(result.data) ? result.data[initial ? "repository" : "node"] : null;
         if (
           !isRecord(node) ||
@@ -184,11 +188,105 @@ export function createCheckpointJobTokenApi(
   };
 }
 
+/** Separate read-only history collection. Its nine requests cover two current
+ * head/intent observations, six retained-proof reads and one role-selection
+ * lookup. Signature/job verification retain their own existing bounds under
+ * this SAME original deadline; these reads do not renew an exchange budget. */
+export function createCheckpointHistoryReader(
+  directory: string,
+  expected: string,
+  configuration: unknown,
+  deadline: number,
+) {
+  const scope = inspectCoordinatorRemoteNamespace(configuration);
+  if (
+    !/^[a-f0-9]{40}$/u.test(expected) ||
+    !Number.isFinite(deadline) ||
+    deadline <= performance.now() ||
+    deadline - performance.now() > 120000
+  )
+    throw new Error("history reader requires exact checkpoint and original bounded deadline");
+  const remaining = () => {
+    const timeout = Math.floor(Math.min(15000, deadline - performance.now()));
+    if (timeout < 1) throw new Error("history reader original deadline exhausted");
+    return timeout;
+  };
+  const token = process.env.GH_TOKEN;
+  if (!token) throw new Error("fixed-job history credential unavailable");
+  const transport = isolatedJournalClient(directory, token, remaining, remaining, true);
+  const proofQuery =
+    'query($name:String!){repository(owner:"boburning",name:"portcove"){databaseId nameWithOwner ref(qualifiedName:$name){name prefix target{__typename oid}}}}';
+  const headQuery =
+    'query($state:String!,$intent:String!){repository(owner:"boburning",name:"portcove"){databaseId nameWithOwner state:ref(qualifiedName:$state){name prefix target{__typename oid}} intent:ref(qualifiedName:$intent){name prefix target{__typename oid}}}}';
+  const names = {
+    state: `refs/heads/${scope}-coordinator-state`,
+    intent: `refs/tags/${scope}-checkpoint-intent/${expected}`,
+  };
+  let requests = 0;
+  const admit = () => {
+    remaining();
+    if (++requests > 9) throw new Error("history reader request bound exhausted");
+  };
+  const api: CoordinatorRemoteApi = {
+    request(method, endpoint, body) {
+      if (
+        method !== "GET" ||
+        body !== undefined ||
+        !/^repos\/boburning\/portcove\/(?:git\/(?:commits|trees|blobs)\/[a-f0-9]{40}|actions\/jobs\/[1-9][0-9]{0,15})$/u.test(
+          endpoint,
+        )
+      )
+        throw new Error("history reader permits only fixed repository GET evidence");
+      admit();
+      return transport.request(method, endpoint);
+    },
+    graphql(query, variables) {
+      if (
+        !(
+          (query === headQuery && isDeepStrictEqual(variables, names)) ||
+          (query === proofQuery &&
+            isDeepStrictEqual(variables, {
+              name: `refs/tags/${scope}-checkpoint-proof/${expected}`,
+            }))
+        )
+      )
+        throw new Error("history reader permits only exact head/intent/proof observations");
+      admit();
+      return transport.graphql(query, variables);
+    },
+  };
+  return {
+    api,
+    assertCurrentUnclaimedHead() {
+      const result = api.graphql(headQuery, names);
+      const repository =
+        isRecord(result.data) && isRecord(result.data.repository) ? result.data.repository : null;
+      const state = repository && isRecord(repository.state) ? repository.state : null;
+      if (
+        !repository ||
+        repository.databaseId !== 1354613114 ||
+        repository.nameWithOwner !== "boburning/portcove" ||
+        !state ||
+        `${String(state.prefix)}${String(state.name)}` !== names.state ||
+        !isRecord(state.target) ||
+        state.target.__typename !== "Commit" ||
+        state.target.oid !== expected ||
+        repository.intent !== null
+      )
+        throw new Error(
+          "current journal head or pending intent changed; explicit readback/recovery required",
+        );
+      return { checkpoint: expected, requests, authority: "none" as const };
+    },
+  };
+}
+
 function isolatedJournalClient(
   directory: string,
   token: unknown,
   remaining: () => number,
   afterCall?: () => number,
+  allowHistoricalJobRead = false,
 ): CoordinatorRemoteApi {
   if (
     typeof token !== "string" ||
@@ -269,9 +367,14 @@ function isolatedJournalClient(
   return {
     request(method, endpoint, body) {
       if (
-        !/^repos\/boburning\/portcove(?:\/git\/(?:blobs|trees|commits)(?:\/[a-f0-9]{40})?)?$/u.test(
+        (!/^repos\/boburning\/portcove(?:\/git\/(?:blobs|trees|commits)(?:\/[a-f0-9]{40})?)?$/u.test(
           endpoint,
-        ) ||
+        ) &&
+          !(
+            allowHistoricalJobRead &&
+            method === "GET" &&
+            /^repos\/boburning\/portcove\/actions\/jobs\/[1-9][0-9]{0,15}$/u.test(endpoint)
+          )) ||
         !["GET", "POST"].includes(method) ||
         (method === "POST" &&
           !/^repos\/boburning\/portcove\/git\/(?:blobs|trees|commits)$/u.test(endpoint))

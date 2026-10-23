@@ -8,13 +8,24 @@ import { readFileSync } from "node:fs";
 import childProcess from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
-import { checkpointProofFixture } from "./fixtures/checkpoint-proof-fixture.mts";
+import {
+  checkpointProofFixture,
+  fixedJobJournalAuthoritiesFixture,
+} from "./fixtures/checkpoint-proof-fixture.mts";
 import { verifyHistoricalCheckpointJob } from "./release-checkpoint-job-identity.mts";
 import {
   authenticateCoordinatorCheckpointEvidence,
   requireAuthenticatedCheckpointEvidence,
+  authenticateFixedJobCoordinatorHistory,
 } from "./release-coordinator-checkpoint-authentication.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import { inspectCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
+import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import { releaseCanonicalDigest } from "./release-canonical.mts";
+import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
+import { createHash } from "node:crypto";
+import { createCheckpointHistoryReader } from "./release-coordinator-journal-api.mts";
+import { isRecord } from "./runtime-values.mts";
 
 async function root(t: test.TestContext) {
   const directory = await mkdtemp(path.join(os.tmpdir(), "checkpoint-authentication-"));
@@ -402,5 +413,286 @@ for (const fault of [
       assert.equal(result.requests, fault === "cap" ? 19 : 5);
     } else assert.throws(run, /historical checkpoint/);
     assert.ok(pages <= 16);
+  });
+}
+
+void test("selected empty seed requires exact setup bytes, modern capacity contract and no reservation/effects", async (t) => {
+  const directory = await root(t),
+    authorities = fixedJobJournalAuthoritiesFixture(),
+    f = checkpointProofFixture();
+  const input = {
+    schema_version: 2,
+    active_candidate: null,
+    controller: { capacity_attempt: { ...capacityFixture(), schema_version: 2 } },
+  };
+  const checkpoint = {
+    ...f.checkpoint,
+    previous: null,
+    blob: {
+      ...f.checkpoint.blob,
+      contents: JSON.stringify({ schema_version: 1, previous: null, input }),
+    },
+  };
+  authorities.journal_seed = {
+    checkpoint: checkpoint.checkpoint,
+    state_sha256: createHash("sha256").update(checkpoint.blob.contents).digest("hex"),
+  };
+  const api: CoordinatorRemoteApi = {
+    request() {
+      assert.fail("seed has no provider proof lookup");
+    },
+    graphql() {
+      assert.fail("head is separately checked by owner");
+    },
+  };
+  const source = {
+    revision: f.producer.controller_revision,
+    execution_ref: f.producer.controller_ref,
+    workflow_sha256: f.producer.workflow_sha256,
+    actor_id: f.producer.actor_id,
+  };
+  const result = await authenticateFixedJobCoordinatorHistory(
+    directory,
+    checkpoint,
+    authorities,
+    source,
+    performance.now() + 60000,
+    api,
+  );
+  assert.equal(result.kind, "ratified-initial-seed");
+  const changed = [
+    { ...checkpoint, previous: "a".repeat(40) },
+    { ...checkpoint, blob: { ...checkpoint.blob, contents: checkpoint.blob.contents + " " } },
+  ];
+  for (const value of changed)
+    await assert.rejects(
+      authenticateFixedJobCoordinatorHistory(
+        directory,
+        value,
+        authorities,
+        source,
+        performance.now() + 60000,
+        api,
+      ),
+      /seed/,
+    );
+  for (const value of [
+    { ...input, active_candidate: { version: "0.1.0" } },
+    {
+      ...input,
+      controller: {
+        capacity_attempt: { ...input.controller.capacity_attempt, prior_operations: [{}] },
+      },
+    },
+    { ...input, schema_version: 1, controller: { free_capacity_available: true } },
+  ]) {
+    const seeded = {
+      ...checkpoint,
+      blob: { ...checkpoint.blob, contents: JSON.stringify({ input: value }) },
+    };
+    const appointed = {
+      ...authorities,
+      journal_seed: {
+        checkpoint: seeded.checkpoint,
+        state_sha256: createHash("sha256").update(seeded.blob.contents).digest("hex"),
+      },
+    };
+    await assert.rejects(
+      authenticateFixedJobCoordinatorHistory(
+        directory,
+        seeded,
+        appointed,
+        source,
+        performance.now() + 60000,
+        api,
+      ),
+      /seed/,
+    );
+  }
+});
+
+for (const fault of [
+  "",
+  "catalog-history",
+  "source",
+  "setup",
+  "role",
+  "issuer",
+  "job",
+  "changed-proof",
+]) {
+  void test(`selected retained history ${fault || "authenticates exact fixed-source job"} never falls back to unsigned seed`, async (t) => {
+    const directory = await root(t),
+      authorities = fixedJobJournalAuthoritiesFixture();
+    const f = checkpointProofFixture(
+      undefined,
+      undefined,
+      {
+        configuration_sha256: releaseCanonicalDigest(authorities),
+        run_attempt: 1,
+      },
+      fault === "catalog-history" ? "catalog-definitions" : "coordinator",
+    );
+    const source = {
+      revision: f.producer.controller_revision,
+      execution_ref: f.producer.controller_ref,
+      workflow_sha256: f.producer.workflow_sha256,
+      actor_id: f.producer.actor_id,
+    };
+    if (fault === "source") source.revision = "e".repeat(40);
+    if (fault === "setup") authorities.setup_plan_sha256 = "e".repeat(64);
+    if (fault === "issuer") f.verification.signature.certificate.issuer = "https://wrong.invalid";
+    if (fault === "job") f.faults.value = "changed-job";
+    const objects = inspectCoordinatorCheckpointEvidence(f.checkpoint, f.configuration, f.evidence);
+    const values = new Map<string, unknown>(
+      objects.objects.map((object) => {
+        const body = object.body;
+        const value =
+          object.kind === "blobs" && "content" in body
+            ? { sha: object.oid, ...body, size: Buffer.from(body.content, "base64").length }
+            : object.kind === "trees"
+              ? { sha: object.oid, ...body, truncated: false }
+              : { sha: object.oid, ...body, tree: { sha: "tree" in body ? body.tree : "" } };
+        return [`repos/boburning/portcove/git/${object.kind}/${object.oid}`, value] as const;
+      }),
+    );
+    let snapshots = 0,
+      proofSnapshots = 0,
+      reads = 0,
+      verifies = 0;
+    const api: CoordinatorRemoteApi = {
+      request(method, endpoint) {
+        assert.equal(method, "GET");
+        reads++;
+        if (endpoint.endsWith("/actions/jobs/501"))
+          return {
+            status: 200,
+            headers: new Map(),
+            body: { ...f.job, name: fault === "role" ? "Generic Actions job" : f.job.name },
+          };
+        assert.ok(values.has(endpoint));
+        return { status: 200, headers: new Map(), body: values.get(endpoint) };
+      },
+      graphql(_query, variables) {
+        snapshots++;
+        if (typeof variables.state === "string")
+          return {
+            data: {
+              repository: {
+                databaseId: 1354613114,
+                nameWithOwner: "boburning/portcove",
+                state: {
+                  prefix: "refs/heads/",
+                  name: variables.state.slice("refs/heads/".length),
+                  target: { __typename: "Commit", oid: f.checkpoint.checkpoint },
+                },
+                intent: null,
+              },
+            },
+          };
+        proofSnapshots++;
+        const name = String(variables.name);
+        return {
+          data: {
+            repository: {
+              databaseId: 1354613114,
+              nameWithOwner: "boburning/portcove",
+              ref: {
+                prefix: "refs/tags/",
+                name: name.slice("refs/tags/".length),
+                target: {
+                  __typename: "Commit",
+                  oid:
+                    fault === "changed-proof" && proofSnapshots === 2
+                      ? "f".repeat(40)
+                      : objects.update.afterOid,
+                },
+              },
+            },
+          },
+        };
+      },
+    };
+    const before = process.env.GH_TOKEN;
+    process.env.GH_TOKEN = "inert-history-job-token";
+    t.after(() => {
+      if (before === undefined) delete process.env.GH_TOKEN;
+      else process.env.GH_TOKEN = before;
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+    });
+    t.mock.method(
+      childProcess,
+      "spawnSync",
+      (command: string, args: readonly string[], settings: SpawnSyncOptionsWithStringEncoding) => {
+        assert.equal(command, "gh");
+        assert.equal(settings.env?.GH_TOKEN, "inert-history-job-token");
+        assert.equal(settings.env?.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
+        if (args[0] === "attestation") {
+          verifies++;
+          return options(f).attestation.spawn(command, args);
+        }
+        if (settings.env?.GH_CONFIG_DIR?.startsWith(path.join(directory, "journal-api-"))) {
+          let body: unknown;
+          if (args[1] === "graphql") {
+            assert.ok(typeof settings.input === "string");
+            const input: unknown = JSON.parse(settings.input);
+            assert.ok(
+              isRecord(input) && typeof input.query === "string" && isRecord(input.variables),
+            );
+            body = api.graphql(input.query, input.variables);
+          } else body = api.request("GET", args[2]!).body;
+          return {
+            status: 0,
+            stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify(body)}`,
+            stderr: "",
+          };
+        }
+        const response = f.api.request("GET", args[2]!);
+        return {
+          status: 0,
+          stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify(response.body)}`,
+          stderr: "",
+        };
+      },
+    );
+    syncBuiltinESMExports();
+    await withReadOnlyReleaseChildren(directory, async () => {
+      const deadline = performance.now() + 60000;
+      const reader = createCheckpointHistoryReader(
+        directory,
+        f.checkpoint.checkpoint,
+        f.configuration,
+        deadline,
+      );
+      reader.assertCurrentUnclaimedHead();
+      const run = () =>
+        authenticateFixedJobCoordinatorHistory(
+          directory,
+          f.checkpoint,
+          authorities,
+          source,
+          deadline,
+          reader.api,
+        );
+      if (fault && fault !== "catalog-history") await assert.rejects(run());
+      else {
+        const result = await run();
+        assert.equal(result.kind, "authenticated-retained-checkpoint");
+        assert.ok("authenticated" in result && result.authenticated);
+        assert.deepEqual(
+          requireAuthenticatedCheckpointEvidence(
+            result.authenticated,
+            f.checkpoint.checkpoint,
+            f.configuration,
+          ),
+          f.evidence,
+        );
+        assert.equal(verifies, 1);
+        reader.assertCurrentUnclaimedHead();
+        assert.equal(reads + snapshots, 9);
+      }
+      if (["source", "setup", "role", "changed-proof"].includes(fault)) assert.equal(verifies, 0);
+    });
   });
 }

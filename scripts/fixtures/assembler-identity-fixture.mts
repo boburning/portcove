@@ -25,11 +25,18 @@ export const expected = {
 export function assemblerIdentityFixture(
   overrides: Record<string, unknown> = {},
   headerOverrides: Record<string, unknown> = {},
-  profile: { workflow: string; job: string; jobId?: number; checkRunId?: number } = {
+  profile: {
+    workflow: string;
+    job: string;
+    jobId?: number;
+    checkRunId?: number;
+    runAttempt?: number;
+  } = {
     workflow: productionControllerWorkflow,
     job: "Trusted package assembly",
   },
 ) {
+  const runAttempt = profile.runAttempt ?? 2;
   const jobId = profile.jobId ?? 501,
     checkRunId = profile.checkRunId ?? 777;
   const now = Math.floor(Date.now() / 1000);
@@ -53,7 +60,7 @@ export function assemblerIdentityFixture(
     event_name: "workflow_dispatch",
     runner_environment: "github-hosted",
     run_id: expected.run_id,
-    run_attempt: "2",
+    run_attempt: String(runAttempt),
     check_run_id: String(checkRunId),
     ...overrides,
   };
@@ -70,7 +77,7 @@ export function assemblerIdentityFixture(
   const job = (id: number) => ({
     id,
     run_id: 9988,
-    run_attempt: 2,
+    run_attempt: runAttempt,
     head_sha: expected.controller_revision,
     status: "completed",
     name: "Other job",
@@ -95,7 +102,7 @@ export function assemblerIdentityFixture(
         runReads++;
         body = {
           id: 9988,
-          run_attempt: faults.value === "attempt" ? 3 : 2,
+          run_attempt: faults.value === "attempt" ? runAttempt + 1 : runAttempt,
           head_sha:
             faults.value === "drift" && runReads > 1
               ? "b".repeat(40)
@@ -114,7 +121,7 @@ export function assemblerIdentityFixture(
           check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${checkRunId}`,
         };
       } else {
-        assert.ok(endpoint.includes("/attempts/2/jobs?per_page=100&page="));
+        assert.ok(endpoint.includes(`/attempts/${runAttempt}/jobs?per_page=100&page=`));
         const second = endpoint.endsWith("page=2");
         const selected = {
           ...job(faults.value === "duplicate" ? 1 : jobId),

@@ -10,10 +10,60 @@ import { inspect } from "node:util";
 import {
   createCoordinatorJournalApi,
   createCheckpointJobTokenApi,
+  createCheckpointHistoryReader,
 } from "./release-coordinator-journal-api.mts";
 import { performance } from "node:perf_hooks";
 import { checkpointProofFixture } from "./fixtures/checkpoint-proof-fixture.mts";
 import { createHash } from "node:crypto";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+
+void test("history transport admits only bounded GET evidence and never opens collection time", async (t) => {
+  const root = await fixture(t);
+  process.env.GH_TOKEN = "inert-fixed-history-only";
+  const { checkpoint, configuration } = checkpointProofFixture();
+  let clock = performance.now(),
+    calls = 0;
+  t.mock.method(performance, "now", () => clock);
+  t.mock.method(childProcess, "spawnSync", () => {
+    calls++;
+    return { status: 0, stdout: 'HTTP/2.0 200 OK\r\n\r\n{"observed":true}', stderr: "" };
+  });
+  syncBuiltinESMExports();
+  const deadline = clock + 1000;
+  const reader = createCheckpointHistoryReader(
+    root,
+    checkpoint.checkpoint,
+    configuration,
+    deadline,
+  );
+  for (const [method, route] of [
+    ["POST", "repos/boburning/portcove/git/blobs"],
+    ["GET", "repos/boburning/portcove/actions/jobs/01"],
+    ["GET", "repos/other/repo/actions/jobs/1"],
+    ["GET", "repos/boburning/portcove/actions/runs/1"],
+  ] as const)
+    assert.throws(() => reader.api.request(method, route), /only fixed repository GET/);
+  assert.throws(() => reader.api.graphql("mutation{}", {}), /only exact/);
+  assert.equal(calls, 0);
+  for (let n = 0; n < 9; n++) reader.api.request("GET", "repos/boburning/portcove/actions/jobs/1");
+  assert.throws(
+    () => reader.api.request("GET", "repos/boburning/portcove/actions/jobs/1"),
+    /request bound/,
+  );
+  assert.equal(calls, 9);
+  const expiring = createCheckpointHistoryReader(
+    root,
+    checkpoint.checkpoint,
+    configuration,
+    deadline,
+  );
+  clock = deadline + 1;
+  assert.throws(
+    () => expiring.api.request("GET", "repos/boburning/portcove/actions/jobs/1"),
+    /original deadline/,
+  );
+  assert.equal(calls, 9);
+});
 
 void test("journal transport shares one role deadline and refuses late write responses without retry", async (t) => {
   const root = await fixture(t);
@@ -389,4 +439,28 @@ void test("journal subprocess diagnostics redact its exact credential without lo
       return true;
     },
   );
+});
+
+void test("fixed-job collection survives inherited execution expiry only for exact post-CAS tuple GET", async (t) => {
+  const f = await jobFixture(t);
+  let clock = performance.now();
+  t.mock.method(performance, "now", () => clock);
+  const deadline = clock + 1000;
+  const api = createCheckpointJobTokenApi(f.root, f.checkpoint, f.configuration, deadline);
+  await assert.rejects(
+    withCoordinatorDeadline(deadline, async () => {
+      api.graphql(f.initial, f.refs);
+      api.graphql(f.mutation, f.claim);
+      clock = deadline + 1;
+      assert.throws(() => api.graphql(f.mutation, f.claim), /original deadline/);
+      assert.throws(
+        () => api.request("GET", `repos/boburning/portcove/git/commits/${"f".repeat(40)}`),
+        /original deadline/,
+      );
+      api.graphql(f.next, { id: "R_fixture", ...f.refs });
+      assert.equal(f.calls(), 3, "exact collection query reached the fixed child");
+    }),
+    /phase deadline/,
+  );
+  assert.equal(f.calls(), 3);
 });

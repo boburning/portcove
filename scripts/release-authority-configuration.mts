@@ -1,7 +1,11 @@
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectCatalogCoreReport } from "./release-catalog-publication-contract.mts";
-import { inspectReleaseControlPhase } from "./release-control-phases.mts";
+import {
+  inspectReleaseControlPhase,
+  inspectControllerExecutionPurpose,
+} from "./release-control-phases.mts";
+import type { CapacityExecutorRole } from "./assembler-job-identity.mts";
 import { performance } from "node:perf_hooks";
 import { coordinatorCommandTimeout } from "./release-coordinator-deadline.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
@@ -13,6 +17,7 @@ import {
 } from "./release-native-qualification-contract.mts";
 import {
   admitProductionInputReader,
+  admitProductionCatalogInputReader,
   admitProductionClassificationWriter,
   admitProductionClassificationObserver,
   readProductionControllerWorkflowBytes,
@@ -297,6 +302,101 @@ export function inspectReleaseAuthorityConfiguration(raw: unknown) {
   };
 }
 export type ReleaseAuthorityConfiguration = ReturnType<typeof inspectReleaseAuthorityConfiguration>;
+
+/** The selected replacement's journal projection. It deliberately does not
+ * satisfy legacy seven-App/native/publisher inspectors. Other consumers must
+ * migrate explicitly; parsing this record appoints no key or provider role. */
+export function inspectFixedJobJournalAuthorities(raw: unknown) {
+  const value: unknown = structuredClone(raw);
+  exact(value, "apps,journal_seed,kind,namespace,repository_id,schema_version,setup_plan_sha256");
+  if (
+    value.schema_version !== 3 ||
+    value.kind !== "two-app-fixed-jobs-v1" ||
+    value.repository_id !== 1354613114 ||
+    Buffer.byteLength(JSON.stringify(value)) > 32768
+  )
+    throw new Error("selected fixed-job journal profile/repository/bound differs");
+  const namespace = inspectCoordinatorRemoteNamespace({
+    schema_version: 1,
+    namespace: value.namespace,
+  });
+  exact(value.apps, "protection_observer,semantic");
+  const inspectApp = (rawApp: unknown) => {
+    exact(rawApp, "app_id,installation_id");
+    return { app_id: positive(rawApp.app_id), installation_id: positive(rawApp.installation_id) };
+  };
+  const apps = {
+    semantic: inspectApp(value.apps.semantic),
+    protection_observer: inspectApp(value.apps.protection_observer),
+  };
+  if (
+    new Set([15368, apps.semantic.app_id, apps.protection_observer.app_id]).size !== 3 ||
+    apps.semantic.installation_id === apps.protection_observer.installation_id
+  )
+    throw new Error("selected App identities are conflated with each other or generic Actions");
+  exact(value.journal_seed, "checkpoint,state_sha256");
+  return {
+    schema_version: 3 as const,
+    kind: "two-app-fixed-jobs-v1" as const,
+    repository_id: 1354613114 as const,
+    namespace,
+    apps,
+    setup_plan_sha256: hex(value.setup_plan_sha256, 64),
+    journal_seed: {
+      checkpoint: hex(value.journal_seed.checkpoint, 40),
+      state_sha256: hex(value.journal_seed.state_sha256, 64),
+    },
+  };
+}
+
+export function inspectBoundFixedJobJournalAuthorities(
+  configuration: string,
+  source: ReturnType<typeof admitProductionInputReader>,
+  purpose: "application" | "catalog-publication",
+) {
+  if (
+    source.mode !==
+      (purpose === "application" ? "bounded-application-release" : "bounded-catalog-publication") ||
+    !source.authority_configuration_sha256 ||
+    !source.grant_sha256 ||
+    Buffer.byteLength(configuration) > 32768
+  )
+    throw new Error("bounded source and protected fixed-job configuration required");
+  const result = inspectFixedJobJournalAuthorities(JSON.parse(configuration));
+  if (releaseCanonicalDigest(result) !== source.authority_configuration_sha256)
+    throw new Error("selected fixed-job journal purpose or ratified configuration changed");
+  return result;
+}
+
+/** Actual source-bound role reader. The existing OIDC executor must separately
+ * match this source; token availability and environment claims alone grant no
+ * signing, protection, capacity, history or publication acceptance. */
+export async function requireControllerFixedJobJournalAuthorities(role: CapacityExecutorRole) {
+  const environment = { ...process.env };
+  const purpose = inspectControllerExecutionPurpose(environment.PORTCOVE_EXECUTION_PURPOSE);
+  const configuration =
+    purpose === "application"
+      ? environment.PORTCOVE_RELEASE_AUTHORITIES
+      : environment.PORTCOVE_CATALOG_AUTHORITIES;
+  const policy =
+    purpose === "application"
+      ? environment.PORTCOVE_CONTROLLER_ADMISSION
+      : environment.PORTCOVE_CATALOG_CONTROLLER_ADMISSION;
+  if (!configuration || Buffer.byteLength(configuration) > 32768)
+    throw new Error("protected selected fixed-job journal configuration unavailable");
+  const phase =
+    role === "aggregate-assembly" ? "admission" : role === "payload-signing" ? "payload" : role;
+  const source = (
+    purpose === "application" ? admitProductionInputReader : admitProductionCatalogInputReader
+  )(policy, environment, await readProductionControllerWorkflowBytes(), phase);
+  const selected = inspectBoundFixedJobJournalAuthorities(configuration, source, purpose);
+  return {
+    configuration: selected,
+    purpose,
+    source,
+    configuration_sha256: releaseCanonicalDigest(selected),
+  };
+}
 
 /** Fixed hosted caller only. Protected owner configuration is digest-bound to
  * the ratified immutable controller policy. This source/configuration check is

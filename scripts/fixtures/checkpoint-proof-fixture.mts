@@ -6,6 +6,7 @@ import {
   coordinatorCheckpointPredicateType,
 } from "../release-coordinator-checkpoint-evidence.mts";
 import { capacityExecutorJobProfile } from "../assembler-job-identity.mts";
+import type { CapacityExecutorRole } from "../assembler-job-identity.mts";
 import type { CheckpointProducerExpectation } from "../release-coordinator-checkpoint-authentication.mts";
 import type { GitHubRestReader } from "../github-api.mts";
 
@@ -37,8 +38,10 @@ export function checkpointProofFixture(
     required_commits: [],
   },
   configuration = { schema_version: 1, namespace: "portcove-fixture" },
+  producerOverrides: Partial<CheckpointProducerExpectation> = {},
+  role: CapacityExecutorRole = "coordinator",
 ) {
-  const profile = capacityExecutorJobProfile("coordinator");
+  const profile = capacityExecutorJobProfile(role);
   const producer: CheckpointProducerExpectation = {
     actor_id: "1122",
     check_run_id: "777",
@@ -50,6 +53,7 @@ export function checkpointProofFixture(
     run_id: "9988",
     setup_sha256: "2".repeat(64),
     workflow_sha256: "3".repeat(64),
+    ...producerOverrides,
   };
   const subject = coordinatorCheckpointEvidenceSubject(checkpoint, configuration, producer);
   const sha256 = createHash("sha256").update(subject).digest("hex");
@@ -71,7 +75,7 @@ export function checkpointProofFixture(
   const job = {
     id: 501,
     run_id: 9988,
-    run_attempt: 2,
+    run_attempt: producer.run_attempt,
     head_sha: producer.controller_revision,
     name: profile.job,
     check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/777",
@@ -83,7 +87,7 @@ export function checkpointProofFixture(
   };
   const attempt = {
     id: 9988,
-    run_attempt: 2,
+    run_attempt: producer.run_attempt,
     head_sha: producer.controller_revision,
     head_branch: producer.controller_ref.slice("refs/tags/".length),
     path: profile.workflow,
@@ -103,7 +107,7 @@ export function checkpointProofFixture(
     sourceRepositoryDigest: producer.controller_revision,
     sourceRepositoryRef: producer.controller_ref,
     runnerEnvironment: "github-hosted",
-    runInvocationURI: "https://github.com/boburning/portcove/actions/runs/9988/attempts/2",
+    runInvocationURI: `https://github.com/boburning/portcove/actions/runs/9988/attempts/${producer.run_attempt}`,
   };
   const verification = {
     signature: { certificate },
@@ -120,13 +124,13 @@ export function checkpointProofFixture(
       assert.equal(method, "GET");
       calls.push(endpoint);
       let body: unknown;
-      if (endpoint.endsWith("/attempts/2")) {
+      if (endpoint.endsWith(`/attempts/${producer.run_attempt}`)) {
         attemptReads++;
         body = {
           ...attempt,
           ...(faults.value === "changed-attempt" && attemptReads > 1 ? { run_attempt: 3 } : {}),
         };
-      } else if (endpoint.includes("/attempts/2/jobs?")) {
+      } else if (endpoint.includes(`/attempts/${producer.run_attempt}/jobs?`)) {
         if (faults.value === "duplicate") body = { total_count: 2, jobs: [job, job] };
         else if (faults.value === "duplicate-check")
           body = { total_count: 2, jobs: [job, { ...job, id: 502 }] };
@@ -148,12 +152,27 @@ export function checkpointProofFixture(
     configuration,
     producer,
     evidence: { subject, bundle },
-    expected: { role: "coordinator" as const, producer },
+    expected: { role, producer },
     job,
     attempt,
     verification,
     api,
     calls,
     faults,
+  };
+}
+
+export function fixedJobJournalAuthoritiesFixture() {
+  return {
+    schema_version: 3 as const,
+    kind: "two-app-fixed-jobs-v1" as const,
+    repository_id: 1354613114,
+    namespace: "portcove-fixture",
+    setup_plan_sha256: "2".repeat(64),
+    apps: {
+      semantic: { app_id: 101, installation_id: 1001 },
+      protection_observer: { app_id: 202, installation_id: 1002 },
+    },
+    journal_seed: { checkpoint: "c".repeat(40), state_sha256: "d".repeat(64) },
   };
 }

@@ -20,6 +20,141 @@ import { readControllerToolFile } from "./release-controller-tools.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
 import { isRecord } from "./runtime-values.mts";
+import { readCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
+import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import {
+  capacityExecutorJobProfile,
+  capacityExecutorRolesForPurpose,
+} from "./assembler-job-identity.mts";
+import { inspectFixedJobJournalAuthorities } from "./release-authority-configuration.mts";
+import { releaseCanonicalDigest } from "./release-canonical.mts";
+import { assessBoundedCapacity } from "./release-capacity.mts";
+
+/** Authenticate one independently selected current head, not an ancestry walk.
+ * Selected setup pins authorize only the exact empty seed. Every later head
+ * must carry the existing signature plus actual fixed historical job binding.
+ * This does not establish current ref ownership/protections or effect outcome. */
+export async function authenticateFixedJobCoordinatorHistory(
+  directory: string,
+  rawCheckpoint: Awaited<ReturnType<typeof exportCoordinatorCheckpoint>>,
+  rawAuthorities: unknown,
+  rawSource: { revision: string; execution_ref: string; workflow_sha256: string; actor_id: string },
+  deadline: number,
+  api: CoordinatorRemoteApi,
+) {
+  const checkpoint = structuredClone(rawCheckpoint);
+  const authorities = inspectFixedJobJournalAuthorities(rawAuthorities);
+  const source = structuredClone(rawSource);
+  const configuration = { schema_version: 1, namespace: authorities.namespace };
+  const active = () => {
+    if (
+      !Number.isFinite(deadline) ||
+      deadline <= performance.now() ||
+      deadline - performance.now() > 120000
+    )
+      throw new Error("selected history requires the original bounded deadline");
+  };
+  active();
+  if (checkpoint.checkpoint === authorities.journal_seed.checkpoint) {
+    const state: unknown = JSON.parse(checkpoint.blob.contents);
+    const input = isRecord(state) && isRecord(state.input) ? state.input : null;
+    const controller = input && isRecord(input.controller) ? input.controller : null;
+    const capacity =
+      controller && isRecord(controller.capacity_attempt) ? controller.capacity_attempt : null;
+    if (
+      checkpoint.previous !== null ||
+      !input ||
+      input.schema_version !== 2 ||
+      input.active_candidate != null ||
+      !capacity ||
+      capacity.schema_version !== 2 ||
+      (capacity &&
+        (capacity.operation != null ||
+          (Array.isArray(capacity.prior_operations) && capacity.prior_operations.length !== 0))) ||
+      checkpoint.receipts.length !== 0 ||
+      hash(Buffer.from(checkpoint.blob.contents)) !== authorities.journal_seed.state_sha256
+    )
+      throw new Error(
+        "selected seed bytes/history/effects differ from independently ratified empty seed",
+      );
+    // Validate the existing contract without turning a supplied ratification or
+    // a successful history read into positive capacity/current admission.
+    assessBoundedCapacity(capacity);
+    return {
+      kind: "ratified-initial-seed" as const,
+      checkpoint: checkpoint.checkpoint,
+      authority: "none" as const,
+    };
+  }
+  if (checkpoint.previous === null) throw new Error("unratified initial journal head");
+  const evidence = readCoordinatorCheckpointEvidence(checkpoint, configuration, api, deadline);
+  const subject: unknown = JSON.parse(evidence.subject.toString("utf8"));
+  const producer = isRecord(subject) && isRecord(subject.producer) ? subject.producer : null;
+  if (
+    !producer ||
+    producer.controller_revision !== source.revision ||
+    producer.controller_ref !== source.execution_ref ||
+    producer.workflow_sha256 !== source.workflow_sha256 ||
+    producer.actor_id !== source.actor_id ||
+    producer.configuration_sha256 !== releaseCanonicalDigest(authorities) ||
+    producer.setup_sha256 !== authorities.setup_plan_sha256 ||
+    producer.run_attempt !== 1
+  )
+    throw new Error(
+      "retained checkpoint source/setup/configuration differs from selected authority",
+    );
+  active();
+  const response = api.request(
+    "GET",
+    `repos/boburning/portcove/actions/jobs/${String(producer.job_id)}`,
+  );
+  active();
+  const job = response.body;
+  // Application/catalog share this same journal and site cursor. Authenticate
+  // past custody across both fixed job sets; current operating authority stays
+  // separately bound to its app/catalog policy in the private executor.
+  const roles = [
+    ...new Set([
+      ...capacityExecutorRolesForPurpose("application"),
+      ...capacityExecutorRolesForPurpose("catalog-publication"),
+    ]),
+  ].filter((role) => isRecord(job) && job.name === capacityExecutorJobProfile(role).job);
+  if (response.status !== 200 || roles.length !== 1)
+    throw new Error("retained checkpoint has no unique allowed historical job role");
+  // The lookup selects a closed role, never accepts it. The existing verifier
+  // independently reads the exact original attempt/job/check and signature.
+  const selected = {
+    role: roles[0]!,
+    producer: {
+      controller_revision: String(producer.controller_revision),
+      controller_ref: String(producer.controller_ref),
+      workflow_sha256: String(producer.workflow_sha256),
+      actor_id: String(producer.actor_id),
+      configuration_sha256: String(producer.configuration_sha256),
+      setup_sha256: String(producer.setup_sha256),
+      job_id: String(producer.job_id),
+      check_run_id: String(producer.check_run_id),
+      run_id: String(producer.run_id),
+      run_attempt: Number(producer.run_attempt),
+    },
+  };
+  const authenticated = await authenticateCoordinatorCheckpointEvidence(
+    directory,
+    checkpoint,
+    configuration,
+    evidence,
+    selected,
+    deadline,
+  );
+  requireAuthenticatedCheckpointEvidence(authenticated, checkpoint.checkpoint, configuration);
+  active();
+  return {
+    kind: "authenticated-retained-checkpoint" as const,
+    checkpoint: checkpoint.checkpoint,
+    authenticated,
+    authority: "none" as const,
+  };
+}
 
 type Checkpoint = Awaited<ReturnType<typeof exportCoordinatorCheckpoint>>;
 export interface CheckpointProducerExpectation {
