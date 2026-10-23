@@ -627,6 +627,11 @@ class ProviderTunnel:
             while not header.endswith(b"\r\n\r\n"):
                 require(len(header) < 4096, "CONNECT header exceeded bound")
                 data = peer.recv(1)
+                # A client may close an unused preconnection. With zero
+                # request bytes, no target was parsed or remote socket opened.
+                # Partial/malformed requests still refuse and remain charged.
+                if not data and not header:
+                    return
                 require(data, "CONNECT ended prematurely")
                 header.extend(data)
             host = connect_target(bytes(header))
@@ -999,6 +1004,10 @@ def codex_arguments(index_hash, mode):
         ),
         "--config",
         'mcp_servers.portcove_frozen_bundle.enabled_tools=["list","read","read_text","net_diff","search"]',
+        "--config",
+        'mcp_servers.portcove_frozen_bundle.omit_tools_from=["deferred","code_mode"]',
+        "--config",
+        "mcp_servers.portcove_frozen_bundle.required=true",
         "--config",
         "mcp_servers.portcove_frozen_bundle.startup_timeout_sec=15",
         "--config",

@@ -5,8 +5,8 @@ import importlib.util
 import io
 import json
 import stat
-import threading
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -49,7 +49,28 @@ class SupervisorContract(unittest.TestCase):
         args = supervisor.codex_arguments("a" * 64, "codex")
         self.assertIn('model_catalog_json="/runtime/semantic-review-model-catalog.json"', args)
         self.assertIn('features.code_mode_host=false', args)
+        self.assertIn('mcp_servers.portcove_frozen_bundle.omit_tools_from=["deferred","code_mode"]', args)
+        self.assertIn('mcp_servers.portcove_frozen_bundle.required=true', args)
         self.assertEqual(args[args.index("--model") + 1], "gpt-6.1-sol")
+
+    def test_unused_proxy_preconnection_has_no_remote_effect_but_partial_header_refuses(self):
+        for chunks, failed in (([b""], False), ([b"C", b""], True)):
+            tunnel = supervisor.ProviderTunnel.__new__(supervisor.ProviderTunnel)
+            peer = Mock()
+            peer.recv.side_effect = chunks
+            tunnel.lock = threading.Lock()
+            tunnel.stop = threading.Event()
+            tunnel.sockets = {peer}
+            tunnel.failure = False
+            tunnel.failures = []
+            with patch.object(supervisor, "connect_target") as target, patch.object(supervisor.socket, "socket") as remote:
+                tunnel.handle(peer)
+            target.assert_not_called()
+            remote.assert_not_called()
+            peer.close.assert_called_once()
+            self.assertEqual(tunnel.sockets, set())
+            self.assertEqual(tunnel.failure, failed)
+            self.assertEqual(tunnel.failures, [{"stage": "headers", "kind": "policy"}] if failed else [])
 
     def test_network_failure_diagnostics_are_bounded_enums_and_preserve_hold(self):
         tunnel = supervisor.ProviderTunnel.__new__(supervisor.ProviderTunnel)
