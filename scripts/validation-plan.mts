@@ -244,6 +244,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-native-parent.mts",
   "scripts/release-native-wsl-boundary.mts",
   "apps/desktop/scripts/native-linux-driver-http.mts",
+  "apps/desktop/scripts/node-contracts/native-linux-driver-http.native.test.mts",
   "apps/desktop/scripts/native-linux-isolated-init.py",
   "apps/desktop/scripts/native-linux-isolated-plan.mts",
   "apps/desktop/scripts/native-linux-isolated-session.mts",

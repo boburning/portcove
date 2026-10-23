@@ -671,10 +671,6 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-native-parent.mts", ["scripts/release-native-parent.test.mts"]],
   ["scripts/release-native-wsl-boundary.mts", ["scripts/release-native-wsl-boundary.test.mts"]],
   [
-    "apps/desktop/scripts/native-linux-driver-http.mts",
-    ["scripts/native-linux-driver-http.test.mts"],
-  ],
-  [
     "scripts/release-native-candidate.mts",
     ["scripts/release-native-candidate.test.mts", "scripts/release-native-attempt.test.mts"],
   ],
@@ -1203,6 +1199,18 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   ["scripts/release-semantic-worker.mts", ["scripts/release-catalog-review-maintenance.test.mts"]],
 ]);
+
+// Preserve transport consumers alongside generated native-helper routes. An earlier
+// Map entry would be overwritten by the helper inventory's later entry.
+for (const file of [
+  "apps/desktop/scripts/native-linux-driver-http.mts",
+  "apps/desktop/scripts/node-contracts/native-linux-driver-http.native.test.mts",
+])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/native-linux-driver-http.test.mts",
+    "scripts/local-validation.test.mts",
+  ]);
 
 // Source declarations are consumed by a cheap Node contract even when no release
 // script changes. Keep the consumer's own input inventory authoritative.

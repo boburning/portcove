@@ -49,6 +49,65 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 
 const allFilesExist = () => true;
 
+void test("colocated private HTTP contracts retain their Node route and analyzer ownership without duplicate collection", () => {
+  const contract = "apps/desktop/scripts/node-contracts/native-linux-driver-http.native.test.mts";
+  const wrapper = "scripts/native-linux-driver-http.test.mts";
+  for (const file of [contract, "apps/desktop/scripts/native-linux-driver-http.mts"]) {
+    for (const change of [
+      { status: "M", path: file },
+      { status: "D", path: file },
+      { status: "R100", path: "docs/moved-contract.md", previousPath: file },
+    ]) {
+      const selection = classifyChanges([change], { fileExists: () => false });
+      assert.ok(selection.nodeTests.has(wrapper), `${change.status} ${file}`);
+      assert.ok(!selection.unknown.has(file));
+    }
+    const selected = buildValidationPlan({
+      changes: [
+        { status: "M", oldPath: file, newPath: file, oldMode: "100644", newMode: "100644" },
+      ],
+      eventName: "pull_request",
+      checkout: "a".repeat(40),
+    });
+    assert.ok(selected.areas.includes("release-security"), file);
+  }
+  const root = new URL("../", import.meta.url);
+  const read = (file: string) => readFileSync(new URL(file, root), "utf8");
+  assert.equal(read(wrapper).trim(), `import "../${contract}";`);
+  const analyzer: unknown = JSON.parse(read("apps/desktop/.fallowrc.json"));
+  assert.ok(isRecord(analyzer) && Array.isArray(analyzer.framework));
+  const framework: unknown = analyzer.framework.find(
+    (value: unknown) => isRecord(value) && value.name === "portcove-desktop-unit-tests",
+  );
+  assert.ok(isRecord(framework) && Array.isArray(framework.entryPoints));
+  const relative = contract.replace("apps/desktop/", "");
+  assert.ok(
+    framework.entryPoints.some(
+      (pattern: unknown) =>
+        typeof pattern === "string" && path.posix.matchesGlob(relative, pattern),
+    ),
+  );
+  assert.equal(framework.entryPointRole, "test");
+  const frontend = read("scripts/frontend-tests.ts");
+  const unit = frontend.match(/name: "unit",\s+include: (\[[^\n]+\]),\s+exclude: (\[[^\n]+\])/u);
+  assert.ok(unit, "read the actual unit discovery globs");
+  const includes: unknown = JSON.parse(unit[1]!);
+  const excludes: unknown = JSON.parse(unit[2]!);
+  assert.ok(
+    Array.isArray(includes) && includes.every((value: unknown) => typeof value === "string"),
+  );
+  assert.ok(
+    Array.isArray(excludes) && excludes.every((value: unknown) => typeof value === "string"),
+  );
+  assert.ok(includes.some((pattern) => path.posix.matchesGlob(relative, pattern)));
+  assert.ok(excludes.some((pattern) => path.posix.matchesGlob(relative, pattern)));
+  const native = read("vite.config.ts").match(
+    /"native:tools": \{\s+command: "node --test --test-timeout=30000 ([^" ]+)"/u,
+  );
+  assert.ok(native, "read the actual native-tools discovery glob");
+  assert.ok(!path.posix.matchesGlob(contract, native[1]!));
+});
+
 void test("colocated workflow contracts retain every former route and their direct production owners", () => {
   const companions = [
     "scripts/check-catalog-repositories.test.mts",
