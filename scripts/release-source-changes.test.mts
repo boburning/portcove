@@ -85,7 +85,13 @@ void test("complete accumulated history reaches the finite 2048-commit boundary 
       request(method: string, endpoint: string) {
         const response = fixture.api.request(method, endpoint);
         if (fault === "page-overflow" && endpoint.includes("page=21")) {
-          response.headers.set("link", `<${endpoint.replace("page=21", "page=22")}>; rel="next"`);
+          return {
+            ...response,
+            headers: new Map(response.headers).set(
+              "link",
+              `<${endpoint.replace("page=21", "page=22")}>; rel="next"`,
+            ),
+          };
         }
         if (fault === "changed-total" && endpoint.includes("page=2")) {
           assert.ok(isRecord(response.body));
