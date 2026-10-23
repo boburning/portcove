@@ -8,6 +8,14 @@
     "issue_number": 383,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/RSDKModding/RSDKv4-Decompilation"
+    "setup_url": "https://github.com/RSDKModding/RSDKv4-Decompilation",
+    "artwork": {
+      "game_id": 112897,
+      "cover_id": 93129,
+      "image_id": "co1zux",
+      "image_sha256": "240f514f78582d7b612529d4298e4cb39c4e7a542f8c99c112cd48b1a14d2e76",
+      "game_slug": "sonic-the-hedgehog-2--4",
+      "match_kind": "underlying-game"
+    }
   }
 }

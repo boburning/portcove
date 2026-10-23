@@ -8,6 +8,14 @@
     "issue_number": 1635,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/open-annihilation/open-annihilation"
+    "setup_url": "https://github.com/open-annihilation/open-annihilation",
+    "artwork": {
+      "game_id": 918,
+      "cover_id": 214119,
+      "image_id": "co4l7r",
+      "image_sha256": "fb0f2a601d1ecc7b74d644a972bbc7e34c12da1e49d9bcf95e4f998060764b4d",
+      "game_slug": "total-annihilation",
+      "match_kind": "underlying-game"
+    }
   }
 }

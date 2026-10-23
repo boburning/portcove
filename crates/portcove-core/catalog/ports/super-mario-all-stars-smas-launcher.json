@@ -8,6 +8,14 @@
     "issue_number": 1115,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/qurious-pixel/SMAS_Launcher"
+    "setup_url": "https://github.com/qurious-pixel/SMAS_Launcher",
+    "artwork": {
+      "game_id": 5199,
+      "cover_id": 282913,
+      "image_id": "co62ap",
+      "image_sha256": "071bfa924181727821cf076a113f1a4ad42e5b06db143d12252d9914e29e2333",
+      "game_slug": "super-mario-all-stars",
+      "match_kind": "underlying-game"
+    }
   }
 }

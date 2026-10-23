@@ -8,6 +8,14 @@
     "issue_number": 1895,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mechakotik/tails-adventure"
+    "setup_url": "https://github.com/mechakotik/tails-adventure",
+    "artwork": {
+      "game_id": 265890,
+      "cover_id": 329146,
+      "image_id": "co71yy",
+      "image_sha256": "e84e3792a2bb3322534371e801ff214a3b4b6b562cd64f8a8eec466e87856db9",
+      "game_slug": "tails-adventure-remake",
+      "match_kind": "port"
+    }
   }
 }

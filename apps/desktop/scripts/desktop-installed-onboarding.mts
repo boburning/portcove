@@ -585,7 +585,7 @@ async function installedCovers(context: InstalledContext, report: Record<string,
       "super-mario-bros-remastered",
       "corsixth-corsixth",
       "the-force-engine-dark-forces",
-      "vcmi-vcmi",
+      "mechakotik-tails-adventure",
     ],
     scenario: async (_id, action) => {
       await action();
@@ -602,6 +602,17 @@ async function installedCovers(context: InstalledContext, report: Record<string,
     "desktop_workspace_snapshot",
     success(await context.invoke("get_workspace_snapshot", { generation: bootstrap.generation })),
   );
+  const newListing = workspace.listing_catalog?.listings.find(
+    (listing) => listing.id === "mechakotik-tails-adventure",
+  );
+  assert.ok(newListing);
+  assert.equal(newListing.availability, "unknown");
+  assert.equal(newListing.artwork?.match_kind, "port");
+  report.new_listing_cover = {
+    id: newListing.id,
+    availability: newListing.availability,
+    artwork: newListing.artwork,
+  };
   const fallback = workspace.listing_catalog?.listings.find((listing) => !listing.artwork);
   assert.ok(fallback, "The live catalog retains honest unresolved-cover entries");
   await selectPrimaryNavigation(browser, "Find games");

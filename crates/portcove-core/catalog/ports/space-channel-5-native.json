@@ -8,6 +8,14 @@
     "issue_number": 1540,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/ZoomiesZaggy/Space-Channel-5"
+    "setup_url": "https://github.com/ZoomiesZaggy/Space-Channel-5",
+    "artwork": {
+      "game_id": 6602,
+      "cover_id": 558957,
+      "image_id": "cobzal",
+      "image_sha256": "a66106a23b73e455cdea0d3f4c69123cef5c79b8d8e51ec5f015c0c3837881c5",
+      "game_slug": "space-channel-5",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1900,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Voicedrew11/verdite2"
+    "setup_url": "https://github.com/Voicedrew11/verdite2",
+    "artwork": {
+      "game_id": 7423,
+      "cover_id": 467834,
+      "image_id": "coa0ze",
+      "image_sha256": "57cc35a74621c0dc875e59305946e9ebcf060be02772976ccbf3f695f89a059e",
+      "game_slug": "kings-field",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -3140,7 +3140,15 @@
       "issue_number": 454,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp"
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp",
+      "artwork": {
+        "game_id": 7422,
+        "cover_id": 224806,
+        "image_id": "co4tgm",
+        "image_sha256": "3b4c0a90fd89f6f0f494030333abe2835f80d813dae559bc395831684508dc6d",
+        "game_slug": "king-s-field",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "alexbeav-koudelka-recomp",
@@ -4234,7 +4242,15 @@
       "issue_number": 1838,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://gitlab.com/bighead.0/ladxhd_updated"
+      "setup_url": "https://gitlab.com/bighead.0/ladxhd_updated",
+      "artwork": {
+        "game_id": 1027,
+        "cover_id": 217879,
+        "image_id": "co4o47",
+        "image_sha256": "270128e2277a26e22faa7bcb2e24550952e1d1a9719de9d858f51cf6ffef67ea",
+        "game_slug": "the-legend-of-zelda-link-s-awakening-dx",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "blacklabelhq-medievilrecomp",
@@ -5162,7 +5178,15 @@
       "issue_number": 366,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/novapowers0/DBZ-Budokai-3-HD-Collection"
+      "setup_url": "https://github.com/novapowers0/DBZ-Budokai-3-HD-Collection",
+      "artwork": {
+        "game_id": 21701,
+        "cover_id": 354759,
+        "image_id": "co7lqf",
+        "image_sha256": "d91f230d59b829b382f9e1420518b9ac71efff67776bfc3a577dd81b10a91517",
+        "game_slug": "dragon-ball-z-budokai-hd-collection",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "dragon-ball-z-budokai-hd-first-game-dbz1",
@@ -5172,7 +5196,15 @@
       "issue_number": 377,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/WistfulHopes/DBZ1"
+      "setup_url": "https://github.com/WistfulHopes/DBZ1",
+      "artwork": {
+        "game_id": 21701,
+        "cover_id": 354759,
+        "image_id": "co7lqf",
+        "image_sha256": "d91f230d59b829b382f9e1420518b9ac71efff67776bfc3a577dd81b10a91517",
+        "game_slug": "dragon-ball-z-budokai-hd-collection",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "driver-2-redriver2",
@@ -5290,7 +5322,15 @@
       "issue_number": 1918,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/clover-moe/lilium-voyager"
+      "setup_url": "https://github.com/clover-moe/lilium-voyager",
+      "artwork": {
+        "game_id": 877,
+        "cover_id": 111792,
+        "image_id": "co2e9c",
+        "image_sha256": "1dbf39ee655418b4c7fa5a007b4d1ce8b304c891a688ac981b1f4a4d1597630a",
+        "game_slug": "star-trek-voyager-elite-force",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "elliotttate-dkc2recomp",
@@ -5564,7 +5604,15 @@
       "issue_number": 1637,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/tymsky/OpenGG"
+      "setup_url": "https://github.com/tymsky/OpenGG",
+      "artwork": {
+        "game_id": 73965,
+        "cover_id": 53177,
+        "image_id": "ozskcnrkpacgofnpqf4u",
+        "image_sha256": "3b3bcf884f0f11fd489398db4b034213700c2ee312a232732dd7293bbd480d79",
+        "game_slug": "gearhead-garage",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "gizcesi-opentricky",
@@ -6502,7 +6550,15 @@
       "issue_number": 1895,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/mechakotik/tails-adventure"
+      "setup_url": "https://github.com/mechakotik/tails-adventure",
+      "artwork": {
+        "game_id": 265890,
+        "cover_id": 329146,
+        "image_id": "co71yy",
+        "image_sha256": "e84e3792a2bb3322534371e801ff214a3b4b6b562cd64f8a8eec466e87856db9",
+        "game_slug": "tails-adventure-remake",
+        "match_kind": "port"
+      }
     },
     {
       "id": "mega-man-x-snes-recomp",
@@ -6918,7 +6974,15 @@
       "issue_number": 160,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff"
+      "setup_url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff",
+      "artwork": {
+        "game_id": 21785,
+        "cover_id": 84819,
+        "image_id": "co1tg3",
+        "image_sha256": "3ff4e67c5834bd7ffcb8f87696001633bd9bf0c45d9be1719d9fa0d5c10baf70",
+        "game_slug": "naughty-bear-gold-edition",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "need-for-speed-most-wanted-2005-xbox-360-recompiled",
@@ -6964,7 +7028,15 @@
       "issue_number": 1903,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/nhaar/Waddle-Forever"
+      "setup_url": "https://github.com/nhaar/Waddle-Forever",
+      "artwork": {
+        "game_id": 92589,
+        "cover_id": 100120,
+        "image_id": "co2594",
+        "image_sha256": "89e4cf3e66692204f7340e756fd83bd86b824a7cc952975f75f748f665eb13a9",
+        "game_slug": "club-penguin",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "nicholas-ochoa-opensc2k",
@@ -7630,7 +7702,15 @@
       "issue_number": 1639,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/LoreanXavier/pt-pc"
+      "setup_url": "https://github.com/LoreanXavier/pt-pc",
+      "artwork": {
+        "game_id": 11654,
+        "cover_id": 134744,
+        "image_id": "co2vyw",
+        "image_sha256": "57171c2acf4e3198c361d252ee79caa6190ca759b0355b34d88b5a03e1c71577",
+        "game_slug": "pt",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "r-e-l-i-v-e-oddworld-abe-s-exoddus",
@@ -8136,7 +8216,15 @@
       "issue_number": 1127,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/RSDKModding/RSDKv3-Decompilation"
+      "setup_url": "https://github.com/RSDKModding/RSDKv3-Decompilation",
+      "artwork": {
+        "game_id": 86807,
+        "cover_id": 311285,
+        "image_id": "co6o6t",
+        "image_sha256": "05b0446d1d4f24cbcbea9207a2034aead3f5feb4d51a993e88ca20004676b90d",
+        "game_slug": "sonic-cd--1",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "sonic-free-riders-recompiled",
@@ -8182,7 +8270,15 @@
       "issue_number": 383,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/RSDKModding/RSDKv4-Decompilation"
+      "setup_url": "https://github.com/RSDKModding/RSDKv4-Decompilation",
+      "artwork": {
+        "game_id": 112897,
+        "cover_id": 93129,
+        "image_id": "co1zux",
+        "image_sha256": "240f514f78582d7b612529d4298e4cb39c4e7a542f8c99c112cd48b1a14d2e76",
+        "game_slug": "sonic-the-hedgehog-2--4",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "sonic-the-hedgehog-2013-derived-sonic-1-forever",
@@ -8192,7 +8288,15 @@
       "issue_number": 368,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/ElspethThePict/S1Forever"
+      "setup_url": "https://github.com/ElspethThePict/S1Forever",
+      "artwork": {
+        "game_id": 88912,
+        "cover_id": 93117,
+        "image_id": "co1zul",
+        "image_sha256": "b49adaa12478047466365aa4e5d27e2c2d262335e3f4c48fef99c6a0f540ba91",
+        "game_slug": "sonic-the-hedgehog--14",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "sonic-the-hedgehog-2013-mobile-edition-rsdkv4-decompilation",
@@ -8202,7 +8306,15 @@
       "issue_number": 382,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/RSDKModding/RSDKv4-Decompilation"
+      "setup_url": "https://github.com/RSDKModding/RSDKv4-Decompilation",
+      "artwork": {
+        "game_id": 88912,
+        "cover_id": 93117,
+        "image_id": "co1zul",
+        "image_sha256": "b49adaa12478047466365aa4e5d27e2c2d262335e3f4c48fef99c6a0f540ba91",
+        "game_slug": "sonic-the-hedgehog--14",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "sonic-unleashed-recompiled",
@@ -8284,7 +8396,15 @@
       "issue_number": 1540,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/ZoomiesZaggy/Space-Channel-5"
+      "setup_url": "https://github.com/ZoomiesZaggy/Space-Channel-5",
+      "artwork": {
+        "game_id": 6602,
+        "cover_id": 558957,
+        "image_id": "cobzal",
+        "image_sha256": "a66106a23b73e455cdea0d3f4c69123cef5c79b8d8e51ec5f015c0c3837881c5",
+        "game_slug": "space-channel-5",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "ssunnking-zeldawwhdrecompandroid-enhanced",
@@ -8564,7 +8684,15 @@
       "issue_number": 1115,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/qurious-pixel/SMAS_Launcher"
+      "setup_url": "https://github.com/qurious-pixel/SMAS_Launcher",
+      "artwork": {
+        "game_id": 5199,
+        "cover_id": 282913,
+        "image_id": "co62ap",
+        "image_sha256": "071bfa924181727821cf076a113f1a4ad42e5b06db143d12252d9914e29e2333",
+        "game_slug": "super-mario-all-stars",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "super-mario-strikers-aurorastrikers",
@@ -9042,7 +9170,15 @@
       "issue_number": 1635,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/open-annihilation/open-annihilation"
+      "setup_url": "https://github.com/open-annihilation/open-annihilation",
+      "artwork": {
+        "game_id": 918,
+        "cover_id": 214119,
+        "image_id": "co4l7r",
+        "image_sha256": "fb0f2a601d1ecc7b74d644a972bbc7e34c12da1e49d9bcf95e4f998060764b4d",
+        "game_slug": "total-annihilation",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "triaevum-ocarina-of-time-3d",
@@ -9284,7 +9420,15 @@
       "issue_number": 1900,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/Voicedrew11/verdite2"
+      "setup_url": "https://github.com/Voicedrew11/verdite2",
+      "artwork": {
+        "game_id": 7423,
+        "cover_id": 467834,
+        "image_id": "coa0ze",
+        "image_sha256": "57cc35a74621c0dc875e59305946e9ebcf060be02772976ccbf3f695f89a059e",
+        "game_slug": "kings-field",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "voicedrew11-verdite3",
@@ -9294,7 +9438,15 @@
       "issue_number": 1901,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/Voicedrew11/verdite3"
+      "setup_url": "https://github.com/Voicedrew11/verdite3",
+      "artwork": {
+        "game_id": 9500,
+        "cover_id": 468234,
+        "image_id": "coa1ai",
+        "image_sha256": "0bf15cd83756c72b26259f68184c8e7179ea79f2a18f1684a204d82ede080ec3",
+        "game_slug": "kings-field-ii",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "wargus-war1gus",
@@ -9378,7 +9530,15 @@
       "issue_number": 119,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition"
+      "setup_url": "https://github.com/wipeout-phantom-edition/wipeout-phantom-edition",
+      "artwork": {
+        "game_id": 1083,
+        "cover_id": 200827,
+        "image_id": "co4ayj",
+        "image_sha256": "5d3fb7f3e64b5b51edd29df22c7c15d5f8abdc6849443f284a5bbed6453360c3",
+        "game_slug": "wipeout",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "witherblitz-nsmb-wii-multiplayer-recompilation",
@@ -9578,7 +9738,15 @@
       "issue_number": 128,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/ryancheung/Zelda-LA-DX-HD"
+      "setup_url": "https://github.com/ryancheung/Zelda-LA-DX-HD",
+      "artwork": {
+        "game_id": 1027,
+        "cover_id": 217879,
+        "image_id": "co4o47",
+        "image_sha256": "270128e2277a26e22faa7bcb2e24550952e1d1a9719de9d858f51cf6ffef67ea",
+        "game_slug": "the-legend-of-zelda-link-s-awakening-dx",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "zelda3",
