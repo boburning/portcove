@@ -19,8 +19,11 @@ pub(crate) type DesktopError = portcove_core::FailureReport;
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct DesktopWorkspaceSnapshot {
     pub(crate) catalog: portcove_core::CatalogDocument,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) listing_catalog: Option<portcove_core::CatalogListingDocument>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) listing_statuses: Vec<portcove_core::PortListingStatus>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) pending_setups: Vec<portcove_core::PendingSetupRecord>,
     pub(crate) statuses: Vec<portcove_core::PortStatus>,
     pub(crate) sources: Vec<portcove_core::SourceRecord>,

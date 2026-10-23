@@ -11838,9 +11838,6 @@
     },
     "required": [
       "catalog",
-      "listing_catalog",
-      "listing_statuses",
-      "pending_setups",
       "statuses",
       "sources",
       "activities"

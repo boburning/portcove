@@ -38,7 +38,10 @@ impl From<DownloadSelection> for CatalogDownloadRequest {
 #[derive(Debug, Subcommand)]
 pub(crate) enum SetupCommand {
     /// Look up bounded upstream release assets without downloading or running them.
-    Candidates { port_id: String },
+    Candidates {
+        /// Stable listing ID from `portcove catalog listings` whose upstream assets should be checked.
+        port_id: String,
+    },
     /// Review the exact asset and a fresh destination before downloading.
     Preview {
         #[command(flatten)]
@@ -59,6 +62,7 @@ pub(crate) enum SetupCommand {
     Pending,
     /// Forget the exact setup record; all handed-off game files remain in place.
     Forget {
+        /// Listing ID owning the setup record; use `portcove setup pending` to find the matching record.
         port_id: String,
         /// Exact record ID returned by setup pending.
         #[arg(long)]

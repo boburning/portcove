@@ -3306,9 +3306,9 @@ export interface OutputDesktopWorkspaceSnapshot {
   activities: ActivityFeed;
   browsing?: CatalogBrowsingSnapshot | null;
   catalog: CatalogDocument;
-  listing_catalog: CatalogListingDocument | null;
-  listing_statuses: PortListingStatus[];
-  pending_setups: PendingSetupRecord[];
+  listing_catalog?: CatalogListingDocument | null;
+  listing_statuses?: PortListingStatus[];
+  pending_setups?: PendingSetupRecord[];
   sources: SourceRecord[];
   statuses: PortStatus[];
   [k: string]: unknown;

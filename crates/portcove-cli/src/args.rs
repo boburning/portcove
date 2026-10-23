@@ -11,7 +11,9 @@ use crate::{catalog::CatalogCommand, schema::SchemaContract};
 const ROOT_COMMAND_GROUPS: &[(&str, &[&str])] = &[
     (
         "Everyday commands",
-        &["install", "update", "exec", "verify", "remove", "status"],
+        &[
+            "setup", "install", "update", "exec", "verify", "remove", "status",
+        ],
     ),
     (
         "Game files and library",
@@ -569,23 +571,33 @@ pub(crate) enum LaunchCommand {
 pub(crate) enum ExternalCommand {
     /// Review new executable, directory and arguments for an existing selected installation.
     SelectRelinkPreview {
+        /// Catalog port ID with an existing user-selected executable registration.
         port_id: String,
+        /// Existing replacement native executable or supported native launcher to review.
         executable: PathBuf,
+        /// Existing working directory to use when launching the replacement executable.
         #[arg(long)]
         working_directory: PathBuf,
+        /// One literal argument per occurrence, in launch order; no shell command is interpreted.
         #[arg(long = "arg", allow_hyphen_values = true)]
         arguments: Vec<String>,
     },
     /// Save reviewed launch details; preserve the old and new external files.
     SelectRelink {
+        /// Catalog port ID from the preceding external select-relink-preview review.
         port_id: String,
+        /// Exact replacement native executable or launcher path shown in the preceding review.
         executable: PathBuf,
+        /// Exact working directory shown in the preceding relink review.
         #[arg(long)]
         working_directory: PathBuf,
+        /// One literal argument per occurrence, matching the reviewed launch details and order.
         #[arg(long = "arg", allow_hyphen_values = true)]
         arguments: Vec<String>,
+        /// Exact select-relink-preview SHA-256; changed executable, directory or arguments require a fresh review.
         #[arg(long)]
         expected_preview: String,
+        /// Confirm the reviewed change to registered launch details without prompting.
         #[arg(long)]
         yes: bool,
     },
