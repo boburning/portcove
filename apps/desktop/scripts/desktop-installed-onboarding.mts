@@ -34,7 +34,11 @@ import {
 import { fixtureSuccess as success } from "./desktop-scenario-state.mts";
 import { transportValue } from "./transport-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
-import { reviewControls, selectPrimaryNavigation } from "./desktop-review-controls.mts";
+import {
+  revealDetailSection,
+  reviewControls,
+  selectPrimaryNavigation,
+} from "./desktop-review-controls.mts";
 import { createImageRefusal, defaultCoverScenario } from "./desktop-default-cover-test.mts";
 
 interface InstalledContext {
@@ -185,6 +189,7 @@ export async function installedOnboardingScenario(context: InstalledContext) {
     await open(portId, listing.name);
     await capture("installed-sopwith-availability", true);
     steps.push("listing-only availability and setup information inspected");
+    await revealDetailSection(browser, "Files");
     await click("Check upstream downloads");
     const asset = By.xpath('//*[@role="option" and contains(.,"sopwith-2.9.0-win64.zip")]');
     const choice = await browser.wait(until.elementLocated(By.css('[role="combobox"]')), 30_000);
@@ -232,7 +237,8 @@ export async function installedOnboardingScenario(context: InstalledContext) {
     steps.push(
       "upstream package downloaded and safely extracted; pending setup survived full application restart",
     );
-    await click("Continue setup");
+    await revealDetailSection(browser, "Files");
+    await reviewControls(browser).click(By.css("[data-self-service-continue]"));
     await click("Choose game executable…");
     await confirmNative(
       "Locate game executable",
@@ -274,6 +280,7 @@ export async function installedOnboardingScenario(context: InstalledContext) {
     await open(portId, listing.name, "Library");
     const replacement = path.join(output, "sopwith-relinked-runtime");
     await cp(pendingDirectory, replacement, { recursive: true, errorOnExist: true, force: false });
+    await revealDetailSection(browser, "Files");
     await click("Edit launch details…");
     await click("Choose game executable…");
     await confirmNative(
@@ -311,6 +318,7 @@ export async function installedOnboardingScenario(context: InstalledContext) {
       beforeReplacement = await tree(replacement);
     const beforeKnownFolder = await knownFolder();
     report.known_folder_postgame = beforeKnownFolder;
+    await revealDetailSection(browser, "Files");
     await click("Remove registration");
     await capture("installed-sopwith-remove-review", true);
     await reviewControls(browser).click(
@@ -662,6 +670,7 @@ async function installedArtworkChoice(context: InstalledContext, report: Record<
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, "CorsixTH");
     await reviewControls(browser).click(By.css(`[data-detail-origin="catalog:card:${id}"]`));
+    await revealDetailSection(browser, "Files");
     await reviewControls(browser).click(By.xpath('//summary[normalize-space(.)="Change artwork"]'));
     await browser.wait(until.elementLocated(control("Choose local image")), 15_000);
   };

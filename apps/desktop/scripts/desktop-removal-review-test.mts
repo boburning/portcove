@@ -27,6 +27,7 @@ import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import { By, Key, until } from "selenium-webdriver";
 import { installedPreservationWitness } from "./desktop-scenario-state.mts";
 import {
+  revealDetailSection,
   assertDestructiveReviewAction,
   captureAccessibilityReport,
   reviewControls,
@@ -69,12 +70,13 @@ export async function removalReviewScenario({
       ].map((file) => fileIdentity(file)),
     );
     await open(port);
+    await revealDetailSection(browser, "Files");
     const { button, click } = reviewControls(browser);
     const dialog = By.css('[aria-labelledby="removal-review-title"]');
     // The future-install folder summary is intentionally hidden when not
     // deferred. Open management in this selected game's visible detail owner.
     const management = By.css(
-      `[data-detail-port-id="${port.id}"] .detail-body > details.advanced-settings > summary.advanced-summary`,
+      `[data-detail-port-id="${port.id}"] .detail-tab-panel:not([hidden]) > details.advanced-settings > summary.advanced-summary`,
     );
     const managementControls = await browser.findElements(management);
     assert.equal(

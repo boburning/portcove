@@ -90,7 +90,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { By, until } from "selenium-webdriver";
-import { captureAccessibilityReport } from "./desktop-review-controls.mts";
+import { revealDetailSection, captureAccessibilityReport } from "./desktop-review-controls.mts";
 
 export async function workspaceRefreshScenario({
   browser,
@@ -368,6 +368,7 @@ export async function workspaceRefreshScenario({
       };
 
       await card.findElement(By.css("button[data-detail-origin]")).click();
+      await revealDetailSection(browser, "Versions");
       const preferences = await browser.wait(
         until.elementLocated(By.xpath('//summary[normalize-space(.)="Future update preferences"]')),
         15_000,

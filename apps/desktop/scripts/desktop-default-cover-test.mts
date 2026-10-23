@@ -1,3 +1,4 @@
+import { revealDetailSection } from "./desktop-review-controls.mts";
 import type { LinuxInspectorProtocol } from "./desktop-linux-webkit-inspector.mts";
 import type { IRectangle } from "selenium-webdriver";
 import type { PortDefinition } from "../src/transport-types.generated.d.ts";
@@ -222,6 +223,7 @@ export async function defaultCoverScenario({
               if (selector.includes(".card-art")) {
                 await browser.findElement(By.css(selector.replace(" .card-art", ""))).click();
               }
+              await revealDetailSection(browser, "Files");
               const controls = await browser.wait(
                 until.elementLocated(By.css(".artwork-controls > summary")),
                 5_000,

@@ -356,11 +356,14 @@ function UserSelectedRuntimeEditor({
             Remove registration
           </Button>
           {!canEdit && <p role="status">{assessment.reason}</p>}
-          {!canRemove && (
-            <p role="status">
-              {requiresListingAssessment ? removeAssessment.reason : removal.reason}
-            </p>
-          )}
+          {!canRemove &&
+            (canEdit ||
+              (requiresListingAssessment ? removeAssessment.reason : removal.reason) !==
+                assessment.reason) && (
+              <p role="status">
+                {requiresListingAssessment ? removeAssessment.reason : removal.reason}
+              </p>
+            )}
         </>
       ) : (
         <>

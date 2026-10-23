@@ -10,8 +10,13 @@ import type { ExternalRuntimeRecord, PortListingStatus } from "../types";
 import { ExternalRuntimeControl, UserSelectedRuntimeControl } from "./ExternalRuntime";
 import { catalogEntries } from "../features/browsing/catalog-entry";
 import { ActionReviewFailure } from "./ActionReviewFailure";
+import { DetailLayout } from "./DetailLayout";
 
-vi.mock("../file-picker", () => ({ pickInstallFolder: vi.fn(), pickHostToolExecutable: vi.fn() }));
+vi.mock("../file-picker", () => ({
+  pickInstallFolder: vi.fn(),
+  pickHostToolExecutable: vi.fn(),
+  pickArtworkPath: vi.fn(),
+}));
 
 const port = {
   ...portDefinition(),
@@ -58,6 +63,96 @@ async function click(label: string) {
   expect(button).toBeDefined();
   await act(async () => button?.click());
 }
+
+it("shows one shared refusal while retaining both disabled external maintenance controls", async () => {
+  const status = {
+    ...portStatus(),
+    external_runtime: { ...record, user_selected: { arguments: [] } },
+  };
+  const reason =
+    "Current action availability is unavailable. Refresh the workspace to check again.";
+  await root.rerender(
+    <UserSelectedRuntimeControl
+      port={port}
+      status={status}
+      generation={7}
+      busy={false}
+      listingStatus={{
+        port_id: port.id,
+        status,
+        actions: [
+          { action: "relink-existing", allowed: false, reason },
+          { action: "remove-registration", allowed: false, reason },
+        ],
+      }}
+    />,
+  );
+  await expect
+    .element(page.getByRole("button", { name: "Edit launch details…", exact: true }))
+    .toBeDisabled();
+  await expect
+    .element(page.getByRole("button", { name: "Remove registration", exact: true }))
+    .toBeDisabled();
+  expect(page.getByText(reason, { exact: true }).elements()).toHaveLength(1);
+});
+
+it("retains external launch drafts across detail tabs and reviews the same target and generation", async () => {
+  const executable = "C:/Player/External/game.exe";
+  vi.mocked(pickHostToolExecutable).mockResolvedValue(executable);
+  const preview = vi
+    .spyOn(desktopApi, "previewUserSelectedRuntime")
+    .mockRejectedValue(new Error("Fixture review reached"));
+  const apply = vi.spyOn(desktopApi, "registerUserSelectedRuntime");
+  const status = portStatus();
+  await root.rerender(
+    <DetailLayout
+      port={port}
+      initialSection="files"
+      readiness="Setup required"
+      installation="Not installed"
+      action={() => null}
+      close={vi.fn()}
+    >
+      {() => ({
+        overview: null,
+        files: (
+          <UserSelectedRuntimeControl
+            port={port}
+            status={status}
+            listingStatus={{
+              port_id: port.id,
+              status,
+              actions: [{ action: "attach-existing", allowed: true }],
+            }}
+            generation={7}
+            busy={false}
+          />
+        ),
+        saves: null,
+        versions: null,
+      })}
+    </DetailLayout>,
+  );
+  await click("Choose game executable…");
+  await page
+    .getByRole("textbox", { name: "Working directory", exact: true })
+    .fill("C:/Player/Retained directory");
+  await page.getByRole("tab", { name: "Versions", exact: true }).click();
+  await page.getByRole("tab", { name: "Files", exact: true }).click();
+  await expect
+    .element(page.getByRole("textbox", { name: "Working directory", exact: true }))
+    .toHaveValue("C:/Player/Retained directory");
+  await click("Review launch details");
+  expect(preview).toHaveBeenCalledExactlyOnceWith(
+    port.id,
+    executable,
+    "C:/Player/Retained directory",
+    [],
+    7,
+  );
+  expect(document.body.textContent).toContain("Fixture review reached");
+  expect(apply).not.toHaveBeenCalled();
+});
 
 it("registers a listing-only identity only when Core offers the action", async () => {
   const entry = catalogEntries(

@@ -60,7 +60,7 @@ import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
 import { copyFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { chooseGameUpdateDisposition } from "./desktop-review-controls.mts";
+import { revealDetailSection, chooseGameUpdateDisposition } from "./desktop-review-controls.mts";
 import { By, Key, until } from "selenium-webdriver";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import {
@@ -86,57 +86,36 @@ async function waitForFixture(predicate: () => boolean | undefined, message: str
 
 function readStagedLayout(version: string) {
   const detail = document.querySelector("[data-detail-workspace]");
-  const buttons = [
-    ...(detail?.querySelectorAll<HTMLButtonElement>(".primary-actions button") ?? []),
-  ];
-  const play = buttons.find((item) => item.textContent?.trim() === "Play");
-  const activate = buttons.find((item) => item.textContent?.trim() === `Use update · ${version}`);
-  const group = play?.closest(".primary-actions");
-  const summary = group?.closest(".detail-summary");
-  const controls = [
-    ...(group?.querySelectorAll("button, a[href], input, select, textarea, [tabindex]") ?? []),
-  ];
+  const play = detail?.querySelector<HTMLButtonElement>(
+    ".detail-header-actions [data-confirmed-play]",
+  );
+  const panel = detail?.querySelector<HTMLElement>("[role=tabpanel]:not([hidden]):not([inert])");
+  const activate = [...(panel?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find(
+    (item) => item.textContent?.trim() === `Use update · ${version}`,
+  );
   const rect = (element: Element) => {
     const { left, right, top, bottom } = element.getBoundingClientRect();
     return { left, right, top, bottom };
   };
-  const visible = (element: Element) => {
-    if (getComputedStyle(element).visibility !== "visible" || element.getClientRects().length === 0)
-      return false;
-    for (let current: Element | null = element; current; current = current.parentElement) {
-      const style = getComputedStyle(current);
-      if (style.display === "none" || Number(style.opacity) === 0) return false;
-    }
-    return true;
-  };
   const action = (element: HTMLButtonElement) => ({
     ...rect(element),
     enabled: !element.disabled && element.getAttribute("aria-disabled") !== "true",
-    visible: visible(element),
+    visible:
+      !element.closest("[hidden], [inert]") &&
+      element.getClientRects().length > 0 &&
+      getComputedStyle(element).visibility === "visible",
   });
-  const spacing = group ? getComputedStyle(group) : undefined;
-  const updates = [...(detail?.querySelectorAll("h2, h3") ?? [])].find(
-    (item) => item.textContent?.trim() === "Updates",
-  );
   return {
     play: play && action(play),
     activate: activate && action(activate),
-    group: group && rect(group),
-    orderedNeighbors: Boolean(
-      play &&
-      activate &&
-      group &&
-      activate.closest(".primary-actions") === group &&
-      controls.indexOf(activate) === controls.indexOf(play) + 1,
-    ),
-    inSummary: Boolean(summary && activate && summary.contains(activate)),
-    rowGap: Number.parseFloat(spacing?.rowGap ?? ""),
-    columnGap: Number.parseFloat(spacing?.columnGap ?? ""),
+    header: play?.closest(".detail-hero") && rect(play.closest(".detail-hero")!),
+    panel: panel && rect(panel),
+    versionsSelected:
+      detail?.querySelector("[role=tab][aria-selected=true]")?.textContent?.trim() === "Versions",
     viewport: { width: innerWidth, height: innerHeight },
-    updatesTop: updates?.getBoundingClientRect().top,
-    state: detail?.querySelector(".detail-hero .hero-state")?.textContent?.trim(),
-    reason: detail?.querySelector(".detail-hero .hero-reason")?.textContent?.trim(),
-    attention: detail?.querySelector(".detail-hero [data-update-attention]")?.textContent?.trim(),
+    state: detail?.querySelector("[data-detail-readiness]")?.textContent?.trim(),
+    reason: detail?.querySelector("[data-detail-reason]")?.textContent?.trim(),
+    attention: detail?.querySelector("[data-update-attention]")?.textContent?.trim(),
     documentOverflow:
       document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
   };
@@ -144,11 +123,12 @@ function readStagedLayout(version: string) {
 
 function assertStagedActionPlacement(layout: ReturnType<typeof readStagedLayout>) {
   const message = JSON.stringify(layout);
-  assert.ok(layout.play && layout.activate && layout.group, message);
-  const { play, activate, group, viewport } = layout;
-  assert.equal(layout.orderedNeighbors, true, message);
-  assert.equal(layout.inSummary, true, message);
+  assert.ok(layout.play && layout.activate && layout.header && layout.panel, message);
+  assert.equal(layout.versionsSelected, true, message);
+  assert.equal(layout.state, "Ready to play", message);
+  assert.ok(layout.attention, message);
   assert.equal(layout.documentOverflow, false, message);
+  const { play, activate, header, panel, viewport } = layout;
   assert.ok(
     Number.isFinite(viewport.width) &&
       viewport.width > 0 &&
@@ -156,44 +136,34 @@ function assertStagedActionPlacement(layout: ReturnType<typeof readStagedLayout>
       viewport.height > 0,
     message,
   );
-  for (const gap of [layout.rowGap, layout.columnGap]) {
-    assert.ok(Number.isFinite(gap) && Math.abs(gap - 8) <= 1, message);
-  }
-  for (const box of [group, play, activate]) {
-    assert.ok([box.left, box.right, box.top, box.bottom].every(Number.isFinite), message);
-    assert.ok(box.right > box.left && box.bottom > box.top, message);
-  }
-  for (const action of [play, activate]) {
+  for (const [action, owner] of [
+    [play, header],
+    [activate, panel],
+  ] as const) {
     assert.equal(action.enabled, true, message);
     assert.equal(action.visible, true, message);
     assert.ok(
-      action.left >= Math.max(0, group.left) - 1 &&
-        action.right <= Math.min(viewport.width, group.right) + 1,
+      [
+        action.left,
+        action.right,
+        action.top,
+        action.bottom,
+        owner.left,
+        owner.right,
+        owner.top,
+        owner.bottom,
+      ].every(Number.isFinite),
       message,
     );
+    assert.ok(action.right > action.left && action.bottom > action.top, message);
     assert.ok(
-      action.top >= Math.max(0, group.top) - 1 &&
-        action.bottom <= Math.min(viewport.height, group.bottom) + 1,
+      action.left >= Math.max(0, owner.left) - 1 &&
+        action.right <= Math.min(viewport.width, owner.right) + 1,
       message,
     );
+    assert.ok(action.top >= owner.top - 1 && action.bottom <= owner.bottom + 1, message);
   }
-  assert.ok(
-    layout.updatesTop !== undefined &&
-      Number.isFinite(layout.updatesTop) &&
-      Math.max(play.bottom, activate.bottom) <= layout.updatesTop + 1,
-    message,
-  );
-  const horizontalGap = activate.left - play.right;
-  const verticalGap = activate.top - play.bottom;
-  const sameRow =
-    Math.abs(activate.top - play.top) <= 1 &&
-    horizontalGap >= -1 &&
-    horizontalGap <= layout.columnGap + 1;
-  const immediateWrap =
-    Math.abs(activate.left - play.left) <= 1 &&
-    verticalGap >= -1 &&
-    verticalGap <= layout.rowGap + 1;
-  assert.ok(sameRow || immediateWrap, message);
+  assert.ok(play.bottom <= panel.top + 1, message);
 }
 
 export async function installScenarios({
@@ -675,6 +645,7 @@ export async function installScenarios({
           { width: 1280, height: 800 },
         ]) {
           await browser.manage().window().setRect({ width, height });
+          await revealDetailSection(browser, "Versions");
           const layout = await executeBrowserScript(browser, readStagedLayout, version);
           const geometry = path.join(
             output,
@@ -699,14 +670,9 @@ export async function installScenarios({
           assert.equal(layout.documentOverflow, false, JSON.stringify(layout));
           assert.equal(layout.state, "Ready to play");
           assert.equal(layout.reason ?? null, null);
-          assert.equal(
-            layout.attention,
-            `Play the installed version or use the saved update ${version}.`,
-          );
+          assert.ok(layout.attention?.includes(`Update saved for later · ${version}`));
           assert.ok(layout.activate.left >= 0 && layout.activate.right <= width + 1);
           assert.ok(layout.play.left >= 0 && layout.play.right <= width + 1);
-          assert.ok(layout.play.top >= 0 && layout.play.bottom <= height);
-          assert.ok(layout.activate.top >= 0 && layout.activate.bottom <= height);
           assertStagedActionPlacement(layout);
           layouts.push({ theme, width, height, ...layout });
         }
@@ -761,6 +727,7 @@ export async function installScenarios({
     );
 
     await openFixture(port, true);
+    await revealDetailSection(browser, "Versions");
     await browser.findElement(button("Check for updates")).click();
     const updateControl = By.css('section[aria-label="Review game update"]');
     await browser.wait(until.elementLocated(updateControl), 15_000);

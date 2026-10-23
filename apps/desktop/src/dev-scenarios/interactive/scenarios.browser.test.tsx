@@ -52,6 +52,49 @@ async function click(label: string) {
   await act(async () => button!.click());
 }
 
+it("gives every disposable detail route four real tabs and binds external Play to its exact ID", async () => {
+  await mount("details");
+  const launch = vi.spyOn(desktopApi, "launch");
+  await page
+    .getByRole("button", {
+      name: "View details for Summit Racer Port: Harbor upstream project · external",
+      exact: true,
+    })
+    .click();
+  await expect
+    .element(page.getByRole("tab", { name: "Overview", exact: true }))
+    .toHaveAttribute("aria-selected", "true");
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  expect(launch.mock.calls[0]).toEqual(["details-external", "", 1]);
+  for (const label of ["Files", "Saved data", "Versions", "Overview"]) {
+    await page.getByRole("tab", { name: label, exact: true }).click();
+    await expect.element(page.getByRole("tabpanel", { name: label, exact: true })).toBeVisible();
+  }
+  await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: "View details for Summit Racer Port: Harbor upstream project · unknown",
+      exact: true,
+    })
+    .click();
+  await expect
+    .element(page.getByRole("tab", { name: "Files", exact: true }))
+    .toHaveAttribute("aria-selected", "true");
+  await expect
+    .element(page.getByRole("button", { name: "Play", exact: true }))
+    .not.toBeInTheDocument();
+  expect(document.querySelector("[data-installation-fact]")?.textContent).toBe(
+    "Registered external installation",
+  );
+  await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+  await page.getByRole("button", { name: "Review downloaded update", exact: true }).click();
+  await expect.element(page.getByRole("heading", { name: "Versions", exact: true })).toHaveFocus();
+  await expect
+    .element(page.getByRole("button", { name: "Use update · 1.3", exact: true }))
+    .toBeVisible();
+  await expect.element(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
+});
+
 it("opens actual game details, returns to Library and resets the selected journey", async () => {
   await mount("library");
   await click("View details for Harbor Adventure Port: Harbor Adventure");
@@ -71,12 +114,16 @@ it("keeps the optional folder editor and artwork behind disclosures without losi
   const input = page.getByRole("textbox", { name: "Folder for future installs", exact: true });
   await expect.element(input).not.toBeInTheDocument();
   expect(document.querySelector(".detail-artwork")).toBeNull();
+  await page.getByRole("tab", { name: "Files", exact: true }).click();
   await folder.click();
   await expect.element(input).toBeVisible();
   await input.fill("fixture/future-draft");
   await folder.click();
   await expect.element(input).not.toBeInTheDocument();
   await folder.click();
+  await expect.element(input).toHaveValue("fixture/future-draft");
+  await page.getByRole("tab", { name: "Versions", exact: true }).click();
+  await page.getByRole("tab", { name: "Files", exact: true }).click();
   await expect.element(input).toHaveValue("fixture/future-draft");
   await page.getByText("Change artwork", { exact: true }).click();
   await expect
@@ -85,6 +132,12 @@ it("keeps the optional folder editor and artwork behind disclosures without losi
         .getByRole("region", { name: "Cover image", exact: true })
         .getByRole("button", { name: "Choose local image", exact: true }),
     )
+    .toBeVisible();
+  await page.getByRole("tab", { name: "Overview", exact: true }).click();
+  await page.getByRole("button", { name: /^More actions for Harbor Adventure/ }).click();
+  await page.getByRole("menuitem", { name: "Change artwork", exact: true }).click();
+  await expect
+    .element(page.getByRole("region", { name: "Cover image", exact: true }))
     .toBeVisible();
   expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
 });

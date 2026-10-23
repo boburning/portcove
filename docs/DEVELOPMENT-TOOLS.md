@@ -981,6 +981,21 @@ is [conditional](reference/validation-operations-history.md).
 
 #### Interactive app comparison
 
+Open `scenarios.html?mode=interactive&journey=details` for the production detail
+tabs with disposable managed, staged-update, backup-error, registered-external,
+unknown-external and downloaded-setup states. Visit every section and resize with
+an output-folder or launch-detail draft active. All actions remain simulated;
+unsupported fixture operations are visibly refused and no original game files are
+used. The existing preparation journey exercises retained work and completion.
+The matched comparison journey keeps its shared identity and artwork fixture.
+
+Native harnesses use `revealDetailSection` from
+`desktop-review-controls.mts` before interacting with a section. It selects the
+semantic tab and verifies the revealed panel; scrolling does not expose hidden
+controls. Ordinary opening helpers stay neutral so initial-destination behavior
+remains testable. Native scripts, browser renders, injected text enlargement and
+native-host observations are distinct evidence scopes.
+
 Open `scenarios.html?mode=interactive&journey=collection` for a 12-entry mixed
 collection or `journey=collection-large` for 60 entries. This mounts the actual
 App with disposable in-memory transport; game/file actions are simulated and

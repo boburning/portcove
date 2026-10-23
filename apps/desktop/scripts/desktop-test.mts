@@ -99,6 +99,7 @@ import {
   waitHistorySessionExit,
 } from "./desktop-qualification-history-test.mts";
 import {
+  revealDetailSection,
   assertCompactReview,
   captureAccessibilityReport,
   selectPrimaryNavigation,
@@ -977,7 +978,7 @@ async function verifyLongTitleCatalogDetail(theme: string) {
     const layout = await executeBrowserScript(browser, () => {
       const title = document.querySelector("#port-detail-title");
       const action = document.querySelector(
-        '.detail-body .primary-actions button[data-variant="primary"]',
+        '.detail-header-actions button[data-variant="primary"]',
       );
       if (!(title instanceof HTMLElement) || !(action instanceof HTMLElement))
         throw new Error("Long-title detail title or primary action is missing");
@@ -3801,118 +3802,77 @@ try {
       "port-detail-title",
     );
     await browser.wait(
-      () =>
-        executeBrowserScript(browser, () =>
-          document.activeElement?.classList.contains("detail-back"),
-        ),
+      () => executeBrowserScript(browser, () => document.activeElement?.id === "port-detail-title"),
       5_000,
-      "Detail navigation did not focus Back",
+      "Detail navigation did not focus the game heading",
     );
     const verifyDetailActionHierarchy = async () => {
-      await executeBrowserScript(browser, () =>
+      await revealDetailSection(browser, "Files");
+      const hierarchy = await executeBrowserScript(browser, () => {
         document
           .querySelector(".detail-hero")
-          ?.scrollIntoView({ block: "start", behavior: "instant" }),
-      );
-      const hierarchy = await executeBrowserScript(browser, () => {
-        const hero = document.querySelector(".detail-hero");
-        const title = document.querySelector(".detail-title");
-        const reason = document.querySelector(".hero-reason");
-        const requirement = document.querySelector(".hero-requirement");
-        const action = document.querySelector(".primary-actions button");
+          ?.scrollIntoView({ block: "start", behavior: "instant" });
+        const title = document.querySelector("#port-detail-title");
+        const action = document.querySelector(".detail-header-actions button");
+        const cover = document.querySelector(".detail-cover");
         if (
-          !(hero instanceof HTMLElement) ||
           !(title instanceof HTMLElement) ||
-          !(reason instanceof HTMLElement) ||
-          !(requirement instanceof HTMLElement) ||
-          !(action instanceof HTMLElement)
-        ) {
-          throw new Error("Game detail hierarchy is incomplete");
-        }
-        const heroBounds = hero.getBoundingClientRect();
-        const reasonBounds = reason.getBoundingClientRect();
-        const requirementBounds = requirement.getBoundingClientRect();
-        const actionBounds = action.getBoundingClientRect();
-        const futureChoices = [...document.querySelectorAll(".future-setup-disclosure")];
+          !(action instanceof HTMLElement) ||
+          !(cover instanceof HTMLElement)
+        )
+          throw new Error("Detail header is incomplete");
+        const bounds = action.getBoundingClientRect();
+        const frame = cover.getBoundingClientRect();
         return {
-          duplicateReadiness: document.querySelectorAll(".readiness-card").length,
-          horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
-          stateText: document.querySelector(".hero-state")?.textContent?.trim(),
-          reasonText: reason.textContent?.trim(),
-          requirementText: requirement.textContent?.trim(),
-          actionText: action.textContent?.trim(),
+          state: document.querySelector("[data-detail-readiness]")?.textContent?.trim(),
+          reason: document.querySelector("[data-detail-reason]")?.textContent?.trim(),
+          requirement: document.querySelector(".requirements-disclosure")?.textContent,
+          tabs: Array.from(document.querySelectorAll("[data-detail-workspace] [role=tab]"), (tab) =>
+            tab.textContent?.trim(),
+          ),
+          selected: document.querySelector('[role=tab][aria-selected="true"]')?.textContent,
+          action: action.textContent?.trim(),
+          actionInHero: Boolean(action.closest(".detail-hero")),
           titleFits: title.scrollWidth <= title.clientWidth + 1,
-          reasonFits: reason.scrollWidth <= reason.clientWidth + 1,
-          requirementFits: requirement.scrollWidth <= requirement.clientWidth + 1,
-          reasonInHero:
-            reasonBounds.top >= heroBounds.top && reasonBounds.bottom <= heroBounds.bottom,
-          requirementInHero:
-            requirementBounds.top >= heroBounds.top &&
-            requirementBounds.bottom <= heroBounds.bottom,
-          requirementVisible: requirementBounds.bottom <= window.innerHeight,
-          futureChoices: futureChoices.map((choice) => ({
-            title: choice.querySelector("summary")?.textContent?.trim(),
-            open: choice.hasAttribute("open"),
-          })),
-          actionInHero: hero.contains(action),
-          actionGap:
-            actionBounds.top -
-            Math.max(
-              title.getBoundingClientRect().bottom,
-              reasonBounds.bottom,
-              requirementBounds.bottom,
-            ),
-          actionFits: actionBounds.left >= 0 && actionBounds.right <= window.innerWidth,
-          actionVisible: actionBounds.top >= 0 && actionBounds.bottom <= window.innerHeight,
+          actionFits: bounds.left >= 0 && bounds.right <= innerWidth,
+          actionVisible: bounds.top >= 0 && bounds.bottom <= innerHeight,
+          artwork: { width: frame.width, height: frame.height },
+          horizontalOverflow: document.documentElement.scrollWidth > innerWidth + 1,
+          futureChoices: Array.from(
+            document.querySelectorAll(".future-setup-disclosure"),
+            (choice) => ({
+              title: choice.querySelector("summary")?.textContent?.trim(),
+              open: choice.hasAttribute("open"),
+            }),
+          ),
         };
       });
-      assert.equal(hierarchy.duplicateReadiness, 0);
-      assert.equal(hierarchy.horizontalOverflow, false);
-      assert.equal(hierarchy.stateText, "Game files needed");
+      assert.equal(hierarchy.state, "Game files needed");
       assert.match(
-        hierarchy.reasonText,
+        required(hierarchy.reason),
         /Choose the required game files before reviewing installation/u,
       );
-      assert.equal(hierarchy.actionText, "Choose game files");
-      assert.match(hierarchy.requirementText, /Required for setup: Super Mario 64 \(US\) source/u);
-      assert.equal(hierarchy.titleFits, true, `Title fit: ${JSON.stringify(hierarchy)}`);
-      assert.equal(hierarchy.reasonFits, true, `Reason fit: ${JSON.stringify(hierarchy)}`);
-      assert.equal(
-        hierarchy.requirementFits,
-        true,
-        `Requirement fit: ${JSON.stringify(hierarchy)}`,
-      );
-      assert.equal(hierarchy.reasonInHero, true, `Reason grouping: ${JSON.stringify(hierarchy)}`);
-      assert.equal(
-        hierarchy.requirementInHero,
-        true,
-        `Requirement grouping: ${JSON.stringify(hierarchy)}`,
-      );
-      assert.equal(
-        hierarchy.requirementVisible,
-        true,
-        `Requirement visibility after scroll: ${JSON.stringify(hierarchy)}`,
-      );
+      assert.match(required(hierarchy.requirement), /Super Mario 64 \(US\) source/u);
+      assert.deepEqual(hierarchy.tabs, ["Overview", "Files", "Saved data", "Versions"]);
+      assert.equal(hierarchy.selected, "Files");
+      assert.equal(hierarchy.action, "Set up game");
+      assert.equal(hierarchy.actionInHero, true);
+      assert.equal(hierarchy.titleFits, true);
+      assert.equal(hierarchy.actionFits, true);
+      assert.equal(hierarchy.actionVisible, true);
+      assert.equal(hierarchy.horizontalOverflow, false);
+      assert.ok([144, 160, 240].includes(hierarchy.artwork.width));
+      assert.equal(hierarchy.artwork.height, hierarchy.artwork.width * 1.5);
       assert.deepEqual(hierarchy.futureChoices, [
         { title: "Folder for a future install", open: false },
       ]);
-      assert.equal(hierarchy.actionInHero, true, `Action grouping: ${JSON.stringify(hierarchy)}`);
-      assert.ok(
-        hierarchy.actionGap >= 0 && hierarchy.actionGap < 160,
-        `Action gap: ${JSON.stringify(hierarchy)}`,
-      );
-      assert.equal(hierarchy.actionFits, true);
-      assert.equal(
-        hierarchy.actionVisible,
-        true,
-        `Action visibility: ${JSON.stringify(hierarchy)}`,
-      );
     };
     await verifyDetailActionHierarchy();
     await captureScenarioScreenshot("game-details-workspace");
     await browser.manage().window().setRect({ width: 960, height: 640 });
     await verifyDetailActionHierarchy();
     await captureScenarioScreenshot("game-details-action-hierarchy");
+    await revealDetailSection(browser, "Files");
     const outputChoices = await browser.findElement(futureFolderSummary);
     const outputDisclosure = await outputChoices.findElement(By.xpath(".."));
     await outputChoices.click();
