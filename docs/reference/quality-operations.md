@@ -550,7 +550,7 @@ interpreter route and finite outer deadlines. Direct Python execution still
 works. Node wrappers retain human unittest output and emit `Python case:` JSON
 diagnostics joined to the outer test name, exact suite digest and platform.
 `Python inventory:` distinguishes selected method identities from tests run;
-class/module setup failures can leave selected methods unexecuted. A skipped
+class/module setup failures can leave methods in their own scope unexecuted. A skipped
 method is a reported unittest result, not executed behavior. Subtests have their
 own identities and outcomes, with a null duration because unittest has no
 subtest-start callback. Fixture callbacks also have unavailable timing. They do

@@ -17,6 +17,7 @@ from pathlib import Path
 MAX_RECORDS = 2048
 MAX_REPORT_BYTES = 2 * 1024 * 1024
 MODULE = "_portcove_contract"
+FAILURE_STATUSES = ("failed", "error", "unexpected-success")
 
 
 def bounded(value):
@@ -44,8 +45,8 @@ class CaseResults(unittest.TextTestResult):
             # If all slots already describe failures, keep the earlier failures.
             candidates = [index for index, item in enumerate(self.records)
                           if item["kind"] == "subtest" and item["status"] == "passed"]
-            failed = record["status"] in ("failed", "error", "unexpected-success") or any(
-                item["status"] in ("failed", "error", "unexpected-success")
+            failed = record["status"] in FAILURE_STATUSES or any(
+                item["status"] in FAILURE_STATUSES
                 for item in record["additional_outcomes"]
             )
             if failed and not candidates:
@@ -79,6 +80,17 @@ class CaseResults(unittest.TextTestResult):
             else:
                 if len(self.active["additional_outcomes"]) >= 16:
                     self.reporting_error = "Python case exceeds outcome limit"
+                    earlier_failure = self.active["status"] in FAILURE_STATUSES or any(
+                        item["status"] in FAILURE_STATUSES
+                        for item in self.active["additional_outcomes"]
+                    )
+                    if status in FAILURE_STATUSES and not earlier_failure:
+                        # Retain the first real failure over preceding skips or
+                        # expected failures; later failures cannot replace it.
+                        self.active["additional_outcomes"][-1] = {
+                            "status": status, "reason": bounded(reason)
+                        }
+                        self.append(self.active)
                     return
                 self.active["additional_outcomes"].append({"status": status, "reason": bounded(reason)})
             self.append(self.active)

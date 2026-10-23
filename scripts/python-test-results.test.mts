@@ -283,6 +283,62 @@ void test("Python partial execution cannot establish a complete successful repor
   );
 });
 
+void test("an unrelated fixture skip cannot excuse another class's unexecuted Python selection", (t) => {
+  const suite = fixture(
+    t,
+    `class A(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        raise unittest.SkipTest("class A is unavailable")
+    def test_unavailable(self):
+        self.fail("must remain skipped")
+class B(unittest.TestCase):
+    def test_a_stops(self):
+        self._outcome.result.stop()
+    def test_z_unexecuted(self):
+        self.fail("must remain unexecuted")
+`,
+  );
+  const result = execute(suite);
+  assert.equal(result.status, 0, "retain the original unittest suite outcome");
+  assert.throws(
+    () => readPythonReport(result.stdout, suite, result.status),
+    /Unexecuted Python selections/u,
+  );
+});
+
+void test("Python class and module setup skips explain only their owned selections", (t) => {
+  for (const source of [
+    `class A(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        raise unittest.SkipTest("class A is unavailable")
+    def test_unavailable(self):
+        self.fail("must remain skipped")
+class B(unittest.TestCase):
+    def test_available(self):
+        pass
+`,
+    `def setUpModule():
+    raise unittest.SkipTest("module is unavailable")
+class A(unittest.TestCase):
+    def test_unavailable(self):
+        self.fail("must remain skipped")
+`,
+  ]) {
+    const suite = fixture(t, source);
+    const result = execute(suite);
+    assert.equal(result.status, 0, result.stderr);
+    const report = readPythonReport(result.stdout, suite, result.status);
+    const fixtures = report.cases.filter((item) => item.kind === "fixture");
+    assert.equal(fixtures.length, 1);
+    assert.equal(fixtures[0]!.status, "skipped");
+    assert.equal(fixtures[0]!.duration_ms, null);
+    assert.match(fixtures[0]!.reason!, /is unavailable/u);
+    assert.equal(report.tests_run, source.startsWith("class") ? 1 : 0);
+  }
+});
+
 void test("Python reporter limits retain original failures, partial cases and suite outcome", (t) => {
   for (const source of [
     `class Cases(unittest.TestCase):
@@ -336,6 +392,39 @@ void test("Python reporter limits retain original failures, partial cases and su
     );
     assert.ok(originalSeen);
   }
+});
+
+void test("Python outcome overflow retains the first actual error after skipped cleanups", (t) => {
+  const suite = fixture(
+    t,
+    `class Cases(unittest.TestCase):
+    def test_a_cleanup_outcomes(self):
+        def failed_cleanup(reason):
+            raise RuntimeError(reason)
+        def skipped_cleanup():
+            raise unittest.SkipTest("secondary skip")
+        self.addCleanup(failed_cleanup, "SECOND_ACTUAL_ERROR")
+        self.addCleanup(failed_cleanup, "FIRST_ACTUAL_ERROR")
+        for _ in range(16):
+            self.addCleanup(skipped_cleanup)
+        raise unittest.SkipTest("initial skip")
+    def test_z_after(self):
+        pass
+`,
+  );
+  const result = execute(suite);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /FIRST_ACTUAL_ERROR/u);
+  const report = readPythonReport(result.stdout, suite, result.status);
+  assert.equal(report.suite_exit_status, 1);
+  assert.match(report.incomplete_reason!, /outcome limit/u);
+  const first = report.cases.find((item) => item.id === "Cases.test_a_cleanup_outcomes")!;
+  assert.ok(first.additional_outcomes.length <= 16);
+  assert.ok(first.additional_outcomes.some((item) => item.reason.includes("FIRST_ACTUAL_ERROR")));
+  assert.ok(!first.additional_outcomes.some((item) => item.reason.includes("SECOND_ACTUAL_ERROR")));
+  assert.ok(
+    report.cases.some((item) => item.id === "Cases.test_z_after" && item.status === "passed"),
+  );
 });
 
 void test("Python reporter changes refuse provenance", (t) => {

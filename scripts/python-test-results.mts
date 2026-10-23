@@ -106,17 +106,29 @@ export function readPythonReport(text: string, suite: string, status: number | n
   }
   const completed = cases.filter((item) => isRecord(item) && item.kind === "test");
   if (value.incomplete_reason === null) assert.equal(completed.length, value.tests_run);
-  assert.equal(new Set(completed.map((item) => isRecord(item) && item.id)).size, completed.length);
+  const completedIds = new Set(completed.map((item) => isRecord(item) && item.id));
+  assert.equal(completedIds.size, completed.length);
+  const missing = selected.filter((id) => !completedIds.has(id));
   assert.ok(
     value.incomplete_reason !== null ||
-      selected.length === completed.length ||
-      cases.some(
-        (item) =>
-          isRecord(item) &&
-          item.kind === "fixture" &&
-          ["error", "skipped"].includes(String(item.status)),
+      missing.every((id) =>
+        cases.some((item) => {
+          if (
+            !isRecord(item) ||
+            item.kind !== "fixture" ||
+            !["error", "skipped"].includes(String(item.status))
+          )
+            return false;
+          if (item.id === "setUpModule (_portcove_contract)") return true;
+          const owner = /^setUpClass \(_portcove_contract\.(.+)\)$/u.exec(String(item.id));
+          return (
+            owner !== null &&
+            typeof id === "string" &&
+            id.slice(0, id.lastIndexOf(".")) === owner[1]
+          );
+        }),
       ),
-    "Unexecuted Python selections require a fixture failure or skip",
+    "Unexecuted Python selections require their own class/module setup failure or skip",
   );
   const failed = (item: unknown): boolean =>
     isRecord(item) &&
