@@ -3,7 +3,9 @@
 import errno
 import importlib.util
 import io
+import json
 import stat
+import threading
 import tempfile
 import unittest
 from pathlib import Path
@@ -33,6 +35,39 @@ def request():
 
 
 class SupervisorContract(unittest.TestCase):
+    def test_static_catalog_keeps_exact_model_except_client_direct_surface(self):
+        data = Path(__file__).with_name("semantic-review-model-catalog.json").read_bytes()
+        self.assertEqual(supervisor.inspect_model_catalog(data), data)
+        for field, value in (("slug", "other-model"), ("tool_mode", "code_mode_only"), ("context_window", 1), ("unreviewed", True)):
+            changed = json.loads(data)
+            changed["models"][0][field] = value
+            with self.subTest(field=field), self.assertRaises(supervisor.Refusal):
+                supervisor.inspect_model_catalog(json.dumps(changed).encode())
+        for changed in ({"models": []}, {"models": json.loads(data)["models"] * 2}, {**json.loads(data), "fallback": "remote"}):
+            with self.subTest(changed=list(changed)), self.assertRaises(supervisor.Refusal):
+                supervisor.inspect_model_catalog(json.dumps(changed).encode())
+        args = supervisor.codex_arguments("a" * 64, "codex")
+        self.assertIn('model_catalog_json="/runtime/semantic-review-model-catalog.json"', args)
+        self.assertIn('features.code_mode_host=false', args)
+        self.assertEqual(args[args.index("--model") + 1], "gpt-6.1-sol")
+
+    def test_network_failure_diagnostics_are_bounded_enums_and_preserve_hold(self):
+        tunnel = supervisor.ProviderTunnel.__new__(supervisor.ProviderTunnel)
+        tunnel.lock = threading.Lock()
+        tunnel.failure = False
+        tunnel.failures = []
+        for _ in range(20):
+            tunnel.record_failure("headers", "policy")
+        self.assertTrue(tunnel.failure)
+        self.assertEqual(tunnel.failures, [{"stage": "headers", "kind": "policy"}])
+        for stage in ("dns", "connect", "forward", "shutdown"):
+            for kind in ("policy", "transport", "internal"):
+                tunnel.record_failure(stage, kind)
+        self.assertEqual(len(tunnel.failures), 8)
+        with self.assertRaises(supervisor.Refusal):
+            tunnel.record_failure("https://untrusted.invalid/?secret=inert", "transport")
+        self.assertNotIn("secret", json.dumps(tunnel.failures))
+
     def test_current_codex_bound_does_not_expand_other_runtime_or_writable_storage(self):
         # Scale only the byte unit: exercise actual bounded regular-file reads
         # without allocating a production-sized executable in this inert test.

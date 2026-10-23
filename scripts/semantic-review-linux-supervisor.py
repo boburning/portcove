@@ -50,6 +50,7 @@ RUNTIME = (
     "release-semantic-reader-server.mts",
     "release-semantic-reader-core.mts",
     "runtime-values.mts",
+    "semantic-review-model-catalog.json",
 )
 INPUT_SMALL = ("manifest.json", "instructions.txt", "result-schema.json", "reader-launch.json")
 SHA = re.compile(r"[a-f0-9]{64}\Z")
@@ -223,7 +224,31 @@ def read_runtime(path, name):
     require(name in RUNTIME, "unknown fixed runtime refused")
     # The retained Codex 0.162.0 package contains a 294410952-byte binary.
     # This is a read-only executable bound, not reviewer-writable capacity.
+    if name == "semantic-review-model-catalog.json":
+        return read_regular(path, 128 * 1024)
     return read_regular(path, (320 if name == "codex" else 256) * MIB)
+
+
+def inspect_model_catalog(data):
+    """Client-selected direct surface; never a provider capability attestation.
+
+    Exact gpt-6.1-sol record from Codex rust-v0.162.0/c1382380, with only
+    tool_mode changed. A static catalog prevents remote metadata from silently
+    selecting the disabled Code Mode worker instead of the fixed MCP reader.
+    """
+    value = decode_json(data)
+    require(isinstance(value, dict) and set(value) == {"models"}, "fixed model catalog required")
+    models = value["models"]
+    require(isinstance(models, list) and len(models) == 1 and isinstance(models[0], dict), "one fixed model required")
+    model = dict(models[0])
+    require(model.get("slug") == "gpt-6.1-sol" and model.get("tool_mode") == "direct", "fixed direct model required")
+    model["tool_mode"] = "code_mode_only"
+    original = json.dumps(model, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    require(
+        hashlib.sha256(original).hexdigest() == "9507d348e208b173517aef415de72be5ba1077645c77a38ab1e3f2892313eade",
+        "reviewed upstream model record changed",
+    )
+    return data
 
 
 def inspect_files(request):
@@ -233,6 +258,7 @@ def inspect_files(request):
     for name in ("runtime", "inputs", "capture"):
         private_directory(root / name)
     require(set(os.listdir(root / "runtime")) == set(RUNTIME), "unmanifested runtime entry refused")
+    inspect_model_catalog(read_runtime(root / "runtime/semantic-review-model-catalog.json", "semantic-review-model-catalog.json"))
     require(
         not any(
             (root / "capture" / name).exists()
@@ -549,8 +575,20 @@ class ProviderTunnel:
         self.connections = 0
         self.bytes = 0
         self.failure = False
+        self.failures = []
         self.thread = threading.Thread(target=self.accept, daemon=True)
         self.thread.start()
+
+    def record_failure(self, stage, kind):
+        # Fixed enums only: never retain destinations, headers, TLS bytes,
+        # exception messages or authentication contents.
+        require(stage in ("admission", "headers", "dns", "connect", "forward", "shutdown"), "fixed tunnel failure stage required")
+        require(kind in ("policy", "transport", "internal"), "fixed tunnel failure kind required")
+        with self.lock:
+            self.failure = True
+            row = {"stage": stage, "kind": kind}
+            if row not in self.failures and len(self.failures) < 8:
+                self.failures.append(row)
 
     def account(self, count):
         with self.lock:
@@ -571,6 +609,9 @@ class ProviderTunnel:
                 if self.connections > 128 or active >= 8:
                     peer.close()
                     self.failure = True
+                    row = {"stage": "admission", "kind": "policy"}
+                    if row not in self.failures and len(self.failures) < 8:
+                        self.failures.append(row)
                     continue
                 self.sockets.add(peer)
             worker = threading.Thread(target=self.handle, args=(peer,), daemon=True)
@@ -579,6 +620,7 @@ class ProviderTunnel:
 
     def handle(self, peer):
         remote = None
+        stage = "headers"
         try:
             peer.settimeout(5)
             header = bytearray()
@@ -588,6 +630,7 @@ class ProviderTunnel:
                 require(data, "CONNECT ended prematurely")
                 header.extend(data)
             host = connect_target(bytes(header))
+            stage = "dns"
             # Refuse private/reserved resolver results; use the exact observed
             # numeric address, preserving the TLS client's original hostname.
             addresses = socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
@@ -596,16 +639,19 @@ class ProviderTunnel:
                 "provider DNS observation refused",
             )
             family, kind, protocol, _, address = addresses[0]
+            stage = "connect"
             remote = socket.socket(family, kind, protocol)
             with self.lock:
                 self.sockets.add(remote)
             remote.settimeout(10)
             remote.connect(address)
             peer.sendall(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+            stage = "forward"
             forward(peer, remote, self.stop, self.account)
-        except Exception:
+        except Exception as error:
             # Do not retain URLs, headers, TLS bytes or tokens in diagnostics.
-            self.failure = True
+            kind = "policy" if isinstance(error, Refusal) else "transport" if isinstance(error, OSError) else "internal"
+            self.record_failure("shutdown" if self.stop.is_set() else stage, kind)
         finally:
             with self.lock:
                 for current in (peer, remote):
@@ -936,6 +982,8 @@ def codex_arguments(index_hash, mode):
         'cli_auth_credentials_store="file"',
         "--config",
         'forced_login_method="chatgpt"',
+        "--config",
+        'model_catalog_json="/runtime/semantic-review-model-catalog.json"',
         "--config",
         'mcp_servers.portcove_frozen_bundle.command="/runtime/node"',
         "--config",
@@ -1316,6 +1364,7 @@ def supervise(request):
         if tunnel is not None:
             result["network_settled"] = tunnel.close()
             result["network_refused"] = tunnel.failure
+            result["network_failures"] = list(tunnel.failures)
         for output in outputs.values():
             output.close()
         try:
