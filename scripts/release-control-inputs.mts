@@ -8,7 +8,10 @@ import {
   inspectRemoteCommitObject,
   inspectRemoteGitObject,
 } from "./release-coordinator-recovery.mts";
-import { inspectSemanticReviewEvidence } from "./release-semantic-review.mts";
+import {
+  inspectSemanticReviewEvidence,
+  semanticReviewCheckName,
+} from "./release-semantic-review.mts";
 import { isRecord } from "./runtime-values.mts";
 import { assessBoundedCapacity, capacityDigest } from "./release-capacity.mts";
 import { inspectReleaseReviewRequest } from "./release-review-request.mts";
@@ -235,10 +238,31 @@ function configuration(value: unknown): ReviewProducerConfiguration {
 export function inspectReviewProducerConfiguration(value: unknown) {
   return configuration(structuredClone(value));
 }
+/** Catalog Check authenticity has no classification persistence role. This
+ * closed projection appoints no writer and cannot enter application readers. */
+export function inspectCatalogReviewProducerConfiguration(raw: unknown) {
+  const value: unknown = structuredClone(raw);
+  if (isRecord(value) && value.schema_version === 1) return configuration(value);
+  exact(value, "purpose,review_app_id,review_check_name,schema_version");
+  numeric(value.review_app_id);
+  if (
+    value.schema_version !== 2 ||
+    value.purpose !== "catalog-publication" ||
+    value.review_app_id === 15368 ||
+    value.review_check_name !== semanticReviewCheckName
+  )
+    throw new Error("catalog independent semantic producer configuration differs");
+  return {
+    schema_version: 2 as const,
+    purpose: "catalog-publication" as const,
+    review_app_id: value.review_app_id,
+    review_check_name: value.review_check_name,
+  };
+}
 function review(
   get: ReturnType<typeof session>["get"],
   checkId: number,
-  config: ReviewProducerConfiguration,
+  config: Pick<ReviewProducerConfiguration, "review_app_id" | "review_check_name">,
   opportunity:
     | ReturnType<typeof validateOpportunity>
     | ReturnType<typeof inspectCatalogSemanticOpportunity>,
@@ -336,13 +360,9 @@ export function readIndependentCatalogSemanticReview(
   checkId: number,
 ) {
   numeric(checkId);
-  return review(
-    session(api).get,
-    checkId,
-    configuration(rawConfig),
-    inspectCatalogSemanticOpportunity(rawOpportunity),
-    "catalog-publication",
-  );
+  const config = inspectCatalogReviewProducerConfiguration(rawConfig);
+  const opportunity = inspectCatalogSemanticOpportunity(rawOpportunity);
+  return review(session(api).get, checkId, config, opportunity, "catalog-publication");
 }
 
 /** Persistence adapter, not a classifier or execution grant. An admitted fixed

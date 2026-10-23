@@ -14,7 +14,16 @@ import {
 import {
   readIndependentCatalogSemanticReview,
   readIndependentSemanticReview,
+  inspectCatalogReviewProducerConfiguration,
+  inspectReviewProducerConfiguration,
+  persistReviewedClassification,
+  readReviewedClassification,
+  readReviewedClassificationForRequest,
 } from "./release-control-inputs.mts";
+import {
+  discoverIndependentSemanticDisposition,
+  readIndependentSemanticCheckInventory,
+} from "./release-semantic-disposition-reader.mts";
 import {
   prepareFrozenCatalogSemanticInputs,
   requireFrozenSemanticInputs,
@@ -258,59 +267,122 @@ void test("catalog review binds exact Core policy/grant/launch identities and re
   );
 });
 
-void test("same independent issuer consumer separates catalog from app and refuses wrong issuer or source", () => {
-  const f = fixture(),
-    handoff = prepareSemanticReviewHandoff(f.opportunity, review(f.opportunity));
-  const body = {
-    ...handoff.proposed_request.body,
-    id: 303,
-    app: { id: 101 },
-    output: { ...handoff.proposed_request.body.output, annotations_count: 0 },
-  };
+for (const selected of [false, true]) {
+  void test(`same independent issuer consumer separates catalog from app and refuses wrong issuer or source (selected=${selected})`, () => {
+    const f = fixture(),
+      handoff = prepareSemanticReviewHandoff(f.opportunity, review(f.opportunity));
+    const body = {
+      ...handoff.proposed_request.body,
+      id: 303,
+      app: { id: 101 },
+      output: { ...handoff.proposed_request.body.output, annotations_count: 0 },
+    };
+    const config = selected
+      ? {
+          schema_version: 2,
+          purpose: "catalog-publication",
+          review_app_id: 101,
+          review_check_name: semanticReviewCheckName,
+        }
+      : {
+          schema_version: 1,
+          review_app_id: 101,
+          writer_app_id: 202,
+          review_check_name: semanticReviewCheckName,
+        };
+    let observed = body;
+    const api = {
+      request(method: string, route: string) {
+        assert.equal(method, "GET");
+        return {
+          status: 200,
+          headers: new Map<string, string>(),
+          body: route.endsWith("/check-runs/303")
+            ? observed
+            : { id: 1354613114, full_name: "boburning/portcove", node_id: "fixture" },
+        };
+      },
+      graphql() {
+        throw new Error("no mutation");
+      },
+    } as CoordinatorRemoteApi;
+    assert.match(
+      readIndependentCatalogSemanticReview(api, config, f.opportunity, 303),
+      /catalog-publication/,
+    );
+    assert.throws(() => readIndependentSemanticReview(api, config, f.opportunity, 303));
+    for (const change of [
+      { app: { id: 102 } },
+      { head_sha: "9".repeat(40) },
+      { external_id: "portcove-release-review-v2:" + capacityDigest(f.opportunity) },
+      { status: "in_progress" },
+      { conclusion: "failure" },
+      { name: "generic implementation review" },
+    ]) {
+      observed = { ...body, ...change };
+      assert.throws(() => readIndependentCatalogSemanticReview(api, config, f.opportunity, 303));
+    }
+    observed = body;
+    assert.throws(() =>
+      readIndependentCatalogSemanticReview(
+        api,
+        config,
+        { ...f.opportunity, publisher_configuration_sha256: "8".repeat(64) },
+        303,
+      ),
+    );
+  });
+}
+
+void test("catalog-only semantic projection cannot appoint application persistence or bypass closed producer identity", () => {
   const config = {
-    schema_version: 1,
+    schema_version: 2,
+    purpose: "catalog-publication",
     review_app_id: 101,
-    writer_app_id: 202,
     review_check_name: semanticReviewCheckName,
   };
-  let observed = body;
-  const api = {
-    request(method: string, route: string) {
-      assert.equal(method, "GET");
-      return {
-        status: 200,
-        headers: new Map<string, string>(),
-        body: route.endsWith("/check-runs/303")
-          ? observed
-          : { id: 1354613114, full_name: "boburning/portcove", node_id: "fixture" },
-      };
+  assert.deepEqual(inspectCatalogReviewProducerConfiguration(config), config);
+  let calls = 0;
+  const api: CoordinatorRemoteApi = {
+    request() {
+      calls++;
+      throw new Error("unexpected provider request");
     },
     graphql() {
-      throw new Error("no mutation");
+      calls++;
+      throw new Error("unexpected provider mutation");
     },
-  } as CoordinatorRemoteApi;
-  assert.match(
-    readIndependentCatalogSemanticReview(api, config, f.opportunity, 303),
-    /catalog-publication/,
-  );
-  assert.throws(() => readIndependentSemanticReview(api, config, f.opportunity, 303));
-  for (const change of [
-    { app: { id: 102 } },
-    { head_sha: "9".repeat(40) },
-    { external_id: "portcove-release-review-v2:" + capacityDigest(f.opportunity) },
-    { status: "in_progress" },
-  ]) {
-    observed = { ...body, ...change };
-    assert.throws(() => readIndependentCatalogSemanticReview(api, config, f.opportunity, 303));
-  }
-  observed = body;
-  assert.throws(() =>
-    readIndependentCatalogSemanticReview(
-      api,
-      config,
-      { ...f.opportunity, publisher_configuration_sha256: "8".repeat(64) },
-      303,
-    ),
+  };
+  for (const read of [
+    () => inspectReviewProducerConfiguration(config),
+    () => readIndependentSemanticReview(api, config, {}, 303),
+    () =>
+      persistReviewedClassification(api, config, {}, 303, () => {
+        calls++;
+      }),
+    () => readReviewedClassification(api, config, {}),
+    () => readReviewedClassificationForRequest(api, config, {}),
+    () => discoverIndependentSemanticDisposition(api, config, {}),
+    () => readIndependentSemanticCheckInventory(api, config, "a".repeat(40)),
+  ])
+    assert.throws(read, /schema differs/);
+  for (const changed of [
+    { ...config, purpose: "application" },
+    { ...config, purpose: ["catalog-publication"] },
+    { ...config, review_app_id: 15368 },
+    { ...config, review_check_name: "generic Actions review" },
+    { ...config, writer_app_id: 202 },
+    { ...config, schema_version: 3 },
+    { ...config, extra: true },
+    { schema_version: 2, purpose: "catalog-publication", review_app_id: 101 },
+  ])
+    assert.throws(() =>
+      readIndependentCatalogSemanticReview(api, changed, fixture().opportunity, 303),
+    );
+  assert.equal(
+    calls,
+    0,
+    "invalid producer/configuration fails before provider reads or persistence",
   );
 });
 

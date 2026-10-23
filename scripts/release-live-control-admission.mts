@@ -19,6 +19,7 @@ import {
 } from "./release-input-protections.mts";
 import {
   inspectReviewProducerConfiguration,
+  inspectCatalogReviewProducerConfiguration,
   readPublicationPause,
   readRatifiedCapacityConfiguration,
   readReviewedClassification,
@@ -44,12 +45,16 @@ import {
   isMaintenanceReleaseControlPhase,
 } from "./release-control-phases.mts";
 import type { ReleaseControlPhase } from "./release-control-phases.mts";
-import { inspectBoundCatalogControllerAuthorities } from "./release-authority-configuration.mts";
+import {
+  inspectBoundCatalogControllerAuthorities,
+  inspectBoundSelectedPublicationAuthorities,
+} from "./release-authority-configuration.mts";
 import {
   discoverIndependentSemanticDisposition,
   readIndependentSemanticCheckInventory,
   inspectSemanticRequestCheckMatches,
 } from "./release-semantic-disposition-reader.mts";
+import { semanticReviewCheckName } from "./release-semantic-review.mts";
 const establishedSources = new WeakSet<object>();
 const catalogSources = new WeakSet<object>();
 export function requireAuthenticatedCatalogControlSource(value: unknown, rawPhase: unknown) {
@@ -196,21 +201,32 @@ async function authenticateControlSource(
     workflowBytes,
     options,
   );
-  const catalog =
-    purpose === "catalog-publication"
-      ? inspectBoundCatalogControllerAuthorities(
-          json(env.PORTCOVE_CATALOG_AUTHORITIES, 32 * 1024),
-          admitted,
-        )
+  const applicationConfig =
+    purpose === "application"
+      ? inspectReviewProducerConfiguration(json(env.PORTCOVE_REVIEW_PRODUCER, 4096))
       : null;
-  const config = catalog
-    ? inspectReviewProducerConfiguration({
-        schema_version: 1,
-        review_app_id: catalog.apps.semantic.app_id,
-        writer_app_id: catalog.apps.classification.app_id,
-        review_check_name: "Portcove independent release semantic review",
-      })
-    : inspectReviewProducerConfiguration(json(env.PORTCOVE_REVIEW_PRODUCER, 4096));
+  const catalogAppId = () => {
+    const raw = json(env.PORTCOVE_CATALOG_AUTHORITIES, 32 * 1024);
+    if (isRecord(raw) && raw.schema_version === 4) {
+      const selected = inspectBoundSelectedPublicationAuthorities(
+        raw,
+        admitted,
+        "catalog-publication",
+      ).configuration;
+      if (selected.purpose !== "catalog-publication")
+        throw new Error("catalog control source purpose differs");
+      return selected.journal.apps.semantic.app_id;
+    }
+    return inspectBoundCatalogControllerAuthorities(raw, admitted).apps.semantic.app_id;
+  };
+  const config =
+    applicationConfig ??
+    inspectCatalogReviewProducerConfiguration({
+      schema_version: 2,
+      purpose: "catalog-publication",
+      review_app_id: catalogAppId(),
+      review_check_name: semanticReviewCheckName,
+    });
   if (options.round && !options.observedArtifact)
     throw new Error("control rounds require actual collected observer artifact");
   if (options.observedArtifact)
@@ -305,10 +321,17 @@ async function authenticateControlSource(
     remaining();
     if (now() >= Date.parse(identity.expires_at))
       throw new Error("control reader identity expired");
-    const policy =
-      purpose === "catalog-publication"
-        ? requireCatalogMaintenancePolicy(handoff.observation, now())
-        : requireReleaseInputWriterPolicy(handoff.observation, config.writer_app_id, now());
+    const policy = (() => {
+      if (purpose === "catalog-publication")
+        return requireCatalogMaintenancePolicy(handoff.observation, now());
+      if (applicationConfig === null)
+        throw new Error("application classification writer identity unavailable");
+      return requireReleaseInputWriterPolicy(
+        handoff.observation,
+        applicationConfig.writer_app_id,
+        now(),
+      );
+    })();
     return {
       ...policy,
       ...(phase === "release-publication"
