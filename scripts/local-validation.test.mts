@@ -49,6 +49,38 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 
 const allFilesExist = () => true;
 
+void test("colocated workflow contracts retain every former route and their direct production owners", () => {
+  const companions = [
+    "scripts/check-catalog-repositories.test.mts",
+    "scripts/check-retcomm-upstreams.test.mts",
+    "scripts/deep-audit-summary.test.mts",
+  ];
+  for (const file of [
+    ".github/workflows/ci.yml",
+    ".github/workflows/deep-quality.yml",
+    ".github/workflows/upstream-health.yml",
+    ".github/actions/setup-rust/action.yml",
+    "package.json",
+    "apps/desktop/package.json",
+    "justfile",
+    "scripts/ci-workflow.test.mts",
+  ]) {
+    const selection = classifyChanges([{ status: "M", path: file }], {
+      fileExists: allFilesExist,
+    });
+    assert.ok(selection.nodeTests.has("scripts/ci-workflow.test.mts"), file);
+    for (const companion of companions) assert.ok(selection.nodeTests.has(companion), file);
+  }
+  for (const companion of companions) {
+    for (const file of [companion, companion.replace(".test.mts", ".mts")]) {
+      const selection = classifyChanges([{ status: "M", path: file }], {
+        fileExists: allFilesExist,
+      });
+      assert.ok(selection.nodeTests.has(companion), file);
+    }
+  }
+});
+
 void test("Release recovery and Preview withdrawal inputs select complete test paths and serialize actual CI outputs", async (t) => {
   const files = [
     "scripts/release-pending-release-recovery.mts",

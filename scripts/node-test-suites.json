@@ -65,7 +65,13 @@
         "--test-timeout=30000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ],
-      "files": ["scripts/ci-workflow.test.mts", "scripts/node-test-inventory.test.mts"]
+      "files": [
+        "scripts/ci-workflow.test.mts",
+        "scripts/check-catalog-repositories.test.mts",
+        "scripts/check-retcomm-upstreams.test.mts",
+        "scripts/deep-audit-summary.test.mts",
+        "scripts/node-test-inventory.test.mts"
+      ]
     },
     "windows-storage-4": {
       "arguments": [
@@ -333,6 +339,9 @@
         "scripts/rust-support-cache.test.mts",
         "scripts/rust-test-tree-supervisor.test.mts",
         "scripts/ci-workflow.test.mts",
+        "scripts/check-catalog-repositories.test.mts",
+        "scripts/check-retcomm-upstreams.test.mts",
+        "scripts/deep-audit-summary.test.mts",
         "scripts/node-test-inventory.test.mts",
         "scripts/ci-health.test.mts",
         "scripts/workflow-provenance.test.mts",
@@ -558,6 +567,9 @@
       ],
       "files": [
         "scripts/ci-workflow.test.mts",
+        "scripts/check-catalog-repositories.test.mts",
+        "scripts/check-retcomm-upstreams.test.mts",
+        "scripts/deep-audit-summary.test.mts",
         "scripts/node-test-inventory.test.mts",
         "scripts/ci-health.test.mts",
         "scripts/workflow-provenance.test.mts",
