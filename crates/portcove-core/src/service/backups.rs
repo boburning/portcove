@@ -60,13 +60,10 @@ impl BackupDataScan {
         if depth == 0 {
             refuse_symlink_ancestors(source)?;
         }
-        match fs::metadata(source) {
+        let metadata = match fs::symlink_metadata(source) {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
-            result => {
-                result?;
-            }
-        }
-        let metadata = fs::symlink_metadata(source)?;
+            result => result?,
+        };
         if metadata.file_type().is_symlink() || !(metadata.is_dir() || metadata.is_file()) {
             return self.has_files(destination, &[]);
         }
@@ -852,6 +849,7 @@ impl PortcoveService {
             }
             let mut replaced = Vec::new();
             let mut scan = BackupDataScan::default();
+            let mut collectible = false;
             if let Some(active) = active {
                 let marker = active.path.join(super::LAUNCH_MARKER);
                 refuse_symlink_ancestors(&marker)?;
@@ -875,18 +873,16 @@ impl PortcoveService {
                         for relative in entries {
                             crate::archive::validate_relative_path(&relative, false)?;
                             replaced.push(PathBuf::from(&relative));
-                            if scan.collectible_has_files(
+                            collectible |= scan.collectible_has_files(
                                 &persistent_root.join(&relative),
                                 &user_root.join(relative),
                                 0,
-                            )? {
-                                return Ok(true);
-                            }
+                            )?;
                         }
                     }
                 }
             }
-            scan.has_files(&user_root, &replaced)
+            Ok(scan.has_files(&user_root, &replaced)? || collectible)
         })();
         match result {
             Ok(true) => decision(Availability::Allowed, Reason::Available),

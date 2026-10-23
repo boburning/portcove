@@ -5508,11 +5508,17 @@ impl PortcoveService {
                 // A dangling source link is unsafe, not evidence that the
                 // player's working file was removed. Preserve the owned mirror.
                 refuse_symlink_ancestors(&source)?;
-                if source.exists() {
-                    sync_entry(&source, &destination)?;
-                    copied.push(destination);
-                } else if destination.exists() {
-                    remove_managed_entry(&destination)?;
+                match fs::symlink_metadata(&source) {
+                    Ok(_) => {
+                        sync_entry(&source, &destination)?;
+                        copied.push(destination);
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                        if destination.exists() {
+                            remove_managed_entry(&destination)?;
+                        }
+                    }
+                    Err(error) => return Err(error.into()),
                 }
             }
         }

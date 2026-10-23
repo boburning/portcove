@@ -698,6 +698,146 @@ fn backup_create_assessment_holds_source_links_and_preserves_mirrors() {
 
 #[cfg(unix)]
 #[test]
+fn save_collection_preserves_mirrors_when_source_metadata_is_unreadable() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let mut service = service_with_added_persistent_path(library.clone(), "v1", "blocked/save.dat");
+    let catalog = crate::test_fixture::indexed_catalog(service.catalog(), "zelda64-recomp");
+    service.replace_catalog_for_test(catalog.clone());
+    let active = register_zelda_install_contract(&library, "v1", true, b"test", Some(&catalog));
+    fs::write(active.join("blocked"), b"blocking file").unwrap();
+    fs::write(active.join(LAUNCH_MARKER), b"1").unwrap();
+    let owned = library.user_dir("zelda64-recomp").join("blocked/save.dat");
+    fs::create_dir_all(owned.parent().unwrap()).unwrap();
+    fs::write(&owned, b"owned save").unwrap();
+    assert_eq!(
+        fs::symlink_metadata(active.join("blocked/save.dat"))
+            .unwrap_err()
+            .kind(),
+        std::io::ErrorKind::NotADirectory
+    );
+    let inventory = service.list_backups("zelda64-recomp").unwrap();
+    assert_eq!(
+        inventory.create_assessment.availability,
+        PortActionAvailability::Held
+    );
+    assert_eq!(
+        inventory.create_assessment.reason,
+        PortActionReason::UnreadableData
+    );
+    assert!(service.collect_user_data("zelda64-recomp").is_err());
+    assert!(service.create_backup("zelda64-recomp").is_err());
+    assert_eq!(fs::read(&owned).unwrap(), b"owned save");
+    assert_eq!(fs::read(active.join("blocked")).unwrap(), b"blocking file");
+    assert!(
+        service
+            .list_backups("zelda64-recomp")
+            .unwrap()
+            .backups
+            .is_empty()
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn backup_create_assessment_checks_sources_after_finding_data() {
+    for target_exists in [true, false] {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let active = register_zelda_install(&library, "v1", true);
+        let service = service_with_release(library.clone(), "v1");
+        fs::write(active.join("general.json"), b"collectible save").unwrap();
+        fs::write(active.join(LAUNCH_MARKER), b"1").unwrap();
+        let foreign = temporary.path().join("foreign-mods");
+        if target_exists {
+            fs::create_dir(&foreign).unwrap();
+            fs::write(foreign.join("unowned.rtz"), b"foreign mod").unwrap();
+        }
+        std::os::unix::fs::symlink(&foreign, active.join("mods")).unwrap();
+        let owned = library.user_dir("zelda64-recomp").join("mods/kept.rtz");
+        fs::create_dir_all(owned.parent().unwrap()).unwrap();
+        fs::write(&owned, b"owned mod").unwrap();
+        let inventory = service.list_backups("zelda64-recomp").unwrap();
+        assert_eq!(
+            inventory.create_assessment.availability,
+            PortActionAvailability::Held
+        );
+        assert_eq!(
+            inventory.create_assessment.reason,
+            PortActionReason::UnsafeData
+        );
+        assert_eq!(
+            service.create_backup("zelda64-recomp").unwrap_err().code,
+            crate::ErrorCode::Conflict
+        );
+        assert_eq!(fs::read(&owned).unwrap(), b"owned mod");
+        if target_exists {
+            assert_eq!(
+                fs::read(foreign.join("unowned.rtz")).unwrap(),
+                b"foreign mod"
+            );
+        } else {
+            assert!(!foreign.exists());
+        }
+        assert!(
+            service
+                .list_backups("zelda64-recomp")
+                .unwrap()
+                .backups
+                .is_empty()
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn backup_create_assessment_counts_preserved_nested_link_mirrors() {
+    for target_exists in [true, false] {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let active = register_zelda_install(&library, "v1", true);
+        let service = service_with_release(library.clone(), "v1");
+        fs::create_dir(active.join("mods")).unwrap();
+        fs::write(active.join(LAUNCH_MARKER), b"1").unwrap();
+        let foreign = temporary.path().join("foreign-mod");
+        if target_exists {
+            fs::write(&foreign, b"foreign mod").unwrap();
+        }
+        std::os::unix::fs::symlink(&foreign, active.join("mods/kept.rtz")).unwrap();
+        let owned = library.user_dir("zelda64-recomp").join("mods/kept.rtz");
+        fs::create_dir_all(owned.parent().unwrap()).unwrap();
+        fs::write(&owned, b"owned mod").unwrap();
+        let inventory = service.list_backups("zelda64-recomp").unwrap();
+        assert_eq!(
+            inventory.create_assessment.availability,
+            PortActionAvailability::Allowed
+        );
+        assert_eq!(
+            inventory.create_assessment.reason,
+            PortActionReason::Available
+        );
+        let backup = service.create_backup("zelda64-recomp").unwrap();
+        assert_eq!(
+            fs::read(backup.path.join("data/mods/kept.rtz")).unwrap(),
+            b"owned mod"
+        );
+        assert_eq!(fs::read(&owned).unwrap(), b"owned mod");
+        assert!(
+            fs::symlink_metadata(active.join("mods/kept.rtz"))
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        if target_exists {
+            assert_eq!(fs::read(&foreign).unwrap(), b"foreign mod");
+        } else {
+            assert!(!foreign.exists());
+        }
+    }
+}
+
+#[cfg(unix)]
+#[test]
 fn save_collection_preserves_mirrors_of_nested_live_and_dangling_links() {
     for target_exists in [true, false] {
         let temporary = tempfile::tempdir().unwrap();
