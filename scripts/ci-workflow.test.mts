@@ -2403,6 +2403,60 @@ void test("browser uploads select the actual trace and screenshot output layout"
   }
 });
 
+for (const closeFails of [false, true]) {
+  void test(`a passing run retains raw traces after ${closeFails ? "failed" : "successful"} pool shutdown`, async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-browser-close-control-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const run = createBrowserTraceRun(root);
+    const { createVitest } = await import("vite-plus/test/node");
+    const runner = await createVitest({
+      root,
+      config: false,
+      watch: false,
+      reporters: [run.reporter],
+    });
+    const originalExitCode = process.exitCode;
+    const originalLogger = runner.logger.error;
+    const diagnostics: unknown[][] = [];
+    runner.logger.error = (...args: unknown[]) => {
+      diagnostics.push(args);
+    };
+    try {
+      await runner.standalone();
+      await mkdir(run.directory, { recursive: true });
+      const raw = path.join(run.directory, "provider.trace");
+      await writeFile(raw, "pending browser trace");
+      await run.reporter.onTestRunEnd?.([], [], "passed");
+      const failure = new Error("owned pool-close failure control");
+      let closed = false;
+      // Fault injection uses the pinned runner's real close implementation.
+      // Its pool is private; production code never replaces or observes it.
+      Reflect.set(runner, "pool", {
+        async close() {
+          assert.equal(await readFile(raw, "utf8"), "pending browser trace");
+          await writeFile(raw, "browser shutdown flushed its final trace chunk");
+          closed = true;
+          if (closeFails) throw failure;
+        },
+      });
+      await runner.close();
+      assert.equal(closed, true);
+      if (closeFails) {
+        assert.equal(process.exitCode, 1);
+        assert.ok(diagnostics.some((args) => args.includes(failure)));
+      } else {
+        assert.equal(process.exitCode, originalExitCode);
+        assert.deepEqual(diagnostics, []);
+      }
+      assert.equal(await readFile(raw, "utf8"), "browser shutdown flushed its final trace chunk");
+    } finally {
+      await runner.close();
+      runner.logger.error = originalLogger;
+      process.exitCode = originalExitCode;
+    }
+  });
+}
+
 void test("frontend tools resolve through the pinned Vite+ bundle", async () => {
   const manifest: unknown = JSON.parse(
     await readFile(new URL("../package.json", import.meta.url), "utf8"),
