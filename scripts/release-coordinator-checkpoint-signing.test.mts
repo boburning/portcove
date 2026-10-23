@@ -392,6 +392,85 @@ function producerFixture() {
   };
 }
 
+for (const refused of ["fulcio", "rekor"] as const) {
+  void test(`official SDK waits for ${refused} pending-intent gate and never posts after its refusal`, async (t) => {
+    const f = producerFixture();
+    const directory = await mkdtemp(path.join(os.tmpdir(), "checkpoint-intent-gate-"));
+    t.after(() => rm(directory, { recursive: true, force: true }));
+    const previous = process.env.GH_TOKEN;
+    process.env.GH_TOKEN = "inert-checkpoint-reader";
+    t.after(() => {
+      if (previous === undefined) delete process.env.GH_TOKEN;
+      else process.env.GH_TOKEN = previous;
+    });
+    const gates: string[] = [];
+    f.options.beforePost = async (stage) => {
+      gates.push(stage);
+      await Promise.resolve();
+      assert.equal(f.posts.length, stage === "fulcio" ? 0 : 1);
+      if (stage === refused) throw new Error("owned remote intent/control gate refused");
+    };
+    await withReadOnlyReleaseChildren(directory, async () => {
+      await assert.rejects(
+        signCoordinatorCheckpointEvidence(
+          directory,
+          f.checkpoint,
+          f.configuration,
+          f.expected,
+          performance.now() + 10000,
+          f.options,
+        ),
+        /recovery/,
+      );
+    });
+    assert.deepEqual(gates, refused === "fulcio" ? ["fulcio"] : ["fulcio", "rekor"]);
+    assert.equal(f.posts.length, refused === "fulcio" ? 0 : 1);
+    assert.ok(f.files.has("signing-failure.json"));
+  });
+}
+
+for (const changedDuringWrite of ["fulcio", "rekor"] as const) {
+  void test(`pending-intent freshness changed during ${changedDuringWrite} custody refuses that POST`, async (t) => {
+    const f = producerFixture();
+    const directory = await mkdtemp(path.join(os.tmpdir(), "checkpoint-slow-intent-"));
+    t.after(() => rm(directory, { recursive: true, force: true }));
+    const previous = process.env.GH_TOKEN;
+    process.env.GH_TOKEN = "inert-checkpoint-reader";
+    t.after(() => {
+      if (previous === undefined) delete process.env.GH_TOKEN;
+      else process.env.GH_TOKEN = previous;
+    });
+    let current = true;
+    const write = f.store.write;
+    f.store.write = async (name, bytes) => {
+      await write(name, bytes);
+      if (name === `${changedDuringWrite}-intent.json`) {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        current = false;
+      }
+    };
+    f.options.beforePost = async () => {
+      if (!current) throw new Error("owned intent or current controls changed during custody");
+    };
+    await withReadOnlyReleaseChildren(directory, async () => {
+      await assert.rejects(
+        signCoordinatorCheckpointEvidence(
+          directory,
+          f.checkpoint,
+          f.configuration,
+          f.expected,
+          performance.now() + 10000,
+          f.options,
+        ),
+        /recovery/,
+      );
+    });
+    assert.equal(f.posts.length, changedDuringWrite === "fulcio" ? 0 : 1);
+    assert.ok(f.files.has(`${changedDuringWrite}-intent.json`));
+    assert.ok(f.files.has("signing-failure.json"));
+  });
+}
+
 void test("final custody cannot return success after its original signing deadline", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-checkpoint-final-deadline-"));
   t.after(() => rm(directory, { recursive: true, force: true }));

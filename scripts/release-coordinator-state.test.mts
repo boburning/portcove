@@ -52,6 +52,7 @@ import {
 import { performance } from "node:perf_hooks";
 import { checkpointProofFixture } from "./fixtures/checkpoint-proof-fixture.mts";
 import { authenticateCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-authentication.mts";
+import { publishCoordinatorSigningExchange } from "./release-coordinator-signing-exchange.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import childProcess from "node:child_process";
@@ -1461,8 +1462,9 @@ function gitObject(kind: string, bytes: Buffer) {
   return createHash("sha1").update(`${kind} ${bytes.length}\0`).update(bytes).digest("hex");
 }
 
-async function remoteFixture(t: test.TestContext) {
+async function remoteFixture(t: test.TestContext, now?: string) {
   const local = await fixture(t);
+  if (now !== undefined) local.input.now = now;
   const saved = await checkpointReleaseOpportunity(
     local.repository,
     local.initial.checkpoint,
@@ -4088,3 +4090,348 @@ for (const expires of ["read", "first-object", "before-cas", "mutated-options"])
     });
   });
 }
+
+async function signingExchangeFixture(t: test.TestContext, fault = "", now?: string) {
+  const f = await remoteFixture(t, now),
+    proof = checkpointProofFixture(f.checkpoint, f.config);
+  const directory = await mkdtemp(path.join(os.tmpdir(), "coordinator-signing-exchange-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const previousToken = process.env.GH_TOKEN,
+    actualSpawn = childProcess.spawnSync;
+  process.env.GH_TOKEN = "inert-checkpoint-reader";
+  t.after(() => {
+    if (previousToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previousToken;
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+  t.mock.method(
+    childProcess,
+    "spawnSync",
+    (command: string, args: readonly string[], options?: childProcess.SpawnSyncOptions) => {
+      if (command !== "gh") return actualSpawn(command, args, options);
+      if (args[0] === "attestation")
+        return {
+          status: 0,
+          stdout: JSON.stringify([{ verificationResult: proof.verification }]),
+          stderr: "",
+        };
+      const response = proof.api.request("GET", args[2]!);
+      return {
+        status: 0,
+        stdout: `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify(response.body)}`,
+        stderr: "",
+      };
+    },
+  );
+  syncBuiltinESMExports();
+  const intent = `refs/tags/portcove-fixture-checkpoint-intent/${f.initial.checkpoint}`;
+  if (fault === "object-after") f.faults.object = "evidence-commits";
+  let calls = 0,
+    mutations = 0,
+    produces = 0;
+  let gateDrained = false;
+  const hooks: { refresh: (stage: string) => Promise<void> } = { async refresh() {} };
+  const events: string[] = [],
+    zero = "0".repeat(40);
+  const api: CoordinatorRemoteApi = {
+    request(method, endpoint, body) {
+      calls++;
+      return f.api.request(method, endpoint, body);
+    },
+    graphql(query, variables) {
+      calls++;
+      if (!query.startsWith("mutation")) {
+        const result = f.api.graphql(query, variables);
+        if (query.includes('repository(owner:"boburning",name:"portcove")')) {
+          assert.ok(isRecord(result.data));
+          return { data: { repository: result.data.node } };
+        }
+        return result;
+      }
+      mutations++;
+      assert.ok(isRecord(variables.input) && Array.isArray(variables.input.refUpdates));
+      const input = variables.input,
+        updates = input.refUpdates;
+      assert.ok(Array.isArray(updates));
+      assert.equal(input.repositoryId, "R_fixture");
+      assert.equal(
+        new Set(updates.map((u: unknown) => (isRecord(u) ? u.name : null))).size,
+        updates.length,
+      );
+      for (const update of updates) {
+        assert.ok(isRecord(update));
+        assert.equal(update.force, false);
+        if ((f.refs.get(String(update.name)) ?? zero) !== update.beforeOid)
+          throw new Error("atomic fixture preimage conflict");
+        assert.notEqual(update.afterOid, zero);
+      }
+      if (mutations === 1) {
+        assert.equal(updates.length, 2);
+        assert.deepEqual(
+          updates.map((u: unknown) => (isRecord(u) ? [u.name, u.afterOid] : null)),
+          [
+            [f.stateRef, f.initial.checkpoint],
+            [intent, f.saved.checkpoint],
+          ],
+        );
+        assert.equal(f.counts().posts, 3);
+        if (fault === "claim-before") throw new Error("claim response lost before effect");
+      } else {
+        assert.equal(f.counts().posts, 7);
+        assert.equal(events.filter((event) => event.startsWith("post:")).length, 2);
+        assert.equal(events.at(-1), "refresh:commit");
+      }
+      for (const update of updates) {
+        assert.ok(isRecord(update));
+        if (fault !== "partial-final" || !String(update.name).includes("checkpoint-proof/"))
+          f.refs.set(String(update.name), String(update.afterOid));
+      }
+      if (
+        (mutations === 1 && fault === "claim-after") ||
+        (mutations === 2 && ["final-after", "partial-final"].includes(fault))
+      )
+        throw new Error("response lost after effects");
+      if (mutations === 1 && fault === "claim-ack")
+        return { data: { updateRefs: { clientMutationId: "wrong" } } };
+      return { data: { updateRefs: { clientMutationId: input.clientMutationId } } };
+    },
+  };
+  const deadline = performance.now() + 60000;
+  let retainedGate: ((stage: "fulcio" | "rekor") => Promise<void>) | undefined;
+  const run = () =>
+    withReadOnlyReleaseChildren(directory, () =>
+      publishCoordinatorSigningExchange(f.bare, f.saved.checkpoint, f.config, deadline, {
+        api,
+        async refresh(stage) {
+          events.push(`refresh:${stage}`);
+          await hooks.refresh(stage);
+          if (fault === "unawaited" && stage === "fulcio") {
+            await new Promise((resolve) => setTimeout(resolve, 20));
+            gateDrained = true;
+          }
+          if (fault === `refuse-${stage}`)
+            throw new Error("actual session/control fixture refused");
+        },
+        async produce(checkpoint, configuration, beforePost) {
+          produces++;
+          retainedGate = beforePost;
+          assert.equal(
+            f.refs.get(f.stateRef),
+            f.initial.checkpoint,
+            "unsigned state never advanced",
+          );
+          assert.equal(f.refs.get(intent), f.saved.checkpoint);
+          assert.equal(checkpoint.checkpoint, f.saved.checkpoint);
+          if (fault === "producer-refuse")
+            throw new Error("signer/provider refusal after durable claim");
+          if (fault === "no-posts")
+            return {} as Awaited<ReturnType<typeof authenticateCoordinatorCheckpointEvidence>>;
+          if (fault === "unawaited") {
+            void beforePost("fulcio");
+            return {} as Awaited<ReturnType<typeof authenticateCoordinatorCheckpointEvidence>>;
+          }
+          if (fault === "concurrent-gates")
+            await Promise.all([beforePost("fulcio"), beforePost("fulcio")]);
+          if (fault === "wrong-order") await beforePost("rekor");
+          for (const stage of ["fulcio", "rekor"] as const) {
+            if (fault === `changed-${stage}`) f.refs.set(f.stateRef, "e".repeat(40));
+            await beforePost(stage);
+            events.push(`post:${stage}`);
+          }
+          if (fault === "bad-proof")
+            proof.verification.signature.certificate.issuer = "https://wrong.invalid";
+          return authenticateCoordinatorCheckpointEvidence(
+            directory,
+            checkpoint,
+            configuration,
+            proof.evidence,
+            proof.expected,
+            deadline,
+          );
+        },
+      }),
+    );
+  return {
+    ...f,
+    api,
+    run,
+    proof,
+    deadline,
+    directory,
+    intent,
+    events,
+    hooks,
+    gate: () => retainedGate,
+    stats: () => ({ calls, mutations, produces, gateDrained }),
+  };
+}
+
+void test("same-journal signing claims its predecessor without advancing unsigned head and commits authenticated proof in sixteen requests", async (t) => {
+  const f = await signingExchangeFixture(t);
+  const result = await f.run();
+  assert.equal(result.requests, 16);
+  assert.equal(f.stats().calls, 16);
+  assert.equal(result.recovered, false);
+  assert.equal(result.authority, "none");
+  assert.equal(f.refs.get(f.stateRef), f.saved.checkpoint);
+  assert.equal(f.refs.get(f.intent), f.saved.checkpoint, "permanent claim retained");
+  assert.deepEqual(f.events, [
+    "refresh:claim",
+    "refresh:claim",
+    "refresh:fulcio",
+    "post:fulcio",
+    "refresh:rekor",
+    "post:rekor",
+    "refresh:commit",
+  ]);
+  await assert.rejects(f.gate()!("fulcio"), /stopped/);
+  await assert.rejects(f.run(), CoordinatorRemoteError);
+  assert.equal(f.stats().produces, 1, "completed or retained intent is never reminted");
+});
+for (const fault of [
+  "claim-before",
+  "claim-after",
+  "claim-ack",
+  "producer-refuse",
+  "no-posts",
+  "wrong-order",
+  "changed-fulcio",
+  "changed-rekor",
+  "refuse-claim",
+  "refuse-fulcio",
+  "refuse-rekor",
+  "refuse-commit",
+  "bad-proof",
+  "partial-final",
+  "unawaited",
+  "concurrent-gates",
+  "object-after",
+]) {
+  void test(`same-journal ${fault} retains actual effects and refuses further signing/advancement`, async (t) => {
+    const f = await signingExchangeFixture(t, fault);
+    await assert.rejects(f.run(), (error: unknown) => {
+      assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
+      assert.equal(error.evidence.automatic_retry, false);
+      assert.ok(Number(error.evidence.requests) <= 16);
+      if (fault === "object-after") {
+        assert.ok(Array.isArray(error.evidence.objects));
+        const last: unknown = error.evidence.objects.at(-1);
+        assert.ok(isRecord(last));
+        assert.equal(last.kind, "commits");
+        assert.equal(last.observed, null, "lost acknowledgment stays ambiguous");
+        assert.equal(error.evidence.objects.length, 7);
+      }
+      return true;
+    });
+    if (fault.startsWith("claim-") || fault === "refuse-claim") assert.equal(f.stats().produces, 0);
+    if (!fault.startsWith("changed-") && fault !== "partial-final")
+      assert.equal(f.refs.get(f.stateRef), f.initial.checkpoint);
+    if (["claim-after", "claim-ack", "producer-refuse"].includes(fault)) {
+      assert.equal(f.refs.get(f.intent), f.saved.checkpoint);
+      const before = f.stats().produces;
+      await assert.rejects(f.run(), CoordinatorRemoteError);
+      assert.equal(f.stats().produces, before);
+    }
+    if (fault === "partial-final") {
+      assert.equal(f.refs.get(f.stateRef), f.saved.checkpoint, "known partial effect preserved");
+      assert.equal(
+        f.refs.has(`refs/tags/portcove-fixture-checkpoint-proof/${f.saved.checkpoint}`),
+        false,
+      );
+    }
+    if (fault === "unawaited")
+      assert.equal(f.stats().gateDrained, true, "pending gate drained before refusal returns");
+    if (["unawaited", "concurrent-gates"].includes(fault))
+      assert.equal(f.events.filter((event) => event.startsWith("post:")).length, 0);
+  });
+}
+void test("ambiguous final CAS can resolve only by exact full-tuple readback with its retained proof", async (t) => {
+  const f = await signingExchangeFixture(t, "final-after");
+  const result = await f.run();
+  assert.equal(result.recovered, true);
+  assert.equal(result.requests, 16);
+  assert.equal(f.refs.get(f.stateRef), f.saved.checkpoint);
+});
+
+for (const expires of ["first-object", "proof-object", "before-final", "final-response"]) {
+  void test(`signing exchange ${expires} expiry retains its true phase and completed effects`, async (t) => {
+    const f = await signingExchangeFixture(t);
+    let clock = performance.now(),
+      posts = 0;
+    t.mock.method(performance, "now", () => clock);
+    const request = f.api.request.bind(f.api),
+      graphql = f.api.graphql.bind(f.api);
+    f.api.request = (method, endpoint, body) => {
+      const result = request(method, endpoint, body);
+      if (method === "POST") {
+        posts++;
+        if (
+          (expires === "first-object" && posts === 1) ||
+          (expires === "proof-object" && posts === 4)
+        )
+          clock = f.deadline + 1;
+      }
+      return result;
+    };
+    f.hooks.refresh = async (stage) => {
+      if (expires === "before-final" && stage === "commit") clock = f.deadline + 1;
+    };
+    f.api.graphql = (query, variables) => {
+      const result = graphql(query, variables);
+      if (expires === "final-response" && query.startsWith("mutation") && f.stats().mutations === 2)
+        clock = f.deadline + 1;
+      return result;
+    };
+    if (expires === "final-response") {
+      const result = await f.run();
+      assert.equal(result.recovered, true, "late response stays ambiguous until exact readback");
+      assert.equal(f.refs.get(f.stateRef), f.saved.checkpoint);
+    } else {
+      await assert.rejects(f.run(), (error: unknown) => {
+        assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
+        assert.ok(Array.isArray(error.evidence.objects));
+        const last: unknown = error.evidence.objects.at(-1);
+        assert.ok(isRecord(last));
+        assert.equal(last.status, 201);
+        assert.equal(
+          last.observed,
+          last.expected,
+          "late positive object acknowledgment retained without admitting a later mutation",
+        );
+        return true;
+      });
+      assert.equal(f.refs.get(f.stateRef), f.initial.checkpoint);
+      assert.equal(posts, expires === "first-object" ? 1 : expires === "proof-object" ? 4 : 7);
+    }
+  });
+}
+void test("competing different checkpoints cannot acquire two signing intents for the same predecessor", async (t) => {
+  const first = await signingExchangeFixture(t, "producer-refuse");
+  await assert.rejects(first.run(), CoordinatorRemoteError);
+  const second = await remoteFixture(t, "2026-09-14T12:00:01.000Z");
+  assert.equal(second.initial.checkpoint, first.initial.checkpoint);
+  assert.notEqual(second.saved.checkpoint, first.saved.checkpoint);
+  let produced = false;
+  await assert.rejects(
+    publishCoordinatorSigningExchange(
+      second.bare,
+      second.saved.checkpoint,
+      second.config,
+      performance.now() + 60000,
+      {
+        api: first.api,
+        async refresh() {
+          assert.fail("existing predecessor claim must refuse before mutation");
+        },
+        async produce() {
+          produced = true;
+          assert.fail("foreign claim cannot appoint producer");
+        },
+      },
+    ),
+    CoordinatorRemoteError,
+  );
+  assert.equal(produced, false);
+  assert.equal(first.refs.get(first.intent), first.saved.checkpoint);
+});

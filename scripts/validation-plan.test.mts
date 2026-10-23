@@ -182,6 +182,7 @@ void test("coordinator state and remote transport retain protected release quali
     "scripts/release-coordinator-checkpoint-authentication.mts",
     "scripts/release-coordinator-checkpoint-authentication.test.mts",
     "scripts/release-coordinator-checkpoint-signing.mts",
+    "scripts/release-coordinator-signing-exchange.mts",
     "scripts/release-coordinator-checkpoint-signing.test.mts",
     "scripts/release-checkpoint-signing-transport.mts",
     "scripts/release-coordinator-checkpoint-evidence.mts",
