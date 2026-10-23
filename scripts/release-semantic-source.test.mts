@@ -131,7 +131,7 @@ async function fixture(t: { after: (fn: () => Promise<void>) => void }, oversize
       "--no-recurse-submodules",
       "--no-auto-maintenance",
       request.phase === "commits" ? "--filter=tree:0" : "--filter=blob:none",
-      ...(request.phase === "commits" ? ["--depth=1601"] : []),
+      ...(request.phase === "commits" ? ["--depth=2049"] : []),
       pathToFileURL(origin).href,
       ...request.oids,
     ]);

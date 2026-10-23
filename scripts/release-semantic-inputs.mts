@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { collectReleaseSourceChanges } from "./release-source-changes.mts";
+import {
+  collectReleaseSourceChanges,
+  maximumReleaseSourceCommits,
+} from "./release-source-changes.mts";
 import { validateOpportunity } from "./release-coordinator.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { GitHubApiClient } from "./github-api.mts";
@@ -38,12 +41,16 @@ function git(root: string, args: string[], input?: Buffer) {
 /** REST normalizes unsigned actor offsets. Reuse exact local Git objects, whose
  * hashes and metadata the existing verifier checks against provider identities.
  * Batch before collection: no per-commit process loop, fetching or replacement. */
-function readSemanticSourceChanges(api: GitHubRestReader, root: string, opportunity: unknown) {
+export function readSemanticSourceChanges(
+  api: GitHubRestReader,
+  root: string,
+  opportunity: unknown,
+) {
   if (!isRecord(opportunity) || !oid(opportunity.base_commit) || !oid(opportunity.source_commit))
     throw new Error("semantic source requires exact commits");
   const listed = git(root, [
     "rev-list",
-    "--max-count=1601",
+    `--max-count=${maximumReleaseSourceCommits + 1}`,
     opportunity.source_commit,
     `^${opportunity.base_commit}`,
     "--",
@@ -52,7 +59,7 @@ function readSemanticSourceChanges(api: GitHubRestReader, root: string, opportun
     .trim()
     .split("\n")
     .filter(Boolean);
-  if (listed.length > 1600 || listed.some((id) => !oid(id)))
+  if (listed.length > maximumReleaseSourceCommits || listed.some((id) => !oid(id)))
     throw new Error("semantic commit inventory exceeds bound");
   const ids = [...new Set([opportunity.base_commit, opportunity.source_commit, ...listed])];
   const input = Buffer.from(ids.join("\n") + "\n");

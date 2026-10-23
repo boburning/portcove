@@ -10,6 +10,8 @@ import {
 import { isRecord } from "./runtime-values.mts";
 
 export const netTreeDeltaScope = "portcove-release-net-tree-delta-v1";
+export const maximumReleaseSourceCommits = 2048;
+const maximumComparisonPages = Math.ceil(maximumReleaseSourceCommits / 100);
 const base = "repos/boburning/portcove";
 const byteOrder = (left: string, right: string) =>
   Buffer.compare(Buffer.from(left), Buffer.from(right));
@@ -47,7 +49,8 @@ export function collectReleaseSourceChanges(
   };
   const request = (endpoint: string) => {
     checkTime();
-    if (++requests > 20) throw new Error("release source API read bound exhausted");
+    if (++requests > maximumComparisonPages + 4)
+      throw new Error("release source API read bound exhausted");
     const response = reader.request("GET", endpoint);
     checkTime();
     if (response.status !== 200) throw new Error("release source provider unavailable");
@@ -85,7 +88,8 @@ export function collectReleaseSourceChanges(
             new Set(keys).size !== keys.length ||
             url.searchParams.get("per_page") !== "100" ||
             (url.searchParams.has("page") &&
-              !/^(?:[1-9]|1[0-6])$/u.test(url.searchParams.get("page") ?? ""))
+              (!/^[1-9][0-9]*$/u.test(url.searchParams.get("page") ?? "") ||
+                Number(url.searchParams.get("page")) > maximumComparisonPages))
           )
             throw new Error("release source pagination escaped its fixed comparison");
           return request(endpoint);
@@ -99,7 +103,7 @@ export function collectReleaseSourceChanges(
             !Number.isSafeInteger(value.total_commits) ||
             typeof value.total_commits !== "number" ||
             value.total_commits < 0 ||
-            value.total_commits > 1600 ||
+            value.total_commits > maximumReleaseSourceCommits ||
             value.ahead_by !== value.total_commits ||
             value.behind_by !== 0 ||
             value.status !== (before === source ? "identical" : "ahead") ||
