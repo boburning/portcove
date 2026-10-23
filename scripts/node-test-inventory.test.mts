@@ -239,6 +239,11 @@ void test("Just storage aliases, execution defaults and recipe attributes cannot
     storage,
     'set working-directory := "apps/desktop"\n' + local,
     'set shell := ["echo"]\n' + local,
+    'set\t windows-shell := ["cmd.exe", "/c", "echo"]\n' + local,
+    'set\tshell := ["echo"]\n' + local,
+    'export\tNODE_OPTIONS := "--import=./skip-tests.mts"\n' + local,
+    'import\t"echo-shell.just"\n' + local,
+    "mod\techo_shell\n" + local,
     '[working-directory: "apps/desktop"]\n' + local,
     "[unix]\n" + local,
   ])

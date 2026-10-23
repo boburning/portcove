@@ -102,7 +102,7 @@ export function requireNodeTestInventory(
   const localLines = local.split(/\r?\n/u);
   const globalContext =
     localLines
-      .filter((line) => /^(?:set |import |mod |export |unexport )/u.test(line))
+      .filter((line) => /^(?:set|import|mod|export|unexport)\b/u.test(line))
       .every(
         (line) => line === 'set windows-shell := ["pwsh.exe", "-NoLogo", "-NoProfile", "-Command"]',
       ) &&
