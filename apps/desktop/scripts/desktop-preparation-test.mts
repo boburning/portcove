@@ -2121,8 +2121,6 @@ export async function preparationScenarios({
             "Updates",
             "Saves and storage",
             "About this port",
-            "Compatibility and testing",
-            "Project and release",
             "Artwork",
           ]);
           assert.equal(hierarchy.horizontalOverflow, false);
@@ -2147,7 +2145,6 @@ export async function preparationScenarios({
           assert.deepEqual(facts.items, [
             ["Installed version", readyStatus.active.version],
             ["Release channel", "Stable"],
-            ["Latest available for your settings", "No current check"],
             ["Installed folder", readyStatus.active.path],
           ]);
           assert.equal(facts.horizontalOverflow, false);

@@ -156,8 +156,6 @@ export async function cliHandoffScenario({
         "Updates",
         "Saves and storage",
         "About this port",
-        "Compatibility and testing",
-        "Project and release",
         "Artwork",
       ],
     );
@@ -166,7 +164,7 @@ export async function cliHandoffScenario({
       .getText();
     assert.match(versionSummary, /Installed version/);
     assert.match(versionSummary, /Release channel|Selected channel/);
-    assert.match(versionSummary, /Latest available for your settings/);
+    assert.match(versionSummary, /Latest version at last check/);
     const launch = By.css('[aria-label="Launch from another app"]');
     await browser.wait(until.elementLocated(By.css('[aria-label="Copy launch command"]')), 10_000);
     await click(By.xpath('//summary[normalize-space(.)="Separate program and arguments"]'));

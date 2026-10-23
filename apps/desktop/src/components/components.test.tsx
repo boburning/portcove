@@ -3190,7 +3190,7 @@ describe("desktop components", () => {
     expect(cards).toContain("Installation status unknown");
     expect(cards).toContain("Windows");
     expect(cards).not.toContain(port.summary);
-    expect(cards).toContain("Stable channel");
+    expect(cards).not.toContain("Stable channel");
     expect(cards).not.toContain('<span class="badge stable">Stable</span>');
     expect(cards).not.toContain("staged-source-portable");
     expect(empty).toContain("No ports match these filters");

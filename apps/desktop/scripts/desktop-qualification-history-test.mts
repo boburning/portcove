@@ -594,8 +594,20 @@ export async function qualificationHistoryScenario({
       await summary.sendKeys(Key.SPACE);
       assert.equal(await details.getAttribute("open"), "true");
       await summary.sendKeys(Key.ENTER);
+      const projectSummary = await browser.findElement(
+        By.xpath('//summary[normalize-space(.)="Project and compatibility details"]'),
+      );
+      const projectDetails = await projectSummary.findElement(By.xpath(".."));
+      if ((await projectDetails.getAttribute("open")) === null) {
+        await executeBrowserScript(
+          browser,
+          (element) => element.scrollIntoView({ block: "center" }),
+          projectSummary,
+        );
+        await projectSummary.sendKeys(Key.ENTER);
+      }
       const heading = await browser.findElement(
-        By.xpath('//*[self::h2 or self::h3][normalize-space(.)="Compatibility and testing"]'),
+        By.xpath('//*[self::h2 or self::h3][normalize-space(.)="Recorded checks"]'),
       );
       await executeBrowserScript(
         browser,
