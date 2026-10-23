@@ -20,7 +20,6 @@ jobs:
         shell: pwsh
     env:
       PORTCOVE_ONCE_SOURCE: f5e9172aae3e812c53d6b492489c23c7dafa6e67
-      PORTCOVE_ONCE_WORK: ${{ runner.temp }}/portcove-onboarding-2404-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Check out the exact disposable controller
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -37,6 +36,8 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Bind the source, controller, scenario and host before provisioning
+        env:
+          PORTCOVE_ONCE_WORK: ${{ runner.temp }}/portcove-onboarding-2404-${{ github.run_id }}-${{ github.run_attempt }}
         run: ./controller/scripts/onboarding-native.ps1 -Mode Prepare -SourceRoot source -ControllerRoot controller -EvidenceRoot hosted-evidence -WorkRoot $env:PORTCOVE_ONCE_WORK
       - name: Install the source-pinned Node runtime without caching
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -48,6 +49,8 @@ jobs:
         with:
           toolchain: 1.99.1
       - name: Build and observe the fixed production CLI journey once
+        env:
+          PORTCOVE_ONCE_WORK: ${{ runner.temp }}/portcove-onboarding-2404-${{ github.run_id }}-${{ github.run_attempt }}
         run: ./controller/scripts/onboarding-native.ps1 -Mode Run -SourceRoot source -ControllerRoot controller -EvidenceRoot hosted-evidence -WorkRoot $env:PORTCOVE_ONCE_WORK
       - name: Retain the bounded lossless evidence in ordinary job logs
         if: always()
