@@ -3721,8 +3721,7 @@ describe("desktop components", () => {
         /<button[^>]*data-detail-origin="catalog:card:[^"]+"[^>]*>[\s\S]*?<\/button>/u,
       )?.[0];
       expect(card).toBeDefined();
-      expect(card).toContain('aria-label="View details for Sample Port"');
-      expect(card).toContain("aria-describedby=");
+      expect(card).not.toContain("aria-label=");
       expect(card).toContain("Sample Port");
       expect(card).toContain(`${label}</span>`);
       expect(card).toContain("Update downloaded</span>");

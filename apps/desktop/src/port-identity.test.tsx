@@ -76,12 +76,7 @@ it("renders distinct game-led cards with full project and variant identity", () 
   expect(cards[0]![0]).toContain("Cobalt Project");
   expect(cards[0]![0]).toContain("US edition");
   expect(cards[1]![0]).toContain("Amber Recompiled");
-  expect(cards[0]![0]).toContain(
-    'aria-label="View details for A Familiar Adventure · Cobalt Project · US edition"',
-  );
-  expect(cards[1]![0]).toContain(
-    'aria-label="View details for A Familiar Adventure · Amber Recompiled"',
-  );
+  for (const [card] of cards) expect(card).not.toContain("aria-label=");
   expect(cards[0]![0]).toContain('data-detail-origin="catalog:card:project-one"');
   expect(cards[1]![0]).toContain('data-detail-origin="catalog:card:project-two"');
 });

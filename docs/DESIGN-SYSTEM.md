@@ -52,11 +52,13 @@ Find games keeps its actual catalog filters, sorting and route semantics. Cards
 show game/project identity, meaningful readiness/attention, concise platform and
 neutral release-channel facts, then their local details affordance. Summaries
 and detailed project facts remain in Detail; the distinguishing variant is not
-repeated as another badge. Whole-card activation is named "View details for"
-plus the full distinguishing identity, with state/platform/channel and update
-observations associated as a description. Its visible details label remains in
-its name, and exact-port navigation/return is preserved. Decorative artwork is
-not part of the name. A channel is not a support or readiness rating.
+repeated as another badge. Whole-card activation uses the lean visible
+identity, readiness, platform/channel and action text as its natural accessible
+name. Do not replace that label with a shorter conflicting aria-label. Visually
+hidden setup/input explanations are linked as descriptions rather than repeated
+inside the name. Legacy records without a separate original-game identity show
+the project name once. Exact-port navigation/return is preserved. Decorative
+artwork is not part of the name. A channel is not a support or readiness rating.
 
 Geist, semantic tokens, the existing controls and the one persisted/native sizing
 authority remain shared. Enlarged text may wrap and scroll; it never authorizes

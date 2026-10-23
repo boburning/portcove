@@ -169,19 +169,10 @@ it.each([
     flushSync(() => root.render(<Fixture view={view} />));
     for (const [name, label, , reason] of cases) {
       const card = gameCard(view, name);
-      await expect
-        .element(card)
-        .toHaveAccessibleName(
-          view === "catalog" ? `View details for ${name}` : `${name}. ${label}.`,
-        );
-
+      await expect.element(card).toHaveAccessibleName(new RegExp(`^${name}.*${label}`));
       expect(card.element().querySelector(".readiness")?.textContent?.trim()).toBe(label);
       await expect.element(card).toMatchTextContent(reason);
-      await expect
-        .element(card)
-        .toHaveAccessibleDescription(
-          new RegExp(view === "catalog" ? `${label}.*${reason}` : reason),
-        );
+      await expect.element(card).toHaveAccessibleDescription(new RegExp(reason));
       await expect
         .element(card)
         .toMatchTextContent(view === "library" ? "Release channel: Preview" : "Preview channel");
@@ -203,21 +194,11 @@ it.each([
         .toBeInTheDocument();
       await userEvent.click(page.getByRole("button", { name: "Back to cards", exact: true }));
     }
-    const unknown = gameCard(view, "Unknown");
-    await expect
-      .element(unknown)
-      .toHaveAccessibleName(
-        view === "catalog" ? "View details for Unknown" : "Unknown. Readiness unavailable.",
-      );
-    await expect
-      .element(unknown)
-      .toHaveAccessibleDescription(view === "catalog" ? /Readiness unavailable/ : "");
+    await expect.element(gameCard(view, "Unknown")).toHaveAccessibleName(/Readiness unavailable/);
     for (const name of ["Ready", "Staged ready"]) {
       const card = gameCard(view, name);
       expect(card.element().querySelector(".readiness")?.textContent?.trim()).toBe("Ready to play");
-      await expect
-        .element(card)
-        .toHaveAccessibleDescription(view === "catalog" ? /Ready to play/ : "");
+      await expect.element(card).not.toHaveAccessibleDescription();
       const play = card.getByRole("button", { name: "Play", exact: true });
       await expect
         .poll(() => play.query()?.matches(":disabled") ?? null)

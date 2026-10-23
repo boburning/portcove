@@ -893,7 +893,6 @@ function PortCard({
   view,
 }: PortCardProps) {
   const setupDescriptionId = useId();
-  const cardDescriptionId = useId();
   const resolveCardPresentation = () => {
     const input = installedCardInputPresentation(status);
     const originalState = readinessPresentation(readiness, view, status, port);
@@ -1000,19 +999,11 @@ function PortCard({
         data-focusable
         data-detail-origin={detailOrigin}
         className={cn(`${className} h-full w-full`, controlFocus)}
-        aria-label={`View details for ${gameIdentityLabel(port)}`}
-        aria-describedby={`${cardDescriptionId}${setup || input ? ` ${setupDescriptionId}` : ""}`}
+        aria-describedby={setup || input ? setupDescriptionId : undefined}
         onClick={() => onSelect(port.id, detailOrigin)}
         data-source-drop-port-id={dropEligible ? port.id : undefined}
         data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
       >
-        <span id={cardDescriptionId} className="sr-only">
-          {state.label}. {port.platforms.map(platformLabel).join(", ")}.
-          {channel && ` Release channel: ${channel.label}.`}
-          {status?.staged && " Update downloaded."}
-          {updateAvailable && " Update available at last check."}
-          {port.upstream_status === "retired" && " Upstream project is retired."}
-        </span>
         {contents}
       </button>
       {favoriteToggle}
@@ -1203,9 +1194,11 @@ function PortCardContents({
         <h2 className="collection-title text-base leading-snug font-semibold wrap-anywhere">
           {gameTitle(port)}
         </h2>
-        <p className="collection-project m-0 text-sm leading-normal text-pc-muted-foreground">
-          {gameProjectLabel(port) ?? port.name}
-        </p>
+        {gameProjectLabel(port) && (
+          <p className="collection-project m-0 text-sm leading-normal text-pc-muted-foreground">
+            {gameProjectLabel(port)}
+          </p>
+        )}
         <div className="collection-state flex flex-col items-start gap-1 text-sm">
           <span
             className={cn(
@@ -1229,7 +1222,7 @@ function PortCardContents({
           )}
         </div>
         {(setup || input) && (
-          <div id={setupDescriptionId} className="sr-only">
+          <div id={setupDescriptionId} className="sr-only" aria-hidden="true">
             {setup?.routes.map((route) => (
               <p key={route.action}>
                 <strong>{route.route}: </strong>

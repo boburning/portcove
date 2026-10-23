@@ -101,7 +101,7 @@ it.each(["dark", "light"])(
     const details = page.getByRole("button").filter({
       has: page.getByRole("heading", { name: "One independent port", exact: true }),
     });
-    await expect.element(details).toHaveAccessibleName("View details for One independent port");
+    await expect.element(details).toHaveAccessibleName(/^One independent port.*Setup/);
     await expect.element(details).toHaveAccessibleDescription(/Setup/);
     await userEvent.click(details);
     await userEvent.click(page.getByRole("button", { name: "Back to ports", exact: true }));

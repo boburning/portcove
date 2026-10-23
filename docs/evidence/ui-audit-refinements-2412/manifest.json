@@ -11,7 +11,7 @@
   "sources": [
     {
       "path": "apps/desktop/src/components/PortBrowser.tsx",
-      "sha256": "c7d70a4e3f68a8ec308421cad7ee2212a671488ecbbfd2221ac2b275544895ce"
+      "sha256": "1e8c562fbff3ac3a359881ed84636f285eb8dc4e383cbffda9bcf81f91b0e9f5"
     },
     {
       "path": "apps/desktop/src/components/DetailPanel.tsx",
@@ -77,7 +77,7 @@
     },
     {
       "path": "discovery-dark-1366.jpg",
-      "sha256": "b410936be02e73cd0601ef755111debce1b69d306ffe05e8b2f7b6fc4098fd9f",
+      "sha256": "334be6f96f5215eba67be36c4de312b1ee703706f827c7919a02eb9f066c0e34",
       "inspected": "individual full-size visual review",
       "method": "CUA browser capture; explicit viewport clip"
     },

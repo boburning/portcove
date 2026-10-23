@@ -103,15 +103,14 @@ it("plays the distinct duplicate port from details and returns to its filtered r
     .toBe(originId);
 });
 
-it("names discovery cards by distinguishing identity and keeps state in their descriptions", async () => {
+it("names discovery cards from their visible distinguishing identity and readiness", async () => {
   await page.viewport(1366, 768);
   await mount();
   await page.getByRole("button", { name: "Find games", exact: true }).click();
   const card = page.getByRole("button", {
-    name: "View details for Super Mario 64 · Mario modern port · Modern renderer",
-    exact: true,
+    name: /^Super Mario 64 Mario modern port · Modern renderer Ready to play/,
   });
-  await expect.element(card).toHaveAccessibleDescription(/Ready to play.*Stable/);
+  await expect.element(card).toHaveAccessibleName(/Ready to play.*Stable/);
   const element = card.element();
   expect(element.textContent?.match(/Modern renderer/g)).toHaveLength(1);
   expect(

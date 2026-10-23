@@ -281,10 +281,12 @@ for (const theme of ["dark", "light"]) {
         Math.abs(entry.getBoundingClientRect().top - entries[0]!.getBoundingClientRect().top) < 1,
     );
     expect(firstRow).toHaveLength(5);
-    const actionBottom = firstRow.map(
-      (entry) => entry.querySelector(".collection-actions")!.getBoundingClientRect().bottom,
-    );
-    expect(Math.max(...actionBottom) - Math.min(...actionBottom)).toBeLessThan(1);
+    for (const entry of firstRow) {
+      const state = entry.querySelector(".collection-state")!.getBoundingClientRect();
+      const action = entry.querySelector(".collection-actions")!.getBoundingClientRect();
+      expect(action.top).toBeGreaterThanOrEqual(state.bottom);
+      expect(action.top - state.bottom).toBeLessThanOrEqual(32);
+    }
     await page.getByRole("button", { name: "Compact rows", exact: true }).click();
     expect(localStorage.getItem(collectionLayoutKey("fixture/library"))).toBe("rows");
     expect(document.querySelectorAll(".collection-row")).toHaveLength(12);
@@ -357,7 +359,7 @@ it("keeps failed artwork feedback outside the details action name", async () => 
   expect(labels.violations).toEqual([]);
 });
 
-it("includes visible Find games card content in its accessible name when artwork fails", async () => {
+it("keeps the lean visible Find games label in its natural name when artwork fails", async () => {
   vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) => ({
     ...artworkState(id, slot),
     availability: "unavailable",
