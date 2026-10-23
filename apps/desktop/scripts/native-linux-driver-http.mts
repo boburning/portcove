@@ -76,6 +76,41 @@ export function inspectPrivateNativeDriverResponse(raw: unknown): PrivateNativeD
   });
 }
 
+function inspectBufferedRequest(bytes: Buffer) {
+  const separator = bytes.indexOf("\r\n\r\n");
+  if (separator < 0) {
+    if (bytes.length > 16384) throw new Error("private native driver headers exceed bound");
+    return null;
+  }
+  if (separator > 16384) throw new Error("private native driver headers exceed bound");
+  const lines = bytes.subarray(0, separator).toString("latin1").split("\r\n");
+  const start = /^(GET|POST|DELETE) (\S+) HTTP\/1\.1$/u.exec(lines.shift() ?? "");
+  if (!start) throw new Error("private native driver HTTP request line differs");
+  const headers = new Map<string, string>();
+  for (const line of lines) {
+    const match = /^([A-Za-z0-9-]+):[ \t]*([^\r\n]*)$/u.exec(line);
+    if (!match || headers.has(match[1]!.toLowerCase()))
+      throw new Error("private native driver headers are ambiguous");
+    headers.set(match[1]!.toLowerCase(), match[2]!.trim());
+  }
+  if (headers.has("transfer-encoding") || headers.has("upgrade"))
+    throw new Error("private native driver streaming/upgrade is unsupported");
+  const length = headers.get("content-length") ?? "0";
+  if (!/^(?:0|[1-9][0-9]{0,6})$/u.test(length) || Number(length) > requestLimit)
+    throw new Error("private native driver content length differs");
+  const expected = separator + 4 + Number(length);
+  if (bytes.length > expected) throw new Error("private native driver trailing bytes refused");
+  if (bytes.length < expected) {
+    return null;
+  }
+  const request = inspectPrivateNativeDriverRequest({
+    method: start[1],
+    path: start[2],
+    body_base64: bytes.subarray(separator + 4).toString("base64"),
+  });
+  return { request, bodyLength: Number(length) };
+}
+
 /** The namespace owner supplies the private FD exchange. Injected exchanges
  * remain transport fixtures and cannot establish a genuine parent or report. */
 export function privateNativeDriverAgent(
@@ -104,42 +139,14 @@ export function privateNativeDriverAgent(
           if (sent || bytes.length + chunk.length > requestLimit + 16384)
             throw new Error("private native driver request exceeds its finite boundary");
           bytes = Buffer.concat([bytes, chunk]);
-          const separator = bytes.indexOf("\r\n\r\n");
-          if (separator < 0) {
-            if (bytes.length > 16384) throw new Error("private native driver headers exceed bound");
+          const frame = inspectBufferedRequest(bytes);
+          if (frame === null) {
             callback();
             return;
           }
-          if (separator > 16384) throw new Error("private native driver headers exceed bound");
-          const lines = bytes.subarray(0, separator).toString("latin1").split("\r\n");
-          const start = /^(GET|POST|DELETE) (\S+) HTTP\/1\.1$/u.exec(lines.shift() ?? "");
-          if (!start) throw new Error("private native driver HTTP request line differs");
-          const headers = new Map<string, string>();
-          for (const line of lines) {
-            const match = /^([A-Za-z0-9-]+):[ \t]*([^\r\n]*)$/u.exec(line);
-            if (!match || headers.has(match[1]!.toLowerCase()))
-              throw new Error("private native driver headers are ambiguous");
-            headers.set(match[1]!.toLowerCase(), match[2]!.trim());
-          }
-          if (headers.has("transfer-encoding") || headers.has("upgrade"))
-            throw new Error("private native driver streaming/upgrade is unsupported");
-          const length = headers.get("content-length") ?? "0";
-          if (!/^(?:0|[1-9][0-9]{0,6})$/u.test(length) || Number(length) > requestLimit)
-            throw new Error("private native driver content length differs");
-          const expected = separator + 4 + Number(length);
-          if (bytes.length > expected)
-            throw new Error("private native driver trailing bytes refused");
-          if (bytes.length < expected) {
-            callback();
-            return;
-          }
-          const request = inspectPrivateNativeDriverRequest({
-            method: start[1],
-            path: start[2],
-            body_base64: bytes.subarray(separator + 4).toString("base64"),
-          });
+          const { request, bodyLength } = frame;
           const remaining = Math.floor(Math.min(30000, deadline - performance.now()));
-          state.body_bytes += Number(length);
+          state.body_bytes += bodyLength;
           if (remaining < 1 || ++state.requests > 4096 || state.body_bytes > 128 * 1024 * 1024)
             throw new Error("private native driver original lifetime/request budget exhausted");
           sent = true;
