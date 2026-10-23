@@ -837,7 +837,7 @@ void test("application release records run after the maintained SemVer dependenc
   assert.ok(!catalog.includes("scripts/reconstruct-application-update-records.test.mts"));
 });
 
-void test("selected release-policy contracts install their desktop-owned dependency before fast contract execution", () => {
+void test("selected contracts install their desktop-owned dependencies before fast contract execution", () => {
   const block = requiredFixture(
     requiredFixture(workflow.split("  fast_catalog:")[1]).split(/\n  [a-z_]+:/u)[0],
   );
@@ -846,10 +846,8 @@ void test("selected release-policy contracts install their desktop-owned depende
   );
   const execution = block.indexOf("run: node scripts/ci-baseline.mts contracts");
   assert.ok(setup >= 0 && execution > setup);
-  assert.match(
-    block,
-    /if: contains\(fromJSON\(needs\.classify\.outputs\.plan_json\)\.areas, 'release-security'\)/u,
-  );
+  assert.match(block, /if: needs\.classify\.outputs\.contract_desktop == 'true'/u);
+  assert.match(workflow, /contract_desktop: \$\{\{ steps\.plan\.outputs\.contract_desktop \}\}/u);
 });
 
 void test("full repository contracts run the bounded release evidence collector controls", () => {

@@ -73,6 +73,7 @@ jobs:
       reused_groups: ${{ steps.plan.outputs.reused_groups }}
       contract_python: ${{ steps.plan.outputs.contract_python }}
       contract_rust: ${{ steps.plan.outputs.contract_rust }}
+      contract_desktop: ${{ steps.plan.outputs.contract_desktop }}
       mode: ${{ steps.plan.outputs.mode }}
       reason: ${{ steps.plan.outputs.reason }}
       files_json: ${{ steps.plan.outputs.files_json }}
@@ -487,8 +488,8 @@ jobs:
           cache: true
           run-install: |
             args: [--filter, portcove-repository, --frozen-lockfile, --ignore-scripts]
-      - name: Install selected release-policy test dependencies
-        if: contains(fromJSON(needs.classify.outputs.plan_json).areas, 'release-security')
+      - name: Install selected desktop test dependencies
+        if: needs.classify.outputs.contract_desktop == 'true'
         run: pnpm --filter portcove-desktop-ui install --frozen-lockfile --ignore-scripts
       - uses: ./.github/actions/setup-rust
         if: needs.classify.outputs.contract_rust == 'true'
