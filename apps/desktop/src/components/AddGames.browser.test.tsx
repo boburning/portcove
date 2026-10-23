@@ -41,7 +41,7 @@ it("retains the selected game and search through details, navigation and closing
   await userEvent.keyboard("{Escape}");
   await page.getByRole("button", { name: "Review setup for Harbor Adventure" }).click();
   await expect
-    .element(page.getByRole("button", { name: "Back to previous workspace" }))
+    .element(page.getByRole("heading", { name: "Harbor Adventure", level: 1 }))
     .toHaveFocus();
   await page.getByRole("button", { name: "Back to previous workspace" }).click();
   await expect

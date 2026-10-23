@@ -1,0 +1,116 @@
+@layer components {
+  .detail-panel {
+    max-width: 70rem;
+  }
+  .detail-hero {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 32px;
+    align-items: center;
+  }
+  .detail-cover {
+    width: 240px;
+    height: 360px;
+  }
+  .detail-title {
+    max-width: 25ch;
+    line-height: 1.15;
+    letter-spacing: -0.035em;
+  }
+  .detail-header-actions .primary-actions {
+    margin: 0;
+  }
+  .detail-header-actions .wide {
+    flex: none;
+    width: auto;
+  }
+  .detail-tab-panel[hidden] {
+    display: none;
+  }
+  .detail-overview {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    gap: 32px;
+  }
+  .detail-facts {
+    margin: 0;
+    display: grid;
+    gap: 16px;
+    font-size: var(--text-sm);
+  }
+  .detail-facts dt {
+    color: var(--color-text-secondary);
+    font-size: var(--text-xs);
+  }
+  .detail-facts dd {
+    margin: 4px 0 0;
+    overflow-wrap: anywhere;
+  }
+  .detail-tab-panel .detail-group {
+    border: 0;
+    padding-top: 0;
+  }
+  .detail-tab-panel .metadata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 32px;
+  }
+  .detail-tab-panel .metadata > span {
+    background: transparent;
+    padding: 0;
+    flex: 1 1 14rem;
+  }
+  .detail-tab-panel .installation-facts {
+    border: 0;
+    background: transparent;
+  }
+  .detail-tab-panel .source-fields {
+    min-width: 0;
+  }
+  @media (max-height: 820px) {
+    .detail-hero {
+      grid-template-columns: 160px minmax(0, 1fr);
+    }
+    .detail-cover {
+      width: 160px;
+      height: 240px;
+    }
+  }
+  @container detail (max-width: 48em) {
+    .detail-hero {
+      grid-template-columns: 160px minmax(0, 1fr);
+    }
+    .detail-cover {
+      width: 160px;
+      height: 240px;
+    }
+    .detail-overview {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @container detail (max-width: 28em) {
+    .detail-hero {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 24px;
+    }
+    .detail-cover {
+      width: 144px;
+      height: 216px;
+    }
+    .detail-title {
+      font-size: var(--text-2xl);
+    }
+    .detail-tab-list {
+      column-gap: 20px;
+    }
+    .detail-tab-panel input {
+      min-width: 0;
+    }
+  }
+  @media (forced-colors: active) {
+    .detail-tab[data-active] {
+      border-color: Highlight;
+      color: Highlight;
+    }
+  }
+}

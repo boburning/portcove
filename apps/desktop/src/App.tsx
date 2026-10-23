@@ -35,6 +35,7 @@ import {
   type LibraryBrowsingContext,
 } from "./features/app-shell/use-library-browsing-context";
 import { useDetailWorkspaceNavigation } from "./features/app-shell/use-detail-workspace-navigation";
+import type { DetailOpening } from "./features/game-details/detail-sections";
 import { focusDiscTool } from "./features/app-shell/focus-disc-tool";
 import {
   focusSettingsTarget,
@@ -537,6 +538,7 @@ function Workspace({
     close: closePortDetails,
     invalidate: invalidatePortDetails,
     open: openPortDetails,
+    opening: detailOpening,
   } = useDetailWorkspaceNavigation(workspace, setSelectedId, availablePortIds);
   const [pendingToolId, setPendingToolId] = useState<string>();
   const [addGamesOpen, setAddGamesOpen] = useState(false);
@@ -709,7 +711,8 @@ function Workspace({
   const renderWorkspaceView = () =>
     model.entry && usesSelfServiceDetail(model.entry, model.status) ? (
       <ListingDetailPanel
-        key={`${model.entry.id}:${bootstrap.generation}`}
+        key={model.entry.id}
+        opening={detailOpening}
         entry={model.entry}
         status={model.status}
         generation={bootstrap.generation}
@@ -722,6 +725,32 @@ function Workspace({
     ) : model.port ? (
       <>
         <SelectedPortPanel
+          extraFiles={
+            model.entry?.listing &&
+            !model.status?.active &&
+            !model.status?.staged &&
+            !model.status?.external_runtime && (
+              <details className="mt-6 border-t border-pc-border pt-4">
+                <summary data-focusable className="cursor-pointer font-medium">
+                  Other setup options
+                </summary>
+                <div className="mt-4">
+                  <SelfServiceSetup
+                    key={`${model.entry.id}:${bootstrap.generation}`}
+                    entry={model.entry}
+                    status={model.status}
+                    generation={bootstrap.generation}
+                    perform={operations.perform}
+                    onChanged={() => {
+                      void data.refreshAfterMutation();
+                    }}
+                  />
+                </div>
+              </details>
+            )
+          }
+          openActivity={() => setPrimaryView("updates")}
+          opening={detailOpening}
           model={model}
           ui={ui}
           operations={operations}
@@ -742,28 +771,6 @@ function Workspace({
           }}
           close={closePortDetails}
         />
-        {model.entry?.listing &&
-          !model.status?.active &&
-          !model.status?.staged &&
-          !model.status?.external_runtime && (
-            <details className="mt-6 border-t border-pc-border pt-4">
-              <summary data-focusable className="cursor-pointer font-medium">
-                Other setup options
-              </summary>
-              <div className="mt-4">
-                <SelfServiceSetup
-                  key={`${model.entry.id}:${bootstrap.generation}`}
-                  entry={model.entry}
-                  status={model.status}
-                  generation={bootstrap.generation}
-                  perform={operations.perform}
-                  onChanged={() => {
-                    void data.refreshAfterMutation();
-                  }}
-                />
-              </div>
-            </details>
-          )}
       </>
     ) : addGamesOpen && ui.view === "library" ? null : (
       <CurrentView
@@ -1412,6 +1419,9 @@ function installedSteamBatchPorts(data: DataState, model: ReturnType<typeof useA
 }
 
 function SelectedPortPanel({
+  extraFiles,
+  openActivity,
+  opening,
   model,
   ui,
   operations,
@@ -1426,6 +1436,9 @@ function SelectedPortPanel({
   openLibraryStorage,
   close,
 }: {
+  extraFiles?: ReactNode;
+  openActivity: () => void;
+  opening?: DetailOpening | undefined;
   model: ReturnType<typeof useAppModel>;
   ui: UiState;
   operations: OperationState;
@@ -1471,6 +1484,9 @@ function SelectedPortPanel({
     : undefined;
   return (
     <DetailPanel
+      extraFiles={extraFiles}
+      openActivity={openActivity}
+      opening={opening}
       perform={operations.perform}
       prepare={(expectedPlan, onEvent) =>
         operations.perform(

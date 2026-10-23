@@ -42,7 +42,12 @@ export function usePreparationCompletionFocus({
     const attempt = () => {
       frame = 0;
       if (settled) return;
-      if (!element.isConnected || element.dataset.taskOwner !== identity) return stop();
+      if (
+        !element.isConnected ||
+        element.dataset.taskOwner !== identity ||
+        element.closest("[hidden], [inert]")
+      )
+        return stop();
       // The popup owns focus until it finishes restoration. Its DOM removal or
       // focus event schedules another observation, without a fixed timer.
       const scope = navigationScope();
@@ -53,7 +58,8 @@ export function usePreparationCompletionFocus({
         return;
       }
       const active = document.activeElement;
-      const launch = element.querySelector<HTMLElement>("[data-confirmed-play]");
+      const actionScope = element.closest("[data-detail-workspace]") ?? element;
+      const launch = actionScope.querySelector<HTMLElement>("[data-confirmed-play]");
       if (
         active !== document.body &&
         active !== nextStep.current &&
@@ -70,7 +76,7 @@ export function usePreparationCompletionFocus({
       }
       if (busy) return;
       const target =
-        element.querySelector<HTMLElement>("[data-confirmed-play]:not(:disabled)") ??
+        actionScope.querySelector<HTMLElement>("[data-confirmed-play]:not(:disabled)") ??
         nextStep.current;
       stop();
       setIntent(undefined);
@@ -84,7 +90,7 @@ export function usePreparationCompletionFocus({
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["disabled", "data-closed", "aria-modal"],
+      attributeFilter: ["disabled", "data-closed", "aria-modal", "hidden", "inert"],
     });
     document.addEventListener("focusin", schedule);
     schedule();
@@ -96,6 +102,7 @@ export function usePreparationCompletionFocus({
       committedContext.current.epoch !== epoch ||
       committedContext.current.identity !== identity ||
       !element?.isConnected ||
+      element.closest("[hidden], [inert]") ||
       element.dataset.taskOwner !== identity
     )
       return;

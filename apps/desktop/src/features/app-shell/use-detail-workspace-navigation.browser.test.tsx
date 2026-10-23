@@ -105,7 +105,7 @@ describe("detail workspace navigation", () => {
     expect(document.activeElement).toBe(title);
   });
 
-  it("focuses an overflow destination and returns to its exact card trigger", async () => {
+  it("carries an overflow destination to the rendered owner and returns to its exact card trigger", async () => {
     const trigger = document.createElement("button");
     trigger.dataset.detailOrigin = "library:card-more:port-a";
     const heading = document.createElement("h2");
@@ -114,8 +114,8 @@ describe("detail workspace navigation", () => {
     document.body.append(trigger, heading);
 
     await act(async () => navigation.open("port-a", trigger.dataset.detailOrigin, "saves"));
-    expect(document.activeElement).toBe(heading);
-    expect(heading.scrollIntoView).toHaveBeenCalledWith({ block: "start" });
+    expect(navigation.opening).toEqual({ token: 1, destination: "saves" });
+    expect(document.activeElement).not.toBe(heading);
     await act(async () => navigation.close());
     expect(document.activeElement).toBe(trigger);
   });

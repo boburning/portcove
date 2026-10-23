@@ -72,6 +72,7 @@ import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { By, until } from "selenium-webdriver";
 import {
+  revealDetailSection,
   captureAccessibilityReport,
   openCatalogPortAfterRefresh,
   reviewControls,
@@ -225,6 +226,7 @@ async function observeHeldLaunch({
         ),
       10_000,
     );
+    await revealDetailSection(browser, "Files");
     const play = await browser.findElement(By.css(".detail-panel .primary-actions button"));
     assert.equal(await play.getText(), "Play unavailable");
     assert.equal(await play.isEnabled(), false);
@@ -355,22 +357,24 @@ async function detailLayout(browser: WebDriver, summary: string) {
     (expectedSummary) => {
       const detail = document.querySelector(".detail-panel");
       const bounds = (selector: string) => detail?.querySelector(selector)?.getBoundingClientRect();
-      const summaryParagraph = [
-        ...(detail?.querySelectorAll('section[aria-labelledby="detail-about-this-port"] p') ?? []),
-      ].find((paragraph) => paragraph.textContent?.trim() === expectedSummary);
+      const summaryParagraph = [...(detail?.querySelectorAll('[role="tabpanel"] p') ?? [])].find(
+        (paragraph) => paragraph.textContent?.trim() === expectedSummary,
+      );
       return {
-        state: detail?.querySelector(".detail-hero .hero-state")?.textContent?.trim(),
-        reason: detail?.querySelector(".detail-hero .hero-reason")?.textContent?.trim(),
-        hasReason: Boolean(detail?.querySelector(".detail-hero .hero-reason")),
+        state: detail?.querySelector(".detail-hero [data-detail-readiness]")?.textContent?.trim(),
+        reason: detail
+          ?.querySelector(".detail-attention [data-detail-reason]")
+          ?.textContent?.trim(),
+        hasReason: Boolean(detail?.querySelector(".detail-attention [data-detail-reason]")),
         actionInHero: Boolean(
           detail
             ?.querySelector(".detail-hero")
-            ?.contains(detail.querySelector(".primary-actions button")),
+            ?.contains(detail.querySelector(".detail-header-actions button")),
         ),
-        reasonBottom: bounds(".detail-hero .hero-reason")?.bottom,
+        reasonBottom: bounds(".detail-attention [data-detail-reason]")?.bottom,
         heroBottom: bounds(".detail-hero")?.bottom,
-        actionTop: bounds(".primary-actions button")?.top,
-        actionBottom: bounds(".primary-actions button")?.bottom,
+        actionTop: bounds(".detail-header-actions button")?.top,
+        actionBottom: bounds(".detail-header-actions button")?.bottom,
         summaryTop: summaryParagraph?.getBoundingClientRect().top,
         artworkTop: bounds(".artwork-controls")?.top,
         viewportHeight: window.innerHeight,
@@ -406,9 +410,13 @@ async function assertUnavailableLayout(browser: WebDriver, summary: string) {
     layout.reason,
     "Current launch readiness is unavailable. Reopen Portcove to check again.",
   );
-  assertMeasured(layout, ["reasonBottom", "actionTop", "summaryTop"]);
-  assert.ok(layout.reasonBottom <= layout.actionTop, JSON.stringify(layout));
-  assert.ok(layout.actionTop < layout.summaryTop, JSON.stringify(layout));
+  assertMeasured(layout, ["heroBottom", "reasonBottom", "actionTop"]);
+  assert.ok(layout.reasonBottom >= layout.heroBottom, JSON.stringify(layout));
+  assert.equal(layout.actionInHero, true);
+  await revealDetailSection(browser, "Overview");
+  const overview = await browser.findElement(By.css('[role="tabpanel"]:not([hidden])')).getText();
+  assert.ok(overview.includes(summary));
+  await revealDetailSection(browser, "Files");
 }
 
 async function assertTrialLayout(browser: WebDriver, summary: string) {
@@ -418,21 +426,21 @@ async function assertTrialLayout(browser: WebDriver, summary: string) {
     layout.reason,
     "The files are available, but this edition has not been confirmed for the installed version. Try launch to let the port check them; setup may still be needed.",
   );
-  assertMeasured(layout, [
-    "reasonBottom",
-    "heroBottom",
-    "actionTop",
-    "actionBottom",
-    "summaryTop",
-    "artworkTop",
-  ]);
-  assert.ok(layout.reasonBottom <= layout.actionTop, JSON.stringify(layout));
-  assert.equal(layout.actionInHero, true, JSON.stringify(layout));
-  assert.ok(layout.actionTop >= 0, JSON.stringify(layout));
-  assert.ok(layout.actionBottom <= layout.viewportHeight, JSON.stringify(layout));
-  assert.ok(layout.actionBottom <= layout.summaryTop, JSON.stringify(layout));
-  assert.ok(layout.actionBottom < layout.artworkTop, JSON.stringify(layout));
-  assert.equal(layout.hasReason, true, JSON.stringify(layout));
+  assertMeasured(layout, ["heroBottom", "reasonBottom", "actionTop", "actionBottom"]);
+  assert.equal(layout.actionInHero, true);
+  assert.ok(
+    layout.actionTop >= 0 && layout.actionBottom <= layout.viewportHeight,
+    JSON.stringify(layout),
+  );
+  assert.ok(layout.reasonBottom >= layout.heroBottom, JSON.stringify(layout));
+  await revealDetailSection(browser, "Overview");
+  assert.ok(
+    (await browser.findElement(By.css('[role="tabpanel"]:not([hidden])')).getText()).includes(
+      summary,
+    ),
+  );
+  await revealDetailSection(browser, "Files");
+  assert.equal(await browser.findElement(By.css(".artwork-controls")).isDisplayed(), true);
 }
 
 export async function readinessScenario({
@@ -539,6 +547,7 @@ export async function readinessScenario({
           ),
         10_000,
       );
+      await revealDetailSection(browser, "Files");
       const primary = await browser.findElement(By.css(".detail-panel .primary-actions button"));
       assert.equal(await primary.isEnabled(), false);
       assert.equal(await primary.getText(), "Play unavailable");

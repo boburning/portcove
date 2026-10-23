@@ -29,6 +29,14 @@ import { OperationCancellation } from "./OperationCancellation";
 import { commandShortcut } from "../keyboard-shortcuts";
 import embeddedCatalog from "../../../../crates/portcove-core/catalog/catalog.json";
 
+function detailSection(html: string, section: "overview" | "files" | "saves" | "versions") {
+  const sections = ["overview", "files", "saves", "versions"];
+  const start = html.indexOf(`id="detail-section-${section}"`);
+  expect(start, `${section} panel heading is present`).toBeGreaterThan(-1);
+  const next = sections[sections.indexOf(section) + 1];
+  return html.slice(start, next ? html.indexOf(`id="detail-section-${next}"`) : undefined);
+}
+
 function currentCatalogPort(id: string): PortDefinition {
   const serialized = embeddedCatalog.ports.find((candidate) => candidate.id === id);
   if (!serialized) throw new Error(`Missing embedded catalog port ${id}`);
@@ -1043,7 +1051,8 @@ describe("desktop components", () => {
     expect(ready.indexOf("Play")).toBeLessThan(ready.indexOf("Change artwork"));
     expect(downloaded).toContain("Ready to play");
     expect(downloaded).toContain("Use update · 1.0");
-    expect(downloaded).toContain("Play the installed version or use the saved update 1.0.");
+    expect(downloaded).toContain("Update saved for later · 1.0");
+    expect(detailSection(downloaded, "versions")).toContain("Use update · 1.0");
     expect(downloaded).toContain("data-update-attention");
     expect(downloaded).not.toContain('class="hero-reason"');
     expect(`${ready}${downloaded}`).not.toContain("Ready to launch");
@@ -1414,9 +1423,12 @@ describe("desktop components", () => {
     expect(html.indexOf("Choose and add the game files again before playing.")).toBeLessThan(
       html.indexOf(port.summary),
     );
-    expect(html.indexOf("Installation and version")).toBeLessThan(html.indexOf("Requirements"));
+    expect(detailSection(html, "files")).toContain("Installation location");
+    expect(detailSection(html, "files").indexOf("Installation location")).toBeLessThan(
+      detailSection(html, "files").indexOf("Requirements"),
+    );
     expect(html).toMatch(/<details class="requirements-disclosure[^"]*" open="">/u);
-    expect(html).toContain("Installation and version");
+    expect(detailSection(html, "versions")).toContain("Installed version");
     expect(html).not.toContain(">Play</button>");
   });
 
@@ -2739,19 +2751,15 @@ describe("desktop components", () => {
     expect(
       uninstalled.indexOf("Choose the required game files before reviewing installation"),
     ).toBeLessThan(uninstalled.indexOf("Choose game files"));
-    expect(uninstalled.indexOf("Choose game files")).toBeLessThan(
-      uninstalled.indexOf(port.summary),
-    );
-    expect(uninstalled.indexOf("Requirements")).toBeLessThan(uninstalled.indexOf(port.summary));
+    expect(detailSection(uninstalled, "files")).toContain("Choose game files");
+    expect(detailSection(uninstalled, "files")).toContain("Requirements");
+    expect(detailSection(uninstalled, "overview")).toContain(port.summary);
     expect(uninstalled).not.toContain("Installation and version");
     expect(uninstalled).toContain("Add all required game files before installing");
     expect(uninstalled).toContain("Choose the required game file");
-    expect(missingBoth.replace(/ class="[^"]*"/gu, "")).toContain(
-      "Required for setup: <strong>Sample cartridge · PlayStation SCPH-1001 BIOS</strong>",
-    );
-    expect(missingBoth.indexOf("Required for setup:")).toBeLessThan(
-      missingBoth.indexOf('aria-label="Game actions"'),
-    );
+    expect(detailSection(missingBoth, "files")).toContain("Sample cartridge");
+    expect(detailSection(missingBoth, "files")).toContain("PlayStation SCPH-1001 BIOS");
+    expect(detailSection(missingBoth, "files")).toContain('aria-label="Game actions"');
     expect(missingBoth).toMatch(
       /<details class="future-setup-disclosure advanced-settings[^"]*">/u,
     );
@@ -3108,7 +3116,7 @@ describe("desktop components", () => {
     expect(primary).toContain("Add all required game files and the BIOS file before installing");
   });
 
-  it("places staged activation beside Play while keeping update consequences in Updates", () => {
+  it("keeps direct Play in the header and staged activation with its consequences in Versions", () => {
     const install = installRecord();
     const status: PortStatus = {
       ...portStatus(),
@@ -3128,11 +3136,12 @@ describe("desktop components", () => {
         actions={actions}
       />,
     );
-    expect(html).toContain("Play the installed version or use the saved update 2.0.");
+    expect(html).toContain("Update saved for later · 2.0");
     expect(html).toContain("Use update · 2.0");
     expect(html.indexOf("Play")).toBeLessThan(html.indexOf("Use update · 2.0"));
-    expect(html.indexOf("Use update · 2.0")).toBeLessThan(html.indexOf(port.summary));
-    expect(html).toContain("keeps the current version for rollback");
+    expect(detailSection(html, "versions")).toContain("Use update · 2.0");
+    expect(detailSection(html, "versions")).toContain("keeps the current version for rollback");
+    expect(detailSection(html, "files")).not.toContain("Use update · 2.0");
     expect(html.match(/Use update · 2\.0/g)).toHaveLength(1);
     const busyHtml = renderToStaticMarkup(
       <DetailPanel
@@ -3172,7 +3181,8 @@ describe("desktop components", () => {
         blocker === "missing_runtime" ? "Check for updates" : "Verify installation",
       );
       expect(html).toContain("Use update · 2.0");
-      expect(html.indexOf("Use update · 2.0")).toBeLessThan(html.indexOf(port.summary));
+      expect(detailSection(html, "versions")).toContain("Use update · 2.0");
+      expect(detailSection(html, "files")).not.toContain("Use update · 2.0");
       expect(html.match(/Use update · 2\.0/g)).toHaveLength(1);
     },
   );
@@ -3394,7 +3404,7 @@ describe("desktop components", () => {
     expect(library).toContain("Retired upstream");
   });
 
-  it("orders port details by player task and distinguishes installed from eligible versions", () => {
+  it("groups detail capabilities by tab and distinguishes installed from eligible versions", () => {
     const install = installRecord();
     const html = renderToStaticMarkup(
       <DetailPanel
@@ -3434,31 +3444,34 @@ describe("desktop components", () => {
         }}
       />,
     );
-    const headings = [
-      'aria-label="Game actions"',
-      "Installation and version",
-      "Requirements",
-      "Updates",
-      "Saves and storage",
-      "About this port",
-      "Project and compatibility details",
+    const overview = detailSection(html, "overview");
+    const files = detailSection(html, "files");
+    const saves = detailSection(html, "saves");
+    const versions = detailSection(html, "versions");
+    for (const content of [
+      port.summary,
+      "Project status and release information",
+      "Compatibility qualifications",
       "Recorded checks",
+    ])
+      expect(overview).toContain(content);
+    for (const content of [
+      'aria-label="Game actions"',
+      "Installation location",
+      "Requirements",
       "Technical details",
-    ];
-    let previous = -1;
-    for (const heading of headings) {
-      const current = html.indexOf(heading);
-      expect(current, `${heading} is present`).toBeGreaterThan(previous);
-      previous = current;
-    }
-    expect(html).toContain("Installed version");
-    expect(html.indexOf("Installation and version")).toBeLessThan(html.indexOf(port.summary));
-    expect(html).toContain("Installed folder");
-    expect(html).toContain(install.path);
-    expect(html).toContain("Latest version at last check");
-    expect(html).toContain("2.0");
-    expect(html).toContain("E:/Portcove/user/sample");
-    expect(html.indexOf("Back up data")).toBeLessThan(html.indexOf("Technical details"));
+      install.path,
+    ])
+      expect(files).toContain(content);
+    for (const content of ["Saves and storage", "Back up data", "E:/Portcove/user/sample"])
+      expect(saves).toContain(content);
+    for (const content of [
+      "Installed version",
+      "Latest version at last check",
+      "2.0",
+      "Check for updates",
+    ])
+      expect(versions).toContain(content);
     expect(html).not.toContain("staged-source-portable");
   });
 

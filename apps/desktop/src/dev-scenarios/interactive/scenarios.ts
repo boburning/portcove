@@ -9,6 +9,7 @@ import type {
   WorkspaceSnapshot,
   PortDefinition,
   PortStatus,
+  PortListing,
 } from "../../types";
 
 export const journeys = [
@@ -16,6 +17,7 @@ export const journeys = [
   { id: "collection", label: "Mixed collection · simulated content" },
   { id: "collection-large", label: "60-entry collection · simulated content" },
   { id: "comparison", label: "Matched Library comparison · shared content and artwork" },
+  { id: "details", label: "Game details · managed, external, downloaded setup and backup error" },
   { id: "setup", label: "Interactive preparation" },
   { id: "activity", label: "Activity and retained setup · simulated tasks" },
   { id: "recovery", label: "Interactive startup recovery" },
@@ -80,6 +82,7 @@ export function bootstrap(ready = true, root = "fixture/library"): BootstrapStat
   };
 }
 export function workspace(journey: Journey): WorkspaceSnapshot {
+  if (journey === "details") return detailWorkspace();
   const sample = {
     ...portDefinition(),
     name: "Harbor Adventure",
@@ -179,6 +182,136 @@ export function workspace(journey: Journey): WorkspaceSnapshot {
         ? { staged: { ...install, id: "fixture-staged", port_id: port.id, staged: true } }
         : {}),
     })),
+    sources: [],
+    activities,
+  };
+}
+
+function detailWorkspace(): WorkspaceSnapshot {
+  const ports = ["ready", "staged", "backup-error"].map((kind): PortDefinition => ({
+    ...portDefinition(),
+    id: `details-${kind}`,
+    name: "Harbor desktop port",
+    summary:
+      "Explore a coastal world using your own original game files. This disposable library demonstrates installation tools, version choices and saved-data coverage without touching real files.",
+    presentation: {
+      original_game_title: kind === "backup-error" ? "Orchard Quest" : "Harbor Adventure",
+      variant_label:
+        kind === "staged"
+          ? "Update saved for later"
+          : kind === "backup-error"
+            ? "Backup history unavailable"
+            : "Managed installation",
+      installation_method: "portable-package",
+      saves_and_settings: "portcove-managed",
+      source_requirements: [],
+    },
+  }));
+  const statuses: PortStatus[] = ports.map((port) => ({
+    ...portStatus(),
+    port_id: port.id,
+    active: {
+      ...install,
+      id: `fixture-${port.id}`,
+      port_id: port.id,
+      path: `fixture/library/${port.id}/versions/1.2`,
+    },
+    readiness: { launchable: true, pending_setup: false, blockers: [] },
+    ...(port.id === "details-staged"
+      ? {
+          staged: {
+            ...install,
+            id: "fixture-staged",
+            port_id: port.id,
+            version: "1.3",
+            staged: true,
+          },
+        }
+      : {}),
+  }));
+  const listings: PortListing[] = ["external", "unknown", "downloaded"].map((kind) => ({
+    id: `details-${kind}`,
+    name: `Harbor upstream project · ${kind}`,
+    original_game_title: kind === "downloaded" ? "Moonlit Harbor" : "Summit Racer",
+    summary:
+      "An upstream-maintained desktop game. Choose and maintain its executable and data folder yourself; this demonstration only records disposable launch details.",
+    project_url: "https://example.com/harbor",
+    setup_url: "https://example.com/harbor/setup",
+    release_url: "https://example.com/harbor/releases",
+    platforms: ["windows-x86-64"],
+    availability: "packages",
+  }));
+  const listingStatuses = listings.map((listing) => {
+    const registered = listing.id !== "details-downloaded";
+    const status: PortStatus = {
+      ...portStatus(),
+      port_id: listing.id,
+      ...(registered
+        ? {
+            external_runtime: {
+              id: `fixture-${listing.id}`,
+              port_id: listing.id,
+              path: `fixture/external/${listing.id}`,
+              executable: `fixture/external/${listing.id}/game.exe`,
+              version: "user-managed",
+              platform: "windows-x86-64",
+              archive_sha256: "",
+              immutable_tree_sha256: "",
+              registered_at: 1,
+              user_selected: { arguments: [] },
+            },
+            ...(listing.id === "details-external"
+              ? { readiness: { launchable: true, blockers: [], pending_setup: false } }
+              : {}),
+          }
+        : {}),
+    };
+    statuses.push(status);
+    return {
+      port_id: listing.id,
+      status,
+      actions: [
+        {
+          action: "launch" as const,
+          allowed: listing.id === "details-external",
+          reason:
+            listing.id === "details-unknown"
+              ? "Current launch readiness is unavailable. Refresh and review the selected executable."
+              : null,
+        },
+        { action: "attach-existing" as const, allowed: true },
+      ],
+    };
+  });
+  const downloaded = listings[2]!;
+  return {
+    catalog: { schema_version: 1, ports, source_profiles: [] },
+    listing_catalog: { format_version: 1, listings },
+    listing_statuses: listingStatuses,
+    pending_setups: [
+      {
+        id: "fixture-downloaded-setup",
+        port_id: downloaded.id,
+        listing: downloaded,
+        path: "fixture/downloads/moonlit-harbor",
+        state: "downloaded",
+        artifact: {
+          release_id: 1,
+          asset_id: 1,
+          release_tag: "v1.2",
+          release_url: "https://example.com/harbor/releases/v1.2",
+          name: "harbor.zip",
+          size: 1024,
+          download_url: "https://example.com/harbor/harbor.zip",
+          can_extract: true,
+          sha256: null,
+        },
+        archive_sha256: "a".repeat(64),
+        downloaded_at: "2026-10-23T12:00:00Z",
+        reason: null,
+      },
+    ],
+    statuses,
     sources: [],
     activities,
   };

@@ -44,7 +44,13 @@ export function SteamEntryControl({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button data-focusable variant="outline" disabled={busy} onClick={() => setOpen(true)}>
+      <Button
+        data-focusable
+        data-steam-shortcut
+        variant="outline"
+        disabled={busy}
+        onClick={() => setOpen(true)}
+      >
         <Icon glyph={Gamepad2} />
         Steam shortcut
       </Button>

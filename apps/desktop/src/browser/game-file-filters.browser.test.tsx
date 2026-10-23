@@ -9,6 +9,7 @@ import { GameFileFilterObservation } from "../components/GameFileFilterObservati
 import { GameFileQueryControl } from "../components/GameFileQuery";
 import { GameFileObservationSummary } from "../features/browsing/GameFileObservationSummary";
 import { PortBrowser } from "../components/PortBrowser";
+import { DetailLayout } from "../components/DetailLayout";
 import { useDetailWorkspaceNavigation } from "../features/app-shell/use-detail-workspace-navigation";
 import { useLibraryBrowsingContext } from "../features/app-shell/use-library-browsing-context";
 import { useGameFileFilterContext } from "../features/browsing/use-game-file-filter-context";
@@ -101,23 +102,37 @@ function Session({ library }: { library: string }) {
         Invalidate library observation
       </button>
       {ui.selectedId ? (
-        <>
-          <button className="detail-back" onClick={navigation.close}>
-            Back to catalog
-          </button>
-          <GameFileFilterObservation portId={ui.selectedId} context={observation.context} />
-          <GameFileObservationSummary
-            observation={observation.observation}
-            catalog
-            portId={ui.selectedId}
-          />
-          <GameFileQueryControl
-            port={ports.find((port) => port.id === ui.selectedId)!}
-            channel="stable"
-            generation={generation}
-            context={library}
-          />
-        </>
+        <DetailLayout
+          port={ports.find((port) => port.id === ui.selectedId)!}
+          opening={navigation.opening}
+          initialSection="files"
+          readiness="File observations"
+          installation="Not installed"
+          action={() => null}
+          close={navigation.close}
+        >
+          {() => ({
+            overview: null,
+            files: (
+              <>
+                <GameFileFilterObservation portId={ui.selectedId!} context={observation.context} />
+                <GameFileObservationSummary
+                  observation={observation.observation}
+                  catalog
+                  portId={ui.selectedId!}
+                />
+                <GameFileQueryControl
+                  port={ports.find((port) => port.id === ui.selectedId)!}
+                  channel="stable"
+                  generation={generation}
+                  context={library}
+                />
+              </>
+            ),
+            saves: null,
+            versions: null,
+          })}
+        </DetailLayout>
       ) : (
         <PortBrowser
           view={ui.view}
@@ -234,7 +249,11 @@ it.each(["dark", "light"])(
     const explanation = document.querySelector('[aria-label="Catalog game-file observation"]')!;
     expect(explanation.textContent).toContain("Managed setup · Windows · Stable");
     expect(explanation.textContent).toContain("profile / variant / complete-set");
-    await expect.element(button("Back to catalog")).toHaveFocus();
+    await expect
+      .element(page.getByRole("heading", { name: "Complete game", level: 1 }))
+      .toHaveFocus();
+    await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+    await expect.element(button("Back to previous workspace")).toHaveFocus();
     await userEvent.keyboard("{Enter}");
     await expect.element(card).toHaveFocus();
     await expect
@@ -266,7 +285,7 @@ it("retains unavailable choices across library invalidation, persistence and iso
   await expect
     .element(page.getByRole("region", { name: "Catalog game-file observation" }))
     .not.toBeInTheDocument();
-  await userEvent.click(button("Back to catalog"));
+  await userEvent.click(button("Back to previous workspace"));
   await expect.element(button("Remove Needs checking filter")).toBeInTheDocument();
   await openAdvancedFilters("Filters (1)");
   await expect.element(button("Needs checking (unavailable)")).toBeDisabled();
@@ -301,7 +320,7 @@ it.each(["dark", "light"])(
     await expect.element(page.getByLabelText("Catalog check history")).toBeInTheDocument();
     await userEvent.click(button("Check selected route game files"));
     await expect.element(page.getByLabelText("Selected-route check history")).toBeInTheDocument();
-    await userEvent.click(button("Back to catalog"));
+    await userEvent.click(button("Back to previous workspace"));
     await userEvent.click(page.getByRole("button", { name: /^Complete game\s/ }));
     await expect.element(page.getByLabelText("Catalog check history")).toBeInTheDocument();
     await expect
@@ -345,7 +364,7 @@ it.each(["dark", "light"])(
       element: metadata.parentElement!,
       path: `../../../../outputs/observation-clarity/catalog-expired-${theme}-520.png`,
     });
-    await userEvent.click(button("Back to catalog"));
+    await userEvent.click(button("Back to previous workspace"));
     await openAdvancedFilters("Filters (0)");
     await expect
       .element(button("Compatible complete files available (unavailable)"))

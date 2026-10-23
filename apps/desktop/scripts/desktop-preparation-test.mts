@@ -133,6 +133,7 @@ import {
   minimizedPreparationScenario,
 } from "./desktop-preparation-recovery-test.mts";
 import {
+  revealDetailSection,
   assertCompactReview,
   assertPrimaryReviewAction,
   captureAccessibilityReport,
@@ -1050,8 +1051,10 @@ export async function preparationScenarios({
     const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);
     await browser.wait(until.elementLocated(card), 15_000);
     await clickVisible(browser, await browser.findElement(card));
-    if (waitForPreparation)
+    if (waitForPreparation) {
+      await revealDetailSection(browser, "Files");
       await browser.wait(until.elementLocated(button("Review game preparation")), 15_000);
+    }
   }
   async function openReadinessOptions(filters: WebElement) {
     const picker = await filters.findElement(By.css('[role="combobox"]'));
@@ -2089,8 +2092,10 @@ export async function preparationScenarios({
                   .querySelector("[data-detail-port-id]")
                   ?.getAttribute("data-detail-port-id"),
                 actionInHero: Boolean(action.closest(".detail-hero")),
-                state: document.querySelector(".detail-hero .hero-state")?.textContent?.trim(),
-                groups: [...document.querySelectorAll(".detail-body .detail-group > h2")].map(
+                state: document
+                  .querySelector(".detail-hero [data-detail-readiness]")
+                  ?.textContent?.trim(),
+                groups: [...document.querySelectorAll("[data-detail-workspace] [role=tab]")].map(
                   (heading) => heading.textContent?.trim(),
                 ),
                 action: {
@@ -2115,14 +2120,7 @@ export async function preparationScenarios({
           assert.equal(hierarchy.portId, port.id);
           assert.equal(hierarchy.actionInHero, true);
           assert.match(required(hierarchy.state), /Compatibility unconfirmed/);
-          assert.deepEqual(hierarchy.groups, [
-            "Installation and version",
-            "Requirements",
-            "Updates",
-            "Saves and storage",
-            "About this port",
-            "Artwork",
-          ]);
+          assert.deepEqual(hierarchy.groups, ["Overview", "Files", "Saved data", "Versions"]);
           assert.equal(hierarchy.horizontalOverflow, false);
           assert.ok(
             hierarchy.action.top >= 0 &&
@@ -2131,6 +2129,7 @@ export async function preparationScenarios({
               hierarchy.action.right <= hierarchy.viewport.width,
             `Trial launch must remain visible at ${actualWindow.width}x${actualWindow.height}: ${JSON.stringify(hierarchy)}`,
           );
+          await revealDetailSection(browser, "Versions");
           const facts = await executeBrowserScript(browser, () => {
             const strip = document.querySelector(".installation-facts");
             strip?.scrollIntoView({ block: "center", behavior: "instant" });
@@ -2353,6 +2352,7 @@ export async function preparationScenarios({
   await scenario("native-game-update-review", async () => {
     const { port } = await seed("opengoal-jak1", "success");
     await open(port, false);
+    await revealDetailSection(browser, "Versions");
     await clickVisible(browser, await browser.findElement(button("Check for updates")));
     const updateControl = await browser.wait(
       until.elementLocated(By.css('section[aria-label="Review game update"]')),
@@ -2662,12 +2662,8 @@ export async function preparationScenarios({
       sources,
     };
     async function rollbackButton() {
+      await revealDetailSection(browser, "Versions");
       const target = await browser.findElement(button("Restore previous version"));
-      if (!(await target.isDisplayed()))
-        await clickVisible(
-          browser,
-          await browser.findElement(By.xpath('//summary[contains(., "Commands and maintenance")]')),
-        );
       await browser.wait(until.elementIsVisible(target), 5_000);
       return target;
     }
@@ -3094,6 +3090,7 @@ export async function preparationScenarios({
         // Reload discards renderer continuations, but the same Core preparation
         // remains running. Perform a real unrelated native UI verification.
         await open(other.port, false);
+        await revealDetailSection(browser, "Files");
         const verify = await browser.findElement(button("Verify installation"));
         if (!(await verify.isDisplayed()))
           await clickVisible(
@@ -3446,6 +3443,8 @@ export async function preparationScenarios({
     const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);
     await browser.wait(until.elementLocated(card), 15_000);
     await browser.findElement(card).click();
+    await revealDetailSection(browser, "Versions");
+
     await clickVisible(
       browser,
       await browser.findElement(
@@ -3556,6 +3555,8 @@ export async function preparationScenarios({
       const card = By.xpath(`//button[@data-detail-origin="catalog:card:${port.id}"]`);
       await browser.wait(until.elementLocated(card), 15_000, `${port.name} card did not appear`);
       await browser.findElement(card).click();
+      await revealDetailSection(browser, "Versions");
+
       await clickVisible(
         browser,
         await browser.findElement(

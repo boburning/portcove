@@ -108,7 +108,7 @@ for (const width of [1200, 960]) {
       />,
     );
     const hero = document.querySelector(".detail-hero")!;
-    const action = document.querySelector(".primary-actions button")!;
+    const action = document.querySelector(".detail-header-actions button")!;
     expect(hero.contains(action)).toBe(true);
     const title = document.getElementById("port-detail-title")!;
     expect(action.getBoundingClientRect().top).toBeGreaterThan(
