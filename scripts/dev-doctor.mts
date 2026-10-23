@@ -487,7 +487,11 @@ export async function collectSelectedPrerequisites(
       remediation: "use Windows with the existing Visual Studio MSBuild installation",
     },
   };
-  for (const tool of manifest.tools) definitions[tool.id] = { ...tool, command: tool.command };
+  for (const tool of manifest.tools)
+    definitions[tool.id] =
+      platform === "win32"
+        ? cachedRustDefinition(tool, cachePaths, platform)
+        : { ...tool, command: tool.command };
   for (const tool of aquaDefinitions(environment, false))
     definitions[tool.id] = (options.aquaDefinition ?? existingAquaDefinition)(
       tool,
