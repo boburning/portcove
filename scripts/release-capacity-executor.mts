@@ -46,10 +46,7 @@ import {
 } from "./release-coordinator-journal-api.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
-import { requireControllerFixedJobJournalAuthorities } from "./release-authority-configuration.mts";
-import { authenticateFixedJobCoordinatorHistory } from "./release-coordinator-checkpoint-authentication.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
-import { signAndPublishCoordinatorCheckpoint } from "./release-coordinator-signing-exchange.mts";
 import type { CapacityBoundaryReader } from "./release-capacity-operation.mts";
 import {
   inspectPublishedCatalogMetadata,
@@ -79,7 +76,11 @@ interface PrivateSession {
   deadline?: number;
   journalBinding?: "binding" | "bound" | "stopped";
   journal?: {
-    configuration: Awaited<ReturnType<typeof requireControllerFixedJobJournalAuthorities>>;
+    configuration: Awaited<
+      ReturnType<
+        typeof import("./release-authority-configuration.mts").requireControllerFixedJobJournalAuthorities
+      >
+    >;
     checkpoint: string;
     busy: boolean;
     stopped: boolean;
@@ -252,6 +253,13 @@ async function authenticateOwnedCheckpointJournalHistoryWithinScope(
   repository: string,
   expected: string,
 ) {
+  // Load the selected composition only when this admitted path is invoked.
+  // Eager initialization would create a cycle through existing signing-context
+  // adapters in isolated controller bundles, even for a credential-free refusal.
+  const { requireControllerFixedJobJournalAuthorities } =
+    await import("./release-authority-configuration.mts");
+  const { authenticateFixedJobCoordinatorHistory } =
+    await import("./release-coordinator-checkpoint-authentication.mts");
   const value = sessions.get(session)!;
   const deadline = value.deadline!;
   capacityExecutorIdentity(session);
@@ -322,17 +330,21 @@ export async function publishOwnedSignedCoordinatorCheckpoint(
     schema_version: 1,
     namespace: journal.configuration.configuration.namespace,
   };
-  const refresh = async () => {
-    const identity = await refreshCapacityExecutor(session);
-    const current = await requireControllerFixedJobJournalAuthorities(value.role);
-    if (capacityDigest(current) !== capacityDigest(journal.configuration))
-      throw new Error("selected journal source/configuration changed before signing");
-    await currentControls();
-    capacityExecutorIdentity(session);
-    return identity;
-  };
   try {
     return await withReadOnlyReleaseChildren(value.directory, async () => {
+      const { requireControllerFixedJobJournalAuthorities } =
+        await import("./release-authority-configuration.mts");
+      const { signAndPublishCoordinatorCheckpoint } =
+        await import("./release-coordinator-signing-exchange.mts");
+      const refresh = async () => {
+        const identity = await refreshCapacityExecutor(session);
+        const current = await requireControllerFixedJobJournalAuthorities(value.role);
+        if (capacityDigest(current) !== capacityDigest(journal.configuration))
+          throw new Error("selected journal source/configuration changed before signing");
+        await currentControls();
+        capacityExecutorIdentity(session);
+        return identity;
+      };
       const identity = await refresh();
       if (expected === journal.checkpoint) {
         const reader = createCheckpointHistoryReader(
