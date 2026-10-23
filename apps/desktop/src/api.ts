@@ -13,7 +13,12 @@ import type {
 
 import type { InstallInput, LaunchResult } from "./types";
 import type { GameUpdatePlan, PreparationCleanupPreview, PreparationPlan } from "./types";
-import type { CatalogStatus, CatalogUpdatePlan, CatalogUpdateSource } from "./types";
+import type {
+  ListingDeliveryStatus,
+  CatalogStatus,
+  CatalogUpdatePlan,
+  CatalogUpdateSource,
+} from "./types";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import type { FrontendFailureReport } from "./frontend-diagnostics";
 import type { CancellationState, OperationEvent } from "./types";
@@ -246,6 +251,20 @@ export const desktopApi = {
       expectedReviewSha256,
       generation,
     }),
+  listingDeliveryStatus: () => invoke<ListingDeliveryStatus>("get_listing_delivery_status"),
+  refreshCatalogListings: (
+    metadataBaseUrl: string,
+    targetsBaseUrl: string,
+    onEvent: (event: OperationEvent) => void,
+  ) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = onEvent;
+    return invoke<ListingDeliveryStatus>("refresh_catalog_listings", {
+      metadataBaseUrl,
+      targetsBaseUrl,
+      onEvent: channel,
+    });
+  },
   catalogStatus: () => invoke<CatalogStatus>("get_catalog_status"),
   engineCapabilities: () => invoke<CapabilityDocument>("get_engine_capabilities"),
   checkDefinitionCapabilities: (request: DefinitionCapabilityRequest) =>

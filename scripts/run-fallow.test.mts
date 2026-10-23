@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { evaluateFallowReport } from "./check-fallow-report.mts";
 import { CommandFailure } from "./report-summary.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -28,7 +29,7 @@ import {
 // Unit fixtures never publish into the enclosing Actions job's real summary.
 const runFallow = (options: FallowOptions) => runFallowCommand({ jobSummary: null, ...options });
 
-void test("native parser degradation cannot establish whole-Desktop qualification", () => {
+void test("native parser degradation cannot establish whole-Desktop qualification", async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-native-parse-"));
   try {
     // Maintained test runners place temp directories beneath the checkout. A
@@ -70,7 +71,7 @@ void test("native parser degradation cannot establish whole-Desktop qualificatio
             ? Buffer.from([0xff, 0xfe, 0xfd])
             : 'console.log("valid");',
       );
-      const result = runFallow({
+      const result = await runFallow({
         spawn,
         identity: () => fixtureIdentity(),
         evidenceDirectory: path.join(directory, state),
@@ -87,7 +88,7 @@ void test("native parser degradation cannot establish whole-Desktop qualificatio
   }
 });
 
-void test("reuse binds effective options and external coverage bytes, not normalized environment spelling", () => {
+void test("reuse binds effective options and external coverage bytes, not normalized environment spelling", async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-options-"));
   const coverage = path.join(directory, "coverage.json");
   const identity = () => fixtureIdentity();
@@ -100,7 +101,7 @@ void test("reuse binds effective options and external coverage bytes, not normal
   try {
     writeFileSync(coverage, "{}");
     const environment = { FALLOW_COVERAGE: coverage, FALLOW_PRODUCTION: "true" };
-    const first = runFallow({
+    const first = await runFallow({
       identity,
       spawn,
       environment,
@@ -115,30 +116,34 @@ void test("reuse binds effective options and external coverage bytes, not normal
         evidenceDirectory: path.join(directory, `reuse-${calls}`),
       });
     assert.equal(
-      reuse({ ...environment, FALLOW_PRODUCTION: "false", FALLOW_FORMAT: "human" }).exitCode,
+      (await reuse({ ...environment, FALLOW_PRODUCTION: "false", FALLOW_FORMAT: "human" }))
+        .exitCode,
       0,
     );
     assert.equal(calls, 1);
-    assert.throws(() => reuse({ ...environment, PORTCOVE_FALLOW_THREADS: "3" }), /reuse refused/);
-    assert.throws(
+    await assert.rejects(
+      () => reuse({ ...environment, PORTCOVE_FALLOW_THREADS: "3" }),
+      /reuse refused/,
+    );
+    await assert.rejects(
       () => reuse({ ...environment, FALLOW_COVERAGE_ROOT: directory }),
       /reuse refused/,
     );
     writeFileSync(coverage, '{"changed":true}');
-    assert.throws(() => reuse(environment), /reuse refused/);
+    await assert.rejects(() => reuse(environment), /reuse refused/);
     writeFileSync(coverage, "{}");
     const metadata = JSON.parse(
       readFileSync(path.join(first.evidenceDirectory, "metadata.json"), "utf8"),
     ) as { stdout: string };
     writeFileSync(metadata.stdout, "changed retained bytes");
-    assert.throws(() => reuse(environment), /retained bytes changed/);
-    assert.throws(() => reuse({ FALLOW_DIFF_FILE: "filtered.diff" }), /incompatible/);
+    await assert.rejects(() => reuse(environment), /retained bytes changed/);
+    await assert.rejects(() => reuse({ FALLOW_DIFF_FILE: "filtered.diff" }), /incompatible/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
 });
 
-void test("Fallow child and parse failures retain raw streams with bounded diagnostics", () => {
+void test("Fallow child and parse failures retain raw streams with bounded diagnostics", async () => {
   const evidenceDirectory = mkdtempSync(path.join(os.tmpdir(), "fallow-error-"));
   try {
     for (const [status, stderr] of [
@@ -146,7 +151,7 @@ void test("Fallow child and parse failures retain raw streams with bounded diagn
       [2, "界".repeat(20_000)],
       [0, "界".repeat(20_000)],
     ] as const) {
-      assert.throws(
+      await assert.rejects(
         () =>
           runFallow({
             evidenceDirectory,
@@ -185,7 +190,7 @@ void test("selective routes preserve explicit full-branch review and bounded par
   assert.ok(fallowArguments("css").includes("--report-only"));
 });
 
-void test("successful high duplication retains actionable results and supports exact-input reuse", () => {
+void test("successful high duplication retains actionable results and supports exact-input reuse", async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-reuse-"));
   let calls = 0;
   let formats = 0;
@@ -218,7 +223,7 @@ void test("successful high duplication retains actionable results and supports e
       calls++;
       return { status: 0, stdout: JSON.stringify(value), stderr: "retained warning" };
     };
-    const first = runFallow({
+    const first = await runFallow({
       evidenceDirectory: path.join(directory, "first"),
       identity,
       spawn,
@@ -229,7 +234,7 @@ void test("successful high duplication retains actionable results and supports e
     assert.match(first.text, /dup:example/);
     assert.match(first.text, /src\/a.ts:12/);
     assert.match(first.text, /dirty true/);
-    const second = runFallow({
+    const second = await runFallow({
       evidenceDirectory: path.join(directory, "second"),
       reuse: first.evidenceDirectory,
       identity,
@@ -240,7 +245,7 @@ void test("successful high duplication retains actionable results and supports e
     assert.equal(calls, 1);
     assert.equal(formats, 2, "reuse may format saved evidence without analyzing again");
     assert.match(readFileSync(jobSummary, "utf8"), /Saved Fallow report/);
-    assert.throws(
+    await assert.rejects(
       () =>
         runFallow({
           reuse: first.evidenceDirectory,
@@ -254,18 +259,18 @@ void test("successful high duplication retains actionable results and supports e
   }
 });
 
-void test("analyzer status and advisory review verdict never become a quality pass", () => {
+void test("analyzer status and advisory review verdict never become a quality pass", async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-status-"));
   const identity = () => fixtureIdentity();
   try {
-    const unexplained = runFallow({
+    const unexplained = await runFallow({
       evidenceDirectory: directory,
       identity,
       spawn: () => ({ status: 1, stdout: JSON.stringify(report()), stderr: "" }),
     });
     assert.equal(unexplained.exitCode, 1);
     assert.match(unexplained.text, /unexplained analyzer exit/);
-    const review = runFallow({
+    const review = await runFallow({
       mode: "review",
       base: "origin/main",
       evidenceDirectory: path.join(directory, "review"),
@@ -292,7 +297,7 @@ void test("analyzer status and advisory review verdict never become a quality pa
   }
 });
 
-void test("CSS and review routes accept only their reviewed report contracts", () => {
+void test("CSS and review routes accept only their reviewed report contracts", async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-contract-"));
   try {
     for (const mode of ["css", "review"] as const) {
@@ -316,24 +321,24 @@ void test("CSS and review routes accept only their reviewed report contracts", (
           identity: () => fixtureIdentity(),
           spawn: () => ({ status: 0, stderr: "", stdout: JSON.stringify(reportValue) }),
         });
-      assert.equal(run(value).exitCode, 0);
+      assert.equal((await run(value)).exitCode, 0);
       for (const invalid of [
         { ...value, schema_version: value.schema_version - 1 },
         { ...value, version: "3.34.2" },
         { ...value, kind: "unknown" },
       ])
-        assert.throws(() => run(invalid), /Unsupported .* report/);
+        await assert.rejects(() => run(invalid), /Unsupported .* report/);
     }
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
 });
 
-void test("secondary presentation failure preserves code failure and original evidence", () => {
+void test("secondary presentation failure preserves code failure and original evidence", async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-presentation-"));
   try {
     let calls = 0;
-    const result = runFallow({
+    const result = await runFallow({
       evidenceDirectory: directory,
       identity: () => fixtureIdentity(),
       jobSummary: path.join(directory, "summary.md"),
@@ -355,12 +360,12 @@ void test("secondary presentation failure preserves code failure and original ev
   }
 });
 
-void test("validated Fallow findings and failed evidence retention remain distinct failures", () => {
+void test("validated Fallow findings and failed evidence retention remain distinct failures", async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-verdict-"));
   try {
     const stdout = JSON.stringify(report({ issues: 1 }));
     const spawn = () => ({ status: 1, stdout, stderr: "original analyzer output" });
-    const result = runFallow({
+    const result = await runFallow({
       evidenceDirectory: directory,
       spawn,
       identity: () => fixtureIdentity(),
@@ -370,7 +375,7 @@ void test("validated Fallow findings and failed evidence retention remain distin
     assert.match(result.text, /1 dead-code or dependency findings/);
     const blocked = path.join(directory, "not-a-directory");
     writeFileSync(blocked, "preserved");
-    const combined = runFallow({
+    const combined = await runFallow({
       evidenceDirectory: blocked,
       spawn,
       identity: () => fixtureIdentity(),
@@ -381,7 +386,7 @@ void test("validated Fallow findings and failed evidence retention remain distin
     assert.match(combined.text, /evidence-collection failure \(secondary\)/);
     const healthy = report({ issues: 1 });
     healthy.check.total_issues = 0;
-    const retention = runFallow({
+    const retention = await runFallow({
       evidenceDirectory: blocked,
       identity: () => fixtureIdentity(),
       spawn: () => ({ status: 0, stdout: JSON.stringify(healthy), stderr: "" }),
@@ -395,10 +400,10 @@ void test("validated Fallow findings and failed evidence retention remain distin
   }
 });
 
-void test("retained Fallow reuse rejects malformed metadata and changed stream bytes without analysis", () => {
+void test("retained Fallow reuse rejects malformed metadata and changed stream bytes without analysis", async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-reuse-invalid-"));
   try {
-    const original = runFallow({
+    const original = await runFallow({
       evidenceDirectory: path.join(directory, "original"),
       identity: fixtureIdentity,
       spawn: () => ({ status: 0, stdout: JSON.stringify(report()), stderr: "retained" }),
@@ -410,7 +415,7 @@ void test("retained Fallow reuse rejects malformed metadata and changed stream b
       assert.fail("reuse must not run the analyzer");
     };
     writeFileSync(metadataPath, JSON.stringify({ ...metadata, stderr: [metadata.stderr] }));
-    assert.throws(
+    await assert.rejects(
       () =>
         runFallow({
           reuse: original.evidenceDirectory,
@@ -421,7 +426,7 @@ void test("retained Fallow reuse rejects malformed metadata and changed stream b
     );
     writeFileSync(metadataPath, JSON.stringify(metadata));
     writeFileSync(metadata.stderr, "changed");
-    assert.throws(
+    await assert.rejects(
       () =>
         runFallow({
           reuse: original.evidenceDirectory,
@@ -430,6 +435,153 @@ void test("retained Fallow reuse rejects malformed metadata and changed stream b
         }),
       /retained bytes changed/,
     );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+void test("asynchronous analysis and formatting retain distinct finite budgets", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-async-budgets-"));
+  const captures: { phase: string; timeout: number }[] = [];
+  try {
+    const result = await runFallow({
+      identity: fixtureIdentity,
+      evidenceDirectory: directory,
+      jobSummary: path.join(directory, "summary.md"),
+      spawn: async (_command, _args, _options, capture) => {
+        assert.ok(capture);
+        captures.push({ phase: capture.phase, timeout: capture.timeoutMilliseconds });
+        await Promise.resolve();
+        return capture.phase === "analysis"
+          ? {
+              status: 0,
+              stdout: JSON.stringify(report({ issues: 1 })),
+              stderr: "original analyzer detail",
+            }
+          : {
+              status: 124,
+              stdout: "partial formatter",
+              stderr: "original formatter detail",
+              error: Object.assign(new Error("formatter timeout"), { code: "ETIMEDOUT" }),
+            };
+      },
+    });
+    assert.equal(result.exitCode, 1);
+    assert.match(result.text, /source\/check failure/);
+    assert.match(result.text, /secondary/);
+    assert.deepEqual(captures, [
+      { phase: "analysis", timeout: 1200000 },
+      { phase: "format", timeout: 60000 },
+    ]);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+void test("a timed-out or otherwise incomplete scan cannot become reusable success", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-incomplete-reuse-"));
+  try {
+    for (const status of [0, 124]) {
+      const evidenceDirectory = path.join(directory, String(status));
+      await assert.rejects(
+        runFallow({
+          evidenceDirectory,
+          identity: fixtureIdentity,
+          spawn: () => ({
+            status,
+            stdout: JSON.stringify(report()),
+            stderr: "partial original stream",
+            error: Object.assign(new Error("scan incomplete"), { code: "ETIMEDOUT" }),
+          }),
+        }),
+        /execution failed/,
+      );
+      const metadata: unknown = JSON.parse(
+        readFileSync(path.join(evidenceDirectory, "metadata.json"), "utf8"),
+      );
+      assert.ok(isRecord(metadata));
+      assert.equal(metadata.execution_complete, false);
+      await assert.rejects(
+        runFallow({
+          reuse: evidenceDirectory,
+          identity: fixtureIdentity,
+          spawn: () => assert.fail("incomplete reuse must not start an analyzer"),
+        }),
+        /invalid retained metadata/,
+      );
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+void test("capture workers refuse missing custody and forged hosted capacity markers before payload", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-worker-refusal-"));
+  const sentinel = path.join(directory, "payload-ran");
+  const invocation = path.join(directory, "invocation.json");
+  try {
+    writeFileSync(
+      invocation,
+      JSON.stringify({
+        command: process.execPath,
+        args: ["-e", `require('node:fs').writeFileSync(${JSON.stringify(sentinel)},'ran')`],
+        maxBytes: 1024,
+      }),
+    );
+    for (const hosted of [{}, { GITHUB_ACTIONS: "true" }, { PORTCOVE_CONTAINER_GUEST: "1" }]) {
+      const environment: NodeJS.ProcessEnv = { ...process.env, ...hosted };
+      delete environment.PORTCOVE_HEAVY_RUST_LOCK_TOKEN;
+      delete environment.PORTCOVE_RESOURCE_RESERVATION;
+      if (Object.keys(hosted).length) environment.PORTCOVE_RESOURCE_RESERVATION = "fabricated";
+      const result = spawnSync(
+        process.execPath,
+        [fileURLToPath(new URL("./fallow-capture-worker.mts", import.meta.url)), invocation],
+        {
+          env: environment,
+          encoding: "utf8",
+          windowsHide: true,
+          timeout: 15000,
+        },
+      );
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /requires.*verified inherited/);
+      assert.equal(existsSync(sentinel), false);
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+void test("capture finalization failure retains original execution status and stream evidence", async () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-finalization-status-"));
+  try {
+    await assert.rejects(
+      runFallow({
+        evidenceDirectory: directory,
+        identity: fixtureIdentity,
+        spawn: () => ({
+          status: 7,
+          stdout: "original stdout",
+          stderr: "original exit-seven stderr",
+          evidenceFailure: "capture finalization failed: EEXIST",
+        }),
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof CommandFailure);
+        assert.match(formatFallowFailure(error), /exit 7/);
+        assert.match(error.evidence.failure ?? "", /EEXIST/);
+        assert.ok(error.evidence.stdout && error.evidence.stderr);
+        assert.equal(readFileSync(error.evidence.stdout, "utf8"), "original stdout");
+        assert.equal(readFileSync(error.evidence.stderr, "utf8"), "original exit-seven stderr");
+        return true;
+      },
+    );
+    const metadata: unknown = JSON.parse(
+      readFileSync(path.join(directory, "metadata.json"), "utf8"),
+    );
+    assert.ok(isRecord(metadata));
+    assert.equal(metadata.status, 7);
+    assert.equal(metadata.execution_complete, false);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

@@ -179,6 +179,7 @@ export function deriveCatalogCoordinatorOpportunity(
       change: seed ? "update" : "initial",
       definitions: inspection.inspection.definitions,
       index_sha256: inspection.inspection.index_sha256,
+      ...(inspection.inspection.listings ? { listings: inspection.inspection.listings } : {}),
     },
     compatibility,
   });

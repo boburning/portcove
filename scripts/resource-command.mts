@@ -2,6 +2,9 @@ import { errorCode, errorMessage } from "./runtime-values.mts";
 import type { RustRunDependencies, RustResourceOptions } from "./run-rust-tests.mts";
 import type { ResourceMetadata } from "./resource-capacity.mts";
 interface ResourceCommandOptions {
+  executionTimeoutMilliseconds?: number;
+  onExecutionTimeout?: (milliseconds: number) => void;
+  output?: { stdout: number; stderr: number };
   environment?: NodeJS.ProcessEnv;
   cwd?: string;
   exclusive?: readonly string[];
@@ -68,6 +71,13 @@ export async function runResourceCommand(
     ["--guard-command", executable, ...args],
     {
       environment,
+      ...(options.executionTimeoutMilliseconds === undefined
+        ? {}
+        : {
+            executionTimeoutMilliseconds: options.executionTimeoutMilliseconds,
+          }),
+      ...(options.onExecutionTimeout ? { onExecutionTimeout: options.onExecutionTimeout } : {}),
+      ...(options.output ? { output: options.output } : {}),
       cwd: options.cwd ?? process.cwd(),
       acquireLock: async (metadata, admission) => {
         const remaining = remainingQueue();

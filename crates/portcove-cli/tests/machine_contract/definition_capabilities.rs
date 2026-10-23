@@ -370,3 +370,47 @@ fn ordinary_definition_refresh_advertises_contract_and_refuses_unconfigured_auth
             .is_none()
     );
 }
+
+#[test]
+fn listing_delivery_is_negotiable_and_cannot_provision_an_incoming_authority() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let core = portcove_core::Library::open(&library).unwrap();
+    let before = core.review_definition_authority().unwrap();
+    let capabilities = json_stdout(&portcove(&library, &["--json", "capabilities"]));
+    let commands = capabilities["data"]["commands"].as_array().unwrap();
+    assert!(
+        commands
+            .iter()
+            .any(|value| value == "catalog.listing-refresh")
+    );
+    assert!(
+        commands
+            .iter()
+            .any(|value| value == "catalog.listing-status")
+    );
+    let output = portcove(
+        &library,
+        &[
+            "--json",
+            "catalog",
+            "listing-refresh",
+            "--metadata-base-url",
+            "https://definitions.invalid/metadata/",
+            "--targets-base-url",
+            "https://definitions.invalid/targets/",
+        ],
+    );
+    assert!(!output.status.success());
+    assert_eq!(json_stdout(&output)["error"]["code"], "unsupported");
+    let status = json_stdout(&portcove(
+        &library,
+        &["--json", "catalog", "listing-status"],
+    ));
+    assert_eq!(status["data"]["selected"], false);
+    assert_eq!(status["data"]["revision"], serde_json::Value::Null);
+    assert_eq!(
+        core.review_definition_authority().unwrap().expected_plan,
+        before.expected_plan
+    );
+}

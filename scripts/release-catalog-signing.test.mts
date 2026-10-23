@@ -68,15 +68,40 @@ import {
   semanticReviewCheckName,
 } from "./release-semantic-review.mts";
 import { readIndependentCatalogSemanticReview } from "./release-control-inputs.mts";
+import { assertCatalogListingClassification } from "./release-catalog-publication-contract.mts";
+import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-function fixture() {
+function fixture(listing?: Buffer) {
   const index = Buffer.from('{"index_schema":1,"definitions":[],"contents":[]}'),
-    bundle = [{ target: "definitions/index.json", bytes: index.length, sha256: hash(index) }],
+    bundle = [
+      { target: "definitions/index.json", bytes: index.length, sha256: hash(index) },
+      ...(listing
+        ? [
+            {
+              target: "policy/official/catalog.listings.json",
+              bytes: listing.length,
+              sha256: hash(listing),
+            },
+          ]
+        : []),
+    ],
+    listings = listing
+      ? {
+          target: "policy/official/catalog.listings.json",
+          revision: 1,
+          sha256: hash(listing),
+          listing_count: 1,
+          withdrawn_count: 0,
+        }
+      : null,
     inspection = Buffer.from(
       JSON.stringify({
-        publication_schema: 1,
+        publication_schema: listing ? 2 : 1,
+        ...(listings ? { listings } : {}),
         authority: "none",
-        scope: "inert-managed-definition-publication-inspection",
+        scope: listing
+          ? "inert-catalog-publication-inspection"
+          : "inert-managed-definition-publication-inspection",
         index_sha256: hash(index),
         files: bundle,
         definitions: [],
@@ -87,9 +112,17 @@ function fixture() {
     prior = {
       application_repository_sha256: null,
       application_root_sha256: null,
-      catalog_repository_sha256: null,
+      catalog_repository_sha256: listing
+        ? digest([
+            {
+              path: `targets/${hash(listing)}.policy/official/catalog.listings.json`,
+              bytes: listing.length,
+              sha256: hash(listing),
+            },
+          ])
+        : null,
       catalog_root_sha256: hash(root),
-      site_generation_sha256: null,
+      site_generation_sha256: listing ? "7".repeat(64) : null,
     };
   const opportunity = {
     kind: "catalog-publication",
@@ -101,9 +134,14 @@ function fixture() {
     core_inspection_sha256: hash(inspection),
     publisher_configuration_sha256: "e".repeat(64),
     baseline: { source_commit: "c".repeat(40), source_tree: "f".repeat(40), ...prior },
-    classification: { change: "initial", index_sha256: hash(index), definitions: [] },
+    classification: {
+      change: listing ? "update" : "initial",
+      index_sha256: hash(index),
+      definitions: [],
+      ...(listings ? { listings } : {}),
+    },
     compatibility: {
-      contract: "official-definition-policy-launch-v1",
+      contract: listing ? "official-catalog-listings-v2" : "official-definition-policy-launch-v1",
       notes: "Inert transport test, no Core invocation or actual review.",
     },
   };
@@ -140,7 +178,7 @@ function fixture() {
       versions: { definitions: "9007199254740993", policy: "1", snapshot: "1", timestamp: "1" },
     }),
     context = catalogSigningContextBytes(facts);
-  const files = new Map([
+  const files = new Map<string, Buffer>([
       ["bundle/definitions/index.json", index],
       ["context.json", context],
       ["core-inspection.json", inspection],
@@ -158,6 +196,10 @@ function fixture() {
       semantic_proof_sha256: facts.semantic_proof_sha256,
       context_sha256: hash(context),
     };
+  if (listing) {
+    files.set("bundle/policy/official/catalog.listings.json", listing);
+    files.set(`prior/targets/${hash(listing)}.policy/official/catalog.listings.json`, listing);
+  }
   const archive = (
     changed: ReadonlyMap<string, Buffer> = files,
     override: Record<string, unknown> = {},
@@ -993,4 +1035,53 @@ void test("catalog context and role ready/predicate routes reach fixed upload an
     assert.equal(normalizedRole.name, `trusted-${phase}-attestation-123-1`);
     assert.equal(path.basename(normalizedRole.path), "role-attestation.json");
   }
+});
+
+void test("large descriptive directory crosses catalog signing preflight, archive and retained readback with exact bounds", async (t) => {
+  const listing = Buffer.from(
+    JSON.stringify({
+      listing_delivery_schema: 1,
+      revision: 1,
+      withdrawn_ids: [],
+      directory: {
+        catalog_schema: 1,
+        listings: [{ stable_id: "fixture", description: "x".repeat(2 * 1024 ** 2) }],
+      },
+    }),
+  );
+  const f = fixture(listing);
+  assert.equal(inspectCatalogSigningPreflight(f.files, []).context_files, f.files.size);
+  const parsed = inspectSigningContextArchive(f.archive());
+  assert.ok(parsed);
+  const root = await mkdtemp(path.join(os.tmpdir(), "listing-context-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const historical = `prior/targets/${hash(listing)}.policy/official/catalog.listings.json`;
+  const retained = new Map([...f.files, [historical, listing]]);
+  for (const [name, bytes] of retained) {
+    await mkdir(path.dirname(path.join(root, name)), { recursive: true });
+    await writeFile(path.join(root, name), bytes);
+  }
+  const readback = await readBoundedReleaseContextFiles(root);
+  assert.deepEqual(readback.get(historical), listing);
+  assert.deepEqual(readback.get("bundle/policy/official/catalog.listings.json"), listing);
+  for (const name of [
+    "bundle/policy/official/catalog.listings-copy.json",
+    "prior/targets/not-a-digest.policy/official/catalog.listings.json",
+  ]) {
+    assert.throws(
+      () => inspectCatalogSigningPreflight(new Map([...f.files, [name, listing]]), []),
+      /per-file/,
+    );
+  }
+  const falseReport: unknown = JSON.parse(f.files.get("core-inspection.json")!.toString());
+  assert.ok(isRecord(falseReport) && isRecord(falseReport.listings));
+  falseReport.listings.revision = 2;
+  const changed = new Map(f.files);
+  changed.set("core-inspection.json", Buffer.from(JSON.stringify(falseReport)));
+  assert.throws(() => inspectSigningContextArchive(f.archive(changed)), /exact raw inputs/);
+  assert.throws(
+    () =>
+      assertCatalogListingClassification(falseReport, f.facts.semantic_opportunity.classification),
+    /classification/,
+  );
 });

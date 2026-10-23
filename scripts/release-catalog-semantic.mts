@@ -1,3 +1,4 @@
+import { inspectCatalogListingIdentity } from "./release-catalog-publication-contract.mts";
 import { isRecord } from "./runtime-values.mts";
 
 function exact(raw: unknown, keys: string) {
@@ -28,7 +29,13 @@ export function inspectCatalogSemanticOpportunity(raw: unknown) {
     value.baseline,
     "application_repository_sha256,application_root_sha256,catalog_repository_sha256,catalog_root_sha256,site_generation_sha256,source_commit,source_tree",
   );
-  const classification = exact(value.classification, "change,definitions,index_sha256");
+  const hasListings =
+    isRecord(value.classification) && Object.hasOwn(value.classification, "listings");
+  const classification = exact(
+    value.classification,
+    hasListings ? "change,definitions,index_sha256,listings" : "change,definitions,index_sha256",
+  );
+  const listings = hasListings ? inspectCatalogListingIdentity(classification.listings) : null;
   if (
     (classification.change !== "initial" && classification.change !== "update") ||
     !Array.isArray(classification.definitions) ||
@@ -82,7 +89,8 @@ export function inspectCatalogSemanticOpportunity(raw: unknown) {
   });
   const compatibility = exact(value.compatibility, "contract,notes");
   if (
-    compatibility.contract !== "official-definition-policy-launch-v1" ||
+    compatibility.contract !==
+      (hasListings ? "official-catalog-listings-v2" : "official-definition-policy-launch-v1") ||
     typeof compatibility.notes !== "string" ||
     !compatibility.notes.trim() ||
     Buffer.byteLength(compatibility.notes) > 8192
@@ -126,9 +134,12 @@ export function inspectCatalogSemanticOpportunity(raw: unknown) {
       change: classification.change,
       index_sha256: hash(classification.index_sha256),
       definitions,
+      ...(listings ? { listings } : {}),
     },
     compatibility: {
-      contract: "official-definition-policy-launch-v1" as const,
+      contract: compatibility.contract as
+        | "official-definition-policy-launch-v1"
+        | "official-catalog-listings-v2",
       notes: compatibility.notes,
     },
   };

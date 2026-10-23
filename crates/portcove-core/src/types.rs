@@ -1780,6 +1780,8 @@ impl CapabilityDocument {
                 "artwork.handoff-bytes".into(),
                 "catalog".into(),
                 "catalog.listings".into(),
+                "catalog.listing-refresh".into(),
+                "catalog.listing-status".into(),
                 "catalog.inspect-listings".into(),
                 "catalog.check-capabilities".into(),
                 "catalog.definition-authority".into(),

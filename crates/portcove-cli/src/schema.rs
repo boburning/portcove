@@ -148,6 +148,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 >(contract)),
             ),
             (
+                "listing_delivery_status",
+                serde_json::json!(schema_for_contract::<portcove_core::ListingDeliveryStatus>(
+                    contract
+                )),
+            ),
+            (
                 "definition_refresh",
                 serde_json::json!(schema_for_contract::<portcove_core::DefinitionRefresh>(
                     contract

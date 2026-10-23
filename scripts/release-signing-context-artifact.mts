@@ -39,7 +39,11 @@ import {
   inspectCatalogSigningBinding,
   inspectCatalogSigningFacts,
 } from "./release-catalog-signing-contract.mts";
-import { inspectCatalogCoreReport } from "./release-catalog-inspection.mts";
+import {
+  inspectCatalogCoreReport,
+  assertCatalogListingClassification,
+  catalogListingContextFileBound,
+} from "./release-catalog-publication-contract.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 export const signingContextPredicateType =
@@ -105,6 +109,7 @@ function publicContextPath(name: string, kind: ContextKind) {
         "offline-targets.json",
         "core-inspection.json",
         "bundle/definitions/index.json",
+        "bundle/policy/official/catalog.listings.json",
       ].includes(name) ||
       /^bundle\/(?:sha256\/[a-f0-9]{64}|policy\/official\/[a-z0-9][a-z0-9-]*(?:\.launch)?)\.json$/u.test(
         name,
@@ -234,7 +239,10 @@ export function inspectSigningContextArchive(raw: Buffer) {
       typeof item.bytes !== "number" ||
       !Number.isSafeInteger(item.bytes) ||
       item.bytes < 1 ||
-      item.bytes > 1024 * 1024 ||
+      item.bytes >
+        (kind === "catalog-signing-context"
+          ? catalogListingContextFileBound(item.path)
+          : 1024 * 1024) ||
       offset + item.bytes > packed.length
     )
       throw new Error("signing context represented file bound or order differs");
@@ -281,6 +289,7 @@ export function inspectSigningContextArchive(raw: Buffer) {
       JSON.parse(contextFiles.get("core-inspection.json")!.toString("utf8")),
       bundle,
     );
+    assertCatalogListingClassification(report, facts.semantic_opportunity.classification);
     if (
       digest(report.files) !== facts.descriptor.bundle_sha256 ||
       digest(report.definitions) !==

@@ -46,6 +46,10 @@ export interface RustAdmission {
 type RustResources = ResourceLease | HeavyRustLock;
 export interface RustResourceOptions extends ResourceCapacityOptions, HeavyRustLockOptions {}
 export interface RustRunDependencies {
+  /** Payload budget starts at the registered launch gate, excluding admission/setup. */
+  executionTimeoutMilliseconds?: number;
+  onExecutionTimeout?: (milliseconds: number) => void;
+  output?: { stdout: number; stderr: number };
   environment?: NodeJS.ProcessEnv;
   metrics?: ReturnType<typeof createCiMetrics>;
   spawnSync?: CompilerRunner;
@@ -449,6 +453,12 @@ export async function runRustTests(
   args: string[],
   dependencies: RustRunDependencies = {},
 ): Promise<number> {
+  const executionBudget = dependencies.executionTimeoutMilliseconds;
+  if (
+    executionBudget !== undefined &&
+    (!Number.isSafeInteger(executionBudget) || executionBudget < 1 || executionBudget > 86_400_000)
+  )
+    throw new Error("Execution timeout must be an integer from 1 to 86400000 milliseconds");
   const environment = dependencies.environment ?? process.env;
   const metrics = dependencies.metrics ?? createCiMetrics({ environment });
   const runSync = dependencies.spawnSync ?? spawnSync;
@@ -479,6 +489,7 @@ export async function runRustTests(
   let lock: RustAdmission | null = null;
   let releaseLock = true;
   let cancellation: Cancellation | null = null;
+  let executionTimer: ReturnType<typeof setTimeout> | undefined;
   let compiler: CompilerIdentity | null = null;
   const prepareSupportProduct = (
     definition: Pick<RustSupportOptions, "product" | "source" | "output" | "rustcArgs">,
@@ -519,6 +530,13 @@ export async function runRustTests(
         ),
       );
     }
+    if (
+      lock?.inherited &&
+      platform !== "win32" &&
+      platform !== "linux" &&
+      (executionBudget !== undefined || dependencies.output)
+    )
+      throw new Error("Bounded inherited process custody is unavailable on this Unix platform");
     if (mode.kind !== "guarded-command") {
       prepareSupportProduct({
         product: "host-tool-probe",
@@ -534,7 +552,10 @@ export async function runRustTests(
       return 0;
     }
     if (!lock) throw new Error("Rust execution requires an acquired reservation");
-    if (platform === "win32" && !lock.inherited) {
+    if (
+      platform === "win32" &&
+      (!lock.inherited || executionBudget !== undefined || dependencies.output)
+    ) {
       prepareSupportProduct({
         product: "windows-process-tree-supervisor",
         source: "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
@@ -542,7 +563,7 @@ export async function runRustTests(
         rustcArgs: ["--edition=2024", "--crate-name", "portcove_process_tree_supervisor"],
       });
     }
-    if (lock.inherited) {
+    if (lock.inherited && executionBudget === undefined && !dependencies.output) {
       const nested = start(mode.executable, mode.args, {
         cwd: executionRoot,
         detached: false,
@@ -592,7 +613,15 @@ export async function runRustTests(
     const tested = start(command, commandArgs, {
       cwd: executionRoot,
       detached: platform !== "win32" && platform !== "linux",
-      stdio: platform === "linux" ? ["pipe", "inherit", "inherit"] : "inherit",
+      stdio: dependencies.output
+        ? [
+            platform === "linux" ? "pipe" : "ignore",
+            dependencies.output.stdout,
+            dependencies.output.stderr,
+          ]
+        : platform === "linux"
+          ? ["pipe", "inherit", "inherit"]
+          : "inherit",
       windowsHide: true,
       env: {
         ...environment,
@@ -667,6 +696,17 @@ export async function runRustTests(
       return cancellationExitCode(cancellation.requested());
     }
     try {
+      const deadline =
+        executionBudget === undefined
+          ? []
+          : [
+              new Promise<{ timedOut: number }>((resolve) => {
+                executionTimer = setTimeout(
+                  () => resolve({ timedOut: executionBudget }),
+                  executionBudget,
+                );
+              }),
+            ];
       (dependencies.writeGate ?? writeFileSync)(gatePath, "registered\n", { flag: "wx" });
       gateOpened = true;
       const completion =
@@ -676,7 +716,21 @@ export async function runRustTests(
       const first = await Promise.race([
         completion.then((status) => ({ status })),
         cancellation.pending,
+        ...deadline,
       ]);
+      if ("timedOut" in first) {
+        metrics.record("execution-timeout", { outcome: "failed", elapsed_ms: first.timedOut });
+        console.error(
+          `[resource] payload exceeded its ${first.timedOut}ms execution budget; proving owned-tree exit`,
+        );
+        try {
+          dependencies.onExecutionTimeout?.(first.timedOut);
+        } catch (error) {
+          console.error(`Execution timeout observation failed: ${errorMessage(error)}`);
+        }
+        await proveQuiescence(true);
+        return 124;
+      }
       if ("signal" in first) {
         await proveQuiescence(true);
         return cancellationExitCode(first.signal);
@@ -708,6 +762,7 @@ export async function runRustTests(
     throw error;
   } finally {
     cancellation?.dispose();
+    if (executionTimer) clearTimeout(executionTimer);
     if (lock && releaseLock) await lock.release();
     if (!retained && releaseLock) rmSync(directory, { recursive: true, force: true });
   }
