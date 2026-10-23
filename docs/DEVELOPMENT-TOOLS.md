@@ -177,6 +177,15 @@ records why the classic project/lock pairs remain outside NuGet-manager coverage
 and the evidence required before adopting it. PSScriptAnalyzer's custom NuGet
 datasource remains independently configured in `renovate.json`.
 
+## Roadmap checks
+
+Roadmap maintenance is separate from local toolchain readiness. Use
+`node scripts/roadmap.mts doctor --issue N --json` for routine affected-record
+checks. Commands retain failure diagnostics and recovery conditions automatically.
+Full Roadmap doctor is for substantial planning changes and release readiness;
+the event-driven hosted workflow has no periodic schedule. See
+[scoped checks and full audits](PROJECT-GOVERNANCE.md#scoped-checks-and-full-audits).
+
 ## Frontend workflow
 
 ### TypeScript execution and compatibility files

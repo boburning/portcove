@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, renameSync, existsSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { runScopedDoctor, doctorFailureDiagnostics } from "./roadmap-scoped.mts";
 import { createInterface } from "node:readline";
 import { Transform } from "node:stream";
 import { spawnSync } from "node:child_process";
@@ -867,11 +868,8 @@ export class DiscoverySession {
           }
         }
         this.refresh();
-        if (c.status === "reviewed")
-          await runDoctor(this.client.config, this.client, {
-            quiet: true,
-            inventory: this.inventory,
-          });
+        // Fresh complete inventories still guard absence, uniqueness and mutation.
+        // Routine candidate work does not require an unrelated global planning pass.
         if (c.kind === "intake") {
           const matches = findPortIssueDuplicates(this.inventory.issues, {
             title: c.title,
@@ -1005,13 +1003,25 @@ export class DiscoverySession {
             throw new Error(`Final neutral intake field differs: ${field}`);
         this.save(`readback-${c.id}`, { issue, project: item });
       }
-      const doctor = await runDoctor(this.client.config, this.client, {
-        quiet: true,
-        inventory: this.inventory,
-      });
+      const deliveredIssues = candidates
+        .map((candidate) => candidate.created_issue ?? candidate.issue)
+        .filter((number): number is number => typeof number === "number");
+      const fullDoctor = new Set(deliveredIssues).size > 10;
+      const doctor = !deliveredIssues.length
+        ? { scope: "none", global_health: "not_evaluated", reason: "no roadmap changes" }
+        : fullDoctor
+          ? await runDoctor(this.client.config, this.client, {
+              quiet: true,
+              inventory: this.inventory,
+            })
+          : await runScopedDoctor(this.client.config, this.client, {
+              issues: deliveredIssues,
+              inventory: this.inventory,
+            });
       this.save("doctor", doctor);
       this.journal.doctor = {
-        status: "passed",
+        status: deliveredIssues.length ? "passed" : "not_run",
+        scope: !deliveredIssues.length ? "none" : fullDoctor ? "global" : "issues",
         head: this.head,
         evidence: path.join(this.runDir, "doctor.json"),
       };
@@ -1047,13 +1057,18 @@ export class DiscoverySession {
         this.budget.delivery = true;
         this.checkProviderCapacity(discoveryDeliveryCost(this.inventory, []).requests);
         this.refresh();
-        const doctor = await runDoctor(this.client.config, this.client, {
-          quiet: true,
-          inventory: this.inventory,
-        });
+        // No changes need no planning doctor. Collection's complete, fresh
+        // inventories and final guards remain required and retain their evidence.
+        const doctor = {
+          scope: "none",
+          global_health: "not_evaluated",
+          reason: "no roadmap changes",
+          coverage: "collection-inventory",
+        };
         this.save("doctor", doctor);
         this.journal.doctor = {
-          status: "passed",
+          status: "not_run",
+          scope: "none",
           head: this.head,
           evidence: path.join(this.runDir, "doctor.json"),
         };
@@ -1074,7 +1089,11 @@ export class DiscoverySession {
           ? "completed"
           : "deferred";
     this.journal.delivery = pending ? "pending" : this.journal.delivery;
-    if (error) this.journal.notes.push({ error: errorMessage(error) });
+    if (error)
+      this.journal.notes.push({
+        error: errorMessage(error),
+        diagnosis: doctorFailureDiagnostics(error),
+      });
     await withCheckpointLock(path.join(this.stateDir, "checkpoint.json"), async () => {
       const file = path.join(this.stateDir, "checkpoint.json");
       const current = existsSync(file)

@@ -1,3 +1,4 @@
+import { runScopedDoctor, roadmapCheckScope, doctorFailureDiagnostics } from "./roadmap-scoped.mts";
 import {
   collectRepositoryIssueInventory,
   requireRepositoryIssueInventory,
@@ -127,6 +128,7 @@ interface SetManyState {
   chunks: SetManyChunk[];
   rateLimit: SetManyRate | null;
   doctor: "not_run" | "passed" | "failed";
+  doctorScope?: "global" | "issues" | "items";
 }
 export interface SetManyClient<Context = unknown> {
   sampleGraphqlRate(): SetManyRate;
@@ -381,6 +383,7 @@ function setManyEvidence(plan: SetManyPlan, state: SetManyState) {
       ? { remaining: state.rateLimit.remaining, reset_at: state.rateLimit.resetAt }
       : null,
     doctor: state.doctor,
+    doctor_scope: state.doctorScope ?? null,
   };
 }
 
@@ -389,7 +392,7 @@ export async function executeSetMany<Context>({
   config,
   spec,
   apply = false,
-  doctor = runDoctor,
+  doctor,
   onPlan = () => {},
 }: {
   client: SetManyClient<Context>;
@@ -548,13 +551,27 @@ export async function executeSetMany<Context>({
   }
   state.verified = finalVerification.length;
   try {
-    await doctor(config, client, { quiet: true });
+    state.doctorScope = roadmapCheckScope([...plan.pending, ...plan.alreadyApplied]);
+    if (doctor) await doctor(config, client, { quiet: true });
+    else if (client instanceof RoadmapClient) {
+      if (state.doctorScope === "global") await runDoctor(config, client, { quiet: true });
+      else {
+        const selected = [
+          ...new Set([...plan.pending, ...plan.alreadyApplied].map((change) => change.itemId)),
+        ].map((id) => client.directProjectItem(id));
+        const issues = selected
+          .filter((item) => item.content?.__typename === "Issue")
+          .map((item) => Number(item.content?.number));
+        if (issues.length) await runScopedDoctor(config, client, { issues });
+        else state.doctorScope = "items";
+      }
+    } else throw new Error("Scoped Roadmap validation requires an explicit capable doctor client");
     state.doctor = "passed";
   } catch (error) {
     state.doctor = "failed";
     throw setManyOutcomeError(
       "partial",
-      `set-many verified every assignment but the final doctor failed: ${errorMessage(error)}`,
+      `set-many verified every assignment but the ${state.doctorScope} doctor failed: ${errorMessage(error)}`,
       setManyEvidence(plan, state),
       error,
     );
@@ -1516,7 +1533,7 @@ roadmap items are stored in the repository.
 
 Usage:
   node scripts/roadmap.mts check
-  node scripts/roadmap.mts doctor [--expected-head <sha>] [--json]
+  node scripts/roadmap.mts doctor [--issue <number>] [--expected-head <sha>] [--json]
   node scripts/roadmap.mts bootstrap
   node scripts/roadmap.mts capture-port --title <title> --url <https-url> (--port-key <key> | --catalog-id <id>)
   node scripts/roadmap.mts normalize-port --issue <number>
@@ -1553,7 +1570,7 @@ const roadmapCommandGuidance: Readonly<Record<string, readonly [string, string]>
     "check",
   ],
   doctor: [
-    "Read the live Project and canonical issues, then report drift or incomplete coverage. --expected-head binds the checkout; --json prints the existing report.",
+    "Use --issue N for direct affected-record validation. Omit --issue for a full inventory audit after substantial Roadmap changes or for release readiness. --expected-head binds the checkout; --json retains scope and failure diagnostics.",
     "doctor --json",
   ],
   bootstrap: [
@@ -3645,10 +3662,11 @@ export class RoadmapClient {
     const blockedBy = connection(issue.blockedBy, "blockedBy", `${identity} body ${projectItems}`)
       .map(executionRelationship)
       .map((node) => {
-        const status = fieldValue(projectItem(node), "Status") ?? null;
+        const membership = projectItem(node);
+        const status = fieldValue(membership, "Status") ?? null;
         if (status !== null && typeof status !== "string")
           throw new Error("incomplete selected Project status");
-        return { ...node, projectStatus: status };
+        return { ...node, projectStatus: status, projectItemId: membership?.id ?? null };
       });
     return {
       item: { ...selected, title: issue.title, content: { ...issue, type: "Issue" } },
@@ -4200,17 +4218,72 @@ export class RoadmapClient {
     };
   }
 
+  directProjectItem(reference: string): RoadmapIssueItem & { id: string } {
+    const prefix = `https://github.com/${this.config.repository}/issues/`;
+    const rawNumber =
+      /^#?(\d+)$/u.exec(reference)?.[1] ??
+      (reference.startsWith(prefix)
+        ? /^(\d+)$/u.exec(reference.slice(prefix.length))?.[1]
+        : undefined);
+    if (rawNumber !== undefined) {
+      const selected = this.executionIssue(Number(rawNumber)).item;
+      const observed = this.directProjectItem(String(selected.id));
+      if (
+        observed.content?.id !== selected.content.id ||
+        observed.content?.number !== Number(rawNumber)
+      )
+        throw new InventoryError(
+          "inventory_identity",
+          "Selected issue/Project item binding changed",
+        );
+      return observed;
+    }
+    if (!/^[A-Za-z0-9_-]+$/u.test(reference)) throw new Error("Invalid Project item reference");
+    const { details } = this.completeProjectContext();
+    const node = qualificationField(
+      this.graphql(
+        `query ScopedProjectItem($id:ID!){node(id:$id){...on ProjectV2Item{id isArchived project{id} content{__typename ...on Issue{id number title body url state updatedAt} ...on DraftIssue{id title body updatedAt}} fieldValues(first:100){totalCount nodes{...on ProjectV2ItemFieldSingleSelectValue{name field{...on ProjectV2SingleSelectField{name}}}} pageInfo{hasNextPage endCursor}}}}}`,
+        { id: reference },
+      ),
+      "node",
+    );
+    if (
+      !isRecord(node) ||
+      node.id !== reference ||
+      qualificationField(node.project, "id") !== details.id ||
+      node.isArchived !== false
+    )
+      throw new InventoryError(
+        "inventory_identity",
+        "Selected Project item identity or active membership is unavailable",
+      );
+    const content = completeProjectContent(node.content);
+    if (!content)
+      throw new InventoryError(
+        "inventory_incomplete",
+        "Selected Project item content is unavailable",
+      );
+    if (content.__typename === "Issue" && content.url !== `${prefix}${content.number}`)
+      throw new InventoryError(
+        "inventory_identity",
+        "Selected issue is outside the configured repository",
+      );
+    return {
+      ...issueObservation({
+        ...node,
+        title: content.title,
+        content,
+        fieldValues: projectFieldValues(node),
+      }),
+      id: reference,
+    };
+  }
+
   setFields(reference: string, values: Readonly<Record<string, string>>) {
     const number = this.config.project.number;
     if (number < 1) throw new Error("project number is not recorded in .github/roadmap.json");
-    const repositoryUrl = `https://github.com/${this.config.repository}/issues/`;
-    if (!/^#?\d+$/u.test(reference) && !reference.startsWith(repositoryUrl)) {
-      this.setItemFields(reference, values);
-      return;
-    }
     const context = this.completeProjectContext(number);
-    const items = this.itemList(number, { details: context.details });
-    const item = this.resolveItemReference(items, reference);
+    const item = this.directProjectItem(reference);
     const changes = Object.entries(values).map(([fieldName, to]) => ({
       target: reference,
       itemId: item.id,
@@ -4311,15 +4384,11 @@ export class RoadmapClient {
   planSetMany(spec: unknown): SetManyPlan<ProjectContext> {
     const validated = validateSetManySpec(this.config, spec);
     const context = this.completeProjectContext();
-    const items = this.itemList(context.number, {
-      includeDependencies: true,
-      details: context.details,
-    });
     const pending: SetManyAssignment[] = [];
     const alreadyApplied: SetManyAssignment[] = [];
     const itemFields = new Set<string>();
     for (const update of validated.updates) {
-      const item = this.resolveItemReference(items, update.target);
+      const item = this.directProjectItem(update.target);
       for (const [fieldName, transition] of Object.entries(update.fields)) {
         const key = `${item.id}\0${fieldName}`;
         if (itemFields.has(key))
@@ -4435,7 +4504,7 @@ export class RoadmapClient {
         "json",
       ]),
     );
-    this.setFields(item.id, fields);
+    this.setItemFields(item.id, fields);
     return item;
   }
 
@@ -4558,7 +4627,25 @@ export class RoadmapClient {
     const existingItems = (
       inventory
         ? [...inventory.items, ...inventory.archivedItems]
-        : this.itemList(this.config.project.number)
+        : (() => {
+            const { details } = this.projectContext();
+            const rows = this.readInventory(
+              `query($id:ID!,$after:String){node(id:$id){...on Issue{projectItems(first:100,after:$after,includeArchived:true){totalCount nodes{id isArchived project{id}} pageInfo{hasNextPage endCursor}}}}}`,
+              { id: issue.node_id },
+              (data) => nestedGitHubField(data, "node", "projectItems"),
+              (node) => qualificationField(node, "id"),
+            );
+            return rows
+              .filter(
+                (node) =>
+                  qualificationField(qualificationField(node, "project"), "id") === details.id,
+              )
+              .map((node) => {
+                if (qualificationField(node, "isArchived") !== false)
+                  throw new Error("Existing archived membership requires explicit reconciliation");
+                return this.directProjectItem(diagnosticText(qualificationField(node, "id")));
+              });
+          })()
     ).filter(
       (item) =>
         issueNumber(item) === number &&
@@ -5005,9 +5092,19 @@ export function doctorProjectItems(
     (link) => link.project_id === projectId && !link.isArchived,
   );
   if (links.length > expectedTotal)
-    throw new InventoryError(
-      "inventory_changed",
-      "Live issue memberships exceed the Project listing count; discard the read",
+    throw Object.assign(
+      new InventoryError(
+        "inventory_changed",
+        "Live issue memberships exceed the Project listing count; discard the read",
+      ),
+      {
+        membershipMismatch: {
+          project_id: projectId,
+          listed_count: expectedTotal,
+          issue_memberships: links.length,
+          item_ids: links.map((link) => link.id),
+        },
+      },
     );
   // Drafts, foreign issues and pull requests are not presumed absent.
   if (links.length < expectedTotal) return undefined;
@@ -5097,9 +5194,25 @@ export async function runDoctor(
     : readDoctorRepositoryIssues(client, repositoryIssueInventoryAttempts, {
         projectMemberships: true,
       });
-  const projected = repositoryRead
-    ? doctorProjectItems(repositoryRead.inventory, client, projectId, beforeProject!.total)
-    : undefined;
+  let projected: RoadmapIssueItem[] | undefined;
+  try {
+    projected = repositoryRead
+      ? doctorProjectItems(repositoryRead.inventory, client, projectId, beforeProject!.total)
+      : undefined;
+  } catch (error) {
+    if (isRecord(error) && error.membershipMismatch) {
+      const after = doctorProjectMarker(client.projectAudit(projectId), projectId);
+      if (after.total === beforeProject!.total && after.revision === beforeProject!.revision)
+        throw Object.assign(
+          new InventoryError(
+            "provider_inconsistent",
+            "Stable Project counts contradict live issue memberships; global coverage is inconclusive",
+          ),
+          { membershipMismatch: error.membershipMismatch },
+        );
+    }
+    throw error;
+  }
   const items =
     inventory?.items ??
     projected ??
@@ -5276,11 +5389,11 @@ async function main(argv: readonly string[]) {
       if (
         parsed.positionals.length ||
         Object.keys(parsed.options).some(
-          (key) => !["--expected-head", "--json", "--summary"].includes(key),
+          (key) => !["--issue", "--expected-head", "--json", "--summary"].includes(key),
         )
       )
         throw new Error(
-          "Usage: roadmap.mts doctor [--expected-head SHA] [--json]. Run with --help for an example.",
+          "Usage: roadmap.mts doctor [--issue N] [--expected-head SHA] [--json]. Run with --help for an example.",
         );
       let context;
       let report;
@@ -5294,7 +5407,8 @@ async function main(argv: readonly string[]) {
           admitRetry: () => {
             const last = readClients.at(-1);
             if (!last) return false;
-            const projectId = last._completeProjectContext?.details.id;
+            const projectId =
+              last._completeProjectContext?.details.id ?? last._executionProject?.id;
             return (
               typeof projectId === "string" &&
               admitDoctorReadRetry(
@@ -5310,6 +5424,7 @@ async function main(argv: readonly string[]) {
             if (last) {
               last._completeProjectContext = undefined;
               last._projectContext = undefined;
+              last._executionProject = undefined;
             }
           },
           read: () =>
@@ -5329,6 +5444,12 @@ async function main(argv: readonly string[]) {
                 const doctorConfig = await loadConfig({ requireProjectNumber: true });
                 const doctorClient = new RoadmapClient(doctorConfig);
                 readClients.push(doctorClient);
+                if (parsed.options["--issue"] !== undefined) {
+                  const value = requiredOption(parsed.options, "--issue");
+                  if (!/^[1-9]\d*$/u.test(value) || !Number.isSafeInteger(Number(value)))
+                    throw new Error("--issue must be a positive issue number");
+                  return runScopedDoctor(doctorConfig, doctorClient, { issues: [Number(value)] });
+                }
                 return runDoctor(doctorConfig, doctorClient, {
                   quiet: true,
                   repositoryIssueInventoryAttempts,
@@ -5341,16 +5462,25 @@ async function main(argv: readonly string[]) {
           kind: "roadmap-doctor",
           status: "passed",
           context: checked.context,
-          counts: {
-            fields: checked.result.fields.length,
-            views: checked.result.views.length,
-            issues: checked.result.repositoryIssues.length,
-            items: checked.result.items.length,
-          },
+          scope: "scope" in checked.result ? checked.result.scope : { kind: "global" },
+          coverage: "complete",
+          global_health: "scope" in checked.result ? "not_evaluated" : "passed",
+          counts:
+            "fields" in checked.result
+              ? {
+                  fields: checked.result.fields.length,
+                  views: checked.result.views.length,
+                  issues: checked.result.repositoryIssues.length,
+                  items: checked.result.items.length,
+                }
+              : { issues: checked.result.scope.checked_issues.length },
           warnings: checked.result.warnings,
           diagnostics: checked.result.diagnostics,
           repository_issue_inventory: repositoryIssueInventoryAttempts,
-          project_inventory_source: checked.result.projectInventorySource,
+          project_inventory_source:
+            "projectInventorySource" in checked.result
+              ? checked.result.projectInventorySource
+              : "direct-issue-memberships",
           read_attempts: readAttempts,
           api_observations: readClients.flatMap((entry) => entry.api.observations),
           metrics: doctorApiMetrics(readClients),
@@ -5361,7 +5491,16 @@ async function main(argv: readonly string[]) {
           format: 1,
           kind: "roadmap-doctor",
           status: "failed",
+          scope:
+            parsed.options["--issue"] === undefined
+              ? { kind: "global" }
+              : { kind: "issues", issues: [Number(parsed.options["--issue"])] },
+          coverage: Array.isArray(qualificationField(error, "doctorErrors"))
+            ? "complete"
+            : "inconclusive",
+          global_health: "not_evaluated",
           failure_kind: inventoryFailureKind(error),
+          diagnosis: doctorFailureDiagnostics(error),
           planning_findings_evaluated: Array.isArray(qualificationField(error, "doctorErrors")),
           context,
           repository_issue_inventory: repositoryIssueInventoryAttempts,
@@ -5403,6 +5542,7 @@ async function main(argv: readonly string[]) {
     if (!client || !config) throw new Error("Roadmap operation configuration is unavailable");
     if (parsed.command === "bootstrap") {
       const result = client.bootstrap();
+      if (config.project.number === result.number) await runDoctor(config, client, { quiet: true });
       console.log(
         `${result.created ? "Created" : "Reconciled"} Portcove Roadmap #${result.number}: ${result.url}`,
       );
@@ -5448,6 +5588,7 @@ async function main(argv: readonly string[]) {
           console.log(`Canonical issue created: ${issue.html_url}; recovery receipt: ${receipt}`);
         },
       });
+      await runScopedDoctor(config, client, { issues: [Number(item.number)] });
       console.log(
         `Created durable port issue ${item.html_url} and added it to the Portcove Roadmap (${item.itemId}).`,
       );
@@ -5464,6 +5605,7 @@ async function main(argv: readonly string[]) {
         number: Number(value),
         catalog,
       });
+      await runScopedDoctor(config, client, { issues: [Number(value)] });
       console.log(
         `Normalized ${result.issue}: body ${result.bodyChanged ? "updated" : "unchanged"}; Project item ${result.projectItemAdded ? "added" : "reused"}; fields ${result.fieldsChanged.length ? `set ${result.fieldsChanged.join(", ")}` : "unchanged"}; parent relationships preserved.`,
       );
@@ -5485,10 +5627,9 @@ async function main(argv: readonly string[]) {
         throw new Error(
           "Usage: roadmap.mts promote <draft-item-id>. Run with --help for an example.",
         );
-      const draft = client
-        .itemList(config.project.number)
-        .find((item) => item.id === parsed.positionals[0]);
-      if (!draft) throw new Error(`draft item was not found: ${parsed.positionals[0]}`);
+      const draft = client.directProjectItem(parsed.positionals[0]);
+      if (draft.content?.__typename !== "DraftIssue")
+        throw new Error("Promotion requires the exact active draft item");
       const durableBody = parsed.options["--spec-file"]
         ? await readFile(
             path.resolve(projectRoot, requiredOption(parsed.options, "--spec-file")),
@@ -5497,6 +5638,7 @@ async function main(argv: readonly string[]) {
         : itemBody(draft);
       validateDurableIssueBody(durableBody);
       const item = client.promote(parsed.positionals[0], durableBody);
+      await runScopedDoctor(config, client, { issues: [Number(item.content?.number)] });
       console.log(`Promoted draft to ${item?.content?.url ?? item?.id}.`);
       return;
     }
@@ -5519,6 +5661,17 @@ async function main(argv: readonly string[]) {
       }
       if (!Object.keys(values).length) throw new Error("set requires at least one field option");
       client.setFields(parsed.positionals[0], values);
+      if (
+        roadmapCheckScope(
+          Object.keys(values).map((fieldName) => ({ target: parsed.positionals[0]!, fieldName })),
+        ) === "global"
+      )
+        await runDoctor(config, client, { quiet: true });
+      else {
+        const selected = client.directProjectItem(parsed.positionals[0]);
+        if (selected.content?.__typename === "Issue")
+          await runScopedDoctor(config, client, { issues: [Number(selected.content.number)] });
+      }
       console.log(
         `Updated ${parsed.positionals[0]}: ${Object.entries(values)
           .map(([key, value]) => `${key}=${value}`)
@@ -5710,7 +5863,7 @@ async function main(argv: readonly string[]) {
         risk706Evidence = await decisionInputs706(projectRoot, scan, undefined, "release");
       }
       const analysis = analyzeReleaseReadiness(
-        client.itemList(config.project.number, { includeDependencies: true }),
+        (await runDoctor(config, client, { quiet: true })).items,
         release,
         { risk706Evidence },
       );
@@ -5767,9 +5920,7 @@ async function main(argv: readonly string[]) {
         generatedAt: new Date().toISOString(),
         commit,
         projectUrl: `https://github.com/users/${config.owner}/projects/${config.project.number}`,
-        items: client.itemList(config.project.number, {
-          includeDependencies: true,
-        }),
+        items: (await runDoctor(config, client, { quiet: true })).items,
         catalog,
       });
       await writeFile(outputPath, document, { encoding: "utf8", flag: "wx" });
@@ -5790,6 +5941,25 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
       ["set-many", "context", "next"].includes(process.argv[2] ?? "") &&
       process.argv.slice(3).includes("--json");
     const safeError = sanitizeOperationError(error);
+    const diagnosis = doctorFailureDiagnostics(error);
+    let diagnosticEvidence: string | null = null;
+    try {
+      const directory = path.join(projectRoot, "work/roadmap-diagnostics");
+      mkdirSync(directory, { recursive: true });
+      diagnosticEvidence = path.join(directory, `${randomUUID()}.json`);
+      writeFileSync(
+        diagnosticEvidence,
+        JSON.stringify({
+          format: 1,
+          command: process.argv[2],
+          diagnosis,
+          operation_evidence: qualificationField(error, "operationEvidence") ?? null,
+        }),
+        { flag: "wx" },
+      );
+    } catch {
+      diagnosticEvidence = null;
+    }
     if (json) {
       console.log(
         JSON.stringify(
@@ -5797,13 +5967,22 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
             operation: `roadmap.${process.argv[2]}`,
             status: qualificationField(error, "operationStatus") ?? "failed",
             summary: safeError.message,
-            evidence: qualificationField(error, "operationEvidence") ?? {},
+            evidence: {
+              ...((qualificationField(error, "operationEvidence") as
+                | Record<string, unknown>
+                | undefined) ?? {}),
+              diagnosis,
+              diagnostic_evidence: diagnosticEvidence,
+            },
             error,
           }),
         ),
       );
     }
     console.error(`roadmap: ${safeError.message}`);
+    console.error(
+      `Recovery: ${diagnosis.recovery_condition}${diagnosticEvidence ? `; evidence: ${diagnosticEvidence}` : "; diagnostic retention unavailable"}`,
+    );
     process.exitCode = 1;
   }
 }

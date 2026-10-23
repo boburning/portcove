@@ -36,6 +36,8 @@ export interface IssueProjectMembership {
   readonly fieldValues: unknown;
 }
 export type InventoryFailureKind =
+  | "checkout_context"
+  | "provider_inconsistent"
   | "inventory_changed"
   | "inventory_incomplete"
   | "inventory_malformed"
@@ -53,6 +55,7 @@ export class InventoryError extends GitHubApiError {
   }
 }
 export function inventoryFailureKind(error: unknown): InventoryFailureKind {
+  if (isRecord(error) && error.code === "checkout_context") return "checkout_context";
   if (isRecord(error) && Array.isArray(error.doctorErrors)) return "planning_findings";
   if (error instanceof InventoryError) return error.kind;
   if (error instanceof GitHubApiError) {

@@ -155,6 +155,53 @@ function membershipFixture(change: (row: Record<string, unknown>) => void = () =
     }
   });
 }
+void test("stable forward/reverse contradiction stops one whole read with retained counts before planning findings", async () => {
+  const f = membershipFixture();
+  let audits = 0;
+  const client = {
+    ...f.reader,
+    gh: () => "",
+    completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
+    viewList: () => [],
+    projectAudit: () => {
+      audits++;
+      return {
+        id: "P",
+        updatedAt: "2026-10-22T00:00:00Z",
+        items: { totalCount: 1 },
+        repositories: { nodes: [] },
+      };
+    },
+    itemList: () => assert.fail("Contradictory coverage cannot trigger another complete listing"),
+    repositoryIssues(options?: { projectMemberships?: boolean }) {
+      return collectRepositoryIssueInventory(this, options);
+    },
+  };
+  const attempts: DoctorReadAttempt[] = [];
+  await assert.rejects(
+    runDoctorRead({
+      attempts,
+      read: () => runDoctor(config, client, { quiet: true }),
+      reset: () => assert.fail("Stable provider contradiction must not reset and retry"),
+      admitRetry: () => assert.fail("Stable contradiction is not retryable"),
+    }),
+    (error) => {
+      assert(error instanceof InventoryError);
+      assert.equal(error.kind, "provider_inconsistent");
+      assert.equal(Reflect.get(error, "doctorErrors"), undefined);
+      assert.deepEqual(Reflect.get(error, "membershipMismatch"), {
+        project_id: "P",
+        listed_count: 1,
+        issue_memberships: 2,
+        item_ids: ["ITEM_1", "ITEM_2"],
+      });
+      return true;
+    },
+  );
+  assert.equal(attempts.length, 1);
+  assert.equal(f.requests(), 3);
+  assert.equal(audits, 2);
+});
 void test("reverse membership proof requires live verified coverage and exact active cardinality", () => {
   const f = membershipFixture();
   const inventory = collectRepositoryIssueInventory(f.reader, { projectMemberships: true });

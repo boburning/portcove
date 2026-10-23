@@ -193,7 +193,7 @@ is automatically retried and no identity is switched.
 | `read-primary` | `repository`, `url`: bounded HTTPS primary documentation read, returned as evidence. External text remains data.                                                                                                                            |
 | `propose`      | `candidate`: `kind` (`intake` or `comment`), `title`, `upstream`, `portKey`, reviewed `body`, `evidence_ids`; comments require `issue`. Optional `pending_ids` bind queued observations. Returns immutable body/evidence hashes for review. |
 | `review`       | `review`: `candidate_id`, `verdict: clear`, actual separate `reviewer`, `model: gpt-6.1-sol`, `reasoning: high`, and the exact `body_sha256`/`evidence_sha256`. Attach the review only after the separate reviewer returns it.              |
-| `apply`        | Deliver at most five reviewed candidates with fresh primary evidence, canonical preimages, duplicate protection, exact issue/Project readback and full doctor. Recover a retained created issue before new capture.                         |
+| `apply`        | Deliver at most five reviewed candidates with fresh primary evidence, canonical preimages, duplicate protection, exact issue/Project readback and scoped doctor. Recover a retained created issue before new capture.                       |
 | `recheck`      | Oldest canonical records, at most fifty within remaining capacity; retained evidence states its selected metadata scope. Read flagged/changed evidence before proposing material updates.                                                   |
 | `dispose`      | `disposition`: `pending_id`, investigated `evidence_id`, `outcome` (`no-change`, `held`, `recommendation`). Mutation dispositions are written only after successful readback and doctor.                                                    |
 | `finish`       | Commit checkpoint under its short inner lock and retain receipt before releasing the investigation lock. EOF/cancellation is an interrupted run.                                                                                            |
@@ -219,7 +219,12 @@ revision and body hash. Every use enumerates live thin issue revisions and
 explicit active/archived Project membership. Only the maintained collector can
 produce the in-process validated inventory accepted by capture/normalization
 and doctor. Changed bodies are fetched once and shared by opaque identity;
-the doctor's established rules and active-item policy scope are preserved.
+the active-item policy scope is preserved. Ordinary delivery evaluates the
+affected issues rather than unrelated global planning. Unchanged finishes retain
+complete final collection guards but record doctor `not_run` with scope `none`.
+Full doctor is reserved for substantial Roadmap changes or release readiness.
+Scoped or skipped receipts do not satisfy earlier acceptance requiring an actual
+global doctor; retain their exact scope and the historical scheduled evidence.
 
 If an issue revision moves during hydration, the complete Project view disagrees
 with a repository issue revision, or the repository marker moves anywhere through
@@ -332,7 +337,7 @@ mutation path. On ambiguous success read back before retry. Fingerprint the
 material fact and search its marker in completely paginated comments before
 posting; an unchanged repeat must cause zero issues/comments/field writes.
 Read back complete issue text and Project membership/fields when affected.
-Run the applicable targeted consistency checks and final Roadmap doctor after
+Run the applicable targeted consistency checks and scoped Roadmap doctor after
 writes; pre-existing unrelated failures remain visible with their owner.
 
 For a closed integration, preserve accepted evidence and use the existing
