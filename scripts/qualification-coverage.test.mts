@@ -277,3 +277,32 @@ void test("folded and explicitly wrapped supported conditions preserve qualifica
     validateQualificationCoverage(inventory, workflow),
   );
 });
+
+void test("qualification conditions remain bound to each producer's platform role", () => {
+  for (const [consumer, donor] of [
+    ["native_rust", "intel_tests"],
+    ["rust_docs", "intel_build"],
+    ["catalog_full", "intel_tests"],
+    ["intel_build", "catalog_full"],
+    ["intel_tests", "native_rust"],
+    ["frontend_portability", "catalog_full"],
+  ]) {
+    assert.ok(consumer && donor);
+    const swapped = editedWorkflow((jobs) => {
+      const target = record(jobs[consumer]);
+      const replacement = record(jobs[donor]).if;
+      assert.notEqual(target.if, replacement);
+      target.if = replacement;
+    });
+    assert.throws(() => validateQualificationCoverage(inventory, swapped), /[Qq]ualification/);
+  }
+});
+
+void test("protected aggregates cannot ignore their own failed result", () => {
+  for (const context of inventory.protected_contexts) {
+    const ignored = editedWorkflow((jobs) => {
+      record(jobs[context])["continue-on-error"] = true;
+    });
+    assert.throws(() => validateQualificationCoverage(inventory, ignored), /aggregate/);
+  }
+});

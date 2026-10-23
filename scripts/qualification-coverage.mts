@@ -70,6 +70,9 @@ function binding(value: unknown) {
     : "";
 }
 const qualificationMode = "needs.classify.outputs.mode=='qualification'";
+export function isQualificationOnlyCondition(value: unknown) {
+  return expression(value) === qualificationMode;
+}
 const intelCondition = `${qualificationMode}&&contains(fromJSON(needs.classify.outputs.platforms_json),'macos-x86_64')`;
 const portabilityCondition = `(${qualificationMode}&&contains(fromJSON(needs.classify.outputs.platforms_json),'macos-aarch64'))||(needs.classify.outputs.mode!='qualification'&&contains(needs.classify.outputs.files_json,'pnpm-workspace.yaml'))`;
 function qualificationCondition(value: unknown) {
@@ -263,6 +266,10 @@ function validateAggregates(jobs: Record<string, Record<string, unknown>>) {
   for (const [context, producers] of Object.entries(expected)) {
     const job = jobs[context] ?? {};
     qualificationAssert(
+      job["continue-on-error"] === undefined || job["continue-on-error"] === false,
+      `aggregate may not ignore failure: ${context}`,
+    );
+    qualificationAssert(
       expression(job.if) ===
         (context === "dependency-review"
           ? "github.event_name=='pull_request'&&always()"
@@ -359,11 +366,24 @@ export function validateQualificationCoverage(
     JSON.stringify(expectedProtectedContexts)
   )
     throw new Error("qualification protected-context inventory mismatch");
-  for (const id of allDeclared)
+  for (const id of allDeclared) {
+    const expectedCondition =
+      id === "intel_build" || id === "intel_tests"
+        ? intelCondition
+        : id === "frontend_portability"
+          ? portabilityCondition
+          : declaredPullRequest.includes(id)
+            ? `github.event_name=='pull_request'&&${qualificationMode}`
+            : qualificationMode;
+    qualificationAssert(
+      expression(parsedJobs[id]?.if) === expectedCondition,
+      `producer condition does not match its platform role: ${id}`,
+    );
     qualificationAssert(
       strings(parsedJobs[id]?.needs).includes("classify"),
       `classifier dependency missing: ${id}`,
     );
+  }
   validateMatrices(parsedJobs, matrices);
   validateAggregates(parsedJobs);
   return {
