@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "authority": "reviewed monitoring conditions only; no catalog, lineage, artifact, hold or publication authority",
-  "decision": "Owner approved the narrow extension proposed in #247 comment6082358982 on2026-10-09; no failed-run exception. Owner approved the exact Armored Core v0.3.6 pin on2026-10-09 (#254 comment6086584582), and future exact pins satisfying the unchanged strict metadata checks; this record retains unknown destination availability and unverified accepted bytes. Presentation-only contract bindings refreshed by #2186 after exact approved-hash preimage verification against 93259eb and equality of every other contract field; no pin, condition, metadata requirement or authority changed. Owner requested all upstream-health errors be addressed on2026-10-20; #247 comment6293990348 scopes the independently reviewed exact release/source-commit metadata accounting and bounded capacity repair. Source-commit presence never verifies generated archive bytes or destination availability. The 2026-10-23 cover batch refreshed five presentation-only contract bindings after exact approved-hash verification against 5afae06256d1552a619ff88b290bc93642247b5d and equality of every other non-summary contract field; no pin, condition, metadata check, destination/byte claim or authority changed.",
+  "decision": "Owner approved the narrow extension proposed in #247 comment6082358982 on2026-10-09; no failed-run exception. Owner approved the exact Armored Core v0.3.6 pin on2026-10-09 (#254 comment6086584582), and future exact pins satisfying the unchanged strict metadata checks; this record retains unknown destination availability and unverified accepted bytes. Presentation-only contract bindings refreshed by #2186 after exact approved-hash preimage verification against 93259eb and equality of every other contract field; no pin, condition, metadata requirement or authority changed. Owner requested all upstream-health errors be addressed on2026-10-20; #247 comment6293990348 scopes the independently reviewed exact release/source-commit metadata accounting and bounded capacity repair. Source-commit presence never verifies generated archive bytes or destination availability. The 2026-10-23 cover batch refreshed five presentation-only contract bindings after exact approved-hash verification against 5afae06256d1552a619ff88b290bc93642247b5d and equality of every other non-summary contract field; no pin, condition, metadata check, destination/byte claim or authority changed. The 2026-10-23 target reconciliation retains the accepted #2441 Star Fox successor project URL and unchanged historical release repository; its original-location monitoring binding was refreshed after proving project_url was the only changed contract field. The original repository, 404 condition, rule, evidence and unresolved destination/byte scope remain unchanged.",
   "pins": [
     {
       "port_id": "road-rash-64-recompiled",
@@ -638,7 +638,7 @@
     },
     {
       "port_id": "star-fox-enhanced",
-      "port_contract_sha256": "ae6ff0d8f6c45c15085504c2375353b8856a45beaeb4a27ed60d1a017e5b4e63",
+      "port_contract_sha256": "af645a06d3e6ee1ff747e60bffe4bda936e256a25170263c0e697cb329eee6e5",
       "provider": "github",
       "repository": "kandowontu/starfox-enhanced",
       "operation": "observe-availability",

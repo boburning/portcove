@@ -157,7 +157,25 @@ void test("write authority is split across isolated attestation and publication 
 
 void test("cheap identity unlocks qualification and builds before the explicit result gate", () => {
   assert.match(identitySection, /actions\/setup-node/);
-  assert.doesNotMatch(identitySection, /pnpm install|rust-toolchain|just audit/);
+  assert.doesNotMatch(identitySection, /rust-toolchain|just audit|cargo /);
+  const identitySteps = steps("identity");
+  const setupIndex = identitySteps.findIndex(
+    (step) => typeof step.uses === "string" && step.uses.startsWith("pnpm/action-setup@"),
+  );
+  const installIndex = identitySteps.findIndex(
+    (step) => step.name === "Install locked dependencies for release identity contracts",
+  );
+  const contractsIndex = identitySteps.findIndex(
+    (step) => step.name === "Verify release identity and workflow contracts",
+  );
+  assert.ok(setupIndex >= 0 && installIndex > setupIndex && contractsIndex > installIndex);
+  const setup = identitySteps[setupIndex]!;
+  assert.match(String(setup.uses), /^pnpm\/action-setup@[0-9a-f]{40}$/u);
+  assert.deepEqual(setup.with, { package_json_file: "package.json", cache: false });
+  const install = identitySteps[installIndex]!;
+  assert.equal(install.run, "pnpm install --frozen-lockfile --ignore-scripts");
+  for (const index of [setupIndex, installIndex, contractsIndex])
+    assert.equal(identitySteps[index]!.if, "${{ !inputs.report_only_repair }}");
   assert.doesNotMatch(
     identitySection,
     /select-release-channel\.test|reconstruct-application-update-records\.test/,
