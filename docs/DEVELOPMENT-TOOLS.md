@@ -777,6 +777,17 @@ Node. Selective profiles cannot be combined with legacy deep/desktop switches.
 Frontend setup uses the pinned package-manager declaration and frozen lockfile;
 Core setup selects the existing Rust pin/components and cargo-nextest only.
 Daily keeps existing Aqua checksum/attestation and Cargo cache boundaries.
+
+The Linux package-ownership rehearsal gives its packaging-prerequisite APT install
+a finite 600-second budget within a 30-minute step. The longer step covers the
+existing bounded index/mirror fallback and cleanup; an interrupted install still
+refuses a retry. Package/runtime assertions and the 45-minute build-job limit
+remain unchanged. This disposable rehearsal opts into the helper's Ubuntu
+archive mirror before installation, avoiding the observed slow Azure route;
+other callers keep their configured-mirror default. The helper rewrites only
+the exact Azure host and Ubuntu root in the selected Ubuntu source and runner
+mirror list. A pass establishes completion, not a measured mirror performance
+improvement.
 The hosted native prerequisite selects `native-drivers` to avoid provisioning unrelated
 development tools. It preserves driver pin/hash receipts, Microsoft Authenticode-before-execution,
 actual runtime matching, cache promotion and the selected doctor's readback. Its
@@ -1709,6 +1720,17 @@ caller and its independently pinned mutex/cleanup/exit envelope; changes to that
 envelope require an explicit custody review and expectation update. Unstaged
 workflow/recipe/registry edits cannot conceal an incomplete commit. The check
 does not modify either tree; normal staged formatting follows only after success.
+
+`node scripts/qualification-coverage.mts` validates the parsed workflow against
+the maintained qualification inventory. Supported conditions are normalized outside
+string literals. The actual pure matrix producer is checked against independent
+platform/runner/partition tuples, then connected to active workflow consumers and
+the protected aggregates' dependencies and result bindings. Display names and
+comments cannot satisfy coverage. The reviewed Windows shard dispatch has a
+pinned source oracle because it is executable PowerShell; changing its partition
+logic requires updating that expectation after review. YAML layout and folded
+equivalent conditions do not change the inventory. Actionlint retains ownership
+of the broader GitHub expression and workflow syntax checks.
 
 Native helper dependencies are declared in
 `scripts/native-helper-dependencies.mts`. Literal PowerShell dot-source imports

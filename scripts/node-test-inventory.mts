@@ -3,7 +3,11 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { errorMessage, isRecord } from "./runtime-values.mts";
-import { workflowJobs, workflowDefinition } from "./qualification-coverage.mts";
+import {
+  workflowJobs,
+  workflowDefinition,
+  isQualificationOnlyCondition,
+} from "./qualification-coverage.mts";
 import {
   annotatedNodeCommands,
   commandTokens,
@@ -78,8 +82,7 @@ export function requireNodeTestInventory(
         workflowDefaults["working-directory"];
       const shell = step.shell ?? defaults(job.defaults).shell ?? workflowDefaults.shell;
       if (
-        typeof job.if !== "string" ||
-        job.if.trim() !== "needs.classify.outputs.mode == 'qualification'" ||
+        !isQualificationOnlyCondition(job.if) ||
         !enabled(step.if) ||
         Boolean(job["continue-on-error"]) ||
         Boolean(step["continue-on-error"]) ||

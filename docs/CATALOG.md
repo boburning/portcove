@@ -1504,13 +1504,18 @@ already supported release/project-location metadata updates while preserving
 source, execution and persistence contracts. No new format or relaxed validator
 is introduced here.
 
-The [October 23 decision record](archive/2026-10-23-upstream-lineage-policy.md)
-imports the independently delivered ReCut relocation and records the Star Fox
-candidate as unresolved. The restored Star Fox historical tag updates a dated
-observation; it does not establish successor authority or recover the accepted
-ZIP. This completes the finite #139 policy case without selecting a new Star Fox
-runtime. #251 consumes the shared contract; #1306 owns preservation/failover,
-#315 release/distribution authority, #246 protected delivery and #254 proposals.
+The [October 23 policy record](archive/2026-10-23-upstream-lineage-policy.md)
+imports the independently delivered ReCut relocation and retains the initial
+unresolved Star Fox event. The later
+[Star Fox successor decision](archive/2026-10-23-star-fox-successor.md) accepts
+attributable project continuity from newly reviewed maintainer statements and
+corroborating history. It appends acceptance and updates the current project URL;
+the historical release repository, accepted artifact and operational contracts
+remain unchanged. The restored source tag does not recover the accepted ZIP, and
+the newer Windows release's antivirus investigation remains unresolved. #139's
+policy case stays complete; #2440 owns this finite transition. #251 consumes the
+shared contract; #1306 owns preservation/failover, #315 release/distribution
+authority, #246 protected delivery and #254 proposals.
 
 ## Read-only disappearance reporting
 
@@ -1548,9 +1553,15 @@ limits leave unrelated locations observable.
 
 The retained Star Fox Enhanced incident in #247 (run 36735216087, job
 109955016518, source `5d6905ea8bf90fb887bb49a6a8524ab2ecc5846b`) reported
-`kandowontu/starfox-enhanced: github returned 404`. It is candidate continuity
-evidence for #124/#139 with authority unresolved. A bare 404 neither establishes
-retirement/deletion nor selects a successor or transfers historical qualification.
+`kandowontu/starfox-enhanced: github returned 404`. That observation remains
+historical disappearance evidence. The later
+[accepted successor decision](archive/2026-10-23-star-fox-successor.md) rests on
+separate attributable continuity evidence; it does not restore the historical
+release or transfer qualification. Changing the current project URL leaves the
+old release repository's 404 observable and invalidates its former
+original-location accounting match. The lineage decision does not make upstream
+health green or broaden monitoring exceptions. A bare 404 neither establishes
+retirement/deletion nor selects a successor.
 
 Existing reviewed catalog maintenance declarations (`retired`, `superseded`,
 `abandoned`) account for a 404 only at that port's declared original location.

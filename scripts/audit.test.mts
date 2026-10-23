@@ -6,7 +6,15 @@ import type { ValidationPlan, ValidationChange } from "./validation-plan.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -241,6 +249,7 @@ void test("mixed, unknown and audit authority changes retain the complete transi
     "scripts/ci-result-gate.mts",
     "scripts/qualification-coverage.mts",
     "scripts/qualification-coverage.test.mts",
+    "scripts/validation-platforms.mts",
     ".github/qualification-coverage.json",
     "unknown.txt",
   ]) {
@@ -268,6 +277,11 @@ void test("mixed, unknown and audit authority changes retain the complete transi
 
 void test("candidate coverage constants cannot authorize their own reduced transition", (t) => {
   const root = temporaryDirectory(t);
+  cpSync(
+    path.dirname(fileURLToPath(import.meta.resolve("yaml/package.json"))),
+    path.join(root, "node_modules/yaml"),
+    { recursive: true },
+  );
   mkdirSync(path.join(root, "scripts"));
   mkdirSync(path.join(root, ".github/workflows"), { recursive: true });
   for (const filename of [
@@ -278,6 +292,7 @@ void test("candidate coverage constants cannot authorize their own reduced trans
     "scripts/runtime-values.mts",
     "scripts/select-ci-plan.mts",
     "scripts/nextest-equivalence.mts",
+    "scripts/validation-platforms.mts",
     "scripts/postmerge-ci.mts",
     "scripts/workflow-provenance.mts",
     "scripts/validation-plan.mts",
