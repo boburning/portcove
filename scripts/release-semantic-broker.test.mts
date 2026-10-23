@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { performance } from "node:perf_hooks";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -271,6 +272,33 @@ void test("full installation observation requires durable mint intent and exact 
     assert.equal(f.calls.filter((c) => c.options.method === "POST").length, 0);
     if (fault === "key") assert.equal(f.calls.length, 0);
   }
+});
+
+void test("full installation observation refuses a final durable result after its original deadline", async (context) => {
+  const f = fullInstallationFixture();
+  let now = 0;
+  context.mock.method(performance, "now", () => now);
+  await assert.rejects(
+    observeHostedAppInstallationScope(
+      "semantic",
+      Buffer.from(f.registration.pem),
+      f.expected,
+      {
+        async write(name, bytes) {
+          await f.registration.options.store.write(name, bytes);
+          if (name === "result.json") now = 120001;
+        },
+      },
+      { fetch: f.transport },
+    ),
+    /deadline exhausted/,
+  );
+  assert(
+    f.registration.privateFiles.has("result.json"),
+    "late retained effects stay available without successful public return",
+  );
+  assert.equal(f.calls.length, 8);
+  assert.equal(f.calls.filter((call) => call.options.method === "POST").length, 1);
 });
 
 const appState = "a".repeat(64);

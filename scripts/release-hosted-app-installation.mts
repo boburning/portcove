@@ -222,5 +222,6 @@ export async function observeHostedAppInstallationScope(
     automatic_retry: false,
   };
   await store.write("result.json", Buffer.from(JSON.stringify(result)));
+  active();
   return result;
 }
