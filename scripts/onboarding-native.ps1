@@ -162,9 +162,18 @@ $isolated = [ordered]@{
     HOME=$gameProfile; HOMEDRIVE=[IO.Path]::GetPathRoot($gameProfile).TrimEnd('\'); HOMEPATH=$gameProfile.Substring([IO.Path]::GetPathRoot($gameProfile).Length - 1)
     TEMP=(Join-Path $WorkRoot 'temp'); TMP=(Join-Path $WorkRoot 'temp'); TMPDIR=(Join-Path $WorkRoot 'temp'); PORTCOVE_TEMP_DIR=(Join-Path $WorkRoot 'temp')
 }
+function Resolve-Application([string]$File) {
+    # Get-Command can return several PATH matches. Preserve application PATH
+    # precedence explicitly instead of coercing their paths into one filename.
+    $resolved = if ([IO.Path]::IsPathFullyQualified($File)) { $File } else {
+        @(Get-Command $File -CommandType Application -ErrorAction Stop)[0].Source
+    }
+    Require ([IO.Path]::IsPathFullyQualified($resolved) -and (Test-Path -LiteralPath $resolved -PathType Leaf)) 'The selected application must be an existing absolute file.'
+    [string]$resolved
+}
 function Start-Owned([string]$File, [string[]]$Arguments, [string]$Directory, [string]$Name, [bool]$Isolate = $false, [bool]$AliasProbe = $false) {
     $info = [Diagnostics.ProcessStartInfo]::new()
-    $resolvedFile = if ([IO.Path]::IsPathFullyQualified($File)) { $File } else { (Get-Command $File -CommandType Application -ErrorAction Stop).Source }
+    $resolvedFile = Resolve-Application $File
     $info.FileName = $resolvedFile; $info.WorkingDirectory = $Directory; $info.UseShellExecute = $false
     $info.RedirectStandardOutput = $true; $info.RedirectStandardError = $true; $info.CreateNoWindow = $true
     foreach ($arg in $Arguments) { [void]$info.ArgumentList.Add($arg) }
@@ -367,7 +376,7 @@ try {
     Require ((ConvertTo-Json -InputObject @($plan.build) -Compress) -ceq (ConvertTo-Json -InputObject $compilerArguments -Compress)) 'Compiler arguments differ from the fixed plan.'
     Require ((ConvertTo-Json -InputObject @($plan.build_invocation) -Compress) -ceq (ConvertTo-Json -InputObject (@('node') + $buildArguments) -Compress)) 'Wrapper invocation differs from the fixed plan.'
     Require ($plan.build_jobs -eq 2 -and $plan.bounds_seconds.build -eq 2400) 'Fixed build jobs or budget changed.'
-    $buildNode = (Get-Command 'node' -CommandType Application -ErrorAction Stop).Source
+    $buildNode = Resolve-Application 'node'
     Write-NewJson (Join-Path $EvidenceRoot 'build-invocation.json') @{
         executable=$buildNode; arguments=$buildArguments; working_directory=$SourceRoot
         compiler_executable='cargo'; compiler_arguments=$compilerArguments; environment=$buildEnvironment
