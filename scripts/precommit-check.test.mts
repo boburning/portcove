@@ -16,7 +16,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
-import test, { type TestContext } from "node:test";
+import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { configureHooks } from "./hooks-install.mts";
 import { vitePlusCommand } from "./viteplus-cli.mts";
@@ -32,11 +32,14 @@ const env = {
   PATH: `${path.join(root, "node_modules/.bin")}${path.delimiter}${process.env.PATH}`,
 };
 const unprovenWriters = new Set<string>();
+const commonFixtureRoots = new Map<string, string>();
+const writerRoot = (directory: string) =>
+  commonFixtureRoots.get(path.resolve(directory)) ?? path.resolve(directory);
 function trackWriter<T extends { error?: NodeJS.ErrnoException; signal: NodeJS.Signals | null }>(
   cwd: string,
   result: T,
 ): T {
-  if (result.error || result.signal) unprovenWriters.add(path.resolve(cwd));
+  if (result.error || result.signal) unprovenWriters.add(writerRoot(cwd));
   return result;
 }
 function run(cwd: string, executable: string, args: readonly string[], ok = true) {
@@ -57,11 +60,20 @@ function run(cwd: string, executable: string, args: readonly string[], ok = true
 const git = (cwd: string, ...args: string[]) => run(cwd, "git", args).stdout;
 function requireWriterExit(directory: string) {
   assert.ok(
-    !unprovenWriters.has(path.resolve(directory)),
+    !unprovenWriters.has(writerRoot(directory)),
     `Fixture writer exit is unproven; retained ${directory}`,
   );
 }
-function fixture(context: TestContext, drain?: () => Promise<void>) {
+type FixtureContext = { after(cleanup: () => void | Promise<void>): void };
+function registerLinkedFixture(context: FixtureContext, primary: string, sibling: string) {
+  assert.equal(path.dirname(sibling), path.dirname(primary));
+  commonFixtureRoots.set(path.resolve(sibling), writerRoot(primary));
+  registerDisposableDirectory(context, sibling, {
+    sharedLinks: ["node_modules"],
+    drain: () => requireWriterExit(sibling),
+  });
+}
+function fixture(context: FixtureContext, drain?: () => Promise<void>) {
   const cwd = disposableDirectory(context, path.join(base, "staged-' space-"), {
     sharedLinks: ["node_modules"],
     async drain() {
@@ -105,6 +117,41 @@ function fixture(context: TestContext, drain?: () => Promise<void>) {
   assert.equal(git(cwd, "ls-files", "--", "node_modules").trim(), "");
   return cwd;
 }
+
+void test("an unproven linked writer retains both sibling and common Git fixtures", async (context) => {
+  const cleanups: (() => void | Promise<void>)[] = [];
+  const fixtureContext = {
+    after(cleanup: () => void | Promise<void>) {
+      cleanups.push(cleanup);
+    },
+  };
+  let cwd = "",
+    sibling = "",
+    injected = false;
+  context.after(async () => {
+    // Only the synthetic receipt below is cleared. No writer is launched after injection.
+    if (injected)
+      for (const directory of [cwd, sibling]) unprovenWriters.delete(path.resolve(directory));
+    for (const cleanup of cleanups) await cleanup();
+  });
+  cwd = fixture(fixtureContext);
+  sibling = `${cwd}-linked`;
+  git(cwd, "worktree", "add", "-qb", "writer-proof-control", sibling);
+  registerLinkedFixture(fixtureContext, cwd, sibling);
+  requireWriterExit(cwd);
+  requireWriterExit(sibling);
+  const config = readFileSync(path.join(cwd, ".git/config"), "utf8");
+  trackWriter(sibling, {
+    error: Object.assign(new Error("controlled timeout receipt"), { code: "ETIMEDOUT" }),
+    signal: null,
+  });
+  injected = true;
+  assert.equal(cleanups.length, 2);
+  for (const cleanup of cleanups)
+    await assert.rejects(async () => cleanup(), /writer exit is unproven/);
+  assert.equal(readFileSync(path.join(cwd, ".git/config"), "utf8"), config);
+  assert.match(readFileSync(path.join(sibling, ".git"), "utf8"), /^gitdir:/);
+});
 
 void test("standard staged autofix preserves partial staging and unrelated work", (context) => {
   const cwd = fixture(context);
@@ -166,10 +213,7 @@ void test("supported hooks work from a linked worktree and noninteractive Git cl
   const commonBefore = readFileSync(path.join(cwd, ".git/config"), "utf8");
   const sibling = `${cwd}-linked`;
   git(cwd, "worktree", "add", "-qb", "linked-fixture", sibling);
-  registerDisposableDirectory(context, sibling, {
-    sharedLinks: ["node_modules"],
-    drain: () => requireWriterExit(sibling),
-  });
+  registerLinkedFixture(context, cwd, sibling);
   symlinkSync(path.join(root, "node_modules"), path.join(sibling, "node_modules"), "junction");
   git(sibling, "config", "--worktree", "core.hooksPath", ".husky/_");
   configureHooks(sibling, "enable", env);
@@ -243,10 +287,7 @@ void test(
     git(cwd, "config", "extensions.worktreeConfig", "true");
     const sibling = `${cwd}-linked`;
     git(cwd, "worktree", "add", "-qb", "runtime-linked", sibling);
-    registerDisposableDirectory(context, sibling, {
-      sharedLinks: ["node_modules"],
-      drain: () => requireWriterExit(sibling),
-    });
+    registerLinkedFixture(context, cwd, sibling);
     symlinkSync(path.join(root, "node_modules"), path.join(sibling, "node_modules"), "junction");
     configureHooks(sibling, "enable", env);
     writeFileSync(path.join(sibling, "sample.js"), "export const linked = true;\n");
