@@ -458,15 +458,26 @@ fn correlated_records<'a>(records: &'a [Value], operation_id: &str) -> Vec<&'a V
 #[test]
 fn runtime_diagnostics_correlates_real_install_update_prepare_and_launch() {
     const PORT: &str = "opengoal-jak1";
+    let started = Instant::now();
+    let phase = |label: &str| {
+        eprintln!(
+            "runtime-diagnostics lifecycle phase={label} elapsed_ms={}",
+            started.elapsed().as_millis()
+        );
+    };
+    phase("fixture-begin");
     let temporary = tempfile::tempdir().unwrap();
     let helper = owned_lifecycle_helper(temporary.path());
     let helper_bytes = fs::read(&helper).unwrap();
+    phase("native-helper-complete");
     let library = Library::open(temporary.path().join("owned-library")).unwrap();
     let service = PortcoveService::new(library.clone()).unwrap();
+    phase("library-service-complete");
     let package_a = temporary.path().join("owned-package-a");
     let package_b = temporary.path().join("owned-package-b");
     let first = adopt_owned_package(&service, &helper, &package_a, PORT, "package-a");
     let second = adopt_owned_package(&service, &helper, &package_b, PORT, "package-b");
+    phase("package-adoptions-complete");
     assert_ne!(first.artifact.sha256, second.artifact.sha256);
     let source = temporary.path().join("owned.iso");
     fs::write(&source, b"owned source awaiting upstream validation").unwrap();
@@ -487,6 +498,7 @@ fn runtime_diagnostics_correlates_real_install_update_prepare_and_launch() {
         "nonzero-game",
     );
     drop(service);
+    phase("fixture-complete");
 
     let log_path = fs::canonicalize(temporary.path())
         .unwrap()
@@ -508,6 +520,7 @@ fn runtime_diagnostics_correlates_real_install_update_prepare_and_launch() {
                 // Adoption legitimately activates B. The generic install route
                 // can reuse A; the game workspace's first-install action is
                 // intentionally unavailable while an installation is active.
+                phase("install-begin");
                 let plan = install_service.plan_install(PORT, None).await.unwrap();
                 assert_eq!(plan.action, portcove_core::InstallPlanAction::ReuseRetained);
                 let mut install_events = Vec::new();
@@ -524,7 +537,9 @@ fn runtime_diagnostics_correlates_real_install_update_prepare_and_launch() {
                     portcove_core::ActivityOperation::Install,
                 );
                 drop(install_service);
+                phase("install-complete");
 
+                phase("update-begin");
                 let service = PortcoveService::with_provider(
                     library.clone(),
                     Arc::new(OwnedRelease(second.clone())),
@@ -553,7 +568,9 @@ fn runtime_diagnostics_correlates_real_install_update_prepare_and_launch() {
                 let status = service.status(PORT).unwrap();
                 assert_eq!(status.active.unwrap().id, second.id);
                 assert_eq!(status.previous.unwrap().id, first.id);
+                phase("update-complete");
 
+                phase("preparation-begin");
                 let options = portcove_core::PreparationOptions {
                     target: portcove_core::Platform::current().unwrap(),
                     mode: portcove_core::PreparationMode::Default,
@@ -600,6 +617,8 @@ fn runtime_diagnostics_correlates_real_install_update_prepare_and_launch() {
                         .contains("owned-fixture-private-value")
                 );
 
+                phase("preparation-complete");
+                phase("launch-begin");
                 let request = uuid::Uuid::new_v4().to_string();
                 let launched = service
                     .supervise_launch_identified(
@@ -623,7 +642,9 @@ fn runtime_diagnostics_correlates_real_install_update_prepare_and_launch() {
                     launch.outcome,
                     Some(portcove_core::LaunchSessionOutcome::Succeeded)
                 );
+                phase("launch-complete");
 
+                phase("nonzero-launch-begin");
                 let request = uuid::Uuid::new_v4().to_string();
                 let failed = service
                     .supervise_launch_identified(
@@ -650,6 +671,7 @@ fn runtime_diagnostics_correlates_real_install_update_prepare_and_launch() {
                     Some(portcove_core::LaunchSessionOutcome::Failed)
                 );
                 assert!(library.launch_sessions().unwrap().is_empty());
+                phase("nonzero-launch-complete");
                 (
                     vec![install_activity, update_activity, preparation_activity],
                     prepared,
@@ -658,9 +680,12 @@ fn runtime_diagnostics_correlates_real_install_update_prepare_and_launch() {
                 )
             })
         });
+    phase("writer-flush-begin");
     let health = guard.shutdown(FLUSH_DEADLINE);
     assert_eq!(health.flush_state, FlushState::Complete);
     assert_eq!(health.dropped, 0, "{health:?}");
+    phase("writer-flush-complete");
+    phase("verification-begin");
     let raw = fs::read_to_string(log_path).unwrap();
     assert!(!raw.contains("owned-fixture-private-value"));
     assert!(!raw.contains(&source.to_string_lossy().to_string()));
@@ -859,6 +884,7 @@ fn runtime_diagnostics_correlates_real_install_update_prepare_and_launch() {
             .unwrap(),
         launch
     );
+    phase("verification-complete");
     evidence(
         "typed-lifecycle-correlation",
         json!({
@@ -872,6 +898,7 @@ fn runtime_diagnostics_correlates_real_install_update_prepare_and_launch() {
             "scope": "Owned native helper, real planned retained-install and reviewed update/setup with supervised launch; no game compatibility or download qualification",
         }),
     );
+    phase("complete");
 }
 
 struct MustNotFormat;

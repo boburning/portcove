@@ -555,6 +555,8 @@ registration preview, authorization and commit. A started phase without its
 completion marker identifies unfinished work, not the cause of a failure.
 Compare test execution separately from compiler work, resource admission and
 fallback image compilation.
+The owned runtime-diagnostics lifecycle separately reports setup, install,
+update, preparation, launch, writer flush and verification phases.
 
 The eight maintained Python unittest suites run through
 `scripts/python-test-results.py`, using the existing isolated `-I -S -B`

@@ -165,6 +165,37 @@ platform = 'x86_64-unknown-linux-gnu'
 filter = 'package(portcove-cli) & test(/^preparation_contract::reviewed_preparation_runs_through_jsonl_and_a_fresh_cli_plays_without_setup$/)'
 slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
 
+# Audit run 39916400401/a1 reached the first reopened activation status at
+# 22.82s and began curated repin publication at 29.78s before the 30s Intel cap.
+# These exact complete lifecycles get finite 60s room for remaining reopens,
+# signed publication and preservation checks. Keep two workers, product/child
+# deadlines, all assertions, five-second warnings and zero retries/grace.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & (test(/^definition_repository::tests::publisher_policy_tests::curated_activation_withdrawal_permits_exact_retained_target$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_admitted_scope_resolves_missing_digest_and_revalidates_mutable_identity$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# The same audit's Linux reusable-preparation pair hit the 30s harness cap;
+# its CHD fixture reached launch after 27.98s of setup/preparation. Diagnostics
+# also hit the 30s outer cap.
+# Retain full real CLI/setup/launch, flush, reopen and preservation assertions
+# with exact-case 60s headroom. This does not change application deadlines.
+[[profile.default.overrides]]
+platform = 'x86_64-unknown-linux-gnu'
+filter = 'package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/) | test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# The new phase diagnostic on Windows reached launch at 29.079s before the
+# unchanged 30s harness cutoff. Keep the same complete lifecycle and product
+# launch/flush deadlines with this exact-case finite 60s outer budget.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-cli) & test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # CI 38946153693/a1 retained nine Intel timeouts while authenticated fixtures
 # were still progressing through required installs, reopens and preservation.
 # Give only those exact cases finite headroom; preserve every lifecycle step,
