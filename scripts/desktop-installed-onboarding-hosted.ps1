@@ -16,6 +16,8 @@ if (-not [IO.Directory]::Exists($temporaryRoot) -or $temporaryRoot.StartsWith('\
 $sessionRoot = Join-Path $temporaryRoot ('portcove-installed-onboarding-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
 if (Test-Path -LiteralPath $sessionRoot) { throw 'Native evidence directory must be fresh.' }
 [IO.Directory]::CreateDirectory($sessionRoot) | Out-Null
+$runtimeReceipt = Join-Path $root 'work/hosted-continuity-evidence/windows-runtime.json'
+Copy-Item -LiteralPath $runtimeReceipt -Destination (Join-Path $sessionRoot 'windows-runtime.json') -ErrorAction Stop
 $packageRoot = Join-Path $sessionRoot 'ordinary-package'
 $journeyRoot = Join-Path $sessionRoot 'installed-journey'
 [IO.Directory]::CreateDirectory($journeyRoot) | Out-Null

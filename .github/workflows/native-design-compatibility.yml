@@ -87,8 +87,19 @@ jobs:
           $ErrorActionPreference = 'Stop'
           pnpm install --frozen-lockfile
           if ($LASTEXITCODE -ne 0) { throw 'Frozen dependency installation failed.' }
+          ./scripts/prepare-hosted-windows-runtime.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Maintained Windows runtime prerequisite failed.' }
           ./scripts/bootstrap-quality-tools.ps1 -Profile native-desktop
           if ($LASTEXITCODE -ne 0) { throw 'Pinned native prerequisites failed.' }
+      - name: Retain the hosted runtime prerequisite readback
+        if: always()
+        shell: pwsh
+        run: |
+          $runtimeReceipt = 'work/hosted-continuity-evidence/windows-runtime.json'
+          if (Test-Path -LiteralPath $runtimeReceipt) {
+            Write-Output 'PORTCOVE_WINDOWS_RUNTIME_RECEIPT'
+            Get-Content -LiteralPath $runtimeReceipt
+          }
       - name: Observe the ordinary installed Windows onboarding and artwork journey
         shell: pwsh
         run: ./scripts/desktop-installed-onboarding-hosted.ps1

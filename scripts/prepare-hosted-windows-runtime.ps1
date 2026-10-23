@@ -12,9 +12,13 @@ if ($PSBoundParameters.ContainsKey('InspectVersion')) {
     @{ scope='declared-version-only; no host observation or installation'; minimum=$taskFloor; eligible=(Test-EngineVersion $InspectVersion) } | ConvertTo-Json
     exit 0
 }
+$taskContinuityWorkflow = $env:GITHUB_WORKFLOW_REF -cmatch '^boburning/portcove/\.github/workflows/hosted-(native-continuity|runtime-readiness)\.yml@refs/heads/(main|feature/534-[A-Za-z0-9-]+)$'
+# This fixed public installed-app diagnostic is not a protected release controller.
+$taskInstalledOnboardingWorkflow = $env:GITHUB_WORKFLOW_REF -cmatch '^boburning/portcove/\.github/workflows/native-design-compatibility\.yml@refs/heads/(main|feature/1155-desktop-covers-delivery)$' -and
+    $env:GITHUB_JOB -ceq 'installed_onboarding' -and $env:RUNNER_OS -ceq 'Windows' -and $env:ImageOS -ceq 'win22'
 if (-not $IsWindows -or $env:GITHUB_ACTIONS -cne 'true' -or $env:GITHUB_REPOSITORY -cne 'boburning/portcove' -or
     $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or $env:GITHUB_RUN_ID -notmatch '^[1-9][0-9]+$' -or
-    $env:GITHUB_WORKFLOW_REF -cnotmatch '^boburning/portcove/\.github/workflows/hosted-(native-continuity|runtime-readiness)\.yml@refs/heads/(main|feature/534-[A-Za-z0-9-]+)$') {
+    -not ($taskContinuityWorkflow -or $taskInstalledOnboardingWorkflow)) {
     throw 'Only the reviewed standard hosted diagnostic may prepare this runtime'
 }
 function Read-EngineVersions {

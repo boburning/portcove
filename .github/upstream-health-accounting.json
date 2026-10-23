@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "authority": "reviewed monitoring conditions only; no catalog, lineage, artifact, hold or publication authority",
-  "decision": "Owner approved the narrow extension proposed in #247 comment6082358982 on2026-10-09; no failed-run exception. Owner approved the exact Armored Core v0.3.6 pin on2026-10-09 (#254 comment6086584582), and future exact pins satisfying the unchanged strict metadata checks; this record retains unknown destination availability and unverified accepted bytes. Presentation-only contract bindings refreshed by #2186 after exact approved-hash preimage verification against 93259eb and equality of every other contract field; no pin, condition, metadata requirement or authority changed. Owner requested all upstream-health errors be addressed on2026-10-20; #247 comment6293990348 scopes the independently reviewed exact release/source-commit metadata accounting and bounded capacity repair. Source-commit presence never verifies generated archive bytes or destination availability.",
+  "decision": "Owner approved the narrow extension proposed in #247 comment6082358982 on2026-10-09; no failed-run exception. Owner approved the exact Armored Core v0.3.6 pin on2026-10-09 (#254 comment6086584582), and future exact pins satisfying the unchanged strict metadata checks; this record retains unknown destination availability and unverified accepted bytes. Presentation-only contract bindings refreshed by #2186 after exact approved-hash preimage verification against 93259eb and equality of every other contract field; no pin, condition, metadata requirement or authority changed. Owner requested all upstream-health errors be addressed on2026-10-20; #247 comment6293990348 scopes the independently reviewed exact release/source-commit metadata accounting and bounded capacity repair. Source-commit presence never verifies generated archive bytes or destination availability. The 2026-10-23 cover batch refreshed five presentation-only contract bindings after exact approved-hash verification against 5afae06256d1552a619ff88b290bc93642247b5d and equality of every other non-summary contract field; no pin, condition, metadata check, destination/byte claim or authority changed.",
   "pins": [
     {
       "port_id": "road-rash-64-recompiled",
@@ -90,7 +90,7 @@
     },
     {
       "port_id": "alexbeav-digimon-world-2003-recomp",
-      "port_contract_sha256": "7447485094a14cbc01caa43e95fe2ab397a286867b72d73df5915e8fc9a3806b",
+      "port_contract_sha256": "b19bcd320ef8565d4e4617000252c4b1449acd71c4f76f40622110b54b52f858",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/digimon-world-2003-recomp",
       "tag": "v0.3.6",
@@ -379,7 +379,7 @@
     },
     {
       "port_id": "super-metroid-recomp",
-      "port_contract_sha256": "fdb83e4d0d20f992e9490908b7cd152a89bf9f04e7767a385ddd16510a8efe96",
+      "port_contract_sha256": "04584ed88df186d21ff1b87b0865b2bb3a512aa9ddc6bd53569f8a8b7a16b3c4",
       "platform": "windows-x86-64",
       "repository": "mstan/SuperMetroidRecomp",
       "tag": "v0.3.12",
@@ -396,7 +396,7 @@
     },
     {
       "port_id": "mega-man-x2-snes-recomp",
-      "port_contract_sha256": "994d0cffb8f7de89f12a035a0a3c2a08b9189ef66e8ffe12589be38eebe61169",
+      "port_contract_sha256": "d5c8d6bd2c2b9feceedd5ba6ccf561986640deb92373316004e57884b92bc913",
       "platform": "windows-x86-64",
       "repository": "mstan/MegaManX2Recomp",
       "tag": "v0.1.4",
@@ -515,7 +515,7 @@
     },
     {
       "port_id": "the-force-engine-dark-forces",
-      "port_contract_sha256": "398077825e9faba9af09ac605559398af97b656423ac7f9667ebacc6e1131b82",
+      "port_contract_sha256": "3e70d8c3530efdcdfea797f993b05904bb84f2d592c202f2ba82dc4cb7cbeeb1",
       "platform": "windows-x86-64",
       "url": "https://github.com/TheForceEngine/TheForceEngine/releases/download/v1.22.420/TheForceEngine-v1.22.420.zip",
       "size": 10561878,
@@ -566,7 +566,7 @@
     },
     {
       "port_id": "resident-evil-gaiden-recomp",
-      "port_contract_sha256": "2ce80b761b2af18ab47e2d92224a52b8909ef27d315679363c9e252ef1ce020c",
+      "port_contract_sha256": "ff3c744fda0c93c6d42f6e9ace96835be42ffd576ea76cd295bf83ad7c8937ac",
       "platform": "windows-x86-64",
       "url": "https://github.com/sergiomanzur/regaiden-recomp/releases/download/v0.4.1/Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip",
       "size": 33085815,
