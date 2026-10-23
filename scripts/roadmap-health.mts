@@ -89,7 +89,21 @@ export function selectRoadmapHealth(
 }
 
 const marker = "<!-- portcove-roadmap-health:";
+const configurationScope = JSON.stringify({
+  kind: "configuration",
+  key: "PORTCOVE_ROADMAP_TOKEN",
+});
+function configurationMissing(report: Record<string, unknown>) {
+  return (
+    report.status !== "passed" &&
+    isRecord(report.diagnosis) &&
+    report.diagnosis.kind === "configuration_missing"
+  );
+}
 function roadmapHealthScope(report: Record<string, unknown>) {
+  // Comment identity groups the shared setup incident; receipts keep the
+  // original requested issue/global scope and inconclusive coverage.
+  if (configurationMissing(report)) return configurationScope;
   const declared = isRecord(report.scope) ? report.scope : {};
   return JSON.stringify(
     declared.kind === "issues" && Array.isArray(declared.issues)
@@ -105,7 +119,7 @@ function roadmapHealthScope(report: Record<string, unknown>) {
   );
 }
 function commentState(body: string | null): Record<string, unknown> | null {
-  const encoded = body?.match(/<!-- portcove-roadmap-health:(\{[^\n]*\}) -->/u)?.[1];
+  const encoded = body?.match(/^<!-- portcove-roadmap-health:(\{[^\n]*\}) -->/u)?.[1];
   try {
     const parsed: unknown = encoded ? JSON.parse(encoded) : null;
     return isRecord(parsed) ? parsed : null;
@@ -118,7 +132,7 @@ export function findRoadmapHealthComment(
   report: Record<string, unknown>,
 ) {
   const scope = roadmapHealthScope(report);
-  return comments.findLast(
+  const authored = comments.filter(
     (value): value is Record<string, unknown> =>
       isRecord(value) &&
       isRecord(value.user) &&
@@ -126,7 +140,34 @@ export function findRoadmapHealthComment(
       value.user.login === "github-actions[bot]" &&
       typeof value.body === "string" &&
       value.body.startsWith(marker) &&
-      commentState(value.body)?.scope === scope,
+      commentState(value.body) !== null,
+  );
+  const isConfiguration = (value: Record<string, unknown>) => {
+    const body = String(value.body);
+    const state = commentState(body);
+    return (
+      state?.scope === configurationScope ||
+      (state?.status === "failed" && body.includes("Classification: `configuration_missing`."))
+    );
+  };
+  if (configurationMissing(report)) {
+    // Reuse one existing incident, including the legacy per-scope format. Pick
+    // deterministically so concurrent scopes cannot migrate different comments.
+    const rank = (value: Record<string, unknown>) => {
+      const previousScope = commentState(String(value.body))?.scope;
+      if (previousScope === configurationScope) return 0;
+      return previousScope === JSON.stringify({ kind: "global" }) ? 1 : 2;
+    };
+    return authored.filter(isConfiguration).toSorted((a, b) => {
+      const order = rank(a) - rank(b);
+      if (order !== 0) return order;
+      return Number(a.id) - Number(b.id);
+    })[0];
+  }
+  // A real scoped result must not overwrite setup history or treat it as a
+  // planning failure that an unrelated scoped success can clear.
+  return authored.findLast(
+    (value) => !isConfiguration(value) && commentState(String(value.body))?.scope === scope,
   );
 }
 function canonicalDiagnosticValue(value: unknown): unknown {
@@ -170,6 +211,17 @@ export function roadmapHealthComment(
     typeof diagnosis.recovery_condition === "string"
       ? diagnosis.recovery_condition
       : "Inspect the retained diagnostic artifact before changing Roadmap data.";
+  if (configurationMissing(report))
+    return (
+      `${marker}${JSON.stringify({ scope, status, digest })} -->\n` +
+      "Hosted Roadmap checks: **not configured** (repository-wide setup incident).\n\n" +
+      `Classification: \`${kind}\`. ${recovery}\n\n` +
+      "The Roadmap doctor did not run; planning findings are unevaluated and coverage is inconclusive. " +
+      "The same missing credential affects every requested scope. Unchanged repeats share this diagnostic; " +
+      "each executed check retains its original scope and failure evidence.\n\n" +
+      `[Observed run and retained evidence](${runUrl}). ` +
+      "Keep this incident as setup history until owner activation is verified by a real scoped check."
+    );
   return (
     `${marker}${JSON.stringify({ scope, status, digest })} -->\n` +
     `Latest Roadmap check: **${status}** (${scope.includes('"global"') ? "global" : "scoped"}).\n\n` +
@@ -219,7 +271,7 @@ async function main() {
       diagnosis: {
         kind: "configuration_missing",
         recovery_condition:
-          "An owner must configure PORTCOVE_ROADMAP_TOKEN with repository and Project access. No existing CLI credential is exported or reused.",
+          "An owner must add the dedicated Actions secret PORTCOVE_ROADMAP_TOKEN with read:project access, then run the workflow on main with issue=2414 and inspect its receipt. See docs/PROJECT-GOVERNANCE.md#hosted-activation. No existing CLI credential is exported or reused.",
       },
     };
   } else {
@@ -282,7 +334,11 @@ async function main() {
   if (process.env.GITHUB_STEP_SUMMARY)
     appendFileSync(
       process.env.GITHUB_STEP_SUMMARY,
-      `Roadmap ${selection.mode} check: **${String(report.status)}**. Coverage: ${String(report.coverage)}.\n\nEvidence is retained in the Roadmap diagnostic artifact. A scoped result does not establish global health.\n`,
+      `Roadmap ${selection.mode} check: **${configurationMissing(report) ? "not configured" : String(report.status)}**. Coverage: ${String(report.coverage)}.\n\n` +
+        (isRecord(report.diagnosis)
+          ? `Classification: \`${String(report.diagnosis.kind)}\`. ${String(report.diagnosis.recovery_condition)}\n\n`
+          : "") +
+        "Evidence is retained in the Roadmap diagnostic artifact. A scoped result does not establish global health.\n",
     );
   if (process.env.GITHUB_TOKEN) {
     const api = new GitHubApiClient(
@@ -299,8 +355,8 @@ async function main() {
       `repos/${process.env.GITHUB_REPOSITORY}/issues/2414/comments?per_page=100`,
       { identity: (value) => (isRecord(value) ? value.id : undefined) },
     );
-    // Each requested scope owns its own comment and serialized workflow group.
-    // Other scopes and unrecognized historical comments retain their evidence.
+    // Missing configuration shares one serialized incident; configured checks
+    // keep independent scope comments. Historical comments retain their evidence.
     const previous = findRoadmapHealthComment(comments, report);
     if (isRecord(previous) && typeof previous.id !== "number")
       throw new Error("Diagnostic comment identity is unavailable");
