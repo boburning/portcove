@@ -11,6 +11,7 @@ export const developmentProfiles = Object.freeze([
   "core",
   "daily",
   "native-desktop",
+  "native-drivers",
 ] as const);
 export type DevelopmentProfile = (typeof developmentProfiles)[number];
 interface ProfileOptions {
@@ -49,6 +50,10 @@ export function profileCapabilities(
   const core = ["rustc", "cargo", "rustfmt-component", "clippy-component", "cargo-nextest"];
   if (profile === "frontend") return frontend;
   if (profile === "core") return core;
+  if (profile === "native-drivers") {
+    if (platform !== "win32") throw new Error("native-drivers setup currently requires Windows");
+    return ["node", "rustc", "cargo", "tauri-driver", "native-driver"];
+  }
   if (!hasRequiredTools(requiredTools))
     throw new Error("daily capability selection requires the current required-tool inventory");
   const daily = [
@@ -104,7 +109,7 @@ export async function developmentCapabilityPlan(
       frontend: capabilities.includes("frontend-dependencies"),
       rust: capabilities.includes("rustc"),
       aqua: capabilities.includes("aqua"),
-      native: capabilities.includes("native-desktop-build"),
+      native: capabilities.includes("native-driver"),
       cargo_tools: manifest.tools.filter((tool) => capabilities.includes(tool.id)),
     },
     pins: {
@@ -202,7 +207,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const args = process.argv.slice(2);
   if (args.includes("--help"))
     console.log(
-      "usage: development-capabilities.mts --profile frontend|core|daily|native-desktop [--platform win32|linux|darwin]",
+      "usage: development-capabilities.mts --profile frontend|core|daily|native-desktop|native-drivers [--platform win32|linux|darwin]",
     );
   else {
     try {

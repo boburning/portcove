@@ -45,6 +45,7 @@ import {
 } from "./local-validation.mts";
 import { buildValidationPlan } from "./validation-plan.mts";
 import { resolveUiSelection } from "./ui-test-selection.mts";
+import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 
 const allFilesExist = () => true;
 
@@ -105,6 +106,24 @@ void test("hook implementation-only edits select the real Git hook contract", ()
     assert.ok(!selection.unknown.has(file));
   }
 });
+
+void test("delivery helper changes retain CLI and transport snapshot consumers", () => {
+  for (const file of ["scripts/pr-delivery.mts", "scripts/pr-delivery-snapshot.mts"]) {
+    for (const change of [
+      { status: "M", path: file },
+      { status: "D", path: file },
+      { status: "R100", path: "scripts/renamed-delivery.mts", previousPath: file },
+    ]) {
+      const selection = classifyChanges([change], { fileExists: () => false });
+      assert.ok(selection.nodeTests.has("scripts/pr-delivery.test.mts"), file);
+      assert.ok(selection.nodeTests.has("scripts/pr-delivery-snapshot.test.mts"), file);
+      if (file === "scripts/pr-delivery.mts") {
+        assert.ok(selection.nodeTests.has("scripts/repository-skills.test.mts"));
+      }
+    }
+  }
+});
+
 function requiredFixture<T>(value: T | null | undefined): T {
   assert.ok(value !== null && value !== undefined, "expected fixture entry is missing");
   return value;
@@ -791,6 +810,7 @@ void test("current and historical catalog authorities select their generator con
   const embedded = planFor(["crates/portcove-core/catalog/catalog.json"]).selection;
   assert.deepEqual([...embedded.nodeTests].sort(), [
     "scripts/generate-catalog.test.mts",
+    "scripts/release-native-source-contract.test.mts",
     "scripts/repository-skills.test.mts",
   ]);
 
@@ -813,6 +833,40 @@ void test("bin-only Rust packages do not schedule an invalid doctest command", (
   const { plan } = planFor(["crates/portcove-cli/src/main.rs"]);
   assert.ok(ids(plan).includes("rust-workspace-tests"));
   assert.ok(!ids(plan).includes("rust-docs:portcove-cli"));
+});
+
+void test("native declaration inputs select their cheap consumer before Rust compilation", () => {
+  const contract = "scripts/release-native-source-contract.test.mts";
+  for (const source of nativeCompatibilitySourcePaths) {
+    for (const input of [
+      change(source),
+      change(source, { status: "A" }),
+      change(source, { status: "D" }),
+      change("docs/moved-source.md", { status: "R100", previousPath: source }),
+      change(source, { status: "R100", previousPath: "docs/moved-source.md" }),
+    ]) {
+      const { selection, plan } = planFor([input]);
+      assert.ok(selection.nodeTests.has(contract), `${input.status} ${source}`);
+      const node = requiredFixture(plan.find((entry) => entry.id === "node-tests"));
+      assert.equal(node.args.filter((argument) => argument === contract).length, 1);
+      assert.ok(ids(plan).indexOf("node-tests") < ids(plan).indexOf("rust-workspace-tests"));
+    }
+  }
+  const mixed = planFor([...nativeCompatibilitySourcePaths]);
+  const node = requiredFixture(mixed.plan.find((entry) => entry.id === "node-tests"));
+  assert.equal(node.args.filter((argument) => argument === contract).length, 1);
+  for (const source of [
+    "crates/portcove-core/src/database.rs",
+    "crates/portcove-core/src/lib.rs",
+  ]) {
+    const { selection } = planFor([source]);
+    assert.deepEqual([...selection.nodeTests], [contract]);
+    assert.equal(selection.scopes.has("release-tooling"), false);
+  }
+  assert.equal(
+    planFor(["crates/portcove-core/src/source_report.rs"]).selection.nodeTests.has(contract),
+    false,
+  );
 });
 
 void test("shared diagnostics changes retain explicit ownership and complete workspace Rust feedback", () => {
@@ -1514,6 +1568,27 @@ void test("Node receipt fingerprints include the domain of each selected test", 
     fingerprintLocalStage(syntaxStage, first, receiptRuntime),
     fingerprintLocalStage(syntaxStage, second, receiptRuntime),
   );
+});
+
+void test("native source declaration receipts invalidate when any consumed source changes", async () => {
+  const { domainsForPath } = await import("./validation-evidence.mts");
+  const { plan } = planFor(["crates/portcove-core/src/database.rs"]);
+  const stage = requiredFixture(plan.find((entry) => entry.id === "node-tests"));
+  const inventory = receiptInventory();
+  inventory.files = nativeCompatibilitySourcePaths.map((source) => ({
+    ...requiredFixture(receiptInventory().files[0]),
+    path: source,
+    domains: [...domainsForPath(source).domains],
+  }));
+  const original = fingerprintLocalStage(stage, inventory, receiptRuntime);
+  for (const source of nativeCompatibilitySourcePaths) {
+    const changed = structuredClone(inventory);
+    const input = requiredFixture(changed.files.find((file) => file.path === source));
+    input.sha256 = "changed-source";
+    input.gitBlob = "changed-source";
+    assert.notEqual(fingerprintLocalStage(stage, changed, receiptRuntime), original, source);
+  }
+  assert.equal(fingerprintLocalStage(stage, structuredClone(inventory), receiptRuntime), original);
 });
 
 void test("local receipts reuse proven independent stages while full repository lint reruns", (t) => {

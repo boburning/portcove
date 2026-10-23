@@ -112,6 +112,33 @@ void test("validation consumers share the exact mapping and keep Node wrappers a
   assert.ok(selectedPrerequisites({ id: "playnite-contract" }, "linux").includes("windows-host"));
 });
 
+void test("Windows driver-only preparation excludes broad development installation and checks its own pins", async () => {
+  const plan = await developmentCapabilityPlan("native-drivers", { platform: "win32" });
+  assert.deepEqual(plan.capabilities, ["node", "rustc", "cargo", "tauri-driver", "native-driver"]);
+  assert.deepEqual(plan.setup, {
+    frontend: false,
+    rust: true,
+    aqua: false,
+    native: true,
+    cargo_tools: [],
+  });
+  for (const platform of ["linux", "darwin"])
+    assert.throws(() => profileCapabilities("native-drivers", { platform }), /requires Windows/);
+  const result = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("./development-capabilities.mts", import.meta.url)),
+      "--profile",
+      "native-drivers",
+      "--platform",
+      "win32",
+    ],
+    { encoding: "utf8", timeout: 15000 },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), plan);
+});
+
 function bootstrapFixture(t: TestContext) {
   const directory = mkdtempSync(path.join(os.tmpdir(), "portcove capability spaces "));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
@@ -357,6 +384,46 @@ void test(
         ...(["win32", "linux"].includes(process.platform) ? ["rustc"] : []),
         "doctor",
       ],
+    );
+    assert.equal(readFileSync(fixture.marker, "utf8"), "verified prior state\n");
+  },
+);
+
+void test(
+  "PowerShell driver-only setup reaches its scoped installer without pnpm or broad tools",
+  { skip: process.platform !== "win32" },
+  (t) => {
+    const fixture = bootstrapFixture(t);
+    const result = fixture.run(
+      "pwsh",
+      [
+        "-NoProfile",
+        "-File",
+        path.join(fixture.project, "scripts/bootstrap-quality-tools.ps1"),
+        "-Profile",
+        "native-drivers",
+      ],
+      {},
+      fixture.caller,
+    );
+    // The controlled cargo stub creates no driver executable. This deliberate
+    // refusal occurs before registry/network acquisition, never native readiness.
+    assert.notEqual(result.status, 0);
+    assert.doesNotMatch(result.stderr, /Provide pnpm/);
+    assert.match(result.stderr, /tauri-driver installation did not produce/);
+    const calls = fixture.calls();
+    assert.ok(
+      calls.some(
+        (call) =>
+          call[0] === "cargo" &&
+          call.some((arg) => arg === "tauri-driver" || arg === "tauri-driver@2.0.6"),
+      ),
+      JSON.stringify({ calls, stderr: result.stderr }),
+    );
+    assert.ok(
+      !calls.some(
+        (call) => ["pnpm", "hooks", "aqua"].includes(call[0] ?? "") || call.includes("nextest"),
+      ),
     );
     assert.equal(readFileSync(fixture.marker, "utf8"), "verified prior state\n");
   },

@@ -13,6 +13,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateValidationPlan, validationOwnershipForPath } from "./validation-plan.mts";
 import { selectWorkspaceRustImpact } from "./rust-test-impact.mts";
+import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 import { hasNextestEquivalence } from "./nextest-equivalence.mts";
 import {
   nativeHelperDependencies,
@@ -993,7 +994,18 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/ui-test-selection.mts", ["scripts/ui-test-selection.test.mts"]],
   ["scripts/run-ui-tests.mts", ["scripts/ui-test-selection.test.mts"]],
   ["scripts/run-viteplus.mts", ["scripts/frontend-command-preflight.test.mts"]],
-  ["scripts/pr-delivery.mts", ["scripts/repository-skills.test.mts"]],
+  [
+    "scripts/pr-delivery.mts",
+    [
+      "scripts/repository-skills.test.mts",
+      "scripts/pr-delivery.test.mts",
+      "scripts/pr-delivery-snapshot.test.mts",
+    ],
+  ],
+  [
+    "scripts/pr-delivery-snapshot.mts",
+    ["scripts/pr-delivery.test.mts", "scripts/pr-delivery-snapshot.test.mts"],
+  ],
   [
     "scripts/rehearse-updater-artifacts.ps1",
     ["scripts/hosted-native-continuity.test.mts", "scripts/updater-artifact-inventory.test.mts"],
@@ -1177,6 +1189,14 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   ["scripts/release-semantic-worker.mts", ["scripts/release-catalog-review-maintenance.test.mts"]],
 ]);
+
+// Source declarations are consumed by a cheap Node contract even when no release
+// script changes. Keep the consumer's own input inventory authoritative.
+for (const file of nativeCompatibilitySourcePaths)
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/release-native-source-contract.test.mts",
+  ]);
 
 const workflowTests = new Map([
   [

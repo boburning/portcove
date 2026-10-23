@@ -3168,6 +3168,7 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     "grace-period": "0s",
   });
   assert.equal(profile.retries, 0);
+  assert.equal(profile["fail-fast"], false);
   assert.equal(profile["test-threads"], 2);
   assert.equal(profile["success-output"], undefined);
   assert.equal(profile["default-filter"], undefined);
@@ -3195,6 +3196,15 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   ])
     assert.equal(overrideFor(filter)["threads-required"], 2);
   assert.equal(overrideFor("package(portcove-cli)").priority, -100);
+  const argumentContracts = overrideFor("package(portcove-cli) & test(/^args::tests::/)");
+  assert.deepEqual(argumentContracts, {
+    filter: "package(portcove-cli) & test(/^args::tests::/)",
+    priority: 100,
+  });
+  assert.ok(
+    overrides.indexOf(argumentContracts) < overrides.indexOf(overrideFor("package(portcove-cli)")),
+    "the first matching priority must run pure command contracts before CLI lifecycles",
+  );
   assert.equal(
     overrideFor("package(portcove-core) & test(activity_diagnostics::tests::)").priority,
     -50,

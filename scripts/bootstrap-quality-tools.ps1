@@ -1,14 +1,14 @@
 param(
     [switch]$IncludeDeep,
     [switch]$Desktop,
-    [Alias("Profile")][ValidateSet("standard", "frontend", "core", "daily", "native-desktop")][string]$CapabilityProfile = "standard",
+    [Alias("Profile")][ValidateSet("standard", "frontend", "core", "daily", "native-desktop", "native-drivers")][string]$CapabilityProfile = "standard",
     [Alias("h", "-help")][switch]$Help
 )
 
 $ErrorActionPreference = "Stop"
 if ($Help) {
     @"
-Usage: ./scripts/bootstrap-quality-tools.ps1 [-IncludeDeep] [-Desktop] [-Profile standard|frontend|core|daily|native-desktop] [-Help]
+Usage: ./scripts/bootstrap-quality-tools.ps1 [-IncludeDeep] [-Desktop] [-Profile standard|frontend|core|daily|native-desktop|native-drivers] [-Help]
 
 Installs repository-pinned tools into a shared user cache and writes checkout-local
 shims under work/tool-bin. It never changes persistent PATH or user environment
@@ -19,6 +19,7 @@ Options:
   -Desktop      Provision Windows desktop-test drivers in addition to standard tools.
   -Profile      Select a capability profile; standard is the default. Selective profiles
                 cannot be combined with -IncludeDeep or -Desktop.
+                native-drivers selects Windows drivers without general development tools.
   -Help, --help Show this help without reading manifests, creating caches or installing tools.
 
 Use the repository-pinned Node and pnpm on PATH. Native desktop setup requires Windows.
@@ -116,11 +117,13 @@ function Remove-LegacyRuntimeShims {
 }
 
 $wantsAqua = -not $capabilityPlan -or $capabilityPlan.setup.aqua
-if ($wantsAqua -or ($capabilityPlan -and $capabilityPlan.setup.frontend)) {
+if ($wantsAqua -or ($capabilityPlan -and $capabilityPlan.setup.frontend) -or $CapabilityProfile -eq "native-drivers") {
     if ((& node --version) -ne "v$requiredNodeVersion" -or $LASTEXITCODE -ne 0) {
         throw "Node $requiredNodeVersion is required for development setup"
     }
     Remove-LegacyRuntimeShims
+}
+if ($wantsAqua -or ($capabilityPlan -and $capabilityPlan.setup.frontend)) {
     $pnpmVersion = ([string]$toolPaths.pins.packageManager).Split('@')[1]
     $providedPnpm = Get-Command pnpm -ErrorAction SilentlyContinue
     if (-not $providedPnpm -or (& pnpm --version) -ne $pnpmVersion -or $LASTEXITCODE -ne 0) {
@@ -560,7 +563,7 @@ try {
         }
     }
 
-    if ($wantsAqua) {
+    if ($wantsAqua -or ($capabilityPlan -and $capabilityPlan.setup.native)) {
     $desktopState = if ($Desktop -or ($capabilityPlan -and $capabilityPlan.setup.native)) {
         Install-DesktopTools
     }
@@ -575,7 +578,9 @@ try {
         pin_fingerprint = [string]$toolPaths.pins.fingerprint
         shared_root = $sharedRoot
         shim_directory = $shimDirectory
-        aqua = $resolvedAqua
+        # A driver-only state records the expected Aqua path without installing it.
+        # Broader doctor profiles still inspect their own actual prerequisites.
+        aqua = if ($wantsAqua) { $resolvedAqua } else { $aquaExecutable }
         aqua_root = $aquaRoot
         desktop = $desktopState
     }
