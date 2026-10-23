@@ -546,6 +546,8 @@ void test("execution planning preserves the independently reviewed pre-change or
           added === "scripts/native-readiness.mts" ||
           added === "scripts/acceptance-packet.mts" ||
           added === "apps/desktop/scripts/desktop-listener-lifetime-test.mts" ||
+          (added === "apps/desktop/scripts/desktop-listener-lifetime-probe.mts" &&
+            actualInputs.includes("apps/desktop/scripts/desktop-listener-lifetime-test.mts")) ||
           added === nativeHelperRegistryPath,
         added,
       );
@@ -1497,4 +1499,34 @@ void test("native enlargement observations bind their statically imported helper
         1,
         platform + "/" + profile,
       );
+});
+
+void test("listener callback bytes follow their owning scenario source exactly once", () => {
+  const parent = "apps/desktop/scripts/desktop-listener-lifetime-test.mts";
+  const helper = "apps/desktop/scripts/desktop-listener-lifetime-probe.mts";
+  for (const platform of ["win32", "linux", "darwin"] as const)
+    for (const options of [
+      { profile: "smoke" },
+      { profile: "presentation" },
+      { profile: "full" },
+      { scenarios: ["native-late-listener-disposal"] },
+      { scenarios: ["native-rejected-listener-registration"] },
+    ]) {
+      if ("scenarios" in options && platform !== "win32") {
+        assert.throws(
+          () => resolveDesktopSelection({ ...options, platform }),
+          /Operation listener qualification requires one standalone Windows scenario/u,
+        );
+        continue;
+      }
+      const inputs = planDesktopExecution(resolveDesktopSelection({ ...options, platform }), {
+        platform,
+      }).receiptInputs;
+      const parentIndex = inputs.findIndex(
+        (input) => input.kind === "file" && input.path === parent,
+      );
+      const helpers = inputs.filter((input) => input.kind === "file" && input.path === helper);
+      assert.equal(helpers.length, parentIndex < 0 ? 0 : 1);
+      if (parentIndex >= 0) assert.equal(inputs[parentIndex + 1]?.path, helper);
+    }
 });
