@@ -620,11 +620,41 @@ doctor. An explicit doctor without `--issue` remains an on-demand full audit.
 The event-driven Roadmap workflow checks affected issues and materially changed
 catalog identity/qualification, schema and validator inputs on main. There is no
 hourly or other periodic audit. It executes trusted default-branch source,
-retains failure artifacts and maintains a separate diagnostic comment per requested
-scope on the single tracking issue #2414. Updates occur only when that scope's
-problem or recovery changes, and same-scope writers are serialized. An unrelated
-scoped pass cannot clear another scoped or global failure. Hosted execution requires owner-provided
-`PORTCOVE_ROADMAP_TOKEN`; missing configuration is inconclusive, never passed.
+retains failure artifacts and reports on the single tracking issue #2414. Missing
+`PORTCOVE_ROADMAP_TOKEN` has one repository-wide configuration diagnostic, separate
+from per-scope planning diagnostics. Diagnostic writes are serialized and unchanged
+problems do not create another comment for each affected issue. Actual runs still
+retain failed, inconclusive artifacts with planning findings unevaluated while the
+token is absent. An unrelated scoped pass cannot clear another scoped or global
+failure; configured credentials alone do not establish recovery of those checks.
+
+#### Hosted activation
+
+Hosted execution requires a dedicated owner-provided credential. GitHub's
+[built-in `GITHUB_TOKEN` cannot access Projects](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/automating-projects-using-actions).
+The current Roadmap is [the user-owned `boburning/1` Project](https://github.com/users/boburning/projects/1);
+GitHub currently lists [user-owned Projects as unsupported by fine-grained personal access tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens-limitations).
+The existing owner activation step is:
+
+1. While signed in as `boburning`, [create a dedicated personal access token (classic)](https://github.com/settings/tokens/new)
+   named `Portcove Roadmap checks`, with an expiration and only `read:project`.
+   GitHub documents [that scope for Project queries](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-api-to-manage-projects#authentication).
+   This classic scope covers Projects accessible to the token owner. The current
+   public repository needs [no additional repository scope for reads](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps#available-scopes);
+   diagnostic comments use the workflow's separate `GITHUB_TOKEN`.
+2. Open [repository Actions secrets](https://github.com/boburning/portcove/settings/secrets/actions),
+   choose **New repository secret**, and save the new value as
+   `PORTCOVE_ROADMAP_TOKEN`. Supply it directly to GitHub; do not export or reuse an
+   existing CLI credential, attach it to evidence, or paste it into a chat or issue.
+3. Open [Roadmap scoped checks and diagnostics](https://github.com/boburning/portcove/actions/workflows/roadmap-health.yml),
+   choose **Run workflow** on `main`, and enter `2414` in the `issue` input.
+   Leave full audits for their existing substantial-change/readiness boundaries.
+4. Inspect the run and its retained `roadmap-diagnostics-<run>-<attempt>` artifact.
+   Hosted activation is verified only by a real scoped doctor receipt with complete
+   selected-record coverage and a passed result. Global health remains
+   `not_evaluated`; a missing-configuration diagnostic changing state is not a
+   Project-health pass. Preserve and resolve any authentication, planning or
+   provider failure according to its receipt.
 
 Failures retain a typed diagnosis and concrete recovery condition automatically.
 Stable independent Project counts that contradict fresh issue memberships are a
