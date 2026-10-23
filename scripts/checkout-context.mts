@@ -47,11 +47,17 @@ function assertCheckoutContext(context: GuardedCheckoutContext, expectedHead?: s
     if (!/^[a-f0-9]{40}$/u.test(expectedHead))
       throw new Error("--expected-head must be a full lowercase Git SHA");
     if (context.head !== expectedHead)
-      throw new Error(
-        `Checkout mismatch: expected ${expectedHead}, observed ${context.head}; Project drift was not assessed`,
+      throw Object.assign(
+        new Error(
+          `Checkout mismatch: expected ${expectedHead}, observed ${context.head}; Project drift was not assessed`,
+        ),
+        { code: "checkout_context" },
       );
     if (context.input_dirty)
-      throw new Error("Guarded Roadmap inputs are modified; Project drift was not assessed");
+      throw Object.assign(
+        new Error("Guarded Roadmap inputs are modified; Project drift was not assessed"),
+        { code: "checkout_context" },
+      );
   }
 }
 
@@ -64,7 +70,10 @@ function assertCheckoutUnchanged(before: GuardedCheckoutContext, after: GuardedC
     "input_dirty",
   ] as const)
     if (before[key] !== after[key])
-      throw new Error("Checkout inputs changed during Roadmap doctor; no stable result claimed");
+      throw Object.assign(
+        new Error("Checkout inputs changed during Roadmap doctor; no stable result claimed"),
+        { code: "checkout_context" },
+      );
 }
 
 export async function checkContextualDoctor<Result, Context extends GuardedCheckoutContext>({

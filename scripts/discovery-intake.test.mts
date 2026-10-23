@@ -42,6 +42,12 @@ void test("catalog-ID direct intake recovery keeps its existing catalog identity
   client.repositoryIssue = () => issue;
   client.repositoryIssues = () => fixtureIssueInventory(client, []);
   client.itemList = () => [];
+  client.projectContext = () => ({
+    number: config.project.number,
+    details: { id: "PVT" },
+    fields: [],
+  });
+  client.readInventory = () => [];
   client.ensureIssueItem = () => ({ id: "ITEM43" });
   client.setItemFields = () => {};
   const result = client.normalizePortIssue({
@@ -121,6 +127,12 @@ void test("captured issue identity survives failed Project intake and neutral no
   );
   client.repositoryIssue = () => required(state.issue);
   client.itemList = () => (state.projectItem ? [state.projectItem] : []);
+  client.projectContext = () => ({
+    number: config.project.number,
+    details: { id: "PVT" },
+    fields: [],
+  });
+  client.readInventory = () => [];
   client.ensureIssueItem = () => ({ id: "ITEM42" });
   client.setItemFields = (id, values) => {
     const issue = required(state.issue);

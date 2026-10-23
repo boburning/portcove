@@ -22,6 +22,10 @@ Keep that foreground session open
 through collection, research, separate review, delivery and explicit `finish`.
 Use the structured protocol and completion criteria in the contract; `status`
 reads the latest receipt. Recover retained candidate identities before new intake.
+Ordinary delivery uses scoped affected-issue checks. An unchanged finish retains
+the complete inventory guards and records doctor `not_run`, scope `none`; neither
+receipt proves a historical full-doctor acceptance requirement. Full doctor is
+for substantial Roadmap changes or release readiness, without a periodic audit.
 Use GPT-6.1-Sol Medium for scheduled collection and research, with a separate
 GPT-6.1-Sol High non-writing review of proposed writes. Ordinary and cold budgets
 are selected by the runner. Retain an explicit continuation when work does not fit.

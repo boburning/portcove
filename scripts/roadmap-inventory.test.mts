@@ -358,6 +358,32 @@ void test("delivered candidates make quiet repeats write nothing and review cann
     /Separate review/,
   );
 });
+void test("unchanged finish preserves final inventory guards and records no planning doctor", async (t) => {
+  const { session } = await temporarySession(t);
+  const f = fixture(1);
+  session.client.graphql = f.client.graphql;
+  session.client.completeProjectContext = f.client.completeProjectContext;
+  session.client.itemList = f.client.itemList;
+  session.client.projectAudit = () => assert.fail("Unchanged finish must not run full doctor");
+  session.checkProviderCapacity = () => {};
+  session.refresh();
+  session.journal.collection_done = true;
+  let refreshes = 0;
+  const refresh = session.refresh.bind(session);
+  session.refresh = () => {
+    refreshes++;
+    return refresh();
+  };
+  const receipt = await session.finish();
+  assert.equal(receipt.status, "completed", JSON.stringify(receipt.notes));
+  assert.equal(refreshes, 1, "Final complete inventory guards still execute");
+  assert.deepEqual(receipt.doctor, {
+    status: "not_run",
+    scope: "none",
+    head: "fixture-head",
+    evidence: path.join(session.runDir, "doctor.json"),
+  });
+});
 void test("charged final recollection fits the scheduled budget and refuses genuine exhaustion", async (t) => {
   for (const priorRequests of [142, 166])
     await t.test(String(priorRequests), async (t) => {

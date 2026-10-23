@@ -130,6 +130,15 @@ keeps a fixed absolute observation deadline and never retries automatically.
 
 ## Test latency and reliability
 
+Cheap source-consumer contracts run before selected compilation/runtime work.
+The maintained native compatibility source inventory selects its declaration
+contract locally and in hosted ordinary coverage; those source bytes also
+invalidate its reusable local result. Pure CLI argument/help tests have higher
+nextest priority while retaining the existing CLI resource reservation and all
+selected tests. This changes feedback order, not coverage or merge requirements.
+Use the existing complete-diff plan to identify these consumers when choosing
+focused feedback; a hand-written feature filter may omit them.
+
 Retain failures, diagnose the smallest useful reproduction, and repeat only
 invalidated obligations. Preserve assertions, coverage, cleanup and finite
 termination; an unchanged later pass does not establish a causal repair.

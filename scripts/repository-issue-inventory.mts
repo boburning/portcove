@@ -36,6 +36,8 @@ export interface IssueProjectMembership {
   readonly fieldValues: unknown;
 }
 export type InventoryFailureKind =
+  | "checkout_context"
+  | "provider_inconsistent"
   | "inventory_changed"
   | "inventory_incomplete"
   | "inventory_malformed"
@@ -52,7 +54,25 @@ export class InventoryError extends GitHubApiError {
     this.kind = kind;
   }
 }
+/** Mutation outcomes retain their own evidence while classifying a typed underlying failure. */
+export function inventoryFailureSource(error: unknown): unknown {
+  const seen = new Set<unknown>();
+  let current = error;
+  while (isRecord(current) && !seen.has(current)) {
+    seen.add(current);
+    if (
+      current.code === "checkout_context" ||
+      Array.isArray(current.doctorErrors) ||
+      current instanceof GitHubApiError
+    )
+      return current;
+    current = current.cause;
+  }
+  return error;
+}
 export function inventoryFailureKind(error: unknown): InventoryFailureKind {
+  error = inventoryFailureSource(error);
+  if (isRecord(error) && error.code === "checkout_context") return "checkout_context";
   if (isRecord(error) && Array.isArray(error.doctorErrors)) return "planning_findings";
   if (error instanceof InventoryError) return error.kind;
   if (error instanceof GitHubApiError) {

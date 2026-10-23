@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { hasNextestEquivalence, isNextestProof } from "./nextest-equivalence.mts";
+import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 
 const scriptPath = fileURLToPath(import.meta.url);
 
@@ -663,6 +664,12 @@ function classifyPath(file: string): PathOwnership {
       "frontend-input",
     );
     match(rust || rootRust, "rust", ["rust", "rust-quality"], "rust-workspace-input");
+    match(
+      nativeCompatibilitySourcePaths.some((source) => source === file),
+      "native-ipc",
+      ["catalog", "rust-quality"],
+      "native-source-declaration",
+    );
     match(
       /^apps\/desktop\/src\/transport-[^/]+\.generated\.(?:json|d\.ts)$/u.test(file) ||
         [

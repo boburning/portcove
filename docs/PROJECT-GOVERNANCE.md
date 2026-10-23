@@ -170,7 +170,7 @@ samples the current GraphQL quota and preserves a recovery reserve. Every
 mutation is read back before the next chunk; an ambiguous response is never
 retried blindly. A partial run stops safely and the same specification can be
 resumed because already-applied targets are reconciled explicitly. Full
-readback and the Roadmap doctor remain the final success gate.
+readback and the applicable scoped or full Roadmap check remain the final success gate.
 
 `roadmap.mts set-many` and `pr-delivery.mts watch|merge` retain their human
 output by default. `--json` emits one schema-versioned operation envelope on
@@ -187,7 +187,7 @@ transition records an exact `from` value (or `null` for unset) and configured
 `to` value. The default is a read-only plan; add `--apply` only after reviewing
 the resolved targets, already-applied transitions, observed GraphQL cost and
 required reserve. Apply validates every target before one bounded mutation,
-reads back each field exactly, and runs one final doctor. A current value equal
+reads back each field exactly, and runs one final affected-record check. A current value equal
 to `to` is an idempotent resume; any value other than `from` or `to` aborts the
 whole batch before mutation. Keep a batch at or below 100 field assignments.
 
@@ -586,6 +586,41 @@ publication-authority checks. Use `readiness --release "Public beta"` or
 Historical receipts retain Opportunistic. Readiness interprets that historical input as Planned, while active configuration uses only Required / Planned. Use `roadmap.mts rename-commitment` for a read-only in-place option plan, then `--apply` for an ID-preserving rename with assignment readback. An already-applied rename is a no-op; competing old/new options refuse automatic consolidation.
 
 ## Tools and snapshots
+
+### Scoped checks and full audits
+
+Routine reconciliation uses `roadmap.mts doctor --issue N --json`. It reads the
+selected issue and active Project membership directly, checks its fields, port
+identity/stage and direct relationships, and includes its finite parent and
+direct dependents. It brackets live records with fresh semantic and full-body
+readback. The receipt names every checked issue and reports global health as
+`not_evaluated`; it cannot establish global uniqueness, origin coverage or release
+readiness. Missing, ambiguous or incomplete direct coverage remains inconclusive.
+
+`set`, `set-many`, port intake/normalization and promotion perform affected checks
+automatically. Exact item IDs resolve directly even when the Project listing
+omits them. Draft field-only updates retain complete direct identity and field
+readback without claiming canonical issue coverage. Substantial changes select a
+full doctor: batches touching more than ten distinct items, Target release or
+Release commitment transitions, and explicit schema reconciliation. Release
+`readiness` and immutable readiness `snapshot` commands also require the full
+doctor. An explicit doctor without `--issue` remains an on-demand full audit.
+
+The event-driven Roadmap workflow checks affected issues and materially changed
+catalog identity/qualification, schema and validator inputs on main. There is no
+hourly or other periodic audit. It executes trusted default-branch source,
+retains failure artifacts and maintains a separate diagnostic comment per requested
+scope on the single tracking issue #2414. Updates occur only when that scope's
+problem or recovery changes, and same-scope writers are serialized. An unrelated
+scoped pass cannot clear another scoped or global failure. Hosted execution requires owner-provided
+`PORTCOVE_ROADMAP_TOKEN`; missing configuration is inconclusive, never passed.
+
+Failures retain a typed diagnosis and concrete recovery condition automatically.
+Stable independent Project counts that contradict fresh issue memberships are a
+provider consistency failure, not planning drift or missing membership evidence.
+They stop without a duplicate complete-read retry or metadata repair. True
+concurrent changes and admitted transient reads retain their existing bounded
+retry. Failed observations and #2406's unresolved upstream incident remain intact.
 
 Use `node scripts/roadmap.mts capture-port` for direct maintainer port intake,
 `normalize-port --issue <number>` for a public New Port form submission,

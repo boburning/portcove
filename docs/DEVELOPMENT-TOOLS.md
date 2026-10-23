@@ -137,6 +137,97 @@ When a tool returns a running session, consume it with a bounded wait of at most
 60 seconds before the next commentary update. Reuse its final report; do not
 start another watcher or repeatedly fetch unchanged state.
 
+### Connector delivery observations
+
+Identify the supported delivery capabilities at pickup. An unavailable or
+unauthenticated local `gh` does not establish that the connected GitHub surface
+is unavailable. Inspect the actual connector tools for source publication and
+lease-guarded branch updates, PR writes, complete REST check/job/commit reads,
+decoded failed-job logs, an expected-head squash merge, and postmerge readback.
+Use an available supported route under existing authorization. Report a missing
+operation precisely; tool names alone do not prove permission to execute it.
+
+The connector's REST surface may omit closing-issue relationships or Project
+fields. Use complete GraphQL coverage when available, or a direct GitHub UI
+observation paired with bracketing raw PR reads for the closing inventory.
+Issue bodies and REST issue reads cannot establish live Project fields. An
+unavailable or partial inventory remains unknown, with the exact missing
+observation recorded; do not silently substitute an empty array.
+
+The existing delivery command has two offline operations for connector callers:
+
+```text
+node scripts/pr-delivery.mts prepare-merge --pr NUMBER --head SOURCE --target TARGET --tree COMPOSED_TREE --run RUN --attempt ATTEMPT --snapshot-file /absolute/prepare.json --closure-intent-file /absolute/intent.json --merge-message-file /absolute/message.json --json
+node scripts/pr-delivery.mts verify-merge --pr NUMBER --head SOURCE --target TARGET --tree COMPOSED_TREE --snapshot-file /absolute/readback.json --closure-intent-file /absolute/intent.json --merge-message-file /absolute/message.json --json
+```
+
+Supply the independently reviewed source, current target, composed tree and
+identified authoritative workflow run/attempt. The intent/message files use the
+existing formats in [contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge).
+Every input is an absolute regular-file path with bounded UTF-8 JSON reads.
+Snapshot validation shares required-check selection, authoritative job binding,
+candidate-message/closure validation and actual squash-message readback with
+the CLI path. It creates no remote write, approval or new local requirement.
+
+GitHub's [test-merge generation policy](https://github.blog/changelog/2026-02-19-changes-to-test-merge-commit-generation-for-pull-requests/)
+can retain an older preview after only the target tip advances. Refreshing the PR
+page does not regenerate it. Do not push an otherwise unnecessary integration
+commit merely to refresh that preview. When it is historical, run preparation
+from the reviewed source checkout with `--verify-local-composition`. Fetch the
+exact source, current target and observed preview objects before collecting the
+snapshot; the verifier performs no network access.
+
+This option checks the actual stored commit bytes and ordered preview parents,
+requires the preview target to be an ancestor of the current target, and computes
+both preview and current merge trees in an isolated temporary object-only Git
+repository. The current result must equal the independently reviewed `--tree`.
+It brackets the checkout head and retains the original sixty-second collection
+budget, including the computation. Missing history, conflicts, mismatched trees
+and expired observations refuse preparation. Repository/global Git configuration,
+replacement refs, hooks, external merge drivers and lazy fetching are excluded;
+the source checkout is unchanged. Bounded command failures retain their output
+through the existing delivery evidence mechanism. Without this option, the
+provider preview must still match the current target and reviewed tree exactly.
+
+The snapshot envelope is `format_version: 1`, `repository: "boburning/portcove"`,
+`phase: "prepare-merge"` or `"merge-readback"`, and
+`collection: { started_at, completed_at }` with absolute UTC times. Collect the
+raw observations in one existing sixty-second window; validation also refuses
+evidence older than that window. Retain complete provider payloads rather than
+inventing success summaries.
+
+| Field                             | Required observation                                                                                                                                                                                                                                                        |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pull_before`, `pull_after`       | Raw PR reads bracketing collection, with stable source, target ref, state, preview, title, body and commit count.                                                                                                                                                           |
+| `target_before`, `target_after`   | Raw target-branch reads. Preparation matches the independently expected target; readback matches the actual merged commit. The PR's historical `base.sha` is not the live branch tip.                                                                                       |
+| `closing_before`, `closing_after` | Each supplies `observed_at`, `method` (`graphql` or `direct-ui-with-bracketing-rest`), `complete: true`, `number`, `head`, `title`, `body`, `total_count`, and unique `owner/repository#number` relationships. Both must match the raw PR and each other.                   |
+| `run_before`, `run_after`         | Preparation only: raw terminal workflow reads matching source, run, attempt and repository throughout collection.                                                                                                                                                           |
+| `preview`                         | Preparation only: raw provider Git commit object. Normally its parents/tree must match the current target/source and reviewed composition. A historical target is accepted only with actual local composition verification. This does not establish the actual CI checkout. |
+| `checks`, `statuses`, `jobs`      | Preparation only: complete unique-ID inventories with provider `total_count` and `check_runs`, `statuses`, or `jobs`; combined status also retains its `sha`. Collect every page and use the all-attempt job inventory for legitimate selective retry lineage.              |
+| `commits`                         | Preparation only: complete ordered candidate commit objects, preserving each full message and ending at the expected source.                                                                                                                                                |
+| `prepared`, `actual_commit`       | Readback only: the retained preparation output and the raw merged Git commit object. Parent, tree, message, PR and closing inventory must match the independently supplied expectations.                                                                                    |
+
+Confirm actual independent review, owning acceptance, current repository rules,
+the authoritative CI workflow/path/event, and the tested CI checkout separately.
+Compare its actual commit parents/tree with the reviewed composition; reconcile
+relevant target advances without claiming an untested target was tested. Preparation
+records the provider preview target/tree separately from the current composition.
+The helper validates supplied observations;
+it cannot authenticate their origin or turn a declaration into those authorities.
+After successful preparation, invoke the authorized connector merge promptly
+using the exact returned `merge_request`, including `expected_head_sha` and the
+checked squash message. Source/target/body drift requires fresh reconciliation.
+There is no provider atomic precondition for closing relationships or target tip.
+
+After any merge response, including an error, collect fresh readback before
+considering another mutation. `verify-merge` requires the actual single-parent
+squash, expected tree/message, merged PR, target branch and unchanged closing
+inventory. A failed or unavailable readback remains an unknown outcome: inspect
+the remote state and reconcile it without automatic retry or local cleanup.
+Reuse the existing issue/PR evidence and inspector/watcher references for
+continuation; these snapshot files are retained observations, not a second queue
+or approval ledger.
+
 Installed frontend operations resolve the package-declared local Vite+ executable.
 The build child filters `TAURI_SIGNING_*`; native signing retains its own inputs.
 Provision the declared Node/pnpm and frozen dependencies first. Corepack is an
@@ -176,6 +267,15 @@ The [NuGet compatibility investigation](qualification/playnite-nuget-renovate-20
 records why the classic project/lock pairs remain outside NuGet-manager coverage
 and the evidence required before adopting it. PSScriptAnalyzer's custom NuGet
 datasource remains independently configured in `renovate.json`.
+
+## Roadmap checks
+
+Roadmap maintenance is separate from local toolchain readiness. Use
+`node scripts/roadmap.mts doctor --issue N --json` for routine affected-record
+checks. Commands retain failure diagnostics and recovery conditions automatically.
+Full Roadmap doctor is for substantial planning changes and release readiness;
+the event-driven hosted workflow has no periodic schedule. See
+[scoped checks and full audits](PROJECT-GOVERNANCE.md#scoped-checks-and-full-audits).
 
 ## Frontend workflow
 

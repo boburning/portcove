@@ -2511,6 +2511,16 @@ Preserve this contributor text.`;
     client.repositoryIssues = () =>
       fixtureIssueInventory(client, [{ ...issue(), type: "Issue", url: issue().html_url }]);
     const catalog = { ports: [] };
+    const readInventory = client.readInventory.bind(client);
+    client.readInventory = (query, variables, select, identity) =>
+      query.includes("projectItems(")
+        ? [{ id: "PVTI_form", isArchived: false, project: { id: "PVT_project" } }]
+        : readInventory(query, variables, select, identity);
+    client.directProjectItem = () => ({
+      id: "PVTI_form",
+      content: { ...issue(), type: "Issue", url: issue().html_url },
+      fieldValues: fieldValues(),
+    });
     const first = client.normalizePortIssue({ number: 42, catalog });
     assert.equal(first.bodyChanged, true);
     assert.equal(first.projectItemAdded, false);
@@ -3426,6 +3436,23 @@ void test("set-many validates transitions before one mutation and exact readback
     throw new Error(`unexpected GraphQL request: ${request.query}`);
   };
   const client = new RoadmapClient(mockedConfig, runner);
+  client.executionIssue = () => ({
+    item: {
+      id: "PVTI_838",
+      content: {
+        id: "I_838",
+        number: 838,
+        url: "https://github.com/boburning/portcove/issues/838",
+        state: "OPEN",
+      },
+    },
+    relationships: { blockedBy: [], blocking: [], parent: null, subIssues: [] },
+  });
+  client.directProjectItem = () => ({
+    id: "PVTI_838",
+    content: { number: 838 },
+    fieldValues: [{ name: status, field: { name: "Status" } }],
+  });
   const spec = {
     schema_version: 1,
     updates: [{ target: "#838", fields: { Status: { from: "Ready", to: "Done" } } }],
@@ -3434,7 +3461,7 @@ void test("set-many validates transitions before one mutation and exact readback
   assert.equal(plan.pending.length, 1);
   client.applySetMany(plan);
   assert.ok(client.verifySetMany(plan).every((result) => result.verified));
-  assert.equal(calls.filter((call) => call.input?.includes("items(first: 50")).length, 1);
+  assert.equal(calls.filter((call) => call.input?.includes("items(first: 50")).length, 0);
   assert.equal(
     calls.filter((call) => call.input?.includes("updateProjectV2ItemFieldValue")).length,
     1,
