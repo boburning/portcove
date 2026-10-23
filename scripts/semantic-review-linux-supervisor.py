@@ -219,6 +219,13 @@ def create_file(path, data):
         os.close(fd)
 
 
+def read_runtime(path, name):
+    require(name in RUNTIME, "unknown fixed runtime refused")
+    # The retained Codex 0.162.0 package contains a 294410952-byte binary.
+    # This is a read-only executable bound, not reviewer-writable capacity.
+    return read_regular(path, (320 if name == "codex" else 256) * MIB)
+
+
 def inspect_files(request):
     root = private_directory(request["run_root"])
     require(len(os.fsencode(root / "transport/control.sock")) < 104, "owned Unix socket path is too long")
@@ -237,7 +244,7 @@ def inspect_files(request):
     for name, digest in request["runtime_sha256"].items():
         if name in ("node", "codex"):
             require((root / "runtime" / name).stat().st_mode & 0o100, "fixed runtime is not executable")
-        data = read_regular(root / "runtime" / name, 256 * MIB)
+        data = read_runtime(root / "runtime" / name, name)
         require(hashlib.sha256(data).hexdigest() == digest, "fixed runtime hash differs")
         observed["runtime/" + name] = digest
     count, total, raw_total = 0, 0, 0
