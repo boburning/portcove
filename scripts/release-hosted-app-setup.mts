@@ -41,13 +41,15 @@ function providerId(value: unknown): asserts value is number {
 /** Verify one already provisioned role using its separate App-authenticated and
  * installation-authenticated GET clients. No token acquisition, default CLI
  * credential, mutation, semantic acceptance or candidate authority is supplied.
- * This returns a public allowlist, never an unchecked provider response. */
+ * The repository inventory belongs to the presented token. A token narrowed at
+ * creation cannot prove the full installation selection; setup must separately
+ * observe that selection before activation. This returns a public allowlist. */
 export function observeHostedReleaseApp(
   role: HostedReleaseAppRole,
   expected: { app_id: number; installation_id: number },
   clients: { app: GitHubRestReader; installation: GitHubRestReader },
 ) {
-  const selected = { ...expected };
+  const selected = { app_id: expected.app_id, installation_id: expected.installation_id };
   providerId(selected.app_id);
   providerId(selected.installation_id);
   if (selected.app_id === 15368) throw new Error("generic Actions cannot be a selected App");
@@ -102,6 +104,7 @@ export function observeHostedReleaseApp(
     role,
     ...selected,
     repository_id: 1354613114 as const,
+    installation_repository_scope: "not-established" as const,
     owner_id: 43177418 as const,
     permissions,
     authority: "none" as const,

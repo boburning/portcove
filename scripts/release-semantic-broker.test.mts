@@ -142,6 +142,7 @@ void test("two-App setup readback uses separate GET clients and returns only mea
   ]);
   const pair = inspectHostedReleaseAppSeparation(semantic, observer);
   assert.equal(pair.semantic.authority, "none");
+  assert.equal(pair.semantic.installation_repository_scope, "not-established");
   assert.equal(pair.protection_observer.acceptance, "not-established");
   assert.throws(() => inspectHostedReleaseAppSeparation(semantic, { ...observer, app_id: 123 }));
   assert.throws(() =>
@@ -150,6 +151,16 @@ void test("two-App setup readback uses separate GET clients and returns only mea
   assert.throws(() =>
     observeHostedReleaseApp("semantic", { app_id: 15368, installation_id: 456 }, s.clients),
   );
+});
+
+void test("narrowed token inventory never establishes installation-wide scope or returns private caller fields", () => {
+  const f = hostedAppReadback("semantic");
+  const expected = { ...f.expected, private_key: "inert-private-sentinel", writer_app_id: 999 };
+  const result = observeHostedReleaseApp("semantic", expected, f.clients);
+  assert.equal(result.installation_repository_scope, "not-established");
+  assert.equal(Object.hasOwn(result, "private_key"), false);
+  assert.equal(Object.hasOwn(result, "writer_app_id"), false);
+  assert.equal(JSON.stringify(result).includes("inert-private-sentinel"), false);
 });
 
 for (const role of ["semantic", "protection_observer"] as const) {
