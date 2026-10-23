@@ -8,6 +8,14 @@
     "issue_number": 486,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/threads-of-fate-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/threads-of-fate-recomp",
+    "artwork": {
+      "game_id": 28402,
+      "cover_id": 126116,
+      "image_id": "co2pb8",
+      "image_sha256": "576811c48f2919c8f850b749e1aaae34352c14f43a0cfa2239612a84afcbf3ab",
+      "game_slug": "threads-of-fate",
+      "match_kind": "underlying-game"
+    }
   }
 }

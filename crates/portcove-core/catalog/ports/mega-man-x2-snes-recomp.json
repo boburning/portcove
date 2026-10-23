@@ -7,7 +7,15 @@
     "summary": "Native Mega Man X2 recompilation with an exact original and pinned Windows runtime.",
     "project_url": "https://github.com/mstan/MegaManX2Recomp",
     "original_game_title": "Mega Man X2",
-    "issue_number": 165
+    "issue_number": 165,
+    "artwork": {
+      "game_id": 1742,
+      "cover_id": 284706,
+      "image_id": "co63oi",
+      "image_sha256": "33ebabec123f267f664f2918c86165be04df00b7c20dacdf8171b515c19ee2d1",
+      "game_slug": "mega-man-x2",
+      "match_kind": "underlying-game"
+    }
   },
   "integration": {
     "support_tier": "beta",

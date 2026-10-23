@@ -8,6 +8,14 @@
     "issue_number": 1592,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp",
+    "artwork": {
+      "game_id": 36508,
+      "cover_id": 85711,
+      "image_id": "co1u4v",
+      "image_sha256": "26270ce540b53c94de9dde72607de9d641c36a2f9c55df661b53102d8b1fca75",
+      "game_slug": "digimon-world-2",
+      "match_kind": "underlying-game"
+    }
   }
 }

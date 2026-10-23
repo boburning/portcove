@@ -8,6 +8,14 @@
     "issue_number": 725,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/shinyquagsire23/OpenJKDF2"
+    "setup_url": "https://github.com/shinyquagsire23/OpenJKDF2",
+    "artwork": {
+      "game_id": 150,
+      "cover_id": 101009,
+      "image_id": "co25xt",
+      "image_sha256": "0a4eb3217216c14d88b1ef97a38cab2ad6166c110f11ea081575a580dcd8230c",
+      "game_slug": "star-wars-jedi-knight-dark-forces-ii",
+      "match_kind": "underlying-game"
+    }
   }
 }

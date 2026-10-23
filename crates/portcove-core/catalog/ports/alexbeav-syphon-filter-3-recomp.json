@@ -8,6 +8,14 @@
     "issue_number": 484,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp",
+    "artwork": {
+      "game_id": 4117,
+      "cover_id": 425275,
+      "image_id": "co9457",
+      "image_sha256": "0c6276bd0bb6b8d85137f91f852e2956f81a6dcf4344adbe4a403347c7f368ec",
+      "game_slug": "syphon-filter-3",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 323,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Eukaryot/sonic3air"
+    "setup_url": "https://github.com/Eukaryot/sonic3air",
+    "artwork": {
+      "game_id": 11219,
+      "cover_id": 342176,
+      "image_id": "co7c0w",
+      "image_sha256": "b1861fa5813026f582beb11e665cefee8eaa27e8871e154ddc91a22819c7989e",
+      "game_slug": "sonic-the-hedgehog-3-and-knuckles",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 337,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/RubySapphireRecomp"
+    "setup_url": "https://github.com/mstan/RubySapphireRecomp",
+    "artwork": {
+      "game_id": 1557,
+      "cover_id": 92654,
+      "image_id": "co1zhq",
+      "image_sha256": "ea548cc345d8a4abd1f98ec519e5be484431cef94bf340735cf82cacfa358dfe",
+      "game_slug": "pokemon-ruby-version",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1792,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp"
+    "setup_url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
+    "artwork": {
+      "game_id": 6471,
+      "cover_id": 276193,
+      "image_id": "co5x41",
+      "image_sha256": "422d170a9fc52432deb31dbe053ee86869e991f1220dfa52975b6651aab413ca",
+      "game_slug": "adventure-island-ii",
+      "match_kind": "underlying-game"
+    }
   }
 }

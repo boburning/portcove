@@ -8,6 +8,14 @@
     "issue_number": 460,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/martian-gothic-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/martian-gothic-recomp",
+    "artwork": {
+      "game_id": 24120,
+      "cover_id": 220124,
+      "image_id": "co4puk",
+      "image_sha256": "31ab131c4521c65f80bdd8856b3ba6162f535691dda91f116e421072b838e575",
+      "game_slug": "martian-gothic-unification",
+      "match_kind": "underlying-game"
+    }
   }
 }

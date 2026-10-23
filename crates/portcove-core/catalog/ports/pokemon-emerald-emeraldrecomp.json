@@ -8,6 +8,14 @@
     "issue_number": 334,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/EmeraldRecomp"
+    "setup_url": "https://github.com/mstan/EmeraldRecomp",
+    "artwork": {
+      "game_id": 1517,
+      "cover_id": 92655,
+      "image_id": "co1zhr",
+      "image_sha256": "f044cb533d5abbe24cca261e4785ce37a957bb2507aeb1a6c0dc541005c73d51",
+      "game_slug": "pokemon-emerald-version",
+      "match_kind": "underlying-game"
+    }
   }
 }

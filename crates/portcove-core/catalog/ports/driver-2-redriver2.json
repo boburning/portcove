@@ -8,6 +8,14 @@
     "issue_number": 317,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/OpenDriver2/REDRIVER2"
+    "setup_url": "https://github.com/OpenDriver2/REDRIVER2",
+    "artwork": {
+      "game_id": 6391,
+      "cover_id": 364339,
+      "image_id": "co7t4j",
+      "image_sha256": "188dd97ae742e78c8c47e7a2e0c7921a5b7047a83245f307fb4b3a0b19eea00e",
+      "game_slug": "driver-2-back-on-the-streets",
+      "match_kind": "underlying-game"
+    }
   }
 }

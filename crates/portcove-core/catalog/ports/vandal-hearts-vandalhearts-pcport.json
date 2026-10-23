@@ -8,6 +8,14 @@
     "issue_number": 347,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/HalmyLyseas/VandalHearts-PcPort"
+    "setup_url": "https://github.com/HalmyLyseas/VandalHearts-PcPort",
+    "artwork": {
+      "game_id": 5561,
+      "cover_id": 123325,
+      "image_id": "co2n5p",
+      "image_sha256": "343a6200670f7336e5203f87c640611d9ae28310dfc254645c42b91246640ac0",
+      "game_slug": "vandal-hearts",
+      "match_kind": "underlying-game"
+    }
   }
 }

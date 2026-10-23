@@ -8,6 +8,14 @@
     "issue_number": 1870,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/kumapauz/project-reignition"
+    "setup_url": "https://github.com/kumapauz/project-reignition",
+    "artwork": {
+      "game_id": 5167,
+      "cover_id": 175720,
+      "image_id": "co3rl4",
+      "image_sha256": "48ac80252098e82ba478d6b9f7bb727a1932cc4e3a126966eb072a2f42eb8d2f",
+      "game_slug": "sonic-and-the-secret-rings",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -7,7 +7,15 @@
     "summary": "Native Digimon World 2003 recompilation from Alexbeav’s PSXRecomp project.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp",
     "original_game_title": "Digimon World 2003",
-    "issue_number": 436
+    "issue_number": 436,
+    "artwork": {
+      "game_id": 19678,
+      "cover_id": 372792,
+      "image_id": "co7znc",
+      "image_sha256": "749fda15ec94cf39a3fd9b294100b690d6701c5c15cde76a3997657e56fe1662",
+      "game_slug": "digimon-world-3",
+      "match_kind": "underlying-game"
+    }
   },
   "integration": {
     "support_tier": "beta",

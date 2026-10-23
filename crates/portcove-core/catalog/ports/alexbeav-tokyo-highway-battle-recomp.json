@@ -8,6 +8,14 @@
     "issue_number": 490,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/tokyo-highway-battle-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/tokyo-highway-battle-recomp",
+    "artwork": {
+      "game_id": 20797,
+      "cover_id": 304393,
+      "image_id": "co6ivd",
+      "image_sha256": "f42a0741bedcdfe88b0bde2a2ec565ab672db0df478bac990e00b0fb1fd62d50",
+      "game_slug": "tokyo-highway-battle",
+      "match_kind": "underlying-game"
+    }
   }
 }

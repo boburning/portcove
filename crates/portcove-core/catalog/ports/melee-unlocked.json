@@ -8,6 +8,14 @@
     "issue_number": 814,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Hero88go/melee-unlocked"
+    "setup_url": "https://github.com/Hero88go/melee-unlocked",
+    "artwork": {
+      "game_id": 1627,
+      "cover_id": 95863,
+      "image_id": "co21yv",
+      "image_sha256": "b27bb8db7367c3b4413717e6ca1cac199ffa1cea9191abe1a427360e5ad1e63f",
+      "game_slug": "super-smash-bros-melee",
+      "match_kind": "underlying-game"
+    }
   }
 }

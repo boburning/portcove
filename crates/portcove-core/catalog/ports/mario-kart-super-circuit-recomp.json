@@ -8,6 +8,14 @@
     "issue_number": 285,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/MarioKartSuperCircuitRecomp"
+    "setup_url": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
+    "artwork": {
+      "game_id": 2343,
+      "cover_id": 357726,
+      "image_id": "co7o0u",
+      "image_sha256": "b4c4d19c169bb3ecccdf0e84b75bc6608a973c601b0d218ff9a9e0cbb8a24c1b",
+      "game_slug": "mario-kart-super-circuit",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 439,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/crash-bandicoot-3-warped-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/crash-bandicoot-3-warped-recomp",
+    "artwork": {
+      "game_id": 1187,
+      "cover_id": 382460,
+      "image_id": "co873w",
+      "image_sha256": "2d841a936efb3dec0f15a12479b11bc6a49dd7f26dfd0496e88b646366257d51",
+      "game_slug": "crash-bandicoot-warped",
+      "match_kind": "underlying-game"
+    }
   }
 }

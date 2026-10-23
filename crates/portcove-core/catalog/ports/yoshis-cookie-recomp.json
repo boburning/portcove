@@ -7,7 +7,15 @@
     "summary": "Play Yoshi's Cookie with the official Windows runtime and your matching original NES ROM.",
     "project_url": "https://github.com/mstan/YoshisCookieRecomp",
     "original_game_title": "Yoshi's Cookie",
-    "issue_number": 155
+    "issue_number": 155,
+    "artwork": {
+      "game_id": 18657,
+      "cover_id": 277899,
+      "image_id": "co5yff",
+      "image_sha256": "d747e957ba90854d10c87f4356cad1347fe138f7037eb9c82b6d0df649af98a2",
+      "game_slug": "yoshis-cookie",
+      "match_kind": "underlying-game"
+    }
   },
   "integration": {
     "support_tier": "beta",

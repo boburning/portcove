@@ -8,6 +8,14 @@
     "issue_number": 378,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/m1ndcrap/Sega-Superstars-Tennis-ReMatch"
+    "setup_url": "https://github.com/m1ndcrap/Sega-Superstars-Tennis-ReMatch",
+    "artwork": {
+      "game_id": 47367,
+      "cover_id": 93090,
+      "image_id": "co1ztu",
+      "image_sha256": "1fa388b2283407d793a7838bbc18a3815b5d3ba7d0e0870f801a00e1e927c55e",
+      "game_slug": "sega-superstars-tennis",
+      "match_kind": "underlying-game"
+    }
   }
 }

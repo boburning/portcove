@@ -8,6 +8,14 @@
     "issue_number": 1836,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/elmasas/lcs-recomp"
+    "setup_url": "https://github.com/elmasas/lcs-recomp",
+    "artwork": {
+      "game_id": 3263,
+      "cover_id": 120940,
+      "image_id": "co2lbg",
+      "image_sha256": "1ab62da533d92e87a56356e49a4793da7b7363327589b75e92358b5b1c8163e1",
+      "game_slug": "grand-theft-auto-liberty-city-stories",
+      "match_kind": "underlying-game"
+    }
   }
 }

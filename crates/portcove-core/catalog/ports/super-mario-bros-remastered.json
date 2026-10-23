@@ -31,7 +31,15 @@
         "Only vanilla BaseAssets is accepted. Preserve and manually move other packs, custom characters, levels/autosaves, blueprints and Godot loader metadata elsewhere before use. Editor/import operations and extra arguments are outside this route."
       ]
     },
-    "issue_number": 520
+    "issue_number": 520,
+    "artwork": {
+      "game_id": 358244,
+      "cover_id": 476185,
+      "image_id": "coa7fd",
+      "image_sha256": "f7e805d41d3f4519d0d4728b18af4ef99794d71826e513d70a15f71ffe32e59f",
+      "game_slug": "super-mario-bros-remastered",
+      "match_kind": "port"
+    }
   },
   "integration": {
     "support_tier": "beta",

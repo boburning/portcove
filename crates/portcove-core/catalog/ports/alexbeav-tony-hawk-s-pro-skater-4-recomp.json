@@ -8,6 +8,14 @@
     "issue_number": 489,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp",
+    "artwork": {
+      "game_id": 210463,
+      "cover_id": 233403,
+      "image_id": "co503f",
+      "image_sha256": "fed042cb78bf23a63861cebd0d021c3a7fbab0c8bca61ecdd2e63d7d599d0049",
+      "game_slug": "tony-hawks-pro-skater-4--1",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 826,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/BattleArenaToshindenRecomp"
+    "setup_url": "https://github.com/mstan/BattleArenaToshindenRecomp",
+    "artwork": {
+      "game_id": 1413,
+      "cover_id": 603720,
+      "image_id": "cocxu0",
+      "image_sha256": "ff23e8b57e39837e479e054456abc8ef6cea4f39183719072b3b852d3b95728a",
+      "game_slug": "battle-arena-toshinden",
+      "match_kind": "underlying-game"
+    }
   }
 }

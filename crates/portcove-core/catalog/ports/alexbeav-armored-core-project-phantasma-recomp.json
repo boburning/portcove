@@ -8,6 +8,14 @@
     "issue_number": 1586,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp",
+    "artwork": {
+      "game_id": 19428,
+      "cover_id": 117089,
+      "image_id": "co2ich",
+      "image_sha256": "c410648fecc50ffbab5cbc7b5c6c8165538e7fa9632cb1845f2fd3f16ed561f8",
+      "game_slug": "armored-core-project-phantasma",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 453,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/koudelka-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/koudelka-recomp",
+    "artwork": {
+      "game_id": 4169,
+      "cover_id": 335366,
+      "image_id": "co76rq",
+      "image_sha256": "a13c7b3ae7be0310a8ec3170e86aaefa400e72f9a424c75260cd15bd7083a242",
+      "game_slug": "koudelka",
+      "match_kind": "underlying-game"
+    }
   }
 }

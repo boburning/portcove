@@ -8,6 +8,14 @@
     "issue_number": 1118,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/strider973/STRIDER-2-Recompiled"
+    "setup_url": "https://github.com/strider973/STRIDER-2-Recompiled",
+    "artwork": {
+      "game_id": 5923,
+      "cover_id": 443782,
+      "image_id": "co9ifa",
+      "image_sha256": "5da0305f60f569bfe5fd0c1530d4a694f6863226b79046e41e72fab198bc4003",
+      "game_slug": "strider-2",
+      "match_kind": "underlying-game"
+    }
   }
 }

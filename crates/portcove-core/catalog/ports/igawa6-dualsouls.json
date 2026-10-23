@@ -8,6 +8,14 @@
     "issue_number": 1829,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/igawa6/dualsouls"
+    "setup_url": "https://github.com/igawa6/dualsouls",
+    "artwork": {
+      "game_id": 14593,
+      "cover_id": 533941,
+      "image_id": "cobfzp",
+      "image_sha256": "ca8e7bee79563f001a8ed24a7a9f60de61567affcb1022a72594c5a47ed93a4f",
+      "game_slug": "hollow-knight",
+      "match_kind": "underlying-game"
+    }
   }
 }

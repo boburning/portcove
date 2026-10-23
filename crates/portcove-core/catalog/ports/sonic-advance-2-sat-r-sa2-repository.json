@@ -8,6 +8,14 @@
     "issue_number": 381,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/SAT-R/sa2"
+    "setup_url": "https://github.com/SAT-R/sa2",
+    "artwork": {
+      "game_id": 6598,
+      "cover_id": 93140,
+      "image_id": "co1zv8",
+      "image_sha256": "7fe26a0e23b4c01f84e0384a67b55a27e212de3a9983e481ec0a1d0d6cc06748",
+      "game_slug": "sonic-advance-2",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1804,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Blizz127/brave-fencer-musashi-decomp-port"
+    "setup_url": "https://github.com/Blizz127/brave-fencer-musashi-decomp-port",
+    "artwork": {
+      "game_id": 1810,
+      "cover_id": 154795,
+      "image_id": "co3bfv",
+      "image_sha256": "bb71a22c939edcee852d6a1cb5889136074087a694340b2f70594d6af9d57195",
+      "game_slug": "brave-fencer-musashi",
+      "match_kind": "underlying-game"
+    }
   }
 }

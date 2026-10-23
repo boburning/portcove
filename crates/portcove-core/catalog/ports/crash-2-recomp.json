@@ -8,6 +8,14 @@
     "issue_number": 745,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Zumbo06/Crash2Recomp"
+    "setup_url": "https://github.com/Zumbo06/Crash2Recomp",
+    "artwork": {
+      "game_id": 1186,
+      "cover_id": 376985,
+      "image_id": "co82vt",
+      "image_sha256": "b28aec1d921e30d7321767e5cdd69be46340bb0df5ab1cd1e0dd8b6ba7e82692",
+      "game_slug": "crash-bandicoot-2-cortex-strikes-back",
+      "match_kind": "underlying-game"
+    }
   }
 }

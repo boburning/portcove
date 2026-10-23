@@ -8,6 +8,14 @@
     "issue_number": 150,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mchughalex/skate3recomp"
+    "setup_url": "https://github.com/mchughalex/skate3recomp",
+    "artwork": {
+      "game_id": 2587,
+      "cover_id": 77925,
+      "image_id": "co1o4l",
+      "image_sha256": "e84385a528e45088c81dca74d06e182e7db89bba0453d0de94eddda37c439bca",
+      "game_slug": "skate-3",
+      "match_kind": "underlying-game"
+    }
   }
 }

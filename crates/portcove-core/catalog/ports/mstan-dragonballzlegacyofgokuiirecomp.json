@@ -8,6 +8,14 @@
     "issue_number": 1815,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp"
+    "setup_url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp",
+    "artwork": {
+      "game_id": 19834,
+      "cover_id": 138886,
+      "image_id": "co2z5y",
+      "image_sha256": "4c2205d020f94c85eb85f6eb5a4a8d604ea6c0186a9e02583a95a022f559fdff",
+      "game_slug": "dragon-ball-z-the-legacy-of-goku-ii",
+      "match_kind": "underlying-game"
+    }
   }
 }

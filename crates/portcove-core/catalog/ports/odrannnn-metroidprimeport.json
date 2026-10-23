@@ -8,6 +8,14 @@
     "issue_number": 1846,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Odrannnn/MetroidPrimePort"
+    "setup_url": "https://github.com/Odrannnn/MetroidPrimePort",
+    "artwork": {
+      "game_id": 1105,
+      "cover_id": 181616,
+      "image_id": "co3w4w",
+      "image_sha256": "a1edc2e606ed753e2749ccf5b4a544c087ebda7fb00866c4592d8f013aa016c4",
+      "game_slug": "metroid-prime",
+      "match_kind": "underlying-game"
+    }
   }
 }

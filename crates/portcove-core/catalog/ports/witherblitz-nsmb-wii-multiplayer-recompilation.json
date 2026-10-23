@@ -8,6 +8,14 @@
     "issue_number": 1847,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation"
+    "setup_url": "https://github.com/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation",
+    "artwork": {
+      "game_id": 2178,
+      "cover_id": 95671,
+      "image_id": "co21tj",
+      "image_sha256": "f95688c17bffd1b283eb745298d164a98a2625fd6d4899be8846a0fe91713ae8",
+      "game_slug": "new-super-mario-bros-wii",
+      "match_kind": "underlying-game"
+    }
   }
 }

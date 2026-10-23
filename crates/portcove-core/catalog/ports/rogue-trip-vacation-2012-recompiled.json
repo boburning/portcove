@@ -8,6 +8,14 @@
     "issue_number": 1575,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Wuteva/RogueTripRecomp"
+    "setup_url": "https://github.com/Wuteva/RogueTripRecomp",
+    "artwork": {
+      "game_id": 26143,
+      "cover_id": 81018,
+      "image_id": "co1qii",
+      "image_sha256": "ba9a589c83c3e7fa8d4c92ef66d4872f3e22f23e5ee2a5dbb4831e22fac5301e",
+      "game_slug": "rogue-trip-vacation-2012",
+      "match_kind": "underlying-game"
+    }
   }
 }

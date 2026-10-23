@@ -18445,7 +18445,15 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide your own matching single-track CHD for SLES-03936. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
-        "original_game_title": "Digimon World 2003"
+        "original_game_title": "Digimon World 2003",
+        "artwork": {
+          "game_id": 19678,
+          "cover_id": 372792,
+          "image_id": "co7znc",
+          "image_sha256": "749fda15ec94cf39a3fd9b294100b690d6701c5c15cde76a3997657e56fe1662",
+          "game_slug": "digimon-world-3",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -19790,7 +19798,15 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Star Wars: Dark Forces",
-        "variant_label": "PC"
+        "variant_label": "PC",
+        "artwork": {
+          "game_id": 157,
+          "cover_id": 232486,
+          "image_id": "co4zdy",
+          "image_sha256": "ec562b66d9bbd3c705ce7d7925535727010203326179b1d73da2085cbad48ab9",
+          "game_slug": "star-wars-dark-forces",
+          "match_kind": "underlying-game"
+        }
       },
       "managed_initialization": "tfe-dark-forces-portable-v1",
       "launch_from_install_root": true,
@@ -20450,7 +20466,15 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Download the official Windows x64 ZIP from upstream Releases and extract the entire archive, including its DLLs and assets. Run YoshisCookieRecomp.exe, use Browse For ROM to select your own matching Yoshi's Cookie (USA) NES ROM, then Play and close normally. Return to Portcove, choose that executable and its extracted folder as the working directory, add the original ROM's full path as one argument, and review the launch details before registering. In Desktop, enter that path on one line without surrounding quotes. This also works when upstream's Skip launcher on boot is enabled; leaving arguments empty requires the launcher to remain enabled. You or upstream handle runtime updates. Remove registration only forgets Portcove's reference; the runtime, original, saves and settings stay in place. Existing Portcove-built installations retain their original contracts.",
-        "original_game_title": "Yoshi's Cookie"
+        "original_game_title": "Yoshi's Cookie",
+        "artwork": {
+          "game_id": 18657,
+          "cover_id": 277899,
+          "image_id": "co5yff",
+          "image_sha256": "d747e957ba90854d10c87f4356cad1347fe138f7037eb9c82b6d0df649af98a2",
+          "game_slug": "yoshis-cookie",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -20490,7 +20514,15 @@
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Download the official USA Windows x64 ZIP from upstream Releases and extract the entire archive, including its DLLs and assets. Run DrMarioRecomp.exe, use Browse For ROM to select your own matching Dr. Mario (Japan, USA) Rev 1 NES ROM, then Play and close normally. The European package needs its matching European original and is not covered by this USA check. Return to Portcove, choose DrMarioRecomp.exe and its extracted folder as the working directory, add the original ROM's full path as one argument, and review the launch details before registering. In Desktop, enter that path on one line without surrounding quotes. Leaving arguments empty requires upstream's launcher to remain enabled. You or upstream handle runtime updates. Remove registration only forgets Portcove's reference; the runtime, original, saves and settings stay in place. Existing Portcove-built installations retain their original contracts.",
         "original_game_title": "Dr. Mario",
-        "variant_label": "NES"
+        "variant_label": "NES",
+        "artwork": {
+          "game_id": 3476,
+          "cover_id": 544213,
+          "image_id": "cobnx1",
+          "image_sha256": "6e3f1685fe9ff2560baa7d050ae204917597b163e5af0fc0166619b61993c523",
+          "game_slug": "dr-mario",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -20573,7 +20605,15 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. This route stays pinned to its reviewed release until another build passes compatibility review. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included.",
-        "original_game_title": "Super Metroid"
+        "original_game_title": "Super Metroid",
+        "artwork": {
+          "game_id": 1103,
+          "cover_id": 265426,
+          "image_id": "co5osy",
+          "image_sha256": "6c552ed7337ed7a6a68fd8502d2885747bccd350af9cd4aa081f1f08060c5f6d",
+          "game_slug": "super-metroid",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -20656,7 +20696,15 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. This route stays pinned to its reviewed release until another build passes compatibility review. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included.",
-        "original_game_title": "Mega Man X2"
+        "original_game_title": "Mega Man X2",
+        "artwork": {
+          "game_id": 1742,
+          "cover_id": 284706,
+          "image_id": "co63oi",
+          "image_sha256": "33ebabec123f267f664f2918c86165be04df00b7c20dacdf8171b515c19ee2d1",
+          "game_slug": "mega-man-x2",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -20717,7 +20765,15 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Choose and check your own exact Resident Evil Gaiden (USA) original. Portcove installs the unchanged official Windows package, creates its local saves folder and manages local saves and settings. Review the resolved Windows account-wide preferences path before installation: the game may overwrite it and discard unknown entries, affecting other copies. Portcove never owns or backs up that shared file. A local runtime_prefs.ini fallback belongs to this managed installation. Existing external copies remain yours to manage. Use printable ASCII paths within Windows MAX_PATH bounds. Gameplay remains untested. MIT and clean-room claims are attributed upstream assertions, not blanket redistribution permission.",
-        "original_game_title": "Resident Evil Gaiden"
+        "original_game_title": "Resident Evil Gaiden",
+        "artwork": {
+          "game_id": 969,
+          "cover_id": 136761,
+          "image_id": "co2xix",
+          "image_sha256": "0ef402ea9193d7e8f4a3883e661c8f396bdf57ef49e2f87088839551c0d1930b",
+          "game_slug": "resident-evil-gaiden",
+          "match_kind": "underlying-game"
+        }
       },
       "managed_shared_preferences": "gbrecompiled-windows-v1",
       "managed_shared_preferences_save_id": "Resident_Evil_Gaiden__USA_",
@@ -20765,7 +20821,15 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "This is an early upstream prototype. Prepare it using upstream’s own instructions and your own original, then select the executable. You manage its runtime and player data. Portcove does not build or repair the engine. Existing Portcove-built installations retain their original contracts.",
-        "original_game_title": "EarthBound"
+        "original_game_title": "EarthBound",
+        "artwork": {
+          "game_id": 2899,
+          "cover_id": 320119,
+          "image_id": "co6v07",
+          "image_sha256": "0b09d1c1987b4353b9a00a4ab2ab99083745d22f78036996bab7c2d99b380c01",
+          "game_slug": "earthbound",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {
@@ -20844,6 +20908,14 @@
             "Other copies share originals, settings and saves. The game can regenerate or trash caches and prune logs. Portcove does not own, update, back up, restore or delete these files; removal unregisters only.",
             "Only vanilla BaseAssets is accepted. Preserve and manually move other packs, custom characters, levels/autosaves, blueprints and Godot loader metadata elsewhere before use. Editor/import operations and extra arguments are outside this route."
           ]
+        },
+        "artwork": {
+          "game_id": 358244,
+          "cover_id": 476185,
+          "image_id": "coa7fd",
+          "image_sha256": "f7e805d41d3f4519d0d4728b18af4ef99794d71826e513d70a15f71ffe32e59f",
+          "game_slug": "super-mario-bros-remastered",
+          "match_kind": "port"
         }
       }
     },
@@ -21011,7 +21083,15 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Use upstream’s ROM-free setup pack and your own Japanese original. Its supported launcher performs generation and compilation. Select that launcher or its prepared game executable; upstream or you manage replacement and player data. Portcove only registers and launches it. Existing Portcove-built installations retain their original contracts.",
-        "original_game_title": "Shin Kidou Senki Gundam W: Endless Duel"
+        "original_game_title": "Shin Kidou Senki Gundam W: Endless Duel",
+        "artwork": {
+          "game_id": 42464,
+          "cover_id": 140284,
+          "image_id": "co308s",
+          "image_sha256": "7b6ea9c333fc645047d5b911f20847a67c404150f57391886259dd91a1dbda1c",
+          "game_slug": "shin-kidou-senki-gundam-wing-endless-duel",
+          "match_kind": "underlying-game"
+        }
       }
     },
     {

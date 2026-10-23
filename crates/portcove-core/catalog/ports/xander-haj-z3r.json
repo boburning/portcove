@@ -8,6 +8,14 @@
     "issue_number": 1912,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/xander-haj/Z3R"
+    "setup_url": "https://github.com/xander-haj/Z3R",
+    "artwork": {
+      "game_id": 1026,
+      "cover_id": 181427,
+      "image_id": "co3vzn",
+      "image_sha256": "915a51bfc7b7945bdae988ef18d315b98ad8d70855136f4b2f24f4e30ebe007a",
+      "game_slug": "the-legend-of-zelda-a-link-to-the-past",
+      "match_kind": "underlying-game"
+    }
   }
 }

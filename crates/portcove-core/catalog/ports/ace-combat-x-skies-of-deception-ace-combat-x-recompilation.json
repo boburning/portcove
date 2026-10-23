@@ -8,6 +8,14 @@
     "issue_number": 355,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/sal063/Ace-Combat-X-Recompilation"
+    "setup_url": "https://github.com/sal063/Ace-Combat-X-Recompilation",
+    "artwork": {
+      "game_id": 14755,
+      "cover_id": 118132,
+      "image_id": "co2j5g",
+      "image_sha256": "affe730da2d39118160f0ced75be6bd7cd6b91a364495a7ec1fab2d69afe6a83",
+      "game_slug": "ace-combat-x-skies-of-deception",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -31,6 +31,37 @@ const executableNames = {
   "preparation-tool": "baseline-tool.exe",
 };
 
+void test("installed onboarding is one Windows ordinary-package scenario with positive custody", () => {
+  const id = "native-installed-onboarding-and-covers";
+  const selection = resolveDesktopSelection({ platform: "win32", scenarios: [id] });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop"]);
+  assert.equal(plan.session.normalPackageSession, true);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "normal-package-boundary");
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  for (const source of [
+    "desktop-installed-onboarding.mts",
+    "desktop-review-controls.mts",
+    "desktop-main-webview-boundary.mts",
+  ])
+    assert.ok(
+      plan.receiptInputs.some(
+        (input) => input.kind === "file" && input.path === `apps/desktop/scripts/${source}`,
+      ),
+    );
+  assert.equal(desktopHarnessDeadlineMs(selection), 1_200_000);
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(() => resolveDesktopSelection({ platform, scenarios: [id] }));
+  for (const profile of ["smoke", "full", "presentation"])
+    assert.ok(
+      !resolveDesktopSelection({ platform: "win32", profile }).selected_scenarios.includes(id),
+    );
+});
+
 void test("native display identity dependency retains the exact helper consumed by preparation", async () => {
   const preparation = new URL(
     "../apps/desktop/scripts/desktop-preparation-test.mts",
@@ -498,6 +529,7 @@ void test("execution planning preserves the independently reviewed pre-change or
         (id) =>
           ![
             "native-controller-api-fallback",
+            "native-installed-onboarding-and-covers",
             "native-linux-webview-origin-boundary",
             "native-preliminary-source-review",
             "native-saved-folder-hash-resume",

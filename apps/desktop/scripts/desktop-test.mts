@@ -122,6 +122,7 @@ import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mts";
 import { catalogUpdateScenario } from "./desktop-catalog-update-test.mts";
 import { defaultCoverScenario } from "./desktop-default-cover-test.mts";
+import { installedOnboardingScenario } from "./desktop-installed-onboarding.mts";
 import {
   desktopHarnessDeadlineMs,
   desktopScenarioById,
@@ -422,13 +423,25 @@ if (selection.selected_scenarios.includes("native-linux-packaged-webview-boundar
 }
 if (normalPackageSession) {
   assert.equal(process.platform, "win32");
-  assert.deepEqual(selection.selected_scenarios, ["native-normal-package-webview-boundary"]);
+  assert.ok(
+    selection.selected_scenarios.length === 1 &&
+      ["native-normal-package-webview-boundary", "native-installed-onboarding-and-covers"].includes(
+        required(selection.selected_scenarios[0]),
+      ),
+    "Ordinary installed package verification requires one maintained scenario",
+  );
   packageEvidence = await verifyNormalPackageEvidence(
     required(values["package-evidence"]),
     revision,
     required(inputs[0]),
     root,
   );
+  if (selection.selected_scenarios.includes("native-installed-onboarding-and-covers"))
+    assert.equal(
+      packageEvidence.execution_context,
+      "current-installed",
+      "Installed onboarding requires the live installed-client receipt",
+    );
   inputs.push(
     ...packageEvidence.identities,
     await fileIdentity(
@@ -2777,6 +2790,40 @@ try {
     const browser = driverBrowser();
     const requests = await normalPackageBoundaryScenario({
       browser,
+      invoke,
+      library,
+      preferencesPath: path.join(runtimeRoot, "preferences.json"),
+      output,
+      artifacts,
+      packageEvidence: required(packageEvidence),
+    });
+    assertOwnedBoundaryRequests(requests);
+  });
+  await scenario("native-installed-onboarding-and-covers", async () => {
+    const pickerContext = {
+      application,
+      getDriverPid: () => required(required(driver).pid),
+      getDriverIdentity: () => ownedSession.driver,
+      output,
+      artifacts,
+    };
+    await installedOnboardingScenario({
+      browser: driverBrowser(),
+      invoke,
+      output,
+      library,
+      application,
+      artifacts,
+      confirmNative: nativeConfirmation(pickerContext),
+      selectPicker: nativePreparedRuntimePicker(pickerContext),
+      restart: restartApplication,
+      capture: captureScenarioScreenshot,
+      setTheme: async (theme) => {
+        await selectSettingsTheme(theme);
+      },
+    });
+    const requests = await normalPackageBoundaryScenario({
+      browser: driverBrowser(),
       invoke,
       library,
       preferencesPath: path.join(runtimeRoot, "preferences.json"),

@@ -8,6 +8,14 @@
     "issue_number": 161,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/masterspike52/reNut"
+    "setup_url": "https://github.com/masterspike52/reNut",
+    "artwork": {
+      "game_id": 3008,
+      "cover_id": 113272,
+      "image_id": "co2feg",
+      "image_sha256": "d9fdbcaf84c07704610236e52a03420bcafec11c295730d03999a01377bf21e1",
+      "game_slug": "banjo-kazooie-nuts-bolts",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 476,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/spider-man-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/spider-man-recomp",
+    "artwork": {
+      "game_id": 3603,
+      "cover_id": 137294,
+      "image_id": "co2xxq",
+      "image_sha256": "e8d0f7ad0d7ff43c0dda1bc8a77da8ba2ee4c5bc7d7ed511439c83351f5fb9ae",
+      "game_slug": "spider-man--5",
+      "match_kind": "underlying-game"
+    }
   }
 }

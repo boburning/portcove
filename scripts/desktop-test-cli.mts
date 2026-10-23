@@ -24,12 +24,21 @@ async function executeDesktopTest() {
         "expected-version": { type: "string" },
         "test-base": { type: "string" },
         evidence: { type: "string" },
+        "installed-scenario": { type: "string" },
       },
     });
     assert.ok(
       Boolean(values["current-installed"]) !== Boolean(values["verify-installed-admission"]),
     );
     assertAbsoluteArguments(values, ["installer", "package-evidence", "expected-app"] as const);
+    const installedScenario =
+      values["installed-scenario"] ?? "native-normal-package-webview-boundary";
+    assert.ok(
+      ["native-normal-package-webview-boundary", "native-installed-onboarding-and-covers"].includes(
+        installedScenario,
+      ),
+      "Select a maintained current-installed scenario",
+    );
     const root = await realpath(fileURLToPath(new URL("..", import.meta.url)));
     const { acquireNativeSessionLock, isProcessAlive } = await import("./native-session-lock.mts");
     const { fileIdentity } = await import("./development-evidence.mts");
@@ -41,7 +50,7 @@ async function executeDesktopTest() {
       );
     const lock = await acquireNativeSessionLock({
       workspace: root,
-      scenarios: ["native-normal-package-webview-boundary"],
+      scenarios: [installedScenario],
     });
     try {
       assert.ok(isProcessAlive(lock.owner.pid), "Native admission owner must still be running");
@@ -60,6 +69,10 @@ async function executeDesktopTest() {
         assert.equal(admission.owner_created_at, lock.owner.created_at);
         assert.equal(admission.workspace, root);
         assert.deepEqual(admission.bindings, bindings);
+        assert.equal(
+          admission.scenario ?? "native-normal-package-webview-boundary",
+          installedScenario,
+        );
         assert.equal(admission.doctor_ok, true);
       } else {
         assertAbsoluteArguments(values, ["test-base", "evidence"] as const);
@@ -86,6 +99,7 @@ async function executeDesktopTest() {
               owner_created_at: lock.owner.created_at,
               workspace: root,
               bindings,
+              scenario: installedScenario,
               doctor_ok: doctor.ok,
               doctor,
             },
@@ -107,6 +121,8 @@ async function executeDesktopTest() {
             values["package-evidence"],
             "-NormalPackageAdmissionPath",
             admissionPath,
+            "-NormalPackageScenario",
+            installedScenario,
             "-ExpectedExecutablePath",
             values["expected-app"],
             "-ExpectedVersion",
@@ -141,6 +157,9 @@ async function executeDesktopTest() {
     console.log("Select with --profile PROFILE or repeat --scenario ID for an exact series.");
     console.log(
       "Current-installed NSIS: --current-installed --installer ABS --package-evidence ABS --expected-app ABS --expected-version VERSION --test-base ABS --evidence ABS",
+    );
+    console.log(
+      "Optional --installed-scenario native-installed-onboarding-and-covers exercises the maintained upstream onboarding journey.",
     );
     console.log(
       "Legacy focused modes remain: --accessibility-only, --artwork-only, --adoption-only.",

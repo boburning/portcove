@@ -8,6 +8,14 @@
     "issue_number": 350,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/strider973/Einhander-Recompiled"
+    "setup_url": "https://github.com/strider973/Einhander-Recompiled",
+    "artwork": {
+      "game_id": 1360,
+      "cover_id": 220131,
+      "image_id": "co4pur",
+      "image_sha256": "d4ea5352ae0d8572e5fd9612111123508c8e67048fd1ec48c21bb51948391849",
+      "game_slug": "einhander",
+      "match_kind": "underlying-game"
+    }
   }
 }

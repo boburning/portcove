@@ -61,8 +61,10 @@ export function planDesktopExecution(
   const minimizedPreparationSession = selection.selected_scenarios.includes(
     "native-minimized-preparation-continuity",
   );
-  const normalPackageSession = selection.selected_scenarios.includes(
-    "native-normal-package-webview-boundary",
+  const normalPackageSession = selection.selected_scenarios.some((id) =>
+    ["native-normal-package-webview-boundary", "native-installed-onboarding-and-covers"].includes(
+      id,
+    ),
   );
   const identityBoundSession =
     selection.selected_scenarios.includes("native-host-publication-recovery") ||
@@ -182,6 +184,13 @@ export function planDesktopExecution(
     inputs.push(receiptSource(new URL("./desktop-real-runtime-test.mts", harnessUrl)));
     inputs.push({ kind: "file", path: "scripts/desktop-real-runtime-inputs.mts" });
   }
+  if (selection.selected_scenarios.includes("native-installed-onboarding-and-covers"))
+    for (const name of [
+      "desktop-installed-onboarding.mts",
+      "desktop-review-controls.mts",
+      "desktop-main-webview-boundary.mts",
+    ])
+      inputs.push(receiptSource(new URL(name, harnessUrl)));
   if (
     platform === "linux" &&
     selection.selected_scenarios.some((id) =>

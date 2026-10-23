@@ -8,6 +8,14 @@
     "issue_number": 827,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/novapowers0/BloodyRoar2Recomp"
+    "setup_url": "https://github.com/novapowers0/BloodyRoar2Recomp",
+    "artwork": {
+      "game_id": 4140,
+      "cover_id": 197342,
+      "image_id": "co489q",
+      "image_sha256": "1d9da18c25e734f649a742ed62e39893226d02633e7d65ec18752fd6b4736072",
+      "game_slug": "bloody-roar-2",
+      "match_kind": "underlying-game"
+    }
   }
 }

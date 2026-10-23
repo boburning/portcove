@@ -8,6 +8,14 @@
     "issue_number": 158,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/SolarCookies/TiP-Recomp"
+    "setup_url": "https://github.com/SolarCookies/TiP-Recomp",
+    "artwork": {
+      "game_id": 7238,
+      "cover_id": 138984,
+      "image_id": "co2z8o",
+      "image_sha256": "93f7b41ce3e73eec6cc473613c0716b8a32d28e22dc0df0d0ebe35cda6adf517",
+      "game_slug": "viva-pinata-trouble-in-paradise",
+      "match_kind": "underlying-game"
+    }
   }
 }

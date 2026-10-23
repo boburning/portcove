@@ -8,6 +8,14 @@
     "issue_number": 1119,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/sal063/Ace-Combat-5-Static-recompilation"
+    "setup_url": "https://github.com/sal063/Ace-Combat-5-Static-recompilation",
+    "artwork": {
+      "game_id": 14753,
+      "cover_id": 78790,
+      "image_id": "co1osm",
+      "image_sha256": "633bdf32b6da69fea10c6c71958361ca651c11d30645d7c0fd404f8277b9ee2a",
+      "game_slug": "ace-combat-5-the-unsung-war",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1975,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/elyosh/OpenTIE"
+    "setup_url": "https://github.com/elyosh/OpenTIE",
+    "artwork": {
+      "game_id": 166,
+      "cover_id": 106709,
+      "image_id": "co2ac5",
+      "image_sha256": "1817c06919cfe45d9e98238a1667db2f898e07d27a62a372fdef4bb0e65d910b",
+      "game_slug": "star-wars-tie-fighter",
+      "match_kind": "underlying-game"
+    }
   }
 }

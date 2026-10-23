@@ -8,6 +8,14 @@
     "issue_number": 129,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/birabittoh/KameoRePowered"
+    "setup_url": "https://github.com/birabittoh/KameoRePowered",
+    "artwork": {
+      "game_id": 7029,
+      "cover_id": 87149,
+      "image_id": "co1v8t",
+      "image_sha256": "571fd0443f4a46cc879dc18a7abf7f3de88629ff3686406c376b9fcacb6af63a",
+      "game_slug": "kameo-elements-of-power",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1397,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/PaulCombal/mw2-recompiled"
+    "setup_url": "https://github.com/PaulCombal/mw2-recompiled",
+    "artwork": {
+      "game_id": 559,
+      "cover_id": 156701,
+      "image_id": "co3cwt",
+      "image_sha256": "db8e976cffd405caa323e7cc4ff4f7814e6af240bd41592be80deb920e07681e",
+      "game_slug": "call-of-duty-modern-warfare-2",
+      "match_kind": "underlying-game"
+    }
   }
 }

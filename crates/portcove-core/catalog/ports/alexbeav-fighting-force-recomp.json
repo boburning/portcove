@@ -8,6 +8,14 @@
     "issue_number": 448,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp",
+    "artwork": {
+      "game_id": 2542,
+      "cover_id": 97859,
+      "image_id": "co23ib",
+      "image_sha256": "7041f766c018d891df4e91f6c6e472715ac0ac0a4a02b13b5e6b70cd907fa93d",
+      "game_slug": "fighting-force",
+      "match_kind": "underlying-game"
+    }
   }
 }

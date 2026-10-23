@@ -8,6 +8,14 @@
     "issue_number": 482,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/the-fifth-element-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/the-fifth-element-recomp",
+    "artwork": {
+      "game_id": 50805,
+      "cover_id": 504476,
+      "image_id": "coat98",
+      "image_sha256": "63f410dfc26c3ac5290f8fb846a70b6e15b0afc7e69d4b97cf61184372898c37",
+      "game_slug": "the-fifth-element",
+      "match_kind": "underlying-game"
+    }
   }
 }

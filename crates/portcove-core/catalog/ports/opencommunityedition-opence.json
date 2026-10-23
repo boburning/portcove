@@ -8,6 +8,14 @@
     "issue_number": 1849,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/OpenCommunityEdition/OpenCE"
+    "setup_url": "https://github.com/OpenCommunityEdition/OpenCE",
+    "artwork": {
+      "game_id": 740,
+      "cover_id": 128403,
+      "image_id": "co2r2r",
+      "image_sha256": "8e10e22bd95498f7c0cddbcf8566ae173456a5ccb3c9e91ebec215b21f633d8f",
+      "game_slug": "halo-combat-evolved",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1865,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Blizz127/parasite-eve-decomp-port"
+    "setup_url": "https://github.com/Blizz127/parasite-eve-decomp-port",
+    "artwork": {
+      "game_id": 7357,
+      "cover_id": 220129,
+      "image_id": "co4pup",
+      "image_sha256": "4e777e5888466d303dbabfc8c0ef863b8a842d7dac977f0c09b47dbca412980b",
+      "game_slug": "parasite-eve",
+      "match_kind": "underlying-game"
+    }
   }
 }

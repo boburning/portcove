@@ -8,6 +8,14 @@
     "issue_number": 1811,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/elliotttate/DKC2Recomp"
+    "setup_url": "https://github.com/elliotttate/DKC2Recomp",
+    "artwork": {
+      "game_id": 1092,
+      "cover_id": 94882,
+      "image_id": "co217m",
+      "image_sha256": "14026039a1de169794ab52fb49d5b5675b059ab037ebccc8a4ce6891b31bcadd",
+      "game_slug": "donkey-kong-country-2-diddy-s-kong-quest",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1905,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Wargus/war1gus"
+    "setup_url": "https://github.com/Wargus/war1gus",
+    "artwork": {
+      "game_id": 129,
+      "cover_id": 90529,
+      "image_id": "co1xup",
+      "image_sha256": "d40b5f879c0b748f887a59f5e1eac47426751de0f15d5223ea74967c27ebc0df",
+      "game_slug": "warcraft-orcs-humans",
+      "match_kind": "underlying-game"
+    }
   }
 }

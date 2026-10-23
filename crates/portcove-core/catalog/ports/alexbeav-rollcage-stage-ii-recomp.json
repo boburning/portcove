@@ -8,6 +8,14 @@
     "issue_number": 1606,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp",
+    "artwork": {
+      "game_id": 3163,
+      "cover_id": 88308,
+      "image_id": "co1w50",
+      "image_sha256": "0467766928426ee089d2987fd9f69f4caf00792ad6f5aa6175a0e773e0e1c2ca",
+      "game_slug": "rollcage-stage-ii",
+      "match_kind": "underlying-game"
+    }
   }
 }

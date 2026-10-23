@@ -8,6 +8,14 @@
     "issue_number": 1711,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/tmcleroy/muscle-march-recomp"
+    "setup_url": "https://github.com/tmcleroy/muscle-march-recomp",
+    "artwork": {
+      "game_id": 15914,
+      "cover_id": 185451,
+      "image_id": "co3z3f",
+      "image_sha256": "313d6afdc7b8b20debfc26560beffd862e53cb28b262875edd9bfdf2cac63d7a",
+      "game_slug": "muscle-march",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -7,7 +7,15 @@
     "summary": "Native Resident Evil Gaiden recompilation. Gameplay remains untested.",
     "project_url": "https://github.com/sergiomanzur/regaiden-recomp",
     "original_game_title": "Resident Evil Gaiden",
-    "issue_number": 342
+    "issue_number": 342,
+    "artwork": {
+      "game_id": 969,
+      "cover_id": 136761,
+      "image_id": "co2xix",
+      "image_sha256": "0ef402ea9193d7e8f4a3883e661c8f396bdf57ef49e2f87088839551c0d1930b",
+      "game_slug": "resident-evil-gaiden",
+      "match_kind": "underlying-game"
+    }
   },
   "integration": {
     "support_tier": "beta",

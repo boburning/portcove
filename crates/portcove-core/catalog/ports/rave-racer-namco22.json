@@ -8,6 +8,14 @@
     "issue_number": 1566,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/spacestate1/namco22-decompile"
+    "setup_url": "https://github.com/spacestate1/namco22-decompile",
+    "artwork": {
+      "game_id": 39713,
+      "cover_id": 395104,
+      "image_id": "co8gv4",
+      "image_sha256": "8ebab5ac34d52adfc2da503ae20dd90bd6d07c2904665c00e8b2357be6d779ce",
+      "game_slug": "rave-racer",
+      "match_kind": "underlying-game"
+    }
   }
 }

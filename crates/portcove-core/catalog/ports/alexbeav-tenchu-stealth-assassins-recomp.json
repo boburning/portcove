@@ -8,6 +8,14 @@
     "issue_number": 487,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp",
+    "artwork": {
+      "game_id": 4113,
+      "cover_id": 112868,
+      "image_id": "co2f38",
+      "image_sha256": "da006c601a4dc6bfe35683082ddbbf1b719abe092b9e949ebee77f449bc27f81",
+      "game_slug": "tenchu-stealth-assassins",
+      "match_kind": "underlying-game"
+    }
   }
 }

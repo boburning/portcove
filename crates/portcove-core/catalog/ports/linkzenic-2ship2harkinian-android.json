@@ -8,6 +8,14 @@
     "issue_number": 1787,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/linkzenic/2ship2harkinian-Android"
+    "setup_url": "https://github.com/linkzenic/2ship2harkinian-Android",
+    "artwork": {
+      "game_id": 1030,
+      "cover_id": 172745,
+      "image_id": "co3pah",
+      "image_sha256": "342f842607e49e0f37fc9bb70b0ac967c18c760410031e473123655d21c903d5",
+      "game_slug": "the-legend-of-zelda-majora-s-mask",
+      "match_kind": "underlying-game"
+    }
   }
 }

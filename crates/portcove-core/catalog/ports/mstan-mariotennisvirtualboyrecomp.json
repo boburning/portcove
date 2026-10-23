@@ -8,6 +8,14 @@
     "issue_number": 1842,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/MarioTennisVirtualBoyRecomp"
+    "setup_url": "https://github.com/mstan/MarioTennisVirtualBoyRecomp",
+    "artwork": {
+      "game_id": 20386,
+      "cover_id": 99911,
+      "image_id": "co253b",
+      "image_sha256": "cdccd75f3e79bb8f71a9f165d5c942f7809a5fa0334e7ef7bce054c5fa20957c",
+      "game_slug": "marios-tennis",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 174,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/PokemonYellowRecomp"
+    "setup_url": "https://github.com/mstan/PokemonYellowRecomp",
+    "artwork": {
+      "game_id": 1512,
+      "cover_id": 266345,
+      "image_id": "co5pih",
+      "image_sha256": "4be67775dc5afbbffb9c1a81c7ac009368ef1a2cefefab08defa813f73790f02",
+      "game_slug": "pokemon-yellow-version-special-pikachu-edition",
+      "match_kind": "underlying-game"
+    }
   }
 }

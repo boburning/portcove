@@ -8,6 +8,14 @@
     "issue_number": 828,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbatalov/arcanum-ce"
+    "setup_url": "https://github.com/alexbatalov/arcanum-ce",
+    "artwork": {
+      "game_id": 255,
+      "cover_id": 101605,
+      "image_id": "co26ed",
+      "image_sha256": "5cc28e6a2310bad18bcfc73e511408f174d13a0a1a4ac8d769649bfe162cb7b0",
+      "game_slug": "arcanum-of-steamworks-and-magick-obscura",
+      "match_kind": "underlying-game"
+    }
   }
 }

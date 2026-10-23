@@ -8,6 +8,14 @@
     "issue_number": 1310,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/jedijosh920/SWROTS-PC"
+    "setup_url": "https://github.com/jedijosh920/SWROTS-PC",
+    "artwork": {
+      "game_id": 6159,
+      "cover_id": 79114,
+      "image_id": "co1p1m",
+      "image_sha256": "a67c8361ebec3bcceba214c28edda40cd8c1f188ef336f4a88bb0c669549cbfd",
+      "game_slug": "star-wars-episode-iii-revenge-of-the-sith",
+      "match_kind": "underlying-game"
+    }
   }
 }

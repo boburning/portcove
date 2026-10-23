@@ -8,6 +8,14 @@
     "issue_number": 812,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/LittleBitUA/DPRecomp"
+    "setup_url": "https://github.com/LittleBitUA/DPRecomp",
+    "artwork": {
+      "game_id": 1276,
+      "cover_id": 542605,
+      "image_id": "cobmod",
+      "image_sha256": "2f0018b77441d22dc139ce436c20923cba8fb58eaea682e15bd6bc32c253c851",
+      "game_slug": "deadly-premonition",
+      "match_kind": "underlying-game"
+    }
   }
 }

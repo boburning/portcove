@@ -8,6 +8,14 @@
     "issue_number": 1121,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp"
+    "setup_url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+    "artwork": {
+      "game_id": 20409,
+      "cover_id": 126839,
+      "image_id": "co2pvb",
+      "image_sha256": "22e890538e151ec8aea2d259904c84ae177f3c0db27159fb6185e1352f577615",
+      "game_slug": "dead-rising-2-case-zero",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 494,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp",
+    "artwork": {
+      "game_id": 126469,
+      "cover_id": 130299,
+      "image_id": "co2sjf",
+      "image_sha256": "4a541afc919025490761ab70d674313b47427f0b96220b2c05851c430c202da4",
+      "game_slug": "vampire-hunter-d",
+      "match_kind": "underlying-game"
+    }
   }
 }

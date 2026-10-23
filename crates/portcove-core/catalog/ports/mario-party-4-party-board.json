@@ -8,6 +8,14 @@
     "issue_number": 1130,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mariopartyrd/partyboard"
+    "setup_url": "https://github.com/mariopartyrd/partyboard",
+    "artwork": {
+      "game_id": 2330,
+      "cover_id": 119141,
+      "image_id": "co2jxh",
+      "image_sha256": "46115e471f2e3265d4b3ffe4f05945cdde7945c12f067dde680374281236ddd9",
+      "game_slug": "mario-party-4",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 149,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/patchzyy/Wiicompiled"
+    "setup_url": "https://github.com/patchzyy/Wiicompiled",
+    "artwork": {
+      "game_id": 2183,
+      "cover_id": 94766,
+      "image_id": "co214e",
+      "image_sha256": "99649b10acf61fded11decddbd2ad02ddb1b91e2ebbc92123b1a5242029cf9e9",
+      "game_slug": "mario-kart-wii",
+      "match_kind": "underlying-game"
+    }
   }
 }

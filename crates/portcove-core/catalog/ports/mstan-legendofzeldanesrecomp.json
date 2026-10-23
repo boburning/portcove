@@ -8,6 +8,14 @@
     "issue_number": 1840,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/LegendOfZeldaNESRecomp"
+    "setup_url": "https://github.com/mstan/LegendOfZeldaNESRecomp",
+    "artwork": {
+      "game_id": 1022,
+      "cover_id": 86202,
+      "image_id": "co1uii",
+      "image_sha256": "813d808e276489e374104f0b476b44d4ae8ad9c73e72c262310d4c829878f37c",
+      "game_slug": "the-legend-of-zelda",
+      "match_kind": "underlying-game"
+    }
   }
 }

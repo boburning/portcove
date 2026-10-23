@@ -8,6 +8,14 @@
     "issue_number": 352,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/SamSteProjects/legend-of-legaia-recomp"
+    "setup_url": "https://github.com/SamSteProjects/legend-of-legaia-recomp",
+    "artwork": {
+      "game_id": 13676,
+      "cover_id": 120917,
+      "image_id": "co2lat",
+      "image_sha256": "885b91f94d9b98b87afa1c6acbf6d362ce642386551334ba52a02ddf283ed0fe",
+      "game_slug": "legend-of-legaia",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1396,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Comfubar/KnowYourRoleRecomp"
+    "setup_url": "https://github.com/Comfubar/KnowYourRoleRecomp",
+    "artwork": {
+      "game_id": 6444,
+      "cover_id": 576150,
+      "image_id": "cocck6",
+      "image_sha256": "4b987f67896fab09be7e7b210f8333e89ae1a511f2a483d102896fd7f452e276",
+      "game_slug": "wwf-smackdown-2-know-your-role",
+      "match_kind": "underlying-game"
+    }
   }
 }

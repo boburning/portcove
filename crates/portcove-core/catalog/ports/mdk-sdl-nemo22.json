@@ -8,6 +8,14 @@
     "issue_number": 1775,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/nemo22/mdk-sdl"
+    "setup_url": "https://github.com/nemo22/mdk-sdl",
+    "artwork": {
+      "game_id": 219,
+      "cover_id": 100005,
+      "image_id": "co255x",
+      "image_sha256": "1419a475923b58ac1c10e48944b6dff9744b2afb9825a095d42426113fbcd61b",
+      "game_slug": "mdk",
+      "match_kind": "underlying-game"
+    }
   }
 }

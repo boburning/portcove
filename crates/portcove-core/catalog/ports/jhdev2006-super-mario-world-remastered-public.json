@@ -8,6 +8,14 @@
     "issue_number": 1891,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public"
+    "setup_url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public",
+    "artwork": {
+      "game_id": 1070,
+      "cover_id": 401336,
+      "image_id": "co8lo8",
+      "image_sha256": "0d5d4199eba537b4cdafcc66ad790c2070a7c249996e1235fbb7cfea3f977c04",
+      "game_slug": "super-mario-world",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1126,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/birabittoh/EternalSonataReprise"
+    "setup_url": "https://github.com/birabittoh/EternalSonataReprise",
+    "artwork": {
+      "game_id": 6990,
+      "cover_id": 76615,
+      "image_id": "co1n47",
+      "image_sha256": "50a21a572f5b3741fd3cbf74e6c13cffbccee71f7dd22ac98557a83a6683baf6",
+      "game_slug": "eternal-sonata",
+      "match_kind": "underlying-game"
+    }
   }
 }

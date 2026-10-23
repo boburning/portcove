@@ -8,6 +8,14 @@
     "issue_number": 474,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp",
+    "artwork": {
+      "game_id": 286,
+      "cover_id": 434744,
+      "image_id": "co9bg8",
+      "image_sha256": "0582a3455678d4ed8db6a726c1bfeebf0a70bf7996a26c242ddfa8e6da337f80",
+      "game_slug": "quake-ii",
+      "match_kind": "underlying-game"
+    }
   }
 }

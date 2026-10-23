@@ -8,6 +8,14 @@
     "issue_number": 1806,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded"
+    "setup_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded",
+    "artwork": {
+      "game_id": 1286,
+      "cover_id": 86478,
+      "image_id": "co1uq6",
+      "image_sha256": "b069fddecc98b4807eca1682d4c3858eff1cbce95901329777305ee1338ccab7",
+      "game_slug": "conker-s-bad-fur-day",
+      "match_kind": "underlying-game"
+    }
   }
 }

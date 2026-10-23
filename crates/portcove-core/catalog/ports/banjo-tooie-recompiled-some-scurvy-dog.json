@@ -8,6 +8,14 @@
     "issue_number": 1395,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/some-scurvy-dog/BanjoTooieRecompiled"
+    "setup_url": "https://github.com/some-scurvy-dog/BanjoTooieRecompiled",
+    "artwork": {
+      "game_id": 3418,
+      "cover_id": 295556,
+      "image_id": "co6c1w",
+      "image_sha256": "26b3761c34557f7325f55f859547c55b8f46525354ab10f946cb57169919e28b",
+      "game_slug": "banjo-tooie",
+      "match_kind": "underlying-game"
+    }
   }
 }

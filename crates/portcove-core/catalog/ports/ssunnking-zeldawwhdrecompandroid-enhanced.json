@@ -8,6 +8,14 @@
     "issue_number": 1907,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED"
+    "setup_url": "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED",
+    "artwork": {
+      "game_id": 2276,
+      "cover_id": 172350,
+      "image_id": "co3ozi",
+      "image_sha256": "2a1bbeb196640888a17f5911593796fe7fe73c25fff25201c789ad6ea0cec8f6",
+      "game_slug": "the-legend-of-zelda-the-wind-waker-hd",
+      "match_kind": "underlying-game"
+    }
   }
 }

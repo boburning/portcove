@@ -8,7 +8,15 @@
     "project_url": "https://github.com/TheForceEngine/TheForceEngine",
     "original_game_title": "Star Wars: Dark Forces",
     "variant_label": "PC",
-    "issue_number": 726
+    "issue_number": 726,
+    "artwork": {
+      "game_id": 157,
+      "cover_id": 232486,
+      "image_id": "co4zdy",
+      "image_sha256": "ec562b66d9bbd3c705ce7d7925535727010203326179b1d73da2085cbad48ab9",
+      "game_slug": "star-wars-dark-forces",
+      "match_kind": "underlying-game"
+    }
   },
   "integration": {
     "support_tier": "beta",

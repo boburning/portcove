@@ -8,6 +8,14 @@
     "issue_number": 1793,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Keriew/augustus"
+    "setup_url": "https://github.com/Keriew/augustus",
+    "artwork": {
+      "game_id": 6332,
+      "cover_id": 561798,
+      "image_id": "coc1hi",
+      "image_sha256": "56d8d709fe76b92d75c0cd522724afcc2a9d8e9ca2ca924631fe0bd074452e5c",
+      "game_slug": "caesar-iii",
+      "match_kind": "underlying-game"
+    }
   }
 }

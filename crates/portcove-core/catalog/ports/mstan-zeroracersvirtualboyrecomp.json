@@ -8,6 +8,14 @@
     "issue_number": 1916,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/ZeroRacersVirtualBoyRecomp"
+    "setup_url": "https://github.com/mstan/ZeroRacersVirtualBoyRecomp",
+    "artwork": {
+      "game_id": 176043,
+      "cover_id": 530619,
+      "image_id": "cobdff",
+      "image_sha256": "2870ff71b6eb0aadfa93a60911fe6eee70bf834fff19538be91b56d26d2bcb71",
+      "game_slug": "zero-racers",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 354,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/fabioap-cpu/Tekken3Recomp"
+    "setup_url": "https://github.com/fabioap-cpu/Tekken3Recomp",
+    "artwork": {
+      "game_id": 306134,
+      "cover_id": 390375,
+      "image_id": "co8d7r",
+      "image_sha256": "fc798e151ef18b8f60df2a6328c7e4635d301229a034f5e50d6164647a08c8f4",
+      "game_slug": "tekken-3--1",
+      "match_kind": "underlying-game"
+    }
   }
 }

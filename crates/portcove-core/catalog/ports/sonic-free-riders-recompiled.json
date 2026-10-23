@@ -8,6 +8,14 @@
     "issue_number": 1450,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/YuutaTsubasa/Free-Riders-Recompiled"
+    "setup_url": "https://github.com/YuutaTsubasa/Free-Riders-Recompiled",
+    "artwork": {
+      "game_id": 20118,
+      "cover_id": 93161,
+      "image_id": "co1zvt",
+      "image_sha256": "5a22c2b30c5f1e68a3f3c0fb6e87023772fb7c876ce3fcee5415ddc9bbf36ca1",
+      "game_slug": "sonic-free-riders",
+      "match_kind": "underlying-game"
+    }
   }
 }

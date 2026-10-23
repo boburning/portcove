@@ -8,6 +8,14 @@
     "issue_number": 1883,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/TekRantGaming/simpsons-wrestling-recompiled"
+    "setup_url": "https://github.com/TekRantGaming/simpsons-wrestling-recompiled",
+    "artwork": {
+      "game_id": 2841,
+      "cover_id": 198616,
+      "image_id": "co4994",
+      "image_sha256": "12dcf8e3762a1ce9d2b944543cd0ffe46e167dc6a3c397f4a794c5f5fe0bad3f",
+      "game_slug": "the-simpsons-wrestling",
+      "match_kind": "underlying-game"
+    }
   }
 }

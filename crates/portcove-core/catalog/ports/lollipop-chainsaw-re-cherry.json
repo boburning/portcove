@@ -8,6 +8,14 @@
     "issue_number": 162,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/MaxDeadBear/Re-Cherry"
+    "setup_url": "https://github.com/MaxDeadBear/Re-Cherry",
+    "artwork": {
+      "game_id": 1284,
+      "cover_id": 166863,
+      "image_id": "co3kr3",
+      "image_sha256": "df0c33bcf2e824cd8b53ee21229a8b3899fc9254578202299d1ec99d1eeaafd2",
+      "game_slug": "lollipop-chainsaw",
+      "match_kind": "underlying-game"
+    }
   }
 }

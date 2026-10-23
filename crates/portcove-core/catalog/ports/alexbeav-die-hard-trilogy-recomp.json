@@ -8,6 +8,14 @@
     "issue_number": 440,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp",
+    "artwork": {
+      "game_id": 8234,
+      "cover_id": 133614,
+      "image_id": "co2v3i",
+      "image_sha256": "02a4599930c063a7b299791af4d31cc0f70bb331ff3e8dea42d3e7ee552559e6",
+      "game_slug": "die-hard-trilogy",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1131,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/ExpansionPak/ModernGekko"
+    "setup_url": "https://github.com/ExpansionPak/ModernGekko",
+    "artwork": {
+      "game_id": 3725,
+      "cover_id": 526225,
+      "image_id": "coba1d",
+      "image_sha256": "6805796903f3b055e722d349c7eba789a8eb841e85f896eeea57f28101868f53",
+      "game_slug": "kirbys-return-to-dream-land",
+      "match_kind": "underlying-game"
+    }
   }
 }

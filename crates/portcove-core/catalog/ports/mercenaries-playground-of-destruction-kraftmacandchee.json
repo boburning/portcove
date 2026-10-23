@@ -8,6 +8,14 @@
     "issue_number": 1672,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/KraftMacAndChee/Mercenaries-Recompiled"
+    "setup_url": "https://github.com/KraftMacAndChee/Mercenaries-Recompiled",
+    "artwork": {
+      "game_id": 2683,
+      "cover_id": 78949,
+      "image_id": "co1ox1",
+      "image_sha256": "6620dca4b4c3e2276f5fa141d8690ecbb56edc9d5aa53504afb06c062f615cf8",
+      "game_slug": "mercenaries-playground-of-destruction",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 1588,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp",
+    "artwork": {
+      "game_id": 1419,
+      "cover_id": 232215,
+      "image_id": "co4z6f",
+      "image_sha256": "adbb4260d6903edac93c5384815a2d6ecb539dd7495c442f1b3fb228c7abc805",
+      "game_slug": "bushido-blade-2",
+      "match_kind": "underlying-game"
+    }
   }
 }

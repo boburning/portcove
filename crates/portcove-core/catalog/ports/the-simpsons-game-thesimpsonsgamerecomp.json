@@ -8,6 +8,14 @@
     "issue_number": 379,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/YesterMester/TheSimpsonsGameRecomp"
+    "setup_url": "https://github.com/YesterMester/TheSimpsonsGameRecomp",
+    "artwork": {
+      "game_id": 2656,
+      "cover_id": 122193,
+      "image_id": "co2ma9",
+      "image_sha256": "5714cdd3982c957c499fb3c839db2f6d89e66930dcbfbcc3e32ad45095a312a1",
+      "game_slug": "the-simpsons-game",
+      "match_kind": "underlying-game"
+    }
   }
 }

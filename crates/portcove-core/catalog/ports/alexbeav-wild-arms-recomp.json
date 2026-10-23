@@ -8,6 +8,14 @@
     "issue_number": 1611,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp",
+    "artwork": {
+      "game_id": 1677,
+      "cover_id": 88515,
+      "image_id": "co1war",
+      "image_sha256": "c7c304991c52cf3aacdde6613c12b3278608161aa33fc94ff2f429872437a05a",
+      "game_slug": "wild-arms",
+      "match_kind": "underlying-game"
+    }
   }
 }

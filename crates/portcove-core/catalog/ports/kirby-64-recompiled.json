@@ -8,6 +8,14 @@
     "issue_number": 1574,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Kirby64Ret/Kirby64Recomp"
+    "setup_url": "https://github.com/Kirby64Ret/Kirby64Recomp",
+    "artwork": {
+      "game_id": 2713,
+      "cover_id": 88595,
+      "image_id": "co1wcz",
+      "image_sha256": "89a352d789e3b4c813e537af3a77f2cdd5610d50bfdd9a610001e7efb2ef73ef",
+      "game_slug": "kirby-64-the-crystal-shards",
+      "match_kind": "underlying-game"
+    }
   }
 }

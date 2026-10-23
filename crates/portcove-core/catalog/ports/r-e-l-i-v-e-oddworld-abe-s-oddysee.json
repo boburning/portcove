@@ -8,6 +8,14 @@
     "issue_number": 133,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/AliveTeam/alive_reversing"
+    "setup_url": "https://github.com/AliveTeam/alive_reversing",
+    "artwork": {
+      "game_id": 999,
+      "cover_id": 385472,
+      "image_id": "co89fk",
+      "image_sha256": "1fdb0a42c9fe7d87464d610b83edcc3b69fad0f3fe7270542be97d8322303957",
+      "game_slug": "oddworld-abe-s-oddysee",
+      "match_kind": "underlying-game"
+    }
   }
 }

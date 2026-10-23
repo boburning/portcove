@@ -8,6 +8,14 @@
     "issue_number": 467,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-recomp"
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-recomp",
+    "artwork": {
+      "game_id": 4104,
+      "cover_id": 277154,
+      "image_id": "co5xuq",
+      "image_sha256": "394dd22a691ff5564f20b4861daedd4cdd5a1e19272aaf562bf5feb008a8711d",
+      "game_slug": "monster-rancher",
+      "match_kind": "underlying-game"
+    }
   }
 }

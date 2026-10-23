@@ -8,6 +8,14 @@
     "issue_number": 384,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation"
+    "setup_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation",
+    "artwork": {
+      "game_id": 21062,
+      "cover_id": 515556,
+      "image_id": "cob1t0",
+      "image_sha256": "5d2b03cbd07290402537b9d9eadefb95b5a1012b31d0d6f4d71e595ef4354e9e",
+      "game_slug": "sonic-mania",
+      "match_kind": "underlying-game"
+    }
   }
 }

@@ -8,6 +8,14 @@
     "issue_number": 373,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/cybervisi0n/pokeplatinum"
+    "setup_url": "https://github.com/cybervisi0n/pokeplatinum",
+    "artwork": {
+      "game_id": 1519,
+      "cover_id": 395125,
+      "image_id": "co8gvp",
+      "image_sha256": "7ee85df3ddb35c9ae815b4f3eae636d2e9a5100c3c53f72ae48ecd69e533dc57",
+      "game_slug": "pokemon-platinum-version",
+      "match_kind": "underlying-game"
+    }
   }
 }

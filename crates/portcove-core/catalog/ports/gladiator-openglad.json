@@ -8,6 +8,14 @@
     "issue_number": 1917,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/openglad/openglad"
+    "setup_url": "https://github.com/openglad/openglad",
+    "artwork": {
+      "game_id": 100047,
+      "cover_id": 563025,
+      "image_id": "coc2fl",
+      "image_sha256": "ddabf593da503a4f6f737dcb5b5698da4a061998a8a34746d0985c8384e6a5a8",
+      "game_slug": "gladiator--1",
+      "match_kind": "underlying-game"
+    }
   }
 }

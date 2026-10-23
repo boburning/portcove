@@ -8,6 +8,14 @@
     "issue_number": 1881,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/vibecodekun/shantaerecomp"
+    "setup_url": "https://github.com/vibecodekun/shantaerecomp",
+    "artwork": {
+      "game_id": 8432,
+      "cover_id": 103146,
+      "image_id": "co27l6",
+      "image_sha256": "7df41a67e947e2e6179f7fc876f2e4ce2671e6f7c1b485844ad49bfec6be7fb3",
+      "game_slug": "shantae",
+      "match_kind": "underlying-game"
+    }
   }
 }

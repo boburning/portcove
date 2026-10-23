@@ -8,6 +8,14 @@
     "issue_number": 1857,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/GiZcesi/OpenTricky"
+    "setup_url": "https://github.com/GiZcesi/OpenTricky",
+    "artwork": {
+      "game_id": 4176,
+      "cover_id": 130705,
+      "image_id": "co2sup",
+      "image_sha256": "f43279b1c16e39ea01ddb8b9f1a2c125866da61dad63bb2e596b8b4adca2edb3",
+      "game_slug": "ssx-tricky",
+      "match_kind": "underlying-game"
+    }
   }
 }

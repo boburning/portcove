@@ -8,6 +8,14 @@
     "issue_number": 1633,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/chasem-dev/sms-pc-port"
+    "setup_url": "https://github.com/chasem-dev/sms-pc-port",
+    "artwork": {
+      "game_id": 1075,
+      "cover_id": 524521,
+      "image_id": "cob8q1",
+      "image_sha256": "d24815214c09cacb6947c63015545a19f94a54eda2762365f6c234ff2be167ed",
+      "game_slug": "super-mario-sunshine",
+      "match_kind": "underlying-game"
+    }
   }
 }

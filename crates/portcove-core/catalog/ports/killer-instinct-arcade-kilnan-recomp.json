@@ -8,6 +8,14 @@
     "issue_number": 2246,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/kilnan/ki-recomp"
+    "setup_url": "https://github.com/kilnan/ki-recomp",
+    "artwork": {
+      "game_id": 2907,
+      "cover_id": 100781,
+      "image_id": "co25rh",
+      "image_sha256": "1bdd5b9f331881dd465e4e02fbb59054b0e20706ca8bfc8e2d06d2dfac5f9be2",
+      "game_slug": "killer-instinct",
+      "match_kind": "underlying-game"
+    }
   }
 }

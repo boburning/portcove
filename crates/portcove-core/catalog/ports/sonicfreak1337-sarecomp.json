@@ -8,6 +8,14 @@
     "issue_number": 1887,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/sonicfreak1337/SARecomp"
+    "setup_url": "https://github.com/sonicfreak1337/SARecomp",
+    "artwork": {
+      "game_id": 7860,
+      "cover_id": 258276,
+      "image_id": "co5jac",
+      "image_sha256": "aa79d5c0a36bf2e6a94431c11d102591abb5bcfc082ec19432cfb7b0e1f55aeb",
+      "game_slug": "sonic-adventure",
+      "match_kind": "underlying-game"
+    }
   }
 }
