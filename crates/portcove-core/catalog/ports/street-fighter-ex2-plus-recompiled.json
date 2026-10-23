@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "street-fighter-ex2-plus-recompiled",
+    "name": "Street Fighter EX2 Plus Recompiled",
+    "summary": "Explore Street Fighter EX2 Plus Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/strider973/Street-Fighter-EX2-Plus-Recompiled",
+    "issue_number": 1117,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/strider973/Street-Fighter-EX2-Plus-Recompiled"
+  }
+}

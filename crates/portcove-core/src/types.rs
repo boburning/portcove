@@ -690,6 +690,80 @@ pub struct CatalogDocument {
     pub ports: Vec<PortDefinition>,
 }
 
+/// Descriptive project information. A listing never grants managed installation,
+/// executable selection, source access or ownership of an external directory.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PortListing {
+    pub id: String,
+    pub name: String,
+    pub summary: String,
+    pub project_url: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub original_game_title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub variant_label: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub issue_number: Option<u64>,
+    /// Empty means unknown; it is not an execution compatibility declaration.
+    #[serde(default)]
+    pub platforms: Vec<Platform>,
+    #[serde(default)]
+    pub availability: ListingAvailability,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub release_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub setup_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manual_setup: Option<ManualSetupGuide>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artwork: Option<IgdbArtwork>,
+}
+
+/// A dated discovery fact, not a managed support or artifact admission decision.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ListingAvailability {
+    #[default]
+    Unknown,
+    Packages,
+    SourceOnly,
+    Unavailable,
+}
+
+/// Independently versioned inert directory projection. The operational catalog
+/// keeps its existing schema and strict PortDefinition interpretation.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CatalogListingDocument {
+    pub format_version: u32,
+    pub listings: Vec<PortListing>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ListingAction {
+    AttachExisting,
+    RelinkExisting,
+    Launch,
+    RemoveRegistration,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ListingActionAssessment {
+    pub action: ListingAction,
+    pub allowed: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PortListingStatus {
+    pub port_id: String,
+    pub status: PortStatus,
+    pub actions: Vec<ListingActionAssessment>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SourceRecord {
     pub profile_id: String,
@@ -878,6 +952,7 @@ impl FromStr for ActivityTargetKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ActivityOperation {
+    DownloadPackage,
     Prepare,
     UpdateCatalog,
     DiscoverSources,
@@ -909,6 +984,7 @@ pub enum ActivityOperation {
 impl std::fmt::Display for ActivityOperation {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
+            Self::DownloadPackage => "download_package",
             Self::Prepare => "prepare",
             Self::UpdateCatalog => "update_catalog",
             Self::ImportLibrary => "import_library",
@@ -944,6 +1020,7 @@ impl FromStr for ActivityOperation {
 
     fn from_str(value: &str) -> Result<Self> {
         match value {
+            "download_package" => Ok(Self::DownloadPackage),
             "prepare" => Ok(Self::Prepare),
             "update_catalog" => Ok(Self::UpdateCatalog),
             "import_library" => Ok(Self::ImportLibrary),
@@ -1200,6 +1277,12 @@ pub struct ActivityFeed {
 pub struct WorkspaceSnapshot {
     pub catalog: CatalogDocument,
     pub statuses: Vec<PortStatus>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub listing_catalog: Option<CatalogListingDocument>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub listing_statuses: Vec<PortListingStatus>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pending_setups: Vec<crate::PendingSetupRecord>,
     pub sources: Vec<SourceRecord>,
     pub activities: ActivityFeed,
     /// Additive ephemeral read model. Older hosts may omit it; clients must not
@@ -1696,6 +1779,8 @@ impl CapabilityDocument {
                 "artwork.handoff".into(),
                 "artwork.handoff-bytes".into(),
                 "catalog".into(),
+                "catalog.listings".into(),
+                "catalog.inspect-listings".into(),
                 "catalog.check-capabilities".into(),
                 "catalog.definition-authority".into(),
                 "catalog.definition-refresh".into(),
@@ -1703,6 +1788,13 @@ impl CapabilityDocument {
                 "external.review".into(),
                 "external.relink".into(),
                 "external.select".into(),
+                "external.select-relink".into(),
+                "setup".into(),
+                "setup.candidates".into(),
+                "setup.preview".into(),
+                "setup.download".into(),
+                "setup.pending".into(),
+                "setup.forget".into(),
                 "source".into(),
                 "source.roots".into(),
                 "source.roots.scan".into(),

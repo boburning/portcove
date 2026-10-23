@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "openra-openra",
+    "name": "Command & Conquer: Red Alert, Tiberian Dawn & Dune 2000 / OpenRA (OpenRA)",
+    "summary": "Explore Command & Conquer: Red Alert, Tiberian Dawn & Dune 2000 / OpenRA (OpenRA) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/OpenRA/OpenRA",
+    "issue_number": 1852,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/OpenRA/OpenRA"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-mario-all-stars-smas-launcher",
+    "name": "Super Mario All-Stars via SMAS Launcher",
+    "summary": "Explore Super Mario All-Stars via SMAS Launcher and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/qurious-pixel/SMAS_Launcher",
+    "issue_number": 1115,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/qurious-pixel/SMAS_Launcher"
+  }
+}

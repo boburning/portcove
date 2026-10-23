@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "star-fox-64-starfox64recomp",
+    "name": "Star Fox 64 / Starfox64Recomp",
+    "summary": "Explore Star Fox 64 / Starfox64Recomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://gitlab.com/sonicdcer/Starfox64Recomp",
+    "issue_number": 333,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://gitlab.com/sonicdcer/Starfox64Recomp"
+  }
+}

@@ -1,6 +1,6 @@
 import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { ListFilter, X } from "lucide-react";
-import type { PortDefinition } from "../../types";
+import type { CatalogEntry } from "./catalog-entry";
 import {
   platformLabel,
   releaseChannelPresentation,
@@ -100,7 +100,7 @@ export function CatalogFilters({
   gameFileQuery,
   view = "catalog",
 }: {
-  candidates?: readonly PortDefinition[] | undefined;
+  candidates?: readonly CatalogEntry[] | undefined;
   context?: CatalogQueryContext | undefined;
   view?: "catalog" | "library";
   filter: Filter | CatalogQuery;
@@ -204,6 +204,12 @@ export function CatalogFilters({
           </Button>
         </DialogContent>
       </Dialog>
+      {Boolean(result.unavailablePortIds?.length) && (
+        <p role="status" className="basis-full text-xs text-pc-muted-foreground">
+          {result.unavailablePortIds?.length} projects have unknown facts for these filters. Choose
+          All ports or clear these filters to find them.
+        </p>
+      )}
       {supported &&
         selected.map(({ group, value }) => (
           <Button
@@ -246,8 +252,8 @@ export function CatalogFilters({
         )}
         {group.key === "membership" && (
           <p>
-            Includes managed installations and registered runtimes in this library. Readiness may
-            still need checking.
+            Includes managed installations, registered runtimes and downloads awaiting setup in this
+            library. Readiness may still need checking.
           </p>
         )}
         {group.key === "updates" && (
@@ -282,6 +288,11 @@ export function CatalogFilters({
               {candidates === undefined
                 ? "unavailable"
                 : (result.counts[group.key][value] ?? "unavailable")}
+              {candidates !== undefined &&
+                result.counts[group.key][value] != null &&
+                (result.unknownCounts?.[group.key][value] ?? 0) > 0 && (
+                  <> known; {result.unknownCounts?.[group.key][value]} unknown</>
+                )}
               )
             </Button>
           ))}

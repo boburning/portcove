@@ -1,0 +1,87 @@
+{
+  "format_version": 1,
+  "order": 83,
+  "listing": {
+    "id": "alexbeav-armored-core-recomp",
+    "name": "Armored Core / Alexbeav PSXRecomp",
+    "summary": "Native Armored Core recompilation from Alexbeav’s PSXRecomp project.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp",
+    "original_game_title": "Armored Core",
+    "artwork": {
+      "game_id": 4144,
+      "cover_id": 454572,
+      "image_id": "co9qr0",
+      "image_sha256": "d1ddebb5cd67d94c11bf471b292c2b54484b95e8c1446d5d20313dc51441631a",
+      "game_slug": "armored-core",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 431
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "provider": "direct-manifest",
+      "direct": {
+        "windows-x86-64": {
+          "version": "v0.3.6",
+          "url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-windows-x64.zip",
+          "size": 30152526,
+          "sha256": "43575a4795e5af42c3f545c245a073224d4e1a4643eaa59b3b2dba79c46e231e",
+          "published_at": "2026-09-04T14:48:29Z"
+        }
+      }
+    },
+    "source_profile": "armored-core-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Armored_Core_Recompiled.exe"]
+    },
+    "persistent_paths": [
+      "saves",
+      "settings.toml",
+      "input.ini",
+      "keybinds.ini",
+      "config.ini",
+      "disc.cfg",
+      "bios.cfg",
+      "mods",
+      "overlay-captures"
+    ],
+    "runtime_mutable_paths": [
+      "cache",
+      "psx_freeze_heartbeat.json",
+      "psx_freeze_heartbeat.json.tmp",
+      "psx_last_run_report.json",
+      "psx_cps_exit_trace.json",
+      "netplay_lan_lobby.txt"
+    ],
+    "runtime_mutable_file_patterns": [
+      {
+        "prefix": "psx_freeze_dump_psx-runtime_",
+        "suffix": ".json"
+      }
+    ],
+    "launch_environment": {
+      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+    },
+    "launch_arguments": ["--no-launcher", "--bios", "bios/openbios.bin"],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "armored-core-psx",
+          "label": "Armored Core (Europe PAL) disc",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Provide your own matching single-track CHD for SCES-00842. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
+    }
+  }
+}

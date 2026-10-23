@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "eandis-sdoj-recomp",
+    "name": "DoDonPachi SaiDaiOuJou / SDOJ-Recomp (eandis)",
+    "summary": "Explore DoDonPachi SaiDaiOuJou / SDOJ-Recomp (eandis) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/eandis/SDOJ-Recomp",
+    "issue_number": 1880,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/eandis/SDOJ-Recomp"
+  }
+}

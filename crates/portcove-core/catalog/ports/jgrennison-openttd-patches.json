@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jgrennison-openttd-patches",
+    "name": "OpenTTD / OpenTTD-patches (JGRennison)",
+    "summary": "Explore OpenTTD / OpenTTD-patches (JGRennison) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/JGRennison/OpenTTD-patches",
+    "issue_number": 1859,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/JGRennison/OpenTTD-patches"
+  }
+}

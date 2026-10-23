@@ -1,0 +1,70 @@
+{
+  "format_version": 1,
+  "order": 9,
+  "listing": {
+    "id": "banjo-recomp",
+    "name": "Banjo: Recompiled",
+    "summary": "Native Banjo-Kazooie recompilation.",
+    "project_url": "https://github.com/BanjoRecomp/BanjoRecomp",
+    "original_game_title": "Banjo-Kazooie",
+    "artwork": {
+      "game_id": 387032,
+      "cover_id": 529776,
+      "image_id": "cobcs0",
+      "image_sha256": "a26e95b65f1665fe8ae42c60dd93c72a6dfda993384a4fa6b3c1bb544a30e212",
+      "game_slug": "banjo-recompiled",
+      "match_kind": "port"
+    },
+    "issue_number": 65
+  },
+  "integration": {
+    "support_tier": "stable",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "adapter": "n64-recomp-portable",
+    "release": {
+      "repository": "BanjoRecomp/BanjoRecomp",
+      "asset_hints": {
+        "linux-x86-64": ["Linux-X64."]
+      }
+    },
+    "source_profile": "banjo-kazooie",
+    "executable_hints": {
+      "windows-x86-64": ["banjorecompiled.exe"],
+      "linux-x86-64": ["banjorecompiled"],
+      "macos-x86-64": ["banjorecompiled"],
+      "macos-aarch64": ["banjorecompiled"]
+    },
+    "persistent_paths": [
+      "mods",
+      "mod_config",
+      "saves",
+      "mods.json",
+      "mods.json.bak",
+      "general.json",
+      "general.json.bak",
+      "graphics.json",
+      "graphics.json.bak",
+      "controls.json",
+      "controls.json.bak",
+      "sound.json",
+      "sound.json.bak",
+      "bk.n64.us.1.0.z64"
+    ],
+    "runtime_source_filename": "bk.n64.us.1.0.z64",
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "banjo-kazooie",
+          "label": "Banjo-Kazooie (US 1.0) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

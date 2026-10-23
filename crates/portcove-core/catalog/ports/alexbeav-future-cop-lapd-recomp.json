@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-future-cop-lapd-recomp",
+    "name": "Future Cop: L.A.P.D. / Alexbeav PSXRecomp",
+    "summary": "Explore Future Cop: L.A.P.D. / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp",
+    "issue_number": 1595,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp"
+  }
+}

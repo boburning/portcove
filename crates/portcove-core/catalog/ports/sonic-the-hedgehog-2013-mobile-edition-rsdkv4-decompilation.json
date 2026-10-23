@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sonic-the-hedgehog-2013-mobile-edition-rsdkv4-decompilation",
+    "name": "Sonic the Hedgehog — 2013 mobile edition / RSDKv4 decompilation",
+    "summary": "Explore Sonic the Hedgehog — 2013 mobile edition / RSDKv4 decompilation and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/RSDKModding/RSDKv4-Decompilation",
+    "issue_number": 382,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/RSDKModding/RSDKv4-Decompilation"
+  }
+}

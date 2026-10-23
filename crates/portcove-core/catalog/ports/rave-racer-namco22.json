@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rave-racer-namco22",
+    "name": "Rave Racer Native (Namco22)",
+    "summary": "Explore Rave Racer Native (Namco22) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/spacestate1/namco22-decompile",
+    "issue_number": 1566,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/spacestate1/namco22-decompile"
+  }
+}

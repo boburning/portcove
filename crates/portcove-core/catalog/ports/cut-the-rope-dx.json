@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "cut-the-rope-dx",
+    "name": "Cut the Rope DX",
+    "summary": "Explore Cut the Rope DX and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/yell0wsuit/cuttherope-dx",
+    "issue_number": 1128,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/yell0wsuit/cuttherope-dx"
+  }
+}

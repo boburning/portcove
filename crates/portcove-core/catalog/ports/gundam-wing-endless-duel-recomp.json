@@ -1,0 +1,42 @@
+{
+  "format_version": 1,
+  "order": 111,
+  "listing": {
+    "id": "gundam-wing-endless-duel-recomp",
+    "name": "Gundam Wing: Endless Duel Recomp",
+    "summary": "Gundam Wing: Endless Duel Recomp using an existing installation that you manage.",
+    "project_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
+    "original_game_title": "Shin Kidou Senki Gundam W: Endless Duel",
+    "issue_number": 330
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "adapter": "staged-source-portable",
+    "release": {
+      "provider": "user-prepared",
+      "repository": "TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use upstream’s ROM-free setup pack and your own Japanese original. Its supported launcher performs generation and compilation. Select that launcher or its prepared game executable; upstream or you manage replacement and player data. Portcove only registers and launches it. Existing Portcove-built installations retain their original contracts."
+    }
+  }
+}

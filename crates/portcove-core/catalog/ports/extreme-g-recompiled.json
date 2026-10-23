@@ -1,0 +1,75 @@
+{
+  "format_version": 1,
+  "order": 17,
+  "listing": {
+    "id": "extreme-g-recompiled",
+    "name": "Extreme-G: Recompiled",
+    "summary": "Native Extreme-G recompilation.",
+    "project_url": "https://gitlab.com/sonicdcer/ExtremeGRecomp",
+    "original_game_title": "Extreme-G",
+    "artwork": {
+      "game_id": 3485,
+      "cover_id": 356344,
+      "image_id": "co7myg",
+      "image_sha256": "940beee36edd1f93956c5e2ce5be7464ffaf4c371d941aa73dca8018a504ad9a",
+      "game_slug": "extreme-g",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 72
+  },
+  "integration": {
+    "support_tier": "stable",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "adapter": "n64-recomp-portable",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "provider": "gitlab",
+      "repository": "sonicdcer/ExtremeGRecomp",
+      "asset_hints": {
+        "windows-x86-64": ["windows-relwithdebinfo"],
+        "linux-x86-64": ["linux-x64-release"],
+        "macos-x86-64": ["macos-release"],
+        "macos-aarch64": ["macos-release"]
+      }
+    },
+    "source_profile": "extreme-g",
+    "executable_hints": {
+      "windows-x86-64": ["ExtremeGRecompiled.exe"],
+      "linux-x86-64": ["ExtremeGRecompiled"],
+      "macos-x86-64": ["ExtremeGRecompiled"],
+      "macos-aarch64": ["ExtremeGRecompiled"]
+    },
+    "persistent_paths": [
+      "mods",
+      "mod_config",
+      "saves",
+      "mods.json",
+      "mods.json.bak",
+      "general.json",
+      "general.json.bak",
+      "graphics.json",
+      "graphics.json.bak",
+      "controls.json",
+      "controls.json.bak",
+      "sound.json",
+      "sound.json.bak",
+      "extremeg.us.z64"
+    ],
+    "portable_marker": true,
+    "runtime_source_filename": "extremeg.us.z64",
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "extreme-g",
+          "label": "Extreme-G (North America 1.0) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

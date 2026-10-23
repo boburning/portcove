@@ -81,6 +81,8 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
         Commands::Catalog { command } => match command {
             CatalogCommand::List
             | CatalogCommand::Export
+            | CatalogCommand::Listings
+            | CatalogCommand::InspectListings { .. }
             | CatalogCommand::Show { .. }
             | CatalogCommand::Status
             | CatalogCommand::InspectProposal { .. } => ReadOnly,
@@ -121,12 +123,21 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
         Commands::External { command } => match command {
             ExternalCommand::Preview { .. }
             | ExternalCommand::SelectPreview { .. }
+            | ExternalCommand::SelectRelinkPreview { .. }
             | ExternalCommand::RemovalPreview { .. }
             | ExternalCommand::RelinkPreview { .. } => ReadOnly,
             ExternalCommand::Register { .. }
             | ExternalCommand::Select { .. }
+            | ExternalCommand::SelectRelink { .. }
             | ExternalCommand::Remove { .. }
             | ExternalCommand::Relink { .. } => Recovering,
+        },
+        Commands::Setup { command } => match command {
+            crate::setup::SetupCommand::Candidates { .. }
+            | crate::setup::SetupCommand::Preview { .. }
+            | crate::setup::SetupCommand::Pending => ReadOnly,
+            crate::setup::SetupCommand::Download { .. }
+            | crate::setup::SetupCommand::Forget { .. } => Recovering,
         },
         Commands::Installation { command } => match command {
             InstallationCommand::Plan { .. }

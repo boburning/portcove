@@ -1,0 +1,91 @@
+{
+  "format_version": 1,
+  "order": 58,
+  "listing": {
+    "id": "project-picori",
+    "name": "Project Picori",
+    "summary": "Native port of The Legend of Zelda: The Minish Cap.",
+    "project_url": "https://github.com/999sian/tmc",
+    "original_game_title": "The Legend of Zelda: The Minish Cap",
+    "artwork": {
+      "game_id": 1035,
+      "cover_id": 170804,
+      "image_id": "co3nsk",
+      "image_sha256": "98bec281528d2af17fdd826a0a8a096e07f0352d95a97c9f0b474930a00fe3c2",
+      "game_slug": "the-legend-of-zelda-the-minish-cap",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 109
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "999sian/tmc",
+      "asset_hints": {
+        "windows-x86-64": ["windows-x86_64"],
+        "linux-x86-64": ["linux-x86_64"],
+        "macos-x86-64": ["macos-x86_64"],
+        "macos-aarch64": ["macos-arm64"]
+      }
+    },
+    "source_profile": "minish-cap-gba",
+    "runtime_source_filename": "baserom.gba",
+    "runtime_source_materialization": "copy",
+    "executable_hints": {
+      "windows-x86-64": ["tmc_pc.exe"],
+      "linux-x86-64": ["tmc_pc"],
+      "macos-x86-64": ["tmc_pc"],
+      "macos-aarch64": ["tmc_pc"]
+    },
+    "persistent_paths": [
+      "baserom.gba",
+      "tmc.sav",
+      "tmc.sav.bak",
+      "tmc.randomizer",
+      "assets",
+      "assets_src",
+      "rom_data",
+      "config.json",
+      "mods",
+      "state_quick.bin",
+      "state_1.bin",
+      "state_2.bin",
+      "state_3.bin",
+      "state_4.bin",
+      "state_auto_0.bin",
+      "state_auto_1.bin",
+      "state_auto_2.bin"
+    ],
+    "persistent_file_patterns": [
+      {
+        "prefix": "tmc_",
+        "suffix": ".sav"
+      },
+      {
+        "prefix": "tmc_",
+        "suffix": ".sav.bak"
+      },
+      {
+        "prefix": "tmc_",
+        "suffix": ".randomizer"
+      }
+    ],
+    "presentation": {
+      "installation_method": "staged-game-files",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "minish-cap-gba",
+          "label": "The Legend of Zelda: The Minish Cap source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

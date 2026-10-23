@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pokemon-yellow-recomp",
+    "name": "Pokémon Yellow Recomp",
+    "summary": "Explore Pokémon Yellow Recomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/mstan/PokemonYellowRecomp",
+    "issue_number": 174,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mstan/PokemonYellowRecomp"
+  }
+}

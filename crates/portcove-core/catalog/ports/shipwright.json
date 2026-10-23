@@ -1,0 +1,59 @@
+{
+  "format_version": 1,
+  "order": 0,
+  "listing": {
+    "id": "shipwright",
+    "name": "Ship of Harkinian",
+    "summary": "Native Ocarina of Time port from HarbourMasters.",
+    "project_url": "https://github.com/HarbourMasters/Shipwright",
+    "original_game_title": "The Legend of Zelda: Ocarina of Time",
+    "artwork": {
+      "game_id": 194694,
+      "cover_id": 287780,
+      "image_id": "co661w",
+      "image_sha256": "492fff6439fce93b7162316c98f034c346b1328ac4ca43eb441479c33b757050",
+      "game_slug": "ship-of-harkinian",
+      "match_kind": "port"
+    },
+    "issue_number": 58
+  },
+  "integration": {
+    "support_tier": "stable",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "adapter": "libultraship-portable",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "HarbourMasters/Shipwright"
+    },
+    "source_profile": "ocarina-of-time",
+    "executable_hints": {
+      "windows-x86-64": ["soh.exe", "shipwright.exe"],
+      "linux-x86-64": ["soh", "shipwright", "soh.appimage"],
+      "macos-x86-64": ["soh", "shipwright"],
+      "macos-aarch64": ["soh", "shipwright"]
+    },
+    "persistent_paths": [
+      "mods",
+      "saves",
+      "randomizer",
+      "imgui.ini",
+      "shipofharkinian.json",
+      "oot.o2r",
+      "oot-mq.o2r"
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "ocarina-of-time",
+          "label": "The Legend of Zelda: Ocarina of Time source",
+          "verification": "catalog-rules"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

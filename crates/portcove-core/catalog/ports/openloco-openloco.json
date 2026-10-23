@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "openloco-openloco",
+    "name": "Chris Sawyer's Locomotion / OpenLoco (OpenLoco)",
+    "summary": "Explore Chris Sawyer's Locomotion / OpenLoco (OpenLoco) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/OpenLoco/OpenLoco",
+    "issue_number": 1855,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/OpenLoco/OpenLoco"
+  }
+}

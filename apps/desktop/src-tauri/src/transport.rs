@@ -22,6 +22,9 @@ impl From<portcove_core::WorkspaceSnapshot> for DesktopWorkspaceSnapshot {
     fn from(snapshot: portcove_core::WorkspaceSnapshot) -> Self {
         Self {
             catalog: snapshot.catalog,
+            listing_catalog: snapshot.listing_catalog,
+            listing_statuses: snapshot.listing_statuses,
+            pending_setups: snapshot.pending_setups,
             statuses: snapshot.statuses,
             sources: snapshot.sources,
             activities: snapshot.activities,

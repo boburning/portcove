@@ -1,0 +1,33 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "openrct2-openrct2",
+    "name": "OpenRCT2",
+    "summary": "OpenRCT2 offers upstream packages for RollerCoaster Tycoon 2. Follow upstream setup before registering your executable.",
+    "project_url": "https://github.com/OpenRCT2/OpenRCT2",
+    "issue_number": 1854,
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/OpenRCT2/OpenRCT2/blob/v0.5.6/readme.md",
+    "original_game_title": "RollerCoaster Tycoon 2",
+    "release_url": "https://github.com/OpenRCT2/OpenRCT2/releases/tag/v0.5.6",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Get the upstream package",
+          "instruction": "Choose the release and package for your computer. Download and extract a portable archive, or use the upstream installer yourself."
+        },
+        {
+          "title": "Complete upstream setup",
+          "instruction": "Select your RollerCoaster Tycoon 2 files during setup. RollerCoaster Tycoon 1 files are optional and add more scenarios."
+        },
+        {
+          "title": "Select your executable",
+          "instruction": "After setup, choose the native game executable or upstream launcher and its working directory. Updates remain with you or the upstream launcher."
+        }
+      ],
+      "warnings": ["This project has not been verified for play through Portcove."],
+      "help_url": "https://github.com/OpenRCT2/OpenRCT2/blob/v0.5.6/readme.md"
+    }
+  }
+}

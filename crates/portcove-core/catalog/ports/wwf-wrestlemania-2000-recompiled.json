@@ -1,0 +1,67 @@
+{
+  "format_version": 1,
+  "order": 40,
+  "listing": {
+    "id": "wwf-wrestlemania-2000-recompiled",
+    "name": "WWF WrestleMania 2000: Recompiled",
+    "summary": "Native WWF WrestleMania 2000 recompilation.",
+    "project_url": "https://github.com/jessetbh/WWFWrestleMania2000Recomp",
+    "original_game_title": "WWF WrestleMania 2000",
+    "artwork": {
+      "game_id": 3646,
+      "cover_id": 576157,
+      "image_id": "cocckd",
+      "image_sha256": "b1bfebc82d3cd96311c388b7e6d027ec7a63b56c74268eff97809a616e0198ac",
+      "game_slug": "wwf-wrestlemania-2000",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 93
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "n64-recomp-portable",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "jessetbh/WWFWrestleMania2000Recomp",
+      "asset_hints": {
+        "windows-x86-64": ["Wm2kRecompiled", "Windows"]
+      }
+    },
+    "source_profile": "wwf-wrestlemania-2000",
+    "executable_hints": {
+      "windows-x86-64": ["Wm2kRecompiled.exe"]
+    },
+    "persistent_paths": [
+      "mods",
+      "mod_config",
+      "saves",
+      "mods.json",
+      "mods.json.bak",
+      "general.json",
+      "general.json.bak",
+      "graphics.json",
+      "graphics.json.bak",
+      "controls.json",
+      "controls.json.bak",
+      "sound.json",
+      "sound.json.bak",
+      "wwf.wm2k.us.z64"
+    ],
+    "runtime_source_filename": "wwf.wm2k.us.z64",
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "wwf-wrestlemania-2000",
+          "label": "WWF WrestleMania 2000 (US V1.2) source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

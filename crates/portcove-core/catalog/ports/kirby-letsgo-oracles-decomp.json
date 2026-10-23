@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kirby-letsgo-oracles-decomp",
+    "name": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons / Oracles Decomp (kirby-letsgo)",
+    "summary": "Explore The Legend of Zelda: Oracle of Ages / Oracle of Seasons / Oracles Decomp (kirby-letsgo) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/kirby-letsgo/oracles-decomp",
+    "issue_number": 1863,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/kirby-letsgo/oracles-decomp"
+  }
+}

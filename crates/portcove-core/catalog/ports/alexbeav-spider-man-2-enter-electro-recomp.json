@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-spider-man-2-enter-electro-recomp",
+    "name": "Spider-Man 2: Enter Electro / Alexbeav PSXRecomp",
+    "summary": "Explore Spider-Man 2: Enter Electro / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp",
+    "issue_number": 1607,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp"
+  }
+}

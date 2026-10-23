@@ -1,0 +1,67 @@
+{
+  "format_version": 1,
+  "order": 25,
+  "listing": {
+    "id": "masters-of-teras-kasi-recompiled",
+    "name": "Masters of Teräs Käsi: Recompiled",
+    "summary": "Native Masters of Teräs Käsi recompilation.",
+    "project_url": "https://github.com/TechnicallyComputers/MastersOfTerasKasiRecomp",
+    "original_game_title": "Star Wars: Masters of Teräs Käsi",
+    "artwork": {
+      "game_id": 18044,
+      "cover_id": 128842,
+      "image_id": "co2rey",
+      "image_sha256": "a5caaa796598d983b0f4a729139c9fd1e8caa40baf834dd93685b9ecfc195a65",
+      "game_slug": "star-wars-masters-of-teras-kasi",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 80
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "repository": "TechnicallyComputers/MastersOfTerasKasiRecomp",
+      "asset_hints": {
+        "windows-x86-64": ["windows-x64"],
+        "linux-x86-64": ["linux-x64"],
+        "macos-x86-64": ["macos-x64"],
+        "macos-aarch64": ["macos-arm64"]
+      }
+    },
+    "source_profile": "masters-of-teras-kasi-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Masters_of_Teras_Kasi_Recompiled.exe"],
+      "linux-x86-64": ["Masters_of_Teras_Kasi_Recompiled"],
+      "macos-x86-64": ["Masters_of_Teras_Kasi_Recompiled"],
+      "macos-aarch64": ["Masters_of_Teras_Kasi_Recompiled"]
+    },
+    "persistent_paths": [
+      "saves",
+      "config",
+      "mods",
+      "settings.toml",
+      "game_options.json",
+      "graphics.json",
+      "input.json",
+      "sound.json"
+    ],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "masters-of-teras-kasi-psx",
+          "label": "Star Wars: Masters of Teräs Käsi (USA) disc",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

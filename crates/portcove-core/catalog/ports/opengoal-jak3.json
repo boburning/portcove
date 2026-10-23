@@ -1,0 +1,78 @@
+{
+  "format_version": 1,
+  "order": 65,
+  "listing": {
+    "id": "opengoal-jak3",
+    "name": "OpenGOAL: Jak 3",
+    "summary": "Native OpenGOAL port of Jak 3.",
+    "project_url": "https://github.com/open-goal/jak-project",
+    "original_game_title": "Jak 3",
+    "artwork": {
+      "game_id": 396702,
+      "cover_id": 553369,
+      "image_id": "cobuzd",
+      "image_sha256": "66250fb2384e4abb27d5a9857b2b48a99e39d2c87fcd40409bf8a6c2bed560a8",
+      "game_slug": "opengoal-jak-3",
+      "match_kind": "port"
+    },
+    "issue_number": 116
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "adapter": "upstream-managed-setup",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "open-goal/jak-project",
+      "asset_hints": {
+        "windows-x86-64": ["opengoal-windows"],
+        "linux-x86-64": ["opengoal-linux"],
+        "macos-x86-64": ["opengoal-macos-intel"],
+        "macos-aarch64": ["opengoal-macos-arm"]
+      }
+    },
+    "source_profile": "opengoal-jak3-disc",
+    "runtime_source_filename": "source.iso",
+    "runtime_source_materialization": "ps2-iso",
+    "setup_executable_hints": {
+      "windows-x86-64": ["extractor.exe"],
+      "linux-x86-64": ["extractor"],
+      "macos-x86-64": ["extractor"],
+      "macos-aarch64": ["extractor"]
+    },
+    "setup_arguments": [
+      "--game",
+      "jak3",
+      "--extract",
+      "--decompile",
+      "--compile",
+      "--validate",
+      "--disable-ansi"
+    ],
+    "setup_marker": "data/out/jak3/iso/0COMMON.TXT",
+    "launch_arguments": ["--game", "jak3", "--portable"],
+    "executable_hints": {
+      "windows-x86-64": ["gk.exe"],
+      "linux-x86-64": ["gk"],
+      "macos-x86-64": ["gk"],
+      "macos-aarch64": ["gk"]
+    },
+    "runtime_mutable_paths": ["data/log", "data/imgui.ini"],
+    "persistent_paths": ["OpenGOAL/jak3"],
+    "setup_output_paths": ["data/iso_data", "data/decompiler_out", "data/out"],
+    "presentation": {
+      "installation_method": "upstream-setup",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "opengoal-jak3-disc",
+          "label": "Jak 3 retail disc validated by the pinned OpenGOAL extractor",
+          "verification": "upstream-validator"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

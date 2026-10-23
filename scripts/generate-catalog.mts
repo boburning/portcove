@@ -1,14 +1,16 @@
+import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
+import type { ProposalReceipt } from "./catalog-authoring-inspector.mts";
 import {
-  checkedCurrentCatalog,
   namedRecords,
   validateCurrentCatalog,
   reviewCompatibilityFixture,
   serializeCurrentCatalog,
+  readCatalogSource,
+  catalogSourceNames,
 } from "./catalog-authoring.mts";
 import type { CurrentCatalog, NamedRecord } from "./catalog-authoring.mts";
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync, mkdirSync, copyFileSync, chmodSync } from "node:fs";
-import { spawnSync } from "node:child_process";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -19,25 +21,19 @@ import {
   readArtworkInput,
 } from "./inspect-igdb-artwork.mts";
 import type { ImageValidator } from "./inspect-igdb-artwork.mts";
-import { isRecord, errorCode } from "./runtime-values.mts";
+import { isRecord } from "./runtime-values.mts";
 
 interface Difference {
   path: string;
   before?: unknown;
   after?: unknown;
 }
-interface ProposalReceipt extends Record<string, unknown> {
-  format_version: 1;
-  input_sha256: string;
-  input_bytes: number;
-  ports: unknown[];
-  validator_artifact_sha256: string;
-}
 type ProposalChecks = Record<"accepted" | "input" | "output", ProposalReceipt>;
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const catalogRoot = join(root, "crates", "portcove-core", "catalog");
-const sourcePath = join(catalogRoot, "catalog-current-authoring.json");
+const sourcePath = join(catalogRoot, catalogSourceNames.operational);
 const outputPath = join(catalogRoot, "catalog.json");
+const listingsPath = join(catalogRoot, catalogSourceNames.listings);
 const historicalPath = join(catalogRoot, "catalog-schema2-migration-fixture.json");
 
 function readJson(path: string): unknown {
@@ -345,7 +341,8 @@ function compatibilityFixtureReview(catalog: CurrentCatalog) {
     readFileSync(join(catalogRoot, "catalog-legacy-additions-fixture.json")),
   );
 }
-const current = checkedCurrentCatalog(readJson(sourcePath));
+const authored = readCatalogSource(catalogRoot);
+const current = authored.catalog;
 
 function option(name: string, required: true): string;
 function option(name: string, required?: boolean): string | null;
@@ -355,77 +352,6 @@ function option(name: string, required = false): string | null {
   if ((index >= 0 && (!value || value.startsWith("--"))) || (required && !value))
     throw new Error(`${name} requires a value.`);
   return value ?? null;
-}
-
-function coreProposalInspector(cli: string, root: string) {
-  const artifact = join(root, process.platform === "win32" ? "validator.exe" : "validator");
-  copyFileSync(resolve(cli), artifact);
-  chmodSync(artifact, 0o500);
-  const artifactSha256 = createHash("sha256").update(readFileSync(artifact)).digest("hex");
-  const env = Object.fromEntries(
-    Object.entries(process.env).filter(([name]) => name.toUpperCase() !== "PORTCOVE_LIBRARY"),
-  );
-  const inspect = (name: string, bytes: Buffer): ProposalReceipt => {
-    const file = join(root, `${name}.json`);
-    writeFileSync(file, bytes, { flag: "wx" });
-    const processStarted = process.hrtime.bigint();
-    const child = spawnSync(
-      artifact,
-      [
-        "--library",
-        join(root, "unused-library"),
-        "--json",
-        "--non-interactive",
-        "catalog",
-        "inspect-proposal",
-        file,
-      ],
-      { env, encoding: "utf8", timeout: 30000, maxBuffer: 1024 * 1024, windowsHide: true },
-    );
-    const processElapsedMs = Number(process.hrtime.bigint() - processStarted) / 1e6;
-    writeFileSync(
-      join(root, `${name}-process.json`),
-      JSON.stringify(
-        {
-          validator_artifact_sha256: artifactSha256,
-          status: child.status,
-          signal: child.signal,
-          error_code: errorCode(child.error) ?? null,
-          elapsed_ms: processElapsedMs,
-          elapsed_boundary: "monotonic wall elapsed around validator spawnSync, including waiting",
-          stdout_tail: child.stdout?.slice(-16384) ?? "",
-          stderr_tail: child.stderr?.slice(-16384) ?? "",
-        },
-        null,
-        2,
-      ),
-      { flag: "wx" },
-    );
-    if (child.error || child.status !== 0)
-      throw new Error(
-        `Core refused ${name} catalog declarations; retained process receipt has the reason.`,
-      );
-    const envelope: unknown = JSON.parse(child.stdout);
-    const report = isRecord(envelope) ? envelope.data : undefined;
-    const sha256 = createHash("sha256").update(bytes).digest("hex");
-    if (
-      !isRecord(report) ||
-      report.format_version !== 1 ||
-      report.input_sha256 !== sha256 ||
-      report.input_bytes !== bytes.length ||
-      !Array.isArray(report.ports)
-    )
-      throw new Error("Core proposal receipt does not identify the checked input.");
-    return {
-      ...report,
-      format_version: 1,
-      input_sha256: sha256,
-      input_bytes: bytes.length,
-      ports: report.ports,
-      validator_artifact_sha256: artifactSha256,
-    };
-  };
-  return { artifact, inspect };
 }
 
 async function prepareArtworkProposal(fullProposal = false) {
@@ -441,6 +367,7 @@ async function prepareArtworkProposal(fullProposal = false) {
       "--identities",
       "--refresh-artwork",
       "--credentials-file",
+      "--artwork-ids",
     ]);
     const seen = new Set();
     const args = process.argv.slice(2);
@@ -462,6 +389,7 @@ async function prepareArtworkProposal(fullProposal = false) {
   const identitiesFile = option("--identities");
   const identities = identitiesFile ? readArtworkJson(identitiesFile, 1024 * 1024) : {};
   const refreshPortIds = option("--refresh-artwork")?.split(",") ?? [];
+  const selectedPortIds = option("--artwork-ids")?.split(",");
   const outputRoot = resolve(option("--output-dir", true));
   const cli = option("--validator-cli", fullProposal);
   // Refuse existing output rather than replacing an earlier proposal, recovery
@@ -525,6 +453,7 @@ async function prepareArtworkProposal(fullProposal = false) {
     acceptedCatalog: current,
     identities,
     refreshPortIds,
+    ...(selectedPortIds ? { selectedPortIds } : {}),
   });
   finishPhase("artwork_preparation");
   validateCurrentCatalog(result.catalog);
@@ -640,11 +569,18 @@ if (preparing) {
       `Review independent compatibility fixture before generation: ${JSON.stringify(compatibility.collections)}`,
     );
   const output = serializeCurrentCatalog(current);
+  const listingsOutput = `${JSON.stringify(authored.directory, null, 2)}\n`;
   if (process.argv.includes("--check")) {
-    if (readFileSync(outputPath, "utf8") !== output) {
+    if (
+      readFileSync(outputPath, "utf8") !== output ||
+      readFileSync(sourcePath, "utf8") !== output ||
+      readFileSync(listingsPath, "utf8") !== listingsOutput
+    ) {
       throw new Error("embedded catalog is stale; run node scripts/generate-catalog.mts");
     }
   } else {
+    writeFileSync(sourcePath, output);
     writeFileSync(outputPath, output);
+    writeFileSync(listingsPath, listingsOutput);
   }
 }

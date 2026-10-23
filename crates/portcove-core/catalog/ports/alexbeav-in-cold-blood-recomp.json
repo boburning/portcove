@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-in-cold-blood-recomp",
+    "name": "In Cold Blood / Alexbeav PSXRecomp",
+    "summary": "Explore In Cold Blood / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp",
+    "issue_number": 458,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp"
+  }
+}

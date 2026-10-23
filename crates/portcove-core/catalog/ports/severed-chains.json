@@ -1,0 +1,118 @@
+{
+  "format_version": 1,
+  "order": 61,
+  "listing": {
+    "id": "severed-chains",
+    "name": "Severed Chains",
+    "summary": "Native port of The Legend of Dragoon.",
+    "project_url": "https://github.com/Legend-of-Dragoon-Modding/Severed-Chains",
+    "original_game_title": "The Legend of Dragoon",
+    "artwork": {
+      "game_id": 3140,
+      "cover_id": 219407,
+      "image_id": "co4pan",
+      "image_sha256": "f1908dfe94bdf8fa49c80cf9250a5618ddd0b94e04c7bba4b5146152f44e5f6f",
+      "game_slug": "the-legend-of-dragoon",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 112
+  },
+  "integration": {
+    "support_tier": "rolling",
+    "channels": ["rolling"],
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "adapter": "staged-source-portable",
+    "release": {
+      "repository": "Legend-of-Dragoon-Modding/Severed-Chains",
+      "rolling_tag": "devbuild",
+      "asset_hints": {
+        "windows-x86-64": ["Severed_Chains_Windows.zip"],
+        "linux-x86-64": ["Severed_Chains_Linux.tar.gz"],
+        "macos-x86-64": ["Severed_Chains_MacOS_Intel.tar.gz"],
+        "macos-aarch64": ["Severed_Chains_MacOS_M1.tar.gz"]
+      }
+    },
+    "bundled_runtime": {
+      "linux-x86-64": {
+        "asset": {
+          "name": "amazon-corretto-25.0.4.8.1-linux-x64.tar.gz",
+          "url": "https://corretto.aws/downloads/resources/25.0.4.8.1/amazon-corretto-25.0.4.8.1-linux-x64.tar.gz",
+          "size": 227557530,
+          "sha256": "b838e42c8e915019ed34e4cc54c7cda2e7e00d2a2a49be44578814735fc9accc"
+        },
+        "archive_root": "amazon-corretto-25.0.4.8.1-linux-x64",
+        "target_directory": "jdk25",
+        "executable": "bin/java"
+      },
+      "macos-aarch64": {
+        "asset": {
+          "name": "amazon-corretto-25.0.4.8.1-macosx-aarch64.tar.gz",
+          "url": "https://corretto.aws/downloads/resources/25.0.4.8.1/amazon-corretto-25.0.4.8.1-macosx-aarch64.tar.gz",
+          "size": 218316666,
+          "sha256": "b3040e5db181d09c79499728c86d250773f7f5018a3e4c124a0b08b96a75c42b"
+        },
+        "archive_root": "amazon-corretto-25.jdk",
+        "target_directory": "jdk25",
+        "executable": "Contents/Home/bin/java"
+      },
+      "macos-x86-64": {
+        "asset": {
+          "name": "amazon-corretto-25.0.4.8.1-macosx-x64.tar.gz",
+          "url": "https://corretto.aws/downloads/resources/25.0.4.8.1/amazon-corretto-25.0.4.8.1-macosx-x64.tar.gz",
+          "size": 220999407,
+          "sha256": "ae63ba7c8beb5a3669fcce4a2eb1261505a468fe7223e6c45df98c86eb52b5ee"
+        },
+        "archive_root": "amazon-corretto-25.jdk",
+        "target_directory": "jdk25",
+        "executable": "Contents/Home/bin/java"
+      },
+      "windows-x86-64": {
+        "asset": {
+          "name": "amazon-corretto-25.0.4.8.1-windows-x64-jdk.zip",
+          "url": "https://corretto.aws/downloads/resources/25.0.4.8.1/amazon-corretto-25.0.4.8.1-windows-x64-jdk.zip",
+          "size": 221967967,
+          "sha256": "fc38742d6991d20fcc731bd013468a0ddf4a6a9077b8bf15a68190950f470dce"
+        },
+        "archive_root": "jdk25.0.4_8",
+        "target_directory": "jdk25",
+        "executable": "bin/java.exe"
+      }
+    },
+    "source_profile": "legend-of-dragoon-usa",
+    "runtime_source_filename": "isos",
+    "runtime_source_materialization": "psx-raw-set",
+    "launch_from_install_root": true,
+    "executable_hints": {
+      "windows-x86-64": ["launch.bat"],
+      "linux-x86-64": ["launch"],
+      "macos-x86-64": ["launch"],
+      "macos-aarch64": ["launch"]
+    },
+    "persistent_paths": [
+      "saves",
+      "mods",
+      "isos",
+      "files",
+      "config.dcnf",
+      "config.conf",
+      "launch.conf",
+      "update_log.txt",
+      "debug.log",
+      "debug-updater.log"
+    ],
+    "presentation": {
+      "installation_method": "staged-game-files",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "legend-of-dragoon-usa",
+          "label": "The Legend of Dragoon (USA) four-disc set",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

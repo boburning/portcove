@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "monster-hunter-portable-3rd-hd-yakumo",
+    "name": "Monster Hunter Portable 3rd HD Ver. Yakumo",
+    "summary": "Explore Monster Hunter Portable 3rd HD Ver. Yakumo and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/TeamGDB/Yakumo",
+    "issue_number": 1120,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/TeamGDB/Yakumo"
+  }
+}

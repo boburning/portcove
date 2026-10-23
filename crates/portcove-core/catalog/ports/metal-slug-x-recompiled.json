@@ -1,0 +1,67 @@
+{
+  "format_version": 1,
+  "order": 26,
+  "listing": {
+    "id": "metal-slug-x-recompiled",
+    "name": "Metal Slug X: Recompiled",
+    "summary": "Native Metal Slug X recompilation.",
+    "project_url": "https://github.com/TechnicallyComputers/Metal-Slug-X-Recomp",
+    "original_game_title": "Metal Slug X",
+    "artwork": {
+      "game_id": 18840,
+      "cover_id": 397601,
+      "image_id": "co8ish",
+      "image_sha256": "790e580b9d6d0733a7e5bf024fdc7d68a5ad276bda3ec55633b19b198f752476",
+      "game_slug": "metal-slug-x",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 81
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "repository": "TechnicallyComputers/Metal-Slug-X-Recomp",
+      "asset_hints": {
+        "windows-x86-64": ["windows-x64"],
+        "linux-x86-64": ["linux-x64"],
+        "macos-x86-64": ["macos-x64"],
+        "macos-aarch64": ["macos-arm64"]
+      }
+    },
+    "source_profile": "metal-slug-x-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Metal_Slug_X__Recompiled.exe"],
+      "linux-x86-64": ["Metal_Slug_X__Recompiled"],
+      "macos-x86-64": ["Metal_Slug_X__Recompiled"],
+      "macos-aarch64": ["Metal_Slug_X__Recompiled"]
+    },
+    "persistent_paths": [
+      "saves",
+      "config",
+      "mods",
+      "settings.toml",
+      "game_options.json",
+      "graphics.json",
+      "input.json",
+      "sound.json"
+    ],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "metal-slug-x-psx",
+          "label": "Metal Slug X (USA) disc",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

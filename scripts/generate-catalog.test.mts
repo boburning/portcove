@@ -12,6 +12,7 @@ import {
   copyFileSync,
   readdirSync,
   renameSync,
+  rmSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
@@ -20,6 +21,13 @@ import type { TestContext } from "node:test";
 import type { Socket } from "node:net";
 import type { ArtworkCatalog, ArtworkPreparationOptions } from "./inspect-igdb-artwork.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  authoringRecordFromPort,
+  readCatalogSource,
+  assembleCatalogRecords,
+  checkedAuthoredPort,
+  parseCatalogSource,
+} from "./catalog-authoring.mts";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 function rejectedReason(result: PromiseRejectedResult): unknown {
@@ -138,6 +146,7 @@ function isolatedGenerator() {
     "inspect-igdb-artwork.mts",
     "runtime-values.mts",
     "catalog-authoring.mts",
+    "catalog-authoring-inspector.mts",
     "maintainer-config.mts",
   ])
     copyFileSync(join(root, "scripts", name), join(scratch, "scripts", name));
@@ -150,16 +159,103 @@ function isolatedGenerator() {
     "catalog-legacy-additions-fixture.json",
   ])
     copyFileSync(join(catalogRoot, name), join(catalogs, name));
+  syncFixtureSource(catalogs);
   return {
     scratch,
     catalogs,
-    run: (...args: string[]) =>
-      spawnSync(process.execPath, ["scripts/generate-catalog.mts", ...args], {
+    run: (...args: string[]) => {
+      // These historical tests author a complete fixture proposal. Assemble its
+      // source records explicitly; production never reads the aggregate as source.
+      syncFixtureSource(catalogs);
+      return spawnSync(process.execPath, ["scripts/generate-catalog.mts", ...args], {
         cwd: scratch,
         encoding: "utf8",
-      }),
+      });
+    },
   };
 }
+
+function syncFixtureSource(catalogs: string) {
+  const input = fixtureCatalog(
+    fixtureJson(readFileSync(join(catalogs, "catalog-current-authoring.json"))),
+  );
+  const shared: Record<string, unknown> = structuredClone(input);
+  delete shared.ports;
+  writeFileSync(join(catalogs, "catalog-shared.json"), JSON.stringify(shared));
+  const directory = join(catalogs, "ports");
+  rmSync(directory, { recursive: true, force: true });
+  mkdirSync(directory);
+  const seen = new Set();
+  for (const [index, port] of input.ports.entries()) {
+    const name = seen.has(port.id) ? `duplicate-${index}` : port.id;
+    seen.add(port.id);
+    writeFileSync(
+      join(directory, `${name}.json`),
+      JSON.stringify(authoringRecordFromPort(port, index)),
+    );
+  }
+}
+
+void test("per-port source projects all accepted operations unchanged and listing-only records stay inert", () => {
+  const source = readCatalogSource(catalogRoot);
+  const accepted = fixtureJson(readFileSync(join(catalogRoot, "catalog-current-authoring.json")));
+  assert.deepEqual(source.catalog, accepted);
+  const listing = checkedAuthoredPort({
+    format_version: 1,
+    listing: {
+      id: "source-only-fixture",
+      name: "Source-only fixture",
+      summary: "An identified upstream project.",
+      project_url: "https://example.org/source-only",
+      availability: "source-only",
+    },
+  });
+  const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
+  const projected = assembleCatalogRecords(shared, [...source.records, listing]);
+  assert.deepEqual(projected.catalog, source.catalog);
+  assert.equal(projected.directory.listings.length, source.directory.listings.length + 1);
+  assert.deepEqual(
+    projected.directory.listings.find((port) => port.id === listing.listing.id)?.platforms,
+    [],
+  );
+  assert.throws(
+    () => assembleCatalogRecords(shared, [listing, listing]),
+    /duplicate stable listing IDs/,
+  );
+  assert.throws(() => checkedAuthoredPort(listing, "wrong-file"), /filename and stable listing ID/);
+  assert.throws(
+    () => checkedAuthoredPort({ ...listing, integration: { id: listing.listing.id } }),
+    /second integration authority/,
+  );
+});
+
+void test("authored JSON refuses duplicate decoded keys while retaining nested data and native grammar", () => {
+  assert.throws(() => parseCatalogSource('{"id":"first","id":"second"}'), /duplicate JSON key/);
+  assert.throws(
+    () => parseCatalogSource('{"id":"first","\\u0069d":"second"}'),
+    /duplicate JSON key/,
+  );
+  assert.throws(() => parseCatalogSource('{"nested":[{"x":1,"x":2}]}'), /duplicate JSON key/);
+  assert.throws(() => parseCatalogSource('{"id":"first",}'), SyntaxError);
+  const valid =
+    '{"nested":[{"id":"first"},{"id":"second"}],"literal":"{\\\"id\\\":\\\"a\\\"}","__proto__":{"id":"own"}}';
+  assert.deepEqual(parseCatalogSource(valid), JSON.parse(valid));
+});
+
+void test("authoring split preserves unknown metadata and ordered operational arrays", () => {
+  const original = fixtureJson(readFileSync(join(catalogRoot, "catalog-current-authoring.json")));
+  const catalog = fixtureCatalog(original);
+  const port = structuredClone(requiredFixture(catalog.ports[0]));
+  port.unfamiliar_metadata = { retained: ["second", "first"] };
+  port.launch_arguments = ["--second", "--first"];
+  const authored = authoringRecordFromPort(port, 0);
+  const shared: Record<string, unknown> = { ...catalog };
+  delete shared.ports;
+  const projected = assembleCatalogRecords(shared, [authored]);
+  assert.deepEqual(projected.catalog.ports[0], port);
+  assert.equal(Object.hasOwn(authored.integration ?? {}, "name"), false);
+  assert.equal(Object.hasOwn(authored.integration?.presentation ?? {}, "artwork"), false);
+});
 
 void test("ordinary generation refuses an unreviewed identity before replacing embedded bytes", () => {
   const fixture = isolatedGenerator();
@@ -246,6 +342,7 @@ function proposalDecoderFixture(
   const output = join(fixture.scratch, "output");
   const factoryLog = join(fixture.scratch, "factory.log");
   const processLog = join(fixture.scratch, "process.log");
+  syncFixtureSource(fixture.catalogs);
   const result = spawnSync(
     process.execPath,
     [
@@ -305,7 +402,11 @@ void test("unreviewed proposal identities report required fixture review without
       { id: "frozen-port", name: "Frozen fixture" },
       { id: "added-port", name: "Reviewed fixture" },
       { id: "unreviewed-proposal-port", name: "Unreviewed fixture" },
-    ];
+    ].map((port) => ({
+      ...port,
+      summary: "Fixture description",
+      project_url: "https://example.org/project",
+    }));
     input.source_catalog = {
       identities: [{ id: "frozen-source" }],
       contracts: [],
@@ -532,6 +633,8 @@ function proposalFixture(): FixtureCatalog {
     ports: ["first", "second"].map((id) => ({
       id,
       name: `Port ${id}`,
+      summary: "Fixture description",
+      project_url: "https://example.org/project",
       source_profile: "shared-source",
       release: { repository: "fixture/shared" },
       executable_hints: { "linux-x86-64": ["game"] },
@@ -618,21 +721,27 @@ void test("proposal identity report retains exact source execution persistence a
 
 void test("proposal identity report preserves removals ordering and hostile identities without merging them", () => {
   const before = proposalFixture();
-  for (const id of ["__proto__", "constructor"])
-    before.ports.push({ ...requiredFixture(before.ports[0]), id, name: id });
+  // Authored filenames require stable port IDs; prototype-shaped retained source
+  // identities still exercise the report's untrusted-key boundary separately.
+  before.ports.push({
+    ...requiredFixture(before.ports[0]),
+    id: "constructor",
+    name: "constructor",
+  });
+  before.source_catalog.identities.push({ id: "__proto__", label: "Retained source" });
   const after = structuredClone(before);
   after.ports.shift();
   after.ports.reverse();
-  requiredFixture(after.ports.find((port) => port.id === "__proto__")).launch_arguments = [
+  requiredFixture(after.ports.find((port) => port.id === "constructor")).launch_arguments = [
     "--reviewed",
   ];
-  after.source_catalog.identities = [];
+  after.source_catalog.identities = [{ id: "__proto__", label: "Reviewed source" }];
   const report = compareProposal(before, after);
   assert.deepEqual(
     report.proposal_changes.ports.map(({ port_id, action }) => ({ port_id, action })),
     [
       { port_id: "first", action: "removed" },
-      { port_id: "__proto__", action: "modified" },
+      { port_id: "constructor", action: "modified" },
     ],
   );
   assert.equal(requiredFixture(report.proposal_changes.ports[0]).name_after, null);
@@ -640,6 +749,8 @@ void test("proposal identity report preserves removals ordering and hostile iden
     { path: "$.launch_arguments", after: ["--reviewed"] },
   ]);
   assert.equal(requiredFixture(report.proposal_changes.source_records[0]).action, "removed");
+  assert.equal(requiredFixture(report.proposal_changes.source_records[1]).id, "__proto__");
+  assert.equal(requiredFixture(report.proposal_changes.source_records[1]).action, "modified");
   assert.deepEqual(
     report.proposal_changes.order_changes.map((item) => item.collection),
     ["ports", "source_catalog.identities"],
@@ -1555,6 +1666,58 @@ void test("an unchanged accepted mapping makes no source-health claim or provide
   assert.deepEqual(result.catalog, fixture.accepted);
   assert.equal(requiredFixture(result.records[0]).reason, "accepted-mapping-reused");
   assert.equal(fixture.requests.length, 0);
+});
+
+void test("sparse artwork preparation keeps a large catalog and reuses unselected mappings", async () => {
+  const fixture = await capturedArtworkRefresh({ status: 503 });
+  const retained = requiredFixture(fixture.accepted.ports[0]);
+  for (let index = 0; index < 520; index++)
+    fixture.accepted.ports.push({ ...structuredClone(retained), id: `retained-${index}` });
+  fixture.options.selectedPortIds = ["refresh-probe"];
+  const before = structuredClone(fixture.accepted);
+  const result = await fixture.run();
+  assert.deepEqual(result.catalog, before);
+  assert.equal(result.metrics.ports, 1);
+  assert.equal(result.records.length, 1);
+  assert.equal(result.workset.catalog_ports, 521);
+  assert.deepEqual(result.workset.selected_port_ids, ["refresh-probe"]);
+  assert.deepEqual(result.workset.invalidated_port_ids, []);
+  assert.equal(fixture.inspector.providerMetrics.game_requests, 1);
+  assert.equal(fixture.inspector.providerMetrics.image_requests, 1);
+});
+
+void test("sparse exact-image invalidation reaches unselected references without new queries", async () => {
+  const fixture = await capturedArtworkRefresh();
+  const retained = requiredFixture(fixture.accepted.ports[0]);
+  for (let index = 0; index < 420; index++)
+    fixture.accepted.ports.push({ ...structuredClone(retained), id: `shared-image-${index}` });
+  fixture.options.selectedPortIds = ["refresh-probe"];
+  const result = await fixture.run();
+  assert.equal(result.catalog.ports.length, 421);
+  assert.ok(result.catalog.ports.every((port) => port.presentation?.artwork === undefined));
+  assert.equal(result.records.length, 421);
+  assert.equal(result.metrics.fallback, 421);
+  assert.equal(result.workset.invalidated_port_ids.length, 420);
+  assert.equal(fixture.inspector.providerMetrics.game_requests, 1);
+  assert.equal(fixture.inspector.providerMetrics.image_requests, 1);
+  assert.ok(fixture.accepted.ports.every((port) => port.presentation?.artwork));
+});
+
+void test("artwork worksets are bounded and cannot hide changed mappings outside their scope", async () => {
+  const fixture = await capturedArtworkRefresh();
+  const retained = requiredFixture(fixture.accepted.ports[0]);
+  for (let index = 0; index < 401; index++)
+    fixture.accepted.ports.push({ ...structuredClone(retained), id: `bounded-${index}` });
+  await assert.rejects(fixture.run(), /worksets require at most400/);
+  fixture.options.selectedPortIds = ["refresh-probe", "refresh-probe"];
+  await assert.rejects(fixture.run(), /unique catalog port ids/);
+  fixture.options.selectedPortIds = ["unknown-id"];
+  await assert.rejects(fixture.run(), /unique catalog port ids/);
+  fixture.options.selectedPortIds = ["refresh-probe"];
+  const changed = structuredClone(fixture.accepted);
+  requiredFixture(changed.ports[1]).name = "A different identity";
+  await assert.rejects(fixture.run(changed), /Changed artwork identity outside selected workset/);
+  assert.equal(fixture.requests.length, 3);
 });
 
 void test("Gone for a different candidate image cannot withdraw accepted artwork", async () => {

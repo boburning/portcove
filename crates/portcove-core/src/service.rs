@@ -40,6 +40,11 @@ use crate::{
 };
 
 mod backups;
+mod catalog_download;
+pub use catalog_download::{
+    CatalogDownloadCandidate, CatalogDownloadCandidates, CatalogDownloadCoverage,
+    CatalogDownloadPreview, CatalogDownloadRequest, PendingSetupRecord, PendingSetupState,
+};
 mod external_relink;
 mod ghostship_compatibility;
 #[cfg(test)]
@@ -54,6 +59,7 @@ pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
 #[cfg(any(test, feature = "qualification-fixtures"))]
 mod forbidden_memories_qualification;
 mod launch_preparation;
+mod listings;
 mod removal;
 mod sources;
 pub(crate) use removal::{RemovalOperation, RemovalPhase};
@@ -343,6 +349,7 @@ impl PortcoveService {
 
     /// Explicitly discover and retry orphaned work under its existing locks.
     pub fn recover_pending_operations(&self) -> Result<()> {
+        self.recover_catalog_downloads()?;
         self.recover_cancellations()?;
         self.recover_lifecycle_operations()?;
         Ok(())
@@ -822,7 +829,23 @@ impl PortcoveService {
         if self.catalog.port(port_id).is_ok() {
             return Ok(std::borrow::Cow::Borrowed(&self.catalog));
         }
+        if self.catalog.listing(port_id).is_err()
+            && let Some((pending, _)) = self.pending_setup_registration(port_id)?
+        {
+            return Ok(std::borrow::Cow::Owned(Catalog::for_user_selected_listing(
+                pending.listing,
+            )?));
+        }
         let durable = self.library.status(port_id, ReleaseChannel::Stable)?;
+        if durable.active.is_none()
+            && durable
+                .external_runtime
+                .as_ref()
+                .is_none_or(|record| record.user_selected.is_some())
+            && self.catalog.listing(port_id).is_ok()
+        {
+            return Ok(std::borrow::Cow::Borrowed(&self.catalog));
+        }
         // Catalog lookup must survive a missing external location so the
         // subsequent eligibility assessment can return Held, rather than error.
         let retained = if durable.active.is_none() && durable.external_runtime.is_some() {
@@ -846,13 +869,23 @@ impl PortcoveService {
     fn status_without_rollback_assessment(&self, port_id: &str) -> Result<PortStatus> {
         let status_catalog = self.catalog_for_installed_fallback(port_id)?;
         let catalog = status_catalog.as_ref();
-        let port = catalog.port(port_id)?;
-        let (mut statuses, metrics) = self
-            .library
-            .statuses_with_metrics(&[(port_id.to_owned(), default_channel(port))])?;
+        let port = catalog.port(port_id).ok();
+        let (mut statuses, metrics) = self.library.statuses_with_metrics(&[(
+            port_id.to_owned(),
+            port.map_or(ReleaseChannel::Stable, default_channel),
+        )])?;
         let status = statuses
             .pop()
             .ok_or_else(|| PortcoveError::state("status read model returned no row"))?;
+        if port.is_none()
+            || status
+                .external_runtime
+                .as_ref()
+                .is_some_and(|record| record.user_selected.is_some())
+        {
+            return Ok(self.with_user_selected_readiness(status));
+        }
+        let port = port.expect("operational port checked above");
         let retained_catalog = self.retained_catalog_for_status(&status);
         let mut source_profiles = self.launch_source_profiles(port, retained_catalog.as_ref())?;
         for profile in [
@@ -936,6 +969,15 @@ impl PortcoveService {
             .iter()
             .zip(statuses)
             .map(|(port, status)| {
+                if status
+                    .external_runtime
+                    .as_ref()
+                    .is_some_and(|record| record.user_selected.is_some())
+                {
+                    return Ok(
+                        self.with_rollback_assessment(self.with_user_selected_readiness(status))
+                    );
+                }
                 let retained_catalog = self.retained_catalog_for_status(&status);
                 let status = self.with_launch_readiness(
                     catalog,
@@ -976,11 +1018,6 @@ impl PortcoveService {
             let mut connection = self.library.connection()?;
             let observed_before_catalog = data_version(&connection)?;
             let (catalog, _) = self.library.load_catalog()?;
-            let ports = catalog
-                .ports()
-                .iter()
-                .map(|port| (port.id.clone(), default_channel(port)))
-                .collect::<Vec<_>>();
             let transaction = connection.transaction()?;
             let _: i64 =
                 transaction
@@ -990,6 +1027,24 @@ impl PortcoveService {
                 transaction.rollback()?;
                 continue;
             }
+            let catalog = self.catalog_with_registered_listings(catalog, &transaction)?;
+            let mut ports = catalog
+                .ports()
+                .iter()
+                .map(|port| (port.id.clone(), default_channel(port)))
+                .collect::<Vec<_>>();
+            let strict_count = ports.len();
+            let strict_ids = ports
+                .iter()
+                .map(|(id, _)| id.clone())
+                .collect::<HashSet<_>>();
+            ports.extend(
+                catalog
+                    .listings()
+                    .iter()
+                    .filter(|listing| !strict_ids.contains(&listing.id))
+                    .map(|listing| (listing.id.clone(), ReleaseChannel::Stable)),
+            );
             let sources = Library::sources_from(&transaction)?;
             let (statuses, metrics) = self.library.statuses_from_with_metrics_and_barrier(
                 &transaction,
@@ -1001,6 +1056,7 @@ impl PortcoveService {
                 },
             )?;
             let activities = Library::activity_feed_from(&transaction, activity_limit)?;
+            let pending_setups = Self::pending_setups_from(&transaction)?;
             transaction.commit()?;
             tracing::debug!(
                 port_count = statuses.len(),
@@ -1012,7 +1068,13 @@ impl PortcoveService {
                 consistency_attempt = attempt + 1,
                 "loaded transactional workspace read model"
             );
-            let statuses = self.hydrate_statuses(&catalog, statuses, &sources)?;
+            let listing_raw = statuses.clone();
+            let statuses = self.hydrate_statuses(
+                &catalog,
+                statuses.into_iter().take(strict_count).collect(),
+                &sources,
+            )?;
+            let listing_statuses = self.listing_statuses_from(&catalog, &statuses, listing_raw)?;
             let browsing = self.browsing_contexts_for_workspace(&catalog, &statuses, &sources)?;
             before_consistency_check(attempt);
             if data_version(&connection)? != observed_at_snapshot {
@@ -1021,6 +1083,9 @@ impl PortcoveService {
             return Ok(WorkspaceSnapshot {
                 catalog: catalog.document().clone(),
                 statuses,
+                listing_catalog: Some(catalog.listing_document().clone()),
+                listing_statuses,
+                pending_setups,
                 sources,
                 activities,
                 browsing,
@@ -1049,7 +1114,7 @@ impl PortcoveService {
     ) -> Result<InstallPlan> {
         let port = self.catalog.port(port_id)?;
         let status = self.status(port_id)?;
-        Self::require_managed_runtime_ownership(&status)?;
+        self.require_managed_runtime_ownership(&status)?;
         self.require_definition_operation(
             &self.catalog,
             port,
@@ -1785,6 +1850,10 @@ impl PortcoveService {
                     "external registration changed during status read",
                 ));
             }
+            if published.user_selected.is_some() {
+                self.check_user_selected_retained_runtime(published, &catalog)?;
+                return Ok(Some(catalog));
+            }
             let spec = catalog
                 .port(&status.port_id)?
                 .release
@@ -1816,6 +1885,9 @@ impl PortcoveService {
             return Ok(Vec::new());
         };
         let catalog = retained_catalog.as_ref().unwrap_or(&self.catalog);
+        if catalog.is_user_selected_listing(&current_port.id) {
+            return Ok(Vec::new());
+        }
         let port = catalog.port(&current_port.id)?;
         Ok([
             port.source_profile.as_ref(),
@@ -2182,6 +2254,23 @@ impl PortcoveService {
             remove_external,
             update,
         ];
+        let pending: bool = self.library.connection()?.query_row(
+            "SELECT EXISTS(SELECT 1 FROM catalog_downloads WHERE port_id=?1)",
+            [&status.port_id],
+            |row| row.get(0),
+        )?;
+        if pending {
+            for assessment in &mut status.port_actions {
+                if matches!(
+                    assessment.action,
+                    Action::Install | Action::RegisterExternal | Action::Update
+                ) {
+                    assessment.availability = Availability::NotOffered;
+                    assessment.reason = Reason::RouteNotOffered;
+                    assessment.definition = None;
+                }
+            }
+        }
         Ok(status)
     }
 
@@ -2348,7 +2437,7 @@ impl PortcoveService {
                 Some(status) => status,
                 None => self.status(port_id)?,
             };
-            Self::require_managed_runtime_ownership(&status)?;
+            self.require_managed_runtime_ownership(&status)?;
             let release = operation
                 .interruptible(self.resolve_release(port, status.channel, Platform::current()?))
                 .await?;
@@ -2492,7 +2581,7 @@ impl PortcoveService {
             self.output_location(port_id, overrides.output_directory)?;
             let _operation = self.library.try_lock_port(port_id, "install")?;
             let status = self.status(port_id)?;
-            Self::require_managed_runtime_ownership(&status)?;
+            self.require_managed_runtime_ownership(&status)?;
             self.require_definition_operation(
                 &self.catalog,
                 port,
@@ -2598,7 +2687,7 @@ impl PortcoveService {
         let result = async {
             let _operation = self.library.try_lock_port(port_id, "update")?;
             let status = self.status(port_id)?;
-            Self::require_managed_runtime_ownership(&status)?;
+            self.require_managed_runtime_ownership(&status)?;
             let port = self.catalog.port(port_id)?;
             self.require_definition_operation(
                 &self.catalog,
@@ -3922,6 +4011,7 @@ impl PortcoveService {
         requested_root: &Path,
         checkpoint: &dyn Fn() -> Result<()>,
     ) -> Result<ExternalRuntimePreview> {
+        self.require_no_pending_setup(port_id)?;
         let port = self.catalog.port(port_id)?;
         if port.release.provider != ReleaseSource::UserPrepared {
             return Err(PortcoveError::unsupported(format!(
@@ -4234,8 +4324,14 @@ impl PortcoveService {
         let result = (|| {
             self.require_completed_restore(port_id)?;
             let launch_catalog = self.catalog_for_installed_fallback(port_id)?;
-            let port = launch_catalog.port(port_id)?;
-            let active = self.library.status(port_id, default_channel(port))?.active;
+            let port = launch_catalog.port(port_id).ok();
+            let active = self
+                .library
+                .status(
+                    port_id,
+                    port.map_or(ReleaseChannel::Stable, default_channel),
+                )?
+                .active;
             let external = self.library.external_runtime_with_port(port_id)?;
             if !arguments.is_empty()
                 && active.as_ref().is_some_and(|install| {
@@ -4261,6 +4357,7 @@ impl PortcoveService {
             }
             if !arguments.is_empty()
                 && let Some((record, retained_catalog)) = &external
+                && record.user_selected.is_none()
                 && retained_catalog
                     .port(port_id)?
                     .release
@@ -4336,7 +4433,9 @@ impl PortcoveService {
             operation.checkpoint()?;
             let spec = match (&active, &external) {
                 (Some(install), None) => self.prepare_launch_for_install(
-                    port,
+                    port.ok_or_else(|| {
+                        PortcoveError::state("managed launch has no retained definition")
+                    })?,
                     install,
                     source_override,
                     Some(&operation),
@@ -4372,31 +4471,35 @@ impl PortcoveService {
             crate::launch::configure_supervised_game(&mut command);
             operation.checkpoint()?;
             if let Some((record, retained_catalog)) = external.as_ref() {
-                let accepted = retained_catalog
-                    .port(&record.port_id)?
-                    .release
-                    .user_prepared
-                    .get(&record.platform)
-                    .ok_or_else(|| {
-                        PortcoveError::verification(
-                            "retained external runtime has no platform contract",
-                        )
-                    })?;
-                if accepted.trust == crate::ExternalRuntimeTrust::UserSelected {
-                    self.check_user_selected_runtime_record(record, accepted)?;
+                if record.user_selected.is_some() {
+                    self.check_user_selected_retained_runtime(record, retained_catalog)?;
                 } else {
-                    let inspected = crate::external_runtime::inspect_with_checkpoint(
-                        &record.path,
-                        accepted,
-                        self.library.root(),
-                        &|| operation.checkpoint(),
-                    )?;
-                    if inspected.root != spec.install_root
-                        || inspected.executable != spec.executable
-                    {
-                        return Err(PortcoveError::verification(
-                            "external runtime changed before launch",
-                        ));
+                    let accepted = retained_catalog
+                        .port(&record.port_id)?
+                        .release
+                        .user_prepared
+                        .get(&record.platform)
+                        .ok_or_else(|| {
+                            PortcoveError::verification(
+                                "retained external runtime has no platform contract",
+                            )
+                        })?;
+                    if accepted.trust == crate::ExternalRuntimeTrust::UserSelected {
+                        self.check_user_selected_runtime_record(record, accepted)?;
+                    } else {
+                        let inspected = crate::external_runtime::inspect_with_checkpoint(
+                            &record.path,
+                            accepted,
+                            self.library.root(),
+                            &|| operation.checkpoint(),
+                        )?;
+                        if inspected.root != spec.install_root
+                            || inspected.executable != spec.executable
+                        {
+                            return Err(PortcoveError::verification(
+                                "external runtime changed before launch",
+                            ));
+                        }
                     }
                 }
             }
@@ -4416,32 +4519,36 @@ impl PortcoveService {
             // Release it before publishing subsequent session database writes.
             let mut spawn = || {
                 if let Some((record, retained_catalog)) = external.as_ref() {
-                    crate::runtime_path_policy::check_prepared_launch(
-                        retained_catalog.port(&record.port_id)?,
-                        record.platform,
-                        &spec.executable,
-                        &spec.working_directory,
-                        &spec.arguments,
-                    )?;
-                    let accepted = retained_catalog
-                        .port(&record.port_id)?
-                        .release
-                        .user_prepared
-                        .get(&record.platform)
-                        .ok_or_else(|| {
-                            PortcoveError::verification(
-                                "retained external runtime has no platform contract",
-                            )
-                        })?;
-                    if accepted.trust == crate::ExternalRuntimeTrust::UserSelected {
-                        self.check_user_selected_runtime_record(record, accepted)?;
+                    if record.user_selected.is_some() {
+                        self.check_user_selected_retained_runtime(record, retained_catalog)?;
                     } else {
-                        crate::external_runtime::shared_preferences::check_record(
-                            record, accepted,
+                        crate::runtime_path_policy::check_prepared_launch(
+                            retained_catalog.port(&record.port_id)?,
+                            record.platform,
+                            &spec.executable,
+                            &spec.working_directory,
+                            &spec.arguments,
                         )?;
-                        crate::external_runtime::shared_preferences::require_original(
-                            record, accepted,
-                        )?;
+                        let accepted = retained_catalog
+                            .port(&record.port_id)?
+                            .release
+                            .user_prepared
+                            .get(&record.platform)
+                            .ok_or_else(|| {
+                                PortcoveError::verification(
+                                    "retained external runtime has no platform contract",
+                                )
+                            })?;
+                        if accepted.trust == crate::ExternalRuntimeTrust::UserSelected {
+                            self.check_user_selected_runtime_record(record, accepted)?;
+                        } else {
+                            crate::external_runtime::shared_preferences::check_record(
+                                record, accepted,
+                            )?;
+                            crate::external_runtime::shared_preferences::require_original(
+                                record, accepted,
+                            )?;
+                        }
                     }
                 }
                 if let Some(install) = active.as_ref() {
@@ -4905,30 +5012,13 @@ impl PortcoveService {
         source_override: Option<&Path>,
         operation: &OperationCoordinator,
     ) -> Result<crate::LaunchSpec> {
-        let retained_port = retained_catalog.port(&record.port_id)?;
-        let platform = Platform::current()?;
-        if record.port_id != retained_port.id
-            || record.platform != platform
-            || retained_port.release.provider != ReleaseSource::UserPrepared
-        {
-            return Err(PortcoveError::verification(
-                "external runtime retained contract does not match the current platform",
-            ));
-        }
-        let spec = retained_port
-            .release
-            .user_prepared
-            .get(&platform)
-            .ok_or_else(|| {
-                PortcoveError::verification("retained external runtime has no platform contract")
-            })?;
-        if spec.trust == crate::ExternalRuntimeTrust::UserSelected {
+        if record.user_selected.is_some() {
             if source_override.is_some() {
                 return Err(PortcoveError::usage(
                     "user-managed setup supplies its own original files; source overrides are not offered",
                 ));
             }
-            self.check_user_selected_runtime_record(record, spec)?;
+            self.check_user_selected_retained_runtime(record, retained_catalog)?;
             self.require_definition_identity(
                 record.retained_definition.as_ref(),
                 DefinitionOperationContext::observed(DefinitionOperation::Launch, true, true),
@@ -4949,11 +5039,23 @@ impl PortcoveService {
                 launch_kind: crate::LaunchKind::Native,
             });
         }
-        if record.user_selected.is_some() {
+        let retained_port = retained_catalog.port(&record.port_id)?;
+        let platform = Platform::current()?;
+        if record.port_id != retained_port.id
+            || record.platform != platform
+            || retained_port.release.provider != ReleaseSource::UserPrepared
+        {
             return Err(PortcoveError::verification(
-                "selected execution intent has no retained user-selected trust contract",
+                "external runtime retained contract does not match the current platform",
             ));
         }
+        let spec = retained_port
+            .release
+            .user_prepared
+            .get(&platform)
+            .ok_or_else(|| {
+                PortcoveError::verification("retained external runtime has no platform contract")
+            })?;
         if record.version != spec.version
             || !record
                 .archive_sha256

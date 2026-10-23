@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gearhead-garage-opengg",
+    "name": "Gearhead Garage: The Virtual Mechanic (OpenGG)",
+    "summary": "Explore Gearhead Garage: The Virtual Mechanic (OpenGG) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/tymsky/OpenGG",
+    "issue_number": 1637,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/tymsky/OpenGG"
+  }
+}

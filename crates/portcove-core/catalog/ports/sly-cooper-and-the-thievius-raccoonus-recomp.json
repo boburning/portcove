@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sly-cooper-and-the-thievius-raccoonus-recomp",
+    "name": "Sly Cooper and the Thievius Raccoonus Recomp",
+    "summary": "Explore Sly Cooper and the Thievius Raccoonus Recomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/chrisking1981/sly1-recomp",
+    "issue_number": 171,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/chrisking1981/sly1-recomp"
+  }
+}

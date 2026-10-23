@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alistert-openjazz",
+    "name": "Jazz Jackrabbit / OpenJazz (AlisterT)",
+    "summary": "Explore Jazz Jackrabbit / OpenJazz (AlisterT) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/AlisterT/openjazz",
+    "issue_number": 1853,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/AlisterT/openjazz"
+  }
+}

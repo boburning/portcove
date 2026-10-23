@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-r-type-delta-recomp",
+    "name": "R-Type Delta / Alexbeav PSXRecomp",
+    "summary": "Explore R-Type Delta / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/r-type-delta-recomp",
+    "issue_number": 471,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/r-type-delta-recomp"
+  }
+}

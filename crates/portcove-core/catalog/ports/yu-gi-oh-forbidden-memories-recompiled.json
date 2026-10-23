@@ -1,0 +1,71 @@
+{
+  "format_version": 1,
+  "order": 33,
+  "listing": {
+    "id": "yu-gi-oh-forbidden-memories-recompiled",
+    "name": "Yu-Gi-Oh! Forbidden Memories: Recompiled",
+    "summary": "Native Yu-Gi-Oh! Forbidden Memories recompilation.",
+    "project_url": "https://github.com/Unchiga/YuGiOhForbiddenMemoriesRecomp",
+    "original_game_title": "Yu-Gi-Oh! Forbidden Memories",
+    "artwork": {
+      "game_id": 4108,
+      "cover_id": 86189,
+      "image_id": "co1ui5",
+      "image_sha256": "4433b62aad4b6eb383b78541b23242c395a35fa426c5f50d217d605c19312291",
+      "game_slug": "yu-gi-oh-forbidden-memories",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 141
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "repository": "Unchiga/YuGiOhForbiddenMemoriesRecomp",
+      "asset_hints": {
+        "windows-x86-64": ["win-x64"]
+      }
+    },
+    "source_profile": "yu-gi-oh-forbidden-memories-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Yu_Gi_Oh_Forbidden_Memories_Recompiled.exe"]
+    },
+    "persistent_paths": [
+      "saves",
+      "config",
+      "mods",
+      "settings.toml",
+      "game_options.json",
+      "graphics.json",
+      "input.json",
+      "sound.json",
+      "input.ini",
+      "keybinds.ini",
+      "disc.cfg",
+      "bios.cfg"
+    ],
+    "runtime_mutable_paths": [
+      "psx_last_run_report.json",
+      "disc_verified.cfg",
+      "diagnostics/psx_freeze_heartbeat.json"
+    ],
+    "runtime_subdirectory": "build-portcove",
+    "launch_environment": {
+      "PSX_PORTABLE": "1"
+    },
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "yu-gi-oh-forbidden-memories-psx",
+          "label": "Yu-Gi-Oh! Forbidden Memories (USA) disc",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

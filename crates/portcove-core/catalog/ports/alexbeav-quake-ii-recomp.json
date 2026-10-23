@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-quake-ii-recomp",
+    "name": "Quake II / Alexbeav PSXRecomp",
+    "summary": "Explore Quake II / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp",
+    "issue_number": 474,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp"
+  }
+}

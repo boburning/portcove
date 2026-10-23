@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "uzdoom-uzdoom",
+    "name": "Doom / UZDoom (UZDoom)",
+    "summary": "Explore Doom / UZDoom (UZDoom) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/UZDoom/UZDoom",
+    "issue_number": 1899,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/UZDoom/UZDoom"
+  }
+}

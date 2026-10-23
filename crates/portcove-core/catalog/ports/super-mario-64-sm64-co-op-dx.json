@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-mario-64-sm64-co-op-dx",
+    "name": "Super Mario 64 / SM64 Co-op DX",
+    "summary": "Explore Super Mario 64 / SM64 Co-op DX and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/coop-deluxe/sm64coopdx",
+    "issue_number": 322,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/coop-deluxe/sm64coopdx"
+  }
+}

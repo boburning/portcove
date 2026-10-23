@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "m-x-d-heretic2r",
+    "name": "Heretic II / Heretic2R (m-x-d)",
+    "summary": "Explore Heretic II / Heretic2R (m-x-d) and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/m-x-d/Heretic2R",
+    "issue_number": 1826,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/m-x-d/Heretic2R"
+  }
+}

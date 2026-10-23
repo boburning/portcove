@@ -158,6 +158,7 @@ impl PortcoveService {
         port_id: &str,
         options: PreparationOptions,
     ) -> Result<PreparationPlan> {
+        self.require_no_pending_setup(port_id)?;
         let active = self.status(port_id)?.active;
         let retained_catalog = active
             .as_ref()

@@ -1,0 +1,75 @@
+{
+  "format_version": 1,
+  "order": 19,
+  "listing": {
+    "id": "bomberman-party-edition-recompiled",
+    "name": "Bomberman Party Edition: Recompiled",
+    "summary": "Native Bomberman Party Edition recompilation.",
+    "project_url": "https://github.com/TechnicallyComputers/BombermanPartyEditionRecomp",
+    "original_game_title": "Bomberman Party Edition",
+    "artwork": {
+      "game_id": 18786,
+      "cover_id": 473835,
+      "image_id": "coa5m3",
+      "image_sha256": "d56a93b4ccdfa966ba0bd50007333c60eddcc803665a01b3eb1624d2f44a790e",
+      "game_slug": "bomberman-party-edition",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 74
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "repository": "TechnicallyComputers/BombermanPartyEditionRecomp",
+      "asset_hints": {
+        "windows-x86-64": ["windows-x64"],
+        "linux-x86-64": ["linux-x64"],
+        "macos-x86-64": ["macos-x64"],
+        "macos-aarch64": ["macos-arm64"]
+      }
+    },
+    "source_profile": "bomberman-party-edition-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Bomberman_Party_Edition_Recompiled.exe"],
+      "linux-x86-64": ["Bomberman_Party_Edition_Recompiled"],
+      "macos-x86-64": ["Bomberman_Party_Edition_Recompiled"],
+      "macos-aarch64": ["Bomberman_Party_Edition_Recompiled"]
+    },
+    "persistent_paths": [
+      "saves",
+      "config",
+      "mods",
+      "settings.toml",
+      "game_options.json",
+      "graphics.json",
+      "input.json",
+      "sound.json",
+      "input.ini",
+      "keybinds.ini"
+    ],
+    "runtime_subdirectory": "build-portcove",
+    "runtime_mutable_paths": [
+      "bios.cfg",
+      "disc.cfg",
+      "psx_freeze_heartbeat.json",
+      "psx_last_run_report.json"
+    ],
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "bomberman-party-edition-psx",
+          "label": "Bomberman Party Edition (USA) disc",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

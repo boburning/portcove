@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ace-combat-x-skies-of-deception-ace-combat-x-recompilation",
+    "name": "Ace Combat X: Skies of Deception / Ace-Combat-X-Recompilation",
+    "summary": "Explore Ace Combat X: Skies of Deception / Ace-Combat-X-Recompilation and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/sal063/Ace-Combat-X-Recompilation",
+    "issue_number": 355,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sal063/Ace-Combat-X-Recompilation"
+  }
+}

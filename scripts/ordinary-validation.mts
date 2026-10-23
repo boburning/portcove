@@ -301,6 +301,20 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ["scripts/prepare-port.mts", ["scripts/prepare-port.test.mts"]],
+  ["scripts/port-upstream-facts.mts", ["scripts/prepare-port.test.mts"]],
+  [
+    "scripts/catalog-authoring-inspector.mts",
+    ["scripts/prepare-port.test.mts", "scripts/generate-catalog.test.mts"],
+  ],
+  [
+    "scripts/catalog-authoring.mts",
+    [
+      "scripts/prepare-port.test.mts",
+      "scripts/generate-catalog.test.mts",
+      "scripts/catalog-staged-check.test.mts",
+    ],
+  ],
   ...[
     "release-controller-configuration",
     "release-controller-job",
@@ -1657,6 +1671,17 @@ function classifyOnePath(
   for (const testFile of explicitNodeTests.get(file) ?? []) {
     selection.scopes.add("tooling");
     addNodeTest(selection, testFile);
+    recognized = true;
+  }
+
+  if (
+    file.startsWith("crates/portcove-core/catalog/ports/") ||
+    file === "crates/portcove-core/catalog/catalog-shared.json" ||
+    file === "crates/portcove-core/catalog/listings.json"
+  ) {
+    selection.scopes.add("tooling");
+    addNodeTest(selection, "scripts/generate-catalog.test.mts");
+    addNodeTest(selection, "scripts/catalog-staged-check.test.mts");
     recognized = true;
   }
 

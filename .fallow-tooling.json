@@ -8,6 +8,7 @@
     "scripts/rust-test-tree-supervisor.{mjs,mts}",
     "scripts/viteplus-renovate-probe.{mjs,mts}",
     "scripts/generate-catalog.{mjs,mts}",
+    "scripts/prepare-port.mts",
     "scripts/migrate-catalog-schema2.{mjs,mts}",
     "apps/desktop/i18next.invalid.config.{ts,mts}",
     "apps/desktop/src/i18next-contract.test-d.ts",

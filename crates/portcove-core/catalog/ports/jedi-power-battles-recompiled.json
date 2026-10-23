@@ -1,0 +1,68 @@
+{
+  "format_version": 1,
+  "order": 29,
+  "listing": {
+    "id": "jedi-power-battles-recompiled",
+    "name": "Jedi Power Battles: Recompiled",
+    "summary": "Native Star Wars: Episode I – Jedi Power Battles recompilation.",
+    "project_url": "https://github.com/TechnicallyComputers/Star-wars---Episode-I---Jedi-Power-Battles-Recomp",
+    "original_game_title": "Star Wars: Episode I – Jedi Power Battles",
+    "variant_label": "PlayStation",
+    "artwork": {
+      "game_id": 6606,
+      "cover_id": 506749,
+      "image_id": "coav0d",
+      "image_sha256": "409810bbaa369112a4906d6f783066cf74a9389736671241f7442f39a6880da9",
+      "game_slug": "star-wars-episode-i-jedi-power-battles",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 84
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "repository": "TechnicallyComputers/Star-wars---Episode-I---Jedi-Power-Battles-Recomp",
+      "asset_hints": {
+        "windows-x86-64": ["windows-x64"],
+        "linux-x86-64": ["linux-x64"],
+        "macos-x86-64": ["macos-x64"],
+        "macos-aarch64": ["macos-arm64"]
+      }
+    },
+    "source_profile": "jedi-power-battles-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Star_wars___Episode_I___Jedi_Power_Battles__Recompiled.exe"],
+      "linux-x86-64": ["Star_wars___Episode_I___Jedi_Power_Battles__Recompiled"],
+      "macos-x86-64": ["Star_wars___Episode_I___Jedi_Power_Battles__Recompiled"],
+      "macos-aarch64": ["Star_wars___Episode_I___Jedi_Power_Battles__Recompiled"]
+    },
+    "persistent_paths": [
+      "saves",
+      "config",
+      "mods",
+      "settings.toml",
+      "game_options.json",
+      "graphics.json",
+      "input.json",
+      "sound.json"
+    ],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "jedi-power-battles-psx",
+          "label": "Star Wars Episode I: Jedi Power Battles (USA) disc",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

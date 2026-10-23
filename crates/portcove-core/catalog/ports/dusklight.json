@@ -1,0 +1,61 @@
+{
+  "format_version": 1,
+  "order": 7,
+  "listing": {
+    "id": "dusklight",
+    "name": "Dusklight",
+    "summary": "Native Twilight Princess port from Twilit Realm.",
+    "project_url": "https://github.com/TwilitRealm/dusklight",
+    "original_game_title": "The Legend of Zelda: Twilight Princess",
+    "artwork": {
+      "game_id": 1036,
+      "cover_id": 169555,
+      "image_id": "co3mtv",
+      "image_sha256": "c418fa20e362aa487bd429b6620a53fd5a382b0b32f0bc50d065ae65a12d338d",
+      "game_slug": "the-legend-of-zelda-twilight-princess",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 63
+  },
+  "integration": {
+    "support_tier": "stable",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "referenced-disc",
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "release": {
+      "repository": "TwilitRealm/dusklight"
+    },
+    "source_profile": "twilight-princess",
+    "executable_hints": {
+      "windows-x86-64": ["dusklight.exe"],
+      "linux-x86-64": ["dusklight"]
+    },
+    "persistent_paths": [
+      "texture_replacements",
+      "USA",
+      "EUR",
+      "JAP",
+      "achievements.json",
+      "config.json",
+      "controller_ports.dat",
+      "gamecontrollerdb.txt",
+      "imgui.ini",
+      "keyboard_bindings.dat",
+      "states.json"
+    ],
+    "presentation": {
+      "installation_method": "referenced-disc",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "twilight-princess",
+          "label": "The Legend of Zelda: Twilight Princess GameCube disc",
+          "verification": "catalog-rules"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

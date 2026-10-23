@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "call-of-duty-modern-warfare-2-xbox-360-recompiled",
+    "name": "Call of Duty: Modern Warfare 2 (Xbox 360) Recompiled",
+    "summary": "Explore Call of Duty: Modern Warfare 2 (Xbox 360) Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/PaulCombal/mw2-recompiled",
+    "issue_number": 1397,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/PaulCombal/mw2-recompiled"
+  }
+}

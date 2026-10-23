@@ -1,0 +1,67 @@
+{
+  "format_version": 1,
+  "order": 23,
+  "listing": {
+    "id": "legend-of-mana-recompiled",
+    "name": "Legend of Mana: Recompiled",
+    "summary": "Native Legend of Mana recompilation.",
+    "project_url": "https://github.com/TechnicallyComputers/Legend-of-Mana-Recomp",
+    "original_game_title": "Legend of Mana",
+    "artwork": {
+      "game_id": 14986,
+      "cover_id": 511116,
+      "image_id": "coaydo",
+      "image_sha256": "140ebddb4f9692fdf02f1103e27f9e8c5dd30e51dd26ce1fb3802584faec33b3",
+      "game_slug": "legend-of-mana",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 78
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "automated_tested_platforms": ["windows-x86-64"],
+    "manually_validated_platforms": ["windows-x86-64"],
+    "adapter": "psx-recomp-managed",
+    "release": {
+      "repository": "TechnicallyComputers/Legend-of-Mana-Recomp",
+      "asset_hints": {
+        "windows-x86-64": ["windows-x64"],
+        "linux-x86-64": ["linux-x64"],
+        "macos-x86-64": ["macos-x64"],
+        "macos-aarch64": ["macos-arm64"]
+      }
+    },
+    "source_profile": "legend-of-mana-psx",
+    "executable_hints": {
+      "windows-x86-64": ["Legend_of_Mana__Recompiled.exe"],
+      "linux-x86-64": ["Legend_of_Mana__Recompiled"],
+      "macos-x86-64": ["Legend_of_Mana__Recompiled"],
+      "macos-aarch64": ["Legend_of_Mana__Recompiled"]
+    },
+    "persistent_paths": [
+      "saves",
+      "config",
+      "mods",
+      "settings.toml",
+      "game_options.json",
+      "graphics.json",
+      "input.json",
+      "sound.json"
+    ],
+    "runtime_subdirectory": "build-portcove",
+    "presentation": {
+      "installation_method": "managed-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "legend-of-mana-psx",
+          "label": "Legend of Mana (USA) disc",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

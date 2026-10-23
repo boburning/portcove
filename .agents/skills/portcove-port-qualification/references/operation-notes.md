@@ -19,19 +19,35 @@ old blanket document-load and local-check wording below does not add a gate.
 Resolve the current checkout root with `git rev-parse --show-toplevel` before using
 paths below. Read [catalog contracts](../../../../docs/CATALOG.md) and the port's canonical issue and live Project fields. For new intake or live Project changes, also load `portcove-roadmap` and use the existing capture/normalization commands in [governance](../../../../docs/PROJECT-GOVERNANCE.md); search for the canonical issue before creating anything. This skill remains the owner of catalog and lifecycle evidence.
 
-Establish direct upstream or accepted user-provided-runtime identity, exact
-runnable asset/platform where acquired bytes are involved, accepted expected
-SHA-256 authority, required source variant/representation, and the ownership
-and persistence boundary for each offered operation. A local hash records bytes;
-it does not authenticate an arbitrary upstream download or create catalog
-authority. The curated exact-byte direction is authorized under #315 but is not
-available until its protected implementation ships. Missing optional gameplay,
+For each offered operation, establish its upstream or user-selected-runtime
+identity and ownership boundary. A discovery listing needs attributable identity
+and origin. Generic package acquisition binds the selected asset and destination,
+checks published digest evidence when present, and records the observed hash
+without inventing authenticity when no expected digest exists. Explicit
+user-selected registration binds native executable, working directory and literal
+arguments; it grants no immutable-runtime certification or file ownership.
+Strict managed operations additionally require their exact runnable
+asset/platform, accepted expected SHA-256 authority, source
+variant/representation and persistence contract. A local hash alone does not
+create catalog authority. The curated exact-byte direction is authorized under
+#315 but is not available until its protected implementation ships. Missing optional gameplay,
 active upstream maintenance, complete save mapping, or automatic updates do not
 block a separate safe useful operation.
 
-For the selected release, reconcile outer tag, archive name, embedded manifests, and executable version. Probe packaged help, version, doctor, identify, worker, or machine-readable modes before concluding setup is GUI-only. Treat an undocumented interface as version-scoped evidence only after exact-source execution, terminal status, output ownership, and failure behavior are understood.
+When offering a managed integration or an upstream preparation interface,
+reconcile its selected release, archive, embedded manifests and executable
+version. Probe packaged help, version, doctor, identify, worker or machine-readable
+modes before concluding setup is GUI-only. Treat an undocumented interface as
+version-scoped evidence only after exact-source execution, terminal status,
+output ownership and failure behavior are understood. A descriptive listing or
+opaque installer handoff does not require this investigation.
 
-Apply proposed asset hints to the complete selected release inventory and require exactly one runnable artifact per platform. Record selected name, size, and digest. Distinguish runtime packages from builders, symbols, patches, and companions with stable tokens rather than order or assumption.
+For an automatic managed selector, apply proposed asset hints to the complete
+selected release inventory and require exactly one runnable artifact per
+platform. Record selected name, size and digest. Distinguish runtime packages
+from builders, symbols, patches and companions with stable tokens rather than
+order or assumption. Generic download presents explicit choices and makes no
+automatic platform or runnable-package inference.
 
 For a hosted selector that promises automatic update selection, test whether
 one unchanged definition selects ordinary release N and a controlled N+1 with
@@ -56,15 +72,25 @@ exact pin and resume condition. Exact accepted bytes, unfinished research, missi
 optional gameplay or another platform's gap alone do not justify that exception.
 A direct manifest does not itself forbid a bounded release observer and reviewed
 compatible proposals. For an offered non-owning user-prepared route, declare
-`user-managed-update`; retain exact package checks and offer no managed update,
-replacement, rollback, backup or external deletion without separate evidence.
+`user-managed-update`. Retain exact package/tree checks for the curated
+package-registration route. The explicit user-selected route instead retains
+reviewed execution intent and its native/path guards. Both preserve user/upstream
+replacement ownership; neither grants managed update, replacement, rollback,
+backup or external deletion without a separately accepted ownership transition.
 Use [#254](https://github.com/boburning/portcove/issues/254) for repeatable proposal
 preparation, [#246](https://github.com/boburning/portcove/issues/246) for its independent
 protected progression proof, and [#1422](https://github.com/boburning/portcove/issues/1422)
 for complete cohort use. A maintenance declaration grants no publisher authority,
 automatic installation, player-choice override or inherited gameplay claim.
 
-Before editing a definition, inventory every upstream-created output and classify it under immutable verification, persistence/backup, or reviewed disposable runtime mutation. Confirm the chosen adapter can express that ownership. Resolve every catalog path through the adapter's actual working-directory coordinate system and inspect generated manifests or equivalent projections; raw string equality and successful launch are insufficient.
+Before changing managed runtime creation or replacement, inventory the
+upstream-created outputs covered by that operation and classify them under
+immutable verification, persistence/backup or reviewed disposable runtime
+mutation. Confirm the chosen adapter can express that ownership. Resolve every
+catalog path through the adapter's actual working-directory coordinate system
+and inspect generated manifests or equivalent projections; raw string equality
+and successful launch are insufficient. Listings, artwork and non-owning
+registration do not acquire a full runtime-output inventory requirement.
 
 When one executable performs both setup or source generation and ordinary play, inspect setup-time writes separately from launch-time writes. Run setup in operation-private storage, expose only required package resources, and publish only explicitly declared generated outputs; retain the private tree on validation failure. Determine direct-versus-synchronized persistence from the exact upstream storage resolver for each declared platform, not from an adapter-family assumption.
 

@@ -1,0 +1,81 @@
+{
+  "format_version": 1,
+  "order": 60,
+  "listing": {
+    "id": "g-diffuser",
+    "name": "F-Zero X G-Diffuser",
+    "summary": "Native F-Zero X and Expansion Kit port.",
+    "project_url": "https://github.com/Zorkats/G-Diffuser",
+    "original_game_title": "F-Zero X",
+    "variant_label": "Expansion Kit",
+    "artwork": {
+      "game_id": 413108,
+      "cover_id": 604537,
+      "image_id": "cocygp",
+      "image_sha256": "7c961141c0855131b197e8ba37f361230d99e6cc243cd63f332562ba94322406",
+      "game_slug": "g-diffuser",
+      "match_kind": "port"
+    },
+    "issue_number": 111
+  },
+  "integration": {
+    "support_tier": "stable",
+    "channels": ["stable", "beta"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "staged-source-portable",
+    "release": {
+      "repository": "Zorkats/G-Diffuser",
+      "asset_hints": {
+        "windows-x86-64": ["windows-x64.zip"],
+        "linux-x86-64": ["linux-x64.tar.gz"]
+      }
+    },
+    "source_profile": "g-diffuser-source-set",
+    "runtime_source_set": [
+      {
+        "source_filenames": ["baserom.us.rev0.z64"],
+        "destination": "baserom.us.rev0.z64",
+        "materialization": "n64-big-endian"
+      },
+      {
+        "source_filenames": ["baserom.translated.ek.ndd"],
+        "destination": "baserom.translated.ek.ndd",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["N64DDIPLROM.n64", "64DD_IPL_US_MJR.n64"],
+        "destination": "N64DDIPLROM.n64",
+        "materialization": "copy"
+      }
+    ],
+    "executable_hints": {
+      "windows-x86-64": ["G-Diffuser.exe"],
+      "linux-x86-64": ["G-Diffuser"]
+    },
+    "persistent_paths": [
+      "fzerox.o2r",
+      "fzerox-disk.o2r",
+      "n64ddipl.o2r",
+      "gdiffuser.cfg.json",
+      "gdx_firstboot.cfg",
+      "gdx_extract_state.cfg",
+      "saves",
+      "ghosts",
+      "mods",
+      "shaders",
+      "screenshots"
+    ],
+    "presentation": {
+      "installation_method": "staged-game-files",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "g-diffuser-source-set",
+          "label": "F-Zero X G-Diffuser cartridge, Expansion Kit, and 64DD IPL set",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

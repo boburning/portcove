@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alexbeav-kings-field-recomp",
+    "name": "King's Field / Alexbeav PSXRecomp",
+    "summary": "Explore King's Field / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "project_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp",
+    "issue_number": 454,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp"
+  }
+}
