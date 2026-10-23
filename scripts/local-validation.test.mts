@@ -90,6 +90,26 @@ void test("colocated workflow contracts retain every former route and their dire
   }
 });
 
+void test("checkpoint authentication sources retain security classification and their proof consumer", () => {
+  for (const file of [
+    "scripts/release-checkpoint-job-identity.mts",
+    "scripts/release-coordinator-checkpoint-authentication.mts",
+    "scripts/release-coordinator-checkpoint-evidence.mts",
+    "scripts/fixtures/checkpoint-proof-fixture.mts",
+    "scripts/github-controller-attestation.mts",
+    "scripts/assembler-job-identity.mts",
+    "scripts/release-coordinator-remote.mts",
+  ]) {
+    const selection = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
+    assert.ok(selection.scopes.has("release-tooling"), file);
+    assert.ok(
+      selection.nodeTests.has("scripts/release-coordinator-checkpoint-authentication.test.mts"),
+      file,
+    );
+    assert.ok(!selection.unknown.has(file), file);
+  }
+});
+
 void test("Release recovery and Preview withdrawal inputs select complete test paths and serialize actual CI outputs", async (t) => {
   const files = [
     "scripts/release-pending-release-recovery.mts",

@@ -7,7 +7,7 @@ import { productionControllerWorkflow } from "./production-controller-admission.
 import { isRecord } from "./runtime-values.mts";
 import { performance } from "node:perf_hooks";
 const repository = "boburning/portcove";
-export function verifyControllerArtifactStatement(
+export function verifyControllerArtifactVerification(
   directory: string,
   filename: string,
   bundlePath: string,
@@ -103,5 +103,17 @@ export function verifyControllerArtifactStatement(
       `https://github.com/${repository}/actions/runs/${expected.run_id}/attempts/${expected.run_attempt}`
   )
     throw new Error("aggregate attester certificate identity differs");
-  return result.statement;
+  return {
+    statement: result.statement,
+    certificate,
+    verifiedTimestamps: result.verifiedTimestamps,
+  };
+}
+
+/** Preserve existing statement-only callers. Historical custody consumers also
+ * need the verifier's witnessed timestamps, never timestamps from a predicate. */
+export function verifyControllerArtifactStatement(
+  ...args: Parameters<typeof verifyControllerArtifactVerification>
+) {
+  return verifyControllerArtifactVerification(...args).statement;
 }

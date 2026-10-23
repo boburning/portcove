@@ -12,6 +12,8 @@ import {
   inspectCoordinatorCheckpointEvidence,
 } from "./release-coordinator-checkpoint-evidence.mts";
 import type { CoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
+import { requireAuthenticatedCheckpointEvidence } from "./release-coordinator-checkpoint-authentication.mts";
+import type { AuthenticatedCheckpointEvidence } from "./release-coordinator-checkpoint-authentication.mts";
 
 export interface CoordinatorRemoteApi {
   request(method: string, endpoint: string, body?: unknown): IncludedResponse;
@@ -34,20 +36,33 @@ export { namespace as inspectCoordinatorRemoteNamespace };
 export async function publishCoordinatorCheckpoint(
   localRepository: string,
   expected: string,
-  configuration: unknown,
-  options: { api?: CoordinatorRemoteApi; evidence?: CoordinatorCheckpointEvidence } = {},
+  rawConfiguration: unknown,
+  options: {
+    api?: CoordinatorRemoteApi;
+    evidence?: CoordinatorCheckpointEvidence;
+    authenticatedEvidence?: AuthenticatedCheckpointEvidence;
+  } = {},
 ) {
+  const configuration: unknown = structuredClone(rawConfiguration);
   const scope = namespace(configuration);
   const api = options.api;
+  const authenticatedEvidence = options.authenticatedEvidence;
+  const rawEvidence = options.evidence;
   if (!api) throw new Error("remote coordinator transport is unconfigured");
   const checkpoint = await exportCoordinatorCheckpoint(localRepository, expected);
+  if (rawEvidence !== undefined && authenticatedEvidence !== undefined)
+    throw new Error("checkpoint evidence transport and authenticated receipt cannot be mixed");
+  const suppliedEvidence =
+    authenticatedEvidence === undefined
+      ? rawEvidence
+      : requireAuthenticatedCheckpointEvidence(authenticatedEvidence, expected, configuration);
   const updates = coordinatorCheckpointUpdates(checkpoint, scope);
   // Only durable transport: a syntactically bound envelope is not authenticated
   // writer identity. Job-token authority must still use the existing verifier.
   const evidence =
-    options.evidence === undefined
+    suppliedEvidence === undefined
       ? null
-      : inspectCoordinatorCheckpointEvidence(checkpoint, configuration, options.evidence);
+      : inspectCoordinatorCheckpointEvidence(checkpoint, configuration, suppliedEvidence);
   if (evidence) updates.push(evidence.update);
   const started = performance.now();
   let requests = 0;
@@ -156,7 +171,27 @@ export async function publishCoordinatorCheckpoint(
     return { checkpoint: expected, changed: false, recovered: false, updates, observed: before };
 
   const objects: { kind: string; expected: string; observed: string | null }[] = [];
+  const revalidateEvidence = (phase: string) => {
+    if (authenticatedEvidence === undefined) return;
+    try {
+      requireAuthenticatedCheckpointEvidence(authenticatedEvidence, expected, configuration);
+    } catch (error) {
+      throw new CoordinatorRemoteError(
+        "authenticated checkpoint evidence expired or changed before the next mutation",
+        {
+          checkpoint: expected,
+          updates,
+          before,
+          objects,
+          phase,
+          attempted: false,
+          error: sanitizeOperationError(error),
+        },
+      );
+    }
+  };
   const upload = (kind: string, body: unknown, oid: string) => {
+    revalidateEvidence(`before-POST-${kind}`);
     let result: unknown;
     try {
       result = rest("POST", `repos/${repository}/git/${kind}`, body);
@@ -199,6 +234,7 @@ export async function publishCoordinatorCheckpoint(
   for (const object of evidence?.objects ?? []) upload(object.kind, object.body, object.oid);
   const mutationId = createHash("sha256").update(JSON.stringify({ nodeId, updates })).digest("hex");
   let mutationError: ReturnType<typeof sanitizeOperationError> | null = null;
+  revalidateEvidence("before-ref-CAS");
   budget();
   try {
     const response = api.graphql(
