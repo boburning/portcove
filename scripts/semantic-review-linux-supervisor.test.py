@@ -33,6 +33,22 @@ def request():
 
 
 class SupervisorContract(unittest.TestCase):
+    def test_current_codex_bound_does_not_expand_other_runtime_or_writable_storage(self):
+        # Scale only the byte unit: exercise actual bounded regular-file reads
+        # without allocating a production-sized executable in this inert test.
+        with tempfile.TemporaryDirectory() as directory, patch.object(supervisor, "MIB", 1):
+            executable = Path(directory) / "binary"
+            executable.write_bytes(b"x" * 300)
+            self.assertEqual(supervisor.read_runtime(executable, "codex"), b"x" * 300)
+            with self.assertRaises(supervisor.Refusal):
+                supervisor.read_runtime(executable, "node")
+            executable.write_bytes(b"x" * 321)
+            with self.assertRaises(supervisor.Refusal):
+                supervisor.read_runtime(executable, "codex")
+            with self.assertRaises(supervisor.Refusal):
+                supervisor.read_runtime(executable, "candidate-selected-runtime")
+        self.assertEqual(supervisor.STORAGE_BYTES, 512 * 1024 * 1024)
+
     def test_fixed_request_no_command_or_credential_discovery(self):
         self.assertEqual(supervisor.inspect_request(request())["mode"], "fixture")
         for key, value in (("command", ["sh"]), ("backend", "other"), ("environment", {"TOKEN": "x"})):
