@@ -1408,6 +1408,14 @@ function frontendTask(id: string, reason: string, task: string) {
 function addNodeTest(selection: ValidationSelection, file: string) {
   const normalized = normalizePath(file);
   selection.nodeTests.add(normalized);
+  // Preserve every former workflow-suite consumer after responsibility-based colocation.
+  if (normalized === "scripts/ci-workflow.test.mts")
+    for (const companion of [
+      "scripts/check-catalog-repositories.test.mts",
+      "scripts/check-retcomm-upstreams.test.mts",
+      "scripts/deep-audit-summary.test.mts",
+    ])
+      selection.nodeTests.add(companion);
   // These contracts formerly ran through imports; keep them in focused routes
   // now that each suite has its own explicit execution entry point.
   if (normalized === "scripts/desktop-scenarios.test.mts")

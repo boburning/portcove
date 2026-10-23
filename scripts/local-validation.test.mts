@@ -49,6 +49,47 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 
 const allFilesExist = () => true;
 
+void test("colocated workflow contracts retain every former route and their direct production owners", () => {
+  const companions = [
+    "scripts/check-catalog-repositories.test.mts",
+    "scripts/check-retcomm-upstreams.test.mts",
+    "scripts/deep-audit-summary.test.mts",
+  ];
+  for (const file of [
+    ".github/workflows/ci.yml",
+    ".github/workflows/deep-quality.yml",
+    ".github/workflows/upstream-health.yml",
+    ".github/actions/setup-rust/action.yml",
+    "package.json",
+    "apps/desktop/package.json",
+    "justfile",
+    "scripts/ci-workflow.test.mts",
+  ]) {
+    // A deleted test file has no executable route; other consumers retain it.
+    const statuses = file === "scripts/ci-workflow.test.mts" ? ["M"] : ["M", "D", "R"];
+    for (const status of statuses) {
+      const change =
+        status === "R"
+          ? { status, path: "renamed-workflow-input.txt", previousPath: file }
+          : { status, path: file };
+      const selection = classifyChanges([change], {
+        fileExists: status === "M" ? allFilesExist : () => false,
+      });
+      assert.ok(selection.nodeTests.has("scripts/ci-workflow.test.mts"), `${status}:${file}`);
+      for (const companion of companions)
+        assert.ok(selection.nodeTests.has(companion), `${status}:${file}`);
+    }
+  }
+  for (const companion of companions) {
+    for (const file of [companion, companion.replace(".test.mts", ".mts")]) {
+      const selection = classifyChanges([{ status: "M", path: file }], {
+        fileExists: allFilesExist,
+      });
+      assert.ok(selection.nodeTests.has(companion), file);
+    }
+  }
+});
+
 void test("Release recovery and Preview withdrawal inputs select complete test paths and serialize actual CI outputs", async (t) => {
   const files = [
     "scripts/release-pending-release-recovery.mts",
@@ -1314,7 +1355,10 @@ void test("retired GitHub policy JSON remains owned without a file-specific tomb
   });
   assert.deepEqual([...selection.unknown], []);
   assert.deepEqual([...selection.nodeTests].sort(), [
+    "scripts/check-catalog-repositories.test.mts",
+    "scripts/check-retcomm-upstreams.test.mts",
     "scripts/ci-workflow.test.mts",
+    "scripts/deep-audit-summary.test.mts",
     "scripts/repository-settings.test.mts",
     "scripts/validation-plan.test.mts",
   ]);
