@@ -40,23 +40,33 @@ const call = (_meta?: unknown) => ({
   },
 });
 const trace = {
+  callId: "inert-call-id",
+  "x-codex-turn-metadata": { codex_version: "0.162.0", source: "inert" },
   traceparent: `00-${"a".repeat(32)}-${"b".repeat(16)}-01`,
   tracestate: "portcove=inert",
   progressToken: 1,
   "openai/readOnly": true,
 };
 
-test("pinned RMCP transport metadata does not change the exact frozen read", () => {
+function responsePage(raw: unknown) {
+  assert.ok(isRecord(raw) && isRecord(raw.result) && Array.isArray(raw.result.content));
+  const content: unknown = raw.result.content[0];
+  assert.ok(isRecord(content) && typeof content.text === "string");
+  const page: unknown = JSON.parse(content.text);
+  assert.ok(isRecord(page));
+  return page;
+}
+
+await test("pinned RMCP transport metadata does not change the exact frozen read", () => {
   for (const meta of [undefined, {}, trace]) {
     const dispatch = createSemanticSnapshotRpc(inspectSemanticReaderIndex(index, sha(index)));
     dispatch(initialize);
     const result = dispatch(call(meta))!;
-    assert.ok(isRecord(result.result) && Array.isArray(result.result.content));
-    const content: unknown = result.result.content[0];
-    assert.ok(isRecord(content) && typeof content.text === "string");
-    assert.equal(JSON.parse(content.text).data, data.toString("utf8"));
+    assert.equal(responsePage(result).data, data.toString("utf8"));
   }
   for (const meta of [
+    { callId: "" },
+    { "x-codex-turn-metadata": { data: "x".repeat(4096) } },
     { command: "inert" },
     { "openai/readOnly": false },
     { traceparent: "invalid" },
@@ -69,7 +79,7 @@ test("pinned RMCP transport metadata does not change the exact frozen read", () 
   }
 });
 
-test("real fixed stdio reader accepts bounded tracing and refuses extra capabilities", () => {
+await test("real fixed stdio reader accepts bounded tracing and refuses extra capabilities", () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-reader-protocol-"));
   const file = path.join(directory, "index.json");
   writeFileSync(file, index, { flag: "wx" });
@@ -87,8 +97,8 @@ test("real fixed stdio reader accepts bounded tracing and refuses extra capabili
       });
     const good = run(call(trace));
     assert.equal(good.status, 0, good.stderr);
-    const response = JSON.parse(good.stdout.trim().split("\n").at(-1)!);
-    assert.equal(JSON.parse(response.result.content[0].text).sha256, sha(data));
+    const response: unknown = JSON.parse(good.stdout.trim().split("\n").at(-1)!);
+    assert.equal(responsePage(response).sha256, sha(data));
     const bad = run({ ...call(trace), params: { ...call(trace).params, name: "execute" } });
     assert.notEqual(bad.status, 0);
     assert.doesNotMatch(bad.stdout, /"id":1/);

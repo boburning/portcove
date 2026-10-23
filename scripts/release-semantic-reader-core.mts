@@ -424,14 +424,31 @@ export function createSemanticSnapshotRpc(raw: FrozenSemanticSnapshot) {
     ) {
       const meta = request.params._meta;
       if (meta !== undefined) {
-        // Codex's pinned RMCP transport attaches tracing/read-only metadata.
+        // Codex's pinned RMCP transport attaches call/turn/tracing metadata.
         // These bounded transport hints grant no reader or execution authority.
         if (
           !isRecord(meta) ||
+          Buffer.byteLength(JSON.stringify(meta)) > 8192 ||
           Object.keys(meta).some(
             (key) =>
-              !["traceparent", "tracestate", "progressToken", "openai/readOnly"].includes(key),
+              ![
+                "callId",
+                "x-codex-turn-metadata",
+                "traceparent",
+                "tracestate",
+                "progressToken",
+                "openai/readOnly",
+              ].includes(key),
           ) ||
+          (meta.callId !== undefined &&
+            (typeof meta.callId !== "string" ||
+              !meta.callId.length ||
+              Buffer.byteLength(meta.callId) > 256 ||
+              meta.callId.includes("\0"))) ||
+          (meta["x-codex-turn-metadata"] !== undefined &&
+            (!isRecord(meta["x-codex-turn-metadata"]) ||
+              Object.keys(meta["x-codex-turn-metadata"]).length > 64 ||
+              Buffer.byteLength(JSON.stringify(meta["x-codex-turn-metadata"])) > 4096)) ||
           (meta.traceparent !== undefined &&
             (typeof meta.traceparent !== "string" ||
               !/^00-[a-f0-9]{32}-[a-f0-9]{16}-[a-f0-9]{2}$/u.test(meta.traceparent))) ||
