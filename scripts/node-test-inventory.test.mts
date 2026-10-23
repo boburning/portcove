@@ -229,6 +229,25 @@ void test("shell text, directory changes and unsupported statements never grant 
   }
 });
 
+void test("Just storage aliases, execution defaults and recipe attributes cannot move or echo tests", () => {
+  const { workflow, local, registry } = surfaces();
+  const storage = local.replace("    node --test", "    {{storage}} node --test");
+  const declared = 'storage := "node scripts/dev-storage.mts run --"\n' + storage;
+  requireNodeTestInventory([first], workflow, declared, "", registry);
+  for (const bad of [
+    declared.replace('storage := "node scripts/dev-storage.mts run --"', 'storage := "echo"'),
+    storage,
+    'set working-directory := "apps/desktop"\n' + local,
+    'set shell := ["echo"]\n' + local,
+    '[working-directory: "apps/desktop"]\n' + local,
+    "[unix]\n" + local,
+  ])
+    assert.throws(
+      () => requireNodeTestInventory([first], workflow, bad, "", registry),
+      /local quality/,
+    );
+});
+
 void test("generation preserves literal quoting, wrappers and exact ordered arguments", () => {
   assert.deepEqual(commandTokens('node --test-name-pattern="Windows reader sharing"'), [
     "node",

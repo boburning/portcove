@@ -99,21 +99,39 @@ export function requireNodeTestInventory(
   }
   // Only normal recipe command bodies are executable consumers. Comments, variables,
   // nested shell branches and documentation cannot register a suite.
+  const localLines = local.split(/\r?\n/u);
+  const globalContext =
+    localLines
+      .filter((line) => /^(?:set |import |mod |export |unexport )/u.test(line))
+      .every(
+        (line) => line === 'set windows-shell := ["pwsh.exe", "-NoLogo", "-NoProfile", "-Command"]',
+      ) &&
+    (!local.includes("{{storage}}") ||
+      (localLines.filter((line) => /^storage\s*:=/u.test(line)).length === 1 &&
+        localLines.includes('storage := "node scripts/dev-storage.mts run --"')));
   let recipe = false;
+  let attributedRecipe = false;
   let body: string[] = [];
   const flush = () => {
     const source = body.join("\n");
     const commands = annotatedNodeCommands(source, registry);
-    if (straightLine(source)) {
+    if (globalContext && straightLine(source)) {
       for (const command of commands) for (const file of command.files) localFiles.add(file);
       if (body.some((line) => wrapper.test(line.trim()))) localWindows = true;
     }
     body = [];
   };
-  for (const line of local.split(/\r?\n/u)) {
+  for (const line of localLines) {
+    if (/^\[/u.test(line)) {
+      flush();
+      recipe = false;
+      attributedRecipe = true;
+      continue;
+    }
     if (/^[a-z][\w-]*(?:[^:=]*):(?:\s|$)/u.test(line)) {
       flush();
-      recipe = true;
+      recipe = !attributedRecipe;
+      attributedRecipe = false;
     } else if (/^\S/u.test(line) && !line.startsWith("#")) {
       flush();
       recipe = false;

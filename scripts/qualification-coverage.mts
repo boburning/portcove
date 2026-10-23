@@ -104,9 +104,20 @@ function activeSteps(job: Record<string, unknown>) {
       (step["continue-on-error"] === undefined || step["continue-on-error"] === false),
   );
 }
+function rootRun(job: Record<string, unknown>, step: Record<string, unknown>) {
+  const defaults = isRecord(job.defaults) && isRecord(job.defaults.run) ? job.defaults.run : {};
+  const directory = step["working-directory"] ?? defaults["working-directory"];
+  const shell = step.shell ?? defaults.shell;
+  return (
+    (directory === undefined || directory === "." || directory === "./") &&
+    (shell === undefined || shell === "bash" || shell === "pwsh" || shell === "sh")
+  );
+}
 function requireConsumer(job: Record<string, unknown>, command: string) {
   qualificationAssert(
-    activeSteps(job).some((step) => typeof step.run === "string" && step.run.trim() === command),
+    activeSteps(job).some(
+      (step) => rootRun(job, step) && typeof step.run === "string" && step.run.trim() === command,
+    ),
     `consumer missing or disabled: ${command}`,
   );
 }
@@ -117,6 +128,16 @@ function validateMatrices(
   jobs: Record<string, Record<string, unknown>>,
   matrices: ReturnType<typeof qualificationMatrices>,
 ) {
+  for (const [job, key] of [
+    ["native_rust", "include"],
+    ["rust_docs", "include"],
+    ["intel_tests", "partition"],
+    ["rust_tests", "shard"],
+  ] as const)
+    qualificationAssert(
+      isDeepStrictEqual(Object.keys(matrix(jobs[job] ?? {})), [key]),
+      `unsupported matrix axes/include/exclude: ${job}`,
+    );
   // These tuples are independent coverage expectations, not copied from the producer at run time.
   const expectedDocs = [
     { platform: "linux-x86_64", runner: "ubuntu-22.04" },
@@ -133,10 +154,16 @@ function validateMatrices(
     "platform matrix producer coverage mismatch",
   );
   const classify = jobs.classify ?? {};
+  qualificationAssert(
+    (classify.if === undefined || classify.if === true || expression(classify.if) === "true") &&
+      (classify["continue-on-error"] === undefined || classify["continue-on-error"] === false),
+    "matrix producer job disabled or ignores failure",
+  );
   qualificationAssert(isRecord(classify.outputs), "classifier outputs missing");
   qualificationAssert(
     activeSteps(classify).some(
       (step) =>
+        rootRun(classify, step) &&
         step.id === "plan" &&
         typeof step.run === "string" &&
         step.run.trim() === "node scripts/select-ci-plan.mts",
@@ -199,6 +226,7 @@ function validateMatrices(
   qualificationAssert(
     activeSteps(windows).some(
       (step) =>
+        rootRun(windows, step) &&
         isRecord(step.env) &&
         binding(step.env.TEST_SHARD) === "matrix.shard" &&
         typeof step.run === "string" &&
@@ -249,6 +277,7 @@ function validateAggregates(jobs: Record<string, Record<string, unknown>>) {
     qualificationAssert(
       activeSteps(job).some((step) => {
         if (
+          !rootRun(job, step) ||
           typeof step.run !== "string" ||
           step.run.trim() !== "node scripts/ci-result-gate.mts" ||
           !isRecord(step.env) ||
@@ -310,6 +339,10 @@ export function validateQualificationCoverage(
     throw new Error("duplicate qualification job");
   const observed = qualificationJobInventory(workflow);
   const parsedJobs = workflowJobs(workflow);
+  qualificationAssert(
+    rootRun({ defaults: workflowDefinition(workflow).defaults }, {}),
+    "global execution directory or shell unsupported",
+  );
   if (
     JSON.stringify(declared) !== JSON.stringify(observed.jobs) ||
     JSON.stringify(declaredPullRequest) !== JSON.stringify(observed.pullRequestJobs)

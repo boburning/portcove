@@ -132,6 +132,41 @@ function steps(job: unknown) {
 void test("disabled expressions, missing consumer partitions and fake platform labels cannot satisfy qualification", () => {
   const mutations: ((jobs: Record<string, unknown>) => void)[] = [
     (jobs) => {
+      record(jobs.classify).if = false;
+    },
+    (jobs) => {
+      record(jobs.classify)["continue-on-error"] = true;
+    },
+    (jobs) => {
+      record(jobs.native_rust).defaults = {
+        run: { "working-directory": "fixtures/empty-workspace" },
+      };
+    },
+    (jobs) => {
+      const plan = requiredFixture(steps(jobs.classify).find((step) => step.id === "plan"));
+      plan.shell = "echo {0}";
+    },
+    (jobs) => {
+      record(record(record(jobs.rust_tests).strategy).matrix).exclude = [
+        { shard: "core-service-1" },
+      ];
+    },
+    (jobs) => {
+      record(record(record(jobs.intel_tests).strategy).matrix).exclude = [
+        { partition: "hash:1/2" },
+      ];
+    },
+    (jobs) => {
+      record(record(record(jobs.native_rust).strategy).matrix).exclude = [
+        { platform: "linux-x86_64" },
+      ];
+    },
+    (jobs) => {
+      record(record(record(jobs.rust_docs).strategy).matrix).exclude = [
+        { platform: "windows-x86_64" },
+      ];
+    },
+    (jobs) => {
       record(jobs.catalog_full).if = "needs.classify.outputs.mode == 'qual ification'";
     },
     (jobs) => {
