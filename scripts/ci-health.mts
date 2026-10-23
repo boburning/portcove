@@ -394,6 +394,9 @@ export function summarizeHistory(attempts: readonly ReturnType<typeof summarizeA
     }
   }
   const successfulFirst = successful.filter((attempt) => attempt.attempt === 1);
+  const canceled = attempts.filter(
+    (attempt) => attempt.status === "completed" && attempt.conclusion === "cancelled",
+  );
   const cohorts = new Map<string, ReturnType<typeof summarizeAttempt>[]>();
   for (const attempt of successfulFirst) {
     if (!attempt.cohort) continue;
@@ -410,6 +413,27 @@ export function summarizeHistory(attempts: readonly ReturnType<typeof summarizeA
     ),
     workClasses: sampleCounts(attempts, (attempt) => attempt.workClass),
     callers: sampleCounts(attempts, (attempt) => attempt.caller),
+    canceledWork: {
+      attempts: canceled.length,
+      workflow: distribution(canceled.map((attempt) => attempt.seconds)),
+      summedRunner: distribution(canceled.map((attempt) => attempt.timing.summedRunnerSeconds)),
+      observedRunnerSeconds: canceled.reduce(
+        (total, attempt) => total + (attempt.timing.summedRunnerSeconds ?? 0),
+        0,
+      ),
+      missingRunnerTimings: canceled.filter(
+        (attempt) => attempt.timing.summedRunnerSeconds === null,
+      ).length,
+      unmeasuredJobs: canceled.reduce(
+        (total, attempt) =>
+          total +
+          attempt.jobs.filter((job) => job.conclusion !== "skipped" && job.seconds === null).length,
+        0,
+      ),
+      failedProducerAttempts: canceled.filter((attempt) => attempt.failedJobs.length > 0).length,
+      // API cancellation does not tell us whether supersession caused it.
+      cause: "unclassified",
+    },
     qualificationFailures: attempts
       .filter((attempt) => attempt.workClass === "qualification" && attempt.failures.length > 0)
       .flatMap((attempt) =>
@@ -660,6 +684,7 @@ export function renderReport(
         .join(", ") || "none"
     }.`,
     `Completed attempts with missing timing: ${summary.missingCompletedTimings}. Cancelled, failed and incomplete attempts are not included in successful-duration percentiles.`,
+    `Cancelled work: ${summary.canceledWork.attempts} attempts; ${summary.canceledWork.observedRunnerSeconds}s observed summed runner execution (not billing), ${summary.canceledWork.missingRunnerTimings} attempts without runner timing and ${summary.canceledWork.unmeasuredJobs} unmeasured non-skipped jobs, ${summary.canceledWork.failedProducerAttempts} containing failed producers. Cancellation cause is unclassified; workflow p50 ${duration(summary.canceledWork.workflow.p50Seconds)}.`,
     "",
     "## Recent failure leads",
     "",
