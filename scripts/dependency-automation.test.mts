@@ -100,6 +100,8 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
   assert.ok(Object.keys(desktopPackage.devDependencies).length > 0);
   assert.deepEqual(Object.keys(repositoryPackage.devDependencies).sort(), [
     "@resvg/resvg-js",
+    "@sigstore/bundle",
+    "@sigstore/sign",
     "@types/node",
     "@types/selenium-webdriver",
     "@types/semver",
@@ -108,6 +110,11 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
     "yaml",
   ]);
   assert.equal(repositoryPackage.devDependencies["@resvg/resvg-js"], "2.6.2");
+  for (const signingTool of ["@sigstore/bundle", "@sigstore/sign"]) {
+    assert.equal(repositoryPackage.devDependencies[signingTool], "5.0.0");
+    assert.equal(Object.hasOwn(desktopPackage.dependencies, signingTool), false);
+    assert.equal(Object.hasOwn(desktopPackage.devDependencies, signingTool), false);
+  }
   assert.equal(Object.hasOwn(desktopPackage.dependencies, "@resvg/resvg-js"), false);
   assert.deepEqual(
     Object.keys(repositoryPackage.devDependencies).filter((name) =>
