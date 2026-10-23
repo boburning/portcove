@@ -1,8 +1,8 @@
+import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
-import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
@@ -154,9 +154,9 @@ void test("neutral catalog request cannot be retimed/replaced or retired without
   );
 });
 
-void test("real journal freezes catalog request after inert initialization and rejects invented first request", async () => {
+void test("real journal freezes catalog request after inert initialization and rejects invented first request", async (context) => {
   const { request: prototype, opportunity } = fixture();
-  const journal = await mkdtemp(path.join(os.tmpdir(), "catalog-review-journal-"));
+  const journal = disposableDirectory(context, path.join(os.tmpdir(), "catalog-review-journal-"));
   execFileSync("git", ["init", "--bare", "--quiet", journal], { windowsHide: true });
   const input = {
     schema_version: 2,
