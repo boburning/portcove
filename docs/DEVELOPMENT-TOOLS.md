@@ -392,6 +392,41 @@ pnpm test:browser
 pnpm build
 ```
 
+Choose test commands by their runner and evidence scope:
+
+| Command                                           | Runner and evidence                                                                                                                                          |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm test`                                       | Vite+ `unit` project in Node; frontend logic and pure tooling tests.                                                                                         |
+| `pnpm test:browser`                               | Vite+ `browser` and `browser-forced-colors` projects in headless Chromium; real DOM interactions and browser fixtures. Requires the browser bootstrap above. |
+| `just test-ui <literal-test-file> ...`            | Exact maintained unit/browser files; reconciles every requested file with actual execution.                                                                  |
+| `just test-ui-related <literal-source-file> ...`  | Import-related unit/browser tests; an empty related selection falls back to the maintained frontend projects.                                                |
+| `pnpm test:native-tools`                          | Node compiler/shell integration tests; Rust probe and platform shell prerequisites apply.                                                                    |
+| `pnpm exec vp test`                               | All three frontend projects: Node unit, Chromium browser and forced colors.                                                                                  |
+| `just desktop-verify --list-scenarios` / `--plan` | Native harness inventory or execution plan; does not build or launch the app.                                                                                |
+| `just desktop-verify --scenario <id>`             | Runs the selected scenario in the native Tauri/WebView harness with its declared fixture and observations.                                                   |
+
+`pnpm test` covers only the unit project. Browser fixtures, compiler/shell
+contracts and native scenario observations each establish their stated scope;
+they do not establish installed-package, physical-device or human acceptance.
+Native scenarios can use inert fixtures; inspect the selected scenario's plan.
+The [native smoke workflow](#native-desktop-smoke-tests) describes that harness.
+
+Preview affected work, then choose literal files for focused feedback:
+
+```sh
+just local-check --plan
+just test-ui src/components/DetailQualificationSummary.test.tsx
+just test-ui src/components/DetailLayout.browser.test.tsx
+just test-ui-related src/components/DetailLayout.tsx
+```
+
+The plan describes the current diff's selected work. The exact/related commands
+execute tests; they have no plan/list mode. Current shared test configuration is
+`vite.config.ts`, `apps/desktop/vite.config.ts` and `scripts/frontend-tests.ts`.
+Selectors retain the deleted `apps/desktop/vitest.config.ts` and
+`apps/desktop/vitest.browser.config.ts` names for historical comparisons and both
+rename sides, so those changes still select full frontend tests and a build.
+
 Package scripts resolve the installed local CLI. `pnpm exec vp <command>`
 is the explicit route; `node scripts/run-viteplus.mts <command>` also runs the
 installed package without a package-manager hop. These installed operations do
@@ -1381,6 +1416,8 @@ For the normal Codex and maintainer workflow, start with a non-launching plan an
 then run the smallest useful selection:
 
 ```powershell
+just desktop-verify --list-scenarios
+just desktop-verify --scenario keyboard-layout --plan
 just desktop-verify --plan
 just desktop-verify --scenario keyboard-layout
 just desktop-verify --scenario native-design-system-compatibility

@@ -1522,6 +1522,7 @@ function classifyOnePath(
     file.endsWith(".module.css") ||
     [
       "apps/desktop/scripts/browser-runtime.mts",
+      // Deleted config aliases still require browser coverage in historical diffs.
       "apps/desktop/vitest.config.ts",
       "apps/desktop/vitest.browser.config.ts",
       "apps/desktop/vite.config.ts",
@@ -1588,6 +1589,7 @@ function classifyOnePath(
     file.startsWith("apps/desktop/assets/") ||
     file.startsWith("apps/desktop/public/") ||
     file === "apps/desktop/.fallowrc.json" ||
+    // Keep deleted Vitest aliases recognized when either side of a rename mentions them.
     /^apps\/desktop\/(?:(?:index|scenarios)\.html|(?:components|package)\.json|pnpm-lock\.yaml|tsconfig.*\.json|vite\.config\.[cm]?ts|vitest(?:\.browser)?\.config\.ts|i18next(?:\.invalid)?\.config\.ts|eslint\.config\.mjs|stylelint\.config\.mjs)$/.test(
       file,
     )
