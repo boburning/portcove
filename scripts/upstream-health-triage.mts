@@ -6,8 +6,9 @@ export interface HealthTriageCondition {
   location: string;
   release_ref: string | null;
   rule: string | null;
-  classification: string;
-  accounted_for: boolean;
+  http_status?: number | null;
+  classification?: string | null;
+  accounted_for?: boolean;
   changed_in_this_run: boolean;
   observed_this_run: boolean;
   freshness: "fresh" | "stale";
@@ -30,7 +31,7 @@ export function isRoutineProviderCondition(incident: HealthTriageCondition): boo
     !incident.changed_in_this_run &&
     incident.freshness === "fresh" &&
     incident.latest_collection_status === "complete" &&
-    incident.classification.startsWith("provider-reported-")
+    (incident.classification ?? "").startsWith("provider-reported-")
   );
 }
 
@@ -91,7 +92,7 @@ export function conditionEvidence(incident: HealthTriageCondition): string {
     return "Partial collection; outcome not established";
   if (!incident.observed_this_run) return "Retained fresh history; not checked in this run";
   if (incident.accounted_for)
-    return incident.classification.startsWith("provider-reported-")
+    return (incident.classification ?? "").startsWith("provider-reported-")
       ? "Provider metadata accounted for; destination and bytes unverified"
       : "Reviewed exception scope; operation safety unassessed";
   return "Unaccounted observation; investigate exact scope";
