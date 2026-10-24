@@ -15,7 +15,7 @@ import {
   runnableWorkspaceImpactTests,
   runWorkspaceRustImpact,
 } from "./rust-test-impact.mts";
-import { buildValidationPlan } from "./validation-plan.mts";
+import { buildValidationPlan, linuxRuntimeDiagnosticsRequired } from "./validation-plan.mts";
 
 interface FixtureTest {
   ignored: boolean;
@@ -76,6 +76,112 @@ const workspacePlan = (files: string[]) =>
     head: "b".repeat(40),
     checkout: "b".repeat(40),
   });
+void test("Linux diagnostics omit only independent regular release-tool Rust edits", () => {
+  const releaseFile = "crates/portcove-release-tools/src/definition_repository/policy.rs";
+  assert.equal(linuxRuntimeDiagnosticsRequired(workspacePlan([releaseFile])), false);
+  assert.equal(
+    linuxRuntimeDiagnosticsRequired(
+      workspacePlan([releaseFile, "crates/portcove-release-tools/tests/verification.rs"]),
+    ),
+    false,
+  );
+  for (const file of [
+    "Cargo.toml",
+    "Cargo.lock",
+    "rust-toolchain.toml",
+    ".config/nextest.toml",
+    "crates/portcove-release-tools/Cargo.toml",
+    "crates/portcove-release-tools/build.rs",
+    "crates/portcove-release-tools/src/testdata/fixture.json",
+    "crates/portcove-diagnostics/src/lib.rs",
+    "crates/portcove-core/src/path.rs",
+    "crates/portcove-cli/src/startup.rs",
+    "apps/desktop/src-tauri/src/frontend_diagnostics.rs",
+    "unknown-rust-consumer",
+  ]) {
+    assert.equal(linuxRuntimeDiagnosticsRequired(workspacePlan([file])), true, file);
+    assert.equal(linuxRuntimeDiagnosticsRequired(workspacePlan([releaseFile, file])), true, file);
+  }
+  const change = workspacePlan([releaseFile]).changes[0];
+  assert.ok(change);
+  for (const delta of [
+    { status: "D", newMode: "000000" },
+    { status: "R", oldPath: "crates/portcove-core/src/previous.rs" },
+    { newMode: "100755" },
+  ]) {
+    const plan = buildValidationPlan({
+      changes: [{ ...change, ...delta }],
+      eventName: "pull_request",
+      base: "a".repeat(40),
+      mergeBase: "a".repeat(40),
+      head: "b".repeat(40),
+      checkout: "b".repeat(40),
+    });
+    assert.equal(linuxRuntimeDiagnosticsRequired(plan), true, JSON.stringify(delta));
+  }
+  const added = buildValidationPlan({
+    changes: [{ ...change, status: "A", oldMode: "000000" }],
+    eventName: "pull_request",
+    base: "a".repeat(40),
+    mergeBase: "a".repeat(40),
+    head: "b".repeat(40),
+    checkout: "b".repeat(40),
+  });
+  assert.equal(linuxRuntimeDiagnosticsRequired(added), false);
+  for (const delta of [
+    { status: "C", oldPath: "crates/portcove-release-tools/src/previous.rs" },
+    { oldMode: null },
+  ]) {
+    const blocked = buildValidationPlan({
+      changes: [{ ...change, ...delta }],
+      eventName: "pull_request",
+      base: "a".repeat(40),
+      mergeBase: "a".repeat(40),
+      head: "b".repeat(40),
+      checkout: "b".repeat(40),
+    });
+    assert.equal(blocked.mode, "blocked");
+    assert.throws(() => linuxRuntimeDiagnosticsRequired(blocked), /Blocked plan/u);
+  }
+  const unsafe = buildValidationPlan({
+    changes: [{ ...change, newMode: "120000" }],
+    eventName: "pull_request",
+    base: "a".repeat(40),
+    mergeBase: "a".repeat(40),
+    head: "b".repeat(40),
+    checkout: "b".repeat(40),
+  });
+  assert.throws(() => linuxRuntimeDiagnosticsRequired(unsafe), /Blocked plan/u);
+  assert.throws(() => linuxRuntimeDiagnosticsRequired(workspacePlan([])), /Blocked plan/u);
+  assert.equal(
+    linuxRuntimeDiagnosticsRequired(
+      buildValidationPlan({ changes: [], eventName: "schedule", checkout: "b".repeat(40) }),
+    ),
+    true,
+  );
+  assert.equal(linuxRuntimeDiagnosticsRequired(workspacePlan(["docs/FAQ.md"])), false);
+});
+
+void test("Linux diagnostics exclusion retains the release-tool dependency boundary", () => {
+  const root = new URL("../", import.meta.url);
+  const manifests = execFileSync("git", ["ls-files", "-z", "--", "Cargo.toml", "**/Cargo.toml"], {
+    cwd: root,
+    encoding: "utf8",
+  })
+    .split("\0")
+    .filter(Boolean);
+  assert.ok(manifests.includes("crates/portcove-diagnostics/Cargo.toml"));
+  assert.ok(manifests.includes("crates/portcove-cli/Cargo.toml"));
+  assert.ok(manifests.includes("crates/portcove-core/Cargo.toml"));
+  for (const file of manifests) {
+    if (file === "crates/portcove-release-tools/Cargo.toml") continue;
+    const content = readFileSync(new URL(file, root), "utf8");
+    const consumers =
+      file === "Cargo.toml" ? content.replace(/^members\s*=\s*\[[\s\S]*?\]/mu, "") : content;
+    assert.doesNotMatch(consumers, /portcove[-_]release[-_]tools/u, file);
+  }
+});
+
 void test("workspace impact preserves package qualification and broad fallback boundaries", () => {
   const narrow = selectWorkspaceRustImpact(
     workspacePlan(["crates/portcove-core/src/source_report.rs"]),
