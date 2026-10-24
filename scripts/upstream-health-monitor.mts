@@ -13,7 +13,11 @@ import {
   type HealthOptions,
 } from "./check-catalog-repositories.mts";
 import { healthCatalogPortHash } from "./upstream-health-inputs.mts";
-import { classifyHealthConditions, conditionEvidence, observedSpan } from "./upstream-health-triage.mts";
+import {
+  classifyHealthConditions,
+  conditionEvidence,
+  observedSpan,
+} from "./upstream-health-triage.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { withCheckpointLock } from "./observe-configured-upstream.mts";
