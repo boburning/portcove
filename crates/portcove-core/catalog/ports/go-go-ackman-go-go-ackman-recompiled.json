@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "go-go-ackman-go-go-ackman-recompiled",
+    "name": "Go Go Ackman (Go Go Ackman Recompiled)",
+    "summary": "Research listing. Upstream route: Windows/Linux packages; own Japanese ROM Limits: Native desktop host with emulation-core terminology; actual compiled game dispatch coverage unresolved. Research only. Upstream platforms: Windows x86-64 ZIP and Linux x86-64 Flatpak (frozen v1.0 assets); game-execution native/interpreter coverage remains research, independent of native host CPU. Original data: Own Go Go Ackman Japanese SNES ROM: unheadered size 1,310,720 bytes, SHA-256 e8a33b6c8e15cf0aa60e9694471a51926fb97ad895d4714384c6abff28a33a1f. Optional 512-byte copier header is normalized. English/PT-BR IPS translations are separate optional patches; other ROM revisions require new analysis. Portcove setup/gameplay not verified.",
+    "original_game_title": "Go Go Ackman",
+    "project_url": "https://github.com/catmidori/gogoackman1recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/catmidori/gogoackman1recomp",
+    "issue_number": 2881
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "go-go-ackman-go-go-ackman-recompiled",
+    "origin": {
+      "project_url": "https://github.com/catmidori/gogoackman1recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1417068203"
+      }
+    },
+    "decisions": []
+  }
+}

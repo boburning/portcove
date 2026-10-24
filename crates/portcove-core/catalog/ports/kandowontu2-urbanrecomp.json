@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kandowontu2-urbanrecomp",
+    "name": "SimCity (UrbanRecomp Enhanced)",
+    "summary": "Upstream route: Upstream runtime package for UrbanRecomp Enhanced; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Enhanced fork; upstream excludes interpreter from normal release, retains reference builds. Some cheat effects unconfirmed; full-game/device breadth Unknown. Enhanced fork of blackerking/UrbanRecomp; CPU interpreter excluded normal release, reference only. Assess independent maintenance; unsigned iOS needs user signing; not PC SimCity or SC2000. Upstream platforms: Windows/Linux x64, macOS universal, Android ARM64/x86-64, unsigned iOS ARM64. iOS requires user signing. Original data: SNES SimCity1991 own compatible ROM. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "SimCity",
+    "project_url": "https://github.com/kandowontu2/UrbanRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/kandowontu2/UrbanRecomp",
+    "issue_number": 2851
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "kandowontu2-urbanrecomp",
+    "origin": {
+      "project_url": "https://github.com/kandowontu2/UrbanRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1400570986"
+      }
+    },
+    "decisions": []
+  }
+}

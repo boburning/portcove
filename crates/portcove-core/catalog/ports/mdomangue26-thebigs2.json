@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mdomangue26-thebigs2",
+    "name": "The Bigs 2 (The Bigs 2 ReXGlue)",
+    "summary": "Upstream route: Upstream runtime package for The Bigs 2 ReXGlue; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream bounded runtime work; real Windows run not performed. Complete-game and platform qualification not established by archives. Windows x64 package only Wine-tested, Linux/Deck AppImages exist; Clang20 SDK development source build and full-game limits remain explicit. Upstream platforms: Windows/Linux ReXGlue build, Clang20/CMake/Ninja. Windows package tested only through Wine10; Linux/Deck AppImages observed. Original data: Xbox 360 The Bigs2 own supported disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "The Bigs 2",
+    "project_url": "https://github.com/mdomangue26/thebigs2",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mdomangue26/thebigs2",
+    "issue_number": 2802
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mdomangue26-thebigs2",
+    "origin": {
+      "project_url": "https://github.com/mdomangue26/thebigs2",
+      "repository": {
+        "host": "github.com",
+        "id": "1422535554"
+      }
+    },
+    "decisions": []
+  }
+}

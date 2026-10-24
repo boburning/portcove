@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crazyriddler-finesthourremastered",
+    "name": "Call of Duty: Finest Hour (Finest Hour Remastered)",
+    "summary": "Upstream route: Initial route is multipartv1.0installer: Setup.exe+index+all data.NNNparts import own ISO and install runtime, then first start prepares shaders. Latestupdate tag contains updater-only. Upstream installer/updater owns replacement; Wine/Proton route reuses it. Limits: Upstream only: Initial v1.0 multipart setup differs from updater-only latest asset. Upstream renderer/shader claims are not independent performance or campaign proof. Latest update release contains updater executable, not necessarily clean full installer. Resolve full initial-install release independently; preserve upstream installer ownership. Upstream platforms: Windows installer/runtime; Linux/Deck via Proton/Wine. Native Linux player not established; exact CPU follows selected package docs. Original data: Original Xbox Call of Duty Finest Hour own supported disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Call of Duty: Finest Hour",
+    "project_url": "https://github.com/crazyriddler/FinestHourRemastered",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/crazyriddler/FinestHourRemastered",
+    "artwork": {
+      "game_id": 3761,
+      "cover_id": 154450,
+      "image_id": "co3b6a",
+      "image_sha256": "6ef2ec90b109c05b3f3484df7c431880d5d17cc06b4e4118fed62ae142805bb0",
+      "game_slug": "call-of-duty-finest-hour",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2785
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "crazyriddler-finesthourremastered",
+    "origin": {
+      "project_url": "https://github.com/crazyriddler/FinestHourRemastered",
+      "repository": {
+        "host": "github.com",
+        "id": "1423614409"
+      }
+    },
+    "decisions": []
+  }
+}

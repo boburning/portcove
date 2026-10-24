@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "getlostin-ctr-nitrofueled-pc",
+    "name": "Crash Team Racing: Nitro-Fueled (CTR-NitroFueled-PC)",
+    "summary": "Upstream route: Upstream runtime package for CTR-NitroFueled-PC; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream playable races/audio/controller/saves. Maintained Windows fork; full-game/GPU qualification not performed here. Windows fork of T3CHNOLOG1C/SacredFire. Normally platform/acquisition variation of same implementation; assess independent maintenance before new record; related online fork row74. Upstream platforms: Windows 10/11 direct PS4 x86-64/Vulkan route. Native Linux belongs to SacredFire parent, not automatically this fork. Original data: PS4 CTRNitroFueled CUSA13795 v1.21 own dump. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Crash Team Racing: Nitro-Fueled",
+    "project_url": "https://github.com/GetLostIn/CTR-NitroFueled-PC",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/GetLostIn/CTR-NitroFueled-PC",
+    "issue_number": 2822
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "getlostin-ctr-nitrofueled-pc",
+    "origin": {
+      "project_url": "https://github.com/GetLostIn/CTR-NitroFueled-PC",
+      "repository": {
+        "host": "github.com",
+        "id": "1415782260"
+      }
+    },
+    "decisions": []
+  }
+}

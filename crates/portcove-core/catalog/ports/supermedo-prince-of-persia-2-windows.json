@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "supermedo-prince-of-persia-2-windows",
+    "name": "Prince of Persia 2: The Shadow and the Flame (prince-of-persia-2-windows)",
+    "summary": "Upstream route: Windowsupstream launcher/recompiler generates and compiles ownDOSPRINCE.EXE locally with nativehostruntime; generatedgame code/data excluded fromsource. Source/manualbuild route exists; exact releasedZIPplayer flow follows reviewed launcher docs, not genericready-runtimeassumption. Limits: Upstream only: Upstream retains original DOS logic/render/music with a host hardware layer. Some runtime code entries remain outside compiled coverage; completion Unknown. Windows source recompiler plus native runtime; generated game sources excluded and built locally. Some dynamic entry points not translated; inspect release setup before runtime-only claims. Upstream platforms: Windows local generation/native runtime. Other OS/CPU coverage beyond selected build docs Unknown. Original data: DOS PrinceOfPersia2 original PRINCE.EXE and data. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Prince of Persia 2: The Shadow and the Flame",
+    "project_url": "https://github.com/Supermedo/prince-of-persia-2-windows",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Supermedo/prince-of-persia-2-windows",
+    "artwork": {
+      "game_id": 3164,
+      "cover_id": 112177,
+      "image_id": "co2ek1",
+      "image_sha256": "960da2dc56907f1c37bf9284f300e6a0ff921c5b1e9d118bb7acdbf835b9f1b9",
+      "game_slug": "prince-of-persia-2-the-shadow-and-the-flame",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2814
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "supermedo-prince-of-persia-2-windows",
+    "origin": {
+      "project_url": "https://github.com/Supermedo/prince-of-persia-2-windows",
+      "repository": {
+        "host": "github.com",
+        "id": "1383781653"
+      }
+    },
+    "decisions": []
+  }
+}

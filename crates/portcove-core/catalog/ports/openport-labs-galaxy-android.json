@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "openport-labs-galaxy-android",
+    "name": "Super Mario Galaxy (Galaxy Android)",
+    "summary": "Upstream route: Upstream runtime package for Galaxy Android; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream Android feature claims and roadmap. Exact campaign/device testing breadth Unknown; planned high-rate/camera capabilities remain plans. Android ARM64 Vulkan1.0 hard requirement. Decompilation native port; no desktop support inferred from APK or upstream inherited code. Upstream platforms: Android ARM64, Vulkan 1.0 hard requirement, AAudio. Desktop routes not established from Petari ancestry. Original data: Wii Super Mario Galaxy own disc with upstream extraction/conversion. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Super Mario Galaxy",
+    "project_url": "https://github.com/OpenPort-Labs/Galaxy-Android",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/OpenPort-Labs/Galaxy-Android",
+    "issue_number": 2803
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "openport-labs-galaxy-android",
+    "origin": {
+      "project_url": "https://github.com/OpenPort-Labs/Galaxy-Android",
+      "repository": {
+        "host": "github.com",
+        "id": "1417574266"
+      }
+    },
+    "decisions": []
+  }
+}

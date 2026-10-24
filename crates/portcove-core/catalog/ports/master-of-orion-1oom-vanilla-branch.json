@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "master-of-orion-1oom-vanilla-branch",
+    "name": "Master of Orion (1oom (vanilla branch))",
+    "summary": "Research listing. Upstream route: Native recreation with original v1.3 LBX input and Windows RC package. Limits: Default branch warns no longer developed; select vanilla branch/current lineage and heed save compatibility. Upstream platforms: Windows release-candidate package on vanilla lineage; desktop source builds documented. Selected Windows CPU architecture unknown in frozen evidence; discontinued default branch differs. Original data: Default branch warns no longer developed; select vanilla branch/current lineage and heed save compatibility. Portcove setup/gameplay not verified.",
+    "original_game_title": "Master of Orion",
+    "project_url": "https://github.com/1oom-fork/1oom",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/1oom-fork/1oom",
+    "issue_number": 2883
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "master-of-orion-1oom-vanilla-branch",
+    "origin": {
+      "project_url": "https://github.com/1oom-fork/1oom",
+      "repository": {
+        "host": "github.com",
+        "id": "486528856"
+      }
+    },
+    "decisions": []
+  }
+}

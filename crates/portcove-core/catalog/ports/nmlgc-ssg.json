@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nmlgc-ssg",
+    "name": "Seihou Densetsu: Shuusou Gyoku (GIAN07)",
+    "summary": "Upstream route: Upstream runtime package and source build for GIAN07; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream modern source and shared game DLL/replay checks. Bounded ExtraStage replay is not full human playthrough; old missing-source note is historical. Modern GIAN07 port distinct vintage binaries; README includes original outdated missing-source note below modern build guide. Latest release full replay validation remains bounded; Windows binary/LinuxFreeBSD build routes. Upstream platforms: Windows VS2022 x86 cross-tools/Tup; Linux GCC15/Clang18 and FreeBSD build scripts. GIAN07/vintage binary roles must stay distinct. Original data: SeihouShuusouGyoku own graphics/music/sound/scripts resources. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Seihou Densetsu: Shuusou Gyoku",
+    "project_url": "https://github.com/nmlgc/ssg",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/nmlgc/ssg",
+    "issue_number": 2837
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "nmlgc-ssg",
+    "origin": {
+      "project_url": "https://github.com/nmlgc/ssg",
+      "repository": {
+        "host": "github.com",
+        "id": "169966528"
+      }
+    },
+    "decisions": []
+  }
+}
