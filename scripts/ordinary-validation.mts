@@ -829,6 +829,14 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/release-hosted-native-bootstrap.mts",
     ["scripts/release-hosted-native-runner.test.mts", "scripts/release-hosted-native-job.test.mts"],
   ],
+  [
+    "scripts/release-hosted-native-launcher.mts",
+    ["scripts/release-hosted-native-runner.test.mts", "scripts/release-hosted-native-job.test.mts"],
+  ],
+  [
+    "scripts/release-hosted-native-worker.mts",
+    ["scripts/release-hosted-native-runner.test.mts", "scripts/release-hosted-native-job.test.mts"],
+  ],
   ...[
     "scripts/release-hosted-native-runtime.mts",
     "scripts/release-native-runtime-custody.mts",

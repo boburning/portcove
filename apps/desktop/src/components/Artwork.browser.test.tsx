@@ -72,6 +72,25 @@ async function click(slot: "cover" | "detail", label: string) {
   await act(async () => button(slot, label).click());
 }
 
+function controlledArtworkVisibility() {
+  let showArtwork!: () => void;
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      constructor(private readonly callback: IntersectionObserverCallback) {}
+      observe(target: Element) {
+        showArtwork = () =>
+          this.callback(
+            [{ target, isIntersecting: true } as IntersectionObserverEntry],
+            this as unknown as IntersectionObserver,
+          );
+      }
+      disconnect() {}
+    },
+  );
+  return () => showArtwork();
+}
+
 beforeEach(async () => {
   container = document.createElement("div");
   document.body.append(container);
@@ -274,6 +293,7 @@ describe("local artwork controls", () => {
   );
 
   it("waits for a pre-commit replacement-cache read and then reads the committed choice", async () => {
+    const showArtwork = controlledArtworkVisibility();
     let state = artworkState("sample", "cover");
     let reads = 0;
     let deferReplacement = false;
@@ -293,6 +313,8 @@ describe("local artwork controls", () => {
       .mockReturnValue(new Promise((resolve) => (finishChange = resolve)));
     vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
     await render("sample", 7, "old-cover");
+    await act(async () => showArtwork());
+    await expect.poll(() => container.querySelector(".artwork-image")?.textContent).toBe("SF");
     await open();
     await click("cover", "Choose local image");
     expect(change).toHaveBeenCalledTimes(1);
@@ -319,6 +341,7 @@ describe("local artwork controls", () => {
   });
 
   it("resolves reset against current catalog artwork rather than copying the old change result", async () => {
+    const showArtwork = controlledArtworkVisibility();
     let state: ArtworkState = artworkState("sample", "cover", 1, true);
     vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
       slot === "cover" ? state : artworkState(port, slot),
@@ -334,6 +357,10 @@ describe("local artwork controls", () => {
       new Promise((resolve) => (finish = resolve)),
     );
     await render("sample", 7, "old-cover");
+    await act(async () => showArtwork());
+    await expect
+      .poll(() => container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource)
+      .toBe("local_import");
     await open();
     await click("cover", "Reset to default");
     await render("sample", 7, "corrected-cover");
@@ -354,9 +381,9 @@ describe("local artwork controls", () => {
       },
     };
     await act(async () => finish(artworkState("sample", "cover", 2)));
-    expect(container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource).toBe(
-      "igdb_cover",
-    );
+    await expect
+      .poll(() => container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource)
+      .toBe("igdb_cover");
     expect(container.textContent).toContain("image corrected-cover");
     expect(button("cover", "Reset to default").disabled).toBe(true);
   });
@@ -466,21 +493,7 @@ describe("local artwork controls", () => {
   it.each(["port", "library", "close"])(
     "ignores a dispatched mutation completion after a %s change",
     async (kind) => {
-      let showArtwork!: () => void;
-      vi.stubGlobal(
-        "IntersectionObserver",
-        class {
-          constructor(private readonly callback: IntersectionObserverCallback) {}
-          observe(target: Element) {
-            showArtwork = () =>
-              this.callback(
-                [{ target, isIntersecting: true } as IntersectionObserverEntry],
-                this as unknown as IntersectionObserver,
-              );
-          }
-          disconnect() {}
-        },
-      );
+      const showArtwork = controlledArtworkVisibility();
       let finish!: (value: ArtworkState) => void;
       const change = vi
         .spyOn(desktopApi, "importArtwork")
