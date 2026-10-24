@@ -111,11 +111,13 @@ fn main() {
             println!("testtool verify convert");
         }
         Some("--tree") => {
-            thread::sleep(Duration::from_millis(100));
-            Command::new(env::current_exe().unwrap())
+            let child = Command::new(env::current_exe().unwrap())
                 .args(["--grandchild", &args[1]])
                 .spawn()
                 .unwrap();
+            let marker = std::path::Path::new(&args[1]);
+            fs::write(marker.with_extension("pids"), format!("{}\n{}", std::process::id(), child.id())).unwrap();
+            fs::write(marker.with_extension("ready"), b"root and descendant started").unwrap();
             thread::sleep(Duration::from_secs(2));
         }
         Some("--closure-fanout") => {
