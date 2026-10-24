@@ -676,6 +676,7 @@ function classifyPath(file: string): PathOwnership {
           "scripts/run-ui-tests.mts",
           "scripts/run-viteplus.mts",
           "scripts/ui-test-selection.mts",
+          "scripts/fixtures/disposable-directory.mts",
         ].includes(file) ||
         file.startsWith("apps/desktop/public/") ||
         nativeScenarioFiles.has(file) ||
@@ -892,6 +893,7 @@ function classifyAuditPath(file: string): PathOwnership {
         "scripts/run-ui-tests.mts",
         "scripts/run-viteplus.mts",
         "scripts/ui-test-selection.mts",
+        "scripts/fixtures/disposable-directory.mts",
       ].includes(file) ||
       nativeScenarioFiles.has(file) ||
       file.startsWith("apps/desktop/public/") ||
