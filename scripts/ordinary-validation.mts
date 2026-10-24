@@ -1402,6 +1402,53 @@ for (const file of [
   ]);
 }
 
+export const coordinatorStateContractTests = [
+  "scripts/release-coordinator-state.test.mts",
+  "scripts/release-coordinator-recovery.test.mts",
+  "scripts/release-coordinator-remote.test.mts",
+  "scripts/release-coordinator-checkpoint-evidence.test.mts",
+  "scripts/release-coordinator-capacity-effects.test.mts",
+  "scripts/release-coordinator-metadata.test.mts",
+  "scripts/release-coordinator-signing-exchange.test.mts",
+  "scripts/release-coordinator-owned-executor.test.mts",
+];
+const coordinatorSigningContractTests = [
+  "scripts/release-coordinator-state.test.mts",
+  "scripts/release-coordinator-signing-exchange.test.mts",
+  "scripts/release-coordinator-owned-executor.test.mts",
+];
+for (const file of [
+  "scripts/fixtures/coordinator-state-fixtures.mts",
+  "scripts/fixtures/release-capacity-fixture.mts",
+  "scripts/release-capacity.mts",
+  "scripts/release-capacity-operation.mts",
+  "scripts/fixtures/release-metadata-fixture.mts",
+  "scripts/runtime-values.mts",
+  "apps/desktop/scripts/prepare-release-version.mts",
+  "scripts/release-coordinator-state.mts",
+  "scripts/release-coordinator-remote.mts",
+  "scripts/release-coordinator-checkpoint-evidence.mts",
+  "scripts/production-controller-admission.mts",
+  "scripts/github-api.mts",
+  "scripts/fixtures/assembler-identity-fixture.mts",
+  "scripts/fixtures/release-catalog-publication-fixture.mts",
+  "scripts/fixtures/checkpoint-proof-fixture.mts",
+  ".github/workflows/application-update-production.yml",
+  "scripts/release-coordinator-state.test.mts",
+  "scripts/release-coordinator-recovery.test.mts",
+  "scripts/release-coordinator-remote.test.mts",
+  "scripts/release-coordinator-checkpoint-evidence.test.mts",
+  "scripts/release-coordinator-capacity-effects.test.mts",
+  "scripts/release-coordinator-metadata.test.mts",
+  "scripts/release-coordinator-signing-exchange.test.mts",
+  "scripts/release-coordinator-owned-executor.test.mts",
+]) {
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    ...coordinatorStateContractTests,
+  ]);
+}
+
 const releaseContractTests = Object.freeze([
   "scripts/hosted-native-continuity.test.mts",
   "scripts/recover-local-worker-empty-setup.test.mts",
@@ -1490,7 +1537,7 @@ const releaseContractTests = Object.freeze([
   "scripts/generate-release-downloads.test.mts",
   "scripts/select-release-channel.test.mts",
   "scripts/release-coordinator.test.mts",
-  "scripts/release-coordinator-state.test.mts",
+  ...coordinatorStateContractTests,
   "scripts/release-coordinator-checkpoint-authentication.test.mts",
   "scripts/release-coordinator-checkpoint-signing.test.mts",
   "scripts/release-prepared-transport.test.mts",
@@ -1600,6 +1647,16 @@ function existingSiblingTest(file: string, fileExists: (file: string) => boolean
   return fileExists(sibling) ? sibling : null;
 }
 
+function releaseContractTestsForPath(file: string) {
+  return file === "scripts/release-coordinator-signing-exchange.mts"
+    ? releaseContractTests.filter(
+        (testFile) =>
+          !coordinatorStateContractTests.includes(testFile) ||
+          coordinatorSigningContractTests.includes(testFile),
+      )
+    : releaseContractTests;
+}
+
 function classifyOnePath(
   selection: ValidationSelection,
   input: string,
@@ -1625,7 +1682,7 @@ function classifyOnePath(
     validationOwnershipForPath(file).areas.includes("release-security")
   ) {
     selection.scopes.add("release-tooling");
-    for (const testFile of releaseContractTests) addNodeTest(selection, testFile);
+    for (const testFile of releaseContractTestsForPath(file)) addNodeTest(selection, testFile);
     recognized = true;
   }
   if (
@@ -1786,7 +1843,7 @@ function classifyOnePath(
     }
     if (validationOwnershipForPath(file).areas.includes("release-security")) {
       selection.scopes.add("release-tooling");
-      for (const testFile of releaseContractTests) addNodeTest(selection, testFile);
+      for (const testFile of releaseContractTestsForPath(file)) addNodeTest(selection, testFile);
       addNodeTest(selection, "scripts/ci-workflow.test.mts");
     }
   }

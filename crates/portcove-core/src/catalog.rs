@@ -405,6 +405,27 @@ impl Catalog {
         }
         let mut port_ids = HashSet::new();
         for port in &self.document.ports {
+            if port.adapter == AdapterKind::NativePortable
+                && (port.release.provider != ReleaseSource::Github
+                    || port.source_profile.is_some()
+                    || port.bios_source_profile.is_some()
+                    || !port.bundled_runtime.is_empty()
+                    || !port.release.managed_build.is_empty()
+                    || port.runtime_source_materialization.is_some()
+                    || port.runtime_source_filename.is_some()
+                    || !port.runtime_mutable_paths.is_empty()
+                    || !port.runtime_mutable_file_patterns.is_empty()
+                    || !port.setup_executable_hints.is_empty()
+                    || !port.setup_arguments.is_empty()
+                    || port.source_environment.is_some()
+                    || port.user_data_environment.is_some()
+                    || port.managed_shared_preferences.is_some()
+                    || port.managed_initialization.is_some())
+            {
+                return Err(PortcoveError::usage(
+                    "native portable packages require a GitHub archive, reviewed executable/persistence paths and upstream-owned game setup; mutable runtimes and installers use the external route",
+                ));
+            }
             if port.id.is_empty()
                 || !port.id.chars().all(|character| {
                     character.is_ascii_lowercase() || character.is_ascii_digit() || character == '-'
@@ -1390,7 +1411,9 @@ impl Catalog {
             if port.launch_from_install_root
                 && !matches!(
                     port.adapter,
-                    AdapterKind::StagedSourcePortable | AdapterKind::UpstreamManagedSetup
+                    AdapterKind::StagedSourcePortable
+                        | AdapterKind::UpstreamManagedSetup
+                        | AdapterKind::NativePortable
                 )
             {
                 return Err(PortcoveError::usage(format!(

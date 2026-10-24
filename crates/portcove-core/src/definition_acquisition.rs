@@ -164,6 +164,7 @@ impl DefinitionAcquisitionScope {
             || !matches!(
                 port.adapter,
                 AdapterKind::LibultrashipPortable
+                    | AdapterKind::NativePortable
                     | AdapterKind::N64RecompPortable
                     | AdapterKind::StagedSourcePortable
                     | AdapterKind::ReferencedDisc

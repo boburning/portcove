@@ -41,6 +41,12 @@ pub(crate) enum SetupCommand {
     Candidates {
         /// Stable listing ID from `portcove catalog listings` whose upstream assets should be checked.
         port_id: String,
+        /// Inspect packages from this exact published release instead of selecting by channel.
+        #[arg(long)]
+        release_id: Option<u64>,
+        /// Stable or preview (beta); preview falls back to stable when absent.
+        #[arg(long, default_value = "stable")]
+        channel: portcove_core::ReleaseChannel,
     },
     /// Review the exact asset and a fresh destination before downloading.
     Preview {
@@ -60,6 +66,14 @@ pub(crate) enum SetupCommand {
     },
     /// Show downloaded packages that still need setup, including recovery attention.
     Pending,
+    /// Inspect a completed download without running files. Registration still requires review.
+    Targets {
+        /// Listing ID owning the completed download; use `portcove setup pending` to find it.
+        port_id: String,
+        /// Exact downloaded setup record ID returned by `portcove setup pending`.
+        #[arg(long)]
+        pending_id: String,
+    },
     /// Forget the exact setup record; all handed-off game files remain in place.
     Forget {
         /// Listing ID owning the setup record; use `portcove setup pending` to find the matching record.
@@ -77,6 +91,7 @@ impl SetupCommand {
             Self::Preview { .. } => "setup.preview",
             Self::Download { .. } => "setup.download",
             Self::Pending => "setup.pending",
+            Self::Targets { .. } => "setup.targets",
             Self::Forget { .. } => "setup.forget",
         }
     }
@@ -90,14 +105,24 @@ pub(crate) async fn execute(
 ) -> Result<()> {
     let name = command.name();
     match command {
-        SetupCommand::Candidates { port_id } => render_read_success(
+        SetupCommand::Candidates {
+            port_id,
+            release_id,
+            channel,
+        } => render_read_success(
             mode,
             name,
-            service.catalog_download_candidates(&port_id).await?,
+            service
+                .catalog_download_options(&port_id, release_id, channel)
+                .await?,
             |result| {
                 let mut lines = vec![format!("Upstream: {}", human::clean(&result.upstream_url))];
                 if let Some(reason) = &result.reason {
                     lines.push(human::clean(reason));
+                }
+                lines.push(human::clean(&result.recommendation_reason));
+                if let Some(parent) = &result.default_destination_parent {
+                    lines.push(format!("Suggested parent: {}", parent.display()));
                 }
                 for asset in &result.candidates {
                     lines.push(format!(
@@ -108,6 +133,22 @@ pub(crate) async fn execute(
                         asset.size,
                         human::clean(&asset.release_tag)
                     ));
+                    if let Some(assessment) = result
+                        .packages
+                        .iter()
+                        .find(|item| item.asset_id == asset.asset_id)
+                    {
+                        lines.push(format!(
+                            "  {}{}: {}",
+                            if result.recommended_asset_id == Some(asset.asset_id) {
+                                "Recommended · "
+                            } else {
+                                ""
+                            },
+                            assessment.suitability,
+                            human::clean(&assessment.reason)
+                        ));
+                    }
                 }
                 lines.join("\n")
             },
@@ -178,6 +219,26 @@ pub(crate) async fn execute(
                     .join("\n")
             })
         }
+        SetupCommand::Targets {
+            port_id,
+            pending_id,
+        } => render_read_success(
+            mode,
+            name,
+            service.discover_setup_launch_targets(&port_id, &pending_id)?,
+            |result| {
+                let mut lines = vec![human::clean(&result.explanation)];
+                for target in &result.candidates {
+                    lines.push(format!(
+                        "{}\n  Working directory: {}\n  {}",
+                        target.executable.display(),
+                        target.working_directory.display(),
+                        human::clean(&target.reason)
+                    ));
+                }
+                lines.join("\n")
+            },
+        ),
         SetupCommand::Forget {
             port_id,
             pending_id,

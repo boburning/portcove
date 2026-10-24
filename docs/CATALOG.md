@@ -44,6 +44,68 @@ for identified consumers and retirement conditions. Preserve installed runtimes,
 originals, saves, settings, backups and recovery independently of whether the
 builder that created them remains an active feature.
 
+## Managed native portable packages
+
+The `native-portable` adapter offers the existing managed installation, update,
+retained-version, backup and recovery lifecycle to fitting upstream archives.
+It does not need a game-specific adapter. Setup provider and runtime update owner
+are independent: the game can ask for original files on first launch while
+Portcove continues to replace its runtime. A launcher that replaces its own
+runtime instead uses the non-owning existing-installation route.
+
+Use an official ZIP, tar.gz or tgz with an independently expected SHA-256,
+reviewed native package and executable hints, and a small declared persistence
+contract. For example, the CorsixTH and SDL Sopwith records use the shared route
+without game-specific Rust or React code. The minimum integration shape is:
+
+```json
+{
+  "support_tier": "beta",
+  "channels": ["stable"],
+  "platforms": ["windows-x86-64"],
+  "adapter": "native-portable",
+  "release": {
+    "repository": "owner/project",
+    "asset_hints": { "windows-x86-64": ["windows", "x64", ".zip"] }
+  },
+  "executable_hints": { "windows-x86-64": ["Game.exe"] },
+  "persistent_paths": ["saves", "settings.ini", "game-data"]
+}
+```
+
+These are reviewed facts, not an invitation to copy those paths to every game.
+Every package hint must match for managed replacement; the shared native
+suitability check still rejects known foreign processors, platforms, supporting
+files and equally plausible variants. The existing channel and artifact-integrity
+rules remain in force. A missing digest can allow an explicitly unverified
+non-owning download, but cannot authenticate a managed installation.
+
+Persistent paths are relative to the executable's directory, or the install root
+when `launch_from_install_root` is declared. Declare only compatible original
+inputs, generated data, saves, settings and supported mods that should reach
+replacement versions. Outside data remains upstream/player-owned and outside
+Portcove backups. Describe setup and this limit in `presentation`; optional unknown
+gameplay evidence does not hide the listing or prevent a separately safe operation.
+
+Native portable runtimes use complete immutable-file verification. Changed package
+files or undeclared additions block update, version switching and managed removal
+with the current files preserved. The player can back up and relocate additions
+or retain an external installation. Updates extract into a new version, collect
+declared data from the active version even before its first launch, restore it to
+the staged version, revalidate, then activate through the existing journal.
+Obsolete package files stay in retained versions, rather than surviving in the
+new runtime. A changed retained data/working-coordinate contract refuses an
+unsupported transition. Version-dependent generated data needing regeneration,
+mutable engines, installers and custom preparation are outside this adapter;
+use an existing supported integration or a non-owning handoff.
+
+Update policies, explicit staging/application and version pins keep their existing
+meaning; automatic application stays opt-in. Runtime rollback carries current
+declared data and does not promise that older software can read newer saves.
+Committed activation remains authoritative after a later failure; recovery must
+not claim an automatic rollback. Existing managed and external installations are
+never silently converted when a catalog entry gains this capability.
+
 ## Catalog author task routes
 
 The machine-readable catalog owns port, platform, source, release and

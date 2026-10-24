@@ -112,6 +112,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 >(contract)),
             ),
             (
+                "setup_launch_targets",
+                serde_json::json!(schema_for_contract::<portcove_core::SetupLaunchTargets>(
+                    contract
+                )),
+            ),
+            (
                 "catalog_download_preview",
                 serde_json::json!(
                     schema_for_contract::<portcove_core::CatalogDownloadPreview>(contract)

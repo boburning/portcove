@@ -440,6 +440,7 @@ function DetailBody({
 }) {
   const managedPreparation = needsManagedPreparation(port, installed);
   const external = usesExternalRuntimeRoute(port, status);
+  const directInstall = !installed && !status?.staged && !external && sourceReady && biosReady;
   const initialSection = initialDetailSection({
     destination: opening?.destination,
     needsFiles:
@@ -475,7 +476,9 @@ function DetailBody({
           ? "Registered external installation"
           : status?.active
             ? "Managed installation · " + status.active.version
-            : "Not installed"
+            : directInstall
+              ? "Portcove installs and updates this game. Complete upstream setup on first launch if prompted."
+              : "Not installed"
       }
       action={(reveal) =>
         installed && launchReady ? (
@@ -504,17 +507,19 @@ function DetailBody({
             data-focusable
             variant="primary"
             size="lg"
-            onClick={() =>
+            disabled={Boolean(busy)}
+            onClick={() => {
               reveal(
                 "files",
                 "detail-game-actions",
                 external
                   ? undefined
                   : ".primary-actions button:not(:disabled):not([aria-disabled=true]), .preparation-control button:not(:disabled)",
-              )
-            }
+              );
+              if (directInstall) void actions.reviewInstall();
+            }}
           >
-            {installed ? "Review game files" : "Set up game"}
+            {installed ? "Review game files" : directInstall ? "Install" : "Set up game"}
           </Button>
         )
       }
@@ -2306,7 +2311,9 @@ export function InstallAction({
               )}
               {plan.action === "download"
                 ? "Review the version, download size, and install folder."
-                : "Review the version and how this local release will be used."}
+                : "Review the version and how this local release will be used."}{" "}
+              Portcove manages these runtime files and their updates. Automatic updates follow your
+              selected update policy. See the game instructions for setup and save locations.
             </DialogDescription>
             {action ? (
               <InstallPlanSummary plan={plan} />

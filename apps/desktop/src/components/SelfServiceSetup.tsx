@@ -93,8 +93,9 @@ export function SelfServiceSetup({
               </>
             ) : (
               <p>
-                Your download is saved. Complete the upstream setup, then choose the game
-                executable.
+                Your download is saved. Confirm a launch target below for a portable package. If
+                upstream setup is needed, open the folder and follow its instructions, then return
+                and refresh launch suggestions. Nothing has been run yet.
               </p>
             )}
             <code className="[overflow-wrap:anywhere]">{pending.path}</code>
@@ -104,6 +105,7 @@ export function SelfServiceSetup({
       {!registered && !pending && (
         <div data-detail-download>
           <CatalogDownloadControl
+            autoCheck
             entry={entry}
             generation={generation}
             busy={busy}
@@ -144,12 +146,23 @@ export function SelfServiceSetup({
           {launch.reason}
         </p>
       )}
+      {registered && entry.listing && (
+        <div className="grid gap-2 text-sm">
+          <p>
+            Registered · ready to launch when available. You or upstream manage updates; the
+            downloaded release does not establish the currently installed version.
+          </p>
+          <ExternalLink href={entry.listing.release_url || entry.listing.project_url}>
+            Upstream releases and updates
+          </ExternalLink>
+        </div>
+      )}
       {!registered && !needsRecovery && !attach.allowed && (
         <p role="status" className="text-sm">
           {attach.reason}
         </p>
       )}
-      {(registered || (editorOpen && !needsRecovery)) && (
+      {(registered || ((editorOpen || pending?.state === "downloaded") && !needsRecovery)) && (
         <div id={editorId} className="grid gap-3 border-t border-pc-border pt-4">
           <h2 ref={editorHeading} tabIndex={-1} className="text-base">
             Launch details

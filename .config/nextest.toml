@@ -7,6 +7,16 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# The portable lifecycle fixtures perform several durable installs, activations
+# and recovery reopens. The retained local Windows run hit 30.042s and 30.085s
+# harness cutoffs while another full case completed at 28.979s. Keep every
+# transition/assertion, both workers, product/child deadlines and zero retries;
+# give only these Windows fixtures finite 90s execution room.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+
 # The legacy DKR metadata matrix opens 16 independent schema-2-to-5 libraries.
 # Its first Windows attempt reached a partial matrix at 24.9s before a repaired
 # cross-platform fixture assertion. Keep all cases and two workers, with finite

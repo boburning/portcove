@@ -1318,10 +1318,24 @@
       ]
     },
     {
+      "file": "scripts/release-coordinator-capacity-effects.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2340],
+        ["release-check", 3140]
+      ]
+    },
+    {
       "file": "scripts/release-coordinator-checkpoint-authentication.test.mts",
       "memberships": [
         ["frontend-full-6", 2400],
         ["release-check", 3200]
+      ]
+    },
+    {
+      "file": "scripts/release-coordinator-checkpoint-evidence.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2330],
+        ["release-check", 3130]
       ]
     },
     {
@@ -1350,6 +1364,41 @@
       "memberships": [
         ["frontend-full-6", 800],
         ["release-check", 2100]
+      ]
+    },
+    {
+      "file": "scripts/release-coordinator-metadata.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2350],
+        ["release-check", 3150]
+      ]
+    },
+    {
+      "file": "scripts/release-coordinator-owned-executor.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2370],
+        ["release-check", 3170]
+      ]
+    },
+    {
+      "file": "scripts/release-coordinator-recovery.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2310],
+        ["release-check", 3110]
+      ]
+    },
+    {
+      "file": "scripts/release-coordinator-remote.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2320],
+        ["release-check", 3120]
+      ]
+    },
+    {
+      "file": "scripts/release-coordinator-signing-exchange.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2360],
+        ["release-check", 3160]
       ]
     },
     {

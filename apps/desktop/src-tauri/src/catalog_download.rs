@@ -14,11 +14,32 @@ pub(crate) async fn catalog_download_candidates(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
     generation: u64,
+    selected_release_id: Option<u64>,
+    channel: Option<portcove_core::ReleaseChannel>,
 ) -> DesktopResult<CatalogDownloadCandidates> {
     let state = state.inner().clone();
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
-        tauri::async_runtime::block_on(service.catalog_download_candidates(&port_id))
+        tauri::async_runtime::block_on(service.catalog_download_options(
+            &port_id,
+            selected_release_id,
+            channel.unwrap_or(portcove_core::ReleaseChannel::Stable),
+        ))
+        .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn discover_setup_launch_targets(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    pending_id: String,
+    generation: u64,
+) -> DesktopResult<portcove_core::SetupLaunchTargets> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .discover_setup_launch_targets(&port_id, &pending_id)
             .map_err(Into::into)
     })
     .await

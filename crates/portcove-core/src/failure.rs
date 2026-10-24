@@ -109,6 +109,8 @@ pub(crate) enum KnownFailureCause {
     SourceChanged,
     AmbiguousAdoption,
     StaleRemoval,
+    PortableRuntimeModified,
+    PortableDataContractChanged,
     RestoreRecovery,
     BackupDeletionRecovery,
     TfePreparationRecovery {
@@ -185,6 +187,14 @@ impl KnownFailureCause {
             Self::StaleRemoval => (
                 "removal_review_stale",
                 "The managed installations changed after removal was reviewed. Review the current removal plan and provide fresh consent.",
+            ),
+            Self::PortableRuntimeModified => (
+                "portable_runtime_modified",
+                "Portcove found changed runtime files or unrecognized additions and stopped this operation. Your existing files were preserved. Review the affected paths in technical details. Back up your changes outside the managed installation, then restore changed package files or move unrecognized additions before trying again.",
+            ),
+            Self::PortableDataContractChanged => (
+                "portable_data_contract_changed",
+                "This package changes where player data is stored or how it is located. Portcove stopped the transition and kept the current installation and files. Keep using the current version; use upstream instructions until a compatible package or supported data migration is available.",
             ),
             Self::RestoreRecovery => (
                 "restore_recovery_required",
@@ -620,6 +630,50 @@ mod tests {
         );
         assert!(!annotated.presentation.summary.contains("private"));
         assert!(!annotated.presentation.summary.contains("No changes"));
+    }
+
+    #[test]
+    fn portable_refusals_explain_recovery_without_rewriting_mutation_facts() {
+        for state in [MutationState::Unknown, MutationState::Committed] {
+            for (cause, key, action) in [
+                (
+                    KnownFailureCause::PortableRuntimeModified,
+                    "portable_runtime_modified",
+                    "Back up",
+                ),
+                (
+                    KnownFailureCause::PortableDataContractChanged,
+                    "portable_data_contract_changed",
+                    "Keep using",
+                ),
+            ] {
+                let error = PortcoveError::conflict("original diagnostic")
+                    .with_mutation_state(state)
+                    .detail("failures", "package.txt");
+                let before = error.report();
+                let report = error.with_known_cause(cause).report();
+                assert_eq!(report.code, before.code);
+                assert_eq!(report.message, before.message);
+                assert_eq!(report.details, before.details);
+                assert_eq!(report.presentation.mutation_state, state);
+                assert_eq!(
+                    report.presentation.recovery_actions,
+                    before.presentation.recovery_actions
+                );
+                assert_eq!(
+                    report.presentation.technical_message,
+                    before.presentation.technical_message
+                );
+                assert_eq!(report.presentation.presentation_key, key);
+                assert!(report.presentation.summary.contains(action));
+                assert!(
+                    !report
+                        .presentation
+                        .summary
+                        .contains("No files were changed")
+                );
+            }
+        }
     }
 
     #[test]
