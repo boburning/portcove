@@ -5,6 +5,7 @@ import { releaseFingerprint } from "./discovery-checkpoint.mts";
 import type { DiscoveryCheckpoint } from "./discovery-checkpoint.mts";
 import { readDiscoveryReport } from "./discovery-artifact.mts";
 import { isRecord, errorMessage } from "./runtime-values.mts";
+import { collectQuiver } from "./daily-discovery-quiver.mts";
 import type { DiscoveryBudget, createDiscoveryTransport } from "./discovery-budget.mts";
 export interface CollectedSource {
   id: string;
@@ -88,7 +89,7 @@ export function collectDiscoverySources(
   c: SourceContext,
   known: DiscoveryCheckpoint,
 ): CollectedSource[] {
-  const result: CollectedSource[] = [];
+  const result: CollectedSource[] = [collectQuiver(c)];
   const fail = (id: string, evidence: string, error: unknown) =>
     result.push({
       id,
@@ -99,19 +100,13 @@ export function collectDiscoverySources(
       records: [],
       error: errorMessage(error),
     });
-  for (const [repo, names] of [
-    [
-      "tgeorgiadis/quiver-community-app-catalog",
-      ["Nintendo", "PlayStation", "Xbox", "OtherPlatforms"],
-    ],
-    ["SirDiabo/GHLAppList", ["apps"]],
-  ] as const) {
+  for (const repo of ["SirDiabo/GHLAppList"] as const) {
     try {
       const meta = metadata(c, repo);
       const ref = commit(c, meta);
-      for (const name of names) {
-        const id = name === "apps" ? "githublauncher" : `quiver-${name.toLowerCase()}`;
-        const file = name === "apps" ? "apps.json" : `community-app-catalog/${name}.json`;
+      {
+        const id = "githublauncher";
+        const file = "apps.json";
         const got = content(c, repo, file, ref);
         c.save(id, got);
         const data = rec(got.data);
@@ -131,15 +126,11 @@ export function collectDiscoverySources(
         });
       }
     } catch (e) {
-      fail(
-        repo.includes("quiver") ? "quiver-collection" : "githublauncher",
-        `https://github.com/${repo}`,
-        e,
-      );
+      fail("githublauncher", `https://github.com/${repo}`, e);
     }
   }
   try {
-    const meta = metadata(c, "TechnicallyComputers/retcomm-catalog");
+    const meta = metadata(c, "RetroPortingToolKit/Retro-Catalog");
     const repo = str(meta.full_name);
     const ref = commit(c, meta);
     const got = content(c, repo, "index.json", ref);
@@ -230,7 +221,7 @@ export function collectDiscoverySources(
         "Changed manifests first, then oldest checked manifest; pending research remains separate",
     });
   } catch (e) {
-    fail("retcomm-collection", "https://github.com/TechnicallyComputers/retcomm-catalog", e);
+    fail("retcomm-collection", "https://github.com/RetroPortingToolKit/Retro-Catalog", e);
   }
   try {
     const meta = metadata(c, "zamiba/portforge-mediaitems");

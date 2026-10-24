@@ -454,6 +454,13 @@
       ]
     },
     {
+      "file": "scripts/daily-discovery-quiver.test.mts",
+      "memberships": [
+        ["catalog-full", 501],
+        ["roadmap-check", 501]
+      ]
+    },
+    {
       "file": "scripts/daily-discovery.test.mts",
       "memberships": [
         ["windows-helpers", 100],
