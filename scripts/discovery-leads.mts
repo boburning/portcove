@@ -251,9 +251,9 @@ export function acceptLeadPage(
     throw new Error("Incomplete or malformed lead search page; retain prior continuation");
   const total = Number(response.total_count);
   const slice = structuredClone(plan.slice);
+  const next = retainLeadResults(state, response.items, observedAt, evidence);
   if (slice.total !== undefined && slice.total !== total)
     throw new LeadSearchChanged("Lead search count changed; retain prior continuation");
-  const next = retainLeadResults(state, response.items, observedAt, evidence);
   if (plan.retired)
     next.retired_slices = {
       ...next.retired_slices,

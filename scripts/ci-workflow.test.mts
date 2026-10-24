@@ -1836,6 +1836,44 @@ void test("release, rehearsal and deep audit Rust callers preserve repository pi
   }
 });
 
+void test("CI toolchain caches retain exact repository version authorities", async () => {
+  const workspace: unknown = parseDocument(
+    await readFile(new URL("../pnpm-workspace.yaml", import.meta.url), "utf8"),
+    { uniqueKeys: true },
+  ).toJS();
+  assert.ok(isRecord(workspace) && isRecord(workspace.catalog));
+  assert.match(String(workspace.catalog["vite-plus"]), /^\d+\.\d+\.\d+$/);
+  assert.match(
+    (await readFile(new URL("../.node-version", import.meta.url), "utf8")).trim(),
+    /^\d+\.\d+\.\d+$/,
+  );
+  let count = 0;
+  for (const name of ["ci.yml", "deep-quality.yml", "linux-package-ownership-rehearsal.yml"]) {
+    const document: unknown = parseDocument(
+      await readFile(new URL(`../.github/workflows/${name}`, import.meta.url), "utf8"),
+      { uniqueKeys: true },
+    ).toJS();
+    assert.ok(isRecord(document) && isRecord(document.jobs), name);
+    for (const job of Object.values(document.jobs)) {
+      assert.ok(isRecord(job));
+      for (const step of Array.isArray(job.steps) ? job.steps : []) {
+        assert.ok(isRecord(step));
+        if (typeof step.uses !== "string" || !step.uses.startsWith("voidzero-dev/setup-vp@"))
+          continue;
+        count++;
+        assert.equal(step.uses, "voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76");
+        assert.ok(isRecord(step.with));
+        assert.equal(step.with["version-file"], "pnpm-workspace.yaml");
+        assert.equal(step.with["node-version-file"], ".node-version");
+        assert.equal(step.with["cache-toolchain"], true);
+        assert.notEqual(step.with["node-manager"], false);
+        assert.notEqual(step.with["package-manager"], false);
+      }
+    }
+  }
+  assert.equal(count, 8);
+});
+
 void test("Playnite qualification installs pinned workspace dependencies before its lifecycle consumer", () => {
   const setup = rustWorkspaceTests.indexOf(
     "      - name: Install pinned dependencies for Playnite transport validation\n",
@@ -1847,7 +1885,7 @@ void test("Playnite qualification installs pinned workspace dependencies before 
   const dependencies = rustWorkspaceTests.slice(setup, consumer);
   assert.match(
     dependencies,
-    /uses: voidzero-dev\/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af/,
+    /uses: voidzero-dev\/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76/,
   );
   assert.match(dependencies, /version-file: pnpm-workspace\.yaml/);
   assert.match(dependencies, /node-version-file: \.node-version/);

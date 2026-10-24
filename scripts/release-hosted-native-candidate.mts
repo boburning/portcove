@@ -27,6 +27,7 @@ import {
 } from "./release-readonly-child-environment.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
+import { retainNativeSourceDeclarations } from "./release-native-source-provider.mts";
 
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 type Selected = {
@@ -45,6 +46,7 @@ const candidates = new WeakMap<
     record: Buffer;
     recover: () => ReturnType<typeof recoverRemoteCoordinator>;
     stopped: boolean;
+    readDeclarations: () => ReturnType<typeof retainNativeSourceDeclarations>;
   }
 >();
 
@@ -213,6 +215,19 @@ export async function acquireActualHostedNativeCandidate(parentReceipt: object) 
         selection,
         record,
         recover,
+        readDeclarations: bindReadOnlyReleaseChildren(async () => {
+          await requireActualHostedNativeParentSource(parentReceipt);
+          remaining(1);
+          const declaration = await retainNativeSourceDeclarations(directory, (pathname) =>
+            api.request(
+              "GET",
+              `repos/boburning/portcove/contents/${pathname}?ref=${selection.identity.candidate.source_commit}`,
+            ),
+          );
+          await requireActualHostedNativeParentSource(parentReceipt);
+          remaining(1);
+          return declaration;
+        }),
         stopped: false,
       });
       return receipt;
@@ -265,6 +280,7 @@ export async function requireActualHostedNativeCandidate(receipt: object) {
       directory: retained.directory,
       package_path: path.join(retained.directory, "package.bin"),
       candidate: structuredClone(retained.selection.identity.candidate),
+      version: retained.selection.identity.version,
       facts: structuredClone(retained.selection.facts),
       checkpoint: current.checkpoint,
       recovery: {
@@ -275,6 +291,27 @@ export async function requireActualHostedNativeCandidate(receipt: object) {
       stage: parent.stage,
       authority: "none" as const,
       native_acceptance: "not-established" as const,
+    });
+  } catch (error) {
+    retained.stopped = true;
+    throw error;
+  }
+}
+
+/** Only the original hosted acquisition owns this fixed immutable-source reader.
+ * Declarations remain distinct from loaded native runtime observations. */
+export async function readActualHostedNativeSourceDeclarations(receipt: object) {
+  const retained = candidates.get(receipt);
+  if (!retained) throw new Error("original hosted native candidate required");
+  try {
+    const selected = await requireActualHostedNativeCandidate(receipt);
+    const declaration = await retained.readDeclarations();
+    await requireActualHostedNativeCandidate(receipt);
+    return Object.freeze({
+      declaration,
+      candidate: selected.candidate,
+      authority: "none" as const,
+      scope: "actual candidate source reads; declarations only, no native acceptance",
     });
   } catch (error) {
     retained.stopped = true;

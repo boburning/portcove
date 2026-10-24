@@ -1,7 +1,7 @@
 /** Ordinary credential-free hosted build fixture. Never a production tool route. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { lstat, mkdir, writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import path from "node:path";
@@ -9,12 +9,190 @@ import { fileURLToPath } from "node:url";
 import { buildControllerTools } from "./release-controller-tool-build.mts";
 import {
   controllerToolEntries,
+  controllerToolChildren,
   controllerCompilerSourceAsset,
   readControllerToolFile,
 } from "./release-controller-tools.mts";
 import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
 import { readCatalogCoreMachineEnvelope } from "./release-catalog-inspection.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
+import {
+  nativeRuntimeSupport,
+  inspectNativeRuntimeSupport,
+} from "./release-native-runtime-support.mts";
+import { inspectLinuxSupervisor } from "./run-rust-tests.mts";
+import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
+
+/** Real fixed reaper -> bundled supervisor -> fixed driver, plus orphan closure.
+ * Credential-free ordinary fixture only; neither case grants native acceptance. */
+async function qualifyNativeChildren(tools: string, directory: string) {
+  const node = path.join(tools, "bin/node");
+  const metadata = inspectNativeRuntimeSupport(
+    JSON.parse(
+      (
+        await readControllerToolFile(path.join(tools, nativeRuntimeSupport.metadata), 65536)
+      ).toString("utf8"),
+    ),
+    await readControllerToolFile(path.join(tools, nativeRuntimeSupport.source), 65536),
+    await readControllerToolFile(
+      path.join(tools, nativeRuntimeSupport.binary),
+      nativeRuntimeSupport.maximumBinaryBytes,
+    ),
+  );
+  for (const kind of ["driver-refusal", "orphan-closure"]) {
+    const attempt = path.join(directory, kind);
+    await mkdir(attempt, { mode: 0o700 });
+    const gate = path.join(attempt, "gate"),
+      status = path.join(attempt, "status.json"),
+      receipt = path.join(attempt, "receipt.json"),
+      registration = path.join(attempt, "registration.json");
+    const args =
+      kind === "driver-refusal"
+        ? [path.join(tools, "scripts/release-hosted-native-linux-driver.mts")]
+        : [
+            "--input-type=module",
+            "--eval",
+            `import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs';const c=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});writeFileSync(process.argv[1],String(c.pid),{flag:'wx'});c.unref();`,
+            path.join(attempt, "orphan-pid"),
+          ];
+    const parentIdentity = readProcessIdentity(process.pid, { platform: "linux" });
+    assert.ok(parentIdentity);
+    const child = spawn(
+      path.join(tools, nativeRuntimeSupport.binary),
+      [
+        gate,
+        status,
+        receipt,
+        registration,
+        parentIdentity,
+        node,
+        path.join(tools, "scripts/rust-test-tree-supervisor.mts"),
+        node,
+        ...args,
+      ],
+      {
+        cwd: tools,
+        env: { HOME: attempt, TMPDIR: attempt, GITHUB_ACTIONS: "true", RUNNER_TEMP: attempt },
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
+    let stderr = "",
+      outputBytes = 0,
+      expired = false,
+      settled = false;
+    let orphanPid: number | null = null;
+    child.stdin.on("error", () => {}); // Exit/receipt checks decide success; pipe loss never does.
+    for (const stream of [child.stdout, child.stderr])
+      stream.on("data", (bytes: Buffer) => {
+        outputBytes += bytes.length;
+        if (stream === child.stderr && outputBytes <= 65536) stderr += bytes.toString("utf8");
+        if (outputBytes > 65536) child.stdin.end();
+      });
+    const exited = new Promise<{ code: number | null; error?: Error }>((resolve) => {
+      child.once("error", (error) => {
+        settled = true;
+        resolve({ code: null, error });
+      });
+      child.once("close", (code) => {
+        settled = true;
+        resolve({ code });
+      });
+    });
+    let settlementTimer: ReturnType<typeof setTimeout>;
+    const finished = Promise.race([
+      exited,
+      new Promise<{ code: null; error: Error }>((resolve) => {
+        settlementTimer = setTimeout(
+          () =>
+            resolve({
+              code: null,
+              error: new Error("fixed reaper settlement unknown; retain attempt"),
+            }),
+          14000,
+        );
+      }),
+    ]);
+    const timeout = setTimeout(() => {
+      expired = true;
+      child.stdin.end();
+    }, 8000);
+    try {
+      const until = performance.now() + 5000;
+      let registered = false;
+      while (performance.now() < until) {
+        try {
+          inspectLinuxSupervisor(
+            JSON.parse((await readControllerToolFile(registration, 4096)).toString("utf8")),
+            child.pid,
+          );
+          registered = true;
+          break;
+        } catch (error) {
+          if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      assert.ok(registered, "fixed prepared reaper registration missing");
+      await writeFile(gate, "go", { flag: "wx", mode: 0o600 });
+      const result = await finished;
+      assert.equal(result.error, undefined, result.error?.message);
+      assert.equal(result.code, 0, stderr);
+      assert.equal(expired, false);
+      assert.ok(outputBytes <= 65536);
+      assert.deepEqual(JSON.parse((await readControllerToolFile(receipt, 4096)).toString("utf8")), {
+        outcome: "quiescent",
+      });
+      assert.deepEqual(JSON.parse((await readControllerToolFile(status, 4096)).toString("utf8")), {
+        exit_code: kind === "driver-refusal" ? 1 : 0,
+      });
+      if (kind === "driver-refusal") {
+        assert.match(stderr, /fixed hosted Linux driver arguments required/u);
+        assert.doesNotMatch(stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/u);
+      } else {
+        const pid = Number(
+          (await readControllerToolFile(path.join(attempt, "orphan-pid"), 32)).toString("utf8"),
+        );
+        assert.ok(Number.isSafeInteger(pid) && pid > 1);
+        orphanPid = pid;
+        assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+      }
+    } finally {
+      clearTimeout(timeout);
+      child.stdin.end();
+      const result = await finished;
+      clearTimeout(settlementTimer!);
+      await writeFile(
+        path.join(attempt, "fixture-settlement.json"),
+        JSON.stringify({
+          kind,
+          reaper_pid: child.pid,
+          settled,
+          exit_code: result.code,
+          error: result.error?.message ?? null,
+          expired,
+          output_bytes: outputBytes,
+          stderr,
+          orphan_pid: orphanPid,
+          authority: "none",
+          native_acceptance: "not-established",
+        }),
+        { flag: "wx", mode: 0o600 },
+      );
+      if (!settled) {
+        child.stdout.destroy();
+        child.stderr.destroy();
+        child.unref();
+      }
+      assert.ok(settled, "fixed prepared reaper settlement unknown; retain attempt");
+    }
+  }
+  return {
+    support_sha256: metadata.output.sha256,
+    chain: "prepared-reaper/bundled-supervisor/fixed-driver-refusal",
+    orphan_closure: "quiescent",
+    native_acceptance: "not-established",
+  };
+}
 
 async function main() {
   const source = fileURLToPath(new URL("..", import.meta.url));
@@ -137,6 +315,7 @@ async function main() {
           "release-control-ready",
           "release-payload-preparation",
           "release-signing-controller",
+          "release-hosted-native-runner",
         ].includes(name)
           ? 2
           : 1,
@@ -145,6 +324,22 @@ async function main() {
       assert.ok(result.stderr.trim(), name);
       assert.doesNotMatch(result.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/u);
     }
+    phase = "actual-fixed-native-child-refusal";
+    for (const filename of controllerToolChildren) {
+      const result = spawnSync(node, [path.join(built.tools, filename)], {
+        cwd: built.tools,
+        env: { ...env, GITHUB_ACTIONS: "true" },
+        encoding: "utf8",
+        timeout: 5000,
+        maxBuffer: 65536,
+      });
+      assert.equal(result.error, undefined);
+      assert.equal(result.status, filename.endsWith("rust-test-tree-supervisor.mts") ? 2 : 1);
+      assert.ok(result.stderr.trim());
+      assert.doesNotMatch(result.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/u);
+    }
+    phase = "actual-native-runtime-chain";
+    const nativeRuntime = await qualifyNativeChildren(built.tools, directory);
     phase = "actual-rust-refusal-smoke";
     const rust = invoke(path.join(built.tools, "bin/portcove-release-tools"), []);
     assert.equal(rust.error, undefined);
@@ -258,6 +453,8 @@ async function main() {
       connected_release:
         "actual-disposable-payload-and-five-role-Tough; controlled-provider-site-renewal-journal-recovery; no hosted authorization or native execution",
       node_bundles: controllerToolEntries,
+      native_runtime: nativeRuntime,
+      native_child_bundles: controllerToolChildren,
       production_tool_acceptance: "not-established",
       authority: "none",
     });

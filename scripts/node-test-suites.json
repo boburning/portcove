@@ -112,6 +112,7 @@
     "catalog-full-2": {
       "arguments": [
         "--test",
+        "--experimental-test-module-mocks",
         "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ]
@@ -450,6 +451,13 @@
       "memberships": [
         ["frontend-full-6", 100],
         ["release-check", 1400]
+      ]
+    },
+    {
+      "file": "scripts/daily-discovery-quiver.test.mts",
+      "memberships": [
+        ["catalog-full", 501],
+        ["roadmap-check", 501]
       ]
     },
     {
@@ -1655,6 +1663,55 @@
       "memberships": [
         ["catalog-full-2", 15125],
         ["release-check", 13425]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-job.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15144],
+        ["release-check", 13444]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-runner.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15145],
+        ["release-check", 13445]
+      ]
+    },
+    {
+      "file": "scripts/release-routing-marker.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15146],
+        ["release-check", 13446]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-proof-producer.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15143],
+        ["release-check", 13443]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-linux-report.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15142],
+        ["release-check", 13442]
+      ]
+    },
+    {
+      "file": "scripts/release-native-source-provider.test.mts",
+      "memberships": [
+        ["catalog-full-2", 14002],
+        ["release-check", 12002]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-linux-capture.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15140],
+        ["release-check", 13440]
       ]
     },
     {

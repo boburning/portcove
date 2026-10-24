@@ -3,7 +3,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash, randomBytes } from "node:crypto";
-import { appendFile, open, lstat, mkdir, link } from "node:fs/promises";
+import { appendFile, open, lstat, mkdir } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { spawn } from "node:child_process";
 import { performance } from "node:perf_hooks";
@@ -21,6 +21,7 @@ import {
 } from "./release-control-step-bridge.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { inspectCatalogSigningBinding } from "./release-catalog-signing-contract.mts";
+import { retainReleaseRoutingMarker as retain } from "./release-routing-marker.mts";
 
 const kinds = [
   "role-key",
@@ -58,16 +59,6 @@ function active(deadline: number) {
 }
 function filename(root: string, phase: Phase, suffix: string) {
   return path.join(root, `controller-transport-${phase}-${suffix}.json`);
-}
-async function retain(file: string, value: unknown) {
-  // Readers must never observe the empty/partial wx file. Publish complete
-  // bytes without replacement. Keep the owned staging alias: unlinking it
-  // after publication would race the reader's inode/ctime stability check.
-  // Both names share bytes, contain only public routing data, and settle with
-  // this job's private temporary directory.
-  const staging = `${file}.retained-${randomBytes(16).toString("hex")}`;
-  await retainBytes(staging, Buffer.from(JSON.stringify(value)));
-  await link(staging, file);
 }
 async function retainBytes(file: string, bytes: Buffer) {
   const handle = await open(file, "wx", 0o600);

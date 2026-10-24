@@ -1,6 +1,5 @@
 import {
   fixtureValue,
-  portDefinition,
   portStatus,
   sourceProfile,
   confirmedSourceAssessment,
@@ -9,7 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vite-plus/test";
 import type { InstallRecord, PortDefinition, PortStatus, SourceInspectionReport } from "../types";
 import { DetailPanel } from "./DetailPanel";
-import embeddedCatalog from "../../../../crates/portcove-core/catalog/catalog.json";
+import { currentCatalogPort } from "../catalog-test-fixtures";
 import {
   port,
   actions,
@@ -24,12 +23,6 @@ function detailSection(html: string, section: "overview" | "files" | "saves" | "
   expect(start, `${section} panel heading is present`).toBeGreaterThan(-1);
   const next = sections[sections.indexOf(section) + 1];
   return html.slice(start, next ? html.indexOf(`id="detail-section-${next}"`) : undefined);
-}
-
-function currentCatalogPort(id: string): PortDefinition {
-  const serialized = embeddedCatalog.ports.find((candidate) => candidate.id === id);
-  if (!serialized) throw new Error(`Missing embedded catalog port ${id}`);
-  return { ...portDefinition(), ...serialized } as unknown as PortDefinition;
 }
 
 it.each([false, true])(

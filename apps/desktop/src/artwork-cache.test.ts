@@ -1,10 +1,33 @@
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "./api";
+import type { DesktopArtworkThumbnail } from "./api";
 import { ArtworkCache } from "./artwork-cache";
 import { artworkState } from "./test-fixtures";
 import type { ArtworkState } from "./types";
 
 afterEach(() => vi.restoreAllMocks());
+
+function mappedArtwork(port: string, revision = 0): ArtworkState {
+  return {
+    ...artworkState(port, "cover", revision),
+    resolved_source: {
+      kind: "igdb_cover",
+      cache_id: "b".repeat(64),
+      artwork: {
+        game_id: 1,
+        cover_id: 2,
+        image_id: "fixture",
+        image_sha256: "c".repeat(64),
+        game_slug: "fixture",
+        match_kind: "port",
+      },
+    },
+  };
+}
+
+function mappedThumbnail(revision = 0): DesktopArtworkThumbnail {
+  return { asset_sha256: "b".repeat(64), choice_revision: revision, png_base64: "iVBORw==" };
+}
 
 describe("disposable artwork display cache", () => {
   it("retains a slot's usable display after metadata refresh fails, then accepts current replacement", async () => {
@@ -307,6 +330,148 @@ describe("disposable artwork display cache", () => {
     await Promise.resolve();
     expect(cache.read("sample", "cover").state?.resolved_source.kind).toBe("local_import");
     expect(cache.read("sample", "cover").image).toMatch(/^data:image\/png;base64,/);
+  });
+
+  it("drops offscreen queued covers before IPC while current covers and local choices proceed", async () => {
+    vi.spyOn(desktopApi, "artwork").mockImplementation(async (port) => mappedArtwork(port));
+    const finish = new Map<string, (thumbnail: DesktopArtworkThumbnail) => void>();
+    const thumbnails = vi
+      .spyOn(desktopApi, "artworkThumbnail")
+      .mockImplementation((port, _slot, revision) => {
+        if (port === "local")
+          return Promise.resolve({
+            asset_sha256: "a".repeat(64),
+            choice_revision: revision,
+            png_base64: "iVBORw==",
+          });
+        return new Promise((resolve) => finish.set(port, resolve));
+      });
+    const imported = artworkState("local", "cover", 1, true);
+    const importArtwork = vi.spyOn(desktopApi, "importArtwork").mockResolvedValue(imported);
+    const resetArtwork = vi
+      .spyOn(desktopApi, "resetArtwork")
+      .mockResolvedValue(artworkState("local", "cover", 2));
+    const cache = new ArtworkCache(7);
+    let oldInterested = true;
+    await Promise.all(
+      Array.from({ length: 20 }, (_, index) =>
+        cache.load(`old-${index}`, "cover", false, () => oldInterested),
+      ),
+    );
+    expect(thumbnails.mock.calls.map(([port]) => port)).toEqual(["old-0", "old-1"]);
+    oldInterested = false;
+    await cache.load("current", "cover");
+
+    expect(await cache.change("local", "cover", 0, "owned.png", () => true)).toBe(imported);
+    await cache.change("local", "cover", 1, null, () => true);
+    expect(importArtwork).toHaveBeenCalledExactlyOnceWith("local", "cover", "owned.png", 0, 7);
+    expect(resetArtwork).toHaveBeenCalledExactlyOnceWith("local", "cover", 1, 7);
+
+    finish.get("old-0")?.(mappedThumbnail());
+    await vi.waitFor(() => expect(finish.has("current")).toBe(true));
+    expect(thumbnails.mock.calls.map(([port]) => port)).toEqual([
+      "old-0",
+      "old-1",
+      "local",
+      "current",
+    ]);
+    expect(cache.read("old-2", "cover").state).toBeUndefined();
+    finish.get("old-1")?.(mappedThumbnail());
+    finish.get("current")?.(mappedThumbnail());
+    await vi.waitFor(() => expect(cache.read("current", "cover").loading).toBe(false));
+    await cache.load("old-2", "cover");
+    await vi.waitFor(() => expect(finish.has("old-2")).toBe(true));
+    finish.get("old-2")?.(mappedThumbnail());
+    await vi.waitFor(() => expect(cache.read("old-2", "cover").loading).toBe(false));
+  });
+
+  it("bounds remote queue retention with the same inactive preview limit", async () => {
+    vi.spyOn(desktopApi, "artwork").mockImplementation(async (port) => mappedArtwork(port));
+    const finish = new Map<string, (thumbnail: DesktopArtworkThumbnail) => void>();
+    let completeRemaining = false;
+    const thumbnails = vi
+      .spyOn(desktopApi, "artworkThumbnail")
+      .mockImplementation((port) =>
+        completeRemaining
+          ? Promise.resolve(mappedThumbnail())
+          : new Promise((resolve) => finish.set(port, resolve)),
+      );
+    const cache = new ArtworkCache(7);
+    await Promise.all(
+      Array.from({ length: 80 }, (_, index) => cache.load(`port-${index}`, "cover")),
+    );
+    expect(thumbnails).toHaveBeenCalledTimes(2);
+    expect(cache.read("port-47", "cover").state).toBeUndefined();
+    expect(cache.read("port-48", "cover").state).toBeDefined();
+    finish.get("port-0")?.(mappedThumbnail());
+    await vi.waitFor(() => expect(finish.has("port-48")).toBe(true));
+    expect(thumbnails.mock.calls.map(([port]) => port)).toEqual(["port-0", "port-1", "port-48"]);
+    completeRemaining = true;
+    finish.get("port-1")?.(mappedThumbnail());
+    finish.get("port-48")?.(mappedThumbnail());
+    await vi.waitFor(() => expect(cache.read("port-79", "cover").loading).toBe(false));
+    expect(thumbnails).toHaveBeenCalledTimes(34);
+  });
+
+  it("updates a queued cover's interest when a new view revisits the cached entry", async () => {
+    const reads = vi
+      .spyOn(desktopApi, "artwork")
+      .mockImplementation(async (port) => mappedArtwork(port));
+    const finish = new Map<string, (thumbnail: DesktopArtworkThumbnail) => void>();
+    const thumbnails = vi
+      .spyOn(desktopApi, "artworkThumbnail")
+      .mockImplementation((port) => new Promise((resolve) => finish.set(port, resolve)));
+    const cache = new ArtworkCache(7);
+    await Promise.all([cache.load("first", "cover"), cache.load("second", "cover")]);
+    let oldInterested = true;
+    await cache.load("revisited", "cover", false, () => oldInterested);
+    oldInterested = false;
+    await cache.load("revisited", "cover");
+    finish.get("first")?.(mappedThumbnail());
+    await vi.waitFor(() => expect(finish.has("revisited")).toBe(true));
+    expect(reads).toHaveBeenCalledTimes(3);
+    expect(thumbnails.mock.calls.map(([port]) => port)).toEqual(["first", "second", "revisited"]);
+    finish.get("second")?.(mappedThumbnail());
+    finish.get("revisited")?.(mappedThumbnail());
+    await vi.waitFor(() => expect(cache.read("revisited", "cover").loading).toBe(false));
+  });
+
+  it("replaces an undispatched cover with its refreshed revision and discards a queued local override", async () => {
+    let revision = 0;
+    vi.spyOn(desktopApi, "artwork").mockImplementation(async (port) =>
+      mappedArtwork(port, revision),
+    );
+    const finish = new Map<string, (thumbnail: DesktopArtworkThumbnail) => void>();
+    const thumbnails = vi
+      .spyOn(desktopApi, "artworkThumbnail")
+      .mockImplementation((port, _slot, selectedRevision) => {
+        if (port === "overridden")
+          return Promise.resolve({
+            asset_sha256: "a".repeat(64),
+            choice_revision: selectedRevision,
+            png_base64: "iVBORw==",
+          });
+        return new Promise((resolve) => finish.set(port, resolve));
+      });
+    vi.spyOn(desktopApi, "importArtwork").mockResolvedValue(
+      artworkState("overridden", "cover", 1, true),
+    );
+    const cache = new ArtworkCache(7);
+    await Promise.all([cache.load("first", "cover"), cache.load("second", "cover")]);
+    await cache.load("refreshed", "cover");
+    await cache.load("overridden", "cover");
+    revision = 2;
+    await cache.load("refreshed", "cover", true);
+    await cache.change("overridden", "cover", 0, "owned.png", () => true);
+    finish.get("first")?.(mappedThumbnail());
+    await vi.waitFor(() => expect(finish.has("refreshed")).toBe(true));
+    expect(thumbnails).toHaveBeenCalledWith("refreshed", "cover", 2, 7);
+    expect(thumbnails.mock.calls.filter(([port]) => port === "refreshed")).toHaveLength(1);
+    expect(thumbnails.mock.calls.filter(([port]) => port === "overridden")).toHaveLength(1);
+    finish.get("second")?.(mappedThumbnail());
+    finish.get("refreshed")?.(mappedThumbnail(2));
+    await vi.waitFor(() => expect(cache.read("refreshed", "cover").loading).toBe(false));
+    expect(cache.read("overridden", "cover").state?.resolved_source.kind).toBe("local_import");
   });
 
   it("updates subscribed views for their slot and stops notifying a closed view", async () => {

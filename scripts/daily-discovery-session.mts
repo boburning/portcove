@@ -27,7 +27,7 @@ import {
   isNonCatalogResearchBody,
 } from "./roadmap.mts";
 import type { RoadmapInventory, InventoryCache } from "./roadmap-inventory.mts";
-import { collectRoadmapInventory } from "./roadmap-inventory.mts";
+import { collectRoadmapInventory, requireRoadmapInventory } from "./roadmap-inventory.mts";
 import {
   DiscoveryBudget,
   selectDiscoveryProfile,
@@ -85,6 +85,7 @@ interface Candidate {
   hold?: { reason: string; resume: string };
   superseded_by?: string;
   amendment?: { expected_body_sha256: string; status: "prepared" | "attempted" | "applied" };
+  reconciliation?: { snapshot_sha256: string; evidence: string; doctor: string; review: unknown };
 }
 interface Evidence {
   repository: string;
@@ -257,6 +258,8 @@ export class DiscoverySession {
   readonly head: string;
   leads: LeadState;
   leadPages = 0;
+  leadFamilies = new Set<string>();
+  deferredLeadFamilies = new Set<string>();
   researchedLeads = new Set<number>();
   leadCollectionAttempted = false;
   constructor(
@@ -364,6 +367,29 @@ export class DiscoverySession {
           c.review.evidence_sha256 !== c.evidence_sha256)
       )
         throw new Error("Interrupted candidate lacks its matching separate review");
+      if (c.reconciliation !== undefined) {
+        const proof = object(c.reconciliation),
+          approval = object(proof.review);
+        if (
+          c.status !== "delivered" ||
+          c.kind !== "intake" ||
+          !c.created_issue ||
+          typeof proof.snapshot_sha256 !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(proof.snapshot_sha256) ||
+          approval.snapshot_sha256 !== proof.snapshot_sha256 ||
+          approval.verdict !== "clear" ||
+          approval.model !== "gpt-6.1-sol" ||
+          approval.reasoning !== "high" ||
+          typeof approval.reviewer !== "string" ||
+          !approval.reviewer.trim() ||
+          ![proof.evidence, proof.doctor].every(
+            (file) =>
+              typeof file === "string" &&
+              path.resolve(file).startsWith(path.resolve(stateDir) + path.sep),
+          )
+        )
+          throw new Error("Interrupted reconciliation binding is invalid; preserve and reconcile");
+      }
       for (const evidenceId of c.evidence_ids) {
         const evidence = object(this.journal.evidence[String(evidenceId)]);
         if (
@@ -636,12 +662,17 @@ export class DiscoverySession {
     );
   }
   leadSummary() {
-    const pending = pendingLeads(this.leads, this.knownLeadUrls());
+    // Startup can fail before the first validated inventory. Retain the saved
+    // queue without interpreting a stale cache as current canonical overlap.
+    const pending = this.inventory ? pendingLeads(this.leads, this.knownLeadUrls()) : undefined;
     return {
       searched_pages: this.leadPages,
+      observed_families: [...(this.leadFamilies ?? [])],
+      deferred_families: [...(this.deferredLeadFamilies ?? [])],
       investigated: [...this.researchedLeads],
-      pending: pending.length,
-      next: pending.slice(0, 12),
+      canonical_overlap: this.inventory ? "observed" : "unknown",
+      pending: pending?.length ?? null,
+      next: pending?.slice(0, 12) ?? [],
       continuations: this.leads.slices,
       scope: "Bounded GitHub lead searches; not complete community discovery",
     };
@@ -649,13 +680,21 @@ export class DiscoverySession {
   discover() {
     if (this.leadCollectionAttempted) return this.leadSummary();
     this.leadCollectionAttempted = true;
+    this.leadFamilies ??= new Set();
+    this.deferredLeadFamilies ??= new Set();
     for (let turn = 0; turn < 6 && this.searches < 6; turn++) {
       const plan = nextLeadPage(this.leads, this.journal.started_at);
+      if (this.deferredLeadFamilies.has(plan.family)) {
+        this.leads.next_family = (this.leads.next_family + 1) % 4;
+        continue;
+      }
       if (plan.current) {
+        this.leadFamilies.add(plan.family);
         this.leads.next_family = (this.leads.next_family + 1) % 4;
         continue;
       }
       if (plan.capped) {
+        this.leadFamilies.add(plan.family);
         this.journal.notes.push({
           phase: "lead-search",
           status: "capped",
@@ -694,7 +733,17 @@ export class DiscoverySession {
         );
       } catch (error) {
         if (!(error instanceof LeadSearchChanged)) throw error;
+        // Keep independently validated positive identities, never the refused pagination.
+        this.leads = retainLeadResults(
+          this.leads,
+          object(response.body).items as unknown[],
+          this.journal.started_at,
+          path.join(this.runDir, `${name}.json`),
+        );
         this.leads = restartLeadSlice(this.leads, plan, errorMessage(error));
+        this.leadFamilies.add(plan.family);
+        this.deferredLeadFamilies.add(plan.family);
+        this.leads.next_family = (this.leads.next_family + 1) % 4;
         this.journal.notes.push({
           phase: "lead-search",
           status: "partial",
@@ -706,8 +755,9 @@ export class DiscoverySession {
             "Discard failed pagination and recollect this fixed slice on a later admitted run; no same-run retry",
         });
         this.persist();
-        break;
+        continue;
       }
+      this.leadFamilies.add(plan.family);
       this.leadPages++;
       this.persist();
     }
@@ -951,6 +1001,132 @@ export class DiscoverySession {
     this.persist();
     return { id: c.id, status: c.status, hold: c.hold };
   }
+  async reconcile(raw: unknown) {
+    const v = object(raw),
+      c = this.journal.candidates[text(v.candidate_id)];
+    if (!c || c.kind !== "intake" || !c.created_issue)
+      throw new Error("Reconciliation requires a retained created intake");
+    if (c.status === "delivered" && c.reconciliation)
+      return { reconciled: c.id, already_completed: true };
+    if (!["created", "doctor-pending"].includes(c.status) || c.amendment)
+      throw new Error("Reconciliation requires an unamended pending intake");
+    const snapshot = () => {
+      requireRoadmapInventory(this.inventory, this.client.config.repository, this.client);
+      const issue = this.inventory.issues.find((row) => row.number === c.created_issue);
+      const matches = findPortIssueDuplicates(this.inventory.issues, c);
+      const identity = issue && sourceProvenancePortIdentity(issue);
+      const markers = issue?.body?.match(/<!--\s*portcove-discovery-intake:[^>]*-->/gu) ?? [];
+      if (
+        !issue ||
+        markers.length !== 1 ||
+        markers[0] !== `<!-- portcove-discovery-intake:${c.id} -->` ||
+        matches.length !== 1 ||
+        matches[0]?.issue.id !== issue.id ||
+        identity?.portKeys.length !== 1 ||
+        identity.portKeys[0] !== c.portKey ||
+        identity.upstreams.length !== 1 ||
+        identity.upstreams[0] !== c.upstream.toLowerCase()
+      )
+        throw new Error("Retained intake canonical identity is ambiguous or changed");
+      const items = [...this.inventory.items, ...this.inventory.archivedItems].filter(
+        (item) => item.content?.id === issue.id,
+      );
+      const item = items[0];
+      if (
+        items.length !== 1 ||
+        !item ||
+        item.isArchived !== false ||
+        (c.itemId && c.itemId !== item.id)
+      )
+        throw new Error("Retained intake Project identity or archive state changed");
+      return {
+        candidate_id: c.id,
+        original_body_sha256: c.body_sha256,
+        original_evidence_sha256: c.evidence_sha256,
+        issue,
+        item,
+      };
+    };
+    if (!v.review) {
+      const observed = snapshot(),
+        hash = observationHash(observed);
+      this.save(`reconcile-${hash}`, observed);
+      return { snapshot_sha256: hash, file: path.join(this.runDir, `reconcile-${hash}.json`) };
+    }
+    const review = object(v.review);
+    if (
+      review.verdict !== "clear" ||
+      review.model !== "gpt-6.1-sol" ||
+      review.reasoning !== "high" ||
+      typeof review.reviewer !== "string" ||
+      !review.reviewer.trim() ||
+      typeof review.snapshot_sha256 !== "string"
+    )
+      throw new Error("Reconciliation requires separate exact-snapshot Sol High review");
+    this.budget.delivery = true;
+    try {
+      const cost = discoveryInventoryCost(this.inventory);
+      this.budget.admit(cost.requests + 1, cost.bytes);
+      this.checkProviderCapacity(cost.requests);
+      this.refresh();
+      const observed = snapshot(),
+        hash = observationHash(observed);
+      if (hash !== review.snapshot_sha256)
+        throw new Error("Reconciliation snapshot changed; preserve current owner state");
+      const doctor = await runScopedDoctor(this.client.config, this.client, {
+        issues: [c.created_issue],
+        inventory: this.inventory,
+      });
+      this.save(`reconcile-doctor-${hash}`, doctor);
+      this.save(`reconcile-${hash}`, observed);
+      c.reconciliation = {
+        snapshot_sha256: hash,
+        evidence: path.join(this.runDir, `reconcile-${hash}.json`),
+        doctor: path.join(this.runDir, `reconcile-doctor-${hash}.json`),
+        review,
+      };
+      c.status = "delivered";
+      c.readback = String(observed.issue.url);
+      for (const pending of c.pending_ids ?? [])
+        if (this.checkpoint.pending[pending])
+          this.checkpoint = recordDisposition(this.checkpoint, pending, {
+            outcome: "intake-complete",
+            issue: c.created_issue,
+            readback: c.readback,
+            evidence: c.reconciliation.doctor,
+          });
+      this.journal.notes.push({
+        phase: "reconciled-external-owner",
+        candidate_id: c.id,
+        issue: c.created_issue,
+        snapshot_sha256: hash,
+        public_writes: 0,
+      });
+      const remaining = Object.values(this.journal.candidates).filter(
+        (candidate) => !["delivered", "held", "superseded"].includes(candidate.status),
+      );
+      this.journal.delivery = remaining.length ? "pending" : "complete";
+      this.persist();
+      const reserve = discoveryDeliveryCost(
+        this.inventory,
+        remaining.map((candidate) => ({
+          ...candidate,
+          requests: candidate.evidence_ids.reduce(
+            (sum, id) => sum + this.journal.evidence[id]!.requests,
+            0,
+          ),
+          bytes: candidate.evidence_ids.reduce(
+            (sum, id) => sum + this.journal.evidence[id]!.bytes,
+            0,
+          ),
+        })),
+      );
+      this.budget.reserveDelivery(reserve.requests, reserve.bytes);
+      return { reconciled: c.id, issue: c.created_issue, snapshot_sha256: hash, public_writes: 0 };
+    } finally {
+      this.budget.delivery = false;
+    }
+  }
   amend(raw: unknown) {
     const v = object(raw),
       c = this.journal.candidates[text(v.candidate_id)];
@@ -1141,7 +1317,10 @@ export class DiscoverySession {
       2,
       new Set([...pending.map((r) => r.id), ...this.researchedLeads]).size,
     );
-    return this.leadPages >= 4 && this.researchedLeads.size >= required;
+    return (
+      (this.leadPages >= 4 || this.leadFamilies?.size === 4) &&
+      this.researchedLeads.size >= required
+    );
   }
   async apply() {
     const candidates = Object.values(this.journal.candidates)
@@ -1478,6 +1657,7 @@ export class DiscoverySession {
         status: c.status,
         issue: c.created_issue ?? c.issue,
         readback: c.readback,
+        reconciliation: c.reconciliation,
       })),
       leads: this.leadSummary(),
       doctor: this.journal.doctor,
@@ -1579,6 +1759,7 @@ export async function runDiscoverySession(
       else if (op === "propose") result = session.propose(message.candidate);
       else if (op === "review") result = session.review(message.review);
       else if (op === "hold") result = session.hold(message.hold);
+      else if (op === "reconcile") result = await session.reconcile(message.reconciliation);
       else if (op === "apply") result = await session.apply();
       else if (op === "recheck") result = session.recheck();
       else if (op === "dispose") {

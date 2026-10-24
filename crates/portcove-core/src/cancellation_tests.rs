@@ -8,12 +8,14 @@ use crate::{
 use sha2::{Digest, Sha256};
 use std::{
     fs,
+    future::{Future, poll_fn},
     io::{Read, Write},
     net::TcpListener,
     sync::{
         Arc, Barrier, Condvar, Mutex,
         atomic::{AtomicBool, Ordering},
     },
+    task::Poll,
     thread,
     time::Duration,
 };
@@ -377,7 +379,19 @@ async fn archive_cancellation_waits_for_worker_quiescence_before_private_cleanup
     });
 
     let latch = Arc::new((Mutex::new((false, false)), Condvar::new()));
+    struct ReleaseWorker(Arc<(Mutex<(bool, bool)>, Condvar)>);
+    impl Drop for ReleaseWorker {
+        fn drop(&mut self) {
+            let (lock, condition) = &*self.0;
+            lock.lock().unwrap().1 = true;
+            condition.notify_all();
+        }
+    }
+    let release_worker = ReleaseWorker(latch.clone());
+    let entered = Arc::new(tokio::sync::Notify::new());
+    let hook_entered = entered.clone();
     let finished = Arc::new(AtomicBool::new(false));
+    let pending_joins = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let hook_latch = latch.clone();
     let hook = ArchiveWorkerTestHook {
         checkpoint: Arc::new(move || {
@@ -385,6 +399,7 @@ async fn archive_cancellation_waits_for_worker_quiescence_before_private_cleanup
             let mut state = lock.lock().unwrap();
             if !state.0 {
                 state.0 = true;
+                hook_entered.notify_one();
                 condition.notify_all();
                 while !state.1 {
                     state = condition.wait(state).unwrap();
@@ -393,6 +408,7 @@ async fn archive_cancellation_waits_for_worker_quiescence_before_private_cleanup
             Ok(())
         }),
         finished: finished.clone(),
+        pending_joins: pending_joins.clone(),
     };
     let (activity, operation) = service
         .begin_cancellable_activity(
@@ -425,40 +441,47 @@ async fn archive_cancellation_waits_for_worker_quiescence_before_private_cleanup
         managed: None,
         qualification: InstallQualification::test("sample.exe"),
     };
-    let install = tokio::spawn(async move {
+    let install = async move {
         let result = installer.install(request, &operation, |_| {}).await;
         (activity, result)
-    });
+    };
+    tokio::pin!(install);
 
     tokio::time::timeout(Duration::from_secs(5), async {
-        loop {
-            if latch.0.lock().unwrap().0 {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(5)).await;
+        tokio::select! {
+            _ = entered.notified() => {},
+            _ = &mut install => panic!("install completed before reaching the worker latch"),
         }
     })
     .await
     .expect("archive worker reached the deterministic latch");
+    let pending_joins_before_cancellation = pending_joins.load(Ordering::SeqCst);
     let cancellation = service.request_cancellation(&operation_id);
-    tokio::time::sleep(Duration::from_millis(75)).await;
+    // Drive the actual operation after cancellation and observe its pending
+    // worker join directly, while the worker is still held at its checkpoint.
+    let observed = poll_fn(|context| Poll::Ready(install.as_mut().poll(context))).await;
     let finished_while_blocked = finished.load(Ordering::SeqCst);
-    let install_finished_while_blocked = install.is_finished();
+    let install_finished_while_blocked = observed.is_ready();
+    let joined_while_blocked =
+        pending_joins.load(Ordering::SeqCst) > pending_joins_before_cancellation;
     let staging_existed_while_blocked = staging.is_dir();
     let journals_while_blocked = OperationStore::new(service.library().clone()).all();
 
-    {
-        let (lock, condition) = &*latch;
-        lock.lock().unwrap().1 = true;
-        condition.notify_all();
-    }
-    let (activity, result) = install.await.unwrap();
+    drop(release_worker);
+    let (activity, result) = match observed {
+        Poll::Ready(result) => result,
+        Poll::Pending => install.await,
+    };
     let result = service.finish_activity(activity, result);
     server.join().unwrap();
 
     cancellation.unwrap();
     assert!(!finished_while_blocked);
     assert!(!install_finished_while_blocked);
+    assert!(
+        joined_while_blocked,
+        "post-cancellation poll must await the actual held worker"
+    );
     assert!(staging_existed_while_blocked);
     assert_eq!(journals_while_blocked.unwrap().len(), 1);
     assert!(finished.load(Ordering::SeqCst));

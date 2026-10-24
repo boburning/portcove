@@ -1,3 +1,5 @@
+#[cfg(test)]
+use crate::test_http::{ResponseTestEvent, ResponseTestPhase, observe_test_response};
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock as StdRwLock},
@@ -524,7 +526,14 @@ impl GithubReleaseProvider {
         let response = Self::apply_conditional_headers(self.request(url), cached.as_ref())
             .send()
             .await
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
+            .map_err(|error| {
+                #[cfg(test)]
+                observe_test_response(ResponseTestEvent::Failed(
+                    ResponseTestPhase::Headers,
+                    error.is_timeout(),
+                ));
+                PortcoveError::network(error.to_string())
+            })?;
         if response.status() == StatusCode::NOT_MODIFIED {
             let cached = cached
                 .ok_or_else(|| PortcoveError::state("GitHub returned 304 without cached data"))?;
@@ -680,10 +689,14 @@ impl GithubReleaseProvider {
         // retain the provider's library lease across a desktop handoff.
         let request = self.request(&url);
         async move {
-            let response = request
-                .send()
-                .await
-                .map_err(|error| PortcoveError::network(error.to_string()))?;
+            let response = request.send().await.map_err(|error| {
+                #[cfg(test)]
+                observe_test_response(ResponseTestEvent::Failed(
+                    ResponseTestPhase::Headers,
+                    error.is_timeout(),
+                ));
+                PortcoveError::network(error.to_string())
+            })?;
             let status = response.status();
             let rate_limit = rate_limit_from_headers(response.headers());
             if status == StatusCode::UNAUTHORIZED && authenticated {
@@ -1586,6 +1599,8 @@ pub(crate) async fn bounded_response_bytes(
     limit: usize,
     label: &str,
 ) -> Result<Vec<u8>> {
+    #[cfg(test)]
+    observe_test_response(ResponseTestEvent::Headers);
     if response
         .content_length()
         .is_some_and(|length| length > limit as u64)
@@ -1597,13 +1612,24 @@ pub(crate) async fn bounded_response_bytes(
     let mut body = Vec::new();
     let mut stream = response.bytes_stream();
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|error| PortcoveError::network(error.to_string()))?;
+        let chunk = chunk.map_err(|error| {
+            #[cfg(test)]
+            observe_test_response(ResponseTestEvent::Failed(
+                ResponseTestPhase::Body,
+                error.is_timeout(),
+            ));
+            PortcoveError::network(error.to_string())
+        })?;
         if chunk.len() > limit.saturating_sub(body.len()) {
             return Err(PortcoveError::verification(format!(
                 "{label} exceeds the {limit} byte limit"
             )));
         }
         body.extend_from_slice(&chunk);
+        #[cfg(test)]
+        if !chunk.is_empty() {
+            observe_test_response(ResponseTestEvent::Body(chunk.len()));
+        }
     }
     Ok(body)
 }
@@ -1717,6 +1743,9 @@ fn is_sha256(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_http::{
+        DeadlineServer, observe_response, serve_deadline, serve_http, serve_routed_http,
+    };
 
     mod unchanged_definition;
 
@@ -1855,28 +1884,9 @@ mod tests {
     use std::{
         io::{Read, Write},
         net::TcpListener,
-        sync::mpsc::{self, Receiver},
-        thread::{self, JoinHandle},
+        sync::mpsc,
+        thread,
     };
-
-    fn serve_http(responses: Vec<String>) -> (String, Receiver<String>, JoinHandle<()>) {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let address = listener.local_addr().unwrap();
-        let (requests_tx, requests_rx) = mpsc::channel();
-        let server = thread::spawn(move || {
-            for response in responses {
-                let (mut stream, _) = listener.accept().unwrap();
-                stream
-                    .set_read_timeout(Some(Duration::from_secs(2)))
-                    .unwrap();
-                let mut request = vec![0_u8; 16 * 1024];
-                let size = stream.read(&mut request).unwrap();
-                let _ = requests_tx.send(String::from_utf8_lossy(&request[..size]).to_string());
-                stream.write_all(response.as_bytes()).unwrap();
-            }
-        });
-        (format!("http://{address}"), requests_rx, server)
-    }
 
     fn short_network_bounds() -> ProviderNetworkBounds {
         ProviderNetworkBounds {
@@ -1886,41 +1896,52 @@ mod tests {
         }
     }
 
-    fn serve_stalled_response(prefix: &'static [u8], stall: Duration) -> (String, JoinHandle<()>) {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let address = listener.local_addr().unwrap();
-        let server = thread::spawn(move || {
-            let (mut stream, _) = listener.accept().unwrap();
-            let mut request = [0_u8; 4096];
-            let _ = stream.read(&mut request).unwrap();
-            stream.write_all(prefix).unwrap();
-            stream.flush().unwrap();
-            thread::sleep(stall);
-        });
-        (format!("http://{address}"), server)
+    enum DeadlineResponse {
+        HeaderStall,
+        BodyStall,
+        Trickle,
     }
 
-    fn serve_trickling_response() -> (String, JoinHandle<()>) {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let address = listener.local_addr().unwrap();
-        let server = thread::spawn(move || {
-            let (mut stream, _) = listener.accept().unwrap();
-            let mut request = [0_u8; 4096];
-            let _ = stream.read(&mut request).unwrap();
-            stream
-                .write_all(
-                    b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n",
-                )
-                .unwrap();
-            for _ in 0..30 {
-                if stream.write_all(b" ").is_err() {
-                    break;
-                }
-                let _ = stream.flush();
-                thread::sleep(Duration::from_millis(30));
+    fn serve_deadline_response(mode: DeadlineResponse) -> (String, DeadlineServer) {
+        serve_deadline(move |connection| {
+            if !matches!(mode, DeadlineResponse::HeaderStall) {
+                connection.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n")?;
+                connection.write_all(b"{")?;
+                connection.flush()?;
             }
-        });
-        (format!("http://{address}"), server)
+            if matches!(mode, DeadlineResponse::Trickle) {
+                for _ in 0..30 {
+                    if connection.wait(Duration::from_millis(10)) {
+                        break;
+                    }
+                    if connection
+                        .write_all(b" ")
+                        .and_then(|()| connection.flush())
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+            } else {
+                connection.wait(Duration::from_millis(600));
+            }
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn deadline_fixture_can_stop_before_or_after_arming_without_a_client() {
+        for armed in [false, true] {
+            let (_, mut server) = serve_deadline_response(DeadlineResponse::HeaderStall);
+            if armed {
+                server.start();
+            }
+            let started = Instant::now();
+            let report = server.finish().unwrap();
+            assert_eq!(report.armed, armed);
+            assert!(!report.request_received);
+            assert!(started.elapsed() < Duration::from_millis(500));
+        }
     }
 
     #[test]
@@ -2126,31 +2147,114 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn metadata_and_auth_requests_enforce_idle_and_overall_bounds() {
-        let (metadata_root, metadata_server) = serve_trickling_response();
-        let provider = GithubReleaseProvider::with_api_root_and_bounds(
-            metadata_root.clone(),
-            short_network_bounds(),
-        )
-        .unwrap();
-        let started = Instant::now();
-        let error = provider
-            .get_json::<serde_json::Value>(&format!("{metadata_root}/metadata"))
-            .await
-            .unwrap_err();
-        assert_eq!(error.code, crate::ErrorCode::Network);
-        assert!(started.elapsed() < Duration::from_millis(500));
-        metadata_server.join().unwrap();
-
-        let (auth_root, auth_server) = serve_stalled_response(b"", Duration::from_millis(600));
+    async fn metadata_body_progress_exhausts_the_overall_request_bound() {
+        let (metadata_root, mut metadata_server) =
+            serve_deadline_response(DeadlineResponse::Trickle);
+        let bounds = short_network_bounds();
         let provider =
-            GithubReleaseProvider::with_api_root_and_bounds(auth_root, short_network_bounds())
-                .unwrap();
+            GithubReleaseProvider::with_api_root_and_bounds(metadata_root.clone(), bounds).unwrap();
+        metadata_server.start();
         let started = Instant::now();
-        let error = provider.auth_status().await.unwrap_err();
+        let (result, observed) = observe_response(
+            provider.get_json::<serde_json::Value>(&format!("{metadata_root}/metadata")),
+        )
+        .await;
+        let elapsed = started.elapsed();
+        let server = metadata_server.finish();
+        eprintln!("metadata deadline: {elapsed:?}; observation={observed:?}; fixture={server:?}");
+        let error = result.unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Network);
-        assert!(started.elapsed() < Duration::from_millis(500));
-        auth_server.join().unwrap();
+        assert!(elapsed < Duration::from_millis(500));
+        let server = server.unwrap();
+        assert!(server.armed && server.request_received);
+        assert!(observed.headers.is_some(), "{observed:?}");
+        assert!(observed.body_bytes >= 3, "{observed:?}");
+        assert_eq!(observed.failed_phase, Some(ResponseTestPhase::Body));
+        assert!(observed.timed_out);
+        assert!(
+            observed
+                .last_body
+                .unwrap()
+                .duration_since(observed.first_body.unwrap())
+                >= bounds.read_idle * 2,
+            "{observed:?}"
+        );
+        assert!(
+            observed
+                .failed_at
+                .unwrap()
+                .duration_since(observed.last_body.unwrap())
+                < bounds.read_idle / 2,
+            "recent body progress must exclude read-idle exhaustion: {observed:?}"
+        );
+        assert!(
+            elapsed >= bounds.request.saturating_sub(Duration::from_millis(10)),
+            "{elapsed:?}; {observed:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn authenticated_status_partial_body_exhausts_the_read_idle_bound() {
+        let (auth_root, mut auth_server) = serve_deadline_response(DeadlineResponse::BodyStall);
+        let bounds = short_network_bounds();
+        let provider = GithubReleaseProvider::with_api_root_and_bounds(auth_root, bounds).unwrap();
+        provider.set_credential(
+            Some("fixed-phase-fixture-token".into()),
+            GithubAuthSource::CredentialStore,
+        );
+        auth_server.start();
+        let started = Instant::now();
+        let (result, observed) = observe_response(provider.auth_status()).await;
+        let elapsed = started.elapsed();
+        let server = auth_server.finish();
+        eprintln!(
+            "authenticated body deadline: {elapsed:?}; observation={observed:?}; fixture={server:?}"
+        );
+        let error = result.unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Network);
+        assert!(elapsed < Duration::from_millis(500));
+        let server = server.unwrap();
+        assert!(server.armed && server.request_received);
+        assert!(observed.headers.is_some(), "{observed:?}");
+        assert_eq!(observed.body_bytes, 1, "{observed:?}");
+        assert_eq!(observed.failed_phase, Some(ResponseTestPhase::Body));
+        assert!(observed.timed_out);
+        assert!(
+            observed
+                .failed_at
+                .unwrap()
+                .duration_since(observed.last_body.unwrap())
+                >= bounds.read_idle / 2,
+            "{observed:?}"
+        );
+        assert!(
+            elapsed < bounds.request,
+            "idle timeout must precede total deadline: {elapsed:?}; {observed:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn authentication_request_reaches_server_before_header_idle_timeout() {
+        let (auth_root, mut auth_server) = serve_deadline_response(DeadlineResponse::HeaderStall);
+        let bounds = short_network_bounds();
+        let provider = GithubReleaseProvider::with_api_root_and_bounds(auth_root, bounds).unwrap();
+        auth_server.start();
+        let started = Instant::now();
+        let (result, observed) = observe_response(provider.auth_status()).await;
+        let elapsed = started.elapsed();
+        let server = auth_server.finish();
+        eprintln!(
+            "authentication header deadline: {elapsed:?}; observation={observed:?}; fixture={server:?}"
+        );
+        assert_eq!(result.unwrap_err().code, crate::ErrorCode::Network);
+        assert!(elapsed < Duration::from_millis(500));
+        let server = server.unwrap();
+        assert!(server.armed && server.request_received);
+        assert!(observed.headers.is_none(), "{observed:?}");
+        assert_eq!(observed.body_bytes, 0);
+        assert_eq!(observed.failed_phase, Some(ResponseTestPhase::Headers));
+        assert!(observed.timed_out);
+        assert!(elapsed < bounds.request, "{elapsed:?}; {observed:?}");
     }
 
     #[tokio::test]
@@ -2215,38 +2319,6 @@ mod tests {
                 .any(|key| key.repository
                     == format!("owner/repository-{}", RELEASE_CACHE_MAX_ENTRIES))
         );
-    }
-
-    fn serve_routed_http(
-        request_limit: usize,
-        response: impl Fn(&str) -> String + Send + 'static,
-    ) -> (String, Receiver<String>, JoinHandle<()>) {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        listener.set_nonblocking(true).unwrap();
-        let address = listener.local_addr().unwrap();
-        let (requests_tx, requests_rx) = mpsc::channel();
-        let server = thread::spawn(move || {
-            let deadline = Instant::now() + Duration::from_secs(3);
-            let mut handled = 0;
-            while handled < request_limit && Instant::now() < deadline {
-                let (mut stream, _) = match listener.accept() {
-                    Ok(connection) => connection,
-                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                        thread::sleep(Duration::from_millis(5));
-                        continue;
-                    }
-                    Err(error) => panic!("test server could not accept a request: {error}"),
-                };
-                stream.set_nonblocking(false).unwrap();
-                let mut request = vec![0_u8; 16 * 1024];
-                let size = stream.read(&mut request).unwrap();
-                let request = String::from_utf8_lossy(&request[..size]).to_string();
-                stream.write_all(response(&request).as_bytes()).unwrap();
-                requests_tx.send(request).unwrap();
-                handled += 1;
-            }
-        });
-        (format!("http://{address}"), requests_rx, server)
     }
 
     fn ok_json(body: &str, extra_headers: &str) -> String {

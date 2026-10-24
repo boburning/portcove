@@ -77,8 +77,8 @@ jobs:
         env:
           FIXTURE_SOURCE_SHA: ${{ github.sha }}
         run: node scripts/qualify-controller-tool-build.mts
-      - name: Exercise actual job-local disposable role channel on Linux
-        run: node --test --test-timeout=30000 scripts/release-role-key-channel.test.mts
+      - name: Exercise actual job-local disposable role channel and native runtime contracts on Linux
+        run: node --test --test-timeout=45000 scripts/release-role-key-channel.test.mts scripts/release-hosted-native-runner.test.mts
       - name: Retain only bounded public fixture evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -86,6 +86,8 @@ jobs:
           name: controller-tool-build-fixture-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             ${{ runner.temp }}/controller-tool-build-fixture/*.json
+            ${{ runner.temp }}/controller-tool-build-fixture/driver-refusal/*.json
+            ${{ runner.temp }}/controller-tool-build-fixture/orphan-closure/*.json
             ${{ runner.temp }}/controller-tool-build-fixture/build-work/controller-tool-build-*/failure.json
           retention-days: 7
           overwrite: false

@@ -771,6 +771,65 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ["scripts/release-native-source-contract.test.mts"],
   ],
   [
+    "scripts/release-native-source-provider.mts",
+    [
+      "scripts/release-native-source-provider.test.mts",
+      "scripts/release-native-source-contract.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-native-linux-report.mts",
+    [
+      "scripts/release-hosted-native-linux-report.test.mts",
+      "scripts/release-native-pre-sign-report.test.mts",
+    ],
+  ],
+  ["scripts/release-hosted-native-job.mts", ["scripts/release-hosted-native-job.test.mts"]],
+  [
+    "scripts/release-hosted-native-runner.mts",
+    ["scripts/release-hosted-native-runner.test.mts", "scripts/release-hosted-native-job.test.mts"],
+  ],
+  ...[
+    "scripts/release-hosted-native-runtime.mts",
+    "scripts/release-native-runtime-custody.mts",
+    "scripts/release-native-runtime-support.mts",
+  ].map((file): [string, string[]] => [
+    file,
+    ["scripts/release-hosted-native-runner.test.mts", "scripts/release-controller-tools.test.mts"],
+  ]),
+  [
+    "scripts/release-routing-marker.mts",
+    [
+      "scripts/release-routing-marker.test.mts",
+      "scripts/release-controller-transport.test.mts",
+      "scripts/release-hosted-native-runner.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-hosted-native-proof-producer.mts",
+    [
+      "scripts/release-hosted-native-proof-producer.test.mts",
+      "scripts/release-hosted-native-proof.test.mts",
+      "scripts/release-hosted-native-job.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-owned-capture-store.mts",
+    [
+      "scripts/release-checkpoint-store.test.mts",
+      "scripts/release-coordinator-checkpoint-signing.test.mts",
+      "scripts/release-semantic-broker.test.mts",
+      "scripts/release-hosted-native-proof-producer.test.mts",
+    ],
+  ],
+  [
+    "scripts/fixtures/native-linux-report-fixture.mts",
+    [
+      "scripts/release-hosted-native-linux-report.test.mts",
+      "scripts/release-native-pre-sign-report.test.mts",
+    ],
+  ],
+  [
     "scripts/release-native-pre-sign-report.mts",
     ["scripts/release-native-pre-sign-report.test.mts"],
   ],
@@ -1026,6 +1085,28 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/local-validation.test.mts",
   ].map((file): [string, string[]] => [file, selectionContractTests]),
   ["AGENTS.md", ["scripts/repository-settings.test.mts", "scripts/repository-skills.test.mts"]],
+  [
+    "scripts/fixtures/disposable-directory.mts",
+    [
+      "scripts/catalog-proposal-costs.test.mts",
+      "scripts/node-test-inventory.test.mts",
+      "scripts/precommit-check.test.mts",
+      "scripts/python-test-results.test.mts",
+      "scripts/release-catalog-review-request.test.mts",
+      "scripts/release-control-inputs.test.mts",
+      "scripts/release-hosted-native-linux-capture.test.mts",
+      "scripts/release-hosted-native-linux-report.test.mts",
+      "scripts/release-native-pre-sign-report.test.mts",
+      "scripts/release-native-source-provider.test.mts",
+      "scripts/release-hosted-native-proof-producer.test.mts",
+      "scripts/release-native-wsl-capture.test.mts",
+      "scripts/release-hosted-native-job.test.mts",
+      "scripts/release-hosted-native-runner.test.mts",
+      "scripts/release-routing-marker.test.mts",
+      "scripts/release-run-evidence.test.mts",
+      "scripts/test-duration-reporter.test.mts",
+    ],
+  ],
   [
     "scripts/node-test-inventory.mts",
     [
@@ -1489,6 +1570,11 @@ const releaseContractTests = Object.freeze([
   "scripts/native-qualification-linux-supervisor.test.mts",
   "scripts/native-qualification-linux-transfer.test.mts",
   "scripts/release-native-wsl-capture.test.mts",
+  "scripts/release-hosted-native-linux-capture.test.mts",
+  "scripts/release-hosted-native-linux-report.test.mts",
+  "scripts/release-hosted-native-proof-producer.test.mts",
+  "scripts/release-hosted-native-job.test.mts",
+  "scripts/release-native-source-provider.test.mts",
   "scripts/release-native-candidate.test.mts",
   "scripts/release-native-public-pair.test.mts",
   "scripts/release-native-public-attempt-contract.test.mts",
@@ -1859,6 +1945,12 @@ function classifyOnePath(
     recognized = true;
     addNodeTest(selection, "scripts/run-rust-tests.test.mts");
     addNodeTest(selection, "scripts/rust-support-cache.test.mts");
+  }
+
+  if (file === "scripts/fixtures/disposable-directory.mts") {
+    selection.ui = true;
+    selection.scopes.add("ui");
+    selection.uiRelatedFiles.add("apps/desktop/scripts/desktop-listener-lifetime.test.mts");
   }
 
   if (file.startsWith(".github/workflows/")) {

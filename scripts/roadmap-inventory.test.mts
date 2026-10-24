@@ -207,6 +207,215 @@ async function temporarySession(
     session,
   };
 }
+void test("reviewed external intake reconciliation preserves owner text and fields, refuses drift and releases recovery reserve", async (t) => {
+  const { session, state, run } = await temporarySession(t);
+  const f = fixture(1);
+  const original =
+    "<!-- portcove-discovery-intake:fixture -->\n\n" +
+    renderPortIssueBody({
+      title: "Fixture",
+      upstream: "https://github.com/example/fixture",
+      portKey: "fixture",
+    });
+  f.rows[0]!.body = original + "\n## Owner update\nPreserve this later canonical specification.\n";
+  f.rows[0]!.title = "[Port] Fixture";
+  f.project[0]!.content = { ...f.rows[0]!, body: undefined };
+  f.project[0]!.fieldValues = [{ name: "Port", field: { name: "Work type" } }];
+  session.client.graphql = f.client.graphql;
+  session.client.completeProjectContext = f.client.completeProjectContext;
+  session.client.itemList = f.client.itemList;
+  session.checkProviderCapacity = () => {};
+  session.journal.evidence.e = {
+    repository: "example/fixture",
+    material: "original-evidence",
+    file: path.join(run, "original-evidence.json"),
+    requests: 1,
+    bytes: 1,
+  };
+  const candidate = (session.journal.candidates.fixture = {
+    id: "fixture",
+    kind: "intake",
+    title: "Fixture",
+    upstream: "https://github.com/example/fixture",
+    portKey: "fixture",
+    body: original,
+    body_sha256: observationHash(original),
+    evidence_ids: ["e"],
+    evidence_sha256: observationHash(["original-evidence"]),
+    created_issue: 1,
+    itemId: "P0",
+    status: "doctor-pending",
+    review: {
+      verdict: "clear",
+      model: "gpt-6.1-sol",
+      reasoning: "high",
+      reviewer: "original-reviewer",
+      body_sha256: observationHash(original),
+      evidence_sha256: observationHash(["original-evidence"]),
+    },
+  });
+  session.journal.evidence.e.requests = 6;
+  session.journal.evidence.e.bytes = 300000;
+  const waitingBody = "<!-- portcove-discovery-comment:waiting -->\nMaterial fixture observation";
+  session.journal.candidates.waiting = {
+    id: "waiting",
+    kind: "comment",
+    title: candidate.title,
+    upstream: candidate.upstream,
+    portKey: candidate.portKey,
+    evidence_ids: candidate.evidence_ids,
+    evidence_sha256: candidate.evidence_sha256,
+    issue: 1,
+    body: waitingBody,
+    body_sha256: observationHash(waitingBody),
+    status: "reviewed",
+    review: { ...candidate.review, body_sha256: observationHash(waitingBody) },
+  };
+  session.refresh();
+  session.budget.reserveDelivery(180, 1000);
+  const prepared = await session.reconcile({ candidate_id: "fixture" });
+  assert.ok("snapshot_sha256" in prepared);
+  const review = {
+    verdict: "clear",
+    model: "gpt-6.1-sol",
+    reasoning: "high",
+    reviewer: "separate-reviewer",
+    snapshot_sha256: prepared.snapshot_sha256,
+  };
+  await assert.rejects(
+    session.reconcile({ candidate_id: "fixture", review: { ...review, model: "wrong" } }),
+    /separate/,
+  );
+  const savedIssue = structuredClone(f.rows[0]!);
+  const savedItems = structuredClone(f.project);
+  const invalid: (() => void)[] = [
+    () => {
+      f.rows[0]!.body = f.rows[0]!.body.replace(
+        "portcove-discovery-intake:fixture",
+        "portcove-discovery-intake:foreign",
+      );
+    },
+    () => {
+      f.rows[0]!.body = f.rows[0]!.body.replaceAll("example/fixture", "foreign/implementation");
+    },
+    () => {
+      f.project[0]!.id = "changed-item";
+    },
+    () => {
+      f.project[0]!.isArchived = true;
+    },
+    () => {
+      f.project.push({ ...structuredClone(f.project[0]!), id: "duplicate-membership" });
+    },
+  ];
+  for (const [index, mutate] of invalid.entries()) {
+    mutate();
+    f.rows[0]!.updatedAt = `2026-10-24T00:00:0${index}Z`;
+    for (const item of f.project) item.content = { ...f.rows[0]!, body: undefined };
+    session.refresh();
+    await assert.rejects(
+      session.reconcile({ candidate_id: "fixture" }),
+      /identity|ambiguous|archive/,
+    );
+    Object.assign(f.rows[0]!, structuredClone(savedIssue));
+    f.project.splice(0, f.project.length, ...structuredClone(savedItems));
+  }
+  session.refresh();
+  const savedBody = f.rows[0]!.body;
+  f.rows[0]!.body += "Later concurrent edit";
+  f.rows[0]!.updatedAt = "2026-10-24T00:00:00Z";
+  f.project[0]!.content = { ...f.rows[0]!, body: undefined };
+  await assert.rejects(session.reconcile({ candidate_id: "fixture", review }), /snapshot changed/);
+  assert.equal(candidate.status, "doctor-pending");
+  f.rows[0]!.body = savedBody;
+  f.rows[0]!.updatedAt = "2026-10-17T00:00:00Z";
+  f.project[0]!.content = { ...f.rows[0]!, body: undefined };
+  const before = JSON.stringify(f.project);
+  await session.reconcile({ candidate_id: "fixture", review });
+  assert.equal(candidate.status, "delivered");
+  assert.equal(candidate.body, original, "original body and review remain historical evidence");
+  assert.equal(f.rows[0]!.body, savedBody);
+  assert.equal(JSON.stringify(f.project), before);
+  assert.ok(session.budget.reserve.requests < 180);
+  assert.deepEqual(
+    session.budget.reserve,
+    discoveryDeliveryCost(session.inventory, [
+      {
+        ...session.journal.candidates.waiting,
+        requests: 6,
+        bytes: 300000,
+      },
+    ]),
+  );
+  assert.equal(session.journal.delivery, "pending");
+  const resumed = new DiscoverySession(
+    state,
+    run,
+    config,
+    "fixture-token",
+    new Date().toISOString(),
+    "fixture-head",
+  );
+  assert.equal(resumed.journal.candidates.fixture?.status, "delivered");
+  assert.deepEqual(await resumed.reconcile({ candidate_id: "fixture" }), {
+    reconciled: "fixture",
+    already_completed: true,
+  });
+  const journal: unknown = JSON.parse(readFileSync(path.join(state, "active-run.json"), "utf8"));
+  assert.ok(typeof journal === "object" && journal !== null && "candidates" in journal);
+  const corrupted = JSON.stringify(journal).replaceAll(
+    String(prepared.snapshot_sha256),
+    "bad-hash",
+  );
+  writeFileSync(path.join(state, "active-run.json"), corrupted);
+  assert.throws(
+    () =>
+      new DiscoverySession(
+        state,
+        run,
+        config,
+        "fixture-token",
+        new Date().toISOString(),
+        "fixture-head",
+      ),
+    /reconciliation binding/,
+  );
+});
+void test("startup inventory refusal retains the original failure receipt without treating cached overlap as current", async (t) => {
+  const cached = collectRoadmapInventory(fixture(1).client);
+  const { session, state, run } = await temporarySession(t, cached);
+  const before = JSON.stringify(session.leads);
+  const failure = new Error("Project changed during inventory collection");
+  session.refresh = () => {
+    throw failure;
+  };
+  session.checkProviderCapacity = () => {};
+  assert.throws(
+    () => session.start(),
+    (error) => error === failure,
+  );
+  const receipt = await session.finish(failure);
+  assert.equal(receipt.status, "failed");
+  assert.equal(receipt.coverage, "unknown");
+  assert.match(
+    JSON.stringify(receipt.notes.at(-1)),
+    /Project changed during inventory collection/u,
+  );
+  assert.equal(receipt.leads.pending, null);
+  assert.equal(receipt.leads.canonical_overlap, "unknown");
+  assert.deepEqual(receipt.leads.next, []);
+  assert.equal(JSON.stringify(session.leads), before);
+  const serialized: unknown = JSON.parse(JSON.stringify(receipt));
+  assert.deepEqual(JSON.parse(readFileSync(path.join(run, "receipt.json"), "utf8")), serialized);
+  assert.deepEqual(
+    JSON.parse(readFileSync(path.join(state, "latest-receipt.json"), "utf8")),
+    serialized,
+  );
+  assert.partialDeepStrictEqual(
+    JSON.parse(readFileSync(path.join(state, "active-run.json"), "utf8")),
+    { status: "failed" },
+  );
+});
 void test("retained intake amendment preserves issue identity, all reserves and separate review across restart", async (t) => {
   const { session, state, run } = await temporarySession(t);
   session.inventory = collectRoadmapInventory(fixture(1).client);

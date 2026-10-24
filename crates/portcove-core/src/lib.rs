@@ -103,6 +103,8 @@ mod support_bundle_read;
 mod support_bundle_stage;
 #[cfg(test)]
 mod test_fixture;
+#[cfg(test)]
+mod test_http;
 mod tool_process;
 mod transfer_copy;
 mod transfer_journal;
@@ -117,7 +119,8 @@ pub use artwork::{
     ArtworkImageFormat, ArtworkMetadata, ArtworkResolvedSource, ArtworkSlot, ArtworkState,
     ArtworkThumbnail, DestinationArtworkBytes, DestinationArtworkContent,
     DestinationArtworkHandoff, DestinationArtworkRole, DestinationArtworkSource,
-    DestinationArtworkUnavailableReason, GeneratedArtworkFallback, LocalArtworkAsset,
+    DestinationArtworkUnavailableReason, GeneratedArtworkFallback, IGDB_ARTWORK_WORK_LIMIT,
+    LocalArtworkAsset,
 };
 pub use auth::{
     GithubAuthSource, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,

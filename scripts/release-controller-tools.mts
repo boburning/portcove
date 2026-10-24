@@ -19,6 +19,12 @@ export const controllerToolEntries = Object.freeze([
   "release-site-controller",
   "release-tuf-controller",
   "release-controller-job",
+  "release-hosted-native-runner",
+] as const);
+/** These child entry paths are part of the existing driver's/supervisor's ABI. */
+export const controllerToolChildren = Object.freeze([
+  "scripts/release-hosted-native-linux-driver.mts",
+  "scripts/rust-test-tree-supervisor.mts",
 ] as const);
 export const controllerToolAssets = Object.freeze([
   "deny.toml",
@@ -28,6 +34,7 @@ export const controllerToolAssets = Object.freeze([
   ".github/qualification-coverage.json",
   "release/package-policy.json",
   "apps/desktop/src-tauri/tauri.release-public.conf.json",
+  "scripts/fixtures/linux-process-tree-reaper.rs.txt",
 ] as const);
 export const controllerToolPaths = Object.freeze(
   [
@@ -35,8 +42,11 @@ export const controllerToolPaths = Object.freeze(
     "bin/portcove",
     "bin/portcove-release-tools",
     "bin/tauri-addon.node",
+    "bin/native-linux-tree-reaper",
+    "native-linux-support.json",
     controllerCompilerSourceAsset,
     ...controllerToolEntries.map((name) => `scripts/${name}.bundle.mjs`),
+    ...controllerToolChildren,
     ...controllerToolAssets,
   ].sort(),
 );

@@ -243,8 +243,18 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-preview-withdrawals.mts",
   "scripts/release-native-stage-capture.mts",
   "scripts/release-hosted-native-proof-contract.mts",
+  "scripts/release-hosted-native-proof-producer.mts",
+  "scripts/release-hosted-native-job.mts",
+  "scripts/release-hosted-native-runner.mts",
+  "scripts/release-hosted-native-runtime.mts",
+  "scripts/release-native-runtime-custody.mts",
+  "scripts/release-native-runtime-support.mts",
+  "scripts/release-routing-marker.mts",
+  "scripts/release-owned-capture-store.mts",
   "scripts/release-hosted-native-acceptance.mts",
   "scripts/release-hosted-native-admission.mts",
+  "scripts/release-hosted-native-linux-capture.mts",
+  "scripts/release-hosted-native-linux-capture.test.py",
   "scripts/release-native-capture-files.mts",
   "scripts/release-native-linux-report.mts",
   "scripts/release-native-scheduler.mts",
@@ -269,6 +279,9 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-native-keyless-assembly.mts",
   "scripts/release-native-attempt.mts",
   "scripts/release-native-source-contract.mts",
+  "scripts/release-native-source-provider.mts",
+  "scripts/release-hosted-native-linux-report.test.mts",
+  "scripts/fixtures/native-linux-report-fixture.mts",
   "scripts/release-native-pre-sign-report.mts",
   "scripts/release-native-check-broker.mts",
   "scripts/release-native-worker.mts",
@@ -676,6 +689,7 @@ function classifyPath(file: string): PathOwnership {
           "scripts/run-ui-tests.mts",
           "scripts/run-viteplus.mts",
           "scripts/ui-test-selection.mts",
+          "scripts/fixtures/disposable-directory.mts",
         ].includes(file) ||
         file.startsWith("apps/desktop/public/") ||
         nativeScenarioFiles.has(file) ||
@@ -892,6 +906,7 @@ function classifyAuditPath(file: string): PathOwnership {
         "scripts/run-ui-tests.mts",
         "scripts/run-viteplus.mts",
         "scripts/ui-test-selection.mts",
+        "scripts/fixtures/disposable-directory.mts",
       ].includes(file) ||
       nativeScenarioFiles.has(file) ||
       file.startsWith("apps/desktop/public/") ||

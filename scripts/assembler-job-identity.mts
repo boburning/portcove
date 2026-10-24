@@ -654,6 +654,24 @@ export async function verifyHostedNativeJobIdentity(
   return result;
 }
 
+/** The same fixed job may attest its original capture with a Sigstore audience.
+ * This separate verifier cannot mint the native-parent audience/brand. */
+export async function verifyHostedNativeAttestationIdentity(
+  platform: "windows-x86_64" | "linux-x86_64",
+  token: string,
+  rawExpected: unknown,
+  options: IdentityOptions = {},
+) {
+  const profile = hostedNativeJobProfile(platform);
+  const expected = inspectAssemblerIdentityExpectation(rawExpected);
+  if (
+    expected.audience !== "sigstore" ||
+    expected.subject !== controllerOidcSubject(expected.controller_ref, profile.environment)
+  )
+    throw new Error("fixed hosted native attestation audience/environment differs");
+  return verifyJobIdentity(profile, token, expected, options);
+}
+
 /** Original fixed native job identity only. Even this private binding grants
  * no candidate isolation, execution, capture, native result or signing right. */
 export function requireVerifiedHostedNativeJobIdentity(
