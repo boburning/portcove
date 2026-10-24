@@ -37,7 +37,10 @@ void test("routine provider metadata is quiet only with complete fresh accountin
   const unaccounted = incident({ port_id: "unknown", accounted_for: false });
   const grouped = classifyHealthConditions([routine, changed, stale, partial, unaccounted]);
   assert.deepEqual(grouped.routine, [routine]);
-  assert.deepEqual(grouped.ordered.map((i) => i.port_id), ["changed", "stale", "partial", "unknown"]);
+  assert.deepEqual(
+    grouped.ordered.map((i) => i.port_id),
+    ["changed", "stale", "partial", "unknown"],
+  );
   assert.equal(grouped.stale, 1);
   assert.equal(grouped.partial, 1);
   assert.equal(grouped.retained, 4);
@@ -46,24 +49,40 @@ void test("routine provider metadata is quiet only with complete fresh accountin
 });
 
 void test("inconclusive, stale, and retained evidence never claims recovery", () => {
-  assert.match(conditionEvidence(incident({ freshness: "stale", accounted_for: true })), /Stale history/u);
-  assert.match(conditionEvidence(incident({ latest_collection_status: "partial" })), /Partial collection/u);
+  assert.match(
+    conditionEvidence(incident({ freshness: "stale", accounted_for: true })),
+    /Stale history/u,
+  );
+  assert.match(
+    conditionEvidence(incident({ latest_collection_status: "partial" })),
+    /Partial collection/u,
+  );
   assert.match(conditionEvidence(incident()), /not checked in this run/u);
   assert.match(conditionEvidence(incident({ observed_this_run: true })), /bytes unverified/u);
-  assert.match(conditionEvidence(incident({ observed_this_run: true, accounted_for: false })), /Unaccounted/u);
+  assert.match(
+    conditionEvidence(incident({ observed_this_run: true, accounted_for: false })),
+    /Unaccounted/u,
+  );
 });
 
-void test("observed span is bounded to actual observations and is not uninterrupted downtime", () => {
-  const i = incident();
-  assert.equal(observedSpan(i), "2d 2h");
-  assert.equal(observedSpan({ first_seen: i.observed_at, observed_at: i.first_seen }), "unknown");
-  assert.equal(observedSpan({ first_seen: "bad", observed_at: i.observed_at }), "unknown");
-  assert.equal(observedSpan({ first_seen: i.first_seen, observed_at: i.first_seen }), "0h");
-});
+void test(
+  "observed span is bounded to actual observations and is not uninterrupted downtime",
+  () => {
+    const i = incident();
+    assert.equal(observedSpan(i), "2d 2h");
+    assert.equal(observedSpan({ first_seen: i.observed_at, observed_at: i.first_seen }), "unknown");
+    assert.equal(observedSpan({ first_seen: "bad", observed_at: i.observed_at }), "unknown");
+    assert.equal(observedSpan({ first_seen: i.first_seen, observed_at: i.first_seen }), "0h");
+  },
+);
 
 void test("unrelated conditions are not mutated, deduplicated, or treated as proven holds", () => {
-  const continuing = Object.freeze(incident({ port_id: "other", accounted_for: false, occurrences: 8 }));
-  const current = Object.freeze(incident({ port_id: "game-one", observed_this_run: true, changed_in_this_run: true }));
+  const continuing = Object.freeze(
+    incident({ port_id: "other", accounted_for: false, occurrences: 8 }),
+  );
+  const current = Object.freeze(
+    incident({ port_id: "game-one", observed_this_run: true, changed_in_this_run: true }),
+  );
   const grouped = classifyHealthConditions([continuing, current]);
   assert.equal(grouped.ordered.length, 2);
   assert.equal(grouped.ordered[0], current);
