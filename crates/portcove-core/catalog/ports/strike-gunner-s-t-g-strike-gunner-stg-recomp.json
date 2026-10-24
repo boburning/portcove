@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "strike-gunner-s-t-g-strike-gunner-stg-recomp",
+    "name": "Strike Gunner S.T.G (Strike Gunner STG Recomp)",
+    "summary": "Upstream route: Windows package; own USA ROM; local generate/build Limits: Upstream says playable start-to-finish with982 compiled variants; uncovered code retains interpreter fallback. Upstream platforms: Windows x86-64 setup package (v0.3.0 asset name frozen); local generation/compilation. Other host packages not established. Original data: Own Strike Gunner S.T.G USA SNES ROM as .sfc, SHA-256 05f14e6ed3394d9273e2397769a8acf1a9db646be6066e82269521e8eec53562. Upstream setup generates/compiles from that dump; ROM bytes are not bundled. SNES hardware and uncovered-code fallback remain part of the runtime. Portcove setup/gameplay not verified.",
+    "original_game_title": "Strike Gunner S.T.G",
+    "project_url": "https://github.com/SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+    "issue_number": 2713
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "strike-gunner-s-t-g-strike-gunner-stg-recomp",
+    "origin": {
+      "project_url": "https://github.com/SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1421558111"
+      }
+    },
+    "decisions": []
+  }
+}

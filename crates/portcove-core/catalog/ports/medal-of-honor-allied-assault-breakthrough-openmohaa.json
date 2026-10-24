@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "medal-of-honor-allied-assault-breakthrough-openmohaa",
+    "name": "Medal of Honor: Allied Assault Breakthrough (OpenMoHAA)",
+    "summary": "Upstream route: Cross-platform engine supports single-player and multiplayer; desktop release archives. Limits: Upstream pre1.0 engine supports SP/MP; preserve base/expansion data and feature limits. Upstream platforms: Continuous/release Windows/Linux/macOS packages and native source builds; selected package CPU architectures unknown in frozen research. Original data: Own Medal of Honor: Allied Assault base data plus Breakthrough expansion files. Preserve the edition-specific upstream layout. Portcove setup/gameplay not verified.",
+    "original_game_title": "Medal of Honor: Allied Assault Breakthrough",
+    "project_url": "https://github.com/openmoh/openmohaa",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/openmoh/openmohaa",
+    "issue_number": 2594
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "medal-of-honor-allied-assault-breakthrough-openmohaa",
+    "origin": {
+      "project_url": "https://github.com/openmoh/openmohaa",
+      "repository": {
+        "host": "github.com",
+        "id": "29029846"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "vyruz-destruction-of-the-untel-empire-openvyruz",
+    "name": "Vyruz: Destruction of the Untel Empire (OpenVyruz)",
+    "summary": "Upstream route: Published Windows x64 ZIP and Linux x64 tar.gz. Limits: Upstream says whole game completable in1.0.0; no Portcove package execution or gameplay pass. Upstream platforms: Windows11 x86-64 ZIP and Linux x86-64 tar.gz, Wayland/X11. Exact package metadata observed without execution. Original data: User-owned vz-data.rsc; Intro.avi optional. Portcove setup/gameplay not verified.",
+    "original_game_title": "Vyruz: Destruction of the Untel Empire",
+    "project_url": "https://github.com/Solessfir/OpenVyruz",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Solessfir/OpenVyruz",
+    "artwork": {
+      "game_id": 112224,
+      "cover_id": 382135,
+      "image_id": "co86uv",
+      "image_sha256": "59575e65a4aa51b62901ee362317de0999082530001f8ffd920166dc898b02be",
+      "game_slug": "vyruz-destruction-of-the-untel-empire",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2623
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "vyruz-destruction-of-the-untel-empire-openvyruz",
+    "origin": {
+      "project_url": "https://github.com/Solessfir/OpenVyruz",
+      "repository": {
+        "host": "github.com",
+        "id": "1414789305"
+      }
+    },
+    "decisions": []
+  }
+}

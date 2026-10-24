@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "forza-motorsport-4-forza-motorsport-4-recompiled",
+    "name": "Forza Motorsport 4 (Forza Motorsport 4 Recompiled)",
+    "summary": "Upstream route: Windows alpha package; extracted Europe GOTY Disc 1 Limits: Experimental alpha; limited campaign/performance validation and conservative renderer profile. Upstream platforms: Windows x86-64 no-build alpha ZIP; source-build route also Windows x86-64. No other qualified upstream platform implied. Original data: Own Forza Motorsport 4 Europe Game of the Year Xbox 360 Disc 1, title 4D530910, media 42C67824. Extract default.xex, XMediaFacade_default.xex, SpeechFacade_default.xex and full Media tree into game/. Optional Disc 2 content is separately player-supplied; its four Marketplace packages are checked by upstream. Portcove setup/gameplay not verified.",
+    "original_game_title": "Forza Motorsport 4",
+    "project_url": "https://github.com/Alexbeav/fm4-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Alexbeav/fm4-recomp",
+    "artwork": {
+      "game_id": 3068,
+      "cover_id": 96228,
+      "image_id": "co2290",
+      "image_sha256": "28c56bd70440a6aebd4cc8ad448282b3c43178e1384b2180e9dea632fb610155",
+      "game_slug": "forza-motorsport-4",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2676
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "forza-motorsport-4-forza-motorsport-4-recompiled",
+    "origin": {
+      "project_url": "https://github.com/Alexbeav/fm4-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1353646974"
+      }
+    },
+    "decisions": []
+  }
+}

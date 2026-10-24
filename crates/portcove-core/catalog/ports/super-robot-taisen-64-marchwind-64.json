@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-robot-taisen-64-marchwind-64",
+    "name": "Super Robot Taisen 64 (Marchwind 64)",
+    "summary": "Upstream route: Windows (experimental), Linux and macOS Apple Silicon packages; owned JP ROM Limits: Normal release0.4.10 distinct from Vulkan test tags; Windows/SteamDeck/Android experimental. Upstream platforms: Windows x86-64 experimental package, Linux package and macOS Apple-Silicon ARM64 package; Linux CPU unknown in frozen research. Android/SteamDeck experimental. Original data: Own Super Robot Taisen 64 Japanese N64 revision 0 cartridge dump. The runtime loads player-supplied game data; English/Chinese translation support is an optional port feature, not a requirement to obtain a patched commercial ROM. The reviewed README does not itself establish the complete accepted ROM digest. Portcove setup/gameplay not verified.",
+    "original_game_title": "Super Robot Taisen 64",
+    "project_url": "https://github.com/dyzz/srw64-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/dyzz/srw64-recomp",
+    "artwork": {
+      "game_id": 44056,
+      "cover_id": 404214,
+      "image_id": "co8nw6",
+      "image_sha256": "88743e6679a21b4f3b2fb60f95ca023e9620c286dcc9889df775a37e387e7454",
+      "game_slug": "super-robot-taisen-64",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2614
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "super-robot-taisen-64-marchwind-64",
+    "origin": {
+      "project_url": "https://github.com/dyzz/srw64-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1367417480"
+      }
+    },
+    "decisions": []
+  }
+}

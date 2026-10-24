@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ultima-vii-part-two-serpent-isle-exult",
+    "name": "Ultima VII Part Two: Serpent Isle (Exult)",
+    "summary": "Upstream route: Official documentation says both games completable; established engine. Limits: Upstream says both UltimaVII games completable; stable release selection and independent game saves remain. Upstream platforms: Windows/Linux/macOS official package/build routes. Selected artifact CPU architectures unknown in frozen evidence; stable releases differ from snapshots. Original data: Per-game data and saves; use stable release selection, not blindly newest snapshot. Portcove setup/gameplay not verified.",
+    "original_game_title": "Ultima VII Part Two: Serpent Isle",
+    "project_url": "https://github.com/exult/exult",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/exult/exult",
+    "issue_number": 2622
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ultima-vii-part-two-serpent-isle-exult",
+    "origin": {
+      "project_url": "https://github.com/exult/exult",
+      "repository": {
+        "host": "github.com",
+        "id": "53741886"
+      }
+    },
+    "decisions": []
+  }
+}

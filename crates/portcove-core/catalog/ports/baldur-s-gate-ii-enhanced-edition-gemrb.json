@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "baldur-s-gate-ii-enhanced-edition-gemrb",
+    "name": "Baldur's Gate II: Enhanced Edition (GemRB)",
+    "summary": "Research listing. Upstream route: Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate. Limits: Experimental BG2EE support; original-edition support and Portcove qualification do not carry over. Research intake only. Upstream platforms: Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen. Original data: Own Baldur's GateII Enhanced Edition installed data for an experimentally supported GemRB build. This is separate from original BGII; exact EE revision/build compatibility remains to be established before offering operations. Portcove setup/gameplay not verified.",
+    "original_game_title": "Baldur's Gate II: Enhanced Edition",
+    "project_url": "https://github.com/gemrb/gemrb",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/gemrb/gemrb",
+    "artwork": {
+      "game_id": 5613,
+      "cover_id": 534834,
+      "image_id": "cobgoi",
+      "image_sha256": "91ee807ba0e1ef92a517b28e43025aff7d38bff178675b4e71da749c04637d7a",
+      "game_slug": "baldur-s-gate-ii-enhanced-edition",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2633
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "baldur-s-gate-ii-enhanced-edition-gemrb",
+    "origin": {
+      "project_url": "https://github.com/gemrb/gemrb",
+      "repository": {
+        "host": "github.com",
+        "id": "3297830"
+      }
+    },
+    "decisions": []
+  }
+}

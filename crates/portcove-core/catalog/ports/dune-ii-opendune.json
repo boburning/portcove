@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dune-ii-opendune",
+    "name": "Dune II (OpenDUNE)",
+    "summary": "Upstream route: Native original-engine recreation with explicit v1.07 data and Windows/macOS archives. Limits: Distinct implementation from Dune Dynasty and from OpenRA Dune 2000; older releases. Upstream platforms: Windows i686/x86-64 and macOS PowerPC/i686/x86-64 documented build targets; Linux source route. Selected historical archive CPUs require asset choice. Original data: Distinct implementation from Dune Dynasty and from OpenRA Dune 2000; older releases. Portcove setup/gameplay not verified.",
+    "original_game_title": "Dune II",
+    "project_url": "https://github.com/OpenDUNE/OpenDUNE",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/OpenDUNE/OpenDUNE",
+    "artwork": {
+      "game_id": 86,
+      "cover_id": 227952,
+      "image_id": "co4vw0",
+      "image_sha256": "cb25d42a8639c7aacaa27f3d6da453412e74f9dccda5df71123b5cb1b44c09f9",
+      "game_slug": "dune-ii-the-building-of-a-dynasty",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2674
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dune-ii-opendune",
+    "origin": {
+      "project_url": "https://github.com/OpenDUNE/OpenDUNE",
+      "repository": {
+        "host": "github.com",
+        "id": "6982043"
+      }
+    },
+    "decisions": []
+  }
+}

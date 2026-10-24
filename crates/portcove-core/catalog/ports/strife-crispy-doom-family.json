@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "strife-crispy-doom-family",
+    "name": "Strife (Crispy Doom family)",
+    "summary": "Upstream route: Native source-port family with current executable packages. Limits: Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility. Upstream platforms: Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build. Original data: Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games. Portcove setup/gameplay not verified.",
+    "original_game_title": "Strife",
+    "project_url": "https://github.com/fabiangreffrath/crispy-doom",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/fabiangreffrath/crispy-doom",
+    "artwork": {
+      "game_id": 5570,
+      "cover_id": 128897,
+      "image_id": "co2rgh",
+      "image_sha256": "77463b86f8c9aaae3fdc649eb9b5ae6b772e909cb57f868cff80adcaec65ccb2",
+      "game_slug": "strife",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2663
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "strife-crispy-doom-family",
+    "origin": {
+      "project_url": "https://github.com/fabiangreffrath/crispy-doom",
+      "repository": {
+        "host": "github.com",
+        "id": "17395051"
+      }
+    },
+    "decisions": []
+  }
+}
