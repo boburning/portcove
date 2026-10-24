@@ -27,7 +27,7 @@ export interface HealthTriageCondition {
 // metadata accounting.
 export function isRoutineProviderCondition(incident: HealthTriageCondition): boolean {
   return (
-    incident.accounted_for &&
+    incident.accounted_for === true &&
     !incident.changed_in_this_run &&
     incident.freshness === "fresh" &&
     incident.latest_collection_status === "complete" &&
