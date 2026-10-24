@@ -5,6 +5,7 @@ import { open, readFile } from "node:fs/promises";
 import path from "node:path";
 import { capacityDigest } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
+import { semanticReviewCheckName } from "./release-control-phases.mts";
 import {
   verifyDirectSemanticCapture,
   requireDirectSemanticDispositionCapture,
@@ -12,6 +13,7 @@ import {
 import {
   readIndependentSemanticDisposition,
   readIndependentSemanticCheckInventory,
+  readIndependentCatalogSemanticCheckInventory,
 } from "./release-semantic-disposition-reader.mts";
 import type { runSemanticRuntime } from "./release-semantic-runtime.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
@@ -25,22 +27,60 @@ import {
 } from "./release-catalog-semantic.mts";
 
 type Capture = Awaited<ReturnType<typeof runSemanticRuntime>>;
-export interface SemanticIssuer {
+interface LegacySemanticIssuer {
   app_id: number;
   installation_id: number;
   writer_app_id: number;
 }
+export type SemanticIssuer =
+  | LegacySemanticIssuer
+  | {
+      schema_version: 2;
+      app_id: number;
+      installation_id: number;
+    };
 const repo = "repos/boburning/portcove";
-function issuerConfiguration(config: SemanticIssuer) {
+/** Closed setup identity only. The actual App/installation, capture and grant
+ * must still be observed before any producer credential or POST is used. */
+export function inspectSemanticIssuerConfiguration(raw: unknown): SemanticIssuer {
+  const config: unknown = structuredClone(raw);
+  const selected = isRecord(config) && config.schema_version === 2;
   if (
-    ![config.app_id, config.installation_id, config.writer_app_id].every(
-      (id) => Number.isSafeInteger(id) && id > 0,
+    !isRecord(config) ||
+    Object.keys(config).sort().join(",") !==
+      (selected
+        ? "app_id,installation_id,schema_version"
+        : "app_id,installation_id,writer_app_id") ||
+    ![config.app_id, config.installation_id, ...(selected ? [] : [config.writer_app_id])].every(
+      (id) => typeof id === "number" && Number.isSafeInteger(id) && id > 0,
     ) ||
     config.app_id === 15368 ||
-    config.app_id === config.writer_app_id
+    (!selected && config.app_id === config.writer_app_id)
   )
     throw new Error("independent issuer identities are unconfigured or conflated");
-  return structuredClone(config);
+  return selected
+    ? {
+        schema_version: 2,
+        app_id: Number(config.app_id),
+        installation_id: Number(config.installation_id),
+      }
+    : {
+        app_id: Number(config.app_id),
+        installation_id: Number(config.installation_id),
+        writer_app_id: Number(config.writer_app_id),
+      };
+}
+export function semanticIssuerProducer(
+  raw: SemanticIssuer,
+  purpose: "application" | "catalog-publication",
+) {
+  if (purpose !== "application" && purpose !== "catalog-publication")
+    throw new Error("semantic producer purpose differs");
+  const issuer = inspectSemanticIssuerConfiguration(raw);
+  const common = { review_app_id: issuer.app_id, review_check_name: semanticReviewCheckName };
+  return "schema_version" in issuer
+    ? { schema_version: 2 as const, purpose, ...common }
+    : { schema_version: 1 as const, ...common, writer_app_id: issuer.writer_app_id };
 }
 async function verifyCapture(capture: Capture) {
   const expected = await verifyDirectSemanticCapture(capture);
@@ -63,17 +103,12 @@ export async function requireActualCatalogSemanticReview(
   api: CoordinatorRemoteApi,
   checkId: number,
 ) {
-  const issuer = issuerConfiguration(rawIssuer);
+  const issuer = inspectSemanticIssuerConfiguration(rawIssuer);
   const opportunity = inspectCatalogSemanticOpportunity(rawOpportunity);
   const actual = await verifyCapture(capture);
   if (capacityDigest(actual.handoff.evidence.opportunity) !== capacityDigest(opportunity))
     throw new Error("actual catalog semantic capture accepted different exact inputs");
-  const producer = {
-    schema_version: 1,
-    review_app_id: issuer.app_id,
-    writer_app_id: issuer.writer_app_id,
-    review_check_name: actual.handoff.proposed_request.body.name,
-  };
+  const producer = semanticIssuerProducer(issuer, "catalog-publication");
   const proof = readIndependentCatalogSemanticReview(api, producer, opportunity, checkId);
   const verified: unknown = JSON.parse(proof);
   if (
@@ -118,12 +153,12 @@ export async function publishSemanticCapture(
     }>;
   },
 ) {
-  const config = issuerConfiguration(rawIssuer);
+  const config = inspectSemanticIssuerConfiguration(rawIssuer);
   const frozen = await verifyCapture(capture);
   const request = frozen.handoff.proposed_request;
   if (
     request.endpoint !== `${repo}/check-runs` ||
-    request.body.name !== "Portcove independent release semantic review" ||
+    request.body.name !== semanticReviewCheckName ||
     request.body.head_sha !== frozen.handoff.evidence.opportunity.source_commit
   )
     throw new Error("fixed semantic broker destination/input differs");
@@ -171,12 +206,12 @@ export async function publishSemanticCapture(
         : readIndependentSemanticReview
     )(
       clients.installation,
-      {
-        schema_version: 1,
-        review_app_id: config.app_id,
-        writer_app_id: config.writer_app_id,
-        review_check_name: request.body.name,
-      },
+      semanticIssuerProducer(
+        config,
+        isCatalogSemanticPurpose(frozen.handoff.evidence.opportunity)
+          ? "catalog-publication"
+          : "application",
+      ),
       frozen.handoff.evidence.opportunity,
       id,
     );
@@ -213,15 +248,13 @@ export function readbackSemanticCheck(
   opportunity: unknown,
   expected: { head: string; external_id: string; summary: string },
 ) {
-  const config = issuerConfiguration(rawIssuer);
+  const config = inspectSemanticIssuerConfiguration(rawIssuer);
   if (!/^[a-f0-9]{40}$/u.test(expected.head)) throw new Error("readback source identity invalid");
-  const producer = {
-    schema_version: 1,
-    review_app_id: config.app_id,
-    writer_app_id: config.writer_app_id,
-    review_check_name: "Portcove independent release semantic review",
-  };
-  const inventory = readIndependentSemanticCheckInventory(api, producer, expected.head);
+  const catalog = isCatalogSemanticPurpose(opportunity);
+  const producer = semanticIssuerProducer(config, catalog ? "catalog-publication" : "application");
+  const inventory = (
+    catalog ? readIndependentCatalogSemanticCheckInventory : readIndependentSemanticCheckInventory
+  )(api, producer, expected.head);
   const matches = inventory.records.filter((value) => value.external_id === expected.external_id);
   if (
     matches.length !== 1 ||
@@ -251,7 +284,7 @@ export async function publishSemanticDispositionCapture(
   rawIssuer: SemanticIssuer,
   options: Parameters<typeof publishSemanticCapture>[2],
 ) {
-  const config = issuerConfiguration(rawIssuer);
+  const config = inspectSemanticIssuerConfiguration(rawIssuer);
   const frozen = await requireDirectSemanticDispositionCapture(capture);
   const request = frozen.proposed_request;
   const receipt = await open(path.join(frozen.root, "capture/check-attempt.jsonl"), "wx");
@@ -294,12 +327,12 @@ export async function publishSemanticDispositionCapture(
         : readIndependentSemanticDisposition
     )(
       clients.installation,
-      {
-        schema_version: 1,
-        review_app_id: config.app_id,
-        writer_app_id: config.writer_app_id,
-        review_check_name: request.body.name,
-      },
+      semanticIssuerProducer(
+        config,
+        frozen.wire.kind === "catalog-publication-semantic-disposition"
+          ? "catalog-publication"
+          : "application",
+      ),
       frozen.wire.request,
       Number(response.body.id),
     );
@@ -326,14 +359,13 @@ export function readbackSemanticDispositionCheck(
   request: unknown,
   expected: { head: string; external_id: string; summary: string },
 ) {
-  const config = issuerConfiguration(rawIssuer);
-  const producer = {
-    schema_version: 1,
-    review_app_id: config.app_id,
-    writer_app_id: config.writer_app_id,
-    review_check_name: "Portcove independent release semantic review",
-  };
-  const inventory = readIndependentSemanticCheckInventory(api, producer, expected.head);
+  const config = inspectSemanticIssuerConfiguration(rawIssuer);
+  const catalog = isRecord(request) && request.kind === "catalog-publication-semantic-review";
+  if (catalog) inspectCatalogReviewRequest(request);
+  const producer = semanticIssuerProducer(config, catalog ? "catalog-publication" : "application");
+  const inventory = (
+    catalog ? readIndependentCatalogSemanticCheckInventory : readIndependentSemanticCheckInventory
+  )(api, producer, expected.head);
   const matches = inventory.records.filter((value) => value.external_id === expected.external_id);
   if (
     matches.length !== 1 ||
@@ -341,8 +373,6 @@ export function readbackSemanticDispositionCheck(
     matches[0]!.output.summary !== expected.summary
   )
     throw new Error("negative semantic POST remains ambiguous; retain original attempt, no retry");
-  const catalog = isRecord(request) && request.kind === "catalog-publication-semantic-review";
-  if (catalog) inspectCatalogReviewRequest(request);
   const proof = (
     catalog ? readIndependentCatalogSemanticDisposition : readIndependentSemanticDisposition
   )(api, producer, request, Number(matches[0]!.id));

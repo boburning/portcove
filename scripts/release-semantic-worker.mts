@@ -34,12 +34,14 @@ import { materializeSemanticSource } from "./release-semantic-source.mts";
 import { inspectReleaseReviewRequest } from "./release-review-request.mts";
 import {
   readIndependentSemanticCheckInventory,
+  readIndependentCatalogSemanticCheckInventory,
   inspectSemanticRequestCheckMatches,
 } from "./release-semantic-disposition-reader.mts";
-import { semanticReviewCheckName } from "./release-semantic-review.mts";
 import {
   readbackSemanticCheck,
   readbackSemanticDispositionCheck,
+  inspectSemanticIssuerConfiguration,
+  semanticIssuerProducer,
 } from "./release-semantic-broker.mts";
 import type { SemanticIssuerCustody } from "./release-semantic-issuer.mts";
 import { reviewFrozenCoordinatorRequest } from "./release-semantic-request-pipeline.mts";
@@ -184,7 +186,7 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
     !isRecord(value) ||
     Object.keys(value).sort().join(",") !==
       "auth_cache,issuer,kind,namespace,output_parent,runtime,schema_version,setup_grant_sha256,source_git_sha256,source_read_token,source_repository,worker_revision" ||
-    value.schema_version !== 1 ||
+    (value.schema_version !== 1 && value.schema_version !== 2) ||
     value.kind !== "portcove-fixed-semantic-worker" ||
     !/^[a-f0-9]{40}$/u.test(String(value.worker_revision)) ||
     !/^[a-f0-9]{64}$/u.test(String(value.setup_grant_sha256)) ||
@@ -194,16 +196,11 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
   )
     throw new Error("semantic worker fixed setup schema differs");
   const runtime = inspectLinuxQualificationConfiguration(value.runtime);
-  const ids = value.issuer.issuer;
+  const ids = inspectSemanticIssuerConfiguration(value.issuer.issuer);
   if (
     Object.keys(value.issuer).sort().join(",") !==
       "http_modules_sha256,issuer,node_sha256,private_key,public_key_sha256" ||
-    Object.keys(ids).sort().join(",") !== "app_id,installation_id,writer_app_id" ||
-    ![ids.app_id, ids.installation_id, ids.writer_app_id].every(
-      (id) => Number.isSafeInteger(id) && Number(id) > 0,
-    ) ||
-    ids.app_id === ids.writer_app_id ||
-    ids.app_id === 15368 ||
+    (value.schema_version === 2 ? !("schema_version" in ids) : "schema_version" in ids) ||
     !/^[a-f0-9]{64}$/u.test(String(value.issuer.public_key_sha256)) ||
     value.issuer.node_sha256 !== runtime.node_sha256 ||
     !isRecord(value.issuer.http_modules_sha256) ||
@@ -252,6 +249,7 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
     runtime,
     issuer: {
       ...value.issuer,
+      issuer: ids,
       private_key: absolute(value.issuer.private_key),
     } as unknown as SemanticIssuerCustody,
   };
@@ -583,12 +581,10 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
       throw new Error("semantic source/readback transport admits no GraphQL");
     },
   };
-  const producer = {
-    schema_version: 1,
-    review_app_id: config.issuer.issuer.app_id,
-    writer_app_id: config.issuer.issuer.writer_app_id,
-    review_check_name: semanticReviewCheckName,
-  };
+  const producer = semanticIssuerProducer(
+    config.issuer.issuer,
+    selected.purpose === "catalog" ? "catalog-publication" : "application",
+  );
   const requestDirectory = path.join(config.output_parent, `request-${request.request_id}`);
   const existingLocators: string[] = [];
   for (let index = 0; index < 3; index++) {
@@ -602,7 +598,11 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
   }
   if (existingLocators.length > 1)
     throw new Error("multiple original Check requests require reconciliation");
-  const inventory = readIndependentSemanticCheckInventory(api, producer, selected.source_commit);
+  const inventory = (
+    selected.purpose === "catalog"
+      ? readIndependentCatalogSemanticCheckInventory
+      : readIndependentSemanticCheckInventory
+  )(api, producer, selected.source_commit);
   const matches = (
     selected.purpose === "catalog"
       ? inspectCatalogSemanticRequestCheckMatches

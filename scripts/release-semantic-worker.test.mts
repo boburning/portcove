@@ -131,6 +131,34 @@ function configuration() {
     },
   };
 }
+function selectedConfiguration() {
+  const prior = configuration();
+  return {
+    ...prior,
+    schema_version: 2,
+    issuer: { ...prior.issuer, issuer: { schema_version: 2, app_id: 123, installation_id: 456 } },
+  };
+}
+void test("selected semantic worker needs only the independent issuer and refuses mixed schema or a phantom writer", () => {
+  const prior = configuration();
+  const raw = selectedConfiguration();
+  const config = inspectSemanticWorkerConfiguration(raw);
+  assert.equal("writer_app_id" in config.issuer.issuer, false);
+  assert.equal(
+    renderSemanticWorkerUnits(raw, "/owned/config.json", "a".repeat(64), "/owned/controller")
+      .initial_state.worker_revision,
+    raw.worker_revision,
+  );
+  for (const bad of [
+    { ...raw, schema_version: 1 },
+    { ...raw, schema_version: "2" },
+    { ...raw, issuer: prior.issuer },
+    { ...prior, issuer: raw.issuer },
+    { ...raw, issuer: { ...raw.issuer, issuer: { ...raw.issuer.issuer, writer_app_id: 789 } } },
+    { ...raw, issuer: { ...raw.issuer, issuer: { ...raw.issuer.issuer, app_id: 15368 } } },
+  ])
+    assert.throws(() => inspectSemanticWorkerConfiguration(bad));
+});
 void test("worker setup excludes supplied outcomes/backends and separates the fixed issuer from source/reviewer inputs", () => {
   const raw = configuration();
   const result = inspectSemanticWorkerConfiguration(raw);
@@ -346,7 +374,7 @@ void test("actual proposal pipeline freezes real Git inputs then refuses an unqu
       ["hash-object", "-t", "commit", "-w", "--stdin"],
       inspectRemoteCommitObject(commit, commit.sha).object.bytes,
     );
-  const raw = inspectSemanticWorkerConfiguration(configuration());
+  const raw = inspectSemanticWorkerConfiguration(selectedConfiguration());
   const request = createReleaseReviewRequest({
     before_checkpoint: "f".repeat(40),
     requested_at: "2026-01-01T00:00:00.000Z",
