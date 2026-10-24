@@ -673,3 +673,39 @@ not evidence that the full graph fits or that an operation has capacity. Capacit
 remains bounded-attempt eligibility with Unknown availability/headroom and no
 reservation. Windows and actual native/public/client acceptance remain pending;
 #254 stays Done, existing Chameleon holds remain, production held, slice 5 excluded.
+
+## Private hosted Linux launch preparation (October 24)
+
+`release-hosted-native-launcher.mts` prepares the fixed private Node and temporary
+tree for the existing same-job bootstrap. It reuses actual source/configuration
+admission and the original provider job deadline before creating anything. The
+non-root broker's canonical, non-shared-writable home contains a no-replace root
+bound to the run, first attempt and controller revision. The default tool receiver
+authenticates the actual source/run artifact and independent attestation before
+its Node is copied as data. The shared setup-node path cannot select those bytes.
+Executable custody is verified, and its original
+file/ancestry identities are retained. The bootstrap still independently requires
+those bytes to match the attested tools before importing the worker.
+
+Post-sign consumes that same root, binding and original Node identity; replacing
+the file with identical bytes refuses. Stage-specific launch plans are no-replace
+and carry no execution or acceptance authority. This preparation API does not
+spawn a process or install anything. A plan is not a running native pipeline:
+the fixed composite must still validate its routing data, supply the private
+temporary path, start the original worker, bound streams and process lifetime,
+perform upload/readback handoffs and finish matching teardown. Partial
+preparation remains retained for readback and explicit recovery, without retry
+or deletion by this API.
+
+Focused Linux fixture coverage uses real private file custody and controlled
+source/provider peers. It checks pre/post continuity, missing predecessors,
+replay, changed bindings, replacement, byte tamper, shared writes, links,
+source/provider refusal, expired deadlines and existing retained roots. Its
+actual qualification result belongs in the owning delivery receipt; it cannot
+establish protected admission, actual provider enforcement or native acceptance.
+The public routing records add at most three 4096-byte records plus one private
+Node copy and one additional bounded tool receiver (at most320MiB compressed
+tools plus1MiB attestation, with the existing bounded tool inventory expansion).
+That receiver is used only before the first launch; post-sign retains the
+original executable identity. Final whole-job storage, download and graph fit remain
+required. No job, deadline, spending, cache, retention or authority is increased.
