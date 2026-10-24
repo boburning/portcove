@@ -6,9 +6,8 @@
     "summary": "Explore MDK / SDL engine (nemo22) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/nemo22/mdk-sdl",
     "issue_number": 1775,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/nemo22/mdk-sdl",
+    "availability": "packages",
+    "setup_url": "https://github.com/nautilusbits/mdk-sdl/blob/v1.2.0/README.md",
     "artwork": {
       "game_id": 219,
       "cover_id": 100005,
@@ -16,6 +15,45 @@
       "image_sha256": "1419a475923b58ac1c10e48944b6dff9744b2afb9825a095d42426113fbcd61b",
       "game_slug": "mdk",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/nautilusbits/mdk-sdl/releases/tag/v1.2.0",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare your original game",
+          "instruction": "Keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/v1.2.0/README.md"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "nemo22/mdk-sdl",
+      "asset_hints": {
+        "windows-x86-64": ["mdk-win-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["mdk_sdl.exe"]
+    },
+    "persistent_paths": ["mdk_paths.cfg", "settings.cfg", "saves", "mods"],
+    "persistent_file_patterns": [
+      {
+        "prefix": "mdk-",
+        "suffix": ".bmp"
+      }
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required. Default settings.cfg, saves, mods and normal mdk-*.bmp captures live beside the player and are declared for compatible replacement and backup, along with the remembered mdk_paths.cfg. The original game remains external. If that directory is not writable, upstream uses AppData/mdk-sdl; MDK_USER_DIR and that external fallback remain outside backups. Optional locally generated texture mods/upstream upscaler tools belong to the declared mods folder, not the immutable player. Custom exported assets/captures and changed runtime files can use external registration. Runtime rollback carries current declared data, without rewinding saves or guaranteeing older-runtime compatibility. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations."
     }
   }
 }

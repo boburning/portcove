@@ -22327,6 +22327,62 @@
       }
     },
     {
+      "id": "isledecomp-isle-portable",
+      "name": "LEGO Island / isle-portable (isledecomp)",
+      "summary": "Explore LEGO Island / isle-portable (isledecomp) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/isledecomp/isle-portable",
+      "support_tier": "beta",
+      "channels": [
+        "rolling"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "isledecomp/isle-portable",
+        "asset_hints": {
+          "windows-x86-64": [
+            "isle-",
+            "-windows-x64.zip"
+          ]
+        },
+        "rolling_tag": "continuous"
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "isle.exe"
+        ]
+      },
+      "persistent_paths": [
+        "isle.ini"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use the linked upstream guided installer/setup instructions for your own English LEGO Island 1.1 data. For this portable archive, run the included bin/isle-config.exe yourself, choose the original data and save locations, and save the configuration. Portcove’s Play target is bin/isle.exe; read-only discovery and installation do not run the configuration helper. The continuous channel follows upstream’s ongoing builds and may regress. Normal configuration and saves live in the SDL preference folder AppData/isledecomp/isle, or in the save location you choose, outside Portcove backups. The executable-folder isle.ini fallback is declared; original media and custom save folders remain external. Keep the complete bin/companions together. Custom profiles, runtime extensions and existing copies retain the non-owning route. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original game",
+              "instruction": "Use the linked upstream guided installer/setup instructions for your own English LEGO Island 1.1 data. For this portable archive, run the included bin/isle-config.exe yourself, choose the original data and save locations, and save the configuration. Portcove’s Play target is bin/isle.exe; read-only discovery and installation do not run the configuration helper. The continuous channel follows upstream’s ongoing builds and may regress."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/isledecomp/isle-portable/blob/continuous/README.md"
+        },
+        "artwork": {
+          "game_id": 5612,
+          "cover_id": 162905,
+          "image_id": "co3hp5",
+          "image_sha256": "9f83154dea1e9290b5ee8da05570f9022bca43d6125ff19b72b485026282d190",
+          "game_slug": "lego-island",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "jgrennison-openttd-patches",
       "name": "OpenTTD / OpenTTD-patches (JGRennison)",
       "summary": "Explore OpenTTD / OpenTTD-patches (JGRennison) and follow the upstream project for requirements, downloads and setup.",
@@ -22469,6 +22525,69 @@
       }
     },
     {
+      "id": "mdk-sdl-nemo22",
+      "name": "MDK / SDL engine (nemo22)",
+      "summary": "Explore MDK / SDL engine (nemo22) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/nemo22/mdk-sdl",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "nemo22/mdk-sdl",
+        "asset_hints": {
+          "windows-x86-64": [
+            "mdk-win-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "mdk_sdl.exe"
+        ]
+      },
+      "persistent_paths": [
+        "mdk_paths.cfg",
+        "settings.cfg",
+        "saves",
+        "mods"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "mdk-",
+          "suffix": ".bmp"
+        }
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required. Default settings.cfg, saves, mods and normal mdk-*.bmp captures live beside the player and are declared for compatible replacement and backup, along with the remembered mdk_paths.cfg. The original game remains external. If that directory is not writable, upstream uses AppData/mdk-sdl; MDK_USER_DIR and that external fallback remain outside backups. Optional locally generated texture mods/upstream upscaler tools belong to the declared mods folder, not the immutable player. Custom exported assets/captures and changed runtime files can use external registration. Runtime rollback carries current declared data, without rewinding saves or guaranteeing older-runtime compatibility. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original game",
+              "instruction": "Keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/v1.2.0/README.md"
+        },
+        "artwork": {
+          "game_id": 219,
+          "cover_id": 100005,
+          "image_id": "co255x",
+          "image_sha256": "1419a475923b58ac1c10e48944b6dff9744b2afb9825a095d42426113fbcd61b",
+          "game_slug": "mdk",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "noahvl-birdman64",
       "name": "Pilotwings 64 / Birdman64 (NoahVl)",
       "summary": "Explore Pilotwings 64 / Birdman64 (NoahVl) and follow the upstream project for requirements, downloads and setup.",
@@ -22576,6 +22695,73 @@
           "image_id": "co2qvz",
           "image_sha256": "1bc40ce34e65abbf3e01125acc5f319a1e40d2664f19a3b860c214f834e13c51",
           "game_slug": "one-must-fall-2097",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "openapoc-openapoc",
+      "name": "X-COM: Apocalypse / OpenApoc (OpenApoc)",
+      "summary": "Explore X-COM: Apocalypse / OpenApoc (OpenApoc) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/OpenApoc/OpenApoc",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "OpenApoc/OpenApoc",
+        "asset_hints": {
+          "windows-x86-64": [
+            "openapoc-x64-",
+            ".zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "OpenApoc.exe"
+        ]
+      },
+      "persistent_paths": [
+        "data/cd.iso",
+        "data/XCOM.BIN",
+        "OpenApoc_settings.conf",
+        "OpenApoc_Launcher_settings.conf",
+        "saves",
+        "log.txt",
+        "openapoc.trace"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "screenshot",
+          "suffix": ".png"
+        }
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy your own complete X-COM: Apocalypse disc image into the package’s data folder as cd.iso. Upstream also supports an extracted disc folder named cd.iso. For the GOG CUE/BIN pair, rename a copy of XCOM.cue to cd.iso and keep the referenced XCOM.BIN alongside it. Retain your originals. This package is the portable engine; no installer or local game build is needed. Upstream requires OpenGL 2.0 and the Visual C++ runtime. The shipped portable.txt selects executable-folder OpenApoc_settings.conf and log.txt; default saves are in saves. Those settings, saves, named original disc inputs, screenshots and optional trace are declared for compatible replacement and backup. Packaged data other than the named original inputs stays version-owned. Custom config/save paths, mixed data mods or other CUE member names can use external registration. Runtime rollback carries current declared data without rewinding progress or guaranteeing old-save compatibility. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original game",
+              "instruction": "Before first Play, copy your own complete X-COM: Apocalypse disc image into the package’s data folder as cd.iso. Upstream also supports an extracted disc folder named cd.iso. For the GOG CUE/BIN pair, rename a copy of XCOM.cue to cd.iso and keep the referenced XCOM.BIN alongside it. Retain your originals. This package is the portable engine; no installer or local game build is needed. Upstream requires OpenGL 2.0 and the Visual C++ runtime."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/OpenApoc/OpenApoc/blob/20260408/README.md"
+        },
+        "artwork": {
+          "game_id": 26,
+          "cover_id": 114318,
+          "image_id": "co2g7i",
+          "image_sha256": "c0abeae6419dafca83fec6b39ec5dcee2bf5bcf8b48d718e6e835e7dd7a5d254",
+          "game_slug": "x-com-apocalypse",
           "match_kind": "underlying-game"
         }
       }
@@ -22803,6 +22989,74 @@
       }
     },
     {
+      "id": "rise-of-the-triad-barrett-lunarmeadow",
+      "name": "Rise of the Triad / Barrett (lunarmeadow)",
+      "summary": "Explore Rise of the Triad / Barrett (lunarmeadow) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/lunarmeadow/barrett",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "lunarmeadow/barrett",
+        "asset_hints": {
+          "windows-x86-64": [
+            "barrett-win64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "barrett.exe"
+        ]
+      },
+      "persistent_paths": [
+        "userdata",
+        "DEMO1_3.DMO",
+        "DEMO2_3.DMO",
+        "DEMO3_3.DMO",
+        "DEMO4_3.DMO",
+        "REMOTE1.RTS",
+        "DARKWAR.RTC",
+        "DARKWAR.RTL",
+        "DARKWAR.WAD",
+        "HUNTBGIN.RTC",
+        "HUNTBGIN.RTL",
+        "HUNTBGIN.WAD",
+        "error.txt",
+        "VENDOR.DOC",
+        "LICENSE.DOC"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy your own supported Rise of the Triad DARKWAR.RTC/RTL/WAD or supported shareware HUNTBGIN.RTC/RTL/WAD into the folder beside barrett.exe, together with upstream’s required DEMO1_3.DMO through DEMO4_3.DMO and REMOTE1.RTS. Keep the original source copy and the packaged SDL2/SDL2_mixer libraries. The native archive needs no installer or compiler; this upstream beta is offered through Preview. Upstream stores settings, saves, scores, optional soundfonts and OPL preferences in userdata beside the player. That folder, the named original inputs and named error/license outputs are declared for compatible replacement and backup. Original files must match the selected edition. Custom WAD/map/launch paths or changes to the runtime can use external registration; undeclared additions remain protected. Runtime rollback carries current declared data without rewinding progress or guaranteeing old-save compatibility. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original game",
+              "instruction": "Before first Play, copy your own supported Rise of the Triad DARKWAR.RTC/RTL/WAD or supported shareware HUNTBGIN.RTC/RTL/WAD into the folder beside barrett.exe, together with upstream’s required DEMO1_3.DMO through DEMO4_3.DMO and REMOTE1.RTS. Keep the original source copy and the packaged SDL2/SDL2_mixer libraries. The native archive needs no installer or compiler; this upstream beta is offered through Preview."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/lunarmeadow/barrett/blob/v1.3-beta/README.md"
+        },
+        "artwork": {
+          "game_id": 2380,
+          "cover_id": 228953,
+          "image_id": "co4wnt",
+          "image_sha256": "0f1a95130bf5610207ca50f8c614203d78e58d0d2ebb998eb068aed601f9f50a",
+          "game_slug": "rise-of-the-triad-dark-war",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "rocket-robot-on-wheels-rocket-r",
       "name": "Rocket: Robot on Wheels (Rocket-R)",
       "summary": "Explore Rocket: Robot on Wheels (Rocket-R) and follow the upstream project for requirements, downloads and setup.",
@@ -22853,6 +23107,127 @@
           "image_id": "coa5ns",
           "image_sha256": "0f3878dfa9cba869d0e0f8a57358c084bab20e44b14deaa0e6865f81337e0bae",
           "game_slug": "rocket-robot-on-wheels",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "sdw-community-sheep-dog-n-wolf-rewooled",
+      "name": "Sheep, Dog 'n' Wolf / Sheep, Dog 'n' Wolf: Rewooled (SDW-Community)",
+      "summary": "Explore Sheep, Dog 'n' Wolf / Sheep, Dog 'n' Wolf: Rewooled (SDW-Community) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "SDW-Community/Sheep-Dog-n-Wolf-Rewooled",
+        "asset_hints": {
+          "windows-x86-64": [
+            "rewooled-windows-x64-",
+            ".zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "SheepD3D.exe"
+        ]
+      },
+      "persistent_paths": [
+        "game-data"
+      ],
+      "launch_arguments": [
+        "--game-dir=game-data"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "For the managed direct-player route, copy your own original PC Sheep, Dog ’n’ Wolf game data into game-data beside SheepD3D.exe, with Levels directly inside game-data. Keep the original executable and DLLs in the source copy. The maintained --game-dir=game-data argument selects that folder; the game reads its saved rendering/input options. No engine compilation is needed. For external registration, supply your actual --game-dir=PATH in Change launch details, or use upstream’s SheepLauncher.exe workflow with its own installation. The original game-data folder is declared for compatible runtime replacement and backup. Default saves and launcher/game options are stored in AppData/Infogrames/Sheep, Dog'n Wolf DX7, outside Portcove backups. Only the direct SheepD3D.exe is launched by the managed route; the optional launcher checks release pages rather than replacing the runtime. Upstream disc extraction, language export and custom data paths stay manual/external. Do not put converted/custom output over the version-owned player. Use external registration for customized launch workflows or SDW_SAVE_DIR. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original game",
+              "instruction": "For the managed direct-player route, copy your own original PC Sheep, Dog ’n’ Wolf game data into game-data beside SheepD3D.exe, with Levels directly inside game-data. Keep the original executable and DLLs in the source copy. The maintained --game-dir=game-data argument selects that folder; the game reads its saved rendering/input options. No engine compilation is needed. For external registration, supply your actual --game-dir=PATH in Change launch details, or use upstream’s SheepLauncher.exe workflow with its own installation."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled/blob/v1.1.3/README.md"
+        },
+        "artwork": {
+          "game_id": 44884,
+          "cover_id": 116054,
+          "image_id": "co2hjq",
+          "image_sha256": "ec3e1a158432cdef557e2121b58c6375444f8fe7056c10e096ed48ec49a91e43",
+          "game_slug": "looney-tunes-sheep-raider",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "sonic-cd-2011-rsdkv3",
+      "name": "Sonic CD 2011 RSDKv3 Decompilation",
+      "summary": "Explore Sonic CD 2011 RSDKv3 Decompilation and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/RSDKModding/RSDKv3-Decompilation",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "RSDKModding/RSDKv3-Decompilation",
+        "asset_hints": {
+          "windows-x86-64": [
+            "v3-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "RSDKv3.exe"
+        ]
+      },
+      "persistent_paths": [
+        "Data.rsdk",
+        "Data",
+        "Videos",
+        "settings.ini",
+        "SData.bin",
+        "SGame.bin",
+        "UData.bin",
+        "mods",
+        "log.txt",
+        "usage.txt"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy the supported Data.rsdk assets from your own official Sonic CD 2011 release beside RSDKv3.exe. Follow upstream for mobile/Origins asset preparation. Optional FMV files are supported only from the original Steam release; mobile/Origins videos do not work. Keep your original installation. No separate compiler or installer is needed for the published x64 player. The original Data.rsdk/unpacked Data and supported Videos, settings.ini, default SData/SGame/UData saves, user mods and named logs/instructions are declared for compatible replacement and backup. If UseSteamDir is deliberately enabled, that external Steam save location remains outside Portcove backups. Custom redirected save locations and modified runtime copies retain external registration. Supported mods follow upstream compatibility; runtime rollback carries current declared data without rewinding it. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original game",
+              "instruction": "Before first Play, copy the supported Data.rsdk assets from your own official Sonic CD 2011 release beside RSDKv3.exe. Follow upstream for mobile/Origins asset preparation. Optional FMV files are supported only from the original Steam release; mobile/Origins videos do not work. Keep your original installation. No separate compiler or installer is needed for the published x64 player."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/RSDKModding/RSDKv3-Decompilation/blob/1.3.3/README.md"
+        },
+        "artwork": {
+          "game_id": 86807,
+          "cover_id": 311285,
+          "image_id": "co6o6t",
+          "image_sha256": "05b0446d1d4f24cbcbea9207a2034aead3f5feb4d51a993e88ca20004676b90d",
+          "game_slug": "sonic-cd--1",
           "match_kind": "underlying-game"
         }
       }

@@ -7766,9 +7766,8 @@
       "summary": "Explore LEGO Island / isle-portable (isledecomp) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/isledecomp/isle-portable",
       "issue_number": 1831,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/isledecomp/isle-portable",
+      "availability": "packages",
+      "setup_url": "https://github.com/isledecomp/isle-portable/blob/continuous/README.md",
       "artwork": {
         "game_id": 5612,
         "cover_id": 162905,
@@ -7776,7 +7775,21 @@
         "image_sha256": "9f83154dea1e9290b5ee8da05570f9022bca43d6125ff19b72b485026282d190",
         "game_slug": "lego-island",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/isledecomp/isle-portable/releases/tag/continuous",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your original game",
+            "instruction": "Use the linked upstream guided installer/setup instructions for your own English LEGO Island 1.1 data. For this portable archive, run the included bin/isle-config.exe yourself, choose the original data and save locations, and save the configuration. Portcove’s Play target is bin/isle.exe; read-only discovery and installation do not run the configuration helper. The continuous channel follows upstream’s ongoing builds and may regress."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/isledecomp/isle-portable/blob/continuous/README.md"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "izzy2lost-lighthouse",
@@ -8371,9 +8384,8 @@
       "summary": "Explore MDK / SDL engine (nemo22) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/nemo22/mdk-sdl",
       "issue_number": 1775,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/nemo22/mdk-sdl",
+      "availability": "packages",
+      "setup_url": "https://github.com/nautilusbits/mdk-sdl/blob/v1.2.0/README.md",
       "artwork": {
         "game_id": 219,
         "cover_id": 100005,
@@ -8381,7 +8393,21 @@
         "image_sha256": "1419a475923b58ac1c10e48944b6dff9744b2afb9825a095d42426113fbcd61b",
         "game_slug": "mdk",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/nautilusbits/mdk-sdl/releases/tag/v1.2.0",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your original game",
+            "instruction": "Keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/v1.2.0/README.md"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "mechakotik-tails-adventure",
@@ -9146,9 +9172,8 @@
       "summary": "Explore X-COM: Apocalypse / OpenApoc (OpenApoc) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/OpenApoc/OpenApoc",
       "issue_number": 1851,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/OpenApoc/OpenApoc",
+      "availability": "packages",
+      "setup_url": "https://github.com/OpenApoc/OpenApoc/blob/20260408/README.md",
       "artwork": {
         "game_id": 26,
         "cover_id": 114318,
@@ -9156,7 +9181,21 @@
         "image_sha256": "c0abeae6419dafca83fec6b39ec5dcee2bf5bcf8b48d718e6e835e7dd7a5d254",
         "game_slug": "x-com-apocalypse",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/OpenApoc/OpenApoc/releases/tag/20260408",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your original game",
+            "instruction": "Before first Play, copy your own complete X-COM: Apocalypse disc image into the package’s data folder as cd.iso. Upstream also supports an extracted disc folder named cd.iso. For the GOG CUE/BIN pair, rename a copy of XCOM.cue to cd.iso and keep the referenced XCOM.BIN alongside it. Retain your originals. This package is the portable engine; no installer or local game build is needed. Upstream requires OpenGL 2.0 and the Visual C++ runtime."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/OpenApoc/OpenApoc/blob/20260408/README.md"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "opencommunityedition-opence",
@@ -9730,9 +9769,8 @@
       "summary": "Explore Rise of the Triad / Barrett (lunarmeadow) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/lunarmeadow/barrett",
       "issue_number": 1776,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/lunarmeadow/barrett",
+      "availability": "packages",
+      "setup_url": "https://github.com/lunarmeadow/barrett/blob/v1.3-beta/README.md",
       "artwork": {
         "game_id": 2380,
         "cover_id": 228953,
@@ -9740,7 +9778,21 @@
         "image_sha256": "0f1a95130bf5610207ca50f8c614203d78e58d0d2ebb998eb068aed601f9f50a",
         "game_slug": "rise-of-the-triad-dark-war",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/lunarmeadow/barrett/releases/tag/v1.3-beta",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your original game",
+            "instruction": "Before first Play, copy your own supported Rise of the Triad DARKWAR.RTC/RTL/WAD or supported shareware HUNTBGIN.RTC/RTL/WAD into the folder beside barrett.exe, together with upstream’s required DEMO1_3.DMO through DEMO4_3.DMO and REMOTE1.RTS. Keep the original source copy and the packaged SDL2/SDL2_mixer libraries. The native archive needs no installer or compiler; this upstream beta is offered through Preview."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/lunarmeadow/barrett/blob/v1.3-beta/README.md"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "riseio-twipe-00sheven",
@@ -9879,9 +9931,8 @@
       "summary": "Explore Sheep, Dog 'n' Wolf / Sheep, Dog 'n' Wolf: Rewooled (SDW-Community) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled",
       "issue_number": 1882,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled",
+      "availability": "packages",
+      "setup_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled/blob/v1.1.3/README.md",
       "artwork": {
         "game_id": 44884,
         "cover_id": 116054,
@@ -9889,7 +9940,21 @@
         "image_sha256": "ec3e1a158432cdef557e2121b58c6375444f8fe7056c10e096ed48ec49a91e43",
         "game_slug": "looney-tunes-sheep-raider",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled/releases/tag/v1.1.3",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your original game",
+            "instruction": "For the managed direct-player route, copy your own original PC Sheep, Dog ’n’ Wolf game data into game-data beside SheepD3D.exe, with Levels directly inside game-data. Keep the original executable and DLLs in the source copy. The maintained --game-dir=game-data argument selects that folder; the game reads its saved rendering/input options. No engine compilation is needed. For external registration, supply your actual --game-dir=PATH in Change launch details, or use upstream’s SheepLauncher.exe workflow with its own installation."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled/blob/v1.1.3/README.md"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "sega-superstars-tennis-rematch",
@@ -10113,9 +10178,8 @@
       "summary": "Explore Sonic CD 2011 RSDKv3 Decompilation and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/RSDKModding/RSDKv3-Decompilation",
       "issue_number": 1127,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/RSDKModding/RSDKv3-Decompilation",
+      "availability": "packages",
+      "setup_url": "https://github.com/RSDKModding/RSDKv3-Decompilation/blob/1.3.3/README.md",
       "artwork": {
         "game_id": 86807,
         "cover_id": 311285,
@@ -10123,7 +10187,21 @@
         "image_sha256": "05b0446d1d4f24cbcbea9207a2034aead3f5feb4d51a993e88ca20004676b90d",
         "game_slug": "sonic-cd--1",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/RSDKModding/RSDKv3-Decompilation/releases/tag/1.3.3",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your original game",
+            "instruction": "Before first Play, copy the supported Data.rsdk assets from your own official Sonic CD 2011 release beside RSDKv3.exe. Follow upstream for mobile/Origins asset preparation. Optional FMV files are supported only from the original Steam release; mobile/Origins videos do not work. Keep your original installation. No separate compiler or installer is needed for the published x64 player."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/RSDKModding/RSDKv3-Decompilation/blob/1.3.3/README.md"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "sonic-free-riders-recompiled",
