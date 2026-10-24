@@ -39,7 +39,7 @@ void test("routine provider metadata is quiet only with complete fresh accountin
   assert.deepEqual(grouped.routine, [routine]);
   assert.deepEqual(
     grouped.ordered.map((i) => i.port_id),
-    ["changed", "stale", "partial", "unknown"],
+    ["changed", "unknown", "stale", "partial"],
   );
   assert.equal(grouped.stale, 1);
   assert.equal(grouped.partial, 1);
