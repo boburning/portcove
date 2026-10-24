@@ -262,38 +262,51 @@ The copy explicitly respects repository ignore rules and excludes build/VCS tree
 this string-only selection needs no ignored frontend dependencies or symlinks.
 Run the reviewed finite selection in a copied tree, retaining its output in a new
 owned evidence directory. This example allows a 15-minute admission wait and a
-45-minute payload including copy, baseline, three mutants and cleanup. Every
+25-minute payload including copy, baseline, one guard mutation and cleanup. Every
 build has a 600-second limit and every test invocation a 30-second limit. Set
-`PORTCOVE_MUTATION_EVIDENCE` to that new absolute directory outside the resolved
-checkout, with an existing parent, before running it. The recipe refuses an
-internal scratch destination before creating directories or launching Cargo.
+`PORTCOVE_MUTATION_EVIDENCE` to a new absolute evidence directory and
+`PORTCOVE_MUTATION_TARGET` to a separate new Cargo target directory. Both must be
+outside the resolved checkout with existing parents; keep the target path short
+on Windows. The recipe refuses internal or existing destinations before launching
+Cargo. It overrides an inherited `CARGO_TARGET_DIR` so deliberate mutations cannot
+replace executables in the ordinary test cache. Keep that ordinary target when
+checking the original source afterward. The retained regression seed came from a
+deliberately broken guard, not a production defect.
 
 ```powershell
 @'
 import path from "node:path";
-import { mkdirSync, realpathSync } from "node:fs";
+import { existsSync, mkdirSync, realpathSync } from "node:fs";
 import { runResourceCommand } from "./scripts/resource-command.mts";
-const requested = process.env.PORTCOVE_MUTATION_EVIDENCE;
-if (!requested || !path.isAbsolute(requested)) throw Error("Expected absolute evidence directory");
 const workspace = realpathSync(".");
-const output = path.join(realpathSync(path.dirname(requested)), path.basename(requested));
-const relative = path.relative(workspace, output);
-if (!relative || (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))) {
-  throw Error("Mutation evidence and scratch must be outside the resolved workspace");
+function externalDirectory(requested, label) {
+  if (!requested || !path.isAbsolute(requested)) throw Error(`Expected absolute ${label} directory`);
+  const result = path.join(realpathSync(path.dirname(requested)), path.basename(requested));
+  const relative = path.relative(workspace, result);
+  if (!relative || (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))) {
+    throw Error(`${label} must be outside the resolved workspace`);
+  }
+  return result;
 }
+const output = externalDirectory(process.env.PORTCOVE_MUTATION_EVIDENCE, "Mutation evidence");
+const target = externalDirectory(process.env.PORTCOVE_MUTATION_TARGET, "Mutation target");
+if (!path.relative(output, target)) throw Error("Evidence and mutation target must be separate directories");
+if (existsSync(output) || existsSync(target)) throw Error("Refuse existing evidence or mutation target directory");
 mkdirSync(output); // Refuse reuse: earlier failures remain intact.
+mkdirSync(target);
 const scratch = path.join(output, "scratch");
 mkdirSync(scratch);
 process.exitCode = await runResourceCommand("rust", "cargo", [
   "mutants", "-p", "portcove-core", "--file", "crates/portcove-core/src/path.rs",
-  "--re", "is_portcove_metadata", "--baseline=run", "--test-tool=cargo", "--jobs=1",
+  "--re", "replace is_portcove_metadata -> bool with false$",
+  "--baseline=run", "--test-tool=cargo", "--jobs=1",
   "--build-timeout=600", "--timeout=30", "--gitignore=true",
   "--copy-vcs=false", "--leak-dirs", "--output", output,
   "--", "--locked", "--lib", "path::property_tests", "--", "--test-threads=1", "--nocapture",
 ], {
-  executionTimeoutMilliseconds: 2_700_000,
+  executionTimeoutMilliseconds: 1_500_000,
   queueDeadline: performance.now() + 900_000,
-  environment: { ...process.env, TMP: scratch, TEMP: scratch, TMPDIR: scratch },
+  environment: { ...process.env, CARGO_TARGET_DIR: target, TMP: scratch, TEMP: scratch, TMPDIR: scratch },
 });
 '@ | node --input-type=module
 if ($LASTEXITCODE) { throw 'Mutation experiment failed; inspect retained results' }
