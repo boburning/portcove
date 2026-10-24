@@ -2455,6 +2455,17 @@ void test("browser uploads select the actual trace and screenshot output layout"
     return relative;
   });
   assert.equal(producerOutputs.length, 3, "retain the current rendered installation captures");
+  const directories = new Set<string>();
+  for (const file of globSync("apps/desktop/src/**/*.browser.test.{ts,tsx}", { cwd: checkout })) {
+    const source = await readFile(path.join(checkout, file), "utf8");
+    for (const match of source.matchAll(/(?:\.\.\/)+(?:work|outputs)\/[A-Za-z0-9._-]+\//gu)) {
+      const directory = path.resolve(checkout, path.dirname(file), match[0]);
+      const relative = path.relative(checkout, directory).replaceAll("\\", "/");
+      assert.ok(!relative.startsWith("../") && !path.isAbsolute(relative), file);
+      directories.add(relative);
+    }
+  }
+  assert.ok(directories.size > 0, "discover current explicit browser output directories");
   const additional = [
     ".vitest/attachments/failure-screenshots/fixture.png",
     "apps/desktop/.vitest/attachments/failure-screenshots/fixture.png",
@@ -2462,6 +2473,7 @@ void test("browser uploads select the actual trace and screenshot output layout"
     "apps/desktop/.vitest/attachments/capture-target/fixture.json",
     "outputs/slice5-cards/fixture.png",
     ...producerOutputs,
+    ...[...directories].map((directory) => `${directory}/fixture.png`),
   ];
   for (const file of additional) {
     await mkdir(path.dirname(path.join(root, file)), { recursive: true });

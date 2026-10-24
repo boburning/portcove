@@ -519,6 +519,13 @@ jobs:
             .vitest/attachments/**/*.json
             apps/desktop/.vitest/attachments/**/*.json
             outputs/slice5-cards/**/*.png
+            outputs/detail-composition/**/*.png
+            outputs/observation-clarity/**/*.png
+            outputs/uiux-game-titles/**/*.png
+            outputs/detail-tabs/**/*.png
+            outputs/uiux-remainder/**/*.png
+            outputs/ui-refinement/**/*.png
+            outputs/uiux-task-isolation/**/*.png
             work/installation-rendered/**/*.png
           include-hidden-files: true
           retention-days: 7
@@ -1224,6 +1231,13 @@ jobs:
             .vitest/attachments/**/*.json
             apps/desktop/.vitest/attachments/**/*.json
             outputs/slice5-cards/**/*.png
+            outputs/detail-composition/**/*.png
+            outputs/observation-clarity/**/*.png
+            outputs/uiux-game-titles/**/*.png
+            outputs/detail-tabs/**/*.png
+            outputs/uiux-remainder/**/*.png
+            outputs/ui-refinement/**/*.png
+            outputs/uiux-task-isolation/**/*.png
             work/installation-rendered/**/*.png
           include-hidden-files: true
           retention-days: 7
@@ -1412,6 +1426,13 @@ jobs:
             .vitest/attachments/**/*.json
             apps/desktop/.vitest/attachments/**/*.json
             outputs/slice5-cards/**/*.png
+            outputs/detail-composition/**/*.png
+            outputs/observation-clarity/**/*.png
+            outputs/uiux-game-titles/**/*.png
+            outputs/detail-tabs/**/*.png
+            outputs/uiux-remainder/**/*.png
+            outputs/ui-refinement/**/*.png
+            outputs/uiux-task-isolation/**/*.png
             work/installation-rendered/**/*.png
           include-hidden-files: true
           retention-days: 7
