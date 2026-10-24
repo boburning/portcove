@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { isBuiltin } from "node:module";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
+import { fileURLToPath } from "node:url";
 import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 
@@ -188,6 +190,42 @@ void test(
     assert.ifError(result.error);
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stdout, "canonical entry retained\n");
+  },
+);
+
+void test(
+  "the filtered Windows discovery route executes from a copy without installed packages",
+  {
+    skip:
+      process.platform !== "win32" &&
+      "Windows reader-sharing route; executed by development-tools on Windows",
+  },
+  (context) => {
+    const root = fixture(context);
+    const inventory = readFixtureModuleClosure(
+      fileURLToPath(new URL("../", import.meta.url)),
+      ["scripts/daily-discovery.test.mts"],
+      { includeDynamicImports: false },
+    );
+    assert.ok(inventory.external.every(isBuiltin), inventory.external.join(", "));
+    for (const module of inventory.modules) write(root, module.path, module.bytes);
+    const environment = { ...process.env };
+    delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--test",
+        "--test-timeout=15000",
+        "--test-reporter=tap",
+        "--test-name-pattern=Windows reader sharing",
+        "scripts/daily-discovery.test.mts",
+      ],
+      { cwd: root, env: environment, encoding: "utf8", timeout: 20000, windowsHide: true },
+    );
+    assert.ifError(result.error);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /# pass 1\b/u);
+    assert.match(result.stdout, /# fail 0\b/u);
   },
 );
 

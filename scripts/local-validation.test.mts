@@ -142,7 +142,7 @@ void test("fixture module closure edits retain all independent policy and constr
     .filter((file) => file.endsWith(".test.mts"))
     .map((file) => `scripts/${file}`)
     .filter((file) =>
-      /\bfrom\s+["']\.\/fixtures\/module-closure\.mts["']/u.test(
+      /(?:\bfrom\s+|\bimport\(\s*)["']\.\/fixtures\/module-closure\.mts["']/u.test(
         readFileSync(path.join(root, file), "utf8"),
       ),
     );

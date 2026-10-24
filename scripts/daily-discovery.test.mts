@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { once } from "node:events";
-import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 import {
   DiscoveryBudget,
   selectDiscoveryProfile,
@@ -91,7 +90,9 @@ void test(
     }
   },
 );
-void test("bootstrap identity covers the complete statically loaded module closure", () => {
+void test("bootstrap identity covers the complete statically loaded module closure", async () => {
+  // The filtered Windows reader-sharing route runs before package installation.
+  const { readFixtureModuleClosure } = await import("./fixtures/module-closure.mts");
   const entry = new URL("./daily-discovery.mts", import.meta.url);
   const source = readFileSync(entry, "utf8");
   const declaration = source.match(/const bootstrap = \[([\s\S]*?)\];/u);
