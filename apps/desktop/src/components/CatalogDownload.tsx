@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
+import {
+  readDownloadChoice,
+  writeDownloadChoice,
+  type DownloadChoice,
+} from "../features/browsing/download-choice";
 import type { CatalogEntry } from "../features/browsing/catalog-entry";
 import type { Perform } from "../features/operations/use-operation-state";
 import { pickInstallFolder } from "../file-picker";
@@ -27,10 +32,16 @@ interface DownloadControlProps {
   busy: boolean;
   perform: Perform;
   autoCheck?: boolean;
+  libraryRoot?: string | undefined;
 }
 
 export function CatalogDownloadControl(props: DownloadControlProps) {
-  return <DownloadChoices key={`${props.entry.id}:${props.generation}`} {...props} />;
+  return (
+    <DownloadChoices
+      key={JSON.stringify([props.entry.id, props.generation, props.libraryRoot])}
+      {...props}
+    />
+  );
 }
 
 function assetKey(asset: CatalogDownloadCandidate): string {
@@ -43,18 +54,39 @@ function DownloadChoices({
   busy,
   perform,
   autoCheck = false,
+  libraryRoot,
 }: DownloadControlProps) {
+  const upstream = entry.listing?.project_url ?? entry.definition?.project_url ?? "";
+  const [restored] = useState(() => readDownloadChoice(libraryRoot, entry.id, upstream));
+  const [choiceWarning, setChoiceWarning] = useState(restored.warning);
   const extractionId = useId();
+  const optionsId = useId();
   const downloadRegion = useRef<HTMLElement>(null);
   const reviewButton = useRef<HTMLButtonElement>(null);
   const [result, setResult] = useState<CatalogDownloadCandidates>();
   const [selectedKey, setSelectedKey] = useState("");
-  const [releaseChoice, setReleaseChoice] = useState<number>();
-  const [packageChoice, setPackageChoice] = useState("");
-  const [channel, setChannel] = useState("stable");
+  const [releaseChoice, setReleaseChoice] = useState<number | undefined>(
+    restored.choice?.release ?? undefined,
+  );
+  const [packageChoice, setPackageChoice] = useState(restored.choice?.package ?? "");
+  const [channel, setChannel] = useState(restored.choice?.channel ?? "stable");
   const [showOther, setShowOther] = useState(false);
-  const [destination, setDestination] = useState("");
-  const [extract, setExtract] = useState(true);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [destination, setDestination] = useState(restored.choice?.destination ?? "");
+  const [extract, setExtract] = useState(restored.choice?.extract ?? true);
+  const initialChoice = useRef({ releaseChoice, channel, packageChoice });
+  const remember = (change: Partial<DownloadChoice>) => {
+    setChoiceWarning(
+      writeDownloadChoice(libraryRoot, entry.id, upstream, {
+        channel,
+        release: releaseChoice ?? null,
+        package: packageChoice,
+        destination,
+        extract,
+        ...change,
+      }),
+    );
+  };
   const [checking, setChecking] = useState(autoCheck);
   const [choosingFolder, setChoosingFolder] = useState(false);
   const [error, setError] = useState<unknown>();
@@ -139,7 +171,10 @@ function DownloadChoices({
     setError(undefined);
     try {
       const path = await pickInstallFolder(destination || result?.default_destination_parent || "");
-      if (requests.current.isCurrent(observation) && typeof path === "string") setDestination(path);
+      if (requests.current.isCurrent(observation) && typeof path === "string") {
+        setDestination(path);
+        remember({ destination: path });
+      }
     } catch (failure) {
       if (requests.current.isCurrent(observation)) setError(failure);
     } finally {
@@ -147,7 +182,14 @@ function DownloadChoices({
     }
   };
   useEffect(() => {
-    if (autoCheck) void loadCandidates();
+    if (autoCheck) {
+      const initial = initialChoice.current;
+      void loadCandidates(
+        initial.releaseChoice,
+        initial.channel,
+        initial.packageChoice || undefined,
+      );
+    }
   }, [autoCheck, loadCandidates]);
 
   return (
@@ -173,6 +215,11 @@ function DownloadChoices({
         {result && <ExternalLink href={result.upstream_url}>View upstream releases</ExternalLink>}
       </ActionRow>
       <ActionReviewFailure error={error} />
+      {choiceWarning && (
+        <p role="status" className="text-sm">
+          {choiceWarning}
+        </p>
+      )}
       {result && (result.reason || !result.allowed || !candidates.length) && (
         <p role="status">
           {result.reason ||
@@ -181,110 +228,155 @@ function DownloadChoices({
       )}
       {result?.allowed && (
         <>
-          <ChoiceSelect
-            label="Release channel"
-            value={channel}
-            disabled={controlsBusy}
-            options={[
-              { value: "stable", label: "Stable" },
-              { value: "beta", label: "Preview" },
-            ]}
-            onChange={(value) => {
-              setChannel(value);
-              setReleaseChoice(undefined);
-              setPackageChoice("");
-              void check(undefined, value);
-            }}
-          />
-          {result.releases.length > 0 && (
-            <ChoiceSelect
-              label="Release"
-              value={String(result.selected_release_id ?? "")}
-              disabled={controlsBusy}
-              options={[
-                { value: "", label: "Choose a release" },
-                ...result.releases.map((release) => ({
-                  value: String(release.id),
-                  label: `${release.tag}${release.preview ? " · Preview" : " · Stable"}`,
-                })),
-              ]}
-              onChange={(value) => {
-                if (value) {
-                  setReleaseChoice(Number(value));
-                  setPackageChoice("");
-                  void check(Number(value));
-                }
-              }}
-            />
-          )}
-          <p role="status">{result.recommendation_reason}</p>
-          {displayed.length > 0 && (
-            <ChoiceSelect
-              label="Package"
-              value={selectedKey}
-              disabled={controlsBusy}
-              options={[
-                { value: "", label: "Choose a file…" },
-                ...displayed.map((candidate) => ({
-                  value: assetKey(candidate),
-                  label: `${candidate.asset_id === result.recommended_asset_id ? "Recommended · " : ""}${candidate.name} · ${formatBytes(candidate.size)}`,
-                })),
-              ]}
-              onChange={(value) => {
-                setSelectedKey(value);
-                setPackageChoice(value);
-                const packageRelease = candidates.find(
-                  (candidate) => assetKey(candidate) === value,
-                )?.release_id;
-                if (packageRelease) setReleaseChoice(packageRelease);
-                setExtract(true);
-              }}
-              description="Packages belong to the selected release. Check its notes for setup requirements."
-            />
-          )}
-          {candidates.length > concise.length && (
-            <Button
-              variant="outline"
-              disabled={controlsBusy}
-              aria-expanded={showOther}
-              onClick={() => setShowOther((value) => !value)}
-            >
-              {showOther ? "Show recommended packages" : "Other and uncertain downloads"}
-            </Button>
-          )}
           {selected && (
-            <p className="text-sm">
-              {result.packages.find((item) => item.asset_id === selected.asset_id)?.reason}
-            </p>
+            <section className="grid min-w-0 gap-2" aria-label="Recommended download">
+              <strong>
+                {gameIdentityLabel(entry)} · {selected.release_tag}
+              </strong>
+              <p className="[overflow-wrap:anywhere]">
+                {selected.name} · {formatBytes(selected.size)}
+              </p>
+              {destination && (
+                <p className="text-sm [overflow-wrap:anywhere]">
+                  Download to <code>{destination}</code>
+                </p>
+              )}
+              <p className="text-sm">
+                You or upstream provide runtime updates. Your game files and saves stay outside
+                Portcove's managed backups.
+              </p>
+              {entry.presentation?.manual_setup?.steps[0] && (
+                <p className="text-sm">{entry.presentation.manual_setup.steps[0].instruction}</p>
+              )}
+            </section>
           )}
-          {selected && (
-            <ExternalLink href={selected.release_url}>Release notes and requirements</ExternalLink>
-          )}
-          <ActionRow>
-            <Button
-              data-focusable
-              variant="outline"
-              disabled={controlsBusy}
-              onClick={() => void chooseFolder()}
-            >
-              {destination ? "Change download folder…" : "Choose download folder…"}
-            </Button>
-            {destination && <code className="min-w-0 [overflow-wrap:anywhere]">{destination}</code>}
-          </ActionRow>
-          <p className="text-sm text-pc-muted-foreground">
-            Choose a folder outside your Portcove library. Portcove will create a new folder for
-            this download without replacing existing files.
-          </p>
-          {selected?.can_extract && (
-            <label htmlFor={extractionId} className="flex items-center gap-2 text-sm">
-              <Checkbox
-                id={extractionId}
-                checked={extract}
+          <Button
+            data-focusable
+            variant="outline"
+            aria-expanded={optionsOpen || !selected || !destination}
+            aria-controls={optionsId}
+            onClick={() => setOptionsOpen((value) => !value)}
+          >
+            Change download options
+          </Button>
+          {(optionsOpen || !selected || !destination) && (
+            <div id={optionsId} className="grid min-w-0 gap-3 pt-2">
+              <ChoiceSelect
+                label="Release channel"
+                value={channel}
                 disabled={controlsBusy}
-                onCheckedChange={setExtract}
+                options={[
+                  { value: "stable", label: "Stable" },
+                  { value: "beta", label: "Preview" },
+                ]}
+                onChange={(value) => {
+                  if (value !== "stable" && value !== "beta") return;
+                  remember({ channel: value, release: null, package: "" });
+                  setChannel(value);
+                  setReleaseChoice(undefined);
+                  setPackageChoice("");
+                  void check(undefined, value);
+                }}
               />
-              Extract the archive after downloading
-            </label>
+              {result.releases.length > 0 && (
+                <ChoiceSelect
+                  label="Release"
+                  value={String(result.selected_release_id ?? "")}
+                  disabled={controlsBusy}
+                  options={[
+                    { value: "", label: "Choose a release" },
+                    ...result.releases.map((release) => ({
+                      value: String(release.id),
+                      label: `${release.tag}${release.preview ? " · Preview" : " · Stable"}`,
+                    })),
+                  ]}
+                  onChange={(value) => {
+                    if (value) {
+                      remember({ release: Number(value), package: "" });
+                      setReleaseChoice(Number(value));
+                      setPackageChoice("");
+                      void check(Number(value));
+                    }
+                  }}
+                />
+              )}
+              <p role="status">{result.recommendation_reason}</p>
+              {displayed.length > 0 && (
+                <ChoiceSelect
+                  label="Package"
+                  value={selectedKey}
+                  disabled={controlsBusy}
+                  options={[
+                    { value: "", label: "Choose a file…" },
+                    ...displayed.map((candidate) => ({
+                      value: assetKey(candidate),
+                      label: `${candidate.asset_id === result.recommended_asset_id ? "Recommended · " : ""}${candidate.name} · ${formatBytes(candidate.size)}`,
+                    })),
+                  ]}
+                  onChange={(value) => {
+                    setSelectedKey(value);
+                    setPackageChoice(value);
+                    const packageRelease = candidates.find(
+                      (candidate) => assetKey(candidate) === value,
+                    )?.release_id;
+                    if (packageRelease) setReleaseChoice(packageRelease);
+                    setExtract(true);
+                  }}
+                  description="Packages belong to the selected release. Check its notes for setup requirements."
+                />
+              )}
+              {candidates.length > concise.length && (
+                <Button
+                  variant="outline"
+                  disabled={controlsBusy}
+                  aria-expanded={showOther}
+                  onClick={() => setShowOther((value) => !value)}
+                >
+                  {showOther ? "Show recommended packages" : "Other and uncertain downloads"}
+                </Button>
+              )}
+              {selected && (
+                <p className="text-sm">
+                  {result.packages.find((item) => item.asset_id === selected.asset_id)?.reason}
+                </p>
+              )}
+              {selected && (
+                <ExternalLink href={selected.release_url}>
+                  Release notes and requirements
+                </ExternalLink>
+              )}
+              <ActionRow>
+                <Button
+                  data-focusable
+                  variant="outline"
+                  disabled={controlsBusy}
+                  onClick={() => void chooseFolder()}
+                >
+                  {destination ? "Change download folder…" : "Choose download folder…"}
+                </Button>
+                {destination && (
+                  <code className="min-w-0 [overflow-wrap:anywhere]">{destination}</code>
+                )}
+              </ActionRow>
+              <p className="text-sm text-pc-muted-foreground">
+                Choose a folder outside your Portcove library. Portcove will create a new folder for
+                this download without replacing existing files.
+              </p>
+              {selected?.can_extract && (
+                <label htmlFor={extractionId} className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    id={extractionId}
+                    checked={extract}
+                    disabled={controlsBusy}
+                    onCheckedChange={(value) => {
+                      setExtract(value);
+                      remember({ extract: value });
+                    }}
+                  />
+                  Extract the archive after downloading
+                </label>
+              )}
+            </div>
           )}
           <ActionRow>
             <Button
@@ -381,9 +473,9 @@ function DownloadReview({
       <DialogContent initialFocus={cancel} finalFocus={returnFocus} showCloseButton={false}>
         <DialogTitle>Download for {gameIdentityLabel(entry)}?</DialogTitle>
         <DialogDescription>
-          This downloads an upstream file into a folder you own. Complete setup with the upstream
-          instructions, then choose the game executable. Portcove will not run an installer, manage
-          updates or delete these files.
+          Download this upstream file into a new folder you own. After extraction, confirm the game
+          or launcher to finish adding it. Follow upstream instructions if this package needs more
+          setup. Portcove will not run setup automatically, manage updates or delete these files.
         </DialogDescription>
         {pending === "review" && <p role="status">Checking the upstream file and destination…</p>}
         <ActionReviewFailure error={error} />

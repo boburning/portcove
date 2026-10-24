@@ -109,7 +109,10 @@ pub(crate) enum KnownFailureCause {
     SourceChanged,
     AmbiguousAdoption,
     StaleRemoval,
-    PortableRuntimeModified,
+    PortableRuntimeModified {
+        directory: std::path::PathBuf,
+        failures: Vec<String>,
+    },
     PortableDataContractChanged,
     RestoreRecovery,
     BackupDeletionRecovery,
@@ -188,10 +191,31 @@ impl KnownFailureCause {
                 "removal_review_stale",
                 "The managed installations changed after removal was reviewed. Review the current removal plan and provide fresh consent.",
             ),
-            Self::PortableRuntimeModified => (
-                "portable_runtime_modified",
-                "Portcove found changed runtime files or unrecognized additions and stopped this operation. Your existing files were preserved. Review the affected paths in technical details. Back up your changes outside the managed installation, then restore changed package files or move unrecognized additions before trying again.",
-            ),
+            Self::PortableRuntimeModified {
+                directory,
+                failures,
+            } => {
+                let paths = failures
+                    .iter()
+                    .take(8)
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                let remainder = failures.len().saturating_sub(8);
+                return (
+                    "portable_runtime_modified",
+                    format!(
+                        "Package files changed, went missing, or unrecognized files were added. This operation stopped and preserved the current files. Back up your changes to a separate folder, then restore changed or missing package files from the accepted package and move unrecognized additions before reviewing and trying again. Declared player data is handled separately. A preserved unknown file is not automatically safe to add to a replacement.\nInstallation: {}\nAffected package paths:\n{}{}",
+                        directory.display(),
+                        paths,
+                        if remainder > 0 {
+                            format!("\n{remainder} more reported paths are in technical details.")
+                        } else {
+                            String::new()
+                        }
+                    ),
+                );
+            }
             Self::PortableDataContractChanged => (
                 "portable_data_contract_changed",
                 "This package changes where player data is stored or how it is located. Portcove stopped the transition and kept the current installation and files. Keep using the current version; use upstream instructions until a compatible package or supported data migration is available.",
@@ -637,7 +661,13 @@ mod tests {
         for state in [MutationState::Unknown, MutationState::Committed] {
             for (cause, key, action) in [
                 (
-                    KnownFailureCause::PortableRuntimeModified,
+                    KnownFailureCause::PortableRuntimeModified {
+                        directory: std::path::PathBuf::from("C:/Games/<preserve>"),
+                        failures: vec![
+                            "changed: Game.exe".into(),
+                            "unexpected: custom-notes.txt".into(),
+                        ],
+                    },
                     "portable_runtime_modified",
                     "Back up",
                 ),

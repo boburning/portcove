@@ -43,7 +43,10 @@ impl PortcoveService {
             return Err(PortcoveError::conflict(
                 "Portable runtime files changed or unrecognized files were added. Keep this version and move your additions to a backed-up location before updating, switching versions or removing it. Review the reported paths; Portcove will not overwrite or delete them.",
             ).detail("failures", serde_json::to_string(&report.failures)?)
-                .with_known_cause(crate::failure::KnownFailureCause::PortableRuntimeModified));
+                .with_known_cause(crate::failure::KnownFailureCause::PortableRuntimeModified {
+                    directory: install.path.clone(),
+                    failures: report.failures,
+                }));
         }
         Ok(())
     }

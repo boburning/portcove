@@ -821,3 +821,144 @@ fn workspace_retains_legacy_registered_description_without_new_listing_revalidat
                 && status.status.external_runtime.is_some())
     );
 }
+
+#[tokio::test]
+async fn replacement_download_keeps_current_registration_until_reviewed_relink() {
+    let started = std::time::Instant::now();
+    let (temporary, service, request) = fixture();
+    let old_root = temporary.path().join("current-copy");
+    fs::create_dir(&old_root).unwrap();
+    let old_executable = crate::test_fixture::build_probe(&old_root);
+    fs::write(old_root.join("player-save.dat"), b"current progress").unwrap();
+    let preview = service
+        .preview_user_selected_runtime(&request.port_id, &old_executable, &old_root, &[])
+        .unwrap();
+    let authorization = service
+        .authorize_user_selected_runtime(
+            &request.port_id,
+            &old_executable,
+            &old_root,
+            &[],
+            &preview.preview_sha256,
+        )
+        .unwrap();
+    let original = service
+        .register_user_selected_runtime(
+            &request.port_id,
+            &old_executable,
+            &old_root,
+            &[],
+            &authorization.token,
+        )
+        .unwrap();
+    eprintln!("replacement fixture: registered at {:?}", started.elapsed());
+    let before_download = service
+        .preview_user_selected_runtime_relink(&request.port_id, &old_executable, &old_root, &[])
+        .unwrap();
+    let github = GithubFixture::new(archive(), None, None);
+    let download = service
+        .catalog_download_preview_with_provider(&request, &github.provider)
+        .await
+        .unwrap();
+    let pending = service
+        .download_catalog_package_with_provider(
+            &request,
+            &download.preview_sha256,
+            |_| {},
+            &github.provider,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(
+            service
+                .library
+                .status(&request.port_id, ReleaseChannel::Stable)
+                .unwrap()
+                .external_runtime
+        )
+        .unwrap(),
+        serde_json::to_value(Some(&original)).unwrap()
+    );
+    assert!(
+        service
+            .authorize_user_selected_runtime_relink(
+                &request.port_id,
+                &old_executable,
+                &old_root,
+                &[],
+                &before_download.preview_sha256,
+            )
+            .is_err(),
+        "a preview predating the pending download cannot consume it"
+    );
+    eprintln!(
+        "replacement fixture: downloaded and stale review refused at {:?}",
+        started.elapsed()
+    );
+    let new_executable = crate::test_fixture::build_probe(&pending.path);
+    let replacement = service
+        .preview_user_selected_runtime_relink(&request.port_id, &new_executable, &pending.path, &[])
+        .unwrap();
+    let state = service
+        .library
+        .external_runtime_relink_state(&request.port_id)
+        .unwrap()
+        .unwrap();
+    assert!(
+        service
+            .library
+            .relink_user_selected_runtime(
+                &request.port_id,
+                &state.row_sha256,
+                &replacement.proposed,
+                Some((&pending.id, "wrong pending preimage")),
+            )
+            .is_err()
+    );
+    assert_eq!(service.pending_setups().unwrap(), [pending.clone()]);
+    assert_eq!(
+        serde_json::to_value(
+            service
+                .library
+                .status(&request.port_id, ReleaseChannel::Stable)
+                .unwrap()
+                .external_runtime
+        )
+        .unwrap(),
+        serde_json::to_value(Some(&original)).unwrap()
+    );
+    let authorization = service
+        .authorize_user_selected_runtime_relink(
+            &request.port_id,
+            &new_executable,
+            &pending.path,
+            &[],
+            &replacement.preview_sha256,
+        )
+        .unwrap();
+    let changed = service
+        .relink_user_selected_runtime(
+            &request.port_id,
+            &new_executable,
+            &pending.path,
+            &[],
+            &authorization.token,
+        )
+        .unwrap();
+    eprintln!("replacement fixture: committed at {:?}", started.elapsed());
+    assert_eq!(changed.id, original.id);
+    assert_eq!(changed.registered_at, original.registered_at);
+    assert_eq!(changed.executable, new_executable);
+    assert!(service.pending_setups().unwrap().is_empty());
+    assert_eq!(
+        fs::read(old_root.join("player-save.dat")).unwrap(),
+        b"current progress"
+    );
+    assert!(old_executable.is_file());
+    assert!(pending.path.join("readme.txt").is_file());
+    assert!(
+        changed.archive_sha256.is_empty(),
+        "external replacement is not authenticated ownership"
+    );
+}

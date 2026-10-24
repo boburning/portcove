@@ -18,6 +18,7 @@ import { ActionRow, Notice } from "./ui/patterns";
 
 export interface SelfServiceSetupProps {
   entry: CatalogEntry;
+  libraryRoot?: string | undefined;
   status?: PortStatus | undefined;
   generation: number;
   perform: Perform;
@@ -28,6 +29,7 @@ export interface SelfServiceSetupProps {
 /** Non-owning setup only. Managed installation remains in the strict detail pane. */
 export function SelfServiceSetup({
   entry,
+  libraryRoot,
   status,
   generation,
   perform,
@@ -77,7 +79,7 @@ export function SelfServiceSetup({
       className="grid gap-4"
       aria-label="Set up and launch"
     >
-      {pending && !registered && (
+      {pending && (
         <Notice intent={needsRecovery ? "warning" : "info"}>
           <div data-slot="notice-body">
             <strong>
@@ -93,9 +95,9 @@ export function SelfServiceSetup({
               </>
             ) : (
               <p>
-                Your download is saved. Confirm a launch target below for a portable package. If
-                upstream setup is needed, open the folder and follow its instructions, then return
-                and refresh launch suggestions. Nothing has been run yet.
+                Your download is saved. Confirm the game or launcher below to finish adding it. If
+                no launch target is available, open the download folder and follow the upstream
+                setup instructions, then return here. Nothing has been run yet.
               </p>
             )}
             <code className="[overflow-wrap:anywhere]">{pending.path}</code>
@@ -106,6 +108,7 @@ export function SelfServiceSetup({
         <div data-detail-download>
           <CatalogDownloadControl
             autoCheck
+            libraryRoot={libraryRoot}
             entry={entry}
             generation={generation}
             busy={busy}
@@ -115,24 +118,24 @@ export function SelfServiceSetup({
       )}
       <ActionRow>
         {!render && playAction}
-        {!registered && !needsRecovery ? (
+        {!registered && !pending && !needsRecovery ? (
           <Button
             data-focusable
             data-self-service-continue
-            variant={pending ? "primary" : "outline"}
+            variant="outline"
             disabled={!attach.allowed || busy}
             aria-expanded={editorOpen}
             aria-controls={editorId}
             onClick={showEditor}
           >
-            {pending ? "Continue setup" : "Use an existing installation"}
+            Use an existing installation
           </Button>
         ) : null}
         {!registered && entry.listing?.setup_url && (
           <ExternalLink href={entry.listing.setup_url}>Upstream setup instructions</ExternalLink>
         )}
       </ActionRow>
-      {pending && !registered && (
+      {pending && (
         <PendingSetupActions
           entry={entry}
           pending={pending}
@@ -140,6 +143,27 @@ export function SelfServiceSetup({
           busy={busy}
           perform={perform}
         />
+      )}
+      {registered?.user_selected && !pending && (
+        <details>
+          <summary data-focusable className="cursor-pointer py-2 font-medium">
+            Download another version or package
+          </summary>
+          <div className="grid gap-3 pt-2">
+            <p>
+              Keep using your current installation while preparing another copy. Downloading leaves
+              its files and launch details unchanged. Review the new executable before switching;
+              both copies and their saves stay where they are.
+            </p>
+            <CatalogDownloadControl
+              libraryRoot={libraryRoot}
+              entry={entry}
+              generation={generation}
+              busy={busy}
+              perform={perform}
+            />
+          </div>
+        </details>
       )}
       {registered && !launch.allowed && (
         <p role="status" className="text-sm">

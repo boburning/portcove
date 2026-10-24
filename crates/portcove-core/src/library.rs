@@ -2250,18 +2250,25 @@ impl Library {
         expected_row_sha256: &str,
         proposed: &crate::ExternalRuntimePreview,
     ) -> Result<ExternalRuntimeRecord> {
-        self.relink_external_runtime_selection(port_id, expected_row_sha256, proposed, false)
+        self.relink_external_runtime_selection(port_id, expected_row_sha256, proposed, false, None)
     }
 
-    /// Update explicitly reviewed execution intent without adopting or changing
-    /// the external files, registration identity or retained interpretation.
+    /// Publish a reviewed replacement launch target and consume only its exact
+    /// setup reminder in the same transaction. Both external trees stay untouched.
     pub(crate) fn relink_user_selected_runtime(
         &self,
         port_id: &str,
         expected_row_sha256: &str,
         proposed: &crate::ExternalRuntimePreview,
+        pending: Option<(&str, &str)>,
     ) -> Result<ExternalRuntimeRecord> {
-        self.relink_external_runtime_selection(port_id, expected_row_sha256, proposed, true)
+        self.relink_external_runtime_selection(
+            port_id,
+            expected_row_sha256,
+            proposed,
+            true,
+            pending,
+        )
     }
 
     fn relink_external_runtime_selection(
@@ -2270,6 +2277,7 @@ impl Library {
         expected_row_sha256: &str,
         proposed: &crate::ExternalRuntimePreview,
         user_selected: bool,
+        pending: Option<(&str, &str)>,
     ) -> Result<ExternalRuntimeRecord> {
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -2372,6 +2380,23 @@ impl Library {
                 "port already has a managed installation",
             ));
         }
+        let pending_row: Option<(String, String)> = transaction
+            .query_row(
+                "SELECT pending_id,record_json FROM catalog_downloads WHERE port_id=?1",
+                [port_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        match (pending, pending_row.as_ref()) {
+            (None, None) => {}
+            (Some((expected_id, expected_json)), Some((id, json)))
+                if user_selected && id == expected_id && json == expected_json => {}
+            _ => {
+                return Err(PortcoveError::conflict(
+                    "pending setup changed after the replacement was reviewed",
+                ));
+            }
+        }
         record.path = proposed.path.clone();
         record.executable = proposed.executable.clone();
         record.user_selected = proposed.user_selected.clone();
@@ -2388,6 +2413,17 @@ impl Library {
             return Err(PortcoveError::conflict(
                 "external runtime registration changed before publication",
             ));
+        }
+        if let Some((id, json)) = pending {
+            let changed = transaction.execute(
+                "DELETE FROM catalog_downloads WHERE port_id=?1 AND pending_id=?2 AND record_json=?3",
+                params![port_id, id, json],
+            )?;
+            if changed != 1 {
+                return Err(PortcoveError::conflict(
+                    "pending setup changed during replacement",
+                ));
+            }
         }
         transaction.commit()?;
         Ok(record)

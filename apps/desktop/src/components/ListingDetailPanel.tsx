@@ -16,6 +16,7 @@ import { Button } from "./ui/button";
 
 export function ListingDetailPanel({
   entry,
+  libraryRoot,
   status,
   generation,
   perform,
@@ -24,6 +25,7 @@ export function ListingDetailPanel({
   opening,
 }: {
   entry: CatalogEntry;
+  libraryRoot?: string | undefined;
   status?: PortStatus | undefined;
   generation: number;
   perform: Perform;
@@ -48,6 +50,7 @@ export function ListingDetailPanel({
   );
   return (
     <SelfServiceSetup
+      libraryRoot={libraryRoot}
       entry={entry}
       status={status}
       generation={generation}

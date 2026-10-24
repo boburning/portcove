@@ -17,6 +17,16 @@ platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::native_portable::tests::/)'
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 
+# This registration/download/replacement fixture hit the 30.078s Windows harness
+# cutoff while retaining both external copies and repeated durable reviews. Match
+# the selected-runtime fixtures' finite 90s room; keep assertions, two workers,
+# cleanup, zero retries and all product/child deadlines unchanged.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::catalog_download::tests::replacement_download_keeps_current_registration_until_reviewed_relink$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
 # The legacy DKR metadata matrix opens 16 independent schema-2-to-5 libraries.
 # Its first Windows attempt reached a partial matrix at 24.9s before a repaired
 # cross-platform fixture assertion. Keep all cases and two workers, with finite

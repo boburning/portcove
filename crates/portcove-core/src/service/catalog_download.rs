@@ -319,7 +319,10 @@ impl PortcoveService {
     fn require_download_available(&self, port_id: &str) -> Result<()> {
         self.require_no_pending_setup(port_id)?;
         let state = self.library.status(port_id, ReleaseChannel::Stable)?;
-        if state.external_runtime.is_some()
+        if state
+            .external_runtime
+            .as_ref()
+            .is_some_and(|record| record.user_selected.is_none())
             || self
                 .library
                 .all_installs()?
@@ -332,7 +335,7 @@ impl PortcoveService {
                 .any(|session| session.port_id == port_id && session.outcome.is_none())
         {
             return Err(PortcoveError::conflict(
-                "this port already has an installation or active launch; keep it or explicitly remove its registration/managed installation before downloading another route",
+                "This retained installation cannot change routes here. Keep using it, or review an upstream package separately; no existing files will be adopted or removed.",
             ));
         }
         Ok(())
@@ -793,7 +796,6 @@ impl PortcoveService {
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let occupied: bool = transaction.query_row(
             "SELECT EXISTS(SELECT 1 FROM installs WHERE port_id=?1)
-            OR EXISTS(SELECT 1 FROM external_runtime_registrations WHERE port_id=?1)
             OR EXISTS(SELECT 1 FROM catalog_downloads WHERE port_id=?1)",
             [&record.port_id],
             |row| row.get(0),
