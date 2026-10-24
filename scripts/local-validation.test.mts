@@ -2639,3 +2639,43 @@ void test("coordinator families preserve broad consumers and isolate the signing
     }
   }
 });
+
+void test("case observation implementation selects the reporter consumer with missing historical siblings", async () => {
+  const { buildValidationPlan } = await import("./validation-plan.mts");
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const file = "scripts/node-case-observations.mts";
+  for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+    const change = {
+      status: variant.startsWith("R") ? "R100" : variant,
+      oldPath: variant === "R-new" ? "docs/moved.md" : file,
+      newPath: variant === "R-old" ? "docs/moved.md" : file,
+      oldMode: variant === "A" ? "000000" : "100644",
+      newMode: variant === "D" ? "000000" : "100644",
+    };
+    const selected = classifyChanges(
+      [
+        {
+          status: change.status,
+          path: change.newPath,
+          ...(change.oldPath !== change.newPath ? { previousPath: change.oldPath } : {}),
+        },
+      ],
+      { fileExists: () => false },
+    );
+    const plan = buildValidationPlan({
+      changes: [change],
+      eventName: "pull_request",
+      base: "a".repeat(40),
+      mergeBase: "a".repeat(40),
+      head: "b".repeat(40),
+      checkout: "b".repeat(40),
+    });
+    assert.ok(selected.nodeTests.has("scripts/test-duration-reporter.test.mts"), variant);
+    assert.ok(
+      baselineContractTests(plan, { fileExists: () => false }).includes(
+        "scripts/test-duration-reporter.test.mts",
+      ),
+      variant,
+    );
+  }
+});
