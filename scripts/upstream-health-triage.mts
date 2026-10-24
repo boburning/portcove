@@ -90,6 +90,9 @@ export function conditionEvidence(incident: HealthTriageCondition): string {
   if (incident.latest_collection_status === "partial")
     return "Partial collection; outcome not established";
   if (!incident.observed_this_run) return "Retained fresh history; not checked in this run";
-  if (incident.accounted_for) return "Reviewed provider metadata only; bytes unverified";
+  if (incident.accounted_for)
+    return incident.classification.startsWith("provider-reported-")
+      ? "Provider metadata accounted for; destination and bytes unverified"
+      : "Reviewed exception scope; operation safety unassessed";
   return "Unaccounted observation; investigate exact scope";
 }
