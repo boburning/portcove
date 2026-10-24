@@ -1290,6 +1290,26 @@ function assertPlanShape(plan: unknown): asserts plan is ValidationPlan {
   }
 }
 
+/** Only independent release-tool Rust edits can omit the extra Linux host fixtures. */
+export function linuxRuntimeDiagnosticsRequired(plan: ValidationPlan) {
+  validateValidationPlan(plan);
+  if (plan.mode === "blocked") throw new Error("Blocked plan cannot select Linux diagnostics");
+  if (!plan.groups.includes("rust")) return false;
+  return (
+    plan.mode !== "fast" ||
+    Boolean(plan.fallback) ||
+    !plan.changes.length ||
+    !plan.changes.every(
+      (change) =>
+        ["A", "M"].includes(change.status) &&
+        change.oldPath === change.newPath &&
+        change.newMode === "100644" &&
+        (change.oldMode === "100644" || (change.status === "A" && change.oldMode === "000000")) &&
+        /^crates\/portcove-release-tools\/(?:src|tests)\/.+\.rs$/u.test(change.newPath),
+    )
+  );
+}
+
 export function validateValidationPlan(input: unknown): ValidationPlan {
   assertPlanShape(input);
   return validatePlanSemantics(input);
