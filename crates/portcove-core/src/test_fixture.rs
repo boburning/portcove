@@ -156,7 +156,7 @@ impl<'a> IndexedCatalogFixture<'a> {
         {
             20
         } else if crate::persistence::standalone_staged_archive(port) {
-            22
+            23
         } else if crate::managed_runtime_policy::requires_provider_resolution(port) {
             21
         } else if port.managed_initialization

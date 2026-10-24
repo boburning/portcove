@@ -11,7 +11,7 @@ upstreams, and #246 owns the protected publication and unchanged-client proof.
 
 Core advertises each installed `AdapterKind` template with contract version 1.
 The public inventory additionally advertises managed PS1 version 2, N64 portable versions 2 and 3 and
-staged-source portable versions 2–5, 8, 10–12 and 15–22. Staged-source creation
+staged-source portable versions 2–5, 8, 10–12 and 15–23. Staged-source creation
 versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
 
@@ -35,7 +35,7 @@ game-file, mod, publisher or gameplay qualification. See the
 
 Staged-source version 22 covers ready managed archives without a source, build,
 setup-helper, initialization or shared-account contract. New indexed entries of
-that shape must require version 22. They stage and restore declared data before
+that shape now require version 23. They stage and restore declared data before
 activation, collect edits made before first Play, and retain current data during
 runtime rollback. Raw activation refuses; interrupted activation repeats retained
 contract compatibility and data preflight. The same bounded data-restoration
@@ -44,6 +44,21 @@ without proof of initial restoration uses additive collection and refuses
 differing canonical/runtime data. Other staged-source contracts and older
 retained readers keep their existing interpretation; advertising version 22
 does not grant acquisition, publisher or external-data ownership.
+
+Version 23 additionally preserves exact declared-file modification times through
+collection, synchronization, backup and restore. A destination that rounds a
+timestamp refuses before private replacement publication. New ready-archive
+installations also retain a format-6 installed contract wrapping their original
+embedded/indexed/admitted interpretation, so older programs refuse the unknown
+format even for an unscoped install. Existing retained contracts are not rewritten.
+New backup manifests bind timestamps with an additional metadata digest while
+retaining their byte digest. Restore verifies the consent-bound manifest before
+collecting current runtime data; later manifest changes cannot downgrade it to a
+historical snapshot. Old backups without that digest retain byte-only historical
+integrity: their original timestamps cannot be reconstructed or authenticated.
+Older backup readers ignore the optional digest; capability and retained-contract
+fences, rather than that optional field alone, protect new metadata-dependent
+managed installations.
 
 The N64 portable template also advertises version 2, which implements the
 catalog-declared fresh Windows D3D12 default. Inventory identities are unique

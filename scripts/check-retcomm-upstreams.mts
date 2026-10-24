@@ -176,12 +176,43 @@ function independentDirectIdentity(port: ReturnType<typeof authoringPort>) {
   }
   return { port_id: port.id, project_url: port.project_url, artifacts };
 }
+
+function independentGithubIdentity(port: ReturnType<typeof authoringPort>) {
+  const project = githubIdentity(port.project_url);
+  const repository = port.release.repository;
+  const release =
+    typeof repository === "string" ? githubIdentity(`https://github.com/${repository}`) : null;
+  if (
+    !project ||
+    retcommRepositories.has(project) ||
+    (port.release.provider ?? "github") !== "github" ||
+    typeof repository !== "string" ||
+    !release ||
+    release !== repository.toLowerCase() ||
+    retcommRepositories.has(release) ||
+    !Array.isArray(port.platforms) ||
+    port.platforms.length === 0 ||
+    new Set(port.platforms).size !== port.platforms.length ||
+    port.platforms.some((platform: unknown) => typeof platform !== "string") ||
+    ["direct", "managed_build", "user_prepared"].some((key) => {
+      const value = port.release[key];
+      return value !== undefined && (!isRecord(value) || Object.keys(value).length !== 0);
+    })
+  )
+    return null;
+  return { port_id: port.id, project_url: port.project_url, repository, provider: "github" };
+}
 for (const port of psxPorts) {
   if (!mappedPortIds.has(port.id)) {
     if (port.release?.provider === "direct-manifest") {
       const identity = independentDirectIdentity(port);
       if (identity) outsideRetcomm.push(identity);
       else failures.push(`${port.id}: ambiguous independent direct-manifest identity`);
+      continue;
+    }
+    const independent = independentGithubIdentity(port);
+    if (independent) {
+      outsideRetcomm.push(independent);
       continue;
     }
     failures.push(`${port.id}: missing RetComM title mapping`);
@@ -279,7 +310,7 @@ if (!offline) {
 for (const identity of outsideRetcomm) {
   if (selectedIds !== null && !selectedIds.includes(identity.port_id)) continue;
   console.log(
-    `RetComM audit NOT_APPLICABLE: ${JSON.stringify(identity)}; independent pinned artifacts, upstream health NOT_CHECKED. Catalog identity and exact-artifact acceptance own this route; this audit performs neither.`,
+    `RetComM audit NOT_APPLICABLE: ${JSON.stringify(identity)}; independent release rules or pinned artifacts, upstream health NOT_CHECKED. Catalog identity and exact-artifact acceptance own this route; this audit performs neither.`,
   );
 }
 

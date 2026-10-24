@@ -6150,6 +6150,7 @@ fn sync_entry_checked(source: &Path, destination: &Path) -> Result<()> {
         }
         if destination.is_file()
             && fs::metadata(source)?.len() == fs::metadata(destination)?.len()
+            && fs::metadata(source)?.modified()? == fs::metadata(destination)?.modified()?
             && sha256_file(source)? == sha256_file(destination)?
         {
             return Ok(());

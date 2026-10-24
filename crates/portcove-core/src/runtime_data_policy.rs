@@ -254,6 +254,7 @@ pub(crate) fn copy_ordinary_file(source: &Path, destination: &Path) -> Result<()
             "copy source changed during reading",
         ));
     }
+    preserve_modified_time(output.as_file(), &before)?;
     output.as_file().set_permissions(before.permissions())?;
     output.as_file().sync_all()?;
     crate::path::refuse_symlink_ancestors(destination)?;
@@ -261,6 +262,31 @@ pub(crate) fn copy_ordinary_file(source: &Path, destination: &Path) -> Result<()
         .persist(destination)
         .map_err(|error| PortcoveError::from(error.error))?;
     crate::durability::sync_publication(parent)
+}
+
+/// Data can contain upstream integrity records that bind file modification time.
+/// Refuse a rounding destination before publishing the private replacement.
+pub(crate) fn preserve_modified_time(output: &fs::File, source: &fs::Metadata) -> Result<()> {
+    let modified = source.modified()?;
+    output.set_times(fs::FileTimes::new().set_modified(modified))?;
+    if output.metadata()?.modified()? != modified {
+        return Err(PortcoveError::unsupported(
+            "destination cannot preserve the exact player-data modification time",
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn modified_stamp(metadata: &fs::Metadata) -> Result<String> {
+    Ok(
+        match metadata.modified()?.duration_since(std::time::UNIX_EPOCH) {
+            Ok(value) => format!("{}:{:09}", value.as_secs(), value.subsec_nanos()),
+            Err(error) => {
+                let value = error.duration();
+                format!("-{}:{:09}", value.as_secs(), value.subsec_nanos())
+            }
+        },
+    )
 }
 
 pub(crate) fn check_launch(

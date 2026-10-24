@@ -12,7 +12,31 @@ use std::collections::{BTreeMap, BTreeSet};
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Entry {
     Directory,
-    File { bytes: u64, sha256: String },
+    File {
+        bytes: u64,
+        sha256: String,
+        modified: String,
+    },
+}
+
+// A mod package's content identity does not include archive timestamps.
+fn same_contents(left: &Entry, right: &Entry) -> bool {
+    match (left, right) {
+        (Entry::Directory, Entry::Directory) => true,
+        (
+            Entry::File {
+                bytes: a,
+                sha256: b,
+                ..
+            },
+            Entry::File {
+                bytes: c,
+                sha256: d,
+                ..
+            },
+        ) => a == c && b == d,
+        _ => false,
+    }
 }
 
 type Tree = BTreeMap<PathBuf, Entry>;
@@ -96,7 +120,7 @@ struct AdditiveTree {
 }
 
 impl AdditiveTree {
-    fn prepare(source: &Path, destination: &Path) -> Result<Self> {
+    fn prepare(source: &Path, destination: &Path, exact_metadata: bool) -> Result<Self> {
         let from = snapshot(source, &|| Ok(()))?;
         let to = snapshot(destination, &|| Ok(()))?;
         let mut names = BTreeMap::new();
@@ -112,7 +136,12 @@ impl AdditiveTree {
                     "unlaunched player-data paths differ in case",
                 ));
             }
-            if from.get(path).is_some() && to.get(path).is_some() && from.get(path) != to.get(path)
+            if let (Some(left), Some(right)) = (from.get(path), to.get(path))
+                && if exact_metadata {
+                    left != right
+                } else {
+                    !same_contents(left, right)
+                }
             {
                 return Err(conflict(
                     &entry_path(source, path),
@@ -282,11 +311,13 @@ fn fingerprint(
         return Err(conflict(path, path, "a file changed during review"));
     }
     if let Some(output) = output {
+        crate::runtime_data_policy::preserve_modified_time(output, &before)?;
         output.sync_all()?;
     }
     Ok(Entry::File {
         bytes,
         sha256: hex::encode(digest.finalize()),
+        modified: crate::runtime_data_policy::modified_stamp(&before)?,
     })
 }
 
@@ -379,11 +410,20 @@ impl ModRestore {
                 .take_while(|(path, _)| path.starts_with(package))
                 .map(|(p, e)| (p.clone(), e.clone()))
                 .collect();
-            if left != right {
+            if left.len() != right.len()
+                || left.iter().any(|(path, entry)| {
+                    right
+                        .get(path)
+                        .is_none_or(|other| !same_contents(entry, other))
+                })
+            {
                 let path = left
                     .keys()
                     .chain(right.keys())
-                    .find(|p| left.get(*p) != right.get(*p))
+                    .find(|p| match (left.get(*p), right.get(*p)) {
+                        (Some(a), Some(b)) => !same_contents(a, b),
+                        _ => true,
+                    })
                     .unwrap();
                 return Err(conflict(
                     &source.join(path),
@@ -543,7 +583,7 @@ impl ModRestore {
             crate::durability::sync_publication(destination.parent().unwrap())?;
         }
         if preserve_canonical {
-            return AdditiveTree::prepare(&self.source, &self.destination)?
+            return AdditiveTree::prepare(&self.source, &self.destination, false)?
                 .apply(Some(Path::new("packages")));
         }
         // Keep deliberate upstream state and its normal deletion semantics. Never
@@ -643,7 +683,11 @@ impl PortcoveService {
         for relative in crate::persistence::entries(port, &[persistent_root, user_root])? {
             let from = persistent_root.join(&relative);
             let to = user_root.join(&relative);
-            let plan = AdditiveTree::prepare(&from, &to)?;
+            let plan = AdditiveTree::prepare(
+                &from,
+                &to,
+                crate::persistence::standalone_staged_archive(port),
+            )?;
             if relative == "mods" && owns_mods(port) {
                 mods = Some(ModRestore::prepare(&from, &to)?);
             }

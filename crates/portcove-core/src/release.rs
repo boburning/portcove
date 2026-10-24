@@ -1699,7 +1699,10 @@ fn is_checksum_name(name: &str) -> bool {
 
 fn is_auxiliary_package(name: &str) -> bool {
     let name = name.to_ascii_lowercase();
-    name.contains("symbols") || name.contains("-pdb-") || name.ends_with("-pdb.zip")
+    name.contains("symbols")
+        || name.contains("-pdb-")
+        || name.ends_with("-pdb.zip")
+        || crate::service::package_selection::is_license_compliance_archive(&name)
 }
 
 fn is_beta_release(release: &GithubRelease) -> bool {

@@ -188,7 +188,13 @@ from historical unproven data. Without that receipt, collection is additive and
 conflicting copies remain recoverable. Raw Installer activation refuses, and
 interrupted publication checks retained contracts and data before changing the
 active pointer. New independent definitions of this shape require staged-source
-capability 22; deeper integrations keep their existing preparation contracts.
+capability 23 and a format-6 retained envelope, including embedded/unscoped
+installs; deeper integrations keep their existing preparation contracts. Checked
+private data copies preserve exact file modification times or refuse before
+publication. New backup manifests bind a separate metadata digest; restore uses
+the consent-bound manifest and verifies staged data before collecting current
+runtime progress. Historical byte-only backup integrity is not retroactively
+strengthened. See [definition compatibility](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation).
 
 ## Source import journal interpretation
 

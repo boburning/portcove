@@ -34,12 +34,12 @@ fn fixture() -> Value {
 fn ready_staged_archive_entries_require_prelaunch_preservation_reader() {
     let catalog = crate::Catalog::embedded().unwrap();
     let mut entry = entry_for_port(catalog.port("alariq-mc2").unwrap());
-    for version in [1, 20, 21] {
+    for version in [1, 20, 21, 22] {
         entry["required_capabilities"][0]["minimum_version"] = json!(version);
-        entry["required_capabilities"][0]["maximum_version"] = json!(22);
-        assert!(inspect(&entry).unwrap_err().message.contains("version 22"));
+        entry["required_capabilities"][0]["maximum_version"] = json!(23);
+        assert!(inspect(&entry).unwrap_err().message.contains("version 23"));
     }
-    entry["required_capabilities"][0]["minimum_version"] = json!(22);
+    entry["required_capabilities"][0]["minimum_version"] = json!(23);
     assert!(inspect(&entry).unwrap().capabilities().compatible);
 }
 
@@ -295,7 +295,7 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         {
             20
         } else if crate::persistence::standalone_staged_archive(port) {
-            22
+            23
         } else if crate::managed_runtime_policy::requires_provider_resolution(port) {
             21
         } else if port.managed_initialization

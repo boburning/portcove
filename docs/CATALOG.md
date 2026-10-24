@@ -135,13 +135,19 @@ External user-profile saves remain outside backup ownership. Use
 and explain any separately managed local settings in the authored instructions.
 The shared installation review surfaces that limit for every managed adapter;
 external registration must retain its ownership-neutral guide.
-Ready staged archives require capability version 22 for independent definition
+Ready staged archives require capability version 23 for independent definition
 delivery. Core stages their installation before restoring declared data and
 activating. Data added before first Play participates in backup, update and
 rollback. A retained runtime without proof of completed Core data restoration
 uses conservative additive collection: canonical-only data survives and differing
 copies require a deliberate resolution. Existing source/build integrations keep
 their preparation and collection contracts.
+
+Declared data copies preserve exact file modification times, including upstream
+original-data integrity records that depend on them. New backups verify those
+times separately from content; old byte-only snapshots retain their historical
+limits. New ready archives retain a format-6 contract so older programs cannot
+apply timestamp-losing behavior to them. See [definition compatibility](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation).
 
 An explicitly hinted Win32 player can be recommended on a Windows x64 host;
 [Windows supplies WOW64 for x86 applications](https://learn.microsoft.com/en-us/windows/win32/winprog64/running-32-bit-applications).

@@ -529,6 +529,8 @@ pub(crate) enum LifecycleFaultPoint {
     RemovalCleanup,
     RetainedBuildBeforeCommit,
     RetainedBuildCommitted,
+    RestoreManifestRecordLoaded,
+    RestoreAuthorized,
     RestorePrepared,
     RestorePublished,
     RestoreVersionSynchronized,

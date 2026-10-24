@@ -14,23 +14,61 @@ fn additive_regular_file_roots_preserve_missing_and_conflicting_canonical_data()
     let source = temporary.path().join("runtime-settings.toml");
     let destination = temporary.path().join("canonical-settings.toml");
     fs::write(&source, b"player settings").unwrap();
-    AdditiveTree::prepare(&source, &destination)
+    AdditiveTree::prepare(&source, &destination, false)
         .unwrap()
         .apply(None)
         .unwrap();
     assert_eq!(fs::read(&destination).unwrap(), b"player settings");
     fs::remove_file(&source).unwrap();
-    AdditiveTree::prepare(&source, &destination)
+    AdditiveTree::prepare(&source, &destination, false)
         .unwrap()
         .apply(None)
         .unwrap();
     assert_eq!(fs::read(&destination).unwrap(), b"player settings");
     fs::write(&source, b"different unproven settings").unwrap();
-    let error = AdditiveTree::prepare(&source, &destination).err().unwrap();
+    let error = AdditiveTree::prepare(&source, &destination, false)
+        .err()
+        .unwrap();
     assert!(error.details["source_path"].ends_with("runtime-settings.toml"));
     assert!(error.details["destination_path"].ends_with("canonical-settings.toml"));
     assert_eq!(fs::read(&source).unwrap(), b"different unproven settings");
     assert_eq!(fs::read(&destination).unwrap(), b"player settings");
+}
+
+#[test]
+fn additive_metadata_contract_preserves_time_and_refuses_equal_bytes_with_different_time() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("original.bin");
+    let destination = temporary.path().join("canonical.bin");
+    fs::write(&source, b"owned original").unwrap();
+    let stamp = std::time::UNIX_EPOCH + std::time::Duration::new(1_700_000_000, 123_456_700);
+    fs::OpenOptions::new()
+        .write(true)
+        .open(&source)
+        .unwrap()
+        .set_times(fs::FileTimes::new().set_modified(stamp))
+        .unwrap();
+    AdditiveTree::prepare(&source, &destination, true)
+        .unwrap()
+        .apply(None)
+        .unwrap();
+    assert_eq!(
+        fs::metadata(&destination).unwrap().modified().unwrap(),
+        stamp
+    );
+    fs::OpenOptions::new()
+        .write(true)
+        .open(&source)
+        .unwrap()
+        .set_times(fs::FileTimes::new().set_modified(stamp + std::time::Duration::from_secs(1)))
+        .unwrap();
+    assert!(AdditiveTree::prepare(&source, &destination, true).is_err());
+    assert_eq!(
+        fs::metadata(&destination).unwrap().modified().unwrap(),
+        stamp
+    );
+    // Timestamp differences alone do not redefine a PSX mod package's content.
+    AdditiveTree::prepare(&source, &destination, false).unwrap();
 }
 
 fn trees() -> (tempfile::TempDir, PathBuf, PathBuf, PathBuf) {

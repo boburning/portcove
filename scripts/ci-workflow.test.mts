@@ -3002,6 +3002,9 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   );
   const outputOverrides = overrides.filter((value) => value["success-output"] !== undefined);
   const windowsLifecycleFilters = [
+    "package(portcove-core) & test(/^service::tests::backups::historical_byte_only_backup_keeps_its_existing_integrity_contract$/)",
+    "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/))",
+    "package(portcove-cli) & test(/^artwork_contract::artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle$/)",
     "package(portcove-core) & (test(/^service::tests::backups::current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_paths$/) | test(/^service::tests::backups::interrupted_backup_stages_are_visible_without_hiding_verified_backups$/))",
     "package(portcove-core) & test(/^service::psx_mod_data::tests::lifecycle::explicit_backup_restore_preserves_successor_packages_and_preflights_conflicts$/)",
     "package(portcove-core) & (test(/^definition_repository::tests::publisher_policy_tests::curated_retained_launch_withdrawal_supervises_exact_owned_child_after_reopen$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_revocation_preserves_unaffected_active_and_recovery_evidence$/))",

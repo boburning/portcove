@@ -74,6 +74,11 @@ impl InstalledContract {
             contract.original_format = Some(contract.format);
             contract.format = 5;
             contract.external_trust = Some(crate::ExternalRuntimeTrust::UserSelected);
+        } else if crate::persistence::standalone_staged_archive(catalog.port(port_id)?) {
+            // Embedded/unscoped installs need the same old-reader fence as an
+            // indexed capability. Do not rewrite existing retained contracts.
+            contract.original_format = Some(contract.format);
+            contract.format = 6;
         }
         contract.catalog(port_id)?;
         Ok(contract)
@@ -95,6 +100,7 @@ impl InstalledContract {
             (5, Some(format @ 1..=3), None, Some(crate::ExternalRuntimeTrust::UserSelected)) => {
                 format
             }
+            (6, Some(format @ 1..=3), None, None) => format,
             _ => {
                 return Err(PortcoveError::verification(
                     "retained preparation interpretation is unsupported or malformed",
@@ -133,7 +139,7 @@ impl InstalledContract {
             }
             None => self.catalog_json.clone(),
         };
-        if self.format == 4 || self.format == 5 {
+        if matches!(self.format, 4..=6) {
             cache_key = serde_json::to_string(&(
                 self.original_format,
                 self.preparation_mode,
@@ -150,6 +156,7 @@ impl InstalledContract {
             let catalog = entry.2.clone();
             cache.push(entry);
             catalog.port(port_id)?;
+            self.require_metadata_semantics(&catalog)?;
             return Ok(catalog);
         }
         let mut catalog = match &self.definition {
@@ -160,6 +167,7 @@ impl InstalledContract {
             catalog.retain_definition_selection(Arc::new(admission.clone()))?;
         }
         catalog.port(port_id)?;
+        self.require_metadata_semantics(&catalog)?;
         if self.format == 5
             && !catalog
                 .port(port_id)?
@@ -194,6 +202,17 @@ impl InstalledContract {
         Ok(catalog)
     }
 
+    fn require_metadata_semantics(&self, catalog: &Catalog) -> Result<()> {
+        if self.format == 6
+            && !crate::persistence::standalone_staged_archive(catalog.port(&self.port_id)?)
+        {
+            return Err(PortcoveError::verification(
+                "retained metadata-preserving envelope has no matching ready archive semantics",
+            ));
+        }
+        Ok(())
+    }
+
     /// Preserve the exact verified origin; never recapture authority from a catalog clone.
     pub(crate) fn for_ghostship_legacy_preparation(&self) -> Result<Self> {
         self.catalog("ghostship")?;
@@ -225,6 +244,41 @@ impl InstalledContract {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ready_archive_metadata_fence_preserves_origins_without_rewriting_history() {
+        let embedded = Catalog::embedded().unwrap();
+        for catalog in [
+            embedded.clone(),
+            crate::test_fixture::indexed_catalog(&embedded, "alariq-mc2"),
+            crate::test_fixture::admitted_indexed_catalog(&embedded, "alariq-mc2"),
+        ] {
+            let contract = InstalledContract::capture(&catalog, "alariq-mc2").unwrap();
+            let value = serde_json::to_value(&contract).unwrap();
+            assert_eq!(value["format"], 6);
+            assert!(matches!(contract.original_format, Some(1..=3)));
+            contract.catalog("alariq-mc2").unwrap();
+            let mut historical = contract.clone();
+            historical.format = historical.original_format.take().unwrap();
+            historical.catalog("alariq-mc2").unwrap();
+            assert_eq!(
+                historical.format,
+                value["original_format"].as_u64().unwrap() as u32
+            );
+            for invalid in [None, Some(4), Some(5), Some(6)] {
+                let mut malformed = contract.clone();
+                malformed.original_format = invalid;
+                assert!(malformed.catalog("alariq-mc2").is_err());
+            }
+        }
+        // A raw catalog shares its complete projection across identities. Even
+        // a warmed decode cache must not confer this envelope on another route.
+        let _ = InstalledContract::capture(&embedded, "alariq-mc2").unwrap();
+        let mut wrong = InstalledContract::capture(&embedded, "fragglet-sdl-sopwith").unwrap();
+        wrong.original_format = Some(wrong.format);
+        wrong.format = 6;
+        assert!(wrong.catalog("fragglet-sdl-sopwith").is_err());
+    }
 
     #[test]
     fn legacy_preparation_preserves_all_three_verified_origins_and_rejects_invalid_envelopes() {

@@ -9,7 +9,11 @@ use std::path::PathBuf;
 pub(crate) enum ReviewedEntry {
     Missing,
     Directory,
-    File { size: u64, sha256: String },
+    File {
+        size: u64,
+        sha256: String,
+        modified: String,
+    },
 }
 
 pub(crate) type ReviewedTree = BTreeMap<PathBuf, ReviewedEntry>;
@@ -153,6 +157,7 @@ impl DataReview {
                     ReviewedEntry::File {
                         size,
                         sha256: hex::encode(digest.finalize()),
+                        modified: modified_stamp(&opened)?,
                     },
                 );
             } else {
@@ -174,6 +179,25 @@ fn changed(path: &Path) -> PortcoveError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn review_binds_modification_time_when_player_bytes_are_unchanged() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("asset.bin");
+        fs::write(&path, b"owned original").unwrap();
+        let stamp = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
+        let file = fs::OpenOptions::new().write(true).open(&path).unwrap();
+        file.set_times(fs::FileTimes::new().set_modified(stamp))
+            .unwrap();
+        let before = DataReview::default().canonical(root.path()).unwrap();
+        file.set_times(
+            fs::FileTimes::new().set_modified(stamp + std::time::Duration::from_secs(1)),
+        )
+        .unwrap();
+        let after = DataReview::default().canonical(root.path()).unwrap();
+        assert_ne!(before, after);
+        assert_eq!(fs::read(path).unwrap(), b"owned original");
+    }
 
     #[test]
     fn review_distinguishes_missing_directory_and_file_without_creating_data() {

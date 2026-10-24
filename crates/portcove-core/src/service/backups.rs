@@ -386,6 +386,9 @@ struct BackupManifest {
     file_count: u64,
     size: u64,
     sha256: String,
+    /// Older snapshots retain their original byte-only integrity contract.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    metadata_sha256: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -401,6 +404,7 @@ struct BackupStats {
     file_count: u64,
     size: u64,
     hasher: Sha256,
+    metadata_hasher: Sha256,
 }
 
 impl PortcoveService {
@@ -577,6 +581,7 @@ impl PortcoveService {
                 file_count,
                 size,
                 hasher,
+                metadata_hasher,
             } = stats;
             let now = Library::now();
             let created_at = self
@@ -592,6 +597,7 @@ impl PortcoveService {
                 file_count,
                 size,
                 sha256: hex::encode(hasher.finalize()),
+                metadata_sha256: Some(hex::encode(metadata_hasher.finalize())),
             };
             let final_path = parent.join(&manifest.id);
             let manifest_path = staging_path.join("backup.json");
@@ -1219,19 +1225,50 @@ impl PortcoveService {
             self.require_completed_restore(port_id)?;
             self.require_completed_backup_deletion(port_id)?;
             let reviewed_runtime = self.collectible_data_review(port_id)?;
+            let reviewed_canonical = self.canonical_data_review(port_id)?;
+            let reviewed_backup = self.load_backup(port_id, backup_id)?;
+            self.faults
+                .check(LifecycleFaultPoint::RestoreManifestRecordLoaded)?;
+            let manifest_path = reviewed_backup.path.join("backup.json");
+            let reviewed_manifest =
+                crate::path::read_bounded_regular(&manifest_path, BACKUP_MANIFEST_MAX_BYTES)?;
+            let manifest: BackupManifest = serde_json::from_slice(&reviewed_manifest)?;
+            if manifest.id != reviewed_backup.id
+                || manifest.port_id != reviewed_backup.port_id
+                || manifest.created_at != reviewed_backup.created_at
+                || manifest.file_count != reviewed_backup.file_count
+                || manifest.size != reviewed_backup.size
+                || manifest.sha256 != reviewed_backup.sha256
+            {
+                return Err(PortcoveError::conflict(
+                    "backup manifest changed while preparing review; preserve it and review the restore again",
+                ));
+            }
+            let require_reviewed_manifest = || -> Result<()> {
+                if crate::path::read_bounded_regular(&manifest_path, BACKUP_MANIFEST_MAX_BYTES)?
+                    != reviewed_manifest
+                {
+                    return Err(PortcoveError::conflict(
+                        "backup manifest changed after review; preserve it and review the restore again",
+                    ));
+                }
+                Ok(())
+            };
             self.library.consume_authorization_with_state(
                 authorization_token,
                 BackupAction::Restore.authorization_action(),
                 &backup_authorization_target(port_id, backup_id),
                 || {
-                    Ok(self
+                    let current = self
                         .preview_backup_action(port_id, backup_id, BackupAction::Restore)?
-                        .preview_sha256)
+                        .preview_sha256;
+                    require_reviewed_manifest()?;
+                    Ok(current)
                 },
             )?;
-            self.collect_active_user_data_if_launched(port_id)?;
-            let collected_canonical = self.canonical_data_review(port_id)?;
-            let restored_backup = self.load_backup(port_id, backup_id)?;
+            // This exact manifest participated in the accepted read-only review.
+            // A later removal of metadata_sha256 cannot grant historical semantics.
+            let restored_backup = reviewed_backup;
 
             if user_root.exists() && !user_root.is_dir() {
                 return Err(PortcoveError::conflict(format!(
@@ -1248,9 +1285,21 @@ impl PortcoveService {
             fs::create_dir_all(user_parent)?;
             let source_data = restored_backup.path.join("data");
             let mut stats = BackupStats::default();
+            self.faults.check(LifecycleFaultPoint::RestoreAuthorized)?;
+            require_reviewed_manifest()?;
             copy_backup_tree(&source_data, &staged_data, &source_data, &mut stats)?;
-            verify_backup_stats(&restored_backup, stats)?;
+            verify_backup_stats(&restored_backup, stats, manifest.metadata_sha256.as_deref())?;
+            require_reviewed_manifest()?;
+            if self.collectible_data_review(port_id)? != reviewed_runtime
+                || self.canonical_data_review(port_id)? != reviewed_canonical
+            {
+                return Err(PortcoveError::conflict(
+                    "player data changed while validating the backup; review the restore again",
+                ));
+            }
             self.preflight_psx_mod_restores(port_id, &staged_data)?;
+            self.collect_active_user_data_if_launched(port_id)?;
+            let collected_canonical = self.canonical_data_review(port_id)?;
 
             let safety_backup = if user_root.exists() {
                 match self.create_backup_locked(port_id) {
@@ -1264,6 +1313,7 @@ impl PortcoveService {
             lifecycle.activate = user_root.exists();
             let mut restore = self.validate_restore_operation(&lifecycle)?;
             let require_reviewed_data = || -> Result<()> {
+                require_reviewed_manifest()?;
                 self.preflight_psx_mod_restores(port_id, &staged_data)?;
                 if self.collectible_data_review(port_id)? != reviewed_runtime
                     || self.canonical_data_review(port_id)? != collected_canonical
@@ -1692,13 +1742,29 @@ fn backup_inventory_state(problems: &[BackupProblem]) -> BackupInventoryState {
     }
 }
 
-fn verify_backup_stats(backup: &BackupRecord, stats: BackupStats) -> Result<()> {
+fn verify_backup_stats(
+    backup: &BackupRecord,
+    stats: BackupStats,
+    expected_metadata_sha256: Option<&str>,
+) -> Result<()> {
     let BackupStats {
         file_count,
         size,
         hasher,
+        metadata_hasher,
     } = stats;
     let sha256 = hex::encode(hasher.finalize());
+    if let Some(expected) = expected_metadata_sha256 {
+        let actual = hex::encode(metadata_hasher.finalize());
+        if actual != expected {
+            return Err(PortcoveError::verification(
+                "backup file modification times failed their integrity check",
+            )
+            .detail("backup_id", &backup.id)
+            .detail("expected_metadata_sha256", expected)
+            .detail("actual_metadata_sha256", actual));
+        }
+    }
     if file_count != backup.file_count || size != backup.size || sha256 != backup.sha256 {
         return Err(PortcoveError::verification(format!(
             "backup {} failed its integrity check",
@@ -1748,6 +1814,18 @@ fn copy_backup_tree(
         stats.hasher.update(relative.as_bytes());
         stats.hasher.update(b"\0");
         let mut input = crate::external_runtime::open_single_link_file(source)?;
+        let before = input.metadata()?;
+        if before.len() != metadata.len() || before.modified()? != metadata.modified()? {
+            return Err(PortcoveError::conflict(
+                "backup source changed before copying",
+            ));
+        }
+        stats.metadata_hasher.update(relative.as_bytes());
+        stats.metadata_hasher.update(b"\0");
+        stats
+            .metadata_hasher
+            .update(crate::runtime_data_policy::modified_stamp(&before)?.as_bytes());
+        stats.metadata_hasher.update(b"\0");
         refuse_symlink_ancestors(destination)?;
         let parent = destination
             .parent()
@@ -1756,15 +1834,30 @@ fn copy_backup_tree(
         // Keep the existing bounded copy buffer off each recursive stack frame.
         // Empty deep directories must not consume 64 KiB per ancestor.
         let mut buffer = vec![0_u8; 64 * 1024];
+        let mut copied = 0_u64;
         loop {
             let read = input.read(&mut buffer)?;
             if read == 0 {
                 break;
             }
+            copied += read as u64;
+            if copied > before.len() {
+                return Err(PortcoveError::conflict("backup source grew during copying"));
+            }
             output.write_all(&buffer[..read])?;
             stats.hasher.update(&buffer[..read]);
             stats.size += read as u64;
         }
+        let after = input.metadata()?;
+        if copied != before.len()
+            || after.len() != before.len()
+            || after.modified()? != before.modified()?
+        {
+            return Err(PortcoveError::conflict(
+                "backup source changed during copying",
+            ));
+        }
+        crate::runtime_data_policy::preserve_modified_time(output.as_file(), &before)?;
         output.as_file().sync_all()?;
         refuse_symlink_ancestors(destination)?;
         output
@@ -1826,7 +1919,29 @@ fn backup_action_fingerprint(
     backup_plan: &AdoptionCopyPlan,
     user_plan: Option<&AdoptionCopyPlan>,
 ) -> Result<String> {
-    let encoded = serde_json::to_vec(&(action, backup, backup_plan, user_plan))?;
+    let modified = backup_plan
+        .files
+        .iter()
+        .map(|file| {
+            let path = backup.path.join("data").join(&file.relative_path);
+            refuse_symlink_ancestors(&path)?;
+            let input = crate::external_runtime::open_single_link_file(&path)?;
+            let metadata = input.metadata()?;
+            if metadata.len() != file.size {
+                return Err(PortcoveError::conflict("backup changed during review"));
+            }
+            Ok((
+                &file.relative_path,
+                crate::runtime_data_policy::modified_stamp(&metadata)?,
+            ))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let manifest = crate::path::read_bounded_regular(
+        &backup.path.join("backup.json"),
+        BACKUP_MANIFEST_MAX_BYTES,
+    )?;
+    let encoded =
+        serde_json::to_vec(&(action, backup, backup_plan, user_plan, modified, manifest))?;
     Ok(hex::encode(Sha256::digest(encoded)))
 }
 

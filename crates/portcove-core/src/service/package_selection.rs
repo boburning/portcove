@@ -82,6 +82,7 @@ pub(crate) fn assess_package_name(
         .iter()
         .any(|ext| name.ends_with(ext))
         || (archive && has(&["source", "sources", "src", "notices"]))
+        || is_license_compliance_archive(&name)
     {
         return finish(
             "auxiliary",
@@ -196,6 +197,20 @@ pub(crate) fn assess_package_name(
     )
 }
 
+pub(crate) fn is_license_compliance_archive(name: &str) -> bool {
+    let name = name.to_ascii_lowercase();
+    let tokens = name
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .collect::<Vec<_>>();
+    [".zip", ".tar.gz", ".tgz", ".tar.xz", ".7z"]
+        .iter()
+        .any(|extension| name.ends_with(extension))
+        && tokens.contains(&"compliance")
+        && ["lgpl", "gpl", "license", "licenses"]
+            .iter()
+            .any(|token| tokens.contains(token))
+}
+
 pub(super) fn recommend_packages(
     assets: &[CatalogDownloadCandidate],
     platform: Platform,
@@ -276,6 +291,30 @@ mod tests {
             recommend_packages(&assets, Platform::WindowsX86_64, &[], false).1,
             None
         );
+    }
+
+    #[test]
+    fn separate_license_compliance_archive_is_not_a_player_variant() {
+        let hints = ["InfiniteUndiscoveryRecomp-".into(), ".zip".into()];
+        let assets = [
+            asset(1, "InfiniteUndiscoveryRecomp-v1.0.0-rc1.zip"),
+            asset(
+                2,
+                "InfiniteUndiscoveryRecomp-v1.0.0-rc1-LGPL-Compliance.zip",
+            ),
+        ];
+        let (assessments, recommendation) =
+            recommend_packages(&assets, Platform::WindowsX86_64, &hints, true);
+        assert_eq!(recommendation, Some(1));
+        assert_eq!(assessments[1].suitability, "auxiliary");
+        assert_eq!(
+            recommend_packages(&assets[1..], Platform::WindowsX86_64, &hints, true).1,
+            None
+        );
+        assert!(!is_license_compliance_archive(
+            "Compliance-game-windows-x64.zip"
+        ));
+        assert!(!is_license_compliance_archive("game-LGPL-windows-x64.zip"));
     }
 
     #[test]

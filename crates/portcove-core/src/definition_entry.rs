@@ -158,11 +158,11 @@ impl DefinitionContentIndex {
             && crate::persistence::standalone_staged_archive(&port)
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "staged-source-portable"
-                    && requirement.minimum_version >= 22
+                    && requirement.minimum_version >= 23
             })
         {
             return Err(PortcoveError::verification(
-                "ready staged archives require prelaunch data preservation capability version 22",
+                "ready staged archives require metadata and prelaunch data preservation capability version 23",
             ));
         }
         if !retained
