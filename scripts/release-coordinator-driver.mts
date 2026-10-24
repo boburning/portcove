@@ -16,7 +16,6 @@ import {
   readCatalogPublicationBundle,
 } from "./release-catalog-inspection.mts";
 import { readIndependentCatalogSemanticReview } from "./release-control-inputs.mts";
-import { semanticReviewCheckName } from "./release-semantic-review.mts";
 import { inspectCatalogInitialization } from "./release-catalog-publication-contract.mts";
 import {
   inspectPublicationReportRepair,
@@ -113,8 +112,8 @@ import { createReleaseReviewDispositionReceipt } from "./release-semantic-dispos
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
 import { inspectPublishedApplicationSource } from "./release-published-source.mts";
 import {
-  requireControllerReleaseAuthorities,
-  requireControllerPublicationAuthorities,
+  requireControllerApplicationCoordinatorAuthorities,
+  requireControllerApplicationCoordinatorPublicationAuthorities,
 } from "./release-authority-configuration.mts";
 import {
   readBootstrapPublicSource,
@@ -189,10 +188,10 @@ export async function prepareActualCoordinatorCatalogSigning(
     let stage = "actual-source-and-protection";
     try {
       const {
-        requireControllerCatalogPublicationAuthorities,
+        requireControllerCatalogCoordinatorAuthorities,
         assertControllerCatalogPublisherScope,
       } = await import("./release-authority-configuration.mts");
-      const authorities = await requireControllerCatalogPublicationAuthorities("coordinator");
+      const authorities = await requireControllerCatalogCoordinatorAuthorities();
       const tools = await verifiedControllerToolPaths(inputs.tools);
       const workflow = await readProductionControllerWorkflowBytes();
       const { authenticateCatalogControlReaderJob, authenticateCatalogReleaseControlRound } =
@@ -233,7 +232,11 @@ export async function prepareActualCoordinatorCatalogSigning(
             .digest("hex")
       )
         throw new Error("catalog Core inspection did not use the actual current controller tools");
-      assertControllerCatalogPublisherScope(authorities, inspection.inspection, files);
+      assertControllerCatalogPublisherScope(
+        authorities.configuration,
+        inspection.inspection,
+        files,
+      );
       const semantic = readCatalogCoordinatorReview(
         api,
         authorities,
@@ -475,10 +478,10 @@ export async function requireActualCoordinatorCatalogPreparation(
   owned.deadline = coordinatorContinuationDeadline(owned.deadline, phaseDeadline);
   return withCoordinatorDeadline(owned.deadline, async () => {
     const {
-      requireControllerCatalogPublicationAuthorities,
+      requireControllerCatalogCoordinatorAuthorities,
       assertControllerCatalogPublisherScope,
     } = await import("./release-authority-configuration.mts");
-    const authorities = await requireControllerCatalogPublicationAuthorities("coordinator");
+    const authorities = await requireControllerCatalogCoordinatorAuthorities();
     if (capacityDigest(authorities) !== owned.authorities_sha256)
       throw new Error("catalog protected configuration changed");
     const inspection = await requireActualCatalogInspection(
@@ -488,7 +491,7 @@ export async function requireActualCoordinatorCatalogPreparation(
     const files = await readCatalogPublicationBundle(inspection.bundle, owned.deadline);
     if (inspection.tools_receipt !== owned.tools)
       throw new Error("catalog original Core tools receipt changed");
-    assertControllerCatalogPublisherScope(authorities, inspection.inspection, files);
+    assertControllerCatalogPublisherScope(authorities.configuration, inspection.inspection, files);
     const api = metadataContinuationApi(owned.directory, () => owned.deadline);
     const semantic = readCatalogCoordinatorReview(
       api,
@@ -546,19 +549,14 @@ export async function requireActualCoordinatorCatalogPreparation(
  * OIDC/config/control admission above inserts the resulting session map. */
 function readCatalogCoordinatorReview(
   api: Parameters<typeof readIndependentCatalogSemanticReview>[0],
-  authorities: { apps: { semantic: { app_id: number }; classification: { app_id: number } } },
+  authorities: { semantic_producer: unknown },
   opportunity: unknown,
   check_id: number,
 ) {
   const selected = inspectCatalogSemanticOpportunity(opportunity),
     proof = readIndependentCatalogSemanticReview(
       api,
-      {
-        schema_version: 1,
-        review_app_id: authorities.apps.semantic.app_id,
-        writer_app_id: authorities.apps.classification.app_id,
-        review_check_name: semanticReviewCheckName,
-      },
+      authorities.semantic_producer,
       selected,
       check_id,
     );
@@ -575,9 +573,9 @@ async function recheckActualCatalogReview(result: object, tighter?: number) {
   if (!owned) throw new Error("actual protected catalog receiver required");
   owned.deadline = coordinatorContinuationDeadline(owned.deadline, tighter);
   return withCoordinatorDeadline(owned.deadline, async () => {
-    const { requireControllerCatalogPublicationAuthorities } =
+    const { requireControllerCatalogCoordinatorAuthorities } =
         await import("./release-authority-configuration.mts"),
-      authorities = await requireControllerCatalogPublicationAuthorities("coordinator");
+      authorities = await requireControllerCatalogCoordinatorAuthorities();
     if (capacityDigest(authorities) !== owned.authorities_sha256)
       throw new Error("catalog selected issuer/configuration changed");
     const api = metadataContinuationApi(owned.directory, () => owned.deadline),
@@ -1770,7 +1768,7 @@ async function prepareTrustedCoordinatorRenewalAt(
       phase: "coordinator",
       deadline: budget.monotonicDeadline,
     });
-    const authorities = await requireControllerReleaseAuthorities("coordinator");
+    const authorities = await requireControllerApplicationCoordinatorAuthorities();
     if (authorities.namespace !== inspectCoordinatorRemoteNamespace(selected.remote_configuration))
       throw new Error("metadata coordinator authority namespace differs");
     if (
@@ -2186,13 +2184,20 @@ async function prepareTrustedCoordinatorBootstrapAt(
       checkpoint: recovered.checkpoint,
       authority: "none",
     };
-  const authorities = await requireControllerPublicationAuthorities("coordinator");
+  const authorities = await requireControllerApplicationCoordinatorPublicationAuthorities();
   if (
-    authorities.schema_version !== 2 ||
+    (authorities.configuration.schema_version !== 2 &&
+      !(
+        authorities.configuration.schema_version === 4 &&
+        "purpose" in authorities.configuration &&
+        authorities.configuration.purpose === "application"
+      )) ||
     !authorities.publication.public_source.initial_site_preimage ||
     authorities.namespace !== inspectCoordinatorRemoteNamespace(selected.remote_configuration)
   )
-    throw new Error("explicit ratified schema2 initial setup source/namespace required");
+    throw new Error(
+      "explicit ratified schema2 or selected-full4 initial setup source/namespace required",
+    );
   const toolsReceipt = await receiveControllerTools(
     directory,
     selected.tools.artifact,
@@ -2470,7 +2475,7 @@ export async function requireActualCoordinatorBootstrapPreparation(
   if (!owned) throw new Error("actual same-process coordinator bootstrap preparation required");
   owned.deadline = coordinatorContinuationDeadline(owned.deadline, phaseDeadline);
   return withCoordinatorDeadline(owned.deadline, async () => {
-    const authorities = await requireControllerPublicationAuthorities("coordinator");
+    const authorities = await requireControllerApplicationCoordinatorPublicationAuthorities();
     if (capacityDigest(authorities) !== owned.authorities_sha256)
       throw new Error("ratified bootstrap authority configuration changed");
     await verifiedControllerToolPaths(owned.tools);
@@ -2580,7 +2585,7 @@ async function recoverTrustedCoordinatorCandidateSigning(
       checkpoint: recovered.checkpoint,
       authority: "none",
     };
-  const authorities = await requireControllerReleaseAuthorities("coordinator");
+  const authorities = await requireControllerApplicationCoordinatorAuthorities();
   if (authorities.namespace !== inspectCoordinatorRemoteNamespace(configuration))
     throw new Error("candidate signing recovery namespace differs");
   const receipt = await receiveControllerTools(directory, locators.artifact, locators.bundle, {
@@ -2702,7 +2707,7 @@ async function recoverTrustedCoordinatorPages(
       checkpoint: recovered.checkpoint,
       authority: "none",
     };
-  const authorities = await requireControllerReleaseAuthorities("coordinator");
+  const authorities = await requireControllerApplicationCoordinatorAuthorities();
   const namespace = inspectCoordinatorRemoteNamespace(configuration);
   if (namespace !== authorities.namespace)
     throw new Error("Pages recovery authority namespace differs");
@@ -2891,7 +2896,7 @@ async function recoverTrustedCoordinatorContext(
       checkpoint: recovered.checkpoint,
       authority: "none",
     };
-  const authorities = await requireControllerPublicationAuthorities("coordinator"),
+  const authorities = await requireControllerApplicationCoordinatorPublicationAuthorities(),
     namespace = inspectCoordinatorRemoteNamespace(configuration);
   if (authorities.namespace !== namespace) throw new Error("context recovery namespace differs");
   const toolsReceipt = await receiveControllerTools(directory, locators.artifact, locators.bundle, {
@@ -2966,7 +2971,7 @@ async function recoverTrustedCoordinatorContext(
         state,
       );
     if (
-      capacityDigest(await requireControllerPublicationAuthorities("coordinator")) !==
+      capacityDigest(await requireControllerApplicationCoordinatorPublicationAuthorities()) !==
       capacityDigest(authorities)
     )
       throw new Error("ratified context recovery authority configuration changed");
@@ -3298,7 +3303,7 @@ async function requestTrustedSemanticReviewAt(
       );
     if (isRecord(recovered.input.active_candidate)) {
       phase = "actual-active-resumption-authority";
-      const authorities = await requireControllerReleaseAuthorities("coordinator");
+      const authorities = await requireControllerApplicationCoordinatorAuthorities();
       if (authorities.namespace !== namespace)
         throw new Error("active coordinator authority namespace differs");
       return coordinateTrustedReleaseAt(
@@ -3306,7 +3311,7 @@ async function requestTrustedSemanticReviewAt(
         {
           remote_configuration: selected.remote_configuration,
           opportunity: validateOpportunity(recovered.input.opportunity),
-          dispatch_actor_id: authorities.apps.dispatch.actor_id,
+          dispatch_actor_id: authorities.dispatch_actor_id,
         },
         { directory, budget, recovered },
       );
@@ -3555,7 +3560,7 @@ async function continueTrustedSemanticReview(
     });
     const reviewed = controls.readRequest(api, request);
     if (reviewed.classification.status === "reviewed") {
-      const authorities = await requireControllerReleaseAuthorities("coordinator");
+      const authorities = await requireControllerApplicationCoordinatorAuthorities();
       if (
         authorities.namespace !== inspectCoordinatorRemoteNamespace(remoteConfiguration) ||
         reviewed.pause.publication_paused
@@ -3567,7 +3572,7 @@ async function continueTrustedSemanticReview(
         {
           remote_configuration: remoteConfiguration,
           opportunity: reviewed.classification.opportunity,
-          dispatch_actor_id: authorities.apps.dispatch.actor_id,
+          dispatch_actor_id: authorities.dispatch_actor_id,
         },
         { directory, budget, recovered, admission: { workflow, reader, controls, request } },
       );

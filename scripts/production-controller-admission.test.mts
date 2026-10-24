@@ -31,6 +31,10 @@ import {
   inspectBoundSelectedPublicationAuthorities,
   requireControllerSelectedApplicationAuthorities,
   requireControllerSelectedCatalogAuthorities,
+  requireCoordinatorAuthorityConfiguration,
+  requireControllerApplicationCoordinatorAuthorities,
+  requireControllerApplicationCoordinatorPublicationAuthorities,
+  requireControllerCatalogCoordinatorAuthorities,
 } from "./release-authority-configuration.mts";
 import { configureFixedControllerJob, runFixedControllerJob } from "./release-controller-job.mts";
 import { requireFixedControllerConfigurationSource } from "./release-authority-configuration-contract.mts";
@@ -39,6 +43,8 @@ import {
   selectedPublicationAuthoritiesFixture,
 } from "./fixtures/checkpoint-proof-fixture.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
+import { releaseControlPhaseProfile } from "./release-control-phases.mts";
+import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority-configuration-fixture.mts";
 import {
   capacityExecutorRolesForPurpose,
   capacityExecutorJobProfile,
@@ -1090,10 +1096,127 @@ void test("fixed job source projections require original full purpose/phase and 
   }
 });
 
+void test("coordinator purpose views retain full scope and original actor without manufacturing legacy Apps", () => {
+  for (const purpose of ["application", "catalog-publication"] as const) {
+    const configuration = selectedPublicationAuthoritiesFixture(purpose);
+    const bounded = {
+      ...policy,
+      schema_version: 2,
+      mode:
+        purpose === "application" ? "bounded-application-release" : "bounded-catalog-publication",
+      authority_configuration_sha256: releaseCanonicalDigest(configuration),
+      grant_sha256: "e".repeat(64),
+    };
+    const admit =
+      purpose === "application" ? admitProductionInputReader : admitProductionCatalogInputReader;
+    const original = admit(
+      JSON.stringify(bounded),
+      { ...environment, GITHUB_JOB: "coordinator" },
+      source,
+      "coordinator",
+    );
+    const view = requireCoordinatorAuthorityConfiguration(configuration, original, purpose);
+    assert.equal(view.purpose, purpose);
+    assert.equal(view.dispatch_actor_id, original.actor_id);
+    assert.equal(view.configuration_sha256, releaseCanonicalDigest(configuration));
+    assert.deepEqual(
+      view.configuration,
+      inspectSelectedPublicationAuthorityConfiguration(configuration),
+    );
+    assert.deepEqual(view.semantic_producer, {
+      schema_version: 2,
+      purpose,
+      review_app_id: configuration.journal.apps.semantic.app_id,
+      review_check_name: "Portcove independent release semantic review",
+    });
+    assert.equal(Object.hasOwn(view, "apps"), false);
+    assert.equal(view.source.grant_sha256, bounded.grant_sha256);
+    assert.throws(() =>
+      requireCoordinatorAuthorityConfiguration(configuration, view.source, purpose),
+    );
+    const nextSource = admit(
+      JSON.stringify({ ...bounded, grant_sha256: "2".repeat(64) }),
+      { ...environment, GITHUB_JOB: "coordinator" },
+      source,
+      "coordinator",
+    );
+    const next = requireCoordinatorAuthorityConfiguration(configuration, nextSource, purpose);
+    assert.equal(next.configuration_sha256, view.configuration_sha256);
+    assert.equal(next.dispatch_actor_id, view.dispatch_actor_id);
+    assert.notEqual(
+      releaseCanonicalDigest(next),
+      releaseCanonicalDigest(view),
+      "grant-only drift changes retained view identity",
+    );
+    assert.throws(() =>
+      requireCoordinatorAuthorityConfiguration(configuration, { ...original }, purpose),
+    );
+    assert.throws(() =>
+      requireCoordinatorAuthorityConfiguration(
+        configuration,
+        original,
+        purpose === "application" ? "catalog-publication" : "application",
+      ),
+    );
+    const wrongRole = admit(
+      JSON.stringify(bounded),
+      { ...environment, GITHUB_JOB: releaseControlPhaseProfile("site-publication").reader_job },
+      source,
+      "site-publication",
+    );
+    assert.throws(() =>
+      requireCoordinatorAuthorityConfiguration(configuration, wrongRole, purpose),
+    );
+    for (const changed of [
+      configuration.journal,
+      { ...configuration, schema_version: 3 },
+      { ...configuration, journal: { ...configuration.journal, namespace: "portcove-other" } },
+    ])
+      assert.throws(() => requireCoordinatorAuthorityConfiguration(changed, original, purpose));
+    const changed = structuredClone(configuration);
+    changed.journal.journal_seed.checkpoint = "1".repeat(40);
+    assert.throws(
+      () => requireCoordinatorAuthorityConfiguration(changed, original, purpose),
+      /changed after ratification/,
+    );
+  }
+  const legacy = inspectReleaseAuthorityConfiguration(nativeAuthorityConfigurationFixture());
+  const bounded = {
+    ...policy,
+    schema_version: 2,
+    mode: "bounded-application-release",
+    authority_configuration_sha256: releaseCanonicalDigest(legacy),
+    grant_sha256: "e".repeat(64),
+  };
+  const original = admitProductionInputReader(
+    JSON.stringify(bounded),
+    { ...environment, GITHUB_JOB: "coordinator" },
+    source,
+    "coordinator",
+  );
+  const view = requireCoordinatorAuthorityConfiguration(legacy, original, "application");
+  assert.deepEqual(view.configuration, legacy);
+  assert.equal(view.semantic_producer.schema_version, 1);
+  assert.ok("writer_app_id" in view.semantic_producer);
+  const changed = structuredClone(legacy);
+  changed.apps.dispatch.actor_id = "777777";
+  const different = admitProductionInputReader(
+    JSON.stringify({ ...bounded, authority_configuration_sha256: releaseCanonicalDigest(changed) }),
+    { ...environment, GITHUB_JOB: "coordinator" },
+    source,
+    "coordinator",
+  );
+  assert.throws(
+    () => requireCoordinatorAuthorityConfiguration(changed, different, "application"),
+    /dispatch actor/,
+  );
+});
+
 void test("actual selected application job configuration binds source bytes, refuses drift and preserves create-only partials", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "selected-fixed-job-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const configuration = selectedPublicationAuthoritiesFixture("application");
+  assert.ok("publication" in configuration);
   const workflow = await readFile(
     new URL("../.github/workflows/application-update-production.yml", import.meta.url),
   );
@@ -1144,6 +1267,23 @@ void test("actual selected application job configuration binds source bytes, ref
   });
   const admitted = await requireControllerJobSourceConfiguration("coordinator");
   assert.equal(admitted.binding.actor_id, policy.actor_id);
+  const coordinator = await requireControllerApplicationCoordinatorAuthorities();
+  assert.equal(coordinator.dispatch_actor_id, policy.actor_id);
+  assert.equal(coordinator.configuration_sha256, bounded.authority_configuration_sha256);
+  assert.deepEqual(
+    coordinator.configuration,
+    inspectSelectedPublicationAuthorityConfiguration(configuration),
+  );
+  assert.equal(coordinator.semantic_producer.schema_version, 2);
+  assert.equal(Object.hasOwn(coordinator.semantic_producer, "writer_app_id"), false);
+  assert.deepEqual(
+    (await requireControllerApplicationCoordinatorPublicationAuthorities()).publication,
+    configuration.publication,
+  );
+  await assert.rejects(
+    requireControllerCatalogCoordinatorAuthorities(),
+    /catalog coordinator source/,
+  );
   const prepared = await configureFixedControllerJob("coordinator");
   assert.equal(prepared.authority, "none");
   const configFile = path.join(directory, "controller-coordinator.json");
@@ -1181,6 +1321,10 @@ void test("actual selected application job configuration binds source bytes, ref
   const attempt = requireControllerJobSourceConfiguration("coordinator");
   process.env.PORTCOVE_EXECUTION_PURPOSE = "catalog-publication";
   await assert.rejects(attempt, /environment changed/);
+  Object.assign(process.env, runtime);
+  const coordinatorAttempt = requireControllerApplicationCoordinatorAuthorities();
+  process.env.PORTCOVE_EXECUTION_PURPOSE = "catalog-publication";
+  await assert.rejects(coordinatorAttempt, /environment changed/);
   Object.assign(process.env, runtime);
   const partialRoot = path.join(directory, "late-write");
   await mkdir(partialRoot);

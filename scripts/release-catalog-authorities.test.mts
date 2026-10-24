@@ -10,6 +10,7 @@ import {
   requireControllerCatalogPublicationAuthorities,
   assertControllerCatalogPublisherScope,
   requireFixedControllerJobSourceConfiguration,
+  requireCoordinatorAuthorityConfiguration,
 } from "./release-authority-configuration.mts";
 import {
   admitProductionCatalogInputReader,
@@ -111,6 +112,10 @@ void test("fixed legacy catalog source routing retains configured dispatch-actor
     "catalog-publication",
   );
   assert.equal(binding.actor_id, f.config.apps.dispatch.actor_id);
+  const view = requireCoordinatorAuthorityConfiguration(f.config, source, "catalog-publication");
+  assert.equal(view.configuration_sha256, digest(inspectCatalogAuthorityConfiguration(f.config)));
+  assert.equal(view.semantic_producer.schema_version, 1);
+  assert.ok("writer_app_id" in view.semantic_producer);
   const changed = structuredClone(f.config);
   changed.apps.dispatch.actor_id = "999";
   const changedPolicy = { ...f.policy, authority_configuration_sha256: digest(changed) };
@@ -128,6 +133,10 @@ void test("fixed legacy catalog source routing retains configured dispatch-actor
         "coordinator",
         "catalog-publication",
       ),
+    /configuration\/dispatch changed/,
+  );
+  assert.throws(
+    () => requireCoordinatorAuthorityConfiguration(changed, changedSource, "catalog-publication"),
     /configuration\/dispatch changed/,
   );
 });

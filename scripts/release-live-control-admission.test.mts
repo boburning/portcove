@@ -63,7 +63,11 @@ import {
 import { requireCurrentClassificationRequest } from "./release-classification-request.mts";
 import { releaseControlPhaseProfile, type ReleaseControlPhase } from "./release-control-phases.mts";
 import { retainProtectionObservationOutputs } from "./release-reviewed-inputs.mts";
-import { requireControllerJobSourceConfiguration } from "./release-authority-configuration.mts";
+import {
+  requireControllerJobSourceConfiguration,
+  requireControllerCatalogCoordinatorAuthorities,
+  requireControllerApplicationCoordinatorAuthorities,
+} from "./release-authority-configuration.mts";
 
 void test("observer output transport refuses expiry after every awaited write and retains partial effects", async (t) => {
   for (const delayed of ["output", "observation", "receipt", "none"]) {
@@ -1123,6 +1127,7 @@ void test("actual selected catalog entry retains default signed OIDC/provider ve
     true,
   );
   const configuration = selectedPublicationAuthoritiesFixture("catalog-publication");
+  assert.ok("catalog" in configuration);
   const workflow = await readFile(
     new URL("../.github/workflows/application-update-production.yml", import.meta.url),
   );
@@ -1152,12 +1157,14 @@ void test("actual selected catalog entry retains default signed OIDC/provider ve
   const before = new Map(Object.keys(environment).map((key) => [key, process.env[key]]));
   Object.assign(process.env, environment);
   const actualSpawn = childProcess.spawnSync;
+  let driftDuringTokenRead = false;
   t.mock.method(globalThis, "fetch", async (input: Parameters<typeof fetch>[0]) => {
     const url = new URL(
       input instanceof Request ? input.url : input instanceof URL ? input.href : input,
     );
     if (url.hostname === "fixture.actions.githubusercontent.com") {
       assert.equal(url.searchParams.get("audience"), profile.reader_audience);
+      if (driftDuringTokenRead) process.env.PORTCOVE_EXECUTION_PURPOSE = "application";
       return new Response(JSON.stringify({ value: provider.token }));
     }
     assert.equal(url.hostname, "token.actions.githubusercontent.com");
@@ -1193,6 +1200,25 @@ void test("actual selected catalog entry retains default signed OIDC/provider ve
     "default named verifier used controlled provider readback",
   );
   actual.recheck();
+  const coordinator = await requireControllerCatalogCoordinatorAuthorities();
+  assert.equal(coordinator.configuration_sha256, capacityDigest(configuration));
+  assert.equal(coordinator.dispatch_actor_id, runtime.policy.actor_id);
+  assert.deepEqual(coordinator.catalog, configuration.catalog);
+  assert.deepEqual(coordinator.semantic_producer, {
+    schema_version: 2,
+    purpose: "catalog-publication",
+    review_app_id: configuration.journal.apps.semantic.app_id,
+    review_check_name: semanticReviewCheckName,
+  });
+  await assert.rejects(
+    requireControllerApplicationCoordinatorAuthorities(),
+    /application coordinator source/,
+  );
+  driftDuringTokenRead = true;
+  await assert.rejects(requireControllerCatalogCoordinatorAuthorities(), /environment changed/);
+  process.env.PORTCOVE_EXECUTION_PURPOSE = "catalog-publication";
+  driftDuringTokenRead = false;
   provider.faults.value = "job-completed";
   await assert.rejects(requireControllerJobSourceConfiguration("coordinator"));
+  await assert.rejects(requireControllerCatalogCoordinatorAuthorities());
 });
