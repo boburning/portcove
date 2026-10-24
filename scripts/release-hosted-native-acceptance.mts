@@ -11,7 +11,10 @@ import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
 import { verifyControllerArtifactVerification } from "./github-controller-attestation.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
-import { verifyHistoricalHostedNativeJob } from "./release-checkpoint-job-identity.mts";
+import {
+  verifyHistoricalHostedNativeJob,
+  verifyHostedNativePhaseJob,
+} from "./release-checkpoint-job-identity.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import {
@@ -50,6 +53,7 @@ type Retained = {
   deadline: number;
   observeJob: () => ReturnType<typeof verifyHistoricalHostedNativeJob>;
   job: ReturnType<typeof verifyHistoricalHostedNativeJob>;
+  stopped: boolean;
 };
 const receipts = new WeakMap<object, Retained>();
 const historicalReceipts = new WeakMap<object, Retained>();
@@ -100,6 +104,8 @@ type HostedNativeProofArguments = [
     api?: GitHubRestReader;
   },
 ];
+/** Current settled stage only; the original provider job may remain alive for
+ * subsequent phases. This is never terminal same-client journey acceptance. */
 export function collectHostedNativeReleaseQualification(...args: HostedNativeProofArguments) {
   return collectHostedNativeProof("current", ...args);
 }
@@ -283,13 +289,13 @@ async function collectHostedNativeProof(
       instant(isRecord(value) ? value.timestamp : null),
     );
     const observeJob = () =>
-      verifyHistoricalHostedNativeJob(
+      (purpose === "current" ? verifyHostedNativePhaseJob : verifyHistoricalHostedNativeJob)(
         prepared.report.platform_label,
         prepared.producer,
-        times[0]!,
+        Math.max(...times),
         { cwd: capture, deadline, api },
       );
-    phase = "historical-job";
+    phase = purpose === "current" ? "settled-phase-job" : "historical-job";
     const job = observeJob();
     const start = instant(prepared.report.runtime.started_at),
       end = instant(prepared.report.runtime.teardown.completed_at);
@@ -308,11 +314,12 @@ async function collectHostedNativeProof(
     const receipt = Object.freeze({
       kind:
         purpose === "current"
-          ? "verified-hosted-native-qualification"
+          ? "verified-hosted-native-settled-phase"
           : "verified-hosted-native-history",
       evidence_scope: injected ? "injected-provider" : "github.com",
       capture_directory: capture,
       authority: "none",
+      journey_completion: "not-established",
     });
     await retain("verification.json", {
       producer: prepared.producer,
@@ -322,6 +329,8 @@ async function collectHostedNativeProof(
       verified_timestamps: times,
       job,
       evidence_scope: receipt.evidence_scope,
+      custody_scope: purpose === "current" ? "signed-stage-witness" : "completed-job-history",
+      journey_completion: "not-established",
       authority: "none",
     });
     if (!injected)
@@ -334,6 +343,7 @@ async function collectHostedNativeProof(
         deadline,
         observeJob,
         job,
+        stopped: false,
       });
     return receipt;
   } catch {
@@ -367,6 +377,18 @@ export async function verifiedHistoricalHostedNativeQualification(
 }
 
 async function readBoundHostedNativeQualification(bound: Retained) {
+  if (bound.stopped) throw new Error("hosted native original proof is permanently stopped");
+  try {
+    return await readActiveBoundHostedNativeQualification(bound);
+  } catch (error) {
+    // Preserve original files/effects; a later provider response cannot revive
+    // an original receipt that already observed failure, drift or expiry.
+    bound.stopped = true;
+    throw error;
+  }
+}
+
+async function readActiveBoundHostedNativeQualification(bound: Retained) {
   bound.active();
   const files = {} as HostedNativeProofFiles;
   for (const key of keys) {
@@ -378,8 +400,14 @@ async function readBoundHostedNativeQualification(bound: Retained) {
   const prepared = inspectHostedNativeProofFiles(files, bound.authorities, bound.expected.producer);
   association(prepared, bound.expected);
   const observed = bound.observeJob();
-  if (!isDeepStrictEqual(observed.witnessed_interval, bound.job.witnessed_interval))
+  if (
+    !isDeepStrictEqual(observed.witnessed_interval, bound.job.witnessed_interval) ||
+    (bound.job.completed_at !== null && bound.job.completed_at !== observed.completed_at)
+  )
     throw new Error("hosted native job changed before consumption");
+  // Allow only live -> completed-success, never a return to live or a changed
+  // terminal completion time hidden behind the same signed witness interval.
+  bound.job = observed;
   const job = {
     ...prepared.producer,
     subject_sha256: prepared.subject_sha256,

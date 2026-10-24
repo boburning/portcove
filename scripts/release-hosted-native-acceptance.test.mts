@@ -261,8 +261,130 @@ for (const fault of [
     );
     assert.ok(isRecord(failure) && typeof failure.phase === "string");
     assert.equal(failure.status, "refused");
-    assert.ok(["source", "signature", "historical-job"].includes(failure.phase));
+    assert.ok(["source", "signature", "settled-phase-job"].includes(failure.phase));
     assert.ok(f.reads() <= 8);
+  });
+}
+
+for (const scenario of [
+  "live",
+  "completed",
+  "failed",
+  "regressed",
+  "changed-completion",
+  "multiple-witnesses",
+] as const) {
+  void test(`current signed native stage retains original custody without terminal journey credit: ${scenario}`, async (t) => {
+    const directory = await root(t),
+      f = fixture("linux-x86_64");
+    const previous = process.env.GH_TOKEN;
+    process.env.GH_TOKEN = "inert-phase-reader";
+    const live = () =>
+      Object.assign(f.provider.job, {
+        status: "in_progress",
+        conclusion: null,
+        completed_at: null,
+      });
+    const complete = () =>
+      Object.assign(f.provider.job, {
+        status: "completed",
+        conclusion: "success",
+        completed_at: "2026-10-20T12:01:00Z",
+      });
+    live();
+    if (scenario === "multiple-witnesses")
+      f.verification.verifiedTimestamps.push({
+        ...f.verification.verifiedTimestamps[0]!,
+        timestamp: "2026-10-20T12:00:45Z",
+      });
+    t.after(() => {
+      if (previous === undefined) delete process.env.GH_TOKEN;
+      else process.env.GH_TOKEN = previous;
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+    });
+    t.mock.method(
+      childProcess,
+      "spawnSync",
+      (command: string, args: readonly string[], settings: SpawnSyncOptionsWithStringEncoding) => {
+        assert.equal(settings.env?.GH_TOKEN, "inert-phase-reader");
+        if (args[0] === "attestation") return f.options.attestation.spawn(command, args);
+        const response = f.options.api.request("GET", args[2]!);
+        return {
+          status: 0,
+          stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify(response.body)}`,
+          stderr: "",
+        };
+      },
+    );
+    syncBuiltinESMExports();
+    await withReadOnlyReleaseChildren(directory, async () => {
+      const receipt = await collectHostedNativeReleaseQualification(
+        directory,
+        f.authorities,
+        f.expected,
+        f.files,
+        performance.now() + 60000,
+      );
+      assert.equal(receipt.kind, "verified-hosted-native-settled-phase");
+      assert.equal(receipt.journey_completion, "not-established");
+      assert.equal(await verifiedHistoricalHostedNativeQualification(receipt), undefined);
+      assert.equal(
+        await verifiedHostedNativeReleaseQualification(structuredClone(receipt)),
+        undefined,
+      );
+      const retained: unknown = JSON.parse(
+        await readFile(path.join(receipt.capture_directory, "verification.json"), "utf8"),
+      );
+      assert.ok(
+        isRecord(retained) && isRecord(retained.job) && isRecord(retained.job.witnessed_interval),
+      );
+      assert.equal(
+        retained.job.witnessed_interval.end,
+        Date.parse(
+          scenario === "multiple-witnesses" ? "2026-10-20T12:00:45Z" : "2026-10-20T12:00:30Z",
+        ),
+      );
+      // The same live source still cannot satisfy historical predecessor custody.
+      await assert.rejects(
+        collectHistoricalHostedNativeQualification(
+          directory,
+          f.authorities,
+          f.expected,
+          f.files,
+          performance.now() + 60000,
+        ),
+        /historical-job/,
+      );
+      assert.ok(await verifiedHostedNativeReleaseQualification(receipt));
+      if (scenario === "live" || scenario === "multiple-witnesses") return;
+      if (scenario === "failed")
+        Object.assign(f.provider.job, {
+          status: "completed",
+          conclusion: "failure",
+          completed_at: "2026-10-20T12:01:00Z",
+        });
+      else {
+        complete();
+        assert.ok(await verifiedHostedNativeReleaseQualification(receipt));
+        if (scenario === "completed") return;
+        if (scenario === "regressed") live();
+        else f.provider.job.completed_at = "2026-10-20T12:01:01Z";
+      }
+      await assert.rejects(
+        verifiedHostedNativeReleaseQualification(receipt),
+        /native phase|changed before consumption/,
+      );
+      complete();
+      await assert.rejects(
+        verifiedHostedNativeReleaseQualification(receipt),
+        /permanently stopped/,
+      );
+      assert.deepEqual(
+        await readFile(path.join(receipt.capture_directory, "report.json")),
+        f.files.report,
+      );
+    });
   });
 }
 
