@@ -17,6 +17,7 @@ import {
 import {
   controllerToolAssets,
   controllerToolEntries,
+  controllerToolChildren,
   controllerToolPaths,
   controllerToolPredicateType,
   inspectControllerToolArchive,
@@ -164,7 +165,11 @@ void test("actual fixed pack keeps the marked preparation verifier after raw sou
     { recursive: true },
   );
   await mkdir(path.join(staged, "scripts"), { recursive: true });
-  for (const name of [...controllerToolEntries, "production-controller-admission-cli"])
+  for (const name of [
+    ...controllerToolEntries,
+    "production-controller-admission-cli",
+    ...controllerToolChildren.map((file) => path.posix.basename(file, ".mts")),
+  ])
     await writeFile(
       path.join(staged, "scripts", `${name}.mts`),
       name === "release-publication-controller"
@@ -544,6 +549,7 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
     "release-site-controller",
     "release-tuf-controller",
     "release-controller-job",
+    "release-hosted-native-runner",
   ]);
 });
 void test("bootstrap environment excludes ambient credentials, wrappers, npm hooks and caches", () => {
@@ -571,14 +577,21 @@ void test("actual pinned AST rewrite preserves Unicode before imported module UR
     path.join(source, "scripts/imported.mts"),
     'const label = "😀é"; export const location = import.meta.url; export {label};\n',
   );
-  for (const name of [...controllerToolEntries, "production-controller-admission-cli"])
+  for (const name of [
+    ...controllerToolEntries,
+    "production-controller-admission-cli",
+    ...controllerToolChildren.map((file) => path.posix.basename(file, ".mts")),
+  ])
     await writeFile(
       path.join(source, "scripts", `${name}.mts`),
       'import {location,label} from "./imported.mts"; console.log(JSON.stringify({location,label,entry:import.meta.url}));\n',
     );
   await bundleControllerEntries(source, output);
-  for (const name of controllerToolEntries) {
-    const bundle = path.join(output, "scripts", `${name}.bundle.mjs`);
+  for (const file of [
+    ...controllerToolEntries.map((name) => `scripts/${name}.bundle.mjs`),
+    ...controllerToolChildren,
+  ]) {
+    const bundle = path.join(output, file);
     const result = spawnSync(process.execPath, [bundle], {
       cwd: output,
       encoding: "utf8",
