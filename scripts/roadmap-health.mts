@@ -3,7 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync, mkdirSync, appendFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { GitHubApiClient, createGitHubRunner, sanitizeOperationError } from "./github-api.mts";
 import { isRecord, errorMessage } from "./runtime-values.mts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -13,6 +13,7 @@ const substantialPaths = [
   ".github/linux-beta-risk-706.json",
   "scripts/roadmap.mts",
   "scripts/roadmap-scoped.mts",
+  "scripts/roadmap-health.mts",
   "scripts/repository-issue-inventory.mts",
   ".github/workflows/roadmap-health.yml",
 ];
@@ -200,7 +201,7 @@ function observationEvidence(report: Record<string, unknown>, runUrl: string) {
   const checked = isRecord(report.scope) ? report.scope.checked_issues : undefined;
   const checkedScope = Array.isArray(checked)
     ? `Checked issues: ${checked.map((issue) => `#${String(issue)}`).join(", ")}. `
-    : "The checked issue set was not retained. ";
+    : "No complete checked issue set is established by this receipt. ";
   const coverage = typeof report.coverage === "string" ? report.coverage : "not retained";
   const globalHealth =
     typeof report.global_health === "string" ? report.global_health : "not retained";
@@ -216,6 +217,39 @@ function observationEvidence(report: Record<string, unknown>, runUrl: string) {
     " Unchanged results do not refresh diagnostic comments."
   );
 }
+function diagnosticDetails(report: Record<string, unknown>) {
+  if (report.status === "passed") return "";
+  const diagnosis = isRecord(report.diagnosis) ? report.diagnosis : {};
+  const errors = Array.isArray(report.errors)
+    ? report.errors.filter((value): value is string => typeof value === "string")
+    : isRecord(diagnosis.error) && typeof diagnosis.error.message === "string"
+      ? [diagnosis.error.message]
+      : [];
+  const findings = [...new Set(errors)].slice(0, 10).map(
+    (message) =>
+      // Provider and issue text are data. Keep the excerpt bounded and inert in
+      // Markdown, and use the existing credential redactor before publishing it.
+      `- ${sanitizeOperationError({ message })
+        .message.replace(/[\r\n]+/gu, " ")
+        .replace(/[\\`*_{}\[\]()<>#!|@]/gu, "\\$&")}`,
+  );
+  const provider = isRecord(diagnosis.provider) ? diagnosis.provider : {};
+  const rate = isRecord(provider.rate) ? provider.rate : {};
+  const quota = typeof rate.remaining === "number" ? ` Remaining quota: ${rate.remaining}.` : "";
+  const reset =
+    typeof rate.resetAt === "string" && Number.isFinite(Date.parse(rate.resetAt))
+      ? ` Reset: ${new Date(rate.resetAt).toISOString()}.`
+      : "";
+  const retry =
+    typeof provider.retry_after === "string" && /^\d+$/u.test(provider.retry_after)
+      ? ` Retry-After: ${provider.retry_after} seconds.`
+      : "";
+  return (
+    (findings.length
+      ? `\n\nObserved findings:\n\n${findings.join("\n")}${errors.length > 10 ? "\n- Additional findings are retained in the artifact." : ""}`
+      : "") + (quota || reset || retry ? `\n\nProvider:${quota}${reset}${retry}` : "")
+  );
+}
 export function roadmapHealthSummary(report: Record<string, unknown>, runUrl: string) {
   const diagnosis = isRecord(report.diagnosis) ? report.diagnosis : {};
   return (
@@ -224,6 +258,7 @@ export function roadmapHealthSummary(report: Record<string, unknown>, runUrl: st
       ? `Classification: \`${diagnosis.kind}\`. ${typeof diagnosis.recovery_condition === "string" ? diagnosis.recovery_condition : "Inspect the retained diagnostic artifact."}\n\n`
       : "") +
     observationEvidence(report, runUrl) +
+    diagnosticDetails(report) +
     "\n"
   );
 }
@@ -272,7 +307,7 @@ export function roadmapHealthComment(
     (status === "passed"
       ? "The previously reported check recovered. This observation establishes only its declared scope."
       : `Classification: \`${kind}\`. ${recovery}`) +
-    `\n\n${observationEvidence(report, runUrl)}`
+    `\n\n${observationEvidence(report, runUrl)}${diagnosticDetails(report)}`
   );
 }
 

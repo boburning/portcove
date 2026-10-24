@@ -22,7 +22,7 @@ import {
   inventoryFailureKind,
   inventoryFailureSource,
 } from "./repository-issue-inventory.mts";
-import { sanitizeOperationError } from "./github-api.mts";
+import { GitHubApiError, sanitizeOperationError } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
 
 export function roadmapCheckScope(
@@ -67,6 +67,15 @@ export function doctorFailureDiagnostics(error: unknown) {
     recovery_condition: recovery[kind],
     error: sanitizeOperationError(error),
     ...(source !== error ? { cause: sanitizeOperationError(source) } : {}),
+    ...(source instanceof GitHubApiError
+      ? {
+          provider: {
+            status: source.status,
+            rate: source.rateLimit,
+            retry_after: source.retryAfter,
+          },
+        }
+      : {}),
     ...(isRecord(source) && isRecord(source.membershipMismatch)
       ? { membership_mismatch: source.membershipMismatch }
       : {}),
@@ -286,10 +295,19 @@ export async function runScopedDoctor(
         );
     }
   }
-  const result = evaluateScopedRoadmap(config, catalog, items);
+  const scope = { kind: "issues" as const, issues: requested, checked_issues: items.map(numberOf) };
+  let result;
+  try {
+    result = evaluateScopedRoadmap(config, catalog, items);
+  } catch (error) {
+    // Only a completed evaluation has a checked set. Failed provider reads must
+    // not acquire a complete-coverage claim from the requested issue numbers.
+    if (isRecord(error) && Array.isArray(error.doctorErrors)) error.doctorScope = scope;
+    throw error;
+  }
   if (inventory) requireRoadmapInventory(inventory, config.repository, client);
   return {
-    scope: { kind: "issues" as const, issues: requested, checked_issues: items.map(numberOf) },
+    scope,
     coverage: "complete" as const,
     global_health: "not_evaluated" as const,
     checks: [
