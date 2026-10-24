@@ -593,7 +593,7 @@ export function renderHealthMonitorSummary(report: MonitorReport): string {
     );
     for (const incident of incidents.slice(0, 20)) {
       const scope = `${cell(incident.port_id)} / ${cell(incident.provider)}:${cell(incident.location)}${incident.release_ref === null ? "" : ` @${cell(incident.release_ref)}`}`;
-      const assessment = `${cell(incident.rule)} (HTTP ${cell(incident.http_status)}); ${cell(incident.classification)}; ${incident.accounted_for ? "accounted metadata" : "unaccounted"}`;
+      const assessment = `${cell(incident.rule)} (HTTP ${cell(incident.http_status)}); ${cell(incident.classification)}; ${incident.accounted_for ? "accounted observation" : "unaccounted"}`;
       const recurrence = `first ${cell(incident.first_seen)}; ${cell(incident.occurrences)} observation(s); ${cell(observedSpan(incident))} observed span`;
       const evidence = `${incident.changed_in_this_run ? "New/changed" : "Continuing"}; ${cell(conditionEvidence(incident))}; last ${cell(incident.observed_at)}`;
       const next = `${cell(incident.resume_condition)}${incident.retry_at ? `; retry after ${cell(incident.retry_at)}` : ""}`;
