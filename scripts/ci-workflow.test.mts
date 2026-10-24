@@ -2992,6 +2992,8 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   );
   const outputOverrides = overrides.filter((value) => value["success-output"] !== undefined);
   const windowsLifecycleFilters = [
+    "package(portcove-core) & (test(/^service::tests::backups::current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_paths$/) | test(/^service::tests::backups::interrupted_backup_stages_are_visible_without_hiding_verified_backups$/))",
+    "package(portcove-core) & test(/^service::psx_mod_data::tests::lifecycle::explicit_backup_restore_preserves_successor_packages_and_preflights_conflicts$/)",
     "package(portcove-core) & (test(/^definition_repository::tests::publisher_policy_tests::curated_retained_launch_withdrawal_supervises_exact_owned_child_after_reopen$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_revocation_preserves_unaffected_active_and_recovery_evidence$/))",
     "package(portcove-core) & (test(/^service::shipwright_persistence_tests::shipwright_activation_and_rollback_collect_before_replacing_working_save$/) | test(/^service::shipwright_persistence_tests::shipwright_backup_restore_keeps_the_displaced_runtime_save_in_safety_backup$/))",
     "package(portcove-core) & (test(/^import_execution::tests::late_credentials_hold_import_before_the_open_gate$/) | test(/^library_move::tests::late_credentials_hold_move_before_authority_or_destination_activation$/))",
@@ -3000,6 +3002,8 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   ];
   const replacementDownloadFilter =
     "package(portcove-core) & test(/^service::catalog_download::tests::replacement_download_keeps_current_registration_until_reviewed_relink$/)";
+  const psxProgressionFilter =
+    "package(portcove-core) & test(/^service::runtime_tests::psx_progression::unchanged_psx_definition_completes_provider_install_and_update_with_registered_inputs$/)";
   const namedSaveRestoreFilter =
     "package(portcove-core) & test(/^service::runtime_tests::named_save_restore_updates_every_version_and_preserves_import_policy$/)";
   const publicationFilters = [
@@ -3025,6 +3029,7 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
       ...publicationFilters,
       { platform: "x86_64-pc-windows-msvc", filter: replacementDownloadFilter },
       { platform: "x86_64-pc-windows-msvc", filter: namedSaveRestoreFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: psxProgressionFilter },
     ]
       .map(outputIdentity)
       .sort(),
@@ -3061,7 +3066,7 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     for (const field of ["retries", "threads-required", "priority"])
       assert.equal(override[field], undefined);
   }
-  for (const filter of [replacementDownloadFilter, namedSaveRestoreFilter]) {
+  for (const filter of [replacementDownloadFilter, namedSaveRestoreFilter, psxProgressionFilter]) {
     const override = overrideFor(filter, "x86_64-pc-windows-msvc");
     assert.equal(override["success-output"], "immediate");
     assert.deepEqual(override["slow-timeout"], {

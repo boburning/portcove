@@ -6,6 +6,9 @@ use std::{
     path::Path,
 };
 
+mod review;
+pub(crate) use review::{DataReview, ReviewedEntry};
+
 const CREDENTIAL: &str = "retroachievements.credentials";
 pub(crate) fn known_artifact(sha256: &str) -> bool {
     sha256.eq_ignore_ascii_case("f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028")

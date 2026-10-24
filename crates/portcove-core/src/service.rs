@@ -5349,8 +5349,17 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<Vec<PathBuf>> {
-        let Some(active) = self.status_without_rollback_assessment(port_id)?.active else {
+        let Some(active) = self.collectible_active_install(port_id)? else {
             return Ok(Vec::new());
+        };
+        let port = self.installed_mutability_port(&active)?;
+        self.collect_user_data_from(&port, &active.path)
+    }
+
+    /// Read-only selection shared by collection and destructive-action review.
+    fn collectible_active_install(&self, port_id: &str) -> Result<Option<InstallRecord>> {
+        let Some(active) = self.status_without_rollback_assessment(port_id)?.active else {
+            return Ok(None);
         };
         if !active.path.join(LAUNCH_MARKER).is_file() {
             // Preserve the historical unlaunched path for deeper integrations.
@@ -5371,7 +5380,7 @@ impl PortcoveService {
                         catalog.port(port_id)?.adapter,
                         AdapterKind::NativePortable | AdapterKind::PsxRecompManaged
                     ) {
-                        return Ok(Vec::new());
+                        return Ok(None);
                     }
                 }
                 Ok(None) if requires_retained_data => {
@@ -5380,14 +5389,14 @@ impl PortcoveService {
                     ));
                 }
                 Err(error) if requires_retained_data => return Err(error),
-                _ => return Ok(Vec::new()),
+                _ => return Ok(None),
             }
         }
         let port = self.installed_mutability_port(&active)?;
         if port.adapter == AdapterKind::NativePortable {
             self.require_portable_runtime_unchanged(&active)?;
         }
-        self.collect_user_data_from(&port, &active.path)
+        Ok(Some(active))
     }
 
     pub fn collect_user_data_from_install(

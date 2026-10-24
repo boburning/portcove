@@ -767,6 +767,275 @@ mod tests {
         );
     }
     #[tokio::test]
+    async fn restore_review_safety_copy_matches_collection_and_filesystem_case_rules() {
+        for changed_case in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+            let service = build_service(library.clone(), provider);
+            let install = service
+                .install("portable-fixture", None, None, None, true, |_| {})
+                .await
+                .unwrap();
+            fs::write(install.path.join("settings.ini"), b"backed up settings").unwrap();
+            let backup = service.create_backup("portable-fixture").unwrap();
+            fs::remove_file(install.path.join("settings.ini")).unwrap();
+            let user = library.user_dir("portable-fixture");
+            if changed_case {
+                fs::rename(user.join("settings.ini"), user.join("case-change.tmp")).unwrap();
+                fs::rename(user.join("case-change.tmp"), user.join("Settings.ini")).unwrap();
+            }
+            let canonical_name = if changed_case {
+                "Settings.ini"
+            } else {
+                "settings.ini"
+            };
+            let distinct_coordinate = !user.join("settings.ini").exists();
+            let preview = service
+                .preview_backup_action("portable-fixture", &backup.id, BackupAction::Restore)
+                .unwrap();
+            assert!(preview.current_user_data_exists);
+            assert_eq!(preview.safety_backup_will_be_created, distinct_coordinate);
+            assert_eq!(
+                fs::read(user.join(canonical_name)).unwrap(),
+                b"backed up settings"
+            );
+            let authorization = service
+                .authorize_backup_action(
+                    "portable-fixture",
+                    &backup.id,
+                    BackupAction::Restore,
+                    &preview.preview_sha256,
+                )
+                .unwrap();
+            let result = service
+                .restore_backup("portable-fixture", &backup.id, &authorization.token)
+                .unwrap();
+            assert_eq!(result.safety_backup.is_some(), distinct_coordinate);
+            if let Some(safety) = result.safety_backup {
+                assert_eq!(
+                    fs::read(safety.path.join("data").join(canonical_name)).unwrap(),
+                    b"backed up settings"
+                );
+            }
+            assert_eq!(
+                fs::read(install.path.join("settings.ini")).unwrap(),
+                b"backed up settings"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn restore_review_collects_runtime_progress_after_consent_and_keeps_a_safety_backup() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let service = build_service(library.clone(), provider);
+        let install = service
+            .install("portable-fixture", None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        fs::write(install.path.join("settings.ini"), b"old saved choices").unwrap();
+        let backup = service.create_backup("portable-fixture").unwrap();
+        let user = library.user_dir("portable-fixture");
+        fs::remove_dir_all(&user).unwrap();
+        fs::write(install.path.join("settings.ini"), b"new prelaunch choices").unwrap();
+        let preview = service
+            .preview_backup_action("portable-fixture", &backup.id, BackupAction::Restore)
+            .unwrap();
+        assert!(preview.current_user_data_exists && preview.safety_backup_will_be_created);
+        assert!(
+            !user.exists(),
+            "preview must not collect or create canonical data"
+        );
+        assert!(
+            service
+                .restore_backup("portable-fixture", &backup.id, "invalid consent")
+                .is_err()
+        );
+        assert!(!user.exists(), "failed consent must not collect data");
+        let authorization = service
+            .authorize_backup_action(
+                "portable-fixture",
+                &backup.id,
+                BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        let result = service
+            .restore_backup("portable-fixture", &backup.id, &authorization.token)
+            .unwrap();
+        assert_eq!(
+            fs::read(result.safety_backup.unwrap().path.join("data/settings.ini")).unwrap(),
+            b"new prelaunch choices"
+        );
+        assert_eq!(
+            fs::read(user.join("settings.ini")).unwrap(),
+            b"old saved choices"
+        );
+        assert_eq!(
+            fs::read(install.path.join("settings.ini")).unwrap(),
+            b"old saved choices"
+        );
+        assert!(!install.path.join(LAUNCH_MARKER).exists());
+    }
+
+    #[tokio::test]
+    async fn restore_review_abandons_a_stale_prepared_copy_before_recovery_can_publish_it() {
+        struct ChangeDuringPreparation {
+            path: PathBuf,
+        }
+        impl LifecycleFaultInjector for ChangeDuringPreparation {
+            fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                if point == LifecycleFaultPoint::RestorePrepared {
+                    fs::write(&self.path, b"changed during restore preparation")?;
+                }
+                Ok(())
+            }
+        }
+        for change in ["runtime", "canonical"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+            let mut service = build_service(library.clone(), provider.clone());
+            let install = service
+                .install("portable-fixture", None, None, None, true, |_| {})
+                .await
+                .unwrap();
+            fs::write(install.path.join("settings.ini"), b"old backup choices").unwrap();
+            let backup = service.create_backup("portable-fixture").unwrap();
+            fs::write(install.path.join("settings.ini"), b"current choices").unwrap();
+            let user = library.user_dir("portable-fixture");
+            let path = if change == "runtime" {
+                install.path.join("settings.ini")
+            } else {
+                user.join("settings.ini")
+            };
+            let preview = service
+                .preview_backup_action("portable-fixture", &backup.id, BackupAction::Restore)
+                .unwrap();
+            let authorization = service
+                .authorize_backup_action(
+                    "portable-fixture",
+                    &backup.id,
+                    BackupAction::Restore,
+                    &preview.preview_sha256,
+                )
+                .unwrap();
+            service.faults = Arc::new(ChangeDuringPreparation { path: path.clone() });
+            let error = service
+                .restore_backup("portable-fixture", &backup.id, &authorization.token)
+                .unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Conflict);
+            assert_eq!(
+                fs::read(&path).unwrap(),
+                b"changed during restore preparation"
+            );
+            assert!(
+                OperationStore::new(library.clone())
+                    .all()
+                    .unwrap()
+                    .is_empty()
+            );
+            assert!(
+                service
+                    .list_backups("portable-fixture")
+                    .unwrap()
+                    .backups
+                    .iter()
+                    .any(|row| fs::read(row.path.join("data/settings.ini")).unwrap()
+                        == b"current choices")
+            );
+            let recovered = build_service(library.clone(), provider);
+            recovered.recover_pending_operations().unwrap();
+            assert_eq!(
+                fs::read(&path).unwrap(),
+                b"changed during restore preparation"
+            );
+            assert!(
+                OperationStore::new(library.clone())
+                    .all()
+                    .unwrap()
+                    .is_empty()
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn restore_review_refuses_changed_runtime_canonical_or_active_identity_before_collection()
+    {
+        for change in ["runtime", "canonical", "active"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+            let service = build_service(library.clone(), provider);
+            let mut install = service
+                .install("portable-fixture", None, None, None, true, |_| {})
+                .await
+                .unwrap();
+            fs::write(install.path.join("settings.ini"), b"backup choices").unwrap();
+            let backup = service.create_backup("portable-fixture").unwrap();
+            fs::write(install.path.join("settings.ini"), b"new runtime choices").unwrap();
+            let user = library.user_dir("portable-fixture");
+            let preview = service
+                .preview_backup_action("portable-fixture", &backup.id, BackupAction::Restore)
+                .unwrap();
+            let authorization = service
+                .authorize_backup_action(
+                    "portable-fixture",
+                    &backup.id,
+                    BackupAction::Restore,
+                    &preview.preview_sha256,
+                )
+                .unwrap();
+            match change {
+                "runtime" => {
+                    fs::write(install.path.join("settings.ini"), b"changed after review").unwrap()
+                }
+                "canonical" => {
+                    fs::write(user.join("settings.ini"), b"changed canonical after review").unwrap()
+                }
+                _ => {
+                    install.installed_at += 1;
+                    library.register_install(&install, true).unwrap();
+                }
+            }
+            let canonical_before = fs::read(user.join("settings.ini")).unwrap();
+            let runtime_before = fs::read(install.path.join("settings.ini")).unwrap();
+            let error = service
+                .restore_backup("portable-fixture", &backup.id, &authorization.token)
+                .unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Conflict);
+            assert_eq!(
+                fs::read(user.join("settings.ini")).unwrap(),
+                canonical_before
+            );
+            assert_eq!(
+                fs::read(install.path.join("settings.ini")).unwrap(),
+                runtime_before
+            );
+            assert!(
+                OperationStore::new(library.clone())
+                    .all()
+                    .unwrap()
+                    .is_empty()
+            );
+            assert_eq!(
+                service
+                    .list_backups("portable-fixture")
+                    .unwrap()
+                    .backups
+                    .len(),
+                1
+            );
+        }
+    }
+
+    #[tokio::test]
     async fn first_portable_play_preparation_preserves_edits_before_any_child_runs() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();

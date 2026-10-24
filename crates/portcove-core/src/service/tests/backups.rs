@@ -1186,6 +1186,7 @@ fn backup_interruption_child() {
 
 #[test]
 fn interrupted_backup_stages_are_visible_without_hiding_verified_backups() {
+    let started = std::time::Instant::now();
     for (name, has_data, has_manifest) in [
         ("created", false, false),
         ("copied", true, false),
@@ -1193,6 +1194,10 @@ fn interrupted_backup_stages_are_visible_without_hiding_verified_backups() {
         ("kept", true, true),
         ("published", false, false),
     ] {
+        eprintln!(
+            "Backup interruption {name} starting: {:?}",
+            started.elapsed()
+        );
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path().join("library");
         let library = Library::open(&root).unwrap();
@@ -1220,6 +1225,10 @@ fn interrupted_backup_stages_are_visible_without_hiding_verified_backups() {
         .unwrap();
         assert_eq!(output.status.code(), Some(77), "{name}: {output:?}");
 
+        eprintln!(
+            "Backup interruption {name} child exited: {:?}",
+            started.elapsed()
+        );
         let parent = library.backups_dir().join(port_id);
         let stages = fs::read_dir(&parent)
             .unwrap()
@@ -1600,6 +1609,7 @@ fn restore_remains_authoritative_after_launch_rollback_and_staged_activation() {
 
 #[test]
 fn current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_paths() {
+    let started = std::time::Instant::now();
     const PORT: &str = "zelda64-recomp";
     const COMPANION: &str = "late.dll";
 
@@ -1612,6 +1622,10 @@ fn current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_p
     let service = service_with_added_persistent_path(library.clone(), "v2", COMPANION);
 
     service.prepare_launch(PORT, None).unwrap();
+    eprintln!(
+        "Companion preservation launch complete: {:?}",
+        started.elapsed()
+    );
     assert!(!active.join(COMPANION).exists());
     assert_eq!(service.status(PORT).unwrap().active.unwrap().version, "v1");
 
@@ -1625,6 +1639,10 @@ fn current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_p
     let service = service_with_added_persistent_path(library, "v2", COMPANION);
 
     service.activate_staged(PORT).unwrap();
+    eprintln!(
+        "Companion preservation activation complete: {:?}",
+        started.elapsed()
+    );
     assert!(!staged.join(COMPANION).exists());
     let status = service.status(PORT).unwrap();
     assert_eq!(status.active.unwrap().version, "v2");
@@ -1640,6 +1658,10 @@ fn current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_p
     let service = service_with_added_persistent_path(library, "v2", COMPANION);
 
     service.rollback(PORT).unwrap();
+    eprintln!(
+        "Companion preservation rollback complete: {:?}",
+        started.elapsed()
+    );
     assert!(!previous.join(COMPANION).exists());
     assert_eq!(service.status(PORT).unwrap().active.unwrap().version, "v1");
 
@@ -1661,6 +1683,10 @@ fn current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_p
     store.put(&mut operation).unwrap();
 
     service.recover_activation(&store, &mut operation).unwrap();
+    eprintln!(
+        "Companion preservation recovery complete: {:?}",
+        started.elapsed()
+    );
     assert!(!staged.join(COMPANION).exists());
     assert!(user_companion.is_file());
     assert_eq!(service.status(PORT).unwrap().active.unwrap().version, "v2");

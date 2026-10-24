@@ -34,6 +34,12 @@ pub(super) struct BackupHistory {
     pub problems: Vec<BackupProblem>,
 }
 
+#[derive(PartialEq, Eq)]
+struct CollectibleDataReview {
+    sha256: String,
+    files_after_collection: bool,
+}
+
 /// Metadata-only existence probe; this is neither a copy plan nor integrity proof.
 /// One budget covers the owned tree and every retained persistence entry.
 #[derive(Default)]
@@ -215,6 +221,45 @@ impl RestoreOperation {
         self.phase = next;
         Ok(())
     }
+
+    /// Abandon this verified preparation before either publication rename.
+    /// This is cancellation, not a reverse successful lifecycle transition.
+    fn abandon_before_publication(
+        &mut self,
+        operation: &mut LifecycleOperation,
+        store: &OperationStore,
+        reason: &str,
+    ) -> Result<()> {
+        Self::validate_envelope(operation)?;
+        if self.phase != RestorePhase::ReadyToPublish
+            || operation.phase != LifecyclePhase::Prepared
+            || operation.id != self.id
+            || operation.port_id != self.port_id
+            || operation.activate != self.replaces_existing_data
+            || operation.paths.staging.as_ref() != Some(&self.recovery_root)
+            || operation.paths.final_path.as_ref() != Some(&self.user_root)
+            || operation.paths.quarantine.as_ref() != Some(&self.previous_data)
+        {
+            return Err(PortcoveError::state(
+                "restore cancellation does not match its prepared identity",
+            ));
+        }
+        refuse_symlink_ancestors(&self.previous_data)?;
+        refuse_symlink_ancestors(&self.staged_data)?;
+        if self.previous_data.try_exists()? || !fs::symlink_metadata(&self.staged_data)?.is_dir() {
+            return Err(PortcoveError::conflict(
+                "restore publication may have started; preserve its recovery material",
+            ));
+        }
+        let mut cancelled = operation.clone();
+        cancelled.phase = LifecyclePhase::Preparing;
+        cancelled.last_error = Some(reason.into());
+        // Do not change in-memory state before the durable abort succeeds.
+        store.put(&mut cancelled)?;
+        *operation = cancelled;
+        self.phase = RestorePhase::Unverified;
+        Ok(())
+    }
 }
 
 /// Internal interpretation of the released deletion envelope, never consent or path authority.
@@ -359,6 +404,107 @@ struct BackupStats {
 }
 
 impl PortcoveService {
+    /// Bind the same retained selection and omission rules used by collection.
+    /// This observation never creates canonical directories or copies save data.
+    fn collectible_data_review(&self, port_id: &str) -> Result<CollectibleDataReview> {
+        let mut installs = self
+            .library
+            .all_installs()?
+            .into_iter()
+            .filter(|row| row.port_id == port_id)
+            .collect::<Vec<_>>();
+        installs.sort_by(|a, b| a.id.cmp(&b.id));
+        let user = self.library.user_dir(port_id);
+        let mut review = crate::runtime_data_policy::DataReview::default();
+        let canonical = review.canonical(&user)?;
+        let is_file = |entry: &crate::runtime_data_policy::ReviewedEntry| {
+            matches!(
+                entry,
+                crate::runtime_data_policy::ReviewedEntry::File { .. }
+            )
+        };
+        let Some(active) = self.collectible_active_install(port_id)? else {
+            return Ok(CollectibleDataReview {
+                sha256: crate::signed_catalog::digest(&serde_json::to_vec(&installs)?),
+                files_after_collection: canonical.values().any(is_file),
+            });
+        };
+        let contract = self.persistence_contract_for_install(&active)?;
+        let port = &contract.port;
+        let root = self.persistence_root(port, &active.path)?;
+        let launched = active.path.join(super::LAUNCH_MARKER).is_file();
+        let psx_initialized = if port.adapter == crate::AdapterKind::PsxRecompManaged {
+            super::psx_mod_data::initialized(&active)?
+        } else {
+            false
+        };
+        let mut entries = std::collections::BTreeMap::new();
+        if !contract.writes_directly {
+            // Canonical-only pattern names are bound by canonical_data_review.
+            // Normal collection can delete them without changing runtime facts.
+            for relative in crate::persistence::entries(port, &[&root])? {
+                entries.insert(
+                    relative.clone(),
+                    review.entry(port, &root.join(relative), &user)?,
+                );
+            }
+        }
+        let additive =
+            port.adapter == crate::AdapterKind::PsxRecompManaged && !launched && !psx_initialized;
+        let replaced = if contract.writes_directly || additive {
+            Vec::new()
+        } else {
+            crate::persistence::entries(port, &[&root, &user])?
+                .into_iter()
+                .map(|relative| {
+                    let path = user.join(&relative);
+                    refuse_symlink_ancestors(&path)?;
+                    match fs::canonicalize(&path) {
+                        Ok(actual) => actual
+                            .strip_prefix(fs::canonicalize(&user)?)
+                            .map(std::path::Path::to_path_buf)
+                            .map_err(|_| {
+                                PortcoveError::conflict(
+                                    "reviewed player-data coordinate escaped its canonical root",
+                                )
+                            }),
+                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                            Ok(std::path::PathBuf::from(relative))
+                        }
+                        Err(error) => Err(error.into()),
+                    }
+                })
+                .collect::<Result<Vec<_>>>()?
+        };
+        // Ordinary mirror removes canonical-only entries beneath its selected
+        // coordinates. Direct-root and conservative PSX collection retain them.
+        // Resolve existing spelling so Windows case aliases match the observed
+        // tree, while distinct names on a case-sensitive filesystem stay distinct.
+        // This is a read-only consequence summary; collection remains the owner.
+        let files_after_collection = entries.values().any(|tree| tree.values().any(is_file))
+            || canonical.iter().any(|(path, entry)| {
+                is_file(entry) && !replaced.iter().any(|relative| path.starts_with(relative))
+            });
+        Ok(CollectibleDataReview {
+            sha256: crate::signed_catalog::digest(&serde_json::to_vec(&(
+                &installs,
+                &active,
+                port,
+                &root,
+                contract.writes_directly,
+                launched,
+                psx_initialized,
+                entries,
+            ))?),
+            files_after_collection,
+        })
+    }
+
+    fn canonical_data_review(&self, port_id: &str) -> Result<String> {
+        let tree = crate::runtime_data_policy::DataReview::default()
+            .canonical(&self.library.user_dir(port_id))?;
+        Ok(crate::signed_catalog::digest(&serde_json::to_vec(&tree)?))
+    }
     pub fn create_backup(&self, port_id: &str) -> Result<BackupRecord> {
         let activity = self.library.begin_activity(
             ActivityOperation::Backup,
@@ -940,6 +1086,17 @@ impl PortcoveService {
         };
         let mut preview_sha256 =
             backup_action_fingerprint(action, &backup, &backup_plan, user_plan.as_ref())?;
+        let collectible = if action == BackupAction::Restore {
+            let runtime = self.collectible_data_review(port_id)?;
+            preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
+                &preview_sha256,
+                &runtime.sha256,
+                self.canonical_data_review(port_id)?,
+            ))?);
+            Some(runtime)
+        } else {
+            None
+        };
         let runtime_safety = if action == BackupAction::Delete {
             self.runtime_safety_binding(&backup)?
         } else {
@@ -952,11 +1109,14 @@ impl PortcoveService {
         Ok(BackupActionPreview {
             action,
             backup,
-            current_user_data_exists,
-            safety_backup_will_be_created: action == BackupAction::Restore
-                && user_plan
+            current_user_data_exists: current_user_data_exists
+                || collectible
                     .as_ref()
-                    .is_some_and(|plan| !plan.files.is_empty()),
+                    .is_some_and(|review| review.files_after_collection),
+            safety_backup_will_be_created: action == BackupAction::Restore
+                && collectible
+                    .as_ref()
+                    .is_some_and(|review| review.files_after_collection),
             retained_runtime_copy_will_be_deleted: action == BackupAction::Delete
                 && runtime_safety.is_some(),
             preview_sha256,
@@ -1052,22 +1212,25 @@ impl PortcoveService {
             return self.finish_activity(activity, Err(error));
         }
         store.put(&mut lifecycle)?;
+        let mut abort_uncertain = false;
         let result = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "restore-backup")?;
             self.require_completed_restore(port_id)?;
             self.require_completed_backup_deletion(port_id)?;
+            let reviewed_runtime = self.collectible_data_review(port_id)?;
             self.library.consume_authorization_with_state(
                 authorization_token,
                 BackupAction::Restore.authorization_action(),
                 &backup_authorization_target(port_id, backup_id),
                 || {
-                    self.collect_active_user_data_if_launched(port_id)?;
                     Ok(self
                         .preview_backup_action(port_id, backup_id, BackupAction::Restore)?
                         .preview_sha256)
                 },
             )?;
+            self.collect_active_user_data_if_launched(port_id)?;
+            let collected_canonical = self.canonical_data_review(port_id)?;
             let restored_backup = self.load_backup(port_id, backup_id)?;
 
             if user_root.exists() && !user_root.is_dir() {
@@ -1100,10 +1263,35 @@ impl PortcoveService {
             };
             lifecycle.activate = user_root.exists();
             let mut restore = self.validate_restore_operation(&lifecycle)?;
+            let require_reviewed_data = || -> Result<()> {
+                self.preflight_psx_mod_restores(port_id, &staged_data)?;
+                if self.collectible_data_review(port_id)? != reviewed_runtime
+                    || self.canonical_data_review(port_id)? != collected_canonical
+                {
+                    return Err(PortcoveError::conflict(
+                        "Player data changed while preparing the restore. Current files and the safety backup remain recoverable; review the restore again.",
+                    ));
+                }
+                Ok(())
+            };
+            require_reviewed_data()?;
             restore.advance(RestorePhase::ReadyToPublish, &mut lifecycle, &store)?;
             self.faults.check(LifecycleFaultPoint::RestorePrepared)?;
-            restore = self.validate_restore_operation(&lifecycle)?;
-            self.preflight_psx_mod_restores(port_id, &staged_data)?;
+            let final_review = self
+                .validate_restore_operation(&lifecycle)
+                .and_then(|_| require_reviewed_data());
+            if let Err(refusal) = final_review {
+                if let Err(error) =
+                    restore.abandon_before_publication(&mut lifecycle, &store, &refusal.message)
+                {
+                    abort_uncertain = true;
+                    return Err(error
+                        .detail("recovery_directory", recovery_root.display().to_string())
+                        .detail("restore_cancellation", "not_confirmed")
+                        .detail("refusal", refusal.message));
+                }
+                return Err(refusal);
+            }
             if restore.replaces_existing_data {
                 fs::rename(&user_root, &previous_data)?;
             }
@@ -1131,7 +1319,11 @@ impl PortcoveService {
                 safety_backup,
             })
         })();
-        if let Err(error) = &result {
+        // An ambiguous abort must never be overwritten by a stale in-memory
+        // Prepared envelope or cleaned up as confirmed.
+        if let Err(error) = &result
+            && !abort_uncertain
+        {
             if lifecycle.phase == LifecyclePhase::Preparing
                 && self.validate_restore_operation(&lifecycle).is_ok()
             {

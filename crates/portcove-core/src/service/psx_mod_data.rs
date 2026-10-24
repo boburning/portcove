@@ -32,7 +32,7 @@ struct DataRestored {
 }
 
 /// Completion of a Core data restore, never launch, source or mod qualification.
-fn initialized(install: &InstallRecord) -> Result<bool> {
+pub(super) fn initialized(install: &InstallRecord) -> Result<bool> {
     let path = install.path.join(PSX_DATA_RECEIPT);
     if !path.try_exists()? {
         refuse_symlink_ancestors(&path)?;

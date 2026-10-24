@@ -4510,9 +4510,9 @@ mod tests {
                 "0ef3326f26f1d97f4ab467023ac6be5e1189a6d3",
                 "Dino_Crisis_Recompiled.exe",
                 "7fd9deaa0ef7f8b689b1092821c19ac6a0de87db",
-                26206145u64,
                 "8ef30ffe192343ef4e3c00de993b1ddf99deb106f65bf35f1689fccd4f7996a7",
-                "dino-crisis-0.1.1-windows-x64.zip",
+                "d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1",
+                "dino-crisis-",
             ),
             (
                 "alexbeav-dino-crisis-2-recomp",
@@ -4522,13 +4522,23 @@ mod tests {
                 "f7c71427c4c8726c9114514746c42f10928fbaee",
                 "Dino_Crisis_2_Recompiled.exe",
                 "38514024f3a7cea54ff05ae3afdad0929920cb5a",
-                26205977u64,
                 "ce9d77b3d35254ba31b7cd1c3deef58adacde211fc399842e57fff9b78b56283",
-                "dino-crisis-2-0.1.1-windows-x64.zip",
+                "f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125",
+                "dino-crisis-2-",
             ),
         ];
-        for (id, profile_id, variant, serial, data_sha1, executable, commit, size, sha256, asset) in
-            cases
+        for (
+            id,
+            profile_id,
+            variant,
+            serial,
+            data_sha1,
+            executable,
+            commit,
+            sha256,
+            linux_sha256,
+            prefix,
+        ) in cases
         {
             let port = catalog.port(id).unwrap();
             assert_eq!(port.adapter, AdapterKind::PsxRecompManaged);
@@ -4543,23 +4553,18 @@ mod tests {
                 port.executable_hints[&crate::Platform::WindowsX86_64],
                 [executable]
             );
-            let declaration = document["ports"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|p| p["id"] == id)
-                .unwrap();
-            let pin = &declaration["release"]["direct"]["windows-x86-64"];
-            assert_eq!(pin["version"], "v0.1.1");
-            assert_eq!(pin["size"], size);
-            assert_eq!(pin["sha256"], sha256);
+            assert_eq!(port.release.provider, crate::ReleaseSource::Github);
+            assert!(port.release.direct.is_empty());
             assert_eq!(
-                pin["url"],
-                format!("{}/releases/download/v0.1.1/{asset}", port.project_url)
+                port.release.repository,
+                format!(
+                    "alexbeavs-ps1-ports/{}",
+                    id.strip_prefix("alexbeav-").unwrap()
+                )
             );
             assert_eq!(
-                declaration["release"]["direct"].as_object().unwrap().len(),
-                2
+                port.release.asset_hints[&crate::Platform::WindowsX86_64],
+                [prefix, "-windows-x64.zip"]
             );
             let profile = document["source_catalog"]["identities"]
                 .as_array()
@@ -4600,7 +4605,7 @@ mod tests {
                         { "upstream_ref": "v0.1.1", "artifact_sha256": sha256 },
                         {
                             "upstream_ref": "v0.1.1",
-                            "artifact_sha256": declaration["release"]["direct"]["linux-x86-64"]["sha256"]
+                            "artifact_sha256": linux_sha256
                         }
                     ])
                 );
@@ -4727,8 +4732,9 @@ mod tests {
             bios_variant,
             exe,
             version,
-            size,
             digest,
+            linux_digest,
+            prefix,
             commit,
         ) in [
             (
@@ -4741,8 +4747,9 @@ mod tests {
                 "europe-v3-0",
                 "Alien_Resurrection_Recompiled.exe",
                 "v0.1.4",
-                29907400u64,
                 "2eb2ba6aa955684145271393f635e43854deab116a629de69443a7d310e994d5",
+                "f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995",
+                "alien-resurrection-recomp-",
                 "38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c",
             ),
             (
@@ -4755,8 +4762,9 @@ mod tests {
                 "legacy-accepted",
                 "Brave_Fencer_Musashi_Recompiled.exe",
                 "v0.1.3",
-                29900215u64,
                 "9c65de1c5b539495f9ec2909ff786ac5b655aba05045d74e4801943a8c3158f5",
+                "d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e",
+                "brave-fencer-musashi-recomp-",
                 "54ddfe971dfd79134f2593b00dbd9b78ae51536b",
             ),
         ] {
@@ -4786,19 +4794,18 @@ mod tests {
                 assert!(port.persistent_paths.iter().any(|path| path == owned));
                 assert!(!port.runtime_mutable_paths.iter().any(|path| path == owned));
             }
-            let declaration = document["ports"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|value| value["id"] == id)
-                .unwrap();
-            let pin = &declaration["release"]["direct"]["windows-x86-64"];
-            assert_eq!(pin["version"], version);
-            assert_eq!(pin["size"], size);
-            assert_eq!(pin["sha256"], digest);
+            assert_eq!(port.release.provider, crate::ReleaseSource::Github);
+            assert!(port.release.direct.is_empty());
             assert_eq!(
-                declaration["release"]["direct"].as_object().unwrap().len(),
-                2
+                port.release.repository,
+                format!(
+                    "alexbeavs-ps1-ports/{}",
+                    id.strip_prefix("alexbeav-").unwrap()
+                )
+            );
+            assert_eq!(
+                port.release.asset_hints[&crate::Platform::WindowsX86_64],
+                [prefix, "-windows-x64.zip"]
             );
             let identity = document["source_catalog"]["identities"]
                 .as_array()
@@ -4828,13 +4835,15 @@ mod tests {
             for contract in contracts {
                 assert_eq!(contract["admission_mode"], "enforced");
                 assert_eq!(contract["authority_ref"], commit);
+                // Historical release-specific source evidence stays exact;
+                // it does not pin the current provider's reusable selection.
                 assert_eq!(
                     contract["applicability"],
                     serde_json::json!([
                         { "upstream_ref": version, "artifact_sha256": digest },
                         {
                             "upstream_ref": version,
-                            "artifact_sha256": declaration["release"]["direct"]["linux-x86-64"]["sha256"]
+                            "artifact_sha256": linux_digest
                         }
                     ])
                 );
@@ -4863,37 +4872,33 @@ mod tests {
     fn managed_psx_linux_parity_binds_four_exact_assets_without_runtime_qualification() {
         let catalog = Catalog::embedded().unwrap();
         let document = serde_json::to_value(catalog.authoritative_document()).unwrap();
-        for (id, executable, version, asset, size, sha256) in [
+        for (id, executable, version, prefix, sha256) in [
             (
                 "alexbeav-dino-crisis-recomp",
                 "Dino_Crisis_Recompiled",
                 "v0.1.1",
-                "dino-crisis-0.1.1-linux-x64.zip",
-                24179470u64,
+                "dino-crisis-",
                 "d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1",
             ),
             (
                 "alexbeav-dino-crisis-2-recomp",
                 "Dino_Crisis_2_Recompiled",
                 "v0.1.1",
-                "dino-crisis-2-0.1.1-linux-x64.zip",
-                24179506u64,
+                "dino-crisis-2-",
                 "f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125",
             ),
             (
                 "alexbeav-alien-resurrection-recomp",
                 "Alien_Resurrection_Recompiled",
                 "v0.1.4",
-                "alien-resurrection-recomp-0.1.4-linux-x64.zip",
-                27800828u64,
+                "alien-resurrection-recomp-",
                 "f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995",
             ),
             (
                 "alexbeav-brave-fencer-musashi-recomp",
                 "Brave_Fencer_Musashi_Recompiled",
                 "v0.1.3",
-                "brave-fencer-musashi-recomp-0.1.3-linux-x64.zip",
-                27794465u64,
+                "brave-fencer-musashi-recomp-",
                 "d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e",
             ),
         ] {
@@ -4911,19 +4916,18 @@ mod tests {
             assert_eq!(port.launch_arguments, ["--no-launcher"]);
             assert!(port.automated_tested_platforms.is_empty());
             assert!(port.manually_validated_platforms.is_empty());
-            let declaration = document["ports"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|value| value["id"] == id)
-                .unwrap();
-            let pin = &declaration["release"]["direct"]["linux-x86-64"];
-            assert_eq!(pin["version"], version);
-            assert_eq!(pin["size"], size);
-            assert_eq!(pin["sha256"], sha256);
+            assert_eq!(port.release.provider, crate::ReleaseSource::Github);
+            assert!(port.release.direct.is_empty());
             assert_eq!(
-                pin["url"],
-                format!("{}/releases/download/{version}/{asset}", port.project_url)
+                port.release.repository,
+                format!(
+                    "alexbeavs-ps1-ports/{}",
+                    id.strip_prefix("alexbeav-").unwrap()
+                )
+            );
+            assert_eq!(
+                port.release.asset_hints[&crate::Platform::LinuxX86_64],
+                [prefix, "-linux-x64.zip"]
             );
             let evidence_id = format!("{id}-{}-linux-static-contract", version.replace('.', "-"));
             assert!(

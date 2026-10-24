@@ -788,6 +788,29 @@ restore records remain excluded by the execution guard. A restore-only recovery
 hold does not hold deletion review of an otherwise usable snapshot. This preview
 check supplies no authorization; execution repeats its guards under the port lock.
 
+Restore review is read-only. Its fingerprint binds the selected backup,
+canonical player data, installed identities and the active retained collection
+contract. A bounded runtime snapshot distinguishes missing entries, directories
+and file contents, including data created before first Play where the retained
+native-portable or PSX contract permits collection. The existing closed runtime
+credential policy validates omitted names and types without opening credential
+contents. Canonical-only pattern names belong to the canonical fingerprint;
+normal collection removing them does not manufacture a changed runtime state.
+The safety-backup consequence reflects the files that collection will leave,
+including direct-root and conservative uninitialized PSX behavior. Existing
+coordinates use filesystem-resolved spelling, preserving Windows aliases and
+distinct names on case-sensitive filesystems.
+
+Execution consumes consent after a read-only state check under the port lock,
+then collects current runtime data and makes the safety copy. It checks runtime
+facts and the post-collection canonical snapshot again before publication. A
+known refusal after preparation durably cancels the still-unpublished operation
+before ordinary preparation cleanup, so recovery cannot publish that rejected
+copy. Cancellation requires the exact journal/path identity, an intact staged
+directory and no previous-data rename. An uncertain cancellation preserves its
+journal and payload and reports that cancellation was not confirmed; it never
+rewrites the journal from stale in-memory state or claims automatic rollback.
+
 `PortcoveService` remains the public facade for create/list/review/authorize/
 restore/delete backup operations. Its stable `BackupAction` and
 `BackupActionPreview` DTOs remain at the existing public paths. The private
@@ -820,7 +843,8 @@ source identity and refreshes the setup manifest before the unchanged supervised
 spawn. External-runtime preparation and durable launch-session ownership remain
 with the existing service facade.
 
-Creation locks the port, reconciles launched user data, writes and syncs a
+Creation locks the port, reconciles collectible user data under its retained
+launch/prelaunch contract, writes and syncs a
 bounded preparation identity before copying, then writes the private payload and
 manifest before publication through the existing backup-directory durability
 helpers. New manifests bind their backup ID to that staging name through an

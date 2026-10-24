@@ -17,6 +17,39 @@ filter = 'package(portcove-core) & test(/^service::runtime_tests::named_save_res
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
+# The owned PSX provider/preparation/update/fresh-install fixture passed at
+# 24.578s, then hit the 30.108s Windows outer cap after its child started.
+# Keep its decoder compilation, all real Core install/staging/refusal/data
+# assertions and both workers. Exact-case 90s room plus phase diagnostics
+# preserves finite hang detection, zero retries and product/child deadlines.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::runtime_tests::psx_progression::unchanged_psx_definition_completes_provider_install_and_update_with_registered_inputs$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
+# This complete two-attempt PSX backup/restore fixture passed at 13.98s, then
+# hit the 30.047s Windows harness cutoff during the broader restore run.
+# Retain both success/conflict attempts and every package/save assertion, two
+# workers and zero retries. Exact-case 60s headroom and phase diagnostics leave
+# hang detection finite; product and child deadlines are unchanged.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::psx_mod_data::tests::lifecycle::explicit_backup_restore_preserves_successor_packages_and_preflights_conflicts$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# These complete backup fixtures passed at 24.893s/24.495s, then hit exact
+# 30.142s/30.045s Windows caps in the broader restore run. Preserve all four
+# lifecycle operations and all five interrupted child boundaries. Exact-case
+# 60s room with phase diagnostics retains finite hang detection, two workers,
+# zero retries, cleanup and unchanged product/child deadlines.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^service::tests::backups::current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_paths$/) | test(/^service::tests::backups::interrupted_backup_stages_are_visible_without_hiding_verified_backups$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # The portable lifecycle fixtures perform several durable installs, activations
 # and recovery reopens. The retained local Windows run hit 30.042s and 30.085s
 # harness cutoffs while another full case completed at 28.979s. Keep every
@@ -69,8 +102,8 @@ success-output = "immediate"
 
 # Shipwright's complete Windows save lifecycles reached the 30s harness cap.
 # The activation fixture was ready at 14.77s and its second retained installation
-# at 21.10s, before activation/rollback assertions; restore includes fresh consent
-# after authoritative collection. Keep both workers, all steps, zero retries and
+# at 21.10s, before activation/rollback assertions; restore now binds runtime
+# data before consent and collects only after that read-only review. Keep both workers, all steps, zero retries and
 # product deadlines; only these exact fixtures receive finite 60s headroom.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'

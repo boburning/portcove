@@ -716,9 +716,14 @@ mod lifecycle {
 
     #[test]
     fn explicit_backup_restore_preserves_successor_packages_and_preflights_conflicts() {
+        let started = std::time::Instant::now();
         for conflict in [false, true] {
             let (_temporary, service, catalog) = fixture();
             let install = register(&service, &catalog, "v1", true, None);
+            eprintln!(
+                "PSX restore conflict={conflict} registered: {:?}",
+                started.elapsed()
+            );
             let user = service.library.user_dir(ID);
             write(&user, "mods/packages/default/1.0/file", b"old package");
             write(&user, "saves/progress.sav", b"old save");
@@ -726,6 +731,10 @@ mod lifecycle {
                 .restore_user_data_to(catalog.port(ID).unwrap(), &install.path)
                 .unwrap();
             let backup = service.create_backup(ID).unwrap();
+            eprintln!(
+                "PSX restore conflict={conflict} snapshot created: {:?}",
+                started.elapsed()
+            );
             write(&install.path, LAUNCH_MARKER, b"1");
             write(
                 &install.path,
@@ -758,8 +767,16 @@ mod lifecycle {
                     &preview.preview_sha256,
                 )
                 .unwrap();
+            eprintln!(
+                "PSX restore conflict={conflict} review authorized: {:?}",
+                started.elapsed()
+            );
             let before = snapshot(&user, &|| Ok(())).unwrap();
             let result = service.restore_backup(ID, &backup.id, &authorization.token);
+            eprintln!(
+                "PSX restore conflict={conflict} restore returned: {:?}",
+                started.elapsed()
+            );
             if conflict {
                 assert!(
                     result
@@ -786,6 +803,10 @@ mod lifecycle {
                     .is_file()
             );
             assert_eq!(service.status(ID).unwrap().active.unwrap().id, install.id);
+            eprintln!(
+                "PSX restore conflict={conflict} assertions complete: {:?}",
+                started.elapsed()
+            );
         }
     }
 

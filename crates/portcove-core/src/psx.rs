@@ -1538,6 +1538,11 @@ fn platform_executable(root: &Path, basename: &str) -> PathBuf {
     }
 }
 
+#[cfg(all(test, any(windows, target_os = "linux")))]
+pub(crate) fn owned_toolchain_fixture(root: &Path, program: &Path) {
+    tests::toolchain_fixture(root, Some(program));
+}
+
 fn locate_pack_root(unpacked: &Path) -> Result<PathBuf> {
     if unpacked.join("retcomm-toolchain.json").is_file() {
         return Ok(unpacked.to_path_buf());
@@ -2516,7 +2521,7 @@ mod tests {
         assert!(marker.is_file());
     }
 
-    fn toolchain_fixture(root: &Path, program: Option<&Path>) -> PathBuf {
+    pub(super) fn toolchain_fixture(root: &Path, program: Option<&Path>) -> PathBuf {
         let platform = Platform::current().unwrap();
         let artifact = toolchain_artifact(platform).unwrap();
         let python = if cfg!(windows) {

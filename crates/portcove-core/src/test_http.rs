@@ -1,5 +1,7 @@
 use crate::Result;
 mod requests;
+#[cfg(any(windows, target_os = "linux"))]
+pub(crate) use requests::HttpServer;
 pub(crate) use requests::{serve_http, serve_routed_http};
 use std::{
     io::{self, Read, Write},
