@@ -2056,7 +2056,8 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     // Windows focused run 5233faf8: ArtifactRevocationRetain first copied
     // 5.784s after installer start, beyond its 5s latch. Keep the same 15s
     // setup headroom and drain/refusal checks under the finite outer safeguard.
-    let latch_timeout = if cfg!(target_os = "windows")
+    let latch_timeout = if (cfg!(target_os = "windows")
+        || cfg!(all(target_os = "macos", target_arch = "x86_64")))
         && matches!(
             intervention,
             CacheIntervention::ArtifactWithdrawalRetain
@@ -2064,16 +2065,6 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
                 | CacheIntervention::CancelRetain
                 | CacheIntervention::ArtifactRevocationRetain
         ) {
-        Duration::from_secs(15)
-    } else if cfg!(all(target_os = "macos", target_arch = "x86_64"))
-        && matches!(
-            intervention,
-            CacheIntervention::PolicyLoss
-                | CacheIntervention::CancelRetain
-                | CacheIntervention::ArtifactRevocationRetain
-                | CacheIntervention::ArtifactWithdrawalRetain
-        )
-    {
         Duration::from_secs(15)
     } else if cfg!(all(target_os = "macos", target_arch = "x86_64"))
         && matches!(

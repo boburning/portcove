@@ -118,18 +118,18 @@ pub(crate) fn require_artifact(
     if port.runtime_data_policy == Some(crate::RuntimeDataPolicy::VersionLocalRetroAchievementsV1) {
         return crate::managed_runtime_policy::require_artifact(port, version, artifact, platform);
     }
-    if port.runtime_data_policy.is_some() || known_artifact(&artifact.sha256) {
-        if port.runtime_data_policy.is_none()
+    if (port.runtime_data_policy.is_some() || known_artifact(&artifact.sha256))
+        && (port.runtime_data_policy.is_none()
             || platform != Some(crate::Platform::WindowsX86_64)
             || version != "v1.0.0"
             || artifact.asset_name != "RaceWave46-Windows-x64-v1.0.0.zip"
             || artifact.size != 35_768_574
-            || artifact.sha256 != "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
-        {
-            return Err(PortcoveError::verification(
-                "version-local credential handling requires the actual reviewed RaceWave46 Windows installation; install the official package through Portcove",
-            ));
-        }
+            || artifact.sha256
+                != "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028")
+    {
+        return Err(PortcoveError::verification(
+            "version-local credential handling requires the actual reviewed RaceWave46 Windows installation; install the official package through Portcove",
+        ));
     }
     Ok(())
 }
