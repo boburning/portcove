@@ -349,14 +349,21 @@ finally:
 '''
 
 CHILD = r'''
-import json,os,subprocess,sys,time
+import json,os,stat,subprocess,sys,time
 from pathlib import Path
+def null_device():
+ info=os.stat('/dev/null',follow_symlinks=False)
+ assert stat.S_ISCHR(info.st_mode) and (os.major(info.st_rdev),os.minor(info.st_rdev))==(1,3)
+ descriptor=os.open('/dev/null',os.O_RDWR|os.O_CLOEXEC|os.O_NOFOLLOW)
+ os.close(descriptor)
+ return {'kind':'character','major':1,'minor':3,'readwrite_opened':True}
 os.umask(0o077)
 home,ready=map(Path,sys.argv[1:]); size=os.statvfs(home)
 assert 0<size.f_blocks*size.f_frsize<=512*1024*1024
 mounts=[line.split() for line in Path('/proc/self/mountinfo').read_text().splitlines()]
 matches=[parts[parts.index('-')+1] for parts in mounts if parts[4]==str(home)]
 assert matches==['tmpfs']
+devices={'null':null_device()}
 child=subprocess.Popen(['/usr/bin/python3','-I','-S','-B','-c','import time;time.sleep(120)'],env={'PATH':'/usr/bin:/bin'},stdin=subprocess.DEVNULL)
 status=dict(line.split(':',1) for line in Path('/proc/self/status').read_text().splitlines() if ':' in line)
 policy={'apparmor':Path('/proc/self/attr/current').read_text().strip(),'NoNewPrivs':status['NoNewPrivs'].strip(),
@@ -364,7 +371,7 @@ policy={'apparmor':Path('/proc/self/attr/current').read_text().strip(),'NoNewPri
         'userns_restriction':Path('/proc/sys/kernel/apparmor_restrict_unprivileged_userns').read_text().strip()}
 partial=ready.with_suffix('.partial')
 with partial.open('xb') as f:
- f.write(json.dumps({'pid':os.getpid(),'child_pid':child.pid,'uid':os.getuid(),'gid':os.getgid(),'cgroup':Path('/proc/self/cgroup').read_text().strip(),'writable_bytes':size.f_blocks*size.f_frsize,'policy':policy}).encode())
+ f.write(json.dumps({'pid':os.getpid(),'child_pid':child.pid,'uid':os.getuid(),'gid':os.getgid(),'cgroup':Path('/proc/self/cgroup').read_text().strip(),'writable_bytes':size.f_blocks*size.f_frsize,'policy':policy,'devices':devices}).encode())
 # Publish a complete record atomically, refusing an existing destination. Keep
 # the matching partial inode as diagnostic evidence rather than deleting it.
 os.link(partial,ready)
@@ -524,7 +531,8 @@ def inert_entry(invocation):
     os.execve("/usr/bin/bwrap", [
         "/usr/bin/bwrap", "--die-with-parent", "--new-session", "--unshare-user",
         "--uid", str(user.pw_uid), "--gid", str(user.pw_gid), "--cap-drop", "ALL",
-        "--bind", "/", "/", "--size", "536870912", "--tmpfs", str(home), "--chdir", str(home),
+        "--bind", "/", "/", "--dev-bind", "/dev/null", "/dev/null",
+        "--size", "536870912", "--tmpfs", str(home), "--chdir", str(home),
         "--setenv", "HOME", str(home), "--setenv", "TMPDIR", str(home), "--",
         "/usr/bin/python3", "-I", "-S", "-B", "-c", CHILD, str(home), str(ready),
     ], ENV)
@@ -596,6 +604,8 @@ def probe():
         need(observed["uid"] == user.pw_uid and observed["gid"] == user.pw_gid,
              "actual namespace account differs")
         check_namespace_policy(observed["policy"])
+        need(observed["devices"] == {"null": {"kind": "character", "major": 1, "minor": 3, "readwrite_opened": True}},
+             "actual fixed null device differs")
         need(observed["cgroup"] == "0::" + str(group.path).removeprefix("/sys/fs/cgroup"),
              "actual namespace cgroup differs")
         need(str(observed["pid"]) in group.read("cgroup.procs").splitlines()

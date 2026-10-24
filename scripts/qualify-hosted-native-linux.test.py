@@ -219,6 +219,29 @@ class HostedReadiness(unittest.TestCase):
                 if outcome == "collision":
                     self.assertEqual(retained, {})
 
+    def test_actual_inert_child_requires_usable_exact_null_device_before_spawning(self):
+        node = next(node for node in ast.parse(readiness.CHILD).body
+                    if isinstance(node, ast.FunctionDef) and node.name == "null_device")
+        for condition in ("accepted", "regular-file", "wrong-device", "open-refused"):
+            fake_os = SimpleNamespace(stat=Mock(return_value=SimpleNamespace(
+                st_mode=stat.S_IFREG if condition == "regular-file" else stat.S_IFCHR, st_rdev=259)),
+                major=Mock(return_value=1), minor=Mock(return_value=5 if condition == "wrong-device" else 3),
+                open=Mock(side_effect=PermissionError("controlled") if condition == "open-refused" else None, return_value=9),
+                close=Mock(), O_RDWR=2, O_CLOEXEC=4, O_NOFOLLOW=8)
+            scope = {"os": fake_os, "stat": stat}
+            exec(compile(ast.Module(body=[node], type_ignores=[]), "actual-inert-null-device", "exec"), scope)
+            with self.subTest(condition=condition):
+                if condition == "accepted":
+                    self.assertEqual(scope["null_device"](),
+                                     {"kind": "character", "major": 1, "minor": 3, "readwrite_opened": True})
+                    fake_os.open.assert_called_once_with("/dev/null", 14)
+                    fake_os.close.assert_called_once_with(9)
+                else:
+                    with self.assertRaises((AssertionError, PermissionError)):
+                        scope["null_device"]()
+                    fake_os.close.assert_not_called()
+                fake_os.stat.assert_called_once_with("/dev/null", follow_symlinks=False)
+
     def test_postexec_policy_requires_enforcing_stack_unchanged_nnp_and_zero_capabilities(self):
         policy = {"apparmor": "bwrap//&unpriv_bwrap (enforce)", "NoNewPrivs": "1", "userns_restriction": "1",
                   "capabilities": dict.fromkeys(("CapEff", "CapPrm", "CapInh", "CapAmb", "CapBnd"), "0000000000000000")}
@@ -330,6 +353,10 @@ class HostedReadiness(unittest.TestCase):
                     self.assertEqual(arguments[0], executable)
                     self.assertIn(readiness.CHILD, arguments)
                     self.assertIn("--cap-drop", arguments)
+                    index = arguments.index("--dev-bind")
+                    self.assertEqual(arguments[index + 1:index + 3], ["/dev/null", "/dev/null"])
+                    self.assertGreater(index, arguments.index("--bind"))
+                    self.assertNotIn("--dev", arguments)
                     self.assertEqual(environment, readiness.ENV)
                 else:
                     with self.assertRaises(RuntimeError):
