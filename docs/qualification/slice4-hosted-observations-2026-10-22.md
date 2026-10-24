@@ -715,3 +715,40 @@ tools plus1MiB attestation, with the existing bounded tool inventory expansion).
 That receiver is used only before the first launch; post-sign retains the
 original executable identity. Final whole-job storage, download and graph fit remain
 required. No job, deadline, spending, cache, retention or authority is increased.
+
+## Fixed hosted Linux worker supervision (October 24)
+
+The prepared worker keeps the launcher's actual tool receipt in one original
+process across both fixed bootstrap children. A copied JSON plan cannot claim
+that context or choose an executable. Each child runs under the existing resource
+guard and prepared Linux adopting reaper; the registered wrapper and payload use
+the authenticated private Node. No runtime compiler or shared-cache fallback is
+introduced. The shared fixed-support materializer preserves the native runtime's
+original parent/custody checks and permanently stops after refusal.
+
+The original provider deadline includes setup, resource waiting, both stages,
+upload waiting and durable settlement. An absolute cancellation timer cannot be
+renewed by the managed process's launch gate. Registration, bounded stdout/stderr
+prefixes and matching tree-cleanup readback remain retained. Each stream is at
+most1MiB per stage; overflow cancels through the existing supervisor. Synchronous
+registration/cleanup/reaper reads use bounded descriptors and original identity
+checks before allocation or execution. A final activity check precedes spawn.
+
+Post-start is a no-replace sequencing signal for the original live supervisor
+after successful pre-stage settlement. It does not admit native work: the child
+still authenticates its actual source, coordinator, signed inputs and predecessor
+proofs. Missing signals expire inside the same original clock. Late durable
+settlement retains any partial success row and emits a separate refusal, without
+overwriting its history or retrying the stage. A successful supervision row proves
+only its process/transport result, not native or protected acceptance.
+
+The prepared source does not activate a production job or provide a complete
+composite. The fixed start/upload/ACK/settlement caller, whole-graph99/hard100 fit,
+Windows counterpart and actual protected/public/native observations remain
+required. Additional bounded storage is four1MiB stream prefixes, at most128KiB
+of lifecycle records and up to two16MiB owned support copies when cleanup cannot
+be proved. Settled generic supervisor scratch is disposed by its existing owner;
+the original stage effects and retained observations are preserved. This is not
+an account capacity reservation. Existing spending, archive, cache, concurrency,
+retention and issue/Chameleon holds remain unchanged; production held; slice5
+excluded. Qualification and independent review belong to the owning receipt.
