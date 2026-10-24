@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { nativeQualificationFixture } from "./fixtures/native-qualification-fixture.mts";
@@ -6,12 +7,15 @@ import { selectedPublicationAuthoritiesFixture } from "./fixtures/checkpoint-pro
 import {
   deriveHostedNativePayloadOpportunities,
   collectConfiguredHostedNativePayloadPair,
+  collectConfiguredHostedNativePublicationPair,
+  deriveHostedNativePublicationOpportunities,
 } from "./release-hosted-native-admission.mts";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
 import {
   inspectNativeQualificationAssociation,
   requireNativeReleaseQualificationPair,
   collectNativeReleaseQualificationPair,
+  collectConfiguredNativeReleaseQualificationPair,
   deriveNativeQualificationExpectations,
   deriveNativeQualificationTemplates,
   bindNativeQualificationLocators,
@@ -25,6 +29,7 @@ import { nativePrepublicationProfile } from "./release-native-qualification-cont
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import {
   deriveNativePublicationJourneys,
+  deriveHostedNativePublicationJourneys,
   inspectNativeCompletionLineage,
   nativeCompletionUsesHistoricalLineage,
   inspectNativePublicationPredecessor,
@@ -34,11 +39,437 @@ import {
 } from "./release-native-publication-admission.mts";
 import { prepareNativeQualificationCheck } from "./release-native-acceptance.mts";
 import { metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
-import { mkdtemp, rm, readdir } from "node:fs/promises";
+import { mkdtemp, rm, readdir, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { requireRetainedActualTufPublication } from "./release-tuf-publication.mts";
+import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
+import {
+  hostedNativeArtifactName,
+  readHostedNativeProofArchive,
+  readHostedNativeProofArtifact,
+} from "./release-hosted-native-artifact.mts";
+import { hostedNativeProofLimits } from "./release-hosted-native-proof-contract.mts";
+import authorityOracle from "./fixtures/release-job-authorities-prechange.json" with { type: "json" };
+import { releaseControlPhaseProfile } from "./release-control-phases.mts";
+
+const hostedInitialJourney = () => ({
+  kind: "initial-empty-feed",
+  metadata_bootstrap_sha256: "1".repeat(64),
+  setup_plan_sha256: "2".repeat(64),
+  initial_site_preimage_sha256: "3".repeat(64),
+  empty_records_sha256: createHash("sha256").update("[]").digest("hex"),
+  signed_context_sha256: "4".repeat(64),
+  signatures_sha256: "5".repeat(64),
+});
+
+void test("actual selected post-sign callers use the normalized namespace through context and anchor checks before reservation read", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "selected-postsign-source-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const f = await trustedAssemblyFixture(t, "initial-beta-win-linux");
+  const row = authorityOracle.cases.find((entry) => entry.name === "selected-app")!;
+  const workflow = await readFile(
+    new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+  );
+  const data = {
+    root,
+    configuration: row.configuration,
+    policy: row.policy,
+    workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
+    assembly: f.request,
+    archives: [
+      { platform: "windows-x86_64", artifact_id: 901 },
+      { platform: "linux-x86_64", artifact_id: 902 },
+    ],
+  };
+  // Private capability getters are replaced only inside a disposable test
+  // process. This demonstrates composition, not actual TUF/native acceptance.
+  const script = `
+import assert from 'node:assert/strict';
+import { mock } from 'node:test';
+import { createHash } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
+import { pathToFileURL } from 'node:url';
+const data = ${JSON.stringify(data)};
+const base = pathToFileURL(process.cwd() + '/scripts/');
+const url = name => new URL(name + '.mts', base).href;
+const names = ['release-tuf-publication', 'release-signing-context-artifact', 'release-signing-context', 'release-coordinator-recovery'];
+const original = await Promise.all(names.map(name => import(url(name))));
+const { releaseCanonicalDigest: digest } = await import(url('release-canonical'));
+const bytes = Buffer.from('{}');
+const sha = createHash('sha256').update(bytes).digest('hex');
+const configuration = structuredClone(data.configuration);
+for (const key of ['root', 'offline_targets', 'payload_key_registry']) {
+  configuration.publication.public_source[key].sha256 = sha;
+  configuration.publication.public_source[key].bytes = bytes.length;
+}
+process.env.PORTCOVE_EXECUTION_PURPOSE = 'application';
+process.env.PORTCOVE_RELEASE_AUTHORITIES = JSON.stringify(configuration);
+process.env.PORTCOVE_CONTROLLER_ADMISSION = JSON.stringify({ ...data.policy, workflow_sha256: data.workflow_sha256, authority_configuration_sha256: digest(configuration) });
+process.env.GITHUB_JOB = 'release_publication';
+const namespace = configuration.journal.namespace;
+assert.equal(configuration.namespace, undefined);
+const contextReceipt = {}, tufReceipt = {};
+const manifest = { facts: { configuration: { namespace }, opportunity: {}, assembly: data.assembly, archives: data.archives }, binding: {} };
+let reads = 0;
+mock.module(url(names[0]), { namedExports: { ...original[0], requireActualTufPublication: async receipt => {
+  assert.equal(receipt, tufReceipt);
+  return { context_receipt: contextReceipt, publication: { repository_sha256: 'a'.repeat(64) } };
+} } });
+mock.module(url(names[1]), { namedExports: { ...original[1], requireReceivedSigningContext: async receipt => {
+  assert.equal(receipt, contextReceipt);
+  return { manifest, context: data.root + '/context/manifest.json' };
+} } });
+mock.module(url(names[2]), { namedExports: { ...original[2], readBoundedReleaseContextFiles: async () => new Map(['trusted-root.json', 'offline-targets.json', 'payload.json'].map(name => [name, bytes])) } });
+mock.module(url(names[3]), { namedExports: { ...original[3], readRemoteCoordinatorSnapshot: async (_directory, selected) => {
+  assert.deepEqual(selected, { schema_version: 1, namespace });
+  reads++;
+  throw new Error('bounded synthetic reservation seam');
+} } });
+const collector = await import(url('release-native-publication-admission') + '?selected-composition');
+for (const name of ['collectConfiguredNativePublicationQualificationPair', 'collectConfiguredNativePublicationCompletionPair']) {
+  await assert.rejects(collector[name](data.root, null, data.assembly, data.archives, contextReceipt, tufReceipt, performance.now() + 10000), /configured post-sign native collection refused/);
+}
+assert.equal(reads, 2);
+manifest.facts.configuration.namespace = 'wrong-namespace';
+await assert.rejects(collector.collectConfiguredNativePublicationQualificationPair(data.root, null, data.assembly, data.archives, contextReceipt, tufReceipt, performance.now() + 10000), /acquired candidate differs/);
+assert.equal(reads, 2);
+process.stdout.write('selected-reservation-seam:2\\n');
+`;
+  const child = spawnSync(
+    process.execPath,
+    ["--experimental-test-module-mocks", "--input-type=module", "-"],
+    {
+      cwd: process.cwd(),
+      env: { ...process.env, ...authorityOracle.environment },
+      input: script,
+      encoding: "utf8",
+      timeout: 30000,
+      maxBuffer: 128 * 1024,
+      windowsHide: true,
+      shell: false,
+    },
+  );
+  assert.equal(child.status, 0, child.stderr);
+  assert.equal(child.stdout.trim(), "selected-reservation-seam:2");
+});
+
+void test("hosted post-sign opportunities bind each exact package to a closed signed-repository journey and snapshot it", async (t) => {
+  const f = await trustedAssemblyFixture(t, "initial-beta-win-linux");
+  const configuration = selectedPublicationAuthoritiesFixture("application");
+  const archives = [
+    { platform: "windows-x86_64", artifact_id: 901 },
+    { platform: "linux-x86_64", artifact_id: 902 },
+  ];
+  const journeys = ["linux-x86_64", "windows-x86_64"].map((platform_label) => ({
+    platform_label,
+    journey: hostedInitialJourney(),
+  }));
+  const expected = structuredClone(journeys);
+  const pending = deriveHostedNativePublicationOpportunities(
+    configuration,
+    f.request,
+    archives,
+    journeys,
+  );
+  journeys[0]!.journey.signatures_sha256 = "6".repeat(64);
+  const opportunities = await pending;
+  assert.equal(opportunities.length, 2);
+  for (const opportunity of opportunities) {
+    assert.equal(opportunity.stage, "release-publication");
+    assert.deepEqual(
+      opportunity.journey,
+      expected.find((entry) => entry.platform_label === opportunity.platform_label)!.journey,
+    );
+    assert.equal(opportunity.candidate.source_commit, f.request.source_commit);
+    assert.equal(
+      opportunity.candidate.artifact_id,
+      archives.find((entry) => entry.platform === opportunity.platform_label)!.artifact_id,
+    );
+  }
+  for (const invalid of [
+    null,
+    expected.slice(1),
+    [expected[0], expected[0]],
+    expected.map((entry) => ({ ...entry, issuer: "imported" })),
+    expected.map((entry) => ({ ...entry, journey: null })),
+    expected.map((entry) => ({
+      ...entry,
+      journey: { ...entry.journey, empty_records_sha256: "a".repeat(64) },
+    })),
+    expected.map((entry) => ({
+      ...entry,
+      journey: {
+        predecessor: opportunities.find((item) => item.platform_label === entry.platform_label)!
+          .candidate,
+        signatures_sha256: "a".repeat(64),
+        signed_context_sha256: "b".repeat(64),
+      },
+    })),
+  ])
+    await assert.rejects(
+      deriveHostedNativePublicationOpportunities(configuration, f.request, archives, invalid),
+    );
+});
+
+void test("actual admission and payload source dispatch selects hosted proof readers without legacy App authority or ambient credentials", async (t) => {
+  const original = { ...process.env };
+  t.after(() => {
+    for (const key of Object.keys(process.env)) if (!(key in original)) delete process.env[key];
+    Object.assign(process.env, original);
+  });
+  const selected = authorityOracle.cases.find((row) => row.name === "selected-app")!;
+  const workflow = await readFile(
+    new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+  );
+  Object.assign(process.env, authorityOracle.environment, {
+    PORTCOVE_EXECUTION_PURPOSE: "application",
+    PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(selected.configuration),
+    PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify({
+      ...selected.policy,
+      workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
+    }),
+  });
+  const f = await trustedAssemblyFixture(t, "initial-beta-win-linux");
+  const archives = [
+    { platform: "windows-x86_64", artifact_id: 901 },
+    { platform: "linux-x86_64", artifact_id: 902 },
+  ];
+  for (const phase of ["admission", "payload"] as const) {
+    process.env.GITHUB_JOB = releaseControlPhaseProfile(phase).reader_job;
+    await assert.rejects(
+      collectConfiguredNativeReleaseQualificationPair(
+        process.cwd(),
+        [{ authority: "imported" }, {}],
+        {},
+        [],
+        phase,
+      ),
+      /cannot appoint/,
+    );
+    // The current actual selected source is admitted, but an ambient GH_TOKEN
+    // cannot substitute for the explicitly confined transport context.
+    await assert.rejects(
+      collectConfiguredNativeReleaseQualificationPair(
+        process.cwd(),
+        null,
+        f.request,
+        archives,
+        phase,
+      ),
+      /isolated reader credentials/,
+    );
+  }
+  process.env.GITHUB_JOB = releaseControlPhaseProfile("release-publication").reader_job;
+  await assert.rejects(
+    collectConfiguredHostedNativePublicationPair(
+      process.cwd(),
+      null,
+      f.request,
+      archives,
+      ["windows-x86_64", "linux-x86_64"].map((platform_label) => ({
+        platform_label,
+        journey: hostedInitialJourney(),
+      })),
+      performance.now() + 10000,
+    ),
+    /isolated reader credentials/,
+  );
+  await assert.rejects(
+    collectConfiguredHostedNativePublicationPair(
+      process.cwd(),
+      null,
+      {},
+      [],
+      [],
+      performance.now() - 1,
+    ),
+    /deadline exhausted/,
+  );
+  await assert.rejects(
+    collectConfiguredHostedNativePayloadPair(
+      process.cwd(),
+      null,
+      {},
+      [],
+      "payload",
+      performance.now() - 1,
+    ),
+    /deadline exhausted/,
+  );
+});
+
+void test("native proof archive preflights all members before bounded decoding and never extracts", () => {
+  const keys = ["subject", "report", "capture", "bundle"] as const;
+  const archive = createAuditZip(
+    keys.map((key) => [`${key}.json`, Buffer.alloc(hostedNativeProofLimits[key], 97)] as const),
+  );
+  const decoded = readHostedNativeProofArchive(archive, performance.now() + 10000);
+  for (const key of keys) assert.equal(decoded[key].length, hostedNativeProofLimits[key]);
+  const small = createAuditZip(keys.map((key) => [`${key}.json`, "{}"] as const));
+  const declared = Buffer.from(small);
+  const central = declared.indexOf(Buffer.from([0x50, 0x4b, 0x01, 0x02]));
+  // A tiny payload declares an oversized first member while the total still
+  // fits. Failure must precede inflation, which would instead report bad size.
+  declared.writeUInt32LE(hostedNativeProofLimits.subject + 1, central + 24);
+  declared.writeUInt32LE(hostedNativeProofLimits.subject + 1, 22);
+  assert.throws(
+    () => readHostedNativeProofArchive(declared, performance.now() + 10000),
+    /member exceeds/,
+  );
+  assert.throws(
+    () =>
+      readHostedNativeProofArchive(small.subarray(0, small.length - 1), performance.now() + 10000),
+    /ZIP rejected/,
+  );
+  for (const entries of [
+    keys.slice(1).map((key) => [`${key}.json`, "{}"] as const),
+    [...keys.map((key) => [`${key}.json`, "{}"] as const), ["extra.json", "{}"] as const],
+    keys.map((key) => [key === "subject" ? "../subject.json" : `${key}.json`, "{}"] as const),
+    keys.map(
+      (key) =>
+        [`${key}.json`, "{}", { attributes: key === "subject" ? 0xa1ff0000 : 0x81a40000 }] as const,
+    ),
+  ])
+    assert.throws(() =>
+      readHostedNativeProofArchive(createAuditZip(entries), performance.now() + 10000),
+    );
+  assert.throws(() => readHostedNativeProofArchive(small, performance.now() - 1), /deadline/);
+});
+
+void test("native proof artifact discovery brackets inert bytes with exact source-bound inventory and refuses drift", () => {
+  const expected = {
+    controller_revision: "a".repeat(40),
+    run_id: "123",
+    run_attempt: 1,
+    platform_label: "windows-x86_64" as const,
+    stage: "payload-signing" as const,
+  };
+  const name = hostedNativeArtifactName(expected);
+  const subject = {
+    schema_version: 1,
+    purpose: "hosted-native-qualification",
+    platform_label: expected.platform_label,
+    stage: expected.stage,
+    producer: {
+      controller_revision: expected.controller_revision,
+      run_id: "123",
+      run_attempt: 1,
+      job_id: 456,
+      check_run_id: "789",
+    },
+  };
+  const fixture = (value = subject) =>
+    createAuditZip([
+      ["subject.json", JSON.stringify(value)],
+      ["report.json", "{}"],
+      ["capture.json", "{}"],
+      ["bundle.json", "{}"],
+    ]);
+  const archive = fixture();
+  const row = {
+    id: 10,
+    name,
+    expired: false,
+    digest: `sha256:${createHash("sha256").update(archive).digest("hex")}`,
+    size_in_bytes: archive.length,
+    workflow_run: {
+      id: 123,
+      head_sha: expected.controller_revision,
+      repository_id: 1354613114,
+      head_repository_id: 1354613114,
+    },
+  };
+  const run = (
+    mode:
+      | "ok"
+      | "missing"
+      | "duplicate"
+      | "drift"
+      | "source"
+      | "digest"
+      | "subject"
+      | "unavailable",
+  ) => {
+    let reads = 0,
+      downloads = 0;
+    const bytes =
+      mode === "subject"
+        ? fixture({ ...subject, producer: { ...subject.producer, run_id: "124" } })
+        : archive;
+    const current = {
+      ...row,
+      digest: `sha256:${createHash("sha256").update(bytes).digest("hex")}`,
+      size_in_bytes: bytes.length,
+    };
+    const api = {
+      request(method: string, endpoint: string) {
+        assert.equal(method, "GET");
+        assert.equal(
+          endpoint,
+          "repos/boburning/portcove/actions/runs/123/artifacts?per_page=100&page=1",
+        );
+        reads++;
+        const artifacts =
+          mode === "missing"
+            ? []
+            : mode === "duplicate"
+              ? [current, { ...current, id: 11 }]
+              : [
+                  {
+                    ...current,
+                    ...(mode === "drift" && reads === 2 ? { id: 11 } : {}),
+                    ...(mode === "source"
+                      ? { workflow_run: { ...current.workflow_run, head_sha: "b".repeat(40) } }
+                      : {}),
+                  },
+                ];
+        return {
+          status: mode === "unavailable" ? 403 : 200,
+          headers: new Map<string, string>(),
+          body: { total_count: artifacts.length, artifacts },
+        };
+      },
+    };
+    const result = readHostedNativeProofArtifact(
+      api,
+      expected,
+      process.cwd(),
+      performance.now() + 10000,
+      (endpoint, options) => {
+        downloads++;
+        assert.equal(endpoint, "repos/boburning/portcove/actions/artifacts/10/zip");
+        assert.equal(options.maxBytes, bytes.length);
+        return mode === "digest" ? Buffer.alloc(bytes.length) : bytes;
+      },
+    );
+    assert.equal(reads, 2);
+    assert.equal(downloads, 1);
+    assert.equal(result.authority, "none");
+    assert.deepEqual(result.locator, {
+      run_id: "123",
+      run_attempt: 1,
+      platform_label: "windows-x86_64",
+      job_id: 456,
+      check_run_id: "789",
+    });
+    assert.equal(result.files.report.toString(), "{}");
+    assert.equal(Object.hasOwn(result, "hosted_job"), false);
+  };
+  run("ok");
+  for (const mode of [
+    "missing",
+    "duplicate",
+    "drift",
+    "source",
+    "digest",
+    "subject",
+    "unavailable",
+  ] as const)
+    assert.throws(() => run(mode));
+  assert.throws(() => hostedNativeArtifactName({ ...expected, run_attempt: 2 }), /slot/);
+});
 
 void test("selected hosted opportunities derive exact real package/source/archive identities without appointing a Native App or host", async (t) => {
   const f = await trustedAssemblyFixture(t, "initial-beta-win-linux");
@@ -567,7 +998,7 @@ void test("inert native association requires exact selected package bytes, sourc
   );
 });
 
-void test("shared data-only journey derivation binds exact prior inventory and refuses bootstrap on changed or nonempty prior", () => {
+void test("shared data-only journey derivation binds exact prior inventory and refuses bootstrap on changed or nonempty prior", async () => {
   const f = metadataBootstrapFixture(),
     payload = Buffer.from("disposable-payload-registry");
   const payloadSha = createHash("sha256").update(payload).digest("hex");
@@ -813,6 +1244,27 @@ void test("shared data-only journey derivation binds exact prior inventory and r
     },
   };
   const schema2 = inspectPublicationAuthorities(locatorPins, 2);
+  assert.deepEqual(
+    await deriveHostedNativePublicationJourneys(
+      { ...input, authority_schema_version: 4, public_pins: schema2 },
+      os.tmpdir(),
+      performance.now() + 60000,
+    ),
+    journeys,
+  );
+  await assert.rejects(
+    deriveHostedNativePublicationJourneys(input, os.tmpdir(), performance.now() + 60000),
+    /selected/,
+  );
+  await assert.rejects(
+    deriveHostedNativePublicationJourneys(
+      { ...input, authority_schema_version: 4, public_pins: schema2 },
+      os.tmpdir(),
+      performance.now() - 1,
+    ),
+    /deadline/,
+  );
+  assert.equal(reads, 0);
   assert.deepEqual(
     deriveNativePublicationJourneys({
       ...input,

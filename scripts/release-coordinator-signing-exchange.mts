@@ -20,6 +20,7 @@ import type {
   CheckpointProducerExpectation,
 } from "./release-coordinator-checkpoint-authentication.mts";
 import { signCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-signing.mts";
+import { requirePreparedHostedNativeCustody } from "./release-hosted-native-acceptance.mts";
 import type { CapacityExecutorRole } from "./assembler-job-identity.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
@@ -43,30 +44,77 @@ export async function signAndPublishCoordinatorCheckpoint(
   configuration: unknown,
   expectedProducer: { role: CapacityExecutorRole; producer: CheckpointProducerExpectation },
   deadline: number,
-  options: { api: CoordinatorRemoteApi; refresh: (stage: Stage) => Promise<void> },
+  options: {
+    api: CoordinatorRemoteApi;
+    refresh: (stage: Stage) => Promise<void>;
+    nativeCustody?: object;
+  },
 ) {
-  const producer = structuredClone(expectedProducer);
-  return publishCoordinatorSigningExchange(localRepository, expected, configuration, deadline, {
-    ...options,
-    async produce(checkpoint, frozen, beforePost) {
-      const signed = await signCoordinatorCheckpointEvidence(
-        directory,
-        checkpoint,
-        frozen,
-        producer,
-        deadline,
-        { beforePost },
-      );
-      return authenticateCoordinatorCheckpointEvidence(
-        directory,
-        checkpoint,
-        frozen,
-        signed.evidence,
-        producer,
-        deadline,
-      );
+  const producer = structuredClone(expectedProducer),
+    frozen: unknown = structuredClone(configuration),
+    custody = options.nativeCustody,
+    refresh = options.refresh,
+    api = {
+      request: options.api.request.bind(options.api),
+      graphql: options.api.graphql.bind(options.api),
+    };
+  if (
+    !Number.isFinite(deadline) ||
+    deadline <= performance.now() ||
+    deadline - performance.now() > 120000
+  )
+    throw new Error("signing exchange requires the original bounded deadline");
+  const native =
+    custody === undefined ? null : await requirePreparedHostedNativeCustody(custody, deadline);
+  if (native) deadline = Math.min(deadline, native.deadline);
+  const result = await publishCoordinatorSigningExchange(
+    localRepository,
+    expected,
+    frozen,
+    deadline,
+    {
+      api,
+      async refresh(stage) {
+        native?.assertCurrent();
+        await refresh(stage);
+        native?.assertCurrent();
+      },
+      async produce(checkpoint, frozen, beforePost) {
+        const signed = await signCoordinatorCheckpointEvidence(
+          directory,
+          checkpoint,
+          frozen,
+          producer,
+          deadline,
+          { beforePost, ...(custody === undefined ? {} : { nativeCustody: custody }) },
+        );
+        return authenticateCoordinatorCheckpointEvidence(
+          directory,
+          checkpoint,
+          frozen,
+          signed.evidence,
+          producer,
+          deadline,
+        );
+      },
     },
-  });
+  );
+  try {
+    if (native && performance.now() >= deadline)
+      throw new Error("native checkpoint caller original deadline exhausted");
+    native?.assertCurrent();
+  } catch (error) {
+    throw new CoordinatorRemoteError(
+      "native custody expired after checkpoint readback; retain completed effects",
+      {
+        phase: "native-custody-return",
+        result,
+        automatic_retry: false,
+        error: sanitizeOperationError(error),
+      },
+    );
+  }
+  return result;
 }
 
 export async function publishCoordinatorSigningExchange(

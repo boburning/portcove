@@ -185,6 +185,21 @@ export function baselineTestEnvironment(environment: NodeJS.ProcessEnv = process
   return isolated;
 }
 
+export function baselineTestArguments(tests: string[], contracts = false) {
+  return [
+    "--test",
+    "--test-timeout=60000",
+    "--experimental-test-module-mocks",
+    ...(contracts
+      ? [
+          "--test-skip-pattern=pnpm uses|direct just recipes",
+          "--test-reporter=./scripts/test-duration-reporter.mts",
+        ]
+      : []),
+    ...tests,
+  ];
+}
+
 function main() {
   const metrics = createCiMetrics();
   const plan = validateValidationPlan(readValidationPlanInput());
@@ -197,7 +212,7 @@ function main() {
     const tests = baselineBootstrapTests(plan);
     if (!tests.length) return;
     const result = metrics.measure("bootstrap-regressions", () =>
-      spawnSync(process.execPath, ["--test", "--test-timeout=60000", ...tests], {
+      spawnSync(process.execPath, baselineTestArguments(tests), {
         cwd: root,
         env: baselineTestEnvironment(),
         stdio: "inherit",
@@ -219,17 +234,12 @@ function main() {
       const result = metrics.measure(
         batch === early ? "bootstrap-regressions" : "repository-contract-tests",
         () =>
-          spawnSync(
-            process.execPath,
-            [
-              "--test",
-              "--test-timeout=60000",
-              "--test-skip-pattern=pnpm uses|direct just recipes",
-              "--test-reporter=./scripts/test-duration-reporter.mts",
-              ...batch,
-            ],
-            { cwd: root, env: baselineTestEnvironment(), stdio: "inherit", windowsHide: true },
-          ),
+          spawnSync(process.execPath, baselineTestArguments(batch, true), {
+            cwd: root,
+            env: baselineTestEnvironment(),
+            stdio: "inherit",
+            windowsHide: true,
+          }),
       );
       if (result.error) throw result.error;
       if (result.status !== 0) {

@@ -36,6 +36,23 @@ export async function createAppRegistrationStore(
   directory: string,
   synchronizeDirectory = syncRegistrationDirectory,
 ): Promise<AppRegistrationStore> {
+  return createOwnedCaptureStore(directory, synchronizeDirectory, false);
+}
+
+/** Same exclusive owner-only custody; only the fixed transition file receives
+ * the bounded native checkpoint allowance. App registration limits stay intact. */
+export async function createCheckpointSigningStore(
+  directory: string,
+  synchronizeDirectory = syncRegistrationDirectory,
+): Promise<AppRegistrationStore> {
+  return createOwnedCaptureStore(directory, synchronizeDirectory, true);
+}
+
+async function createOwnedCaptureStore(
+  directory: string,
+  synchronizeDirectory: typeof syncRegistrationDirectory,
+  checkpoint: boolean,
+): Promise<AppRegistrationStore> {
   const uid = process.getuid?.();
   if (
     process.platform !== "linux" ||
@@ -64,13 +81,16 @@ export async function createAppRegistrationStore(
   if (!owner.isDirectory() || owner.uid !== uid || (owner.mode & 0o077) !== 0)
     throw new Error("private registration directory unavailable");
   let total = 0,
+    ordinaryTotal = 0,
     files = 0;
   return {
     async write(name, bytes) {
       if (
         !/^[a-z][a-z0-9-]{0,48}\.(?:json|body|pem)$/u.test(name) ||
-        bytes.length > maximumBody ||
-        total + bytes.length > 384 * 1024 ||
+        bytes.length > (checkpoint && name === "transition.json" ? 1024 * 1024 : maximumBody) ||
+        total + bytes.length > 384 * 1024 + (checkpoint ? 1024 * 1024 : 0) ||
+        ordinaryTotal + (checkpoint && name === "transition.json" ? 0 : bytes.length) >
+          384 * 1024 ||
         files >= 16
       )
         throw new Error("registration retained-storage boundary exceeded");
@@ -91,6 +111,7 @@ export async function createAppRegistrationStore(
         )
           throw new Error("private registration file identity differs");
         total += bytes.length;
+        ordinaryTotal += checkpoint && name === "transition.json" ? 0 : bytes.length;
         await file.writeFile(bytes);
         await file.sync();
         await synchronizeDirectory(directory);

@@ -49,6 +49,15 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 
 const allFilesExist = () => true;
 
+void test("local Node contract plans enable the same fixed module mock capability", () => {
+  const { plan } = planFor(["scripts/release-coordinator-signing-custody.test.mts"]);
+  const node = plan.find((entry) => entry.id === "node-tests");
+  assert.ok(node);
+  assert.ok(node.args.includes("--experimental-test-module-mocks"));
+  assert.ok(node.args.includes("--test-timeout=60000"));
+  assert.ok(node.args.includes("scripts/release-coordinator-signing-custody.test.mts"));
+});
+
 void test("historical desktop oracle edits retain the decoder and unchanged planner consumers", () => {
   for (const file of [
     "scripts/desktop-execution-baseline.mts",

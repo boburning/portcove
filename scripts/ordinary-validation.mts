@@ -2153,6 +2153,7 @@ export function nodeTestCommand(files: string[]) {
     [
       "--test",
       "--test-timeout=60000",
+      "--experimental-test-module-mocks",
       `--test-reporter=${durationReporter}`,
       ...(serialWindowsQualification ? ["--test-concurrency=1"] : []),
       ...files,

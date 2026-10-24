@@ -742,7 +742,7 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
   );
   assert.match(
     linuxFixture,
-    /if: contains\(fromJSON\(needs\.classify\.outputs\.groups_json\), 'rust'\)/u,
+    /if: contains\(fromJSON\(needs\.classify\.outputs\.groups_json\), 'rust'\) && needs\.classify\.outputs\.linux_diagnostics != 'false'/u,
   );
   assert.match(linuxFixture, /shell: bash/u); // Bash's pipefail preserves a failed test before tee.
   assert.match(
@@ -789,8 +789,11 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
   }
   assert.match(
     fastRustQuality,
-    /- name: Retain Linux runtime diagnostics acceptance evidence\n\s+if: always\(\) && contains/u,
+    /- name: Retain Linux runtime diagnostics acceptance evidence\n\s+if: always\(\) && contains\(fromJSON\(needs\.classify\.outputs\.groups_json\), 'rust'\) && needs\.classify\.outputs\.linux_diagnostics != 'false'/u,
   );
+  const outputs = workflowJob("classify").outputs;
+  assert.ok(isRecord(outputs));
+  assert.equal(outputs.linux_diagnostics, "${{ steps.plan.outputs.linux_diagnostics }}");
 });
 
 void test("Windows diagnostics serialize file workers without changing coverage or deadlines", () => {
@@ -2616,6 +2619,24 @@ void test("frontend tools resolve through the pinned Vite+ bundle", async () => 
   assert.match(configuration, /generate-transport-types.mts/);
   assert.match(configuration, /check-transport-contract.mts --ipc-only/);
   assert.equal(manifest.scripts.build, "node apps/desktop/scripts/build-frontend.mts");
+});
+
+void test("full repository contracts install the complete workspace dependency closure before execution", () => {
+  const job = workflowJob("catalog_full");
+  assert.ok(Array.isArray(job.steps));
+  const steps: unknown[] = job.steps;
+  const installation = steps.findIndex(
+    (step) => isRecord(step) && typeof step.run === "string" && /^pnpm\s+install\b/u.test(step.run),
+  );
+  const execution = steps.findIndex(
+    (step) => isRecord(step) && step.name === "Verify repository and release contracts",
+  );
+  assert.ok(installation >= 0 && execution > installation);
+  const step = steps[installation];
+  assert.ok(isRecord(step) && typeof step.run === "string");
+  const args = step.run.trim().split(/\s+/u);
+  assert.deepEqual(args.slice(0, 2), ["pnpm", "install"]);
+  assert.deepEqual(new Set(args.slice(2)), new Set(["--frozen-lockfile", "--ignore-scripts"]));
 });
 
 void test("ordinary tooling contracts select the workflow contract and full CI retains its inventory", async () => {

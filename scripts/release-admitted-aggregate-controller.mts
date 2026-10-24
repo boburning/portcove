@@ -28,7 +28,9 @@ import { assembleReleaseArtifacts } from "./release-artifact-assembly.mts";
 import {
   readRemoteCoordinatorSnapshot,
   hydrateRetainedCoordinatorOperation,
+  hydrateRetainedCoordinatorCheckpoint,
 } from "./release-coordinator-recovery.mts";
+import { nativeCheckpointLocatorFromBuilding } from "./release-native-checkpoint-custody.mts";
 import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import {
@@ -46,6 +48,7 @@ import {
   capacityExecutorIdentity,
   executeOwnedCapacityEffect,
   recoverOwnedAdmittedAggregateEffect,
+  ensureOwnedCheckpointJournalHistory,
 } from "./release-capacity-executor.mts";
 import { authenticateReleaseControlRound } from "./release-live-control-admission.mts";
 import { releaseControlRefQuery } from "./release-control-inputs.mts";
@@ -130,38 +133,6 @@ export async function runFixedAdmittedAggregateConfiguration(
         deadline,
       );
       const admitted = await requireActualAdmittedAggregateEligibility(proof);
-      const reportRepair = admitted.candidate.report_repair !== undefined;
-      if (reportRepair) inspectConsumedPublicationReportRepair(admitted.candidate);
-      const selection = inspectAdmittedAggregateResume(admitted.candidate);
-      let checkpoint = admitted.checkpoint;
-      if (admitted.aggregate_readback_only && selection === "advance")
-        throw new Error("aggregate readback cannot advance candidate phase");
-      if (selection === "advance") {
-        const advanced = await advanceActualCandidateToBuilding(proof, { deadline });
-        checkpoint = (await requireActualCandidatePhaseAdvance(advanced, "building")).checkpoint;
-      }
-      const coordinator = { schema_version: 1, namespace: authorities.namespace };
-      const descriptor = {
-        schema_version: 1,
-        checkpoint,
-        coordinator,
-        assembly: admitted.facts.assembly,
-        archives: admitted.facts.archives,
-        evidence: aggregateEvidenceRequestFromObservation(admitted.facts.evidence),
-      };
-      const expectedCandidate = (await recoverReleaseOpportunity(admitted.repository, checkpoint))
-        .input.active_candidate;
-      inspectAdmittedAggregateResume(expectedCandidate);
-      const api = new GitHubApiClient((args, body) => {
-        active();
-        const response = createGitHubRunner({
-          cwd: directory,
-          timeoutMs: Math.max(1, Math.floor(Math.min(15000, deadline - performance.now()))),
-          maxBuffer: 2 * 1024 ** 2,
-        })([...args, "--hostname", "github.com"], body);
-        active();
-        return response;
-      });
       const tools = await verifiedControllerToolPaths(toolsReceipt);
       const expectedIdentity = {
         audience: "portcove-capacity-executor",
@@ -187,23 +158,48 @@ export async function runFixedAdmittedAggregateConfiguration(
         producer.check_run_id !== admitted.reader.identity.check_run_id
       )
         throw new Error("admitted aggregate executor differs from the actual independent reader");
-      let round = 0;
-      const fresh = async () => {
+      const reportRepair = admitted.candidate.report_repair !== undefined;
+      if (reportRepair) inspectConsumedPublicationReportRepair(admitted.candidate);
+      const selection = inspectAdmittedAggregateResume(admitted.candidate);
+      let checkpoint = admitted.checkpoint;
+      if (admitted.aggregate_readback_only && selection === "advance")
+        throw new Error("aggregate readback cannot advance candidate phase");
+      if (selection === "advance") {
+        const advanced = await advanceActualCandidateToBuilding(proof, { deadline, executor });
+        checkpoint = (await requireActualCandidatePhaseAdvance(advanced, "building")).checkpoint;
+      }
+      const coordinator = { schema_version: 1, namespace: authorities.namespace };
+      const descriptor = {
+        schema_version: 1,
+        checkpoint,
+        coordinator,
+        assembly: admitted.facts.assembly,
+        archives: admitted.facts.archives,
+        evidence: aggregateEvidenceRequestFromObservation(admitted.facts.evidence),
+      };
+      const expectedCandidate = (await recoverReleaseOpportunity(admitted.repository, checkpoint))
+        .input.active_candidate;
+      inspectAdmittedAggregateResume(expectedCandidate);
+      const api = new GitHubApiClient((args, body) => {
         active();
-        if (++round > 14) throw new Error("combined admission control rounds exhausted");
-        await verifiedControllerToolPaths(toolsReceipt);
-        const source = await authenticateReleaseControlRound(
-          path.join(directory, `aggregate-controls-r${round}`),
-          capacityDigest(admitted.facts),
-          "admission",
-          round,
-          { deadline },
-        );
+        const response = createGitHubRunner({
+          cwd: directory,
+          timeoutMs: Math.max(1, Math.floor(Math.min(15000, deadline - performance.now()))),
+          maxBuffer: 2 * 1024 ** 2,
+        })([...args, "--hostname", "github.com"], body);
+        active();
+        return response;
+      });
+      let round = 0;
+      let currentSource: Awaited<ReturnType<typeof authenticateReleaseControlRound>> | undefined;
+      const readCurrentControls = () => {
+        active();
+        if (!currentSource) throw new Error("authenticated aggregate control round unavailable");
         let calls = 0;
         const bounded = () => {
           if (++calls > 32) throw new Error("aggregate control read bound exhausted");
         };
-        const current = source.read(
+        const current = currentSource.read(
           {
             request(method, endpoint, body) {
               bounded();
@@ -234,6 +230,20 @@ export async function runFixedAdmittedAggregateConfiguration(
           !isDeepStrictEqual(current.capacity, original.capacity)
         )
           throw new Error("fresh aggregate controls differ from independent admission");
+        return current;
+      };
+      const fresh = async () => {
+        active();
+        if (++round > 14) throw new Error("combined admission control rounds exhausted");
+        await verifiedControllerToolPaths(toolsReceipt);
+        currentSource = await authenticateReleaseControlRound(
+          path.join(directory, `aggregate-controls-r${round}`),
+          capacityDigest(admitted.facts),
+          "admission",
+          round,
+          { deadline },
+        );
+        const current = readCurrentControls();
         await requireNativeReleaseQualificationPair(
           admitted.native_qualifications,
           admitted.facts.assembly,
@@ -259,6 +269,14 @@ export async function runFixedAdmittedAggregateConfiguration(
         return current;
       };
       await fresh();
+      const signedJournal = await ensureOwnedCheckpointJournalHistory(
+        executor,
+        admitted.repository,
+        checkpoint,
+        async () => {
+          readCurrentControls();
+        },
+      );
       const current = await recoverReleaseOpportunity(admitted.repository, checkpoint);
       const controller = current.input.controller;
       const capacity =
@@ -314,6 +332,21 @@ export async function runFixedAdmittedAggregateConfiguration(
         original?: ReturnType<typeof inspectAggregateOriginalUpload>,
       ) => {
         await fresh();
+        // A normal operation's preimage is the just-settled building carrier;
+        // recovery retains the original operation preimage, never today's head.
+        const nativeCustody = signedJournal
+          ? nativeCheckpointLocatorFromBuilding(
+              await hydrateRetainedCoordinatorCheckpoint(
+                admitted.repository,
+                original?.before_checkpoint ?? descriptor.checkpoint,
+                { api },
+              ),
+              isRecord(expectedCandidate) ? expectedCandidate : {},
+            )
+          : null;
+        if (signedJournal && !nativeCustody)
+          throw new Error("selected aggregate requires its original durable native carrier");
+        active();
         if (original)
           readTerminalAggregateProducer(
             api,
@@ -342,7 +375,12 @@ export async function runFixedAdmittedAggregateConfiguration(
           descriptor.assembly,
           descriptor.archives.map((file) => file.artifact_id),
           { artifact_id: observed!.artifact.id, sha256: observed!.artifact.sha256 },
-          { cwd: directory, evidenceRequest: descriptor.evidence, deadline },
+          {
+            cwd: directory,
+            evidenceRequest: descriptor.evidence,
+            deadline,
+            ...(nativeCustody ? { native_custody: nativeCustody } : {}),
+          },
         ];
         const binding = original
           ? await prepareRecoveredAdmittedAggregateAttestation(original, ...args)
@@ -381,6 +419,7 @@ export async function runFixedAdmittedAggregateConfiguration(
           artifact: observed!.artifact,
           settlement,
           ...(original ? { original_upload: original } : {}),
+          ...(nativeCustody ? { native_custody: nativeCustody } : {}),
           subject_name: binding.subject_name,
           subject_digest: binding.subject_digest,
           predicate_type: binding.predicate_type,
@@ -415,6 +454,12 @@ export async function runFixedAdmittedAggregateConfiguration(
                 },
               };
             },
+            undefined,
+            signedJournal
+              ? async () => {
+                  readCurrentControls();
+                }
+              : undefined,
           );
         } else {
           if (
@@ -505,6 +550,11 @@ export async function runFixedAdmittedAggregateConfiguration(
             evidence_sha256: observed.evidence_sha256,
           };
         },
+        signedJournal
+          ? async () => {
+              readCurrentControls();
+            }
+          : undefined,
       );
       checkpoint = settlement.checkpoint;
       if (!observed) throw new Error("actual aggregate upload readback missing");

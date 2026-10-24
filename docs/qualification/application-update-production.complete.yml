@@ -529,6 +529,7 @@ jobs:
       descriptor: ${{ steps.job.outputs.descriptor }}
       artifact_id: ${{ steps.job.outputs.artifact_id }}
       artifact_sha256: ${{ steps.job.outputs.artifact_sha256 }}
+      native_custody: ${{ steps.job.outputs.native_custody }}
       subject_name: ${{ steps.job.outputs.subject_name }}
       subject_digest: ${{ steps.job.outputs.subject_digest }}
       predicate: ${{ steps.job.outputs.predicate }}
