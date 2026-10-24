@@ -247,23 +247,37 @@ function configuration(value: unknown) {
 export function inspectApplicationReviewProducerConfiguration(value: unknown) {
   return configuration(structuredClone(value));
 }
+/** Semantic transport only. This writer-free projection cannot enter the
+ * classification read/persist configuration above. */
+export function inspectApplicationSemanticProducerConfiguration(raw: unknown) {
+  const value: unknown = structuredClone(raw);
+  return isRecord(value) && value.schema_version === 2
+    ? semanticProducerConfiguration(value, "application")
+    : configuration(value);
+}
 /** Catalog Check authenticity has no classification persistence role. This
  * closed projection appoints no writer and cannot enter application readers. */
 export function inspectCatalogReviewProducerConfiguration(raw: unknown) {
   const value: unknown = structuredClone(raw);
   if (isRecord(value) && value.schema_version === 1) return legacyConfiguration(value);
+  return semanticProducerConfiguration(value, "catalog-publication");
+}
+function semanticProducerConfiguration<P extends "application" | "catalog-publication">(
+  value: unknown,
+  purpose: P,
+) {
   exact(value, "purpose,review_app_id,review_check_name,schema_version");
   numeric(value.review_app_id);
   if (
     value.schema_version !== 2 ||
-    value.purpose !== "catalog-publication" ||
+    value.purpose !== purpose ||
     value.review_app_id === 15368 ||
     value.review_check_name !== semanticReviewCheckName
   )
-    throw new Error("catalog independent semantic producer configuration differs");
+    throw new Error(`${purpose} independent semantic producer schema differs`);
   return {
     schema_version: 2 as const,
-    purpose: "catalog-publication" as const,
+    purpose,
     review_app_id: value.review_app_id,
     review_check_name: value.review_check_name,
   };
@@ -355,7 +369,7 @@ export function readIndependentSemanticReview(
   checkId: number,
 ) {
   numeric(checkId);
-  const config = configuration(rawConfig);
+  const config = inspectApplicationSemanticProducerConfiguration(rawConfig);
   const opportunity = validateOpportunity(rawOpportunity);
   return review(session(api).get, checkId, config, opportunity);
 }

@@ -1992,12 +1992,19 @@ void test("checkpoint proof readback refuses changed refs, malformed objects and
     }
   }
   const before = f.requests();
-  for (const deadline of [performance.now() - 1, Infinity, performance.now() + 120001])
-    assert.throws(
-      () => readCoordinatorCheckpointEvidence(f.checkpoint, f.config, f.api, deadline),
-      /original bounded read deadline/,
-    );
-  assert.equal(f.requests(), before);
+  const fixedTime = performance.now();
+  // Keep invalid bounds outside the envelope while the guard reads the clock.
+  const clockMock = t.mock.method(performance, "now", () => fixedTime);
+  try {
+    for (const deadline of [fixedTime - 1, Infinity, fixedTime + 120001])
+      assert.throws(
+        () => readCoordinatorCheckpointEvidence(f.checkpoint, f.config, f.api, deadline),
+        /original bounded read deadline/,
+      );
+    assert.equal(f.requests(), before);
+  } finally {
+    clockMock.mock.restore();
+  }
 });
 
 for (const changed of [

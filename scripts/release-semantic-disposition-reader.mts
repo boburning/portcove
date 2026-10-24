@@ -4,7 +4,7 @@ import { inspectCatalogSemanticOpportunity } from "./release-catalog-semantic.mt
 import { performance } from "node:perf_hooks";
 import { capacityDigest } from "./release-capacity.mts";
 import {
-  inspectApplicationReviewProducerConfiguration,
+  inspectApplicationSemanticProducerConfiguration,
   inspectCatalogReviewProducerConfiguration,
 } from "./release-control-inputs.mts";
 import {
@@ -32,7 +32,7 @@ function readDisposition(
   const config = (
     catalog
       ? inspectCatalogReviewProducerConfiguration
-      : inspectApplicationReviewProducerConfiguration
+      : inspectApplicationSemanticProducerConfiguration
   )(structuredClone(rawConfiguration));
   const request = catalog
     ? inspectCatalogReviewRequest(rawRequest)
@@ -177,7 +177,7 @@ function readCheckInventory(
   const config = (
     catalog
       ? inspectCatalogReviewProducerConfiguration
-      : inspectApplicationReviewProducerConfiguration
+      : inspectApplicationSemanticProducerConfiguration
   )(structuredClone(rawConfiguration));
   if (!/^[a-f0-9]{40}$/u.test(sourceCommit) || config.review_check_name !== semanticReviewCheckName)
     throw new Error("negative semantic discovery requires fixed producer/request identity");

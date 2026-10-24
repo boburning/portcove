@@ -12,6 +12,10 @@ import {
   readRatifiedCapacityConfiguration,
   readReviewedClassification,
   readReviewedClassificationForRequest,
+  readIndependentSemanticReview,
+  readIndependentCatalogSemanticReview,
+  inspectApplicationReviewProducerConfiguration,
+  inspectCatalogReviewProducerConfiguration,
 } from "./release-control-inputs.mts";
 import { createReleaseReviewRequest } from "./release-review-request.mts";
 import {
@@ -29,6 +33,49 @@ import {
   opportunity,
   config,
 } from "./fixtures/release-control-inputs-fixture.mts";
+import { semanticReviewCheckName } from "./release-control-phases.mts";
+
+void test("application semantic-only producer reads the exact independent Check but cannot persist classification or cross purpose", () => {
+  const producer = {
+    schema_version: 2,
+    purpose: "application",
+    review_app_id: config.review_app_id,
+    review_check_name: semanticReviewCheckName,
+  };
+  const f = fixture(undefined, opportunity, {
+    ...config,
+    review_check_name: semanticReviewCheckName,
+  });
+  assert.ok(readIndependentSemanticReview(f.api, producer, opportunity, 303));
+  for (const bad of [
+    { ...producer, purpose: "catalog-publication" },
+    { ...producer, review_app_id: 15368 },
+    { ...producer, writer_app_id: 202 },
+    { ...producer, extra: true },
+  ])
+    assert.throws(() => readIndependentSemanticReview(f.api, bad, opportunity, 303));
+  let calls = 0;
+  const noApi = {
+    request() {
+      calls++;
+      throw new Error("must refuse before provider");
+    },
+    graphql() {
+      throw new Error("no GraphQL");
+    },
+  };
+  for (const run of [
+    () => readReviewedClassification(noApi, producer, opportunity),
+    () => readReviewedClassificationForRequest(noApi, producer, {}),
+    () => persistReviewedClassification(noApi, producer, opportunity, 303, () => {}),
+    () => readIndependentCatalogSemanticReview(noApi, producer, opportunity, 303),
+    () => inspectApplicationReviewProducerConfiguration(producer),
+    () => inspectCatalogReviewProducerConfiguration(producer),
+  ])
+    assert.throws(run, /schema differs/);
+  assert.equal(calls, 0);
+  assert.equal(f.mutations(), 0);
+});
 void test("neutral request discovers only its existing exact D1 path and reauthenticates the unchanged consumer", () => {
   const f = fixture();
   const request = createReleaseReviewRequest({

@@ -47,6 +47,8 @@ import {
   readbackSemanticDispositionCheck,
   publishSemanticCapture,
   publishSemanticDispositionCapture,
+  inspectSemanticIssuerConfiguration,
+  semanticIssuerProducer,
 } from "./release-semantic-broker.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import {
@@ -2043,15 +2045,20 @@ void test("GET-only ambiguous recovery binds detailed issuer/report and refuses 
       throw new Error("no mutation");
     },
   };
-  const config = { app_id: 101, installation_id: 303, writer_app_id: 202 };
-  assert.equal(readbackSemanticCheck(api, config, opportunity, expected).check_id, 7);
-  for (fault of ["missing", "duplicate", "issuer", "drift"])
-    assert.throws(() => readbackSemanticCheck(api, config, opportunity, expected));
-  fault = "";
-  assert.throws(
-    () => readbackSemanticCheck(api, config, { ...opportunity, urgency: true }, expected),
-    /exact opportunity/,
-  );
+  for (const config of [
+    { app_id: 101, installation_id: 303, writer_app_id: 202 },
+    { schema_version: 2 as const, app_id: 101, installation_id: 303 },
+  ]) {
+    fault = "";
+    assert.equal(readbackSemanticCheck(api, config, opportunity, expected).check_id, 7);
+    for (fault of ["missing", "duplicate", "issuer", "drift"])
+      assert.throws(() => readbackSemanticCheck(api, config, opportunity, expected));
+    fault = "";
+    assert.throws(
+      () => readbackSemanticCheck(api, config, { ...opportunity, urgency: true }, expected),
+      /exact opportunity/,
+    );
+  }
 });
 
 void test("negative POST recovery is GET-only with complete suite coverage and exact original wire", () => {
@@ -2107,13 +2114,132 @@ void test("negative POST recovery is GET-only with complete suite coverage and e
     external_id: body.external_id,
     summary: body.output.summary,
   };
-  const issuer = { app_id: 123, installation_id: 789, writer_app_id: 456 };
-  assert.equal(
-    readbackSemanticDispositionCheck(api, issuer, prepared.wire.request, expected).check_run_id,
-    99,
-  );
-  for (mode of ["missing", "duplicate", "issuer", "drift"])
-    assert.throws(() =>
-      readbackSemanticDispositionCheck(api, issuer, prepared.wire.request, expected),
+  for (const issuer of [
+    { app_id: 123, installation_id: 789, writer_app_id: 456 },
+    { schema_version: 2 as const, app_id: 123, installation_id: 789 },
+  ]) {
+    mode = "valid";
+    assert.equal(
+      readbackSemanticDispositionCheck(api, issuer, prepared.wire.request, expected).check_run_id,
+      99,
     );
+    for (mode of ["missing", "duplicate", "issuer", "drift"])
+      assert.throws(() =>
+        readbackSemanticDispositionCheck(api, issuer, prepared.wire.request, expected),
+      );
+  }
+});
+
+void test("selected issuer identity is closed, purpose-specific and cannot add a writer or claim production", () => {
+  const issuer = { schema_version: 2 as const, app_id: 101, installation_id: 303 };
+  assert.deepEqual(inspectSemanticIssuerConfiguration(issuer), issuer);
+  for (const purpose of ["application", "catalog-publication"] as const) {
+    const producer = semanticIssuerProducer(issuer, purpose);
+    assert.equal(producer.schema_version, 2);
+    assert.equal("purpose" in producer && producer.purpose, purpose);
+    assert.equal("writer_app_id" in producer, false);
+    assert.equal("authority" in producer, false);
+  }
+  for (const bad of [
+    null,
+    {},
+    { ...issuer, writer_app_id: 202 },
+    { ...issuer, app_id: 15368 },
+    { ...issuer, installation_id: "303" },
+    { ...issuer, schema_version: "2" },
+    { ...issuer, schema_version: 1 },
+    { ...issuer, extra: true },
+  ])
+    assert.throws(() => inspectSemanticIssuerConfiguration(bad));
+});
+
+void test("selected actual broker control flow publishes and reconciles both purposes with controlled capture/provider boundaries only", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "selected-semantic-broker-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const url = (name: string) => new URL(name, import.meta.url).href;
+  const output = execFileSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+    import assert from 'node:assert/strict';
+    import {registerHooks} from 'node:module';
+    import {mkdir,writeFile,readFile} from 'node:fs/promises';
+    import path from 'node:path';
+    import {createHash} from 'node:crypto';
+    import {negativeSemanticDispositionFixture} from ${JSON.stringify(url("./fixtures/release-semantic-disposition-fixture.mts"))};
+    import {prepareSemanticReviewHandoff} from ${JSON.stringify(url("./release-semantic-review.mts"))};
+    import {prepareNegativeSemanticDispositionCheck,prepareNegativeCatalogSemanticDispositionCheck} from ${JSON.stringify(url("./release-semantic-disposition.mts"))};
+    import {createCatalogReviewRequest} from ${JSON.stringify(url("./release-catalog-review-request.mts"))};
+    import {capacityDigest} from ${JSON.stringify(url("./release-capacity.mts"))};
+    const brokerUrl=${JSON.stringify(url("./release-semantic-broker.mts"))};
+    const data=s=>'data:text/javascript,'+encodeURIComponent(s);
+    // Deliberately replace ONLY the broker's private capture boundary in this
+    // child. This is control-flow qualification, never actual runtime evidence.
+    registerHooks({resolve(spec,context,next){
+      if(context.parentURL===brokerUrl && spec==='./release-semantic-runtime.mts')
+        return {url:data('export const verifyDirectSemanticCapture=c=>globalThis.__broker.verify(c);export const requireDirectSemanticDispositionCapture=c=>globalThis.__broker.verify(c);'),shortCircuit:true};
+      return next(spec,context);
+    }});
+    const broker=await import(brokerUrl);
+    const app=negativeSemanticDispositionFixture();
+    const core=JSON.stringify({authority:'none',definitions:[],files:[],index_sha256:'a'.repeat(64),publication_schema:1,scope:'inert-managed-definition-publication-inspection'})+'\\n';
+    const catalog={kind:'catalog-publication',source_commit:'1'.repeat(40),source_tree:'2'.repeat(40),base_commit:'3'.repeat(40),change_set_sha256:'4'.repeat(64),bundle_sha256:'5'.repeat(64),core_inspection_sha256:createHash('sha256').update(core).digest('hex'),publisher_configuration_sha256:'6'.repeat(64),baseline:{source_commit:'3'.repeat(40),source_tree:'7'.repeat(40),catalog_root_sha256:'8'.repeat(64),catalog_repository_sha256:null,site_generation_sha256:null,application_root_sha256:null,application_repository_sha256:null},classification:{change:'initial',definitions:[],index_sha256:'a'.repeat(64)},compatibility:{contract:'official-definition-policy-launch-v1',notes:'Inert broker transport fixture only.'}};
+    const catalogRequest=createCatalogReviewRequest({before_checkpoint:'b'.repeat(40),requested_at:'2026-01-01T00:00:00.000Z',opportunity:catalog,core_inspection:core});
+    const catalogNegative={...app,kind:'catalog-publication-semantic-disposition',stage:'complete-catalog-publication-opportunity',request:catalogRequest,request_id:catalogRequest.request_id,opportunity:catalog,opportunity_sha256:capacityDigest(catalog),review:{...app.review,scope:'complete-catalog-publication-opportunity'}};
+    let runs=0;
+    for(const [purpose,opportunity,negative] of [['application',app.opportunity,app],['catalog-publication',catalog,catalogNegative]]) {
+      const accepted=prepareSemanticReviewHandoff(opportunity,{accepted_opportunity:opportunity,completed_at:'2026-01-01T00:00:00Z',coverage:{accumulated_changes:true,classification:true,compatibility:true},report:'Synthetic complete review for broker control-flow only.',runtime:'codex-independent-local-review',scope:purpose==='application'?'complete-release-opportunity':'complete-catalog-publication-opportunity',session_ref:'fixture-only'});
+      const rejected=purpose==='application'?prepareNegativeSemanticDispositionCheck(negative):prepareNegativeCatalogSemanticDispositionCheck(negative);
+      for(const kind of ['accepted','negative']) for(const mode of ['success','lost-post','grant','capture','issuer']) {
+        const root=path.join(${JSON.stringify(directory)},String(runs++));await mkdir(path.join(root,'capture'),{recursive:true});
+        const opaque={};let captures=0,grants=0,auth=0,posts=0;
+        const request=kind==='accepted'?accepted.proposed_request:rejected.proposed_request;
+        const frozen=kind==='accepted'?{root,invocation:{fixture:true},handoff:accepted}:{root,invocation:{fixture:true},...rejected,wire_sha256:capacityDigest(rejected.wire)};
+        if(kind==='accepted')await writeFile(path.join(root,'capture/accepted-handoff.json'),JSON.stringify(accepted));
+        globalThis.__broker={async verify(value){assert.equal(value,opaque);if(++captures>=2&&mode==='capture')throw new Error('capture changed');return frozen;}};
+        const permissions={checks:'write',metadata:'read'},owner={id:43177418,login:'boburning'};
+        const row={...request.body,id:99,app:{id:123},check_suite:{id:11},output:{...request.body.output,annotations_count:0,text:''}};
+        const response=body=>({status:200,headers:new Map(),body});
+        const api={request(method,endpoint,body){
+          if(method==='POST'){assert.equal(endpoint,'repos/boburning/portcove/check-runs');assert.deepEqual(body,request.body);posts++;if(mode==='lost-post')throw new Error('response lost after effect');return {...response(row),status:201};}
+          assert.equal(method,'GET');
+          if(endpoint==='installation/repositories?per_page=100')return response({total_count:1,repositories:[{id:1354613114,full_name:'boburning/portcove'}]});
+          if(endpoint==='repos/boburning/portcove')return response({id:1354613114,full_name:'boburning/portcove',node_id:'R_fixture'});
+          if(endpoint.includes('/commits/'))return response({total_count:1,check_suites:[{id:11,head_sha:request.body.head_sha,app:{id:123},repository:{id:1354613114,full_name:'boburning/portcove'}}]});
+          if(endpoint.includes('/check-suites/'))return response({total_count:1,check_runs:[row]});
+          assert.equal(endpoint,'repos/boburning/portcove/check-runs/99');return response(row);
+        },graphql(){throw new Error('no GraphQL');}};
+        const appApi={request(method,endpoint){assert.equal(method,'GET');return response(endpoint==='app'?{id:mode==='issuer'?999:123,owner,permissions,events:[]}:{id:456,app_id:123,account:owner,suspended_at:null,repository_selection:'selected',permissions,events:[]});},graphql(){throw new Error('no GraphQL');}};
+        const issuer={schema_version:2,app_id:123,installation_id:456};
+        const options={async requireProvisioningGrant(){grants++;if(mode==='grant')throw new Error('grant changed');},async authenticateIssuer(){auth++;return {app:appApi,installation:api};}};
+        const publish=()=>kind==='accepted'?broker.publishSemanticCapture(opaque,issuer,options):broker.publishSemanticDispositionCapture(opaque,issuer,options);
+        if(mode==='success')await publish();else await assert.rejects(publish());
+        assert.equal(grants,1);assert.equal(auth,mode==='grant'||mode==='capture'?0:1);assert.equal(posts,mode==='success'||mode==='lost-post'?1:0);
+        const log=await readFile(path.join(root,'capture/check-attempt.jsonl'),'utf8');
+        if(mode==='success'||mode==='lost-post') {
+          const expected={head:request.body.head_sha,external_id:request.body.external_id,summary:request.body.output.summary};
+          const read=kind==='accepted'?broker.readbackSemanticCheck(api,issuer,opportunity,expected):broker.readbackSemanticDispositionCheck(api,issuer,rejected.wire.request,expected);
+          assert.equal(kind==='accepted'?read.check_id:read.check_run_id,99);
+          await assert.rejects(publish(),/EEXIST/);assert.equal(posts,1);assert.equal(auth,1);
+          if(mode==='lost-post')assert.match(log,/ambiguous-requires-readback-no-retry/);
+        } else assert.match(log,/refused-no-post/);
+      }
+    }
+    console.log(JSON.stringify({controlled_cases:runs,actual_runtime:false,actual_provider:false}));
+  `,
+    ],
+    {
+      encoding: "utf8",
+      timeout: 20000,
+      windowsHide: true,
+      env: { SystemRoot: process.env.SystemRoot ?? "", LANG: "C.UTF-8" },
+    },
+  );
+  assert.deepEqual(JSON.parse(output), {
+    controlled_cases: 20,
+    actual_runtime: false,
+    actual_provider: false,
+  });
 });
