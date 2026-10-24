@@ -222,6 +222,93 @@ proof of all rendered wording or of translation quality.
 
 Structural heuristics advise: dependency duplication, unmaintained transitive dependencies, complexity, responsibility splits, god objects, duplicate logic, dead public APIs, semantic duplication, and mutation survivors. Do not refactor simply to make an advisory number green.
 
+## Focused Rust properties and mutation experiments
+
+Core's `path::property_tests` exercises reserved metadata components in synthetic
+path strings. Each of its three properties runs 64 cases with ChaCha seed `242046`, at
+most 4096 shrink iterations and at most eleven short components. The cases mix
+both separators, component placement, ASCII case and ordinary Unicode neighbors.
+They distinguish reserved metadata from similar player filenames without reading
+the filesystem or constructing the production catalog. Existing example tests
+and other property suites retain their own coverage and settings.
+
+Run the selected properties through the existing Rust admission/supervision route:
+
+```powershell
+node scripts/run-rust-tests.mts --guard-command cargo test --locked -p portcove-core --lib path::property_tests -- --test-threads=1 --nocapture
+if ($LASTEXITCODE) { throw 'Selected properties failed' }
+```
+
+Proptest retains failing seeds in its source-relative `proptest-regressions`
+file and prints the shrunk input. Preserve both before repairing the failure;
+replaying the same test consumes those seeds before new cases. Keep a minimized
+regression with the owning boundary when it exposes a real defect. The fixed
+configuration above bounds this family regardless of ambient case-count or
+shrink-count settings. A passing seed is sampled coverage, not an exhaustive proof.
+
+For an optional mutation experiment, first verify the repository's pinned tool
+and inspect the selected inventory. No tool installation is added to ordinary CI.
+The following selection targets only `is_portcove_metadata` in one file; inspect
+the inventory again after source/tool changes rather than assuming a mutant count.
+
+```powershell
+node scripts/quality-tools.mts --verify cargo-mutants
+if ($LASTEXITCODE) { throw 'Pinned mutation tool unavailable' }
+cargo mutants --file crates/portcove-core/src/path.rs --re is_portcove_metadata --list --json
+if ($LASTEXITCODE) { throw 'Mutation inventory failed' }
+```
+
+The copy explicitly respects repository ignore rules and excludes build/VCS trees;
+this string-only selection needs no ignored frontend dependencies or symlinks.
+Run the reviewed finite selection in a copied tree, retaining its output in a new
+owned evidence directory. This example allows a 15-minute admission wait and a
+45-minute payload including copy, baseline, three mutants and cleanup. Every
+build has a 600-second limit and every test invocation a 30-second limit. Set
+`PORTCOVE_MUTATION_EVIDENCE` to that new absolute directory outside the resolved
+checkout, with an existing parent, before running it. The recipe refuses an
+internal scratch destination before creating directories or launching Cargo.
+
+```powershell
+@'
+import path from "node:path";
+import { mkdirSync, realpathSync } from "node:fs";
+import { runResourceCommand } from "./scripts/resource-command.mts";
+const requested = process.env.PORTCOVE_MUTATION_EVIDENCE;
+if (!requested || !path.isAbsolute(requested)) throw Error("Expected absolute evidence directory");
+const workspace = realpathSync(".");
+const output = path.join(realpathSync(path.dirname(requested)), path.basename(requested));
+const relative = path.relative(workspace, output);
+if (!relative || (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))) {
+  throw Error("Mutation evidence and scratch must be outside the resolved workspace");
+}
+mkdirSync(output); // Refuse reuse: earlier failures remain intact.
+const scratch = path.join(output, "scratch");
+mkdirSync(scratch);
+process.exitCode = await runResourceCommand("rust", "cargo", [
+  "mutants", "-p", "portcove-core", "--file", "crates/portcove-core/src/path.rs",
+  "--re", "is_portcove_metadata", "--baseline=run", "--test-tool=cargo", "--jobs=1",
+  "--build-timeout=600", "--timeout=30", "--gitignore=true",
+  "--copy-vcs=false", "--leak-dirs", "--output", output,
+  "--", "--locked", "--lib", "path::property_tests", "--", "--test-threads=1", "--nocapture",
+], {
+  executionTimeoutMilliseconds: 2_700_000,
+  queueDeadline: performance.now() + 900_000,
+  environment: { ...process.env, TMP: scratch, TEMP: scratch, TMPDIR: scratch },
+});
+'@ | node --input-type=module
+if ($LASTEXITCODE) { throw 'Mutation experiment failed; inspect retained results' }
+```
+
+Retain the exact source and file hashes, pin verification, selected inventory,
+arguments, platform/compiler, budgets, unmutated baseline, every mutant diff and
+outcome, and generated failure seeds/minimal inputs. Count caught, survived,
+unviable and timed-out mutants separately; a build failure or timeout is not a
+killed behavioral invariant. Review surviving mutants individually and record
+equivalence only with a concrete reason. Do not suppress them or substitute a
+global mutation score for behavior coverage. A broken selected guard must fail
+the expected property, and the original source must still pass afterward. These
+experiments establish no installed, native, signing or release acceptance.
+
 ## Fallow scopes and policy
 
 Use the repository-pinned Fallow through the maintained wrappers so reports retain
