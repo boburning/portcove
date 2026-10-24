@@ -413,6 +413,15 @@ The [native smoke workflow](#native-desktop-smoke-tests) describes that harness.
 
 Preview affected work, then choose literal files for focused feedback:
 
+For focused frontend startup diagnostics, set `PORTCOVE_CI_METRICS_DIR` to a fresh
+owned directory before using the exact/related commands below. Existing timing
+records distinguish runner import, configuration/plugin resolution, project
+initialization, specification selection, test execution, selection reconciliation
+and runner close. Configuration/plugin resolution is one public API phase; it
+does not attribute time to individual plugins. Resource admission and supervisor
+setup remain separate from these runner timings. A completed API call does not
+establish passing tests; execution reconciliation retains that decision.
+
 ```sh
 just local-check --plan
 just test-ui src/components/DetailQualificationSummary.test.tsx
