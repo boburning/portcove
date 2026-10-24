@@ -18,7 +18,7 @@ function fixture(overrides: Partial<TestCase> = {}): TestCase {
     options: { mode: "run" },
     location: { line: 10, column: 2 },
     result: () => ({ state: "passed", errors: undefined }),
-    diagnostic: () => ({ duration: 7, retryCount: 0, repeatCount: 0 }),
+    diagnostic: () => ({ duration: 7, startTime: 1234, retryCount: 0, repeatCount: 0 }),
     ...overrides,
   } as TestCase;
 }
@@ -103,6 +103,7 @@ it("retains repeated definitions as distinct observations and reconciles end tra
   assert.notEqual(cases[0]!.observation_index, cases[1]!.observation_index);
   assert.equal(cases[0]!.file, "src/example.test.ts");
   assert.equal(cases[0]!.duration_ms, 7);
+  assert.equal(cases[0]!.start_time_ms, 1234);
   assert.equal(rows(lines).filter((row) => row.kind === "module").length, 1);
   assert.equal(rows(lines, true)[0]!.observed, 3);
   assert.equal(rows(lines, true)[0]!.source, "a".repeat(40));
@@ -132,6 +133,7 @@ it("retains skipped notes, TODO mode and unfinished cases discovered at completi
   assert.equal(cases[1]!.mode, "todo");
   assert.equal(cases[1]!.skip_reason, null);
   assert.equal(cases[2]!.duration_ms, null);
+  assert.equal(cases[2]!.start_time_ms, null);
 });
 
 it("preserves original test, collection and unhandled failures without changing them", async () => {

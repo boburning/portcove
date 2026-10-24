@@ -6,13 +6,26 @@ import {
   resolveUiSelection,
   reconcileUiSelection,
   allowedUiSkippedFiles,
+  uiShuffleSeed,
 } from "./ui-test-selection.mts";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const mode = process.argv[2];
-if (mode !== "exact" && mode !== "related")
-  throw new Error("Usage: run-ui-tests.mts exact|related <literal files>...");
+if (mode !== "exact" && mode !== "related" && mode !== "shuffled")
+  throw new Error(
+    "Usage: run-ui-tests.mts exact|related <literal files>... | shuffled <seed> <literal test files>...",
+  );
 // Validate the entire request before importing/initializing the runner.
-const files = resolveUiSelection(process.argv.slice(3), path.join(root, "apps/desktop"), mode);
+const seed = mode === "shuffled" ? uiShuffleSeed(process.argv[3]) : undefined;
+const selectionMode = mode === "related" ? "related" : "exact";
+const files = resolveUiSelection(
+  process.argv.slice(mode === "shuffled" ? 4 : 3),
+  path.join(root, "apps/desktop"),
+  selectionMode,
+);
+if (mode === "shuffled" && files.length > 16)
+  throw new Error("Shuffled UI diagnostics accept at most 16 literal test files");
+if (seed !== undefined)
+  console.log(`UI shuffled run: ${JSON.stringify({ seed, files, retries: "unchanged" })}`);
 process.exitCode = await resourceEntrypoint("browser", async () => {
   const metrics = createCiMetrics();
   const { createVitest } = await metrics.measureAsync(
@@ -26,6 +39,7 @@ process.exitCode = await resourceEntrypoint("browser", async () => {
       watch: false,
       run: true,
       ...(mode === "related" ? { related: files } : {}),
+      ...(seed === undefined ? {} : { sequence: { shuffle: true, seed } }),
     }),
   );
   const key = (file: string) =>
@@ -33,7 +47,7 @@ process.exitCode = await resourceEntrypoint("browser", async () => {
   try {
     await metrics.measureAsync("ui-project-initialization", () => runner.standalone());
     const specifications = await metrics.measureAsync("ui-specification-selection", async () => {
-      if (mode === "exact") {
+      if (selectionMode === "exact") {
         const expected = new Set(files.map(key));
         const selected = (await runner.globTestSpecifications()).filter((specification) =>
           expected.has(key(specification.moduleId)),
@@ -48,8 +62,19 @@ process.exitCode = await resourceEntrypoint("browser", async () => {
       console.log("No related tests matched; running both maintained frontend projects.");
       return runner.globTestSpecifications();
     });
+    if (seed !== undefined) {
+      for (const specification of specifications) {
+        const sequence = specification.project.config.sequence;
+        if (sequence.seed !== seed || sequence.shuffle !== true)
+          throw new Error(
+            "Requested UI shuffle configuration was not applied to a selected project",
+          );
+      }
+    }
     const expectedFiles =
-      mode === "exact" ? files : specifications.map((specification) => specification.moduleId);
+      selectionMode === "exact"
+        ? files
+        : specifications.map((specification) => specification.moduleId);
     const result = await metrics.measureAsync("ui-test-execution", () =>
       runner.runTestSpecifications(specifications),
     );

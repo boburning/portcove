@@ -416,22 +416,31 @@ it("keeps long package names, keyboard review and narrow layouts usable", async 
   await expect
     .element(page.getByRole("button", { name: "Review download", exact: true }))
     .toBeEnabled();
-  await page.screenshot({
+  const wideCapture = await page.screenshot({
     element: page.getByRole("region", { name: "Download from upstream" }),
     path: "../../../../work/installation-rendered/recommendation-wide.png",
   });
+  expect(wideCapture.replaceAll("\\", "/")).toMatch(
+    /(?:^|\/)work\/installation-rendered\/recommendation-wide\.png$/,
+  );
   await page.viewport(360, 740);
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
-  await page.screenshot({
+  const narrowCapture = await page.screenshot({
     element: page.getByRole("region", { name: "Download from upstream" }),
     path: "../../../../work/installation-rendered/recommendation-narrow.png",
   });
+  expect(narrowCapture.replaceAll("\\", "/")).toMatch(
+    /(?:^|\/)work\/installation-rendered\/recommendation-narrow\.png$/,
+  );
   await click("Review download");
   await expect.element(page.getByRole("button", { name: "Cancel", exact: true })).toHaveFocus();
-  await page.screenshot({
+  const reviewCapture = await page.screenshot({
     element: page.getByRole("dialog"),
     path: "../../../../work/installation-rendered/review-narrow.png",
   });
+  expect(reviewCapture.replaceAll("\\", "/")).toMatch(
+    /(?:^|\/)work\/installation-rendered\/review-narrow\.png$/,
+  );
   await userEvent.keyboard("{Escape}");
   await expect
     .element(page.getByRole("button", { name: "Review download", exact: true }))
