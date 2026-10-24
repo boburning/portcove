@@ -295,6 +295,10 @@ class NativeLifetime(unittest.TestCase):
             command[at : at + 4], ["--size", str(512 * 1024 * 1024), "--tmpfs", str(attempt / "work/home")]
         )
         self.assertEqual(command.count("--tmpfs"), 1)
+        at = command.index("--dev-bind")
+        self.assertEqual(command[at - 3 : at + 3], ["--bind", "/", "/", "--dev-bind", "/dev/null", "/dev/null"])
+        self.assertEqual(command.count("--dev-bind"), 1)
+        self.assertNotIn("--dev", command)
         self.assertIn("--unshare-user", command)
         self.assertNotIn("--unshare-pid", command)
         self.assertNotIn("--unshare-net", command)
