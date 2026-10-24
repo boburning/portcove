@@ -7,6 +7,7 @@ import { readFile, mkdir, writeFile, mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
+import { payloadSigningEnvironment } from "./release-payload-signing.mts";
 import {
   inspectAggregateUploadExpectation,
   assertAggregateUploadCandidate,
@@ -85,12 +86,14 @@ void test("actual report-only aggregate continuation refuses a missing original 
   );
 });
 
-void test("actual GH transport entrypoints inherit only captured read token and private config in the admitted scope", async (t) => {
+void test("trusted GH read calls inherit the captured job token while candidate children remain credential-free", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-readonly-cli-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const keys = [
     "GH_TOKEN",
     "PORTCOVE_COORDINATOR_JOURNAL_TOKEN",
+    "PORTCOVE_RELEASE_DISPATCH_TOKEN",
+    "PORTCOVE_RELEASE_PUBLICATION_TOKEN",
     "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
     "PORTCOVE_TUF_RELEASES_KEY",
     "NODE_OPTIONS",
@@ -103,6 +106,9 @@ void test("actual GH transport entrypoints inherit only captured read token and 
       else process.env[key] = value;
   });
   assert.equal(readOnlyReleaseChildEnvironment(), undefined);
+  const candidate = payloadSigningEnvironment(path.join(root, "candidate"));
+  for (const key of [...keys, "GH_CONFIG_DIR", "ACTIONS_ID_TOKEN_REQUEST_URL"])
+    assert.equal(candidate[key], undefined);
   await withReadOnlyReleaseChildren(root, async () => {
     const child = readOnlyReleaseChildEnvironment()!;
     assert.equal(child.GH_TOKEN, "inert-GH_TOKEN");

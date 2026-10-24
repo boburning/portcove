@@ -65,6 +65,7 @@ import { releaseControlPhaseProfile, type ReleaseControlPhase } from "./release-
 import { retainProtectionObservationOutputs } from "./release-reviewed-inputs.mts";
 import {
   requireControllerJobSourceConfiguration,
+  requireControllerJobCredentialRoute,
   requireControllerCatalogJobAuthorities,
   requireControllerApplicationJobAuthorities,
 } from "./release-authority-configuration.mts";
@@ -1208,6 +1209,12 @@ for (const phase of [
       "default named verifier used controlled provider readback",
     );
     actual.recheck();
+    const credential = await requireControllerJobCredentialRoute(phase);
+    assert.equal(credential.route.credential_transport, "fixed-job");
+    assert.equal(credential.route.purpose, "catalog-publication");
+    assert.equal(credential.route.phase, phase);
+    assert.deepEqual(credential.route.source, actual.binding);
+    credential.recheck();
     const coordinator = await requireControllerCatalogJobAuthorities(phase);
     assert.equal(coordinator.configuration_sha256, capacityDigest(configuration));
     assert.equal(coordinator.dispatch_actor_id, runtime.policy.actor_id);
