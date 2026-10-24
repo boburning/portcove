@@ -1,16 +1,14 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vite-plus/test";
-import catalog from "../../../../crates/portcove-core/catalog/catalog.json";
-import type { PortDefinition, SourceInspectionReport } from "../types";
-import type { SourceCatalog } from "../transport-types.generated";
-import { DetailPanel, type DetailActions } from "./DetailPanel";
+import type { SourceInspectionReport } from "../types";
+import { currentCatalogPort, currentSourceCatalog } from "../catalog-test-fixtures";
+import { DetailPanel } from "./DetailPanel";
+import { actions } from "./rendered-test-fixtures";
 import { DetailQualificationSummary } from "./DetailQualificationSummary";
 import { fixtureValue, portStatus } from "../test-fixtures";
 
-const sourceCatalog = catalog.source_catalog as unknown as SourceCatalog;
-const snap64 = catalog.ports.find(
-  (port) => port.id === "snap64-recomp",
-) as unknown as PortDefinition;
+const sourceCatalog = currentSourceCatalog();
+const snap64 = currentCatalogPort("snap64-recomp");
 
 type FixtureReport = SourceInspectionReport & {
   applications: [SourceInspectionReport["applications"][number]];
@@ -53,27 +51,6 @@ function report(port = snap64, role: "game" | "bios" = "game"): FixtureReport {
     legacy: { registration_identity_not_recorded: false, variant_unspecified_records: [] },
   });
 }
-
-const actions = Object.fromEntries(
-  [
-    "activate",
-    "backup",
-    "check",
-    "close",
-    "deleteBackup",
-    "dismissInstallReview",
-    "install",
-    "launch",
-    "openUserData",
-    "reviewInstall",
-    "restoreBackup",
-    "rollback",
-    "remove",
-    "setChannel",
-    "setPolicy",
-    "verify",
-  ].map((name) => [name, vi.fn()]),
-) as unknown as DetailActions;
 
 function details(
   sourceInspection?: SourceInspectionReport,
@@ -187,9 +164,7 @@ describe("detail qualification history", () => {
   });
 
   it("shows BIOS evidence only through its own role and source profile", () => {
-    const biosPort = catalog.ports.find(
-      (port) => port.id === "mortal-kombat-4-recompiled",
-    ) as unknown as PortDefinition;
+    const biosPort = currentCatalogPort("mortal-kombat-4-recompiled");
     const bios = report(biosPort, "bios");
     const application = bios.applications[0];
     const variant = bios.expected_identity!.variants.find((candidate) =>

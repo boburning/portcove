@@ -2,9 +2,8 @@ import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import axe from "axe-core";
-import catalog from "../../../../crates/portcove-core/catalog/catalog.json";
-import type { PortDefinition } from "../types";
-import { fixtureValue, portDefinition, portStatus } from "../test-fixtures";
+import { currentCatalogPort } from "../catalog-test-fixtures";
+import { portDefinition, portStatus } from "../test-fixtures";
 import { DetailPanel, type DetailActions } from "./DetailPanel";
 import "../styles/index.css";
 
@@ -76,10 +75,7 @@ it("keeps an unknown external installation's folder and maintenance facts distin
 for (const width of [1200, 960]) {
   it(`keeps the current action with full identity before optional route observations at ${width}px`, async () => {
     await page.viewport(width, 640);
-    const port = fixtureValue(
-      catalog.ports.find((port) => port.id === "snap64-recomp"),
-      "Snap64",
-    ) as unknown as PortDefinition;
+    const port = currentCatalogPort("snap64-recomp");
     const actions: DetailActions = {
       activate: vi.fn(),
       backup: vi.fn(),
@@ -132,10 +128,7 @@ it.each(["dark", "light"])(
   async (theme) => {
     document.documentElement.dataset.theme = theme;
     await page.viewport(520, 780);
-    const port = fixtureValue(
-      catalog.ports.find((port) => port.id === "snap64-recomp"),
-      "Snap64",
-    ) as unknown as PortDefinition;
+    const port = currentCatalogPort("snap64-recomp");
     const noop = vi.fn();
     const actions: DetailActions = {
       activate: noop,
