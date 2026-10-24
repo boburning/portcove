@@ -1,8 +1,9 @@
 """Inert failure/recovery contracts; no account, sudo, unit or namespace runs."""
+
 import importlib.util
+import unittest
 from pathlib import Path
 from types import SimpleNamespace
-import unittest
 from unittest.mock import Mock, patch
 
 spec = importlib.util.spec_from_file_location("readiness", Path(__file__).with_name("qualify-hosted-native-linux.py"))
