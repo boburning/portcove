@@ -437,6 +437,62 @@
       ]
     },
     {
+      "file": "scripts/ci-frontend-workflow.test.mts",
+      "memberships": [
+        ["windows-storage-3", 101],
+        ["catalog-full-2", 4501],
+        ["repository-tools-2", 101]
+      ]
+    },
+    {
+      "file": "scripts/ci-native-workflow.test.mts",
+      "memberships": [
+        ["windows-storage-3", 103],
+        ["catalog-full-2", 4503],
+        ["repository-tools-2", 103]
+      ]
+    },
+    {
+      "file": "scripts/ci-release-workflow.test.mts",
+      "memberships": [
+        ["windows-storage-3", 102],
+        ["catalog-full-2", 4502],
+        ["repository-tools-2", 102]
+      ]
+    },
+    {
+      "file": "scripts/ci-rust-workflow.test.mts",
+      "memberships": [
+        ["windows-storage-3", 105],
+        ["catalog-full-2", 4505],
+        ["repository-tools-2", 105]
+      ]
+    },
+    {
+      "file": "scripts/native-backup-evidence.test.mts",
+      "memberships": [
+        ["windows-storage-3", 104],
+        ["catalog-full-2", 4504],
+        ["repository-tools-2", 104]
+      ]
+    },
+    {
+      "file": "scripts/rust-toolchain-reader.test.mts",
+      "memberships": [
+        ["windows-storage-3", 106],
+        ["catalog-full-2", 4506],
+        ["repository-tools-2", 106]
+      ]
+    },
+    {
+      "file": "scripts/windows-rust-tests.test.mts",
+      "memberships": [
+        ["windows-storage-3", 107],
+        ["catalog-full-2", 4507],
+        ["repository-tools-2", 107]
+      ]
+    },
+    {
       "file": "scripts/cleanup-intel-artifacts.test.mts",
       "memberships": [
         ["catalog-full-2", 7900],
