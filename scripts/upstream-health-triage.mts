@@ -36,9 +36,9 @@ export function isRoutineProviderCondition(incident: HealthTriageCondition): boo
 
 function priority(incident: HealthTriageCondition): number {
   if (incident.changed_in_this_run) return 0;
-  if (incident.freshness === "stale") return 1;
-  if (incident.latest_collection_status === "partial") return 2;
-  if (!incident.accounted_for) return 3;
+  if (!incident.accounted_for) return 1;
+  if (incident.freshness === "stale") return 2;
+  if (incident.latest_collection_status === "partial") return 3;
   return 4;
 }
 
