@@ -16,6 +16,8 @@ import {
   runWorkspaceRustImpact,
 } from "./rust-test-impact.mts";
 import { buildValidationPlan, linuxRuntimeDiagnosticsRequired } from "./validation-plan.mts";
+import { createCiMetrics } from "./ci-metrics.mts";
+import { isRecord } from "./runtime-values.mts";
 
 interface FixtureTest {
   ignored: boolean;
@@ -24,6 +26,8 @@ interface FixtureTest {
 interface FixtureSuite {
   "package-name": string;
   "binary-id": string;
+  "binary-name": string;
+  kind: string;
   status: string;
   testcases: Record<string, FixtureTest>;
 }
@@ -443,6 +447,8 @@ function inventory(names: string[]): FixtureInventory {
       "portcove-core": {
         "package-name": "portcove-core",
         "binary-id": "portcove-core",
+        "binary-name": "portcove_core",
+        kind: "lib",
         status: "listed",
         testcases: Object.fromEntries(
           names.map((name) => [
@@ -456,6 +462,37 @@ function inventory(names: string[]): FixtureInventory {
       },
     },
   };
+}
+
+function passedResults(names: string[]) {
+  const metadata = { crate: "portcove-core", test_binary: "portcove_core", kind: "lib" };
+  return (
+    [
+      { type: "suite", event: "started", test_count: names.length, nextest: metadata },
+      ...names.flatMap((name) => [
+        { type: "test", event: "started", name: `portcove-core::portcove_core$${name}` },
+        {
+          type: "test",
+          event: "ok",
+          name: `portcove-core::portcove_core$${name}`,
+          exec_time: 0.01,
+        },
+      ]),
+      {
+        type: "suite",
+        event: "ok",
+        passed: names.length,
+        failed: 0,
+        ignored: 0,
+        measured: 0,
+        filtered_out: 0,
+        exec_time: 0.01,
+        nextest: metadata,
+      },
+    ]
+      .map((value) => JSON.stringify(value))
+      .join("\n") + "\n"
+  );
 }
 
 void test("multi-group metadata prepares the original compilation scope once and cleans every terminal path", (t) => {
@@ -474,6 +511,7 @@ void test("multi-group metadata prepares the original compilation scope once and
       "transport-status",
     ] as const) {
       const prepared: [string, string[]][] = [];
+      const timing: Record<string, unknown>[] = [];
       const listings: string[][] = [];
       const original = new Error(`original ${terminal}`);
       let snapshotDirectory = "";
@@ -519,10 +557,30 @@ void test("multi-group metadata prepares the original compilation scope once and
           "execution must retain normal compilation",
         );
         if (terminal === "run-error") return { error: original };
-        return { status: terminal === "test-status" ? 9 : 0 };
+        return {
+          status: terminal === "test-status" ? 9 : 0,
+          stdout: passedResults(["shared"]),
+        };
       };
       const invoke = () => {
-        const dependencies = { map, spawnSync: runner, report() {}, inventoryTempRoot: root };
+        const metrics = createCiMetrics({
+          environment: { PORTCOVE_CI_METRICS_DIR: process.cwd() },
+          write(_file, data) {
+            const value: unknown = JSON.parse(String(data));
+            assert.ok(isRecord(value));
+            timing.push(value);
+          },
+          warn() {
+            assert.fail("timing collection unavailable");
+          },
+        });
+        const dependencies = {
+          map,
+          spawnSync: runner,
+          report() {},
+          inventoryTempRoot: root,
+          metrics,
+        };
         return kind === "workspace"
           ? runWorkspaceRustImpact(plan, dependencies)
           : runRustImpactUnion(
@@ -564,6 +622,12 @@ void test("multi-group metadata prepares the original compilation scope once and
         transportCalls,
         kind === "workspace" && ["success", "transport-status"].includes(terminal) ? 1 : 0,
       );
+      if (kind === "workspace" && terminal === "test-status") {
+        const measurement = timing.find((row) => row.phase === "selected-rust-tests");
+        assert.ok(measurement);
+        assert.equal(measurement.outcome, "failed");
+        assert.ok(isRecord(measurement.failure));
+      }
       assert.equal(existsSync(snapshotDirectory), false);
       assert.deepEqual(readdirSync(root), []);
     }
@@ -710,7 +774,7 @@ void test("impact union proves all groups before executing each distinct test on
   );
   assert.equal(
     requiredFixture(requiredFixture(calls[2]).at(-3)),
-    requiredFixture(requiredFixture(calls[3]).at(-1)),
+    requiredFixture(requiredFixture(calls[3])[requiredFixture(calls[3]).indexOf("-E") + 1]),
   );
   assert.match(reports.join("\n"), /union: 3 distinct runnable tests/u);
 });
@@ -1252,7 +1316,10 @@ void test("the guarded Rust baseline compares live schemas only after selected t
       calls.push([command, args]);
       return args[1] === "list"
         ? { status: 0, stdout: JSON.stringify(inventory(["one"])) }
-        : { status: args[0] === "scripts/check-transport-contract.mts" ? 8 : 0 };
+        : {
+            status: args[0] === "scripts/check-transport-contract.mts" ? 8 : 0,
+            stdout: args[1] === "run" ? passedResults(["one"]) : "",
+          };
     },
   });
   assert.equal(status, 8);
@@ -1260,4 +1327,20 @@ void test("the guarded Rust baseline compares live schemas only after selected t
     process.execPath,
     ["scripts/check-transport-contract.mts"],
   ]);
+});
+
+void test("a successful native process with missing outcomes refuses before live transport comparison", () => {
+  let transportCalls = 0;
+  const status = runWorkspaceRustImpact(workspacePlan(["Cargo.lock"]), {
+    map,
+    report() {},
+    spawnSync(command, args) {
+      if (command === process.execPath) transportCalls++;
+      return args[1] === "list"
+        ? { status: 0, stdout: JSON.stringify(inventory(["one"])) }
+        : { status: 0, stdout: "" };
+    },
+  });
+  assert.equal(status, 1);
+  assert.equal(transportCalls, 0);
 });

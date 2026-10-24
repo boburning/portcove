@@ -130,7 +130,7 @@ export function isRepositoryLintInput(file: string) {
 }
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
-const durationReporter = "./scripts/test-duration-reporter.mts";
+const requiredReporter = "./scripts/required-node-test-reporter.mts";
 
 const packagePrefixes = new Map([
   ["crates/portcove-core/", "portcove-core"],
@@ -284,6 +284,7 @@ const containmentContractTests = [
 const containmentInputs = new Set([
   "scripts/rust-test-impact.mts",
   "scripts/windows-rust-tests.mts",
+  "scripts/nextest-outcomes.mts",
   "scripts/desktop-linux-x11.mts",
   "scripts/resource-paths.mts",
   "scripts/native-build.mts",
@@ -359,7 +360,22 @@ export const pythonContractTests = [
   "scripts/release-semantic-source.test.mts",
 ];
 const explicitNodeTests = new Map<string, readonly string[]>([
-  ["scripts/node-case-observations.mts", ["scripts/test-duration-reporter.test.mts"]],
+  [
+    "scripts/node-case-observations.mts",
+    ["scripts/test-duration-reporter.test.mts", "scripts/required-node-test-reporter.test.mts"],
+  ],
+  [
+    "scripts/required-node-test-reporter.mts",
+    [
+      "scripts/required-node-test-reporter.test.mts",
+      "scripts/ci-baseline.test.mts",
+      "scripts/node-test-inventory.test.mts",
+    ],
+  ],
+  [
+    "scripts/test-duration-reporter.mts",
+    ["scripts/test-duration-reporter.test.mts", "scripts/required-node-test-reporter.test.mts"],
+  ],
   ...["scripts/python-test-results.py", "scripts/python-test-results.mts"].map(
     (file): [string, readonly string[]] => [file, pythonContractTests],
   ),
@@ -1117,6 +1133,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/release-hosted-native-runner.test.mts",
       "scripts/release-routing-marker.test.mts",
       "scripts/release-run-evidence.test.mts",
+      "scripts/required-node-test-reporter.test.mts",
       "scripts/test-duration-reporter.test.mts",
     ],
   ],
@@ -1187,6 +1204,20 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ["scripts/ci-baseline-execution.test.mts"],
   ]),
   ["scripts/rust-test-impact.mts", ["scripts/rust-test-impact.test.mts"]],
+  [
+    "scripts/nextest-outcomes.mts",
+    [
+      "scripts/nextest-outcomes.test.mts",
+      "scripts/rust-test-impact.test.mts",
+      "scripts/ci-workflow.test.mts",
+    ],
+  ],
+  ...["passed.jsonl", "failing.jsonl", "ignored.jsonl", "inventory.json", "provenance.json"].map(
+    (file): [string, string[]] => [
+      `scripts/fixtures/nextest-outcomes/${file}`,
+      ["scripts/nextest-outcomes.test.mts"],
+    ],
+  ),
   [
     "scripts/desktop-linux-x11.mts",
     [
@@ -1858,6 +1889,7 @@ function classifyOnePath(
     file === "deny.toml" ||
     file === ".config/rust-test-timing-hints.json" ||
     file === "scripts/windows-rust-tests.mts" ||
+    file === "scripts/nextest-outcomes.mts" ||
     (file === ".config/nextest.toml" && !options.nextestUnchanged)
   ) {
     selection.workspaceRust = true;
@@ -2268,7 +2300,7 @@ export function nodeTestCommand(files: string[]) {
       "--test",
       "--test-timeout=60000",
       "--experimental-test-module-mocks",
-      `--test-reporter=${durationReporter}`,
+      `--test-reporter=${requiredReporter}`,
       ...(serialWindowsQualification ? ["--test-concurrency=1"] : []),
       ...files,
     ],
