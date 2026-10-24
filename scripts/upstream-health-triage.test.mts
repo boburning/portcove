@@ -65,16 +65,13 @@ void test("inconclusive, stale, and retained evidence never claims recovery", ()
   );
 });
 
-void test(
-  "observed span is bounded to actual observations and is not uninterrupted downtime",
-  () => {
-    const i = incident();
-    assert.equal(observedSpan(i), "2d 2h");
-    assert.equal(observedSpan({ first_seen: i.observed_at, observed_at: i.first_seen }), "unknown");
-    assert.equal(observedSpan({ first_seen: "bad", observed_at: i.observed_at }), "unknown");
-    assert.equal(observedSpan({ first_seen: i.first_seen, observed_at: i.first_seen }), "0h");
-  },
-);
+void test("observed span is bounded to actual observations and is not uninterrupted downtime", () => {
+  const i = incident();
+  assert.equal(observedSpan(i), "2d 2h");
+  assert.equal(observedSpan({ first_seen: i.observed_at, observed_at: i.first_seen }), "unknown");
+  assert.equal(observedSpan({ first_seen: "bad", observed_at: i.observed_at }), "unknown");
+  assert.equal(observedSpan({ first_seen: i.first_seen, observed_at: i.first_seen }), "0h");
+});
 
 void test("unrelated conditions are not mutated, deduplicated, or treated as proven holds", () => {
   const continuing = Object.freeze(
