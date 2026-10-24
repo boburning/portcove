@@ -2960,6 +2960,8 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     "package(portcove-core) & (test(/^service::tests::tfe_recovery_hold_protects_inactive_versions_and_invalidates_earlier_removal_consent$/) | test(/^service::tests::tfe_recovery_hold_survives_quarantine_reopen_and_committed_metadata_removal$/))",
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)",
   ];
+  const replacementDownloadFilter =
+    "package(portcove-core) & test(/^service::catalog_download::tests::replacement_download_keeps_current_registration_until_reviewed_relink$/)";
   const publicationFilters = [
     {
       filter:
@@ -2981,6 +2983,7 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     [
       ...windowsLifecycleFilters.map((filter) => ({ platform: "x86_64-pc-windows-msvc", filter })),
       ...publicationFilters,
+      { platform: "x86_64-pc-windows-msvc", filter: replacementDownloadFilter },
     ]
       .map(outputIdentity)
       .sort(),
@@ -3017,6 +3020,15 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     for (const field of ["retries", "threads-required", "priority"])
       assert.equal(override[field], undefined);
   }
+  const replacementDownload = overrideFor(replacementDownloadFilter, "x86_64-pc-windows-msvc");
+  assert.equal(replacementDownload["success-output"], "immediate");
+  assert.deepEqual(replacementDownload["slow-timeout"], {
+    period: "5s",
+    "terminate-after": 18,
+    "grace-period": "0s",
+  });
+  for (const field of ["retries", "threads-required", "priority"])
+    assert.equal(replacementDownload[field], undefined);
   for (const value of [profile, ...overrides]) {
     assert.ok(value.retries === undefined || value.retries === 0);
     assert.equal(value["on-timeout"], undefined);
