@@ -145,8 +145,8 @@ receipt. An unresolved attempt remains visible as requiring attention.
 
 `setup forget PORT_ID --pending-id RECORD_ID` forgets only that exact setup
 record. It does not remove handed-off files. Each port has one active managed
-installation, selected registration or pending setup route; choosing another
-requires explicitly resolving the existing one.
+installation or external registration. A separate downloaded setup may coexist
+with an external registration until a reviewed change replaces its launch target.
 
 When an upstream update changes the executable or working directory, use
 `external select-relink-preview PORT_ID EXECUTABLE --working-directory DIRECTORY`
@@ -154,6 +154,19 @@ and `external select-relink` with the matching `--expected-preview` and `--yes`.
 Use `--arg=VALUE` for every reviewed argument. The registration identity and old
 external files remain intact. The player or upstream launcher remains the
 runtime-replacement owner.
+
+For a fitting native-portable definition, `external managed-preview PORT_ID`
+reviews a separate managed runtime while the current external copy stays usable.
+`external change-to-managed PORT_ID --expected-preview SHA256 --yes` prepares and
+verifies that copy, then atomically switches the saved route. Pass the same
+optional `--channel` and `--output-directory` in both commands. The destination
+must be separate from the external folder. No external file or save is adopted,
+copied or deleted; the new runtime may still read its existing upstream profile
+on a later explicit Play. Keep a separate backup of that profile. Core retains
+the update policy and rechecks consent, registration, definition, release and
+destination. A pre-existing Core data store, shared-account contract, unfinished
+download or richer setup requiring an unsupported transition remains held with
+the current registration preserved; inspect the offered reason before proceeding.
 
 For an eligible managed portable definition, use the ordinary `plan`, `install`,
 `check`, `update`, `activate`, `rollback` and `policy` commands. Portcove owns
@@ -1437,7 +1450,7 @@ prepared registrations retain their non-owning contract. Local saves/settings
 remain managed; the resolved account-wide preferences file is never owned or
 included in backup/restore. The reference client accepts public API77 and requires
 explicit confirmation before transmitting acknowledgment. The current tested reference
-window extends through API80; unknown API81 and unknown consequential semantics are refused.
+window extends through API81; unknown API82 and unknown consequential semantics are refused.
 
 ### Retired custom source creation
 

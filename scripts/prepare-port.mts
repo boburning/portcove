@@ -64,7 +64,9 @@ export function portablePreparationFeedback(
     ? record.integration.platforms.filter((value): value is string => typeof value === "string")
     : [];
   return {
-    ...packageHintFeedback(hints, platforms, facts),
+    ...packageHintFeedback(hints, platforms, facts, (name) =>
+      /\.(?:zip|tar\.gz|tgz)$/iu.test(name),
+    ),
     persistence: Array.isArray(record.integration.persistent_paths)
       ? record.integration.persistent_paths
       : [],
@@ -92,6 +94,7 @@ function packageHintFeedback(
   hints: Record<string, unknown>,
   platforms: readonly string[],
   facts: Pick<Awaited<ReturnType<typeof collectPortFacts>>, "assets" | "assets_complete">,
+  eligibleName?: (name: string) => boolean,
 ) {
   return {
     assets_complete: facts.assets_complete,
@@ -104,7 +107,10 @@ function packageHintFeedback(
         (asset): asset is Record<string, unknown> & { name: string } => {
           if (!isRecord(asset) || typeof asset.name !== "string" || !needles.length) return false;
           const name = asset.name.toLowerCase();
-          return needles.every((hint) => name.includes(hint.toLowerCase()));
+          return (
+            (!eligibleName || eligibleName(name)) &&
+            needles.every((hint) => name.includes(hint.toLowerCase()))
+          );
         },
       );
       return {

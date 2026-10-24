@@ -53,6 +53,16 @@ are independent: the game can ask for original files on first launch while
 Portcove continues to replace its runtime. A launcher that replaces its own
 runtime instead uses the non-owning existing-installation route.
 
+Adding this route does not adopt an existing external registration. Players can
+review a separate managed copy while keeping the current copy usable. Core can
+switch a fitting fresh native-portable route after verified separate publication;
+the external files stay untouched and external saves are not copied. Retain
+owner-neutral listing instructions, including upstream profile locations, and
+put managed preservation promises only in integration presentation. A shared
+upstream profile may still be read on the next explicit Play. A saved Core data
+store or richer preparation/account contract requires its own compatible
+transition rather than guessing at migration or rewriting retained definitions.
+
 Use an official ZIP, tar.gz or tgz with an independently expected SHA-256,
 reviewed native package and executable hints, and a small declared persistence
 contract. For example, the CorsixTH and SDL Sopwith records use the shared route
@@ -1358,7 +1368,7 @@ assets remain Unknown. Metadata never supplies package authenticity or executabl
 acceptance.
 
 For a proposed `native-portable` record, the completion receipt also shows literal
-package-hint matches for each declared platform, whether each matching asset has
+package-hint matches among the supported ZIP/tar.gz/tgz archives for each declared platform, whether each matching asset has
 a published SHA-256, and whether the selected release's asset enumeration is
 complete. Resolve missing or ambiguous matches before acquisition review. This is
 authoring feedback, not a second package selector or a capability certificate.

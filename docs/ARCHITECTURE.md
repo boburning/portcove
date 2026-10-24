@@ -2149,8 +2149,32 @@ It preserves registration identity, timestamps and the original catalog bytes;
 it never re-captures a possibly newer definition. A missing old folder is allowed,
 while its structural and account scope remain binding. New-folder shared consent
 uses the outer relink fingerprint. No external files or saves are moved or adopted.
-Managed planning, installation and updates refuse an extant external registration
-before provider resolution; the UI and adapters do not create another authority.
+Read-only managed planning can show an alternative while the registration stays
+usable. Ordinary installation and updates still refuse that ownership conflict;
+the UI and adapters do not create another authority.
+
+Core's reviewed external-to-managed transition prepares a separate verified
+native-portable copy with no shared-account or managed-preparation contract. It
+requires an empty Core data store, no managed version or unfinished download, and
+a destination outside the external folder. Its authorization binds the existing
+stable installation-review digest, retained definition and exact external-row
+bytes; volatile capacity is rechecked without invalidating consent. The existing
+installer stages, verifies and journals publication. Schema41 retains the exact
+external-registration SHA-256 in that journal and fences older writers. One
+immediate SQLite transaction checks the registration, pending launch/download and
+managed-version preimages, retires the external row and records the active
+verified install. No external files or data are adopted, copied or removed.
+
+Recovery reuses the retained native contract and repeats the separate-path,
+empty-data and registration checks, or recognizes the same already committed
+install. Conflicting state stays held with both copies preserved. Postcommit
+failure carries the publication owner's known install identity through later
+journal, activity or database-readback failure; current active state is confirmed
+separately. An upstream profile can still be shared when the player explicitly
+launches the new copy. A separate runtime is not a save migration or isolated
+profile. CLI/API81 and Tauri translate this Core review/apply operation; React
+holds only transient review state and keeps committed failure visible until an
+explicit current-state refresh.
 
 #### Upstream observations
 

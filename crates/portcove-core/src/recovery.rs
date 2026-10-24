@@ -11,6 +11,18 @@ pub(crate) fn recover_published_install(
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
+    if let Some(expected) = &operation.external_registration_sha256
+        && (operation.kind != LifecycleOperationKind::Install
+            || !operation.activate
+            || expected.len() != 64
+            || !expected
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()))
+    {
+        return Err(PortcoveError::state(
+            "external replacement journal has an invalid owner or registration identity",
+        ));
+    }
     // Recovery holds the journal owner's lock, not a lock inferred from its payload.
     // Verify that authority before publishing, registering, or cleaning any tree.
     if let Some(install) = &operation.install
@@ -181,6 +193,21 @@ pub(crate) fn recover_published_install(
             service
                 .library
                 .register_prepared_install(&install, &plan.inputs.install.id)?;
+        } else if let Some(expected) = &operation.external_registration_sha256 {
+            let status = service
+                .library
+                .status(&operation.port_id, install.channel)?;
+            if !status
+                .active
+                .as_ref()
+                .is_some_and(|active| active.id == install.id)
+            {
+                service.recover_managed_route_publication(&install, expected)?;
+            } else if status.external_runtime.is_some() {
+                return Err(PortcoveError::conflict(
+                    "committed managed replacement still has an external registration; preserve both records for recovery",
+                ));
+            }
         } else {
             service
                 .library

@@ -2694,6 +2694,8 @@ pub fn run() -> std::process::ExitCode {
             catalog_download::forget_pending_setup,
             catalog_download::open_pending_setup_folder,
             external_runtime_commands::preview_external_runtime_relink,
+            external_runtime_commands::preview_managed_route_change,
+            external_runtime_commands::change_to_managed_runtime,
             external_runtime_commands::relink_external_runtime,
             external_runtime_commands::register_external_runtime,
             external_runtime_commands::preview_external_removal,

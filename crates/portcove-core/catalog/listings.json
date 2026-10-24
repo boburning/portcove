@@ -2508,9 +2508,8 @@
       "summary": "Explore Ace Combat 6 Recomp and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/sal063/AC6_recomp",
       "issue_number": 159,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/sal063/AC6_recomp",
+      "availability": "packages",
+      "setup_url": "https://github.com/sal063/AC6_recomp/blob/v1.0.0-beta.2/README.md",
       "artwork": {
         "game_id": 5476,
         "cover_id": 129981,
@@ -2518,7 +2517,37 @@
         "image_sha256": "4c96dc0b2df555f04889240e43fcc2a6b1d9a39efddb2c11c0900c487f04ba70",
         "game_slug": "ace-combat-6-fires-of-liberation",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Ace Combat 6: Fires of Liberation",
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "ac6recomp-",
+          ".zip"
+        ]
+      },
+      "release_url": "https://github.com/sal063/AC6_recomp/releases/tag/v1.0.0-beta.2",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Add your US game data before Play",
+            "instruction": "Open the new runtime folder and copy your own US Ace Combat 6 Xbox 360 disc image beside ac6recomp.exe as AC6.iso, or put your extracted game files in assets with assets/default.xex. Keep your original copy separately. Europe and Japan are not supported. Choose Play after adding the files; this portable package has no installer. The game checks the disc title identity, but Portcove does not verify a retail-edition checksum for this upstream setup route. Optional own DLC belongs in dlc; title-update data is a separate upstream input, not a runtime update."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "Saves and the default texture-mod profile use your Windows Documents/ac6recomp folder. Keep a separate backup of that folder before changing versions. Runtime settings and keyboard bindings sit beside the player in ac6recomp.toml and ac6_input.toml; use forward slashes in TOML paths. Runtime caches and logs also appear beside the player. If Windows cannot resolve Documents, the upstream relative ac6recomp fallback stays beside the player. Custom data, disc, DLC, log, mod and diagnostic locations remain yours to preserve separately. Close the game before changing runtime files; older versions may not read newer saves."
+          },
+          {
+            "title": "Know this release’s limits",
+            "instruction": "Upstream requires Windows 10/11 x64, AVX2 and a Direct3D 12-capable GPU. This experimental release has known performance and rendering limits; Portcove gameplay and minimum-system observations remain unqualified."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/sal063/AC6_recomp/blob/v1.0.0-beta.2/README.md"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "ace-combat-x-skies-of-deception-ace-combat-x-recompilation",
@@ -5825,9 +5854,8 @@
       "summary": "Explore Banjo-Tooie: Recompiled (some-scurvy-dog) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/some-scurvy-dog/BanjoTooieRecompiled",
       "issue_number": 1395,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/some-scurvy-dog/BanjoTooieRecompiled",
+      "availability": "packages",
+      "setup_url": "https://github.com/some-scurvy-dog/banjo-tooie-scurvy-dog-port/blob/v0.1.0-alpha.4.3/release/README.txt",
       "artwork": {
         "game_id": 3418,
         "cover_id": 295556,
@@ -5835,7 +5863,37 @@
         "image_sha256": "26b3761c34557f7325f55f859547c55b8f46525354ab10f946cb57169919e28b",
         "game_slug": "banjo-tooie",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Banjo-Tooie",
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "BanjoTooieScurvyDogPort-",
+          "-Windows-x64.zip"
+        ]
+      },
+      "release_url": "https://github.com/some-scurvy-dog/banjo-tooie-scurvy-dog-port/releases/tag/v0.1.0-alpha.4.3",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Select your own Banjo-Tooie ROM on first Play",
+            "instruction": "Choose Play, then select your own NTSC-U 1.0 big-endian .z64 Banjo-Tooie ROM when asked. The upstream player requires SHA-256 9ec37fba6890362eba86fb855697a9cff1519275531b172083a1a6a045483583 and stores its own profile copy. The Windows ZIP has no installer. If Windows reports a missing runtime DLL, use the Microsoft Visual C++ x64 Redistributable linked in the packaged README; no helper runs automatically."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "Saves, settings, copied ROM, logs, cache and RT64 texture packs use %LOCALAPPDATA%/BanjoTooieScurvyDogPort. Keep a separate backup; do not share the whole profile because it contains your ROM. On first start only, if this destination does not exist, the game can copy selected Alpha 4/4.1 data from BanjoTooieEncore while leaving the old profile unchanged. Close the old game first; the copies do not synchronize. An existing destination, even empty, wins. A failed copy can leave an unused .migrating-… folder; preserve it and consult the upstream recovery instructions before retrying. Alpha 3 save import asks once if there is no current save; Alpha 3 settings and practice states are not carried over. Texture packs are experimental; code mods and ROM patches are unsupported."
+          },
+          {
+            "title": "Know this release’s limits",
+            "instruction": "This is an upstream alpha: distant geometry, aspect sizing, shadows, animation and lost-focus controller behavior have documented limitations; the upstream has not verified the whole game. Portcove gameplay and populated save restoration remain unqualified."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/some-scurvy-dog/banjo-tooie-scurvy-dog-port/blob/v0.1.0-alpha.4.3/release/README.txt"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "battletanx-global-assault-pc-port",
@@ -7963,9 +8021,8 @@
       "summary": "Explore ICO (ico-pc / nathanialf) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/nathanialf/ico-pc",
       "issue_number": 1622,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/nathanialf/ico-pc",
+      "availability": "packages",
+      "setup_url": "https://github.com/nathanialf/ico-pc/blob/v0.8.5/README.md",
       "artwork": {
         "game_id": 7170,
         "cover_id": 175220,
@@ -7973,7 +8030,31 @@
         "image_sha256": "6ab4d0a4eebe33c774cb97817538cd171d8489fcad57c8b0fcd8ed3378dace3d",
         "game_slug": "ico",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "ICO",
+      "release_url": "https://github.com/nathanialf/ico-pc/releases/tag/v0.8.5",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Select your ICO disc on first Play",
+            "instruction": "Choose Play, then select your own ICO European SCES-50760, Japanese SCPS-11003 or Korean SCPS-56001 disc image when asked. Use ISO, CHD, or BIN with its matching CUE; the US disc is not supported. Keep the image outside the runtime folder. The game verifies and extracts its data on first launch (about 1 GB); later launches use that extracted copy. Keep your original image available if a future data-format change requires extraction again."
+          },
+          {
+            "title": "Keep saves with this portable copy",
+            "instruction": "The official portable download enables portable=1 and keeps saves, settings and extracted disc data in userdata beside the player. Windows puts the player in x64; Linux puts it at the archive root. Back up userdata/memcard for saves, and use userdata/memcard2 for an optional second card. With portable=0 or an unwritable portable folder, data instead uses the upstream user-profile folder. Preserve that folder separately. Texture/model packs go in the documented textures/models folders. Close the game and preserve your current data before replacing a runtime; older versions may not read newer saves."
+          },
+          {
+            "title": "Other upstream platforms",
+            "instruction": "The upstream project also publishes Apple-silicon macOS bundles, ARM Linux and mobile packages. Follow its platform guide for those copies; their setup and data locations differ from these Windows x64 and Linux x64 portable archives."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/nathanialf/ico-pc/blob/v0.8.5/docs/PORTABLE_MODE.md"
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
     },
     {
       "id": "igawa6-dualsouls",

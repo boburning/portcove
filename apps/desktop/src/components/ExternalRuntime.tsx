@@ -31,6 +31,7 @@ import { ExternalLink } from "./ExternalLink";
 import { platformLabel } from "../view-model";
 import { sharedRuntimeDisclosure } from "../shared/external-runtime-disclosure";
 import { usesUserSelectedRuntime } from "../shared/external-runtime-trust";
+import { ManagedRouteChangeControl } from "./ManagedRouteChange";
 
 function ReviewCancelButton({
   pending,
@@ -60,10 +61,21 @@ type ExternalRuntimeControlProps = {
 export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
   if (props.status?.active) return null;
   return (
-    <ExternalRuntimeContext
-      key={JSON.stringify([props.port.id, props.generation, props.status?.external_runtime?.id])}
-      {...props}
-    />
+    <>
+      <ExternalRuntimeContext
+        key={JSON.stringify([props.port.id, props.generation, props.status?.external_runtime?.id])}
+        {...props}
+      />
+      {props.port.adapter === "native-portable" && props.status?.external_runtime && (
+        <ManagedRouteChangeControl
+          key={JSON.stringify([props.port.id, props.generation, props.status.external_runtime])}
+          port={props.port}
+          generation={props.generation}
+          busy={props.busy}
+          onChanged={props.onChanged}
+        />
+      )}
+    </>
   );
 }
 

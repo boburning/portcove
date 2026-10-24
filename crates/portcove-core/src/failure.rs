@@ -114,6 +114,11 @@ pub(crate) enum KnownFailureCause {
         failures: Vec<String>,
     },
     PortableDataContractChanged,
+    ManagedRouteCommitted {
+        version: String,
+        previous_path: std::path::PathBuf,
+        current_confirmed: bool,
+    },
     RestoreRecovery,
     BackupDeletionRecovery,
     TfePreparationRecovery {
@@ -220,6 +225,26 @@ impl KnownFailureCause {
                 "portable_data_contract_changed",
                 "This package changes where player data is stored or how it is located. Portcove stopped the transition and kept the current installation and files. Keep using the current version; use upstream instructions until a compatible package or supported data migration is available.",
             ),
+            Self::ManagedRouteCommitted {
+                version,
+                previous_path,
+                current_confirmed,
+            } => {
+                let outcome = if *current_confirmed {
+                    format!("The managed copy ({version}) is now active")
+                } else {
+                    format!(
+                        "The managed copy ({version}) was activated; its current active state is not confirmed"
+                    )
+                };
+                return (
+                    "managed_route_committed",
+                    format!(
+                        "{outcome}. Finishing the operation needs recovery. Restart Portcove to reconcile it, then review the current installation before continuing. Your previous external files remain at {}. They were not copied into the managed version.",
+                        previous_path.display()
+                    ),
+                );
+            }
             Self::RestoreRecovery => (
                 "restore_recovery_required",
                 "A backup restore is unfinished. Restart Portcove to reconcile it, then review recovery before launching or collecting saves. Preserve the backup and safety copy.",
@@ -357,6 +382,28 @@ impl PortcoveError {
     pub(crate) fn with_known_cause(mut self, cause: KnownFailureCause) -> Self {
         self.failure.known_cause = Some(cause);
         self
+    }
+
+    /// The publication owner supplies its observed successful metadata commit.
+    /// Failure diagnostics and optional database readback never establish it.
+    pub(crate) fn mark_managed_route_committed(
+        &mut self,
+        install: &crate::InstallRecord,
+        previous_path: &std::path::Path,
+        current_confirmed: bool,
+    ) {
+        self.failure.mutation_state = MutationState::Committed;
+        self.failure.known_cause = Some(KnownFailureCause::ManagedRouteCommitted {
+            version: install.version.clone(),
+            previous_path: previous_path.to_owned(),
+            current_confirmed,
+        });
+        self.details
+            .insert("committed_install_id".into(), install.id.clone());
+        self.details
+            .insert("committed_version".into(), install.version.clone());
+        self.details
+            .insert("external_files_preserved".into(), "true".into());
     }
 
     /// Display context from the operation's resolved definition, never diagnostics.

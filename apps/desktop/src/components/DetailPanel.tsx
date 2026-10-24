@@ -687,7 +687,7 @@ function DetailBody({
               actions={actions}
               openLibraryStorage={openLibraryStorage}
             />
-            {!external && (
+            {(!external || port.adapter === "native-portable") && (
               <DetailGroup title="Installation folder">
                 <FutureSetupDisclosure
                   title="Folder for a future install"

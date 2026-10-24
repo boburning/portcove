@@ -184,6 +184,586 @@ mod tests {
         service.catalog = catalog();
         service
     }
+
+    fn register_external_copy(service: &PortcoveService, root: &Path) -> ExternalRuntimeRecord {
+        fs::create_dir_all(root).unwrap();
+        fs::write(root.join("game.exe"), b"untouched external executable").unwrap();
+        fs::write(root.join("save.dat"), b"external player progress").unwrap();
+        let record = ExternalRuntimeRecord {
+            user_selected: Some(crate::UserSelectedLaunch {
+                arguments: Vec::new(),
+            }),
+            id: Uuid::new_v4().to_string(),
+            port_id: "portable-fixture".into(),
+            path: root.to_owned(),
+            executable: root.join("game.exe"),
+            version: "user-managed".into(),
+            platform: Platform::current().unwrap(),
+            archive_sha256: String::new(),
+            immutable_tree_sha256: String::new(),
+            registered_at: Library::now(),
+            retained_definition: None,
+            shared_preferences: None,
+        };
+        let retained = Catalog::for_user_selected_listing(
+            service.catalog.listing("portable-fixture").unwrap().clone(),
+        )
+        .unwrap();
+        service
+            .library
+            .register_external_runtime(&record, &retained)
+            .unwrap();
+        record
+    }
+
+    async fn route_authorization(service: &PortcoveService) -> crate::DestructiveAuthorization {
+        let review = service
+            .preview_managed_route_change("portable-fixture", None, None)
+            .await
+            .unwrap();
+        assert!(review.permitted, "{:?}", review.reason);
+        assert!(review.external_files_will_be_preserved);
+        assert!(!review.external_data_will_be_copied);
+        service
+            .authorize_managed_route_change("portable-fixture", None, None, &review.preview_sha256)
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn route_change_publishes_separate_runtime_preserving_external_files_and_policy() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let service = build_service(library.clone(), provider);
+        let old = register_external_copy(&service, &temporary.path().join("external"));
+        let output = temporary.path().join("separate-managed-output");
+        service
+            .set_output_directory("portable-fixture", &output)
+            .unwrap();
+        library
+            .set_update_policy(
+                "portable-fixture",
+                UpdatePolicy::Stage,
+                ReleaseChannel::Stable,
+            )
+            .unwrap();
+        let authorization = route_authorization(&service).await;
+        // A normal install remains forbidden even though its proposal can be read.
+        assert!(service.plan_game_install("portable-fixture").await.is_err());
+        assert!(
+            service
+                .install("portable-fixture", None, None, None, true, |_| {})
+                .await
+                .is_err()
+        );
+        let result = service
+            .change_to_managed_runtime("portable-fixture", None, None, &authorization.token, |_| {})
+            .await
+            .unwrap();
+        assert_eq!(result.previous_registration.id, old.id);
+        assert!(result.external_files_preserved);
+        assert_ne!(result.installation.path, old.path);
+        assert!(
+            result
+                .installation
+                .path
+                .starts_with(fs::canonicalize(&output).unwrap())
+        );
+        assert!(!result.installation.path.join("save.dat").exists());
+        assert_eq!(
+            fs::read(old.path.join("save.dat")).unwrap(),
+            b"external player progress"
+        );
+        let status = library
+            .status("portable-fixture", ReleaseChannel::Stable)
+            .unwrap();
+        assert!(status.external_runtime.is_none());
+        assert_eq!(status.active.unwrap().id, result.installation.id);
+        assert_eq!(status.update_policy, UpdatePolicy::Stage);
+        assert!(
+            service
+                .change_to_managed_runtime(
+                    "portable-fixture",
+                    None,
+                    None,
+                    &authorization.token,
+                    |_| {}
+                )
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn route_change_crash_recovery_preserves_precommit_registration_and_reports_committed_state()
+     {
+        for point in [
+            LifecycleFaultPoint::InstallPublished,
+            LifecycleFaultPoint::InstallMetadataCommitted,
+        ] {
+            struct Interrupt(LifecycleFaultPoint);
+            impl LifecycleFaultInjector for Interrupt {
+                fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                    if point == self.0 {
+                        Err(PortcoveError::state("synthetic route interruption"))
+                    } else {
+                        Ok(())
+                    }
+                }
+            }
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+            let mut service = build_service(library.clone(), provider.clone());
+            let old = register_external_copy(&service, &temporary.path().join("external"));
+            service
+                .set_output_directory("portable-fixture", &temporary.path().join("managed-output"))
+                .unwrap();
+            let authorization = route_authorization(&service).await;
+            service.faults = Arc::new(Interrupt(point));
+            let error = service
+                .change_to_managed_runtime(
+                    "portable-fixture",
+                    None,
+                    None,
+                    &authorization.token,
+                    |_| {},
+                )
+                .await
+                .unwrap_err();
+            let status = library
+                .status("portable-fixture", ReleaseChannel::Stable)
+                .unwrap();
+            if point == LifecycleFaultPoint::InstallPublished {
+                assert_eq!(status.external_runtime.unwrap().id, old.id);
+                assert!(status.active.is_none());
+            } else {
+                assert!(status.external_runtime.is_none());
+                assert_eq!(status.active.unwrap().version, "v1");
+                assert_eq!(
+                    error.presentation().mutation_state,
+                    crate::MutationState::Committed
+                );
+                assert_eq!(
+                    error.presentation().presentation_key,
+                    "managed_route_committed"
+                );
+            }
+            let recovered = build_service(library.clone(), provider);
+            recovered.recover_pending_operations().unwrap();
+            recovered.recover_pending_operations().unwrap();
+            let status = library
+                .status("portable-fixture", ReleaseChannel::Stable)
+                .unwrap();
+            assert!(
+                status.external_runtime.is_none(),
+                "remaining journals: {:?}",
+                OperationStore::new(library.clone()).all().unwrap()
+            );
+            assert_eq!(status.active.unwrap().version, "v1");
+            assert!(OperationStore::new(library).all().unwrap().is_empty());
+            assert_eq!(
+                fs::read(old.path.join("save.dat")).unwrap(),
+                b"external player progress"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn route_change_refuses_changed_registration_new_core_data_and_unowned_output() {
+        for change in ["registration", "data", "unowned-output"] {
+            struct ChangeBeforeCommit {
+                library: Library,
+                change: &'static str,
+            }
+            impl LifecycleFaultInjector for ChangeBeforeCommit {
+                fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                    if point == LifecycleFaultPoint::InstallPublished {
+                        if self.change == "data" {
+                            let directory = self.library.user_dir("portable-fixture");
+                            fs::create_dir_all(&directory)?;
+                            fs::write(directory.join("retained-save"), b"keep old Core data")?;
+                        } else if self.change == "unowned-output" {
+                            let root = self
+                                .library
+                                .output_roots()?
+                                .into_iter()
+                                .find(|root| root.port_id == "portable-fixture")
+                                .unwrap();
+                            fs::write(
+                                root.path.join("unrelated-player-file"),
+                                b"keep unrelated output",
+                            )?;
+                        } else {
+                            self.library.connection()?.execute("UPDATE external_runtime_registrations SET record_json=json_set(record_json,'$.registered_at',registered_at+1) WHERE port_id='portable-fixture'", [])?;
+                        }
+                    }
+                    Ok(())
+                }
+            }
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+            let mut service = build_service(library.clone(), provider.clone());
+            let old = register_external_copy(&service, &temporary.path().join("external"));
+            let output = temporary.path().join("managed-output");
+            service
+                .set_output_directory("portable-fixture", &output)
+                .unwrap();
+            let authorization = route_authorization(&service).await;
+            service.faults = Arc::new(ChangeBeforeCommit {
+                library: library.clone(),
+                change,
+            });
+            assert!(
+                service
+                    .change_to_managed_runtime(
+                        "portable-fixture",
+                        None,
+                        None,
+                        &authorization.token,
+                        |_| {}
+                    )
+                    .await
+                    .is_err()
+            );
+            let status = library
+                .status("portable-fixture", ReleaseChannel::Stable)
+                .unwrap();
+            assert!(status.active.is_none());
+            assert_eq!(status.external_runtime.unwrap().id, old.id);
+            let recovered = build_service(library.clone(), provider);
+            // Recovery returns a report with the held journal; it must not retire
+            // the changed registration or reinterpret newly appeared Core data.
+            recovered.recover_pending_operations().unwrap();
+            assert!(
+                library
+                    .status("portable-fixture", ReleaseChannel::Stable)
+                    .unwrap()
+                    .active
+                    .is_none()
+            );
+            assert!(
+                !OperationStore::new(library.clone())
+                    .all()
+                    .unwrap()
+                    .is_empty()
+            );
+            assert_eq!(
+                fs::read(old.path.join("save.dat")).unwrap(),
+                b"external player progress"
+            );
+            if change == "data" {
+                assert_eq!(
+                    fs::read(library.user_dir("portable-fixture").join("retained-save")).unwrap(),
+                    b"keep old Core data"
+                );
+            } else if change == "unowned-output" {
+                assert_eq!(
+                    fs::read(output.join("unrelated-player-file")).unwrap(),
+                    b"keep unrelated output"
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn route_change_sql_failure_rolls_back_registration_retirement_and_recovers() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let service = build_service(library.clone(), provider.clone());
+        let old = register_external_copy(&service, &temporary.path().join("external"));
+        let authorization = route_authorization(&service).await;
+        library.connection().unwrap().execute_batch("CREATE TRIGGER refuse_test_install BEFORE INSERT ON installs BEGIN SELECT RAISE(ABORT, 'synthetic metadata failure'); END;").unwrap();
+        let error = service
+            .change_to_managed_runtime("portable-fixture", None, None, &authorization.token, |_| {})
+            .await
+            .unwrap_err();
+        assert!(error.message.contains("synthetic metadata failure"));
+        let status = library
+            .status("portable-fixture", ReleaseChannel::Stable)
+            .unwrap();
+        assert_eq!(status.external_runtime.unwrap().id, old.id);
+        assert!(status.active.is_none());
+        library
+            .connection()
+            .unwrap()
+            .execute_batch("DROP TRIGGER refuse_test_install;")
+            .unwrap();
+        let recovered = build_service(library.clone(), provider);
+        recovered.recover_pending_operations().unwrap();
+        assert!(
+            library
+                .status("portable-fixture", ReleaseChannel::Stable)
+                .unwrap()
+                .active
+                .is_some()
+        );
+        assert_eq!(
+            fs::read(old.path.join("save.dat")).unwrap(),
+            b"external player progress"
+        );
+    }
+
+    #[tokio::test]
+    async fn route_change_review_rejects_overlap_retained_data_and_changed_release_consent() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let service = build_service(library.clone(), provider.clone());
+        let old = register_external_copy(&service, &temporary.path().join("external"));
+        assert!(
+            service
+                .preview_managed_route_change(
+                    "portable-fixture",
+                    None,
+                    Some(&old.path.join("another-copy"))
+                )
+                .await
+                .is_err()
+        );
+        let data = library.user_dir("portable-fixture");
+        fs::create_dir_all(&data).unwrap();
+        fs::write(data.join("old-save"), b"retained data").unwrap();
+        let review = service
+            .preview_managed_route_change("portable-fixture", None, None)
+            .await
+            .unwrap();
+        assert!(!review.permitted);
+        assert!(review.reason.unwrap().contains("saved data"));
+        assert!(
+            service
+                .authorize_managed_route_change(
+                    "portable-fixture",
+                    None,
+                    None,
+                    &review.preview_sha256
+                )
+                .await
+                .is_err()
+        );
+        // The player deliberately preserves the file outside the Core store.
+        fs::rename(
+            data.join("old-save"),
+            temporary.path().join("preserved-old-save"),
+        )
+        .unwrap();
+        let authorization = route_authorization(&service).await;
+        *provider.0.lock().unwrap() = server.release("v2", 2);
+        assert!(
+            service
+                .change_to_managed_runtime(
+                    "portable-fixture",
+                    None,
+                    None,
+                    &authorization.token,
+                    |_| {}
+                )
+                .await
+                .is_err()
+        );
+        assert!(
+            OperationStore::new(library.clone())
+                .all()
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            library
+                .status("portable-fixture", ReleaseChannel::Stable)
+                .unwrap()
+                .external_runtime
+                .unwrap()
+                .id,
+            old.id
+        );
+        assert_eq!(
+            fs::read(temporary.path().join("preserved-old-save")).unwrap(),
+            b"retained data"
+        );
+    }
+
+    #[tokio::test]
+    async fn route_change_cancellation_preserves_registration_without_publication() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let service = build_service(library.clone(), provider);
+        let old = register_external_copy(&service, &temporary.path().join("external"));
+        let authorization = route_authorization(&service).await;
+        let error = service
+            .change_to_managed_runtime(
+                "portable-fixture",
+                None,
+                None,
+                &authorization.token,
+                |event| {
+                    if matches!(event.event, crate::OperationEventKind::Started) {
+                        service.request_cancellation(&event.operation_id).unwrap();
+                    }
+                },
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        let status = library
+            .status("portable-fixture", ReleaseChannel::Stable)
+            .unwrap();
+        assert!(status.active.is_none());
+        assert_eq!(status.external_runtime.unwrap().id, old.id);
+        assert!(OperationStore::new(library).all().unwrap().is_empty());
+        assert_eq!(
+            fs::read(old.path.join("save.dat")).unwrap(),
+            b"external player progress"
+        );
+    }
+
+    #[tokio::test]
+    async fn route_change_keeps_successful_commit_when_finishing_fails_after_active_state_changes()
+    {
+        struct FinishFailure(Library);
+        impl LifecycleFaultInjector for FinishFailure {
+            fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                if point == LifecycleFaultPoint::InstallMetadataCommitted {
+                    // A disposable database fault changes the later readback and
+                    // makes activity finalization fail after successful publication.
+                    // It never removes either runtime's files.
+                    self.0.connection()?.execute_batch(
+                        "UPDATE port_settings SET active_install_id=NULL WHERE port_id='portable-fixture';
+                         UPDATE activity_history SET cancellation_phase='preparing' WHERE operation='install' AND status='running';
+                         CREATE TRIGGER refuse_test_route_finish BEFORE UPDATE OF cancellation_phase ON activity_history
+                         WHEN NEW.cancellation_phase='finishing'
+                         BEGIN SELECT RAISE(FAIL, 'synthetic post-publication finish failure'); END;"
+                    )?;
+                }
+                Ok(())
+            }
+        }
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let mut service = build_service(library.clone(), provider);
+        let old = register_external_copy(&service, &temporary.path().join("external"));
+        let authorization = route_authorization(&service).await;
+        service.faults = Arc::new(FinishFailure(library.clone()));
+        let error = service
+            .change_to_managed_runtime("portable-fixture", None, None, &authorization.token, |_| {})
+            .await
+            .unwrap_err();
+        assert!(
+            error
+                .message
+                .contains("synthetic post-publication finish failure"),
+            "{error:?}"
+        );
+        assert_eq!(
+            error.presentation().mutation_state,
+            crate::MutationState::Committed
+        );
+        assert_eq!(
+            error.details.get("committed_version").map(String::as_str),
+            Some("v1")
+        );
+        assert!(error.presentation().summary.contains("was activated"));
+        assert!(
+            error
+                .presentation()
+                .summary
+                .contains("current active state is not confirmed")
+        );
+        let status = library
+            .status("portable-fixture", ReleaseChannel::Stable)
+            .unwrap();
+        assert!(status.active.is_none());
+        assert!(status.external_runtime.is_none());
+        let installs = library.all_installs().unwrap();
+        assert_eq!(installs.len(), 1);
+        assert!(installs[0].path.join("game.exe").is_file());
+        assert!(OperationStore::new(library).all().unwrap().is_empty());
+        assert_eq!(
+            fs::read(old.path.join("save.dat")).unwrap(),
+            b"external player progress"
+        );
+    }
+
+    #[tokio::test]
+    async fn route_change_keeps_known_commit_when_database_readback_is_unavailable() {
+        struct InterruptReadback(PathBuf);
+        impl LifecycleFaultInjector for InterruptReadback {
+            fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                if point == LifecycleFaultPoint::InstallMetadataCommitted {
+                    // Only this disposable fixture's closed database is moved.
+                    // Keep the bytes and make reconnect fail until restored below.
+                    fs::rename(
+                        self.0.join("portcove.sqlite3"),
+                        self.0.join("preserved.sqlite3"),
+                    )?;
+                    fs::create_dir(self.0.join("portcove.sqlite3"))?;
+                    return Err(PortcoveError::state(
+                        "synthetic loss of database access after commit",
+                    ));
+                }
+                Ok(())
+            }
+        }
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let mut service = build_service(library.clone(), provider.clone());
+        let old = register_external_copy(&service, &temporary.path().join("external"));
+        let authorization = route_authorization(&service).await;
+        service.faults = Arc::new(InterruptReadback(library.root().to_owned()));
+        let result = service
+            .change_to_managed_runtime("portable-fixture", None, None, &authorization.token, |_| {})
+            .await;
+        fs::remove_dir(library.root().join("portcove.sqlite3")).unwrap();
+        fs::rename(
+            library.root().join("preserved.sqlite3"),
+            library.root().join("portcove.sqlite3"),
+        )
+        .unwrap();
+        let error = result.unwrap_err();
+        assert_eq!(
+            error.presentation().mutation_state,
+            crate::MutationState::Committed
+        );
+        assert_eq!(
+            error.details.get("committed_version").map(String::as_str),
+            Some("v1")
+        );
+        assert!(error.presentation().summary.contains("was activated"));
+        assert!(
+            error
+                .presentation()
+                .summary
+                .contains("current active state is not confirmed")
+        );
+        let recovered = build_service(library.clone(), provider);
+        recovered.recover_pending_operations().unwrap();
+        assert_eq!(
+            library
+                .status("portable-fixture", ReleaseChannel::Stable)
+                .unwrap()
+                .active
+                .unwrap()
+                .version,
+            "v1"
+        );
+        assert_eq!(
+            fs::read(old.path.join("save.dat")).unwrap(),
+            b"external player progress"
+        );
+    }
     #[tokio::test]
     async fn portable_update_rebuild_staging_and_rollback_preserve_declared_data() {
         let temporary = tempfile::tempdir().unwrap();

@@ -61,7 +61,12 @@ void test("portable preparation separates complete hint observations from lifecy
   assert.equal(ambiguous.platforms[0]!.hint_matches[1]!.published_sha256, false);
   const unique = portablePreparationFeedback(record, {
     assets_complete: true,
-    assets: [asset, { ...asset, name: "game-windows-arm64.zip" }],
+    assets: [
+      asset,
+      { ...asset, name: "game-windows-arm64.zip" },
+      { ...asset, name: "game-windows-x64.zip.sha256" },
+      { ...asset, name: "game-windows-x64.zip.exe" },
+    ],
   })!;
   assert.equal(unique.platforms[0]!.hint_matches.length, 1);
   assert.match(unique.platforms[0]!.next, /does not establish fit/);

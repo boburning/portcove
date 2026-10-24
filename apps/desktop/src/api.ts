@@ -739,6 +739,21 @@ export const desktopApi = {
       path,
       generation,
     }),
+  previewManagedRouteChange: (portId: string, generation: number) =>
+    invoke<import("./types").ManagedRouteChangePreview>("preview_managed_route_change", {
+      portId,
+      channel: null,
+      outputDirectory: null,
+      generation,
+    }),
+  changeToManagedRuntime: (portId: string, expectedPreview: string, generation: number) =>
+    invoke<import("./types").ManagedRouteChangeResult>("change_to_managed_runtime", {
+      portId,
+      channel: null,
+      outputDirectory: null,
+      expectedPreview,
+      generation,
+    }),
   relinkExternalRuntime: (
     portId: string,
     path: string,

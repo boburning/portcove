@@ -1803,6 +1803,8 @@ impl CapabilityDocument {
                 "external".into(),
                 "external.review".into(),
                 "external.relink".into(),
+                "external.managed-preview".into(),
+                "external.change-to-managed".into(),
                 "external.select".into(),
                 "external.select-relink".into(),
                 "setup".into(),

@@ -703,6 +703,8 @@ export interface TransportOutputs {
   library_selection: LibrarySelection;
   listing_delivery_status: OutputListingDeliveryStatus;
   listing_statuses: OutputListingStatuses;
+  managed_route_change_preview: OutputManagedRouteChangePreview;
+  managed_route_change_result: OutputManagedRouteChangeResult;
   operation_event: OutputOperationEvent;
   output_destination_preview: OutputOutputDestinationPreview;
   output_relocation_plan: OutputOutputRelocationPlan;
@@ -774,6 +776,8 @@ export interface TransportOutputs {
   desktop_game_file_scan_snapshot: OutputGameFileScanSnapshot;
   desktop_launch_result: OutputDesktopLaunchResult;
   desktop_locale_preference: OutputDesktopLocalePreference;
+  desktop_managed_route_change_preview: OutputManagedRouteChangePreview;
+  desktop_managed_route_change_result: OutputManagedRouteChangeResult;
   desktop_pending_setup_record: PendingSetupRecord;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
@@ -2596,6 +2600,24 @@ export interface ListingActionAssessment {
   action: ListingAction;
   allowed: boolean;
   reason?: string | null;
+  [k: string]: unknown;
+}
+export interface OutputManagedRouteChangePreview {
+  current_registration: ExternalRuntimeRecord;
+  external_data_will_be_copied: boolean;
+  external_files_will_be_preserved: boolean;
+  installation: InstallPlan;
+  permitted: boolean;
+  port_id: string;
+  preview_sha256: string;
+  reason: string | null;
+  update_policy: UpdatePolicy;
+  [k: string]: unknown;
+}
+export interface OutputManagedRouteChangeResult {
+  external_files_preserved: boolean;
+  installation: InstallRecord;
+  previous_registration: ExternalRuntimeRecord;
   [k: string]: unknown;
 }
 export interface OperationTarget {
