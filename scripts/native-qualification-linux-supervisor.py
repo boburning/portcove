@@ -708,6 +708,11 @@ def bounded_driver_command(root, attempt, request):
         "--bind",
         "/",
         "/",
+        # Ordinary bind mounts are nodev. Expose only the fixed null device;
+        # the inner candidate namespace keeps its independent device policy.
+        "--dev-bind",
+        "/dev/null",
+        "/dev/null",
         "--size",
         str(512 * MIB),
         "--tmpfs",

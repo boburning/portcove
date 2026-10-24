@@ -139,6 +139,16 @@ resumes a fresh pass over the same fixed window on a later admitted run. It does
 not retry an HTTP failure or recollect in the same run. Malformed results and
 provider identity/continuity conflicts still refuse. This search-index rule
 does not change the stricter canonical inventory reconciliation rules below.
+Defer only the drifting family for that foreground session and continue the
+independent families within the same six-request allowance. Keep validated
+positive lead identities from the refused page, but never count it as validated
+pagination or advance its successful clock. The receipt lists observed and
+deferred families separately from successful pages. Quiet rotation may proceed
+after four successful pages, or after all four families have a valid page,
+current completion, retained cap or typed drift deferral in this session, and
+the required upstream investigations are complete. Budget refusal, failed HTTP
+and malformed/identity failures cannot manufacture that coverage. A session
+that finishes this bounded effort still reports partial source coverage.
 
 Up to four charged five-release hint pages prioritize observed package assets;
 these are positive leads, not complete release investigation or qualification.
@@ -244,6 +254,17 @@ For an unresolved candidate without a public mutation, `op: hold` accepts
 `hold: {candidate_id, reason, resume}`. Retain its factual blocker and exact
 resume condition. Reconcile ambiguous or unfinished public writes first.
 A new proposal may supersede an uncreated held draft for the same target.
+
+For a created intake whose canonical owner has since revised its text, `op: reconcile`
+accepts `reconciliation: {candidate_id}` and saves the complete current issue/Project
+snapshot for separate non-writing review. Repeat with `reconciliation: {candidate_id,
+review: {verdict: clear, reviewer, model: gpt-6.1-sol, reasoning: high,
+snapshot_sha256}}` only after that review. Fresh complete collection must match the
+exact reviewed snapshot, retained intake marker, upstream/key and unique active
+Project identity; scoped doctor must pass. This acknowledges external completion
+without writing issue text or Project fields. Original draft/review and the new
+snapshot/doctor/review stay in the journal; only then is its delivery reservation
+released. Drift, ambiguity, incomplete collection and mismatched review still refuse.
 
 Intake proposals must satisfy the same non-catalog research/watchlist metadata
 and support disclaimer checked by the scoped doctor before they can be reviewed

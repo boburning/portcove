@@ -4,7 +4,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { reenterResourceCommand, runResourceCommand } from "./resource-command.mts";
 import { inspectSemanticReaderIndex } from "./release-semantic-reader-core.mts";
-import { semanticSupervisorEnvironment } from "./release-semantic-runtime.mts";
+import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
+import {
+  inspectSemanticFixtureEvents,
+  requireLinuxSemanticSettlement,
+  semanticSupervisorEnvironment,
+} from "./release-semantic-runtime.mts";
 import { isRecord } from "./runtime-values.mts";
 
 const sha = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
@@ -52,6 +57,39 @@ export function inspectLinuxQualificationConfiguration(raw: unknown) {
   };
 }
 
+/** A separate, explicitly authenticated inert path. The credential-free wire
+ * remains closed to auth. Only the supervisor opens this dedicated cache. */
+export function inspectAuthenticatedLinuxFixtureConfiguration(raw: unknown) {
+  if (!isRecord(raw) || typeof raw.auth_cache !== "string")
+    throw new Error("dedicated authenticated fixture configuration required");
+  const { auth_cache, ...configuration } = raw;
+  if (
+    !auth_cache.startsWith("/") ||
+    auth_cache.split("/").some((part) => part === ".." || part === ".") ||
+    path.posix.basename(auth_cache) !== "auth.json"
+  )
+    throw new Error("dedicated absolute auth.json path required");
+  return { ...inspectLinuxQualificationConfiguration(configuration), auth_cache };
+}
+
+/** A successful login/reader fixture cannot mint whole-opportunity acceptance.
+ * Auth refresh is a custody effect, even when later reader validation refuses. */
+export function inspectAuthenticatedLinuxFixtureResult(
+  status: number,
+  isolation: unknown,
+  events: Buffer,
+) {
+  if (status !== 0) throw new Error("authenticated fixture supervisor failed");
+  requireLinuxSemanticSettlement(isolation);
+  const { session } = inspectSemanticFixtureEvents(events);
+  return {
+    scope: "inert-authenticated-linux-boundary-only" as const,
+    authenticated: true as const,
+    semantic_acceptance: false as const,
+    session,
+  };
+}
+
 /** Inert settlement decoding only; callers retain and authenticate original bytes. */
 export function inspectLinuxQualificationSettlement(
   status: number,
@@ -84,15 +122,17 @@ export function inspectLinuxQualificationSettlement(
 }
 
 async function qualify(mode: string, configurationPath: string) {
+  const authenticatedFixture = mode === "authenticated-fixture";
   if (
     process.platform !== "linux" ||
     process.getuid?.() === 0 ||
-    !["fixture", "codex-fixture"].includes(mode)
+    !["fixture", "codex-fixture", "authenticated-fixture"].includes(mode)
   )
-    throw new Error("fixed credential-free ordinary Linux fixture required");
-  const configuration = inspectLinuxQualificationConfiguration(
-    JSON.parse(await readFile(configurationPath, "utf8")),
-  );
+    throw new Error("fixed ordinary Linux fixture required");
+  const raw: unknown = JSON.parse(await readFile(configurationPath, "utf8"));
+  const configuration = authenticatedFixture
+    ? inspectAuthenticatedLinuxFixtureConfiguration(raw)
+    : { ...inspectLinuxQualificationConfiguration(raw), auth_cache: null };
   await reenterResourceCommand("analysis", import.meta.url);
   const supervisor = fileURLToPath(
     new URL("./semantic-review-linux-supervisor.py", import.meta.url),
@@ -141,7 +181,9 @@ async function qualify(mode: string, configurationPath: string) {
   await put("inputs/manifest.json", JSON.stringify(manifest));
   await put(
     "inputs/instructions.txt",
-    "Inert credential-free startup fixture; never a semantic review.\n",
+    authenticatedFixture
+      ? 'This is an inert authenticated reader fixture, never a release or semantic review. Use only the portcove_frozen_bundle read tool with snapshot="source", path="fixture.txt", offset=0. Verify it returns the exact text "inert fixture\\n". Do not use shell, other files, web or other tools. After the successful reader call, reply exactly with {"fixture":"inert"}.\n'
+      : "Inert credential-free startup fixture; never a semantic review.\n",
   );
   await put(
     "inputs/result-schema.json",
@@ -190,13 +232,13 @@ async function qualify(mode: string, configurationPath: string) {
     "capture/linux-request.json",
     JSON.stringify({
       schema_version: 1,
-      mode,
+      mode: authenticatedFixture ? "codex" : mode,
       run_root: root,
       runtime_sha256: subset("runtime/"),
       inputs_sha256: subset("inputs/"),
       tools_sha256: configuration.tools_sha256,
-      timeout_seconds: mode === "fixture" ? 60 : 120,
-      auth_cache: null,
+      timeout_seconds: mode === "fixture" ? 60 : authenticatedFixture ? 300 : 120,
+      auth_cache: configuration.auth_cache,
     }),
   );
   const status = await runResourceCommand(
@@ -212,6 +254,14 @@ async function qualify(mode: string, configurationPath: string) {
   const isolation: unknown = JSON.parse(
     await readFile(path.join(root, "capture/isolation.json"), "utf8"),
   );
+  if (authenticatedFixture) {
+    const events = await readBoundedPublicBuildInputFile(
+      root,
+      "capture/stdout.jsonl",
+      16 * 1024 * 1024,
+    );
+    return { ...inspectAuthenticatedLinuxFixtureResult(status, isolation, events), mode, root };
+  }
   inspectLinuxQualificationSettlement(status, isolation, mode);
   return {
     scope: "inert-linux-boundary-only",
@@ -224,6 +274,8 @@ async function qualify(mode: string, configurationPath: string) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (process.argv.length !== 4 || !process.argv[3] || !path.isAbsolute(process.argv[3]))
-    throw new Error("usage: qualify-semantic-linux.mts fixture|codex-fixture ABSOLUTE_CONFIG.json");
+    throw new Error(
+      "usage: qualify-semantic-linux.mts fixture|codex-fixture|authenticated-fixture ABSOLUTE_CONFIG.json",
+    );
   console.log(JSON.stringify(await qualify(process.argv[2]!, process.argv[3])));
 }

@@ -112,6 +112,7 @@
     "catalog-full-2": {
       "arguments": [
         "--test",
+        "--experimental-test-module-mocks",
         "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ]
@@ -1655,6 +1656,27 @@
       "memberships": [
         ["catalog-full-2", 15125],
         ["release-check", 13425]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-linux-report.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15142],
+        ["release-check", 13442]
+      ]
+    },
+    {
+      "file": "scripts/release-native-source-provider.test.mts",
+      "memberships": [
+        ["catalog-full-2", 14002],
+        ["release-check", 12002]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-linux-capture.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15140],
+        ["release-check", 13440]
       ]
     },
     {

@@ -412,6 +412,7 @@ pub struct Installer {
 pub(crate) struct ArchiveWorkerTestHook {
     pub checkpoint: Arc<dyn Fn() -> Result<()> + Send + Sync>,
     pub finished: Arc<std::sync::atomic::AtomicBool>,
+    pub pending_joins: Arc<std::sync::atomic::AtomicUsize>,
 }
 
 struct InstallLifecycle {
@@ -1064,7 +1065,7 @@ impl Installer {
         let extraction_operation = operation.clone();
         #[cfg(test)]
         let archive_worker_test_hook = self.archive_worker_test_hook.clone();
-        tokio::task::spawn_blocking(move || {
+        let worker = tokio::task::spawn_blocking(move || {
             let result = extract_asset(
                 &extraction_path,
                 &extraction_root,
@@ -1084,9 +1085,25 @@ impl Installer {
                     .store(true, std::sync::atomic::Ordering::SeqCst);
             }
             result
-        })
-        .await
-        .map_err(|error| PortcoveError::install(error.to_string()))??;
+        });
+        #[cfg(test)]
+        let worker = {
+            let mut worker = worker;
+            let hook = self.archive_worker_test_hook.as_ref();
+            std::future::poll_fn(move |context| {
+                let observed = std::future::Future::poll(std::pin::Pin::new(&mut worker), context);
+                if observed.is_pending()
+                    && let Some(hook) = hook
+                {
+                    hook.pending_joins
+                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                }
+                observed
+            })
+        };
+        worker
+            .await
+            .map_err(|error| PortcoveError::install(error.to_string()))??;
         operation.checkpoint()?;
         if let Some(worker) = cache_worker {
             let retained = worker.retain(download_path).await?;

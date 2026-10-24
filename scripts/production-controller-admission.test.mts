@@ -67,6 +67,8 @@ import {
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
 import type { PreparedReleaseAdmissionFacts } from "./acquire-release-admission.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 
 const source = Buffer.from("independently selected workflow fixture\n");
 const policy = {
@@ -151,6 +153,15 @@ void test("hosted native parent default path retains original source and issuer 
       runAttempt: 1,
     },
   );
+  const sourceInputs = new Map(
+    await Promise.all(
+      nativeCompatibilitySourcePaths.map(
+        async (pathname) =>
+          [pathname, await readFile(new URL(`../${pathname}`, import.meta.url))] as const,
+      ),
+    ),
+  );
+  const sourceRequests: string[] = [];
   let tokenCalls = 0,
     metadataCalls = 0;
   t.mock.method(globalThis, "fetch", async (endpoint: string | URL | Request) => {
@@ -176,6 +187,31 @@ void test("hosted native parent default path retains original source and issuer 
       assert.equal(options?.env?.GH_TOKEN, "inert-reader-only");
       for (const key of ["ACTIONS_ID_TOKEN_REQUEST_TOKEN", "PORTCOVE_SEMANTIC_APP_KEY"])
         assert.equal(options?.env?.[key], undefined);
+      const endpoint = args.find((value) => value.startsWith("repos/boburning/portcove/contents/"));
+      if (endpoint) {
+        sourceRequests.push(endpoint);
+        const pathname = endpoint
+          .slice("repos/boburning/portcove/contents/".length)
+          .split("?ref=")[0]!;
+        const bytes = sourceInputs.get(pathname as (typeof nativeCompatibilitySourcePaths)[number]);
+        assert.ok(bytes);
+        const body = {
+          type: "file",
+          path: pathname,
+          encoding: "base64",
+          size: bytes.length,
+          content: bytes.toString("base64"),
+          sha: createHash("sha1")
+            .update(Buffer.from(`blob ${bytes.length}\0`))
+            .update(bytes)
+            .digest("hex"),
+        };
+        return {
+          status: 0,
+          stdout: `HTTP/2.0 200 Fixture\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(body)}`,
+          stderr: "",
+        } as ReturnType<typeof childProcess.spawnSync>;
+      }
       return good.transport.spawn(command, args, options) as ReturnType<
         typeof childProcess.spawnSync
       >;
@@ -302,6 +338,21 @@ void test("hosted native parent default path retains original source and issuer 
   assert.equal(selectedValue.candidate.package.sha256, file.sha256);
   assert.equal(selectedValue.checkpoint, checkpoint);
   assert.equal(selectedValue.native_acceptance, "not-established");
+  assert.equal(readOnlyReleaseChildEnvironment(), undefined);
+  const declarations = await hostedCandidate.readActualHostedNativeSourceDeclarations(selected);
+  assert.deepEqual(declarations.candidate, selectedValue.candidate);
+  assert.deepEqual(
+    sourceRequests,
+    nativeCompatibilitySourcePaths.map(
+      (pathname) =>
+        `repos/boburning/portcove/contents/${pathname}?ref=${selectedValue.candidate.source_commit}`,
+    ),
+  );
+  assert.equal(readOnlyReleaseChildEnvironment(), undefined);
+  await assert.rejects(
+    hostedCandidate.readActualHostedNativeSourceDeclarations({ ...selected }),
+    /original/,
+  );
   assert.equal(
     createHash("sha256")
       .update(await readFile(selectedValue.package_path))

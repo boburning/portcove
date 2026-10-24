@@ -130,6 +130,8 @@ export function baselineRequiresDesktopDependencies(plan: ValidationPlan) {
   const selected = baselineContractTests(plan);
   return (
     plan.areas.includes("release-security") ||
+    // This consumer imports Desktop's semver-backed release-version policy.
+    selected.includes("scripts/release-control-inputs.test.mts") ||
     selected.includes("scripts/release-native-source-contract.test.mts") ||
     selected.some((file) => coordinatorStateContractTests.includes(file))
   );
