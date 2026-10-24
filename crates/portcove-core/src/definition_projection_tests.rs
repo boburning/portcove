@@ -87,6 +87,8 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
         .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
     {
         20
+    } else if crate::managed_runtime_policy::requires_provider_resolution(&typed) {
+        21
     } else if typed.managed_initialization
         == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1)
         || typed.runtime_data_policy
@@ -198,8 +200,8 @@ fn render96_and_retained_windows_paths_keep_distinct_capability_floors() {
     let document = projection();
     let contract = serde_json::to_vec(&document).unwrap();
     for (id, version) in [
-        ("resident-evil-gaiden-recomp", 19),
-        ("wave-race-64-racewave46", 19),
+        ("resident-evil-gaiden-recomp", 21),
+        ("wave-race-64-racewave46", 21),
         ("render96ex", 20),
         ("f-zero-snes-recomp", 11),
     ] {
@@ -269,7 +271,7 @@ fn managed_tfe_cannot_omit_or_widen_its_capability_floor() {
     let contract = serde_json::to_vec(&document).unwrap();
     let valid = entry(&document, &contract, position);
     inspect(&valid, &contract).unwrap();
-    for (minimum, maximum) in [(1, 1), (11, 11), (1, 12)] {
+    for (minimum, maximum) in [(1, 1), (11, 11), (1, 12), (19, 19), (20, 20), (19, 21)] {
         let mut stale = valid.clone();
         stale["required_capabilities"][0]["minimum_version"] = json!(minimum);
         stale["required_capabilities"][0]["maximum_version"] = json!(maximum);
@@ -277,7 +279,7 @@ fn managed_tfe_cannot_omit_or_widen_its_capability_floor() {
             inspect(&stale, &contract)
                 .unwrap_err()
                 .message
-                .contains("capability version 19")
+                .contains("capability version 21")
         );
     }
 }

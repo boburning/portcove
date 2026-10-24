@@ -90,6 +90,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 20,
         });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 21,
+        });
         supported
     }
 }
@@ -341,8 +345,33 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(3));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 21, 21)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 22, 22)).unwrap();
         assert!(!future.compatible);
+    }
+
+    #[test]
+    fn provider_bound_runtime_policies_require_v21_and_preserve_direct_v19() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version <= 20
+            })
+            .collect();
+        let required = request("staged-source-portable", 21, 21);
+        let refused = check_with_inventory(&required, &previous).unwrap();
+        assert!(!refused.compatible);
+        assert_eq!(refused.checks[0].installed_version, Some(20));
+        assert!(check_definition_capabilities(&required).unwrap().compatible);
+        for version in [19, 20] {
+            assert!(
+                check_with_inventory(
+                    &request("staged-source-portable", version, version),
+                    &previous
+                )
+                .unwrap()
+                .compatible
+            );
+        }
     }
 
     #[test]

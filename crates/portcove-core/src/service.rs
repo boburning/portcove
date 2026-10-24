@@ -2796,7 +2796,9 @@ impl PortcoveService {
             &self.catalog,
             &port.id,
         )?;
-        let resolution = if scope.is_some() {
+        let resolution = if scope.is_some()
+            || crate::managed_runtime_policy::requires_provider_resolution(port)
+        {
             let resolved = reporter
                 .operation
                 .interruptible(self.resolve_release(port, release.channel, Platform::current()?))
@@ -6154,6 +6156,8 @@ fn remove_managed_entry(path: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     mod backups;
+    #[cfg(windows)]
+    mod dynamic_policy;
 
     use std::{
         sync::{

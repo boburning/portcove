@@ -111,8 +111,15 @@ impl InstallQualification {
                 ));
             }
             scope.require_port(catalog.port(&scope.stable_id)?)?;
-            self.acquisition = Some(resolution);
         }
+        if let Some(contract) = &self.retained_contract {
+            let catalog = contract.catalog(contract.port_id())?;
+            let port = catalog.port(contract.port_id())?;
+            if crate::managed_runtime_policy::requires_provider_resolution(port) {
+                resolution.require_selection(port, self.platform, resolution.release.channel)?;
+            }
+        }
+        self.acquisition = Some(resolution);
         Ok(self)
     }
 
@@ -827,6 +834,23 @@ impl Installer {
                 Some(request.qualification.platform),
             )?;
         }
+        let port = catalog.port(&request.port_id)?;
+        if crate::managed_runtime_policy::requires_provider_resolution(port) {
+            request.qualification.acquisition.as_ref().ok_or_else(|| {
+                PortcoveError::verification("dynamic runtime policy requires an exact provider resolution before acquisition")
+            })?.require_selection(port, request.qualification.platform, request.release.channel)?;
+        }
+        if let Some(resolution) = &request.qualification.acquisition {
+            if resolution.release.asset != request.release.asset
+                || resolution.release.version != request.release.version
+                || resolution.release.channel != request.release.channel
+                || resolution.release.published_at != request.release.published_at
+            {
+                return Err(PortcoveError::conflict(
+                    "installation acquisition proof changed",
+                ));
+            }
+        }
         let current = crate::definition_repository::publisher_policy::acquisition_scope(
             &self.library,
             &catalog,
@@ -834,6 +858,7 @@ impl Installer {
         )?;
         match (current, &request.qualification.acquisition) {
             (None, None) => Ok(None),
+            (None, Some(resolution)) if resolution.scope.is_none() => Ok(None),
             (Some(current), Some(resolution)) => {
                 let scope = resolution.scope.as_ref().ok_or_else(|| {
                     PortcoveError::state("managed resolution lost its acquisition proof")
@@ -3405,6 +3430,7 @@ fn normalize_standalone_appimage(
 
 #[cfg(test)]
 mod tests {
+    mod dynamic_policy;
     use std::{
         fs::File,
         sync::{

@@ -35,6 +35,28 @@ pub(crate) fn phase<T>(label: &str, action: impl FnOnce() -> T) -> T {
     result
 }
 
+/// Freeze the old direct-policy inputs independently of today's release rules.
+/// The reviewed fixture is source-bound to the catalog before GitHub adoption;
+/// current dynamic/provider tests must keep using the current embedded catalog.
+pub(crate) fn historical_managed_policy_catalog() -> crate::Catalog {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../tests/fixtures/managed-direct-policies-historical.json"
+    ))
+    .unwrap();
+    let ports: Vec<crate::PortDefinition> =
+        serde_json::from_value(fixture["ports"].clone()).unwrap();
+    let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+    for port in ports {
+        let existing = document
+            .ports
+            .iter_mut()
+            .find(|current| current.id == port.id)
+            .unwrap();
+        *existing = port;
+    }
+    crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+}
+
 /// Give synthetic installer fixtures the same complete retention input as a
 /// production catalog operation, with their explicitly modified port contract.
 pub(crate) fn retained_qualification(
@@ -131,6 +153,8 @@ impl<'a> IndexedCatalogFixture<'a> {
             .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
         {
             20
+        } else if crate::managed_runtime_policy::requires_provider_resolution(port) {
+            21
         } else if port.managed_initialization
             == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1)
             || port.runtime_data_policy

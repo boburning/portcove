@@ -465,6 +465,7 @@ export async function preparePort(options: PrepareOptions) {
     if (previous) checkLineageChange(previous, record);
     checkObservedRepository(record, metadata.id);
     if (
+      !record.integration &&
       facts.assets_complete &&
       facts.assets.length &&
       isRecord(facts.release?.body) &&
@@ -472,6 +473,8 @@ export async function preparePort(options: PrepareOptions) {
     ) {
       // Asset presence alone cannot establish that a usable game package exists.
       // Keep availability/platform claims authored by the selected route's reviewer.
+      // Managed release facts belong in the observation receipt, not an automatic
+      // version-specific listing edit. Preserve useful authored launcher links.
       record.listing.release_url = facts.release.body.html_url;
       record = checkedAuthoredPort(record);
     }

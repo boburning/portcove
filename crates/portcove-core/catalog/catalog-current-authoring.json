@@ -17672,14 +17672,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v1.0.0",
-            "url": "https://github.com/DomazinUS/RaceWave46/releases/download/v1.0.0/RaceWave46-Windows-x64-v1.0.0.zip",
-            "size": 35768574,
-            "sha256": "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
-          }
+        "provider": "github",
+        "repository": "DomazinUS/RaceWave46",
+        "asset_hints": {
+          "windows-x86-64": [
+            "RaceWave46-Windows-x64-",
+            ".zip"
+          ]
         }
       },
       "source_profile": "wave-race-64",
@@ -19769,15 +19768,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
+        "provider": "github",
         "repository": "TheForceEngine/TheForceEngine",
-        "direct": {
-          "windows-x86-64": {
-            "version": "1.22.420",
-            "url": "https://github.com/TheForceEngine/TheForceEngine/releases/download/v1.22.420/TheForceEngine-v1.22.420.zip",
-            "size": 10561878,
-            "sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac"
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "TheForceEngine-v",
+            ".zip"
+          ]
         }
       },
       "source_profile": "dark-forces-pc-complete-installed-data",
@@ -20723,14 +20720,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.4.1",
-            "url": "https://github.com/sergiomanzur/regaiden-recomp/releases/download/v0.4.1/Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip",
-            "size": 33085815,
-            "sha256": "d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6"
-          }
+        "provider": "github",
+        "repository": "sergiomanzur/regaiden-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Resident_Evil_Gaiden_Recomp_",
+            "_Windows.zip"
+          ]
         }
       },
       "source_profile": "resident-evil-gaiden-gbc-usa",

@@ -168,6 +168,16 @@ impl DefinitionContentIndex {
                 "user-selected execution requires staged-source capability version 20",
             ));
         }
+        if crate::managed_runtime_policy::requires_provider_resolution(&port)
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 21
+            })
+        {
+            return Err(PortcoveError::verification(
+                "provider-bound reusable runtime policies require staged-source capability version 21",
+            ));
+        }
         if (port.managed_initialization
             == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1)
             || port.runtime_data_policy

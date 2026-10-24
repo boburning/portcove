@@ -11,7 +11,7 @@ upstreams, and #246 owns the protected publication and unchanged-client proof.
 
 Core advertises each installed `AdapterKind` template with contract version 1.
 The public inventory additionally advertises N64 portable versions 2 and 3 and
-staged-source portable versions 2–5, 8, 10–12 and 15–20. Staged-source creation
+staged-source portable versions 2–5, 8, 10–12 and 15–21. Staged-source creation
 versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
 
@@ -75,7 +75,7 @@ strict installed-contract envelope so older readers refuse lost semantics.
 Staged-source portable version 19 covers the constrained reusable TFE initializer,
 version-local RetroAchievements credential policy and GBRecompiled shared
 preferences policy. Indexed entries using these policies must require minimum
-version 19. Typed retained release facts select the reviewed behavior; artifact,
+version 19 for direct manifests. Typed retained release facts select the reviewed behavior; artifact,
 path, persistence, credential and consent invariants remain in Core. A compatible
 release can reuse the policy after focused validation without a new title-specific
 capability. A checksum or matching filename alone does not prove compatibility.
@@ -87,6 +87,15 @@ launch and registration-only removal; selected bytes are not authenticated
 official packages. This contract grants no update, deletion, migration, backup or
 rollback rights over external files. Older readers must refuse its unknown
 consequential semantics. See [installation ownership](CATALOG.md#integration-ownership).
+
+Staged-source portable version 21 adds configured GitHub provider resolution to
+those three reusable runtime policies. Indexed entries using this combination
+must require minimum version 21. Stable project/package rules resolve changing
+release facts without definition edits. Core binds the exact retained definition,
+platform, channel and resolved artifact before installation, and refreshes the
+provider result before applying a review. Older clients refuse this combination;
+direct manifests retain version 19. This capability does not authenticate a
+publisher, authorize publication or widen the policies' data and consent scope.
 
 API schema 45 exposes the inventory as `capabilities.engine_templates`. The CLI
 `catalog check-capabilities <file>` and Tauri `check_definition_capabilities`

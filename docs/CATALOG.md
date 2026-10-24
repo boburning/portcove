@@ -240,10 +240,11 @@ successful metadata check does not establish gameplay or authorize publication.
 ## Managed ReGaiden shared preferences
 
 The reviewed v0.4.1 Windows package uses the constrained
-`gbrecompiled-windows-v1` consent-bearing policy. Typed direct-release facts bind
-the artifact; `managed_shared_preferences_save_id` records the reviewed upstream
+`gbrecompiled-windows-v1` consent-bearing policy. An exact direct release or
+reusable GitHub package rules bind acquisition through the configured provider;
+`managed_shared_preferences_save_id` records the reviewed upstream
 save basename independently of the executable name. New declarations require
-staged-source capability 19 and the
+staged-source capability 19 for direct manifests or 21 for GitHub discovery, and the
 `regaiden-gbc` materialization that older engines cannot parse. Core retains
 explicit review of the Windows account and both shared/local preference paths
 in schema7 installation manifests. Local saves/settings are managed; the
@@ -257,7 +258,8 @@ this route neither migrates them nor establishes gameplay qualification.
 
 The reviewed official Windows v1.0.0 package uses the reusable
 `version-local-retroachievements-v1` runtime-data policy requiring staged-source
-capability 19. Typed retained direct-release facts bind its artifact. Ordinary `.runtime` saves and
+capability 19 for direct manifests or 21 for GitHub discovery. Core binds the
+provider's exact artifact facts to the retained rules. Ordinary `.runtime` saves and
 settings are managed; RetroAchievements credentials stay inside each version.
 They are never opened, hashed or copied. Whole-tree transfer and recovery refuse
 known credential names before reading payloads and again before publication.
@@ -278,8 +280,9 @@ basename file-set identities and aggregates are unchanged.
 
 The reviewed Windows TFE v1.22.420 package selects the constrained
 `tfe-dark-forces-portable-v1` initializer and requires staged-source capability
-**19**. Artifact/version/executable facts come from the retained direct release;
-its checked complete game-data layout, pilot/settings initialization and recovery
+**19** for direct manifests or **21** for GitHub discovery. The retained definition supplies executable and package rules; an exact
+direct release or the configured GitHub provider supplies changing artifact facts.
+Its checked complete game-data layout, pilot/settings initialization and recovery
 remain Core behavior. The exact old initializer retains its original meaning for
 persisted consumers. Transport schema **75** originally added the relative source shape and managed initializer;
 older consumers must refuse unsupported semantics. Full source inspection and
@@ -913,6 +916,9 @@ URL, size and independent digest. Core retains those exact facts with the
 installed artifact. A per-release JSON edit or automatic version-bump PR is not
 compatible progression. Historical source links and qualification hashes remain
 exact observations; their presence alone does not pin provider selection.
+Managed preparation records observed release facts in its receipt and preserves
+authored listing links, including a useful separate upstream launcher. It does
+not add a current-tag listing URL to an otherwise reusable managed definition.
 
 Preparation flags hints containing the observed release version for applicability
 review. Prefer stable discriminating fragments, including the actual package
@@ -923,6 +929,16 @@ successor-specific integrity evidence. Ordinary observed release changes do not
 add a mandatory maintainer review or full gameplay campaign. Changed setup,
 executable/data coordinates, ownership or package handling can require a reviewed
 rule change; existing transition and recovery guards still apply.
+
+The reusable managed TFE, GB shared-preferences and version-local credentials
+policies support reviewed GitHub package rules as well as exact direct manifests.
+Fresh dynamic acquisition requires an opaque in-process resolver binding to the
+complete retained definition, platform, requested channel and exact release.
+A serialized review cannot supply that proof: Core resolves again and refuses
+changed facts before downloading. This binding is distinct from publisher-scope
+authorization. Offline installed-version checks still use the verified manifest
+and registered artifact, never today's latest release. Historical exact policy
+variants and direct-manifest targets retain their original meanings.
 
 Independent compatible definition delivery to installed clients remains with
 [#534](https://github.com/boburning/portcove/issues/534) and

@@ -30,11 +30,11 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     let release = port.release.direct.get(&crate::Platform::WindowsX86_64);
     let legacy = port.runtime_data_policy == Some(crate::RuntimeDataPolicy::Racewave46V100Windows);
     if !legacy {
-        crate::managed_runtime_policy::artifact(port)?;
+        crate::managed_runtime_policy::validate_release_rules(port)?;
     }
     if port.adapter != crate::AdapterKind::StagedSourcePortable
         || port.platforms != [crate::Platform::WindowsX86_64]
-        || port.release.provider != crate::ReleaseSource::DirectManifest
+        || (legacy && port.release.provider != crate::ReleaseSource::DirectManifest)
         || !port.release.user_prepared.is_empty()
         || (legacy
             && release.is_none_or(|release| {
@@ -580,7 +580,10 @@ mod tests {
 
     #[test]
     fn uppercase_known_digest_cannot_drop_the_credential_policy() {
-        let mut definition = port();
+        let mut definition = crate::test_fixture::historical_managed_policy_catalog()
+            .port("wave-race-64-racewave46")
+            .unwrap()
+            .clone();
         definition.runtime_data_policy = None;
         definition
             .release
@@ -620,7 +623,8 @@ mod tests {
 
     #[test]
     fn installed_policy_requires_actual_artifact_version_platform_and_no_adoption() {
-        let port = port();
+        let catalog = crate::test_fixture::historical_managed_policy_catalog();
+        let port = catalog.port("wave-race-64-racewave46").unwrap().clone();
         let artifact = crate::ArtifactIdentity {
             asset_name: "RaceWave46-Windows-x64-v1.0.0.zip".into(),
             size: 35_768_574,
@@ -959,7 +963,10 @@ mod tests {
 
     #[test]
     fn closed_policy_cannot_be_removed_or_attached_to_different_bytes() {
-        let mut p = port();
+        let mut p = crate::test_fixture::historical_managed_policy_catalog()
+            .port("wave-race-64-racewave46")
+            .unwrap()
+            .clone();
         validate(&p).unwrap();
         p.runtime_data_policy = None;
         assert!(validate(&p).is_err());

@@ -56,7 +56,7 @@ fn prepared_source_directory_requires_v18_and_preserves_its_projection() {
 
 #[test]
 fn runtime_credential_policy_requires_the_exact_new_reader_floor() {
-    let catalog = crate::Catalog::embedded().unwrap();
+    let catalog = crate::test_fixture::historical_managed_policy_catalog();
     let port = catalog.port("wave-race-64-racewave46").unwrap();
     let mut entry = entry_for_port(port);
     assert!(inspect(&entry).unwrap_err().message.contains("version 19"));
@@ -177,7 +177,7 @@ fn initial_renderer_requires_an_entry_window_that_excludes_v1() {
 
 #[test]
 fn managed_shared_preferences_require_a_window_excluding_older_readers() {
-    let catalog = crate::Catalog::embedded().unwrap();
+    let catalog = crate::test_fixture::historical_managed_policy_catalog();
     let mut entry = entry_for_port(catalog.port("resident-evil-gaiden-recomp").unwrap());
     assert!(inspect(&entry).unwrap_err().message.contains("version 19"));
     entry["required_capabilities"][0]["maximum_version"] = json!(15);
@@ -201,6 +201,37 @@ fn managed_shared_preferences_require_a_window_excluding_older_readers() {
 }
 
 #[test]
+fn provider_bound_runtime_policies_exclude_older_readers_without_reinterpreting_direct_entries() {
+    let current = crate::Catalog::embedded().unwrap();
+    let historical = crate::test_fixture::historical_managed_policy_catalog();
+    for id in [
+        "the-force-engine-dark-forces",
+        "resident-evil-gaiden-recomp",
+        "wave-race-64-racewave46",
+    ] {
+        let mut entry = entry_for_port(current.port(id).unwrap());
+        for version in [1, 19, 20] {
+            entry["required_capabilities"][0]["minimum_version"] = json!(version);
+            entry["required_capabilities"][0]["maximum_version"] = json!(version);
+            assert!(
+                inspect(&entry).unwrap_err().message.contains("version 21"),
+                "{id}: v{version}"
+            );
+        }
+        entry["required_capabilities"][0]["minimum_version"] = json!(21);
+        entry["required_capabilities"][0]["maximum_version"] = json!(21);
+        assert!(inspect(&entry).unwrap().capabilities().compatible, "{id}");
+        entry["port"] = serde_json::to_value(historical.port(id).unwrap()).unwrap();
+        entry["required_capabilities"][0]["minimum_version"] = json!(19);
+        entry["required_capabilities"][0]["maximum_version"] = json!(19);
+        assert!(
+            inspect(&entry).unwrap().capabilities().compatible,
+            "historical direct {id}"
+        );
+    }
+}
+
+#[test]
 fn every_existing_official_projection_keeps_its_complete_fields() {
     let mut value = fixture();
     for port in crate::Catalog::embedded().unwrap().ports() {
@@ -216,6 +247,8 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
         {
             20
+        } else if crate::managed_runtime_policy::requires_provider_resolution(port) {
+            21
         } else if port.managed_initialization
             == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1)
             || port.runtime_data_policy

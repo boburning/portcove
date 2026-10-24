@@ -1,16 +1,19 @@
 # Managed RaceWave46 data and sign-in
 
-The Windows v1.0.0 route installs the unchanged official package and stages a
-checked original as `game.z64`. Fixed launch arguments select that private copy.
+The Windows route follows compatible official packages through stable GitHub
+package rules and stages a checked original as `game.z64`. Core resolves changing
+artifact facts without a per-release definition edit. Fixed launch arguments select that private copy.
 Existing external registrations remain non-owning and are not adopted.
 
 Core retains the artifact-bound runtime-data policy with the installation.
-The current definition uses `version-local-retroachievements-v1` (capability 19)
-with typed retained direct-release facts. Capability 15 describes the original
+The current definition uses `version-local-retroachievements-v1` (capability 21;
+19 for retained direct manifests)
+with provider resolution bound to its retained rules. Capability 15 describes the original
 exact-artifact interpretation, retained for identified
 [persisted consumers](upstream-first-compatibility.md). Historical qualification
-retains its original engine identity. New compatible artifacts require focused
-checks of credential and ordinary-data behavior; a checksum does not establish it.
+retains its original engine identity and exact v1.0.0 artifact scope. Ordinary
+compatible progression reuses these rules. Changed credential or ordinary-data
+behavior requires review; a checksum does not establish behavioral compatibility.
 Removing the policy from the same managed artifact is
 invalid; older engine capabilities cannot silently ignore it.
 Acquisition, manifest publication and retained-manifest reads also check the

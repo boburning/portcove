@@ -55,7 +55,9 @@ pub trait ReleaseProvider: Send + Sync {
         }
         self.resolve(port, channel, platform)
             .await
-            .map(crate::ScopedResolvedRelease::legacy)
+            .and_then(|release| {
+                crate::ScopedResolvedRelease::legacy(release).for_selection(port, platform, channel)
+            })
     }
 }
 
@@ -1062,7 +1064,10 @@ impl ReleaseProvider for GithubReleaseProvider {
             return self
                 .resolve(port, channel, platform)
                 .await
-                .map(crate::ScopedResolvedRelease::legacy);
+                .and_then(|release| {
+                    crate::ScopedResolvedRelease::legacy(release)
+                        .for_selection(port, platform, channel)
+                });
         }
         let release = self
             .resolve_with_scope(port, channel, platform, scope)
@@ -1070,7 +1075,8 @@ impl ReleaseProvider for GithubReleaseProvider {
         match scope {
             Some(scope) => crate::ScopedResolvedRelease::managed(release, scope.clone()),
             None => Ok(crate::ScopedResolvedRelease::legacy(release)),
-        }
+        }?
+        .for_selection(port, platform, channel)
     }
 }
 

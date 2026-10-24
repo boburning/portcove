@@ -760,7 +760,13 @@ function clearFixtureArtwork(directory: string, ids: string[]) {
 }
 
 void test("preparation resolves related downloads from stable ID and canonical issue while isolating managed releases", async () => {
-  for (const route of ["id", "issue", "managed", "managed-gitlab"] as const) {
+  for (const route of [
+    "id",
+    "issue",
+    "managed",
+    "managed-no-listing-release",
+    "managed-gitlab",
+  ] as const) {
     const f = fixture();
     try {
       const source = copiedCatalog(join(f.root, "source"));
@@ -771,6 +777,7 @@ void test("preparation resolves related downloads from stable ID and canonical i
       )!;
       delete record.listing.artwork;
       record.listing.release_url = "https://github.com/example/helper/releases/tag/unselected";
+      if (route === "managed-no-listing-release") delete record.listing.release_url;
       if (record.integration)
         record.integration.release = {
           ...(record.integration.release as Record<string, unknown>),
@@ -841,11 +848,11 @@ void test("preparation resolves related downloads from stable ID and canonical i
       const proposal = changedRecord
         ? (JSON.parse(readFileSync(changedRecord.path, "utf8")) as AuthoredPort)
         : record;
-      assert.equal(Boolean(changedRecord), route !== "managed-gitlab");
+      assert.equal(Boolean(changedRecord), !route.startsWith("managed"));
       assert.equal(proposal.listing.project_url, record.listing.project_url);
       assert.equal(
         proposal.listing.release_url,
-        route === "managed-gitlab"
+        route.startsWith("managed")
           ? record.listing.release_url
           : `https://github.com/${releaseRepository}/releases/tag/chosen`,
       );

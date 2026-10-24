@@ -26,6 +26,79 @@ fn release(tag: &str, assets: Vec<serde_json::Value>) -> serde_json::Value {
 }
 
 #[tokio::test]
+async fn unchanged_closed_policy_rules_resolve_successors_with_exact_provider_bindings() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, versions, names) in [
+        (
+            "the-force-engine-dark-forces",
+            ["v1.22.410", "v1.22.420"],
+            [
+                "TheForceEngine-v1.22.410.zip",
+                "TheForceEngine-v1.22.420.zip",
+            ],
+        ),
+        (
+            "resident-evil-gaiden-recomp",
+            ["v0.4.0", "v0.4.1"],
+            [
+                "Resident_Evil_Gaiden_Recomp_v0.4.0_Windows.zip",
+                "Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip",
+            ],
+        ),
+        (
+            "wave-race-64-racewave46",
+            ["v1.0.0", "v1.0.1"],
+            [
+                "RaceWave46-Windows-x64-v1.0.0.zip",
+                "RaceWave46-Windows-x64-v1.0.1.zip",
+            ],
+        ),
+    ] {
+        // Use the actual authored rules unchanged. Release responses and digests
+        // remain fixtures; RaceWave46 v1.0.1 is a controlled synthetic successor.
+        let port = catalog.port(id).unwrap();
+        assert_eq!(port.release.provider, crate::ReleaseSource::Github);
+        crate::runtime::validate(port).unwrap();
+        let (root, requests, server) = serve_http(vec![
+            metadata(),
+            releases(&[release(versions[0], vec![asset(names[0], Some('a'))])]),
+            metadata(),
+            releases(&[
+                release(versions[1], vec![asset(names[1], Some('b'))]),
+                release(versions[0], vec![asset(names[0], Some('a'))]),
+            ]),
+        ]);
+        // Separate provider instances represent a fresh observation after N+1.
+        for (index, version) in versions.iter().enumerate() {
+            let provider = GithubReleaseProvider::with_api_root(root.clone()).unwrap();
+            let resolved = provider
+                .resolve_scoped(port, ReleaseChannel::Stable, Platform::WindowsX86_64, None)
+                .await
+                .unwrap();
+            resolved
+                .require_selection(port, Platform::WindowsX86_64, ReleaseChannel::Stable)
+                .unwrap();
+            assert_eq!(resolved.release.version, *version);
+            assert_eq!(resolved.release.asset.name, names[index]);
+            let actual = crate::ArtifactIdentity {
+                asset_name: resolved.release.asset.name.clone(),
+                sha256: resolved.release.asset.sha256.clone(),
+                size: resolved.release.asset.size,
+            };
+            crate::managed_runtime_policy::require_artifact(
+                port,
+                version,
+                &actual,
+                Some(Platform::WindowsX86_64),
+            )
+            .unwrap();
+        }
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 4);
+    }
+}
+
+#[tokio::test]
 async fn unchanged_native_definitions_follow_versioned_packages_after_cache_expiry_and_on_fresh_install()
  {
     let catalog = crate::Catalog::embedded().unwrap();
