@@ -4,9 +4,9 @@
   "owner": "https://github.com/boburning/portcove/issues/2510",
   "status": "IN_PROGRESS; no all-port implementation or delivery completion claim",
   "pickup_source_commit": "cea107d84e80bdd67bd44d4c7c68e0b76d083e4e",
-  "candidate_source_commit": "1354a9884d1a82d5d4516f5fd54eafdbf000f521",
+  "candidate_source_commit": "57253933a358eb80be27dc0b01f12c0cc45154d8",
   "inventory_cutoff": "2026-10-24T03:40:15.396Z",
-  "generated_at": "2026-10-24T20:26:51.978Z",
+  "generated_at": "2026-10-24T21:23:13.899Z",
   "sources": {
     "collector": "scripts/roadmap-inventory.mts collectRoadmapInventory",
     "repository_issues": 918,
@@ -33,20 +33,21 @@
   },
   "coverage": {
     "distinct_ports": 524,
-    "operational_definitions": 153,
-    "listing_only": 371,
+    "operational_definitions": 154,
+    "listing_only": 370,
     "dispositions": {
       "retain-existing-route": 115,
       "improve-upstream-setup": 90,
-      "unresolved-fit": 215,
+      "unresolved-fit": 211,
       "add-managed-portable": 38,
-      "upstream-source-setup-with-nonowning-existing-player": 14,
+      "upstream-source-setup-with-nonowning-existing-player": 15,
+      "add-managed-staged-source": 1,
       "improve-upstream-Android-setup": 15,
       "upstream-setup-with-no-published-github-player-package": 1,
       "improve-nonowning-route": 6,
       "retain-managed-acquisition-permission-limit": 5,
-      "unresolved-package-permission-basis": 2,
-      "unresolved-component-permission-basis": 1,
+      "unresolved-component-permission-basis": 2,
+      "unresolved-package-permission-basis": 3,
       "improve-upstream-Apple-setup-and-retain-bundle-ownership": 2,
       "improve-upstream-download-recommendation": 5,
       "improve-upstream-owned-classic-player-handoff": 2,
@@ -59,16 +60,16 @@
     "implementation_complete": false,
     "final_affected_inventory_reconciliation": "outstanding",
     "release_maintenance": {
-      "operational_rules_inventoried": 153,
+      "operational_rules_inventoried": 154,
       "implemented_candidate_changes": 27,
       "remaining_direct_manifest_fit_decisions": 6,
       "provider_counts": {
-        "github": 136,
+        "github": 137,
+        "user-prepared": 9,
         "gitlab": 2,
-        "direct-manifest": 6,
-        "user-prepared": 9
+        "direct-manifest": 6
       },
-      "scope": "Source candidate has27 maintenance changes. PSX representative complete progression and repaired catalog assertions passed. Six Direct-manifest fit decisions and215 original fit decisions remain unresolved. Candidate is unmerged; no all-inventory implementation, qualification or delivery claim."
+      "scope": "27 existing-route maintenance repairs and one newly adopted dynamic Windows staged route are implemented in the unmerged source candidate. Six Direct-route decisions and211 original route-fit decisions remain unfinished; no all-port completion or delivery claim."
     }
   },
   "boundaries": [
@@ -679,41 +680,70 @@
         "body_sha256_at_cutoff": "f61a91f2371e30938ab71ed3afd61d65f6c1a4dfddb9d49d4ff0bf52e0036dd4"
       },
       "duplicates": [],
-      "platform_scope": [],
+      "platform_scope": ["windows-x86-64"],
       "pickup_route": "listing-only",
-      "selected_route": "existing discovery/non-owning route; managed fit under review",
-      "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement promise",
+      "selected_route": "managed staged-source portable archive; upstream-prepared external Linux copy remains separate",
+      "disposition": "add-managed-staged-source",
+      "update_owner": "Portcove for the Windows managed copy; player/upstream for external copies",
       "setup_data": {
-        "instructions": null,
+        "instructions": [
+          {
+            "title": "Use the complete Windows player",
+            "instruction": "The official Windows x64 ZIP includes mc2.exe, its libraries and game data. Keep the complete package together. For an existing copy, select mc2.exe in the extracted mc2-win64 folder and use that folder as the working directory. Save launch details, then choose Play separately. The selected release has no Linux player archive; upstream provides separate Linux source/data build instructions. Follow all included notices: project code and components have their own licenses, and Microsoft’s Art Assets grant limits their use and distribution to noncommercial purposes."
+          },
+          {
+            "title": "Back up the external saves",
+            "instruction": "Normal saves use .mechcommander2/savegame under your Windows user-profile folder. Linux uses that path under XDG_CONFIG_HOME when set, otherwise HOME. Close the game and back up that external user-data folder separately. Keep options.cfg, options.cfg.old, orgprefs.cfg, data/multiplayer and any custom data locations with the copy you use. External profiles and custom paths are outside Portcove backups."
+          },
+          {
+            "title": "Keep an existing copy recoverable",
+            "instruction": "For a copy you registered yourself, you or upstream provide updates. Extract a new official player separately and keep the working copy. Follow upstream guidance for settings and custom content; copying old generated texture or geometry caches over a new package can replace its new files. Registration leaves every external file untouched."
+          }
+        ],
         "source_profiles": [],
-        "declared_paths": [],
+        "declared_paths": ["options.cfg", "options.cfg.old", "orgprefs.cfg", "data/multiplayer"],
         "declared_patterns": [],
-        "details_record": "crates/portcove-core/catalog/ports/alariq-mc2.json"
+        "details_record": "crates/portcove-core/catalog/ports/alariq-mc2.json",
+        "reviewed_boundary": "The official Windows x64 package includes its game data and needs no original-file import or build. Portcove manages compatible runtime replacements and preserves local options.cfg, options.cfg.old, orgprefs.cfg and custom multiplayer data. Saves are external: back up your Windows user-profile folder/.mechcommander2/savegame separately; Portcove backups and runtime rollback do not include those saves. Generated texture and geometry caches, shader dumps and diagnostic files stay with each runtime version and are not carried into its replacement. Custom script output or custom data locations need separate preservation; unknown additions can block replacement until preserved. Runtime rollback carries current declared settings/custom data and does not rewind saves or guarantee older software can read newer data."
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/alariq/mc2",
         "observed_repository": "alariq/mc2",
         "repository_node_id": "MDEwOlJlcG9zaXRvcnk2OTYwNTIxOA==",
-        "guide_url": "https://github.com/alariq/mc2/blob/v0.1.3/README.md",
+        "guide_url": "https://github.com/alariq/mc2/blob/c428dfe02b609f0864933e715ca22ed07427a545/README.md",
         "guide_ref": "v0.1.3",
         "guide_blob_sha": "f44e185144620437693a4fad258d117e4a359d47",
         "observation": "2026-10-24T03:37:58.429Z",
-        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately"
+        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
+        "source_revision": "c428dfe02b609f0864933e715ca22ed07427a545",
+        "assessment_file": "mc2-managed-preparation-v2.json",
+        "reviewed_artifact_file": "packages/alariq-mc2-group8.json"
       },
-      "selected_artifact": null,
-      "reason": "Fit decision remains unfinished; Unknown is not unsupported.",
+      "selected_artifact": {
+        "release": "v0.1.3",
+        "name": "mc2-win64-v0.1.3.zip",
+        "url": "https://github.com/alariq/mc2/releases/download/v0.1.3/mc2-win64-v0.1.3.zip",
+        "size": 632379587,
+        "independently_expected": "feed72558bf860c533d5df277b7d221ff64ee9c4b2d444c4d39a44546012215f",
+        "observed_sha256": "feed72558bf860c533d5df277b7d221ff64ee9c4b2d444c4d39a44546012215f",
+        "source_revision": "c428dfe02b609f0864933e715ca22ed07427a545",
+        "observed_at": "2026-10-24T17:37:43.500Z",
+        "scope": "Read-only official archive inspection against independently published digest; no upstream executable/helper or game run."
+      },
+      "reason": "Existing staged-source adapter expresses exact local player persistence and reviewed disposable cache/diagnostic writes without a new builder or adapter. Windows saves remain external and outside Portcove backup. Linux has no selected native player archive and retains upstream preparation.",
       "validation_scope": {
-        "scope": "Primary-source retrieval and inventory join only; route-fit validation unfinished."
+        "scope": "Complete selected release asset inventory, independently digest-verified Windows ZIP, bounded rawZIP/PE/FST inspection, all1018 packaged ABL/ABI/ABX scripts and all8FSTindexes, pinned upstream output/working-coordinate/source-license review. No upstream helper or game execution, native gameplay or save-compatibility claim."
       },
-      "delivery_status": "unfinished assessment/implementation",
-      "affected_operation": "managed installation/update and supported setup route selection",
-      "next_action": "Establish the exact executable, supported setup/data boundary and runtime replacement owner from https://github.com/alariq/mc2/blob/v0.1.3/README.md; inspect observed mc2-win64-v0.1.3.zip. Then implement every fitting existing-capability change or retain a specifically evidenced limitation. No new product deferral is assigned.",
+      "delivery_status": "Managed definition and shared pre-Play data boundary implemented in source candidate; unmerged",
+      "affected_operation": null,
+      "next_action": null,
       "acquisition_restriction": null,
-      "assessed_platform_scope": null,
+      "assessed_platform_scope": ["windows-x86-64", "linux-x86-64"],
       "download_recommendation": {
         "channel": "stable",
-        "asset_hints": {}
+        "asset_hints": {
+          "windows-x86-64": ["mc2-win64-", ".zip"]
+        }
       },
       "reference_catalog": {
         "source": "Quiver",
@@ -733,6 +763,30 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "reconsideration_condition": null,
+      "release_maintenance": {
+        "classification": "managed-compatible-release",
+        "provider": "github",
+        "repository": "alariq/mc2",
+        "asset_hints": {
+          "windows-x86-64": ["mc2-win64-", ".zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged",
+        "validation_scope": "Actual embedded stable selector resolved N, bounded cache reuse, N+1 and fresh observation in the production HTTP-provider fixture. MC2 v0.1.4 is a synthetic version-only successor. Shared functional archive lifecycle uses inert fixture bytes and the actual MC2 data/launch contract; no upstream game execution or save-compatibility claim.",
+        "observed_assets": [
+          {
+            "release": "v0.1.3",
+            "name": "mc2-win64-v0.1.3.zip",
+            "url": "https://github.com/alariq/mc2/releases/download/v0.1.3/mc2-win64-v0.1.3.zip",
+            "size": 632379587,
+            "independently_expected": "feed72558bf860c533d5df277b7d221ff64ee9c4b2d444c4d39a44546012215f",
+            "observed_sha256": "feed72558bf860c533d5df277b7d221ff64ee9c4b2d444c4d39a44546012215f",
+            "source_revision": "c428dfe02b609f0864933e715ca22ed07427a545",
+            "observed_at": "2026-10-24T17:37:43.500Z",
+            "scope": "Read-only official archive inspection against independently published digest; no upstream executable/helper or game run."
+          }
+        ]
       }
     },
     {
@@ -8875,38 +8929,65 @@
         "body_sha256_at_cutoff": "ca1c8ef807d92b1fbca68f7fec9e7234d5f01050555849aea8d0664bae34b42a"
       },
       "duplicates": [],
-      "platform_scope": [],
+      "platform_scope": ["windows-x86-64", "linux-x86-64"],
       "pickup_route": "listing-only",
-      "selected_route": "existing discovery/non-owning route; managed fit under review",
+      "selected_route": "permitted existing/prepared external copy; fresh acquisition held",
       "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement promise",
+      "update_owner": "player/upstream; no managed Update/Backup/Rollback promise",
       "setup_data": {
-        "instructions": null,
+        "instructions": [
+          {
+            "title": "Prepare a permitted copy with upstream setup",
+            "instruction": "For existing permitted copies of reNut and its setup tools, point NutStaller’s install folder at your player and use 3. Pick ISO + extract with your own USA Banjo-Kazooie: Nuts & Bolts Xbox 360 ISO. This prepares game data and renut.cfg without downloading another runtime. Keep the current game folder backed up before approving any replacement. The optional Add title update action accepts your own update; match it to your runtime’s release instructions. Beta9 advertises TU3 and DLC support. Get latest reNut and Do everything acquire a new runtime and require separate acquisition permission. Portcove never runs these tools during discovery."
+          },
+          {
+            "title": "Register the prepared player",
+            "instruction": "On Windows choose the prepared renut.exe and its containing folder; on Linux choose the prepared renut.AppImage with its matching folder. Save launch details, then choose Play separately. Keep NutStaller for upstream updates, controls, Workshop and save tools. The Linux player and extraction helper have separate system requirements in upstream instructions; the reviewed launcher documents glibc 2.38 for the player and 2.34 for its extraction helper. If setting up the player manually, its first-run path wizard asks for your existing game and user-data folders."
+          },
+          {
+            "title": "Keep original files, saves and settings recoverable",
+            "instruction": "You or upstream provide runtime updates. Close the game before using NutStaller to back up or to update to another release you have permission to acquire. Its normal user-data folder is Documents/renut on Windows and XDG_DATA_HOME/renut (normally ~/.local/share/renut) on Linux. Keep renut.cfg and renut.toml too: next to the Windows player, or in the Linux user-data folder. Retain your original ISO, prepared game folder, custom user-data paths, mods, and NutStaller configuration separately. Portcove external registration leaves these files untouched and supplies no managed Update, Backup or Rollback."
+          }
+        ],
         "source_profiles": [],
         "declared_paths": [],
         "declared_patterns": [],
-        "details_record": "crates/portcove-core/catalog/ports/banjo-kazooie-nuts-bolts-renut.json"
+        "details_record": "crates/portcove-core/catalog/ports/banjo-kazooie-nuts-bolts-renut.json",
+        "reviewed_boundary": "Reviewed Windows archive is a real native player and first-run setup is separate from runtime replacement. Useful upstream preparation/external registration preserves NutStaller updates/settings/workshop/save tools. Fresh acquisition has unresolved attributable project/resource terms; native portable fit remains separately unfinished pending a complete runtime-write/credential/cache review. No unsupported-game or managed-update claim."
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/masterspike52/reNut",
         "observed_repository": "masterspike52/reNut",
         "repository_node_id": "R_kgDORaxMkw",
-        "guide_url": "https://github.com/masterspike52/reNut/blob/beta9/README.md",
+        "guide_url": "https://github.com/masterspike52/reNut/blob/99cb2f4e4ba7fe147d3ed967baaacbe252319dd8/README.md",
         "guide_ref": "beta9",
         "guide_blob_sha": "ac902a6b9c0d28345381fb281369e3ae86e33f7b",
         "observation": "2026-10-24T03:38:32.692Z",
-        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately"
+        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
+        "source_revision": "99cb2f4e4ba7fe147d3ed967baaacbe252319dd8",
+        "assessment_file": "native-group9-renut-preparations-reviewed.json",
+        "reviewed_artifact_file": "packages/banjo-kazooie-nuts-bolts-renut-group9.json"
       },
-      "selected_artifact": null,
-      "reason": "Fit decision remains unfinished; Unknown is not unsupported.",
+      "selected_artifact": {
+        "release": "beta9",
+        "name": "renut.zip",
+        "url": "https://github.com/masterspike52/reNut/releases/download/beta9/renut.zip",
+        "size": 45613227,
+        "independently_expected": "9b2582c65963e0dc2d21a8fbafb13f9d5b5535857520fadd960de8b89b137a7a",
+        "observed_sha256": "9b2582c65963e0dc2d21a8fbafb13f9d5b5535857520fadd960de8b89b137a7a",
+        "source_revision": "99cb2f4e4ba7fe147d3ed967baaacbe252319dd8",
+        "observed_at": "2026-10-24T19:21:36.687Z",
+        "scope": "Read-only official archive inspection against independently published digest; no upstream executable/helper or game run."
+      },
+      "reason": "Reviewed Windows archive is a real native player and first-run setup is separate from runtime replacement. Useful upstream preparation/external registration preserves NutStaller updates/settings/workshop/save tools. Fresh acquisition has unresolved attributable project/resource terms; native portable fit remains separately unfinished pending a complete runtime-write/credential/cache review. No unsupported-game or managed-update claim.",
       "validation_scope": {
-        "scope": "Primary-source retrieval and inventory join only; route-fit validation unfinished."
+        "scope": "Complete selected release asset metadata, digest-matched Windows ZIP and bounded raw structure/PE/text inspection, pinned setup/update/data source review. No upstream executable/helper/retail original or native gameplay run. Non-Windows packages remain separate upstream instructions."
       },
-      "delivery_status": "unfinished assessment/implementation",
-      "affected_operation": "managed installation/update and supported setup route selection",
-      "next_action": "Establish the exact executable, supported setup/data boundary and runtime replacement owner from https://github.com/masterspike52/reNut/blob/beta9/README.md; inspect observed renut-x86_64.AppImage, renut.zip. Then implement every fitting existing-capability change or retain a specifically evidenced limitation. No new product deferral is assigned.",
-      "acquisition_restriction": null,
-      "assessed_platform_scope": null,
+      "delivery_status": "Specific guide and acquisition condition implemented; native managed fit remains unfinished; unmerged",
+      "affected_operation": "managed replacement, runtime writes, credential/cache ownership",
+      "next_action": "Complete native managed-fit review of runtime writes, EOS credential/cache locations, mod/workshop outputs and compatible replacement; retain the separate attributable project/resource grant condition. The useful upstream guide does not complete this assessment.",
+      "acquisition_restriction": "Portcove downloads are paused because attributable distribution terms for reNut’s separately authored runtime and branding are not established by the reviewed release or project tree. Third-party notices do not settle those terms. Use only a copy you are permitted to use. Reconsider when upstream provides compatible terms for the project and packaged resources.",
+      "assessed_platform_scope": ["windows-x86-64", "linux-x86-64"],
       "download_recommendation": {
         "channel": "stable",
         "asset_hints": {}
@@ -8929,7 +9010,8 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
-      }
+      },
+      "reconsideration_condition": "Portcove downloads are paused because attributable distribution terms for reNut’s separately authored runtime and branding are not established by the reviewed release or project tree. Third-party notices do not settle those terms. Use only a copy you are permitted to use. Reconsider when upstream provides compatible terms for the project and packaged resources."
     },
     {
       "id": "banjo-recomp",
@@ -10379,38 +10461,65 @@
         "body_sha256_at_cutoff": "a25d26347fc04c74b20071639365493bdb1452d360e4f421e8b6b36a6030d479"
       },
       "duplicates": [],
-      "platform_scope": [],
+      "platform_scope": ["windows-x86-64", "linux-x86-64"],
       "pickup_route": "listing-only",
-      "selected_route": "existing discovery/non-owning route; managed fit under review",
-      "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement promise",
+      "selected_route": "permitted existing/prepared external copy; fresh acquisition held",
+      "disposition": "unresolved-component-permission-basis",
+      "update_owner": "player/upstream; no managed Update/Backup/Rollback promise",
       "setup_data": {
-        "instructions": null,
+        "instructions": [
+          {
+            "title": "Keep a permitted prepared player",
+            "instruction": "For an existing permitted copy of the reviewed Windows package, keep Brawl Recompiled.exe, engine and Disc together and choose Brawl Recompiled.exe with its folder as the working directory. The Linux package has its own Brawl Recompiled launcher, 64-bit Linux and Vulkan requirements. Save launch details without starting the player; choose Play separately."
+          },
+          {
+            "title": "Use the launcher for your own disc",
+            "instruction": "On the launcher’s Play page choose your own USA RSBE01 revision 1 Brawl ISO, CISO or WBFS. It extracts Disc/DATA (about 7 GB) and checks the disc identity. No original disc is supplied by Portcove. The prebuilt runtime needs no compiler."
+          },
+          {
+            "title": "Keep the complete player-data tree",
+            "instruction": "You or upstream provide updates for this external copy. Back up engine/UserData, including settings, NAND saves, SD/mod content and generated card images; retain Disc and your original image separately. Custom disc/NAND paths need their own backup. Use a new permitted version separately and preserve the current working copy. Portcove does not adopt external files or promise managed Update, Backup or Rollback."
+          }
+        ],
         "source_profiles": [],
         "declared_paths": [],
         "declared_patterns": [],
-        "details_record": "crates/portcove-core/catalog/ports/brawl-recompiled.json"
+        "details_record": "crates/portcove-core/catalog/ports/brawl-recompiled.json",
+        "reviewed_boundary": "Native wrapper and separated Disc/UserData are technically plausible for managed replacement, but fresh package acquisition has a concrete unresolved game-derived art/font grant condition. Preserve technical fit separately from permission; an explicit upstream grant or resource-free package removes that acquisition condition."
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled",
         "observed_repository": "josiahg2502-glitch/BrawlRecompiled",
         "repository_node_id": "R_kgDOVUAN6w",
-        "guide_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled/blob/v0.3.0/README.md",
+        "guide_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled/blob/5b3b78d5f429f6bbef86a417e96cfcd5c283307f/README.md",
         "guide_ref": "v0.3.0",
         "guide_blob_sha": "281b86fbc6ccc380c65cd9c8bf0d69fc2382b3b1",
         "observation": "2026-10-24T03:38:40.028Z",
-        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately"
+        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
+        "source_revision": "5b3b78d5f429f6bbef86a417e96cfcd5c283307f",
+        "assessment_file": "native-group9-nonowning-preparations-reviewed.json",
+        "reviewed_artifact_file": "packages/brawl-recompiled-group9.json"
       },
-      "selected_artifact": null,
-      "reason": "Fit decision remains unfinished; Unknown is not unsupported.",
+      "selected_artifact": {
+        "release": "v0.3.0",
+        "name": "BrawlRecompiled-v0.3.0-Windows.zip",
+        "url": "https://github.com/josiahg2502-glitch/BrawlRecompiled/releases/download/v0.3.0/BrawlRecompiled-v0.3.0-Windows.zip",
+        "size": 140196231,
+        "independently_expected": "77baac98514b3ac9af9b3efcffb501da589de7cab43e4246f2eea199af55ff44",
+        "observed_sha256": "77baac98514b3ac9af9b3efcffb501da589de7cab43e4246f2eea199af55ff44",
+        "source_revision": "5b3b78d5f429f6bbef86a417e96cfcd5c283307f",
+        "observed_at": "2026-10-24T19:21:38.981Z",
+        "scope": "Read-only official archive inspection against independently published digest; no upstream executable/helper or game run."
+      },
+      "reason": "Native wrapper and separated Disc/UserData are technically plausible for managed replacement, but fresh package acquisition has a concrete unresolved game-derived art/font grant condition. Preserve technical fit separately from permission; an explicit upstream grant or resource-free package removes that acquisition condition.",
       "validation_scope": {
-        "scope": "Primary-source retrieval and inventory join only; route-fit validation unfinished."
+        "scope": "Complete selected release asset metadata, digest-matched Windows ZIP and bounded raw structure/PE/text inspection, pinned setup/update/data source review. No upstream executable/helper/retail original or native gameplay run. Non-Windows packages remain separate upstream instructions."
       },
-      "delivery_status": "unfinished assessment/implementation",
-      "affected_operation": "managed installation/update and supported setup route selection",
-      "next_action": "Establish the exact executable, supported setup/data boundary and runtime replacement owner from https://github.com/josiahg2502-glitch/BrawlRecompiled/blob/v0.3.0/README.md; inspect observed BrawlRecompiled-v0.3.0-Linux.tar.gz, BrawlRecompiled-v0.3.0-Windows.zip. Then implement every fitting existing-capability change or retain a specifically evidenced limitation. No new product deferral is assigned.",
-      "acquisition_restriction": null,
-      "assessed_platform_scope": null,
+      "delivery_status": "Reviewed non-owning guide and precise operation limit implemented in source candidate; unmerged; stronger canonical acceptance remains separate",
+      "affected_operation": "fresh acquisition / managed creation",
+      "next_action": "Portcove downloads are paused while permission for this package’s game-derived launcher art and title-font resources remains unresolved. Upstream identifies these bundled resources as taken from the game; the packaged GPL and library notices do not establish their separate grant. Keep an existing permitted copy. Reconsider when upstream provides compatible resource grants or a package that obtains them from your own disc.",
+      "acquisition_restriction": "Portcove downloads are paused while permission for this package’s game-derived launcher art and title-font resources remains unresolved. Upstream identifies these bundled resources as taken from the game; the packaged GPL and library notices do not establish their separate grant. Keep an existing permitted copy. Reconsider when upstream provides compatible resource grants or a package that obtains them from your own disc.",
+      "assessed_platform_scope": ["windows-x86-64", "linux-x86-64"],
       "download_recommendation": {
         "channel": "stable",
         "asset_hints": {}
@@ -10422,7 +10531,8 @@
         "reviewed_relationship": null,
         "candidates": [],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
-      }
+      },
+      "reconsideration_condition": "Portcove downloads are paused while permission for this package’s game-derived launcher art and title-font resources remains unresolved. Upstream identifies these bundled resources as taken from the game; the packaged GPL and library notices do not establish their separate grant. Keep an existing permitted copy. Reconsider when upstream provides compatible resource grants or a package that obtains them from your own disc."
     },
     {
       "id": "brawmario-infinite-mario-64-ever",
@@ -10522,38 +10632,70 @@
         "body_sha256_at_cutoff": "62a06c279240e2ebcf325341c5b964105f2356f8cbc6ddf2a1991c5988de0175"
       },
       "duplicates": [],
-      "platform_scope": [],
+      "platform_scope": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
       "pickup_route": "listing-only",
-      "selected_route": "existing discovery/non-owning route; managed fit under review",
-      "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement promise",
+      "selected_route": "upstream source/setup and non-owning prepared player",
+      "disposition": "upstream-source-setup-with-nonowning-existing-player",
+      "update_owner": "player/upstream; no managed Update/Backup/Rollback promise",
       "setup_data": {
-        "instructions": null,
+        "instructions": [
+          {
+            "title": "Prepare a player with upstream setup",
+            "instruction": "The official Installation.zip is a source and setup kit, not a ready-made player. On Windows, install the upstream LLVM 22.1-or-newer, Visual Studio 2026 C++/Windows SDK, CMake 4.2-or-newer, Git and Ninja prerequisites, extract the kit into a separate retained source folder, then deliberately run Build.cmd and select your own US Xbox XISO (.iso or .xiso). A full-disc dump needs upstream conversion first. The builder acquires dependencies and builds the player. Portcove does not run it during discovery."
+          },
+          {
+            "title": "Register the completed player",
+            "instruction": "When the upstream build succeeds, use Open game folder and choose b2.exe with that folder as its working directory in Portcove. Save the launch details, then choose Play separately. For Linux use upstream Install.desktop; macOS uses Install.command and its Xcode/macOS prerequisites. These experimental native platforms have separate dependency/build instructions; Windows package inspection does not qualify them. Keep source, build and data folders together, and rerun upstream setup after moving them."
+          },
+          {
+            "title": "Back up and rebuild when updating",
+            "instruction": "You or upstream own the runtime, generated game files and updates. Before updating, close the game and builder and back up data/user, data/local/settings.cfg and any data/local/custom-music beside the player. Extract updated source over the retained source folder while keeping build and data, then deliberately rerun the platform setup with your own XISO. Keep the old working copy and originals recoverable. Portcove external registration leaves files untouched and supplies no managed Update, Backup or Rollback."
+          }
+        ],
         "source_profiles": [],
         "declared_paths": [],
         "declared_patterns": [],
-        "details_record": "crates/portcove-core/catalog/ports/burnout-2-timftw21.json"
+        "details_record": "crates/portcove-core/catalog/ports/burnout-2-timftw21.json",
+        "reviewed_boundary": "Official selected Installation.zip contains upstream source/setup, no native player executable. Runtime creation/replacement requires upstream compiler/dependency/XISO preparation beyond existing shared integration; concrete non-owning setup remains useful. Reconsider managed creation when an official compatible player archive or existing supported preparation contract is available."
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/timftw21/burnout2-recompilation",
         "observed_repository": "timftw21/burnout2-recompilation",
         "repository_node_id": "R_kgDOSjMszQ",
-        "guide_url": "https://github.com/timftw21/burnout2-recompilation/blob/v1.8/README.md",
+        "guide_url": "https://github.com/timftw21/burnout2-recompilation/blob/a999a85e2f6c8eaec0bd40e5b521f31c11e65dd3/README.md",
         "guide_ref": "v1.8",
         "guide_blob_sha": "f4d5afaa80b8549246e9ac0ce92c2826865ec8f4",
         "observation": "2026-10-24T03:38:40.931Z",
-        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately"
+        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
+        "source_revision": "a999a85e2f6c8eaec0bd40e5b521f31c11e65dd3",
+        "assessment_file": "native-group9-nonowning-preparations-reviewed.json",
+        "reviewed_artifact_file": "packages/burnout-2-timftw21-group9.json"
       },
-      "selected_artifact": null,
-      "reason": "Fit decision remains unfinished; Unknown is not unsupported.",
+      "selected_artifact": {
+        "release": "v1.8",
+        "name": "Installation.zip",
+        "url": "https://github.com/timftw21/burnout2-recompilation/releases/download/v1.8/Installation.zip",
+        "size": 720598,
+        "independently_expected": "db7e99cfd0fdd40399139a0e3d8304a3ff82f26a844cbaaac9d25cf0ffc4a551",
+        "observed_sha256": "db7e99cfd0fdd40399139a0e3d8304a3ff82f26a844cbaaac9d25cf0ffc4a551",
+        "source_revision": "a999a85e2f6c8eaec0bd40e5b521f31c11e65dd3",
+        "observed_at": "2026-10-24T19:21:39.128Z",
+        "scope": "Read-only official archive inspection against independently published digest; no upstream executable/helper or game run."
+      },
+      "reason": "Official selected Installation.zip contains upstream source/setup, no native player executable. Runtime creation/replacement requires upstream compiler/dependency/XISO preparation beyond existing shared integration; concrete non-owning setup remains useful. Reconsider managed creation when an official compatible player archive or existing supported preparation contract is available.",
       "validation_scope": {
-        "scope": "Primary-source retrieval and inventory join only; route-fit validation unfinished."
+        "scope": "Complete selected release asset metadata, digest-matched Windows ZIP and bounded raw structure/PE/text inspection, pinned setup/update/data source review. No upstream executable/helper/retail original or native gameplay run. Non-Windows packages remain separate upstream instructions."
       },
-      "delivery_status": "unfinished assessment/implementation",
-      "affected_operation": "managed installation/update and supported setup route selection",
-      "next_action": "Establish the exact executable, supported setup/data boundary and runtime replacement owner from https://github.com/timftw21/burnout2-recompilation/blob/v1.8/README.md; inspect observed Installation.zip. Then implement every fitting existing-capability change or retain a specifically evidenced limitation. No new product deferral is assigned.",
+      "delivery_status": "Reviewed non-owning guide and precise operation limit implemented in source candidate; unmerged; stronger canonical acceptance remains separate",
+      "affected_operation": null,
+      "next_action": null,
       "acquisition_restriction": null,
-      "assessed_platform_scope": null,
+      "assessed_platform_scope": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "download_recommendation": {
         "channel": "stable",
         "asset_hints": {}
@@ -10565,7 +10707,8 @@
         "reviewed_relationship": null,
         "candidates": [],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
-      }
+      },
+      "reconsideration_condition": "Official native player archive or a reviewed preparation contract supported by an existing shared integration."
     },
     {
       "id": "burnout-3-takedawn-xbox",
@@ -12658,38 +12801,65 @@
         "body_sha256_at_cutoff": "971c5baf9cc807eff4a64578ec8091068beaf0731f090e529a6d4653bb1024f0"
       },
       "duplicates": [],
-      "platform_scope": [],
+      "platform_scope": ["windows-x86-64"],
       "pickup_route": "listing-only",
-      "selected_route": "existing discovery/non-owning route; managed fit under review",
-      "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement promise",
+      "selected_route": "permitted existing/prepared external copy; fresh acquisition held",
+      "disposition": "unresolved-package-permission-basis",
+      "update_owner": "player/upstream; no managed Update/Backup/Rollback promise",
       "setup_data": {
-        "instructions": null,
+        "instructions": [
+          {
+            "title": "Finish upstream setup in a permitted copy",
+            "instruction": "Use your existing permitted Windows copy with its own upstream instructions. The installed edition uses the upstream installer; the portable ZIP has no installer and includes DantesInfernoLauncher.exe, the native player and an original-disc importer. Choose DantesInfernoLauncher.exe with its folder as the working directory when registering it. Save launch details first, then choose Play separately."
+          },
+          {
+            "title": "Import your own original through the launcher",
+            "instruction": "In the portable launcher, choose Play and deliberately accept its ISO import prompt, then select your own supported Xbox 360 Dante’s Inferno ISO. The launcher runs its bundled extract-xiso into the selected game-data directory. Portcove never invokes that tool during discovery. Keep the ISO and game data recoverable. The package’s bundled title-update patch and imported originals share game; do not overwrite a new package’s patch by copying an old whole game folder without upstream guidance."
+          },
+          {
+            "title": "Keep upstream updates and your data together",
+            "instruction": "The installed edition can offer and launch its own update installer. The portable launcher opens the upstream release page and asks for a manual portable update; it does not silently self-replace. Close the game, keep the old copy, and back up userdata, dantes_inferno.toml, dlc and your imported original data before following the matching upstream route. The reviewed portable.txt keeps normal saves/cache in userdata; custom game-data/profile locations need a separate backup. Portcove leaves the external files untouched and supplies no managed Update, Backup or Rollback."
+          }
+        ],
         "source_profiles": [],
         "declared_paths": [],
         "declared_patterns": [],
-        "details_record": "crates/portcove-core/catalog/ports/dante-s-inferno-hells-gate-recomp.json"
+        "details_record": "crates/portcove-core/catalog/ports/dante-s-inferno-hells-gate-recomp.json",
+        "reviewed_boundary": "Portable update ownership differs from the installer: it opens manual instructions, not automatic self-replacement. Generic whole-game persistence would overwrite a successor’s bundled default.xexp patch with the old copy, while an exact separately owned original-data child contract is not established. Useful upstream setup/external registration retained; separate bundled-patch acquisition permission also remains unresolved."
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/florinp93/hells-gate-recomp",
         "observed_repository": "florinp93/hells-gate-recomp",
         "repository_node_id": "R_kgDOUJiVTA",
-        "guide_url": "https://github.com/florinp93/hells-gate-recomp/blob/v0.8.4-beta/README.md",
+        "guide_url": "https://github.com/florinp93/hells-gate-recomp/blob/1c455387570b9d1daad87688707c8d6ba118f750/README.md",
         "guide_ref": "v0.8.4-beta",
         "guide_blob_sha": "b948d7cd2dd736e34cd8034686a111b8a9816952",
         "observation": "2026-10-24T03:38:51.420Z",
-        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately"
+        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
+        "source_revision": "1c455387570b9d1daad87688707c8d6ba118f750",
+        "assessment_file": "native-group9-nonowning-preparations-reviewed.json",
+        "reviewed_artifact_file": "packages/dante-s-inferno-hells-gate-recomp-group9.json"
       },
-      "selected_artifact": null,
-      "reason": "Fit decision remains unfinished; Unknown is not unsupported.",
+      "selected_artifact": {
+        "release": "v0.8.4-beta",
+        "name": "DantesInferno-0.8.4-beta-portable.zip",
+        "url": "https://github.com/florinp93/hells-gate-recomp/releases/download/v0.8.4-beta/DantesInferno-0.8.4-beta-portable.zip",
+        "size": 31672911,
+        "independently_expected": "9cdea0d96f5210ad737c95316dd4806d41c88a1716e526a71f69dfe62e3755f2",
+        "observed_sha256": "9cdea0d96f5210ad737c95316dd4806d41c88a1716e526a71f69dfe62e3755f2",
+        "source_revision": "1c455387570b9d1daad87688707c8d6ba118f750",
+        "observed_at": "2026-10-24T19:21:40.528Z",
+        "scope": "Read-only official archive inspection against independently published digest; no upstream executable/helper or game run."
+      },
+      "reason": "Portable update ownership differs from the installer: it opens manual instructions, not automatic self-replacement. Generic whole-game persistence would overwrite a successor’s bundled default.xexp patch with the old copy, while an exact separately owned original-data child contract is not established. Useful upstream setup/external registration retained; separate bundled-patch acquisition permission also remains unresolved.",
       "validation_scope": {
-        "scope": "Primary-source retrieval and inventory join only; route-fit validation unfinished."
+        "scope": "Complete selected release asset metadata, digest-matched Windows ZIP and bounded raw structure/PE/text inspection, pinned setup/update/data source review. No upstream executable/helper/retail original or native gameplay run. Non-Windows packages remain separate upstream instructions."
       },
-      "delivery_status": "unfinished assessment/implementation",
-      "affected_operation": "managed installation/update and supported setup route selection",
-      "next_action": "Establish the exact executable, supported setup/data boundary and runtime replacement owner from https://github.com/florinp93/hells-gate-recomp/blob/v0.8.4-beta/README.md; inspect observed DantesInferno-0.8.4-beta-portable.zip, DantesInfernoInstaller.exe. Then implement every fitting existing-capability change or retain a specifically evidenced limitation. No new product deferral is assigned.",
-      "acquisition_restriction": null,
-      "assessed_platform_scope": null,
+      "delivery_status": "Reviewed non-owning guide and precise operation limit implemented in source candidate; unmerged; stronger canonical acceptance remains separate",
+      "affected_operation": "fresh acquisition / managed creation",
+      "next_action": "Establish a compatible distribution basis for the bundled game/default.xexp title-update patch, or import it from the player’s own game. Separately establish owned original-data coordinates or supported preparation that cannot overwrite a successor bundled patch. Both conditions remain required for managed creation; keep an existing permitted copy.",
+      "acquisition_restriction": "Portcove downloads are paused while the selected package’s bundled game/default.xexp title-update patch has no established separate acquisition permission. Keep an existing permitted copy. Reconsider when upstream establishes the patch’s compatible distribution basis or supplies a package that imports it from your own game.",
+      "assessed_platform_scope": ["windows-x86-64"],
       "download_recommendation": {
         "channel": "stable",
         "asset_hints": {}
@@ -12715,7 +12885,8 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
-      }
+      },
+      "reconsideration_condition": "Establish a compatible distribution basis for the bundled game/default.xexp title-update patch, or import it from the player’s own game. Separately establish owned original-data coordinates or supported preparation that cannot overwrite a successor bundled patch. Both conditions remain required for managed creation; keep an existing permitted copy."
     },
     {
       "id": "dark-rift-kilnan-recomp",
@@ -39638,7 +39809,7 @@
       }
     }
   ],
-  "candidate_authored_records_sha256": "bffb21c784714a110c8482aac2bf05a942ab913e65fc028be6e4a08e630691b3",
+  "candidate_authored_records_sha256": "fcdb492d4198ab4b37f8073d71023925729fcb959cb5cdd460e1b61ee18a9c5f",
   "reference_sources": [
     {
       "name": "Quiver",
@@ -39704,6 +39875,43 @@
         "result": "changed strict timeout/output inventory contract passed1/1 after final parent calibration"
       }
     ],
-    "limits": "Focused feedback across retained attempts. No claim of a single all-green100-case run, final-head CI, native game execution, real-save compatibility or protected acceptance. Original failures retained; only invalidated checks repeated."
+    "limits": "Focused feedback across retained attempts. No claim of a single all-green100-case run, final-head CI, native game execution, real-save compatibility or protected acceptance. Original failures retained; only invalidated checks repeated.",
+    "ready_archive_follow_up": {
+      "source_commit": "57253933a358eb80be27dc0b01f12c0cc45154d8",
+      "scope": "Source-grounded declarations plus inert shared lifecycle/provider and browser feedback. No upstream executable/helper/original-input execution, gameplay, external-save restoration or installed Desktop acceptance.",
+      "runs": [
+        {
+          "file": "main-ac388860-catalog-source-feedback-1.log",
+          "result": "122/122 passed on composed main, including complete unchanged-definition PSX progression27.291s",
+          "nextest_run": "5785d231-46ae-4d52-ba28-17f76ac15a56"
+        },
+        {
+          "file": "mc2-catalog-provider-feedback-1.log",
+          "result": "123/123 passed, including actual embedded MC2 selector and synthetic version-only successor"
+        },
+        {
+          "file": "mc2-guidance-ui-feedback-1.log",
+          "result": "69 rendered unit checks passed; browser launch unavailable because updated pinned Chromium was absent; bootstrap repaired only local tool cache"
+        },
+        {
+          "file": "mc2-guidance-ui-feedback-2.log",
+          "result": "80/80 browser cases passed across exactly2 requested/executed files; no skips"
+        },
+        {
+          "file": "mc2-preplay-preservation-feedback-1.log",
+          "result": "45/45 passed: MC2 current pre-Play data, backup, staged update, fresh package caches, nonexecuting launch preparation and runtime rollback; raw activation refusal, conservative historical data, PSX preservation and indexed compatibility. Compiler unused-variable warning subsequently removed."
+        },
+        {
+          "file": "mc2-recovery-capability-feedback-1.log",
+          "result": "21/21 Core capability/recovery checks passed; CLI binaries compiled but module filter selected no CLI test; no CLI-execution claim from this run",
+          "nextest_run": "748b0cd6-675e-444c-b6f4-d8ce8dc296fc"
+        },
+        {
+          "file": "mc2-cli-capability-feedback-2.log",
+          "result": "Exact CLI advertised-template/negotiation/schema case passed1/1 with the corrected integration-test name",
+          "nextest_run": "dd8fe12c-0baf-4e5e-9ae3-31591a83581c"
+        }
+      ]
+    }
   }
 }
