@@ -1046,6 +1046,21 @@ void test("source-dialog consumer selects scenario contracts without running nat
   assert.ok(ids(mixed.plan).some((id: string) => id === "rust-workspace-tests"));
 });
 
+void test("native review presentation entrypoints select behavior and receipt contracts", () => {
+  for (const consumer of [
+    "apps/desktop/scripts/desktop-review-controls.mts",
+    "apps/desktop/scripts/desktop-review-presentation.mts",
+  ])
+    for (const status of ["A", "M", "D"]) {
+      const { selection, plan } = planFor([{ status, path: consumer }]);
+      assert.ok(selection.nodeTests.has("scripts/desktop-scenarios.test.mts"));
+      assert.ok(selection.nodeTests.has("scripts/desktop-execution-plan.test.mts"));
+      assert.ok(ids(plan).includes("node-tests"));
+      assert.ok(ids(plan).includes("rust-workspace-tests"));
+      assert.ok(!plan.map(formatCommand).join("\n").includes("desktop-test"));
+    }
+});
+
 void test("selected local resource scope follows actual commands and mixed or unknown work is conservative", () => {
   assert.equal(storageScopeForPlan([{ id: "diff-check" }, { id: "node-tests" }]), "tooling");
   assert.equal(storageScopeForPlan([{ id: "node-syntax:tool.mjs" }]), "tooling");
