@@ -187,7 +187,7 @@ void test("changed provider pin identities stay visible and metadata recovery do
   );
   assert.equal(changed.report.collection.material_changes.length, 1);
   assert.match(changed.summary, /\*\*1 new or changed\*\*/u);
-  assert.match(changed.summary, /fixture-pin.*New or changed/u);
+  assert.match(changed.summary, /fixture-pin.*New\/changed/u);
   const failed = await advanceHealthMonitor(
     input,
     changed.checkpoint,
@@ -680,6 +680,7 @@ void test("missing planner scope emits CLI failure artifacts without network wor
   await mkdir(path.join(directory, ".github"));
   for (const script of [
     "upstream-health-monitor",
+    "upstream-health-triage",
     "check-catalog-repositories",
     "observe-configured-upstream",
     "upstream-observer",
