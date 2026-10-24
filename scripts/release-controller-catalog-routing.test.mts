@@ -482,7 +482,8 @@ void test("production secret selection never falls back across purposes and job-
     const expression = /\$\{\{([\s\S]*?)\}\}/gu;
     let count = 0;
     for (const match of bytes.matchAll(expression)) {
-      const body = match[1]!;
+      // YAML folding may wrap a closed expression without changing its tokens.
+      const body = match[1]!.replace(/\s+/gu, " ");
       if (!body.includes("secrets.PORTCOVE_CATALOG_") || !body.includes("||")) continue;
       assert.match(
         body,

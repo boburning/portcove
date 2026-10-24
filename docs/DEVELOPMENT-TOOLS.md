@@ -738,6 +738,21 @@ coverage, source custody or acceptance. Keep file durations separate from comman
 wall time and resource queueing; overlapping file durations are not critical-path
 latency. The existing five-second slow-case report and original test exits remain.
 
+`Node test case observation:` records separately retain each test, suite or failed
+worker result, measured duration, skip/TODO reason, worker exit/signal and bounded
+original error/cause messages and stacks. Timeout and AbortSignal results retain
+Node's cancellation category and original failing event. Repository paths are
+relative to the invocation root. Definition
+IDs describe source locations and names; repeated or parameterized definitions
+can have several instances and must not be deduplicated. Node test/parent IDs and
+sibling ordinals support instance correlation; they are not source attestations
+or guaranteed identities across changed registration order. The invocation ID
+and observation index identify each retained row. Compare matching source,
+runtime, platform and selected inventories before joining equivalent executions.
+The case context reports invalid/omitted counts and retained bytes. Limits are
+4096 records, 16 KiB per record and 4 MiB total; file summaries remain separate.
+Diagnostic collection failures retain the original runner output and exit status.
+
 The always-selected Node contract quartet retains decision and environment-isolation
 assertions. Its real child-timeout and subprocess-metrics fixtures run separately
 in `ci-baseline-execution.test.mts`: relevant baseline/metrics/runtime changes,
@@ -760,6 +775,24 @@ Assess the five-minute goal on the next three genuine focused hosted changes wit
 observed relevant cache hits. Keep cold, broad and unknown-cache observations
 separate and link evidence on #1104. Instrumentation delivery alone proves no
 hosted speedup.
+
+### Coordinator fixture setup and cleanup observations
+
+The slow report-repair integration case observes its temporary directory,
+independent Git source, initial checkpoint, version preparation and actual cleanup
+through `Coordinator fixture phase:` JSON lines. Started/completed/failed states
+retain the last completed and failed spans, so successful cleanup does not erase
+the preceding setup failure. Each line is bounded to 4 KiB and uses fixed phase
+labels; fixture paths, commands, credentials and error payloads are excluded.
+
+The context identifies the test label, worker PID, runtime/platform and available
+source/checkout labels. File concurrency remains unknown unless explicitly supplied
+by the owning recipe; the observed Node worker context is retained separately.
+These labels are diagnostics, not source custody. Clock/writer failures cannot
+change an operation's result, original error or cleanup. Phase clocks never supply
+product deadlines. Correlate phase timestamps with the original runner failure;
+the last observed marker alone does not establish its cause. The retained earlier
+incomplete Windows run has no such phase evidence and cannot be reconstructed.
 
 ## Generated GitHub text
 
