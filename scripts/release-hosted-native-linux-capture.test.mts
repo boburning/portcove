@@ -113,14 +113,18 @@ void test(
     t.mock.module("node:fs/promises", {
       namedExports: {
         ...filesystem,
-        realpath: async (filename: string) => filename,
+        realpath: async (filename: string) =>
+          filename === process.execPath ? "/broker-only/runtime/node" : filename,
         lstat: async (filename: string) =>
-          filename === "/" ||
-          filename.startsWith("/usr/") ||
-          filename === "/usr" ||
-          filename.startsWith(path.dirname(process.execPath))
-            ? { uid: 0, mode: 0o100755, isSymbolicLink: () => false }
-            : filesystem.lstat(filename),
+          filename.startsWith("/broker-only")
+            ? {
+                uid: process.getuid!() + (state.fault === "node-custody" ? 1 : 0),
+                mode: state.fault === "node-writable" ? 0o100777 : 0o100755,
+                isSymbolicLink: () => false,
+              }
+            : filename === "/" || filename.startsWith("/usr/") || filename === "/usr"
+              ? { uid: 0, mode: 0o100755, isSymbolicLink: () => false }
+              : filesystem.lstat(filename),
       },
     });
     t.mock.module("./release-native-scheduler.mts", {
@@ -366,6 +370,8 @@ void test(
       "inventory-refusal",
       "inventory-overflow",
       "inventory-nonclosing",
+      "node-custody",
+      "node-writable",
       "admission-expiry",
       "wrong-source",
       "wrong-readback",
@@ -426,6 +432,7 @@ void test(
           );
           if (
             fault.startsWith("inventory-") ||
+            fault.startsWith("node-") ||
             fault === "wrong-source" ||
             fault === "admission-expiry"
           )
@@ -449,7 +456,7 @@ void test(
             /original active hosted Linux capture/u,
           );
         }
-        assert.equal(state.probes, 1);
+        assert.equal(state.probes, fault.startsWith("node-") ? 0 : 1);
         await assert.rejects(
           module.captureActualHostedNativeLinuxInvocation(request),
           /one original Linux capture/u,

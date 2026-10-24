@@ -296,7 +296,7 @@ async function prepare(actual: ActualRequest, parent: Parent) {
       ),
     ),
   );
-  const node = await tool(process.execPath, [0], parent.recheck);
+  const node = await tool(process.execPath, [0, process.getuid!()], parent.recheck);
   const inventory = await observeInventory(actual, parent, [
     "-n",
     "-H",
