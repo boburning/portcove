@@ -115,8 +115,12 @@ mounts=[line.split() for line in Path('/proc/self/mountinfo').read_text().splitl
 matches=[parts[parts.index('-')+1] for parts in mounts if parts[4]==str(home)]
 assert matches==['tmpfs']
 child=subprocess.Popen(['/usr/bin/python3','-I','-S','-B','-c','import time;time.sleep(120)'],env={'PATH':'/usr/bin:/bin'},stdin=subprocess.DEVNULL)
-with ready.open('xb') as f:
+partial=ready.with_suffix('.partial')
+with partial.open('xb') as f:
  f.write(json.dumps({'pid':os.getpid(),'child_pid':child.pid,'uid':os.getuid(),'gid':os.getgid(),'cgroup':Path('/proc/self/cgroup').read_text().strip(),'writable_bytes':size.f_blocks*size.f_frsize}).encode())
+# Publish a complete record atomically, refusing an existing destination. Keep
+# the matching partial inode as diagnostic evidence rather than deleting it.
+os.link(partial,ready)
 time.sleep(120)
 '''
 
