@@ -3,6 +3,7 @@ import { isRecord } from "./runtime-values.mts";
 import { spec } from "node:test/reporters";
 import { Readable } from "node:stream";
 import { randomUUID } from "node:crypto";
+import { createNodeCaseObservations } from "./node-case-observations.mts";
 
 export const slowTestThresholdMs = 5_000;
 const maxFileObservations = 512;
@@ -98,6 +99,7 @@ export default async function* report(
 ): AsyncGenerator<string | Buffer> {
   const slow: SlowTestObservation["data"][] = [];
   const invocation = randomUUID();
+  const cases = createNodeCaseObservations(invocation);
   const files: string[] = [];
   let invalidFiles = 0;
   let omittedFiles = 0;
@@ -109,6 +111,7 @@ export default async function* report(
   }[] = [];
   async function* inspect() {
     for await (const event of source) {
+      cases.capture(event);
       if (isSlowTest(event)) slow.push(event.data);
       if (event.type === "test:summary" && event.data.file !== undefined) {
         const observation = nodeFileObservation(event);
@@ -161,14 +164,22 @@ export default async function* report(
     yield `\nSlow tests to investigate (${slowTestThresholdMs}ms):\n`;
     for (const test of slow) yield `  ${test.name}: ${test.details.duration_ms.toFixed(1)}ms\n`;
   }
-  if (files.length || invalidFiles || omittedFiles) {
+  const caseSummary = cases.summary();
+  if (
+    files.length ||
+    invalidFiles ||
+    omittedFiles ||
+    caseSummary.observed ||
+    caseSummary.invalid ||
+    caseSummary.omitted
+  ) {
     const environment = (name: string) => {
       const value = process.env[name];
       return typeof value === "string" && value.length <= 256 ? value : null;
     };
     // Environment labels bind diagnostics to the outer invocation; they do not
     // attest source bytes, clean state, coverage or acceptance.
-    yield `Node test file observation context: ${JSON.stringify({
+    const context = {
       format_version: 1,
       invocation_id: invocation,
       node: process.version,
@@ -179,10 +190,19 @@ export default async function* report(
       run: environment("GITHUB_RUN_ID"),
       attempt: environment("GITHUB_RUN_ATTEMPT"),
       job: environment("GITHUB_JOB"),
-      observed: files.length,
-      invalid: invalidFiles,
-      omitted: omittedFiles,
-    })}\n`;
-    for (const file of files) yield file;
+    };
+    if (caseSummary.observed || caseSummary.invalid || caseSummary.omitted) {
+      yield `Node test case observation context: ${JSON.stringify({ ...context, ...caseSummary })}\n`;
+      for (const observation of cases.records()) yield observation;
+    }
+    if (files.length || invalidFiles || omittedFiles) {
+      yield `Node test file observation context: ${JSON.stringify({
+        ...context,
+        observed: files.length,
+        invalid: invalidFiles,
+        omitted: omittedFiles,
+      })}\n`;
+      for (const file of files) yield file;
+    }
   }
 }
