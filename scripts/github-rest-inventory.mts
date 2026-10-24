@@ -44,6 +44,23 @@ export class RestInventoryTransport {
   }
 
   pages(endpoint: string, allowedPaths: readonly string[]) {
+    return this.collect(endpoint, allowedPaths);
+  }
+
+  /** A validated prefix, not a complete inventory; stops after a matching page. */
+  prefixThrough(
+    endpoint: string,
+    allowedPaths: readonly string[],
+    matches: (row: Record<string, unknown>) => boolean,
+  ) {
+    return this.collect(endpoint, allowedPaths, matches);
+  }
+
+  private collect(
+    endpoint: string,
+    allowedPaths: readonly string[],
+    matches?: (row: Record<string, unknown>) => boolean,
+  ) {
     const rows: Record<string, unknown>[] = [];
     const identities = new Set<string>();
     const visited = new Set<string>();
@@ -120,8 +137,9 @@ export class RestInventoryTransport {
         count: response.body.length,
         terminal: next === null,
       });
+      if (matches && response.body.some(matches)) return { rows, pages, complete: next === null };
       current = next;
     }
-    return { rows, pages };
+    return { rows, pages, complete: true };
   }
 }

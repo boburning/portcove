@@ -311,3 +311,85 @@ await test("board activity preserves exact positive membership but invalidates a
     ["POST"],
   );
 });
+
+await test("REST issue inventory ignores PR-only edits but refuses creations and real-issue drift", () => {
+  for (const mode of [
+    "pr-edits",
+    "new-pr",
+    "new-issue",
+    "issue-body",
+    "issue-title",
+    "issue-state",
+    "missing-marker",
+    "all-prs",
+    "loop",
+  ] as const) {
+    const existing = issue(1);
+    const prs = [2, 3, 4].map((number) => ({
+      ...issue(number),
+      pull_request: {},
+      html_url: `https://github.com/${config.repository}/pull/${number}`,
+      created_at: `2026-01-0${number}T00:00:00Z`,
+    }));
+    const mainRows = mode === "all-prs" ? prs : [existing, ...prs];
+    let createdReads = 0,
+      markerPages = 0;
+    const api = new GitHubApiClient((args) => {
+      const url = new URL(args[2]!, base + "/");
+      if (url.pathname === `/repos/${config.repository}`)
+        return response({ id: 10, node_id: "repo", full_name: config.repository });
+      if (url.searchParams.get("direction") === "asc") return response(mainRows);
+      if (url.searchParams.get("sort") === "created") {
+        createdReads++;
+        if (createdReads === 2 && (mode === "new-pr" || mode === "new-issue"))
+          return response([{ ...issue(5), created_at: "2026-01-05T00:00:00Z" }]);
+        return response([
+          {
+            ...prs[2]!,
+            ...(createdReads > 1
+              ? {
+                  body: "PR edited",
+                  title: "new PR title",
+                  state: "open",
+                  updated_at: "2026-02-01T00:00:00Z",
+                }
+              : {}),
+          },
+        ]);
+      }
+      markerPages++;
+      const page = Number(url.searchParams.get("page") ?? 1);
+      const prefix: Record<string, unknown>[] = [...prs].reverse();
+      if (mode !== "all-prs")
+        prefix.push({
+          ...existing,
+          ...(mode === "missing-marker" ? { node_id: "missing" } : {}),
+          ...(createdReads > 1
+            ? mode === "issue-body"
+              ? { body: "changed" }
+              : mode === "issue-title"
+                ? { title: "changed" }
+                : mode === "issue-state"
+                  ? { state: "open" }
+                  : {}
+            : {}),
+        });
+      const current = prefix[page - 1];
+      const next =
+        page < prefix.length
+          ? `${base}/repos/${config.repository}/issues?state=all&sort=updated&direction=desc&per_page=1&page=${mode === "loop" ? page : page + 1}`
+          : null;
+      return response(current ? [current] : [], next ? { link: `<${next}>; rel="next"` } : {});
+    });
+    const client = new RestPortIntakeClient(config, api);
+    if (mode === "pr-edits" || mode === "all-prs") {
+      const result = client.repositoryIssues();
+      assert.equal(result.issues.length, mode === "all-prs" ? 0 : 1);
+      assert.ok(markerPages >= 6, "walk through every PR-only prefix page");
+    } else
+      assert.throws(
+        () => client.repositoryIssues(),
+        mode === "loop" ? /skipped a page/u : /changed/u,
+      );
+  }
+});
