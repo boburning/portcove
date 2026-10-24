@@ -92,6 +92,7 @@ struct DeviceSession {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct ReleaseSelectionCacheKey {
+    adapter: AdapterKind,
     repository: String,
     channel: ReleaseChannel,
     platform: Platform,
@@ -103,6 +104,7 @@ pub(crate) struct ReleaseSelectionCacheKey {
 impl ReleaseSelectionCacheKey {
     pub(crate) fn new(port: &PortDefinition, channel: ReleaseChannel, platform: Platform) -> Self {
         Self {
+            adapter: port.adapter,
             scope_binding: None,
             repository: port.release.repository.clone(),
             channel,
@@ -1709,6 +1711,8 @@ fn is_sha256(value: &str) -> bool {
 mod tests {
     use super::*;
 
+    mod unchanged_definition;
+
     #[tokio::test]
     async fn pending_auth_status_http_observation_releases_library_lease() {
         let temporary = tempfile::tempdir().unwrap();
@@ -2157,6 +2161,7 @@ mod tests {
             },
         };
         let oldest_key = ReleaseSelectionCacheKey {
+            adapter: AdapterKind::NativePortable,
             scope_binding: None,
             repository: "owner/repository-0".into(),
             channel: ReleaseChannel::Stable,
@@ -2178,6 +2183,7 @@ mod tests {
             provider
                 .store_release(
                     ReleaseSelectionCacheKey {
+                        adapter: AdapterKind::NativePortable,
                         scope_binding: None,
                         repository: format!("owner/repository-{index}"),
                         channel: ReleaseChannel::Stable,

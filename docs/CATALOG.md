@@ -906,6 +906,30 @@ updates. A deliberate `DirectManifest`, rolling tag, source/runtime identity or
 exact qualification record must not be broadened to manufacture automatic
 updates.
 
+An ordinary compatible upstream release must resolve and install with the same
+application and unchanged definition. Author the reusable integration rules;
+let the existing provider observe each release's version, asset ID, exact name,
+URL, size and independent digest. Core retains those exact facts with the
+installed artifact. A per-release JSON edit or automatic version-bump PR is not
+compatible progression. Historical source links and qualification hashes remain
+exact observations; their presence alone does not pin provider selection.
+
+Preparation flags hints containing the observed release version for applicability
+review. Prefer stable discriminating fragments, including the actual package
+variant. Preserve numeric ABI/engine-generation requirements where intentional.
+Test unchanged rules through the production provider for N, N+1 and a fresh
+installation after N+1, including competing variants, foreign architectures and
+successor-specific integrity evidence. Ordinary observed release changes do not
+add a mandatory maintainer review or full gameplay campaign. Changed setup,
+executable/data coordinates, ownership or package handling can require a reviewed
+rule change; existing transition and recovery guards still apply.
+
+Independent compatible definition delivery to installed clients remains with
+[#534](https://github.com/boburning/portcove/issues/534) and
+[#246](https://github.com/boburning/portcove/issues/246). It does not replace
+dynamic release discovery or authorize production publication in an ordinary
+catalog change.
+
 Declare the offered route's maintenance policy on its existing canonical Port
 issue during admission and subsequent disposition work, independently from its
 operations and qualification. [#1422](https://github.com/boburning/portcove/issues/1422)

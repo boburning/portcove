@@ -85,6 +85,29 @@ void test("portable preparation separates complete hint observations from lifecy
   )!;
   assert.equal(named.launch_identity.original_game_title, "Actual game");
   assert.match(named.launch_identity.next, /separate from its implementation and helper names/);
+  const versioned = portablePreparationFeedback(
+    {
+      ...record,
+      integration: {
+        ...record.integration,
+        release: { asset_hints: { "windows-x86-64": ["Game-v1.2.3-windows-x64.zip"] } },
+      },
+    },
+    {
+      assets_complete: true,
+      assets: [asset],
+      release: {
+        endpoint: "https://api.github.com/repos/example/game/releases/tags/v1.2.3",
+        status: "observed",
+        body: { tag_name: "v1.2.3" },
+      },
+    },
+  )!;
+  assert.deepEqual(versioned.maintenance.potential_version_restrictions, [
+    { platform: "windows-x86-64", hints: ["Game-v1.2.3-windows-x64.zip"] },
+  ]);
+  assert.deepEqual(unique.maintenance.potential_version_restrictions, []);
+  assert.match(versioned.maintenance.next, /supported exact pin/);
   assert.equal(
     portablePreparationFeedback(
       { format_version: 1, listing: record.listing },

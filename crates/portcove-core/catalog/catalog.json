@@ -21492,7 +21492,8 @@
         "repository": "TheGh0stShip/BattleTanx-Global-Assault-PC-Port",
         "asset_hints": {
           "windows-x86-64": [
-            "BattleTanxGA-0.2.5-windows-x64-portable.zip"
+            "BattleTanxGA-",
+            "-windows-x64-portable.zip"
           ]
         }
       },
@@ -21547,7 +21548,8 @@
         "repository": "Brawmario/infinite-mario-64-ever",
         "asset_hints": {
           "windows-x86-64": [
-            "infinite-mario-64-ever.v0.1.5.windows.zip"
+            "infinite-mario-64-ever.",
+            ".windows.zip"
           ]
         }
       },
@@ -22053,7 +22055,8 @@
         "repository": "elliotttate/DKC1Recomp",
         "asset_hints": {
           "windows-x86-64": [
-            "DKC1Recomp-v0.0.17-Windows-x64.zip"
+            "DKC1Recomp-",
+            "-Windows-x64.zip"
           ]
         }
       },

@@ -51,12 +51,14 @@ interface PrepareOptions {
   artwork?: Pick<ArtworkPreparationOptions, "inspectGame" | "inspectImage">;
 }
 const owner = { format_version: 1, tool: "portcove-prepare-port" };
+type PackageFacts = Pick<
+  Awaited<ReturnType<typeof collectPortFacts>>,
+  "assets" | "assets_complete"
+> &
+  Partial<Pick<Awaited<ReturnType<typeof collectPortFacts>>, "release">>;
 
 /** Authoring feedback only. Filename matches never establish executable or lifecycle fit. */
-export function portablePreparationFeedback(
-  record: AuthoredPort,
-  facts: Pick<Awaited<ReturnType<typeof collectPortFacts>>, "assets" | "assets_complete">,
-) {
+export function portablePreparationFeedback(record: AuthoredPort, facts: PackageFacts) {
   if (record.integration?.adapter !== "native-portable") return undefined;
   const release = record.integration.release;
   const hints = isRecord(release) && isRecord(release.asset_hints) ? release.asset_hints : {};
@@ -83,10 +85,7 @@ export function portablePreparationFeedback(
   };
 }
 
-export function downloadPreparationFeedback(
-  record: AuthoredPort,
-  facts: Pick<Awaited<ReturnType<typeof collectPortFacts>>, "assets" | "assets_complete">,
-) {
+export function downloadPreparationFeedback(record: AuthoredPort, facts: PackageFacts) {
   const hints = record.listing.download_asset_hints;
   if (!hints || !Object.keys(hints).length) return undefined;
   return {
@@ -99,11 +98,36 @@ export function downloadPreparationFeedback(
 function packageHintFeedback(
   hints: Record<string, unknown>,
   platforms: readonly string[],
-  facts: Pick<Awaited<ReturnType<typeof collectPortFacts>>, "assets" | "assets_complete">,
+  facts: PackageFacts,
   eligibleName?: (name: string) => boolean,
 ) {
+  const tag =
+    isRecord(facts.release?.body) && typeof facts.release.body.tag_name === "string"
+      ? facts.release.body.tag_name
+      : null;
+  const versions =
+    tag && /\d+\.\d+/u.test(tag)
+      ? [...new Set([tag.toLowerCase(), tag.replace(/^v(?=\d)/iu, "").toLowerCase()])]
+      : [];
   return {
     assets_complete: facts.assets_complete,
+    maintenance: {
+      observed_release_tag: tag,
+      potential_version_restrictions: platforms.flatMap((platform) => {
+        const values = hints[platform];
+        const restricted = Array.isArray(values)
+          ? values.filter(
+              (value) =>
+                typeof value === "string" &&
+                versions.some((version) => value.toLowerCase().includes(version)),
+            )
+          : [];
+        return restricted.length ? [{ platform, hints: restricted }] : [];
+      }),
+      next: "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly.",
+      scope:
+        "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval.",
+    },
     platforms: platforms.map((platform) => {
       const values = hints[platform];
       const needles = Array.isArray(values)

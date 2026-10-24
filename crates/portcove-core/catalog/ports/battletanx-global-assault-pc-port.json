@@ -37,7 +37,7 @@
     "release": {
       "repository": "TheGh0stShip/BattleTanx-Global-Assault-PC-Port",
       "asset_hints": {
-        "windows-x86-64": ["BattleTanxGA-0.2.5-windows-x64-portable.zip"]
+        "windows-x86-64": ["BattleTanxGA-", "-windows-x64-portable.zip"]
       }
     },
     "executable_hints": {

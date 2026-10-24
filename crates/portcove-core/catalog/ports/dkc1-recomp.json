@@ -37,7 +37,7 @@
     "release": {
       "repository": "elliotttate/DKC1Recomp",
       "asset_hints": {
-        "windows-x86-64": ["DKC1Recomp-v0.0.17-Windows-x64.zip"]
+        "windows-x86-64": ["DKC1Recomp-", "-Windows-x64.zip"]
       }
     },
     "executable_hints": {
