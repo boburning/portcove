@@ -164,7 +164,7 @@ void test("actual fixed pack keeps the marked preparation verifier after raw sou
     { recursive: true },
   );
   await mkdir(path.join(staged, "scripts"), { recursive: true });
-  for (const name of controllerToolEntries)
+  for (const name of [...controllerToolEntries, "production-controller-admission-cli"])
     await writeFile(
       path.join(staged, "scripts", `${name}.mts`),
       name === "release-publication-controller"
@@ -571,7 +571,7 @@ void test("actual pinned AST rewrite preserves Unicode before imported module UR
     path.join(source, "scripts/imported.mts"),
     'const label = "😀é"; export const location = import.meta.url; export {label};\n',
   );
-  for (const name of controllerToolEntries)
+  for (const name of [...controllerToolEntries, "production-controller-admission-cli"])
     await writeFile(
       path.join(source, "scripts", `${name}.mts`),
       'import {location,label} from "./imported.mts"; console.log(JSON.stringify({location,label,entry:import.meta.url}));\n',

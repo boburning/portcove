@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdtemp, rm, appendFile, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import { performance } from "node:perf_hooks";
 import { parse } from "yaml";
@@ -32,16 +34,22 @@ import { syncBuiltinESMExports } from "node:module";
 import { assemblerIdentityFixture, jwk } from "./fixtures/assembler-identity-fixture.mts";
 import {
   admitProductionClassificationWriter,
+  admitProductionClassificationObserver,
+  admitProductionProtectionObserver,
+  admitProductionCatalogProtectionObserver,
   productionControllerWorkflow,
 } from "./production-controller-admission.mts";
 import {
   controllerOidcSubject,
   verifyProductionClassificationWriterJobIdentity,
+  verifyProductionClassificationObserverJobIdentity,
+  verifyProductionProtectionObserverJobIdentity,
 } from "./assembler-job-identity.mts";
 import {
   establishFixedClassificationPrincipal,
   requireFixedClassificationPrincipal,
   requireProductionFixedClassificationWriter,
+  requireProductionProtectionObserver,
 } from "./release-classification-principal.mts";
 import {
   requireFixedClassificationStoragePolicy,
@@ -52,6 +60,238 @@ import {
   inspectApplicationReviewProducerConfiguration,
 } from "./release-control-inputs.mts";
 import { requireCurrentClassificationRequest } from "./release-classification-request.mts";
+import { releaseControlPhaseProfile, type ReleaseControlPhase } from "./release-control-phases.mts";
+import { retainProtectionObservationOutputs } from "./release-reviewed-inputs.mts";
+
+void test("observer output transport refuses expiry after every awaited write and retains partial effects", async (t) => {
+  for (const delayed of ["output", "observation", "receipt", "none"]) {
+    await t.test(delayed, async () => {
+      const root = await mkdtemp(path.join(os.tmpdir(), "portcove-observer-output-"));
+      try {
+        const output = path.join(root, "output");
+        const observation = path.join(root, "observation.json");
+        const receipt = path.join(root, "receipt.jsonl");
+        const result = { evidence: "controlled-output-transport", authority: "none" };
+        const encoded = JSON.stringify(result);
+        let now = 1;
+        const writes: string[] = [];
+        const finish = (stage: string) => {
+          writes.push(stage);
+          if (delayed === stage) now = 2;
+        };
+        const attempt = retainProtectionObservationOutputs(
+          output,
+          observation,
+          result,
+          "observe-production",
+          {
+            writeFile: async (value) => {
+              await appendFile(receipt, value);
+              finish("receipt");
+            },
+          },
+          () => {
+            assert.ok(now < 2, "original observer identity/deadline expired");
+          },
+          {
+            appendFile: async (...args) => {
+              await appendFile(...args);
+              finish("output");
+            },
+            writeFile: async (...args) => {
+              await writeFile(...args);
+              finish("observation");
+            },
+          },
+        );
+        if (delayed === "none") await attempt;
+        else await assert.rejects(attempt, /original observer identity\/deadline expired/);
+        const expected =
+          delayed === "output"
+            ? ["output"]
+            : delayed === "observation"
+              ? ["output", "observation"]
+              : ["output", "observation", "receipt"];
+        assert.deepEqual(writes, expected);
+        assert.equal(await readFile(output, "utf8"), `observation=${encoded}\n`);
+        if (writes.includes("observation"))
+          assert.equal(await readFile(observation, "utf8"), encoded);
+        else await assert.rejects(readFile(observation), { code: "ENOENT" });
+        if (writes.includes("receipt")) {
+          const retained: unknown = JSON.parse(await readFile(receipt, "utf8"));
+          assert.ok(isRecord(retained) && isRecord(retained.result));
+          assert.equal(retained.result.evidence, result.evidence);
+        } else await assert.rejects(readFile(receipt), { code: "ENOENT" });
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
+void test("production observer joins original named source/OIDC and appointed mint output for both purposes, refusing copies, drift and expiry", async (t) => {
+  let provider: ReturnType<typeof assemblerIdentityFixture>;
+  const actualSpawn = childProcess.spawnSync;
+  t.mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ keys: [jwk] })));
+  t.mock.method(
+    childProcess,
+    "spawnSync",
+    (
+      command: string,
+      args: readonly string[],
+      options: childProcess.SpawnSyncOptionsWithStringEncoding,
+    ) =>
+      command === "gh"
+        ? provider.transport.spawn(command, args, options)
+        : actualSpawn(command, args, options),
+  );
+  syncBuiltinESMExports();
+  t.after(() => {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+  for (const [purpose, phase] of [
+    ["application", "classification"],
+    ["application", "coordinator"],
+    ["catalog-publication", "catalog-definitions"],
+  ] as const) {
+    const configuration = selectedPublicationAuthoritiesFixture(purpose);
+    const runtime = liveControlRuntimeFixture(
+      protectionFixture("a".repeat(40)),
+      undefined,
+      "coordinator",
+      true,
+    );
+    const profile =
+      phase === "classification"
+        ? {
+            observer_job: "classification_protection_observation",
+            observer_name: "Observe release input protections",
+            observer_environment: "production-release-protection-observer" as const,
+            observer_audience: "portcove-release-classification-protection-v1",
+          }
+        : releaseControlPhaseProfile(phase);
+    const environment = { ...runtime.environment, GITHUB_JOB: profile.observer_job };
+    const policy = {
+      ...runtime.policy,
+      mode:
+        purpose === "application" ? "bounded-application-release" : "bounded-catalog-publication",
+      authority_configuration_sha256: capacityDigest(configuration),
+    };
+    const source =
+      phase === "classification"
+        ? admitProductionClassificationObserver(
+            JSON.stringify(policy),
+            environment,
+            runtime.workflow,
+          )
+        : (purpose === "application"
+            ? admitProductionProtectionObserver
+            : admitProductionCatalogProtectionObserver)(
+            JSON.stringify(policy),
+            environment,
+            runtime.workflow,
+            phase,
+          );
+    const expected = {
+      audience: profile.observer_audience,
+      subject: controllerOidcSubject(policy.execution_ref, profile.observer_environment),
+      controller_revision: policy.revision,
+      controller_ref: policy.execution_ref,
+      actor_id: policy.actor_id,
+      run_id: environment.GITHUB_RUN_ID,
+      run_attempt: 1,
+    };
+    provider = assemblerIdentityFixture(
+      { aud: expected.audience, sub: expected.subject, environment: profile.observer_environment },
+      {},
+      { workflow: productionControllerWorkflow, job: profile.observer_name, runAttempt: 1 },
+    );
+    const identity =
+      phase === "classification"
+        ? await verifyProductionClassificationObserverJobIdentity(provider.token, expected, {
+            transport: { cwd: process.cwd() },
+          })
+        : await verifyProductionProtectionObserverJobIdentity(
+            provider.token,
+            expected,
+            { transport: { cwd: process.cwd() } },
+            phase,
+          );
+    const observer = configuration.journal.apps.protection_observer;
+    const join = (
+      raw: unknown = configuration,
+      originalSource: unknown = source,
+      originalIdentity: unknown = identity,
+      selectedPhase: "classification" | ReleaseControlPhase = phase,
+      app = String(observer.app_id),
+      installation = String(observer.installation_id),
+      now = Date.now(),
+    ) =>
+      requireProductionProtectionObserver(
+        raw,
+        originalSource,
+        originalIdentity,
+        selectedPhase,
+        purpose,
+        app,
+        installation,
+        now,
+      );
+    assert.equal(join().classification_transport, "fixed-job");
+    assert.equal(join().authority, "none");
+    assert.throws(() => join(configuration, { ...source }));
+    assert.throws(() => join(configuration, source, { ...identity }));
+    assert.throws(() =>
+      join(
+        configuration,
+        source,
+        identity,
+        phase === "classification" ? "coordinator" : "classification",
+      ),
+    );
+    assert.throws(() =>
+      join(
+        configuration,
+        source,
+        identity,
+        phase,
+        String(configuration.journal.apps.semantic.app_id),
+      ),
+    );
+    assert.throws(() =>
+      join(configuration, source, identity, phase, String(observer.app_id), "999"),
+    );
+    assert.throws(() =>
+      join(
+        configuration,
+        source,
+        identity,
+        phase,
+        String(observer.app_id),
+        String(observer.installation_id),
+        Date.parse(identity.expires_at),
+      ),
+    );
+    const changed = structuredClone(configuration);
+    changed.journal.setup_plan_sha256 = "f".repeat(64);
+    assert.throws(() => join(changed));
+    assert.throws(() => join(configuration.journal));
+    const injected =
+      phase === "classification"
+        ? await verifyProductionClassificationObserverJobIdentity(provider.token, expected, {
+            readKeys: provider.readKeys,
+            transport: provider.transport,
+          })
+        : await verifyProductionProtectionObserverJobIdentity(
+            provider.token,
+            expected,
+            { readKeys: provider.readKeys, transport: provider.transport },
+            phase,
+          );
+    assert.throws(() => join(configuration, source, injected));
+  }
+});
 
 void test("selected full application controls bind their complete record and fixed writer instead of legacy App configuration", async () => {
   const control = releaseControlInputsFixture(capacityDocumentFixture());

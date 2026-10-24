@@ -2321,3 +2321,84 @@ void test("upstream test families preserve shared owners and narrow the planner 
     }
   }
 });
+
+void test("Roadmap test families preserve shared owners and narrow the New Port form to intake", async () => {
+  const { buildValidationPlan } = await import("./validation-plan.mts");
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const broad = [
+    "scripts/roadmap-execution.test.mts",
+    "scripts/roadmap.test.mts",
+    "scripts/roadmap-intake.test.mts",
+    "scripts/roadmap-views.test.mts",
+    "scripts/roadmap-readiness.test.mts",
+    "scripts/roadmap-mutations.test.mts",
+    "scripts/roadmap-qualification.test.mts",
+    "scripts/roadmap-provider-inventory.test.mts",
+  ];
+  const planner = ["scripts/roadmap-intake.test.mts"];
+  for (const file of [
+    "scripts/roadmap.mts",
+    "scripts/github-api.mts",
+    "scripts/repository-issue-inventory.mts",
+    "scripts/repository-issue-inventory.fixture.mts",
+    "scripts/roadmap-inventory.mts",
+    "scripts/roadmap-scoped.mts",
+    "scripts/linux-beta-risk-706.mts",
+    ".github/linux-beta-risk-706.json",
+    "deny.toml",
+    ".github/roadmap.json",
+    ".github/ISSUE_TEMPLATE/new-port.yml",
+    "scripts/fixtures/roadmap-fixtures.mts",
+  ]) {
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const input = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [
+          {
+            status: input.status,
+            path: input.newPath,
+            ...(input.oldPath !== input.newPath ? { previousPath: input.oldPath } : {}),
+          },
+        ],
+        { fileExists: () => false },
+      );
+      const plan = buildValidationPlan({
+        changes: [input],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      const hosted = baselineContractTests(plan, { fileExists: () => false });
+      const expected = file === ".github/ISSUE_TEMPLATE/new-port.yml" ? planner : broad;
+      const label = JSON.stringify(input);
+      for (const required of expected) {
+        assert.ok(local.nodeTests.has(required), "local " + required + ": " + label);
+        assert.equal(
+          hosted.filter((selected) => selected === required).length,
+          1,
+          "hosted " + required + ": " + label,
+        );
+      }
+      if (file === ".github/ISSUE_TEMPLATE/new-port.yml") {
+        assert.deepEqual(
+          [...local.nodeTests].filter((selected) => broad.includes(selected)).sort(),
+          [...planner].sort(),
+          label,
+        );
+        assert.deepEqual(
+          hosted.filter((selected) => broad.includes(selected)).sort(),
+          [...planner].sort(),
+          label,
+        );
+      }
+    }
+  }
+});

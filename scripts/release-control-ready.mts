@@ -11,13 +11,15 @@ import {
   inspectControllerExecutionPurpose,
   inspectReleaseControlPhase,
 } from "./release-control-phases.mts";
+import { requireProtectionObserverSourceConfiguration } from "./release-authority-configuration-contract.mts";
 
 async function main() {
+  const environment = { ...process.env };
   if (
     process.argv.length < 2 ||
     process.argv.length > 4 ||
-    !process.env.RUNNER_TEMP ||
-    !path.isAbsolute(process.env.RUNNER_TEMP)
+    !environment.RUNNER_TEMP ||
+    !path.isAbsolute(environment.RUNNER_TEMP)
   )
     throw new Error("fixed isolated readiness operation requires private runner root");
   const phase = inspectReleaseControlPhase(process.argv[2]);
@@ -25,21 +27,38 @@ async function main() {
     process.argv[3] === undefined
       ? undefined
       : inspectControlRound({ index: Number(process.argv[3]) }, false);
-  const purpose = inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE);
+  const purpose = inspectControllerExecutionPurpose(environment.PORTCOVE_EXECUTION_PURPOSE);
   const admitted = (
     purpose === "catalog-publication"
       ? admitProductionCatalogProtectionObserver
       : admitProductionProtectionObserver
   )(
     purpose === "catalog-publication"
-      ? process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION
-      : process.env.PORTCOVE_CONTROLLER_ADMISSION,
-    process.env,
+      ? environment.PORTCOVE_CATALOG_CONTROLLER_ADMISSION
+      : environment.PORTCOVE_CONTROLLER_ADMISSION,
+    environment,
     await readProductionControllerWorkflowBytes(),
     phase,
   );
+  const raw =
+    purpose === "application"
+      ? environment.PORTCOVE_RELEASE_AUTHORITIES
+      : environment.PORTCOVE_CATALOG_AUTHORITIES;
+  if (!raw || Buffer.byteLength(raw) > 32768)
+    throw new Error("complete observer source configuration unavailable");
+  const roles = requireProtectionObserverSourceConfiguration(
+    JSON.parse(raw),
+    admitted,
+    phase,
+    purpose,
+  );
+  if (
+    environment.PORTCOVE_EXPECTED_PROTECTION_APP_ID !== String(roles.protection_app_id) ||
+    environment.PORTCOVE_EXPECTED_INSTALLATION_ID !== String(roles.protection_installation_id)
+  )
+    throw new Error("appointed observer mint target differs from the source-bound configuration");
   const root = path.join(
-    process.env.RUNNER_TEMP,
+    environment.RUNNER_TEMP,
     `release-control-ready-${phase}${round ? `-r${round.index}` : ""}`,
   );
   await mkdir(root, { mode: 0o700 }); // existing state refuses; never repeat on retained state

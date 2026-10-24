@@ -37,7 +37,11 @@ export async function bundleControllerEntries(sourceRoot: string, outputRoot: st
     throw new Error("repository-pinned pack version differs");
   await mkdir(path.join(outputRoot, "scripts"), { recursive: true, mode: 0o700 });
   for (const name of controllerToolEntries) {
-    const entry = path.join(sourceRoot, "scripts", `${name}.mts`);
+    const entry = path.join(
+      sourceRoot,
+      "scripts",
+      `${name === "production-controller-admission" ? "production-controller-admission-cli" : name}.mts`,
+    );
     await pack.build({
       config: false,
       cwd: sourceRoot,

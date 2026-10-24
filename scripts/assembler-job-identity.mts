@@ -472,6 +472,42 @@ export function requireVerifiedClassificationPrincipalIdentity(
     throw new Error("original unexpired fixed classification/control job identity required");
 }
 
+/** Original named observer verifier only; imported results or another job's
+ * profile/audience cannot authorize the isolated protection collector. */
+export function requireVerifiedProtectionObserverIdentity(
+  value: unknown,
+  phase: "classification" | ReleaseControlPhase,
+  now = Date.now(),
+): asserts value is Awaited<ReturnType<typeof verifyProductionClassificationObserverJobIdentity>> {
+  const saved = isRecord(value) ? verifiedJobs.get(value) : undefined;
+  const selected = phase === "classification" ? null : releaseControlPhaseProfile(phase);
+  const profile =
+    selected === null
+      ? { ...protectionProfile, workflow: productionControllerWorkflow }
+      : {
+          workflow: productionControllerWorkflow,
+          job: selected.observer_name,
+          environment: selected.observer_environment,
+        };
+  if (
+    !Number.isFinite(now) ||
+    now < 0 ||
+    !saved ||
+    JSON.stringify(saved.profile) !== JSON.stringify(profile) ||
+    saved.snapshot !== JSON.stringify(value) ||
+    saved.expected.audience !==
+      (selected === null
+        ? "portcove-release-classification-protection-v1"
+        : selected.observer_audience) ||
+    saved.expected.subject !==
+      controllerOidcSubject(saved.expected.controller_ref, profile.environment) ||
+    !isRecord(value) ||
+    typeof value.expires_at !== "string" ||
+    now >= Date.parse(value.expires_at)
+  )
+    throw new Error("original unexpired fixed protection observer identity required");
+}
+
 // Fixed profiles are deliberately private: callers cannot promote another job
 // by supplying a trusted-looking name or workflow path.
 type IdentityOptions = NonNullable<Parameters<typeof verifyJobIdentity>[3]>;
