@@ -18,6 +18,8 @@ import {
   verifiedHostedNativeReleaseQualification,
   prepareHostedNativeCustody,
   requirePreparedHostedNativeCustody,
+  collectHistoricalHostedNativeQualification,
+  verifiedHistoricalHostedNativeQualification,
 } from "./release-hosted-native-acceptance.mts";
 import type { GitHubRestReader } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -116,6 +118,68 @@ function fixture(platform: "windows-x86_64" | "linux-x86_64" = "windows-x86_64")
   };
   return { ...f, provider, verification, expected, faults, options, reads: () => reads };
 }
+
+void test("default historical receiver verifies original bytes but cannot mint current native admission or archival custody", async (t) => {
+  const directory = await root(t),
+    f = fixture();
+  const previous = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "inert-historical-reader";
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+  t.mock.method(
+    childProcess,
+    "spawnSync",
+    (command: string, args: readonly string[], settings: SpawnSyncOptionsWithStringEncoding) => {
+      assert.equal(settings.env?.GH_TOKEN, "inert-historical-reader");
+      if (args[0] === "attestation") return f.options.attestation.spawn(command, args);
+      assert.equal(command, "gh");
+      const response = f.options.api.request("GET", args[2]!);
+      return {
+        status: 0,
+        stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify(response.body)}`,
+        stderr: "",
+      };
+    },
+  );
+  syncBuiltinESMExports();
+  await withReadOnlyReleaseChildren(directory, async () => {
+    const history = await collectHistoricalHostedNativeQualification(
+      directory,
+      f.authorities,
+      f.expected,
+      f.files,
+      performance.now() + 60000,
+    );
+    assert.equal(history.kind, "verified-hosted-native-history");
+    assert.equal(history.evidence_scope, "github.com"); // Synthetic provider through the builtin seam.
+    const original = await verifiedHistoricalHostedNativeQualification(history);
+    assert.deepEqual(original?.candidate, f.report.candidate);
+    assert.equal(await verifiedHostedNativeReleaseQualification(history), undefined);
+    assert.equal(
+      await verifiedHistoricalHostedNativeQualification(structuredClone(history)),
+      undefined,
+    );
+    await assert.rejects(verifiedNativeReleaseQualification(history));
+    await assert.rejects(prepareHostedNativeCustody([history, {}]), /actual private/);
+    const current = await collectHostedNativeReleaseQualification(
+      directory,
+      f.authorities,
+      f.expected,
+      f.files,
+      performance.now() + 60000,
+    );
+    assert.equal(await verifiedHistoricalHostedNativeQualification(current), undefined);
+    await appendFile(path.join(history.capture_directory, "report.json"), "\n");
+    await assert.rejects(
+      verifiedHistoricalHostedNativeQualification(history),
+      /retained proof changed/,
+    );
+  });
+});
 
 for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
   void test(`${platform} receiver binds exact signed bytes and original successful native job without branding injected evidence`, async (t) => {

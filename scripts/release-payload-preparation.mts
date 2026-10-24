@@ -118,6 +118,7 @@ export function inspectPayloadPreparationConfiguration(raw: unknown): Preparatio
       sha256: aggregate.sha256,
       bundle_artifact_id: aggregate.bundle_artifact_id,
       bundle_sha256: aggregate.bundle_sha256,
+      ...(aggregate.native_custody ? { native_custody: aggregate.native_custody } : {}),
       ...(aggregate.original_upload ? { original_upload: aggregate.original_upload } : {}),
     },
   };

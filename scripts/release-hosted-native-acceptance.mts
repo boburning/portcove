@@ -47,10 +47,12 @@ type Retained = {
   expected: HostedNativeQualificationExpectation;
   filenames: Record<(typeof keys)[number], string>;
   active: () => void;
+  deadline: number;
   observeJob: () => ReturnType<typeof verifyHistoricalHostedNativeJob>;
   job: ReturnType<typeof verifyHistoricalHostedNativeJob>;
 };
 const receipts = new WeakMap<object, Retained>();
+const historicalReceipts = new WeakMap<object, Retained>();
 const custodyReceipts = new WeakMap<object, { bytes: Buffer; receipts: readonly object[] }>();
 
 function association(prepared: Prepared, expected: HostedNativeQualificationExpectation) {
@@ -87,7 +89,29 @@ function instant(raw: unknown) {
   return Date.parse(raw);
 }
 
-export async function collectHostedNativeReleaseQualification(
+type HostedNativeProofArguments = [
+  directory: string,
+  rawAuthorities: unknown,
+  rawExpected: HostedNativeQualificationExpectation,
+  rawFiles: HostedNativeProofFiles,
+  deadline: number,
+  options?: {
+    attestation?: NonNullable<Parameters<typeof verifyControllerArtifactVerification>[5]>;
+    api?: GitHubRestReader;
+  },
+];
+export function collectHostedNativeReleaseQualification(...args: HostedNativeProofArguments) {
+  return collectHostedNativeProof("current", ...args);
+}
+
+/** Original signature/source/job verification only. Even the default successful
+ * route cannot mint a current qualification or private custody preparation. */
+export function collectHistoricalHostedNativeQualification(...args: HostedNativeProofArguments) {
+  return collectHostedNativeProof("historical", ...args);
+}
+
+async function collectHostedNativeProof(
+  purpose: "current" | "historical",
   directory: string,
   rawAuthorities: unknown,
   rawExpected: HostedNativeQualificationExpectation,
@@ -282,7 +306,10 @@ export async function collectHostedNativeReleaseQualification(
     phase = "readback";
     await readback();
     const receipt = Object.freeze({
-      kind: "verified-hosted-native-qualification",
+      kind:
+        purpose === "current"
+          ? "verified-hosted-native-qualification"
+          : "verified-hosted-native-history",
       evidence_scope: injected ? "injected-provider" : "github.com",
       capture_directory: capture,
       authority: "none",
@@ -298,12 +325,13 @@ export async function collectHostedNativeReleaseQualification(
       authority: "none",
     });
     if (!injected)
-      receipts.set(receipt, {
+      (purpose === "current" ? receipts : historicalReceipts).set(receipt, {
         prepared,
         authorities,
         expected,
         filenames,
         active,
+        deadline,
         observeJob,
         job,
       });
@@ -325,6 +353,20 @@ export async function verifiedHostedNativeReleaseQualification(
 ): Promise<VerifiedHostedNativeQualification | undefined> {
   const bound = receipts.get(receipt);
   if (!bound) return undefined;
+  return readBoundHostedNativeQualification(bound);
+}
+
+/** Separate historical receipt namespace. These data cannot be passed through
+ * the current native admission or archival getter, including after cloning. */
+export async function verifiedHistoricalHostedNativeQualification(
+  receipt: object,
+): Promise<VerifiedHostedNativeQualification | undefined> {
+  const bound = historicalReceipts.get(receipt);
+  if (!bound) return undefined;
+  return readBoundHostedNativeQualification(bound);
+}
+
+async function readBoundHostedNativeQualification(bound: Retained) {
   bound.active();
   const files = {} as HostedNativeProofFiles;
   for (const key of keys) {
@@ -417,12 +459,19 @@ export async function prepareHostedNativeCustody(rawReceipts: readonly object[])
 
 /** Raw bytes/metadata cannot request checkpoint signing or archival. Recheck
  * both original private proofs and their original deadlines before handoff. */
-export async function requirePreparedHostedNativeCustody(receipt: object) {
+export async function requirePreparedHostedNativeCustody(receipt: object, deadline?: number) {
+  const current = () => {
+    if (deadline !== undefined && (!Number.isFinite(deadline) || performance.now() >= deadline))
+      throw new Error("native custody caller original deadline exhausted");
+  };
+  current();
   const retained = custodyReceipts.get(receipt);
   if (!retained) throw new Error("actual prepared hosted native custody required");
-  for (const proof of retained.receipts)
+  for (const proof of retained.receipts) {
     if (!(await verifiedHostedNativeReleaseQualification(proof)))
       throw new Error("actual original native custody proof unavailable");
+    current();
+  }
   const checked = inspectHostedNativeCustodyBundle(retained.bytes);
   // The second awaited verification may consume the first proof's remaining
   // lifetime. Recheck every original clock after all awaits AND parsing.
@@ -431,5 +480,13 @@ export async function requirePreparedHostedNativeCustody(receipt: object) {
     if (!bound) throw new Error("actual original native custody proof unavailable");
     bound.active();
   }
-  return checked;
+  const original = retained.receipts.map((proof) => receipts.get(proof)!);
+  current();
+  return {
+    ...checked,
+    deadline: Math.min(...original.map((proof) => proof.deadline)),
+    assertCurrent: () => {
+      for (const proof of original) proof.active();
+    },
+  };
 }

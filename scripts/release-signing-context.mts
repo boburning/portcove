@@ -28,6 +28,14 @@ import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
 import { nativeQualificationTransportBinding } from "./release-native-acceptance.mts";
+import {
+  inspectNativeCheckpointLocator,
+  nativeCheckpointEvidenceId,
+} from "./release-native-checkpoint-custody.mts";
+import {
+  prepareHostedNativeCustody,
+  requirePreparedHostedNativeCustody,
+} from "./release-hosted-native-acceptance.mts";
 import { applyReviewedPreviewWithdrawals } from "./release-preview-withdrawals.mts";
 import { validateOpportunity } from "./release-coordinator.mts";
 import { currentApplicationSitePins } from "./release-catalog-metadata-contract.mts";
@@ -353,6 +361,25 @@ export async function prepareReleaseSigningContext(
     )
   )
     throw new Error("actual payload key is absent from authenticated prior registry");
+  let nativeCheckpoint: string | undefined;
+  const hosted = payload.native.filter((report) => report.hosted_job);
+  if (hosted.length) {
+    if (hosted.length !== 2)
+      throw new Error("record cannot mix current native transport authorities");
+    const locator = inspectNativeCheckpointLocator(payload.aggregate.native_custody);
+    const custody = await requirePreparedHostedNativeCustody(
+      await prepareHostedNativeCustody(payload.context.native_qualifications),
+    );
+    if (
+      locator.native_bundle_sha256 !== custody.sha256 ||
+      locator.native_bundle_bytes !== custody.bytes.length ||
+      custody.stage !== "payload-signing"
+    )
+      throw new Error("actual native pair differs from aggregate durable custody");
+    nativeCheckpoint = nativeCheckpointEvidenceId(locator);
+  } else if (payload.aggregate.native_custody !== undefined) {
+    throw new Error("legacy native pair cannot claim selected durable custody");
+  }
   const qualified = [];
   for (const native of payload.native) {
     const signature = payload.signatures.find(
@@ -400,6 +427,7 @@ export async function prepareReleaseSigningContext(
       compatibility: native.compatibility,
       evidence_ids: [
         ...native.evidence_ids,
+        ...(nativeCheckpoint ? [nativeCheckpoint] : []),
         `aggregate:${payload.aggregate.sha256}`,
         `sbom:${payload.sbom.sha256}`,
       ],

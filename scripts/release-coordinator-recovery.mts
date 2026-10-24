@@ -263,6 +263,15 @@ export async function hydrateRetainedCoordinatorCheckpoint(
   const bytes = Buffer.from(blobRaw.content, "base64");
   if (bytes.length !== blobRaw.size) throw new Error("retained checkpoint payload differs");
   const blob = inspectRemoteGitObject("blob", entry.sha, bytes);
+  writeRetainedCoordinatorObjects(repository, [commit.object, tree, blob]);
+  const { readRetainedCoordinatorCheckpoint } = await import("./release-coordinator-state.mts");
+  return readRetainedCoordinatorCheckpoint(repository, checkpoint);
+}
+
+function writeRetainedCoordinatorObjects(
+  repository: string,
+  objects: { kind: string; oid: string; bytes: Uint8Array }[],
+) {
   const env = {
     PATH: process.env.PATH,
     SystemRoot: process.env.SystemRoot,
@@ -274,7 +283,7 @@ export async function hydrateRetainedCoordinatorCheckpoint(
     GIT_CONFIG_KEY_0: "core.hooksPath",
     GIT_CONFIG_VALUE_0: process.platform === "win32" ? "NUL" : "/dev/null",
   };
-  for (const object of [commit.object, tree, blob]) {
+  for (const object of objects) {
     const id = execFileSync("git", ["hash-object", "-w", "-t", object.kind, "--stdin"], {
       cwd: repository,
       env,
@@ -287,8 +296,54 @@ export async function hydrateRetainedCoordinatorCheckpoint(
     checkCoordinatorDeadline();
     if (id !== object.oid) throw new Error("retained checkpoint import differs");
   }
-  const { readRetainedCoordinatorCheckpoint } = await import("./release-coordinator-state.mts");
-  return readRetainedCoordinatorCheckpoint(repository, checkpoint);
+}
+
+/** Exact historical verification closure: this checkpoint, its single parent
+ * and the two original application commits. Eight bounded object GETs, no ref
+ * imports, allocation, ancestry traversal, candidate blobs or execution. */
+export async function hydrateRetainedCoordinatorCheckpointExport(
+  repository: string,
+  checkpoint: unknown,
+  options: { api?: GitHubRestReader } = {},
+) {
+  oid(checkpoint);
+  const provider =
+    options.api ??
+    new GitHubApiClient((args, input) =>
+      createGitHubRunner({
+        cwd: repository,
+        maxBuffer: 256 * 1024,
+        timeoutMs: coordinatorCommandTimeout(15000),
+      })([...args, "--hostname", "github.com"], input),
+    );
+  let requests = 0;
+  const api: GitHubRestReader = {
+    request(method, route) {
+      checkCoordinatorDeadline();
+      if (method !== "GET" || ++requests > 8)
+        throw new Error("historical checkpoint closure read bound exhausted");
+      const response = provider.request(method, route);
+      checkCoordinatorDeadline();
+      return response;
+    },
+  };
+  const state = await hydrateRetainedCoordinatorCheckpoint(repository, checkpoint, { api });
+  if (!state.previous || !isRecord(state.input.active_candidate))
+    throw new Error("historical native carrier requires an original active transition");
+  const candidate = structuredClone(state.input.active_candidate);
+  await hydrateRetainedCoordinatorCheckpoint(repository, state.previous, { api });
+  for (const selected of [candidate.source_commit, candidate.prepared_commit]) {
+    oid(selected);
+    const result = api.request("GET", `repos/boburning/portcove/git/commits/${selected}`);
+    if (result.status !== 200) throw new Error("original preparation commit unavailable");
+    const commit = inspectRemoteCommitObject(result.body, selected);
+    writeRetainedCoordinatorObjects(repository, [commit.object]);
+  }
+  const { exportRetainedCoordinatorCheckpoint } = await import("./release-coordinator-state.mts");
+  checkCoordinatorDeadline();
+  const exported = exportRetainedCoordinatorCheckpoint(repository, checkpoint);
+  checkCoordinatorDeadline();
+  return { ...exported, requests };
 }
 
 /** Read the minimum raw recovery closure without Git writes, planner imports,

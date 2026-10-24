@@ -9,6 +9,8 @@ import { performance } from "node:perf_hooks";
 import {
   coordinatorCheckpointEvidenceSubject,
   coordinatorCheckpointPredicateType,
+  nativeCoordinatorCheckpointPredicateType,
+  coordinatorCheckpointSubjectLimit,
   inspectCoordinatorCheckpointEvidence,
 } from "./release-coordinator-checkpoint-evidence.mts";
 import type { CoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
@@ -204,7 +206,7 @@ export async function authenticateCoordinatorCheckpointEvidence(
   if (
     !Buffer.isBuffer(rawEvidence.subject) ||
     rawEvidence.subject.length < 1 ||
-    rawEvidence.subject.length > 16384 ||
+    rawEvidence.subject.length > coordinatorCheckpointSubjectLimit ||
     !Buffer.isBuffer(rawEvidence.bundle) ||
     rawEvidence.bundle.length < 1 ||
     rawEvidence.bundle.length > 65536
@@ -238,10 +240,16 @@ export async function authenticateCoordinatorCheckpointEvidence(
   active();
   if (deadline - performance.now() > 120000)
     throw new Error("checkpoint authentication requires an original bounded deadline");
+  const parsedSubject: unknown = JSON.parse(evidence.subject.toString("utf8"));
+  const native =
+    isRecord(parsedSubject) && parsedSubject.schema_version === 2
+      ? parsedSubject.native_custody
+      : undefined;
   const selected = coordinatorCheckpointEvidenceSubject(
     checkpoint,
     configuration,
     expected.producer,
+    native,
   );
   if (!Buffer.isBuffer(evidence.subject) || !evidence.subject.equals(selected))
     throw new Error("checkpoint evidence differs from independently expected producer/inputs");
@@ -274,7 +282,9 @@ export async function authenticateCoordinatorCheckpointEvidence(
       subjectPath,
       bundlePath,
       expected.producer,
-      coordinatorCheckpointPredicateType,
+      native === undefined
+        ? coordinatorCheckpointPredicateType
+        : nativeCoordinatorCheckpointPredicateType,
       { ...attestationOptions, environment, deadline },
     );
     // Reuse the exact transport statement binding after the real verifier. It
@@ -325,7 +335,12 @@ export async function authenticateCoordinatorCheckpointEvidence(
       throw new Error("checkpoint witnessed times differ from original job interval");
     phase = "capture-readback";
     if (
-      !(await readControllerToolFile(subjectPath, 16384)).equals(original.subject) ||
+      !(
+        await readControllerToolFile(
+          subjectPath,
+          native === undefined ? 16384 : coordinatorCheckpointSubjectLimit,
+        )
+      ).equals(original.subject) ||
       !(await readControllerToolFile(bundlePath, 65536)).equals(original.bundle)
     )
       throw new Error("checkpoint verification input custody changed");

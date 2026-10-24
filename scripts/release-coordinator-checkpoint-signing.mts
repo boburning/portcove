@@ -22,10 +22,12 @@ import type { CapacityExecutorRole } from "./assembler-job-identity.mts";
 import {
   inspectCoordinatorCheckpointEvidence,
   prepareCoordinatorCheckpointSigningInput,
+  coordinatorCheckpointSubjectLimit,
 } from "./release-coordinator-checkpoint-evidence.mts";
 import type { exportCoordinatorCheckpoint } from "./release-coordinator-state.mts";
 import type { CheckpointProducerExpectation } from "./release-coordinator-checkpoint-authentication.mts";
-import { createAppRegistrationStore } from "./release-app-registration-capture.mts";
+import { createCheckpointSigningStore } from "./release-app-registration-capture.mts";
+import { requirePreparedHostedNativeCustody } from "./release-hosted-native-acceptance.mts";
 import type { AppRegistrationStore } from "./release-app-registration-capture.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { createCheckpointSigningTransport } from "./release-checkpoint-signing-transport.mts";
@@ -48,6 +50,7 @@ export async function signCoordinatorCheckpointEvidence(
      * journal exchange supplies this to recheck its owned remote intent and
      * current controls immediately before EACH irreversible provider POST. */
     beforePost?: (stage: "fulcio" | "rekor") => Promise<void>;
+    nativeCustody?: object;
   } = {},
 ) {
   // Everything the caller can retain is selected before the first await.
@@ -56,6 +59,7 @@ export async function signCoordinatorCheckpointEvidence(
     expected = structuredClone(rawExpected),
     selected = {
       ...options,
+      environment: options.environment ? { ...options.environment } : undefined,
       identity: options.identity
         ? {
             ...options.identity,
@@ -63,13 +67,25 @@ export async function signCoordinatorCheckpointEvidence(
           }
         : undefined,
     };
+  if (
+    !Number.isFinite(deadline) ||
+    deadline <= performance.now() ||
+    deadline - performance.now() > 120000
+  )
+    throw new Error("bounded checkpoint signing input and original deadline required");
+  const native =
+    selected.nativeCustody === undefined
+      ? null
+      : await requirePreparedHostedNativeCustody(selected.nativeCustody, deadline);
+  if (native) deadline = Math.min(deadline, native.deadline);
   const input = prepareCoordinatorCheckpointSigningInput(
     checkpoint,
     configuration,
     expected.producer,
+    native ? JSON.parse(native.bytes.toString("utf8")) : undefined,
   );
   if (
-    input.subject.length > 16384 ||
+    input.subject.length > (native ? coordinatorCheckpointSubjectLimit : 16384) ||
     !path.isAbsolute(directory) ||
     !Number.isFinite(deadline) ||
     deadline - performance.now() < 1 ||
@@ -100,7 +116,7 @@ export async function signCoordinatorCheckpointEvidence(
   const capture = path.join(directory, `checkpoint-signing-${checkpoint.checkpoint}`);
   // Existing owner-only, exclusive, fsynced native Linux capture machinery.
   // A retained path is refused rather than reset, overwritten or reminted.
-  const store = await (selected.createStore ?? createAppRegistrationStore)(capture);
+  const store = await (selected.createStore ?? createCheckpointSigningStore)(capture);
   let stage = "identity";
   try {
     await store.write(
@@ -153,6 +169,7 @@ export async function signCoordinatorCheckpointEvidence(
       performance.now() + Date.parse(identity.expires_at) - Date.now(),
     );
     const requireCurrent = () => {
+      native?.assertCurrent();
       if (performance.now() >= signingDeadline || Date.now() >= Date.parse(identity.expires_at))
         throw new Error("checkpoint signing identity or original deadline exhausted");
     };

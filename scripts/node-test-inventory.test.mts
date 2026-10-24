@@ -323,6 +323,22 @@ function ownedRegistry() {
   };
 }
 
+void test("maintained module-mock flag is literal and cannot enable arbitrary module loading", () => {
+  const value = ownedRegistry();
+  value.suites.contracts.arguments.push("--experimental-test-module-mocks");
+  const parsed = parseNodeTestSuites(JSON.stringify(value));
+  assert.ok(parsed.suites.contracts?.arguments.includes("--experimental-test-module-mocks"));
+  for (const unsupported of [
+    "--experimental-test-module-mocks=anything",
+    "--import=arbitrary.mts",
+    "--require=arbitrary.cjs",
+  ]) {
+    const changed = structuredClone(value);
+    changed.suites.contracts.arguments.push(unsupported);
+    assert.throws(() => parseNodeTestSuites(JSON.stringify(changed)), /Unsupported/);
+  }
+});
+
 void test("one ownership record projects independent suite orders and preserves executable coverage", () => {
   const owned = ownedRegistry();
   const registry = parseNodeTestSuites(JSON.stringify(owned));

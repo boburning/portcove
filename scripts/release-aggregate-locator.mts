@@ -1,5 +1,6 @@
 import { isRecord } from "./runtime-values.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
+import { inspectNativeCheckpointLocator } from "./release-native-custody-locator.mts";
 const sha256 = /^[a-f0-9]{64}$/u;
 
 /** Immutable original producer locators, authenticated independently by each
@@ -57,9 +58,20 @@ export function inspectControllerAggregateLocator(raw: unknown) {
   if (
     !isRecord(aggregate) ||
     Object.keys(aggregate).sort().join(",") !==
-      (aggregate.original_upload === undefined
-        ? "artifact_id,bundle_artifact_id,bundle_sha256,controller_ref,controller_revision,run_attempt,run_id,sha256"
-        : "artifact_id,bundle_artifact_id,bundle_sha256,controller_ref,controller_revision,original_upload,run_attempt,run_id,sha256") ||
+      [
+        "artifact_id",
+        "bundle_artifact_id",
+        "bundle_sha256",
+        "controller_ref",
+        "controller_revision",
+        "run_attempt",
+        "run_id",
+        "sha256",
+        ...(aggregate.original_upload === undefined ? [] : ["original_upload"]),
+        ...(aggregate.native_custody === undefined ? [] : ["native_custody"]),
+      ]
+        .sort()
+        .join(",") ||
     typeof aggregate.controller_revision !== "string" ||
     !/^[a-f0-9]{40}$/.test(aggregate.controller_revision) ||
     typeof aggregate.controller_ref !== "string" ||
@@ -92,6 +104,9 @@ export function inspectControllerAggregateLocator(raw: unknown) {
     sha256: aggregate.sha256,
     bundle_artifact_id: aggregate.bundle_artifact_id,
     bundle_sha256: aggregate.bundle_sha256,
+    ...(aggregate.native_custody === undefined
+      ? {}
+      : { native_custody: inspectNativeCheckpointLocator(aggregate.native_custody) }),
     ...(aggregate.original_upload === undefined
       ? {}
       : { original_upload: inspectAggregateOriginalUpload(aggregate.original_upload) }),

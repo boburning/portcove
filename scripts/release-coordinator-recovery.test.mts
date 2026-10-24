@@ -10,8 +10,13 @@ import {
   coordinatorStateRef,
   exportCoordinatorCheckpoint,
   importCoordinatorCheckpoint,
+  exportRetainedCoordinatorCheckpoint,
 } from "./release-coordinator-state.mts";
-import { recoverRemoteCoordinator } from "./release-coordinator-recovery.mts";
+import {
+  recoverRemoteCoordinator,
+  hydrateRetainedCoordinatorCheckpointExport,
+} from "./release-coordinator-recovery.mts";
+import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-remote.mts";
 import childProcess from "node:child_process";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
@@ -20,6 +25,51 @@ import { requestTrustedSemanticReview } from "./release-coordinator-driver.mts";
 import { fileURLToPath } from "node:url";
 
 import { recoveryFixture, gitObject } from "./fixtures/coordinator-state-fixtures.mts";
+
+void test(
+  "historical checkpoint closure validates exactly one parent and original application commits without importing refs",
+  { timeout: 60000 },
+  async (t) => {
+    const f = await recoveryFixture(t);
+    const bare = path.join(f.parent, "historical.git");
+    execFileSync("git", ["init", "--bare", "--quiet", bare], { windowsHide: true });
+    const api = new GitHubApiClient((args, input) =>
+      createGitHubRunner({ ...f.transport, maxBuffer: 256 * 1024, timeoutMs: 15000 })(
+        [...args, "--hostname", "github.com"],
+        input,
+      ),
+    );
+    const before = execFileSync("git", ["-C", bare, "for-each-ref"], {
+      encoding: "utf8",
+      windowsHide: true,
+    });
+    const reads = f.reads();
+    const historical = await hydrateRetainedCoordinatorCheckpointExport(bare, f.saved.checkpoint, {
+      api,
+    });
+    assert.equal(historical.checkpoint, f.saved.checkpoint);
+    assert.equal(historical.previous, f.initial.checkpoint);
+    assert.equal(historical.requests, 8);
+    assert.equal(f.reads() - reads, 8);
+    assert.equal(historical.authority, "none");
+    assert.deepEqual(
+      exportRetainedCoordinatorCheckpoint(bare, f.saved.checkpoint),
+      Object.fromEntries(Object.entries(historical).filter(([key]) => key !== "requests")),
+    );
+    assert.equal(
+      execFileSync("git", ["-C", bare, "for-each-ref"], { encoding: "utf8", windowsHide: true }),
+      before,
+    );
+    await assert.rejects(
+      recoverReleaseOpportunity(bare, f.saved.checkpoint),
+      /transaction refused/,
+    );
+    await assert.rejects(
+      exportCoordinatorCheckpoint(bare, f.saved.checkpoint),
+      /transaction refused/,
+    );
+  },
+);
 
 for (const scenario of ["seeded", "changed", "unseeded", "pending-context"] as const)
   void test(

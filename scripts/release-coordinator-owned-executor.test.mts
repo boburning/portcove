@@ -21,6 +21,7 @@ import { createHash, verify } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { isRecord } from "./runtime-values.mts";
+import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import {
   checkpointReleaseOpportunity,
   recoverReleaseOpportunity,
@@ -44,6 +45,8 @@ import {
   capacityExecutorIdentity,
   authenticateOwnedCheckpointJournalHistory,
   publishOwnedSignedCoordinatorCheckpoint,
+  prepareOwnedNativeCandidateCheckpoint,
+  ensureOwnedCheckpointJournalHistory,
 } from "./release-capacity-executor.mts";
 import {
   assemblerIdentityFixture,
@@ -61,6 +64,8 @@ async function selectedOwnedHistoryFixture(
   bind = true,
   purpose: "application" | "catalog-publication" = "application",
   fullScope = false,
+  role: "coordinator" | "aggregate-assembly" = "coordinator",
+  jobBudget = 60000,
 ) {
   const f = await remoteFixture(t);
   const bare = path.join(f.repository, "selected-empty.git");
@@ -93,17 +98,17 @@ async function selectedOwnedHistoryFixture(
     audience: "portcove-capacity-executor",
     subject: controllerOidcSubject(
       identityExpected.controller_ref,
-      "production-release-coordinator",
+      capacityExecutorJobProfile(role).environment,
     ),
   };
   const identity = assemblerIdentityFixture(
     {
       aud: expected.audience,
       sub: expected.subject,
-      environment: "production-release-coordinator",
+      environment: capacityExecutorJobProfile(role).environment,
     },
     {},
-    { ...capacityExecutorJobProfile("coordinator"), runAttempt: 1 },
+    { ...capacityExecutorJobProfile(role), runAttempt: 1 },
   );
   const bytes = await readFile(
     new URL("../.github/workflows/application-update-production.yml", import.meta.url),
@@ -147,7 +152,7 @@ async function selectedOwnedHistoryFixture(
     GITHUB_TRIGGERING_ACTOR: "fixture-operator",
     GITHUB_RUN_ID: expected.run_id,
     GITHUB_RUN_ATTEMPT: "1",
-    GITHUB_JOB: "coordinator",
+    GITHUB_JOB: role === "aggregate-assembly" ? "independent_admission" : "coordinator",
     RUNNER_ENVIRONMENT: "github-hosted",
   };
   const before = new Map(Object.keys(runtime).map((key) => [key, process.env[key]]));
@@ -194,9 +199,9 @@ async function selectedOwnedHistoryFixture(
     },
   );
   syncBuiltinESMExports();
-  const deadline = performance.now() + 60000;
+  const deadline = performance.now() + jobBudget;
   const session = await authenticateCapacityExecutor(
-    "coordinator",
+    role,
     expected,
     captureDirectory ?? f.repository,
     deadline,
@@ -228,7 +233,20 @@ async function selectedEffectFixture(
   const actualSpawn = childProcess.spawnSync;
   const custody = await mkdtemp(path.join(os.homedir(), ".portcove-owned-effect-test-"));
   t.after(() => rm(custody, { recursive: true, force: true }));
-  const f = await selectedOwnedHistoryFixture(t, custody, true, purpose, fullScope);
+  // This fixture signs the reservation, pending intent and recovery in one
+  // simulated job. Cold SDK loading and Git on a mounted Windows filesystem
+  // can exceed the old 60s fixture clock before the intended recovery starts.
+  // Keep each real signing exchange's 120s cap and the test's 180s outer cap;
+  // no product clock or failed-session recovery behavior is changed here.
+  const f = await selectedOwnedHistoryFixture(
+    t,
+    custody,
+    true,
+    purpose,
+    fullScope,
+    "coordinator",
+    120000,
+  );
   const oldFetch = globalThis.fetch;
   const sigstore = assemblerIdentityFixture(
     { aud: "sigstore", sub: f.expected.subject, environment: "production-release-coordinator" },
@@ -578,7 +596,11 @@ for (const recovery of [
       if (
         ["original-live", "incomplete", "controls-hold", "ambiguous-settlement"].includes(recovery)
       ) {
-        await assert.rejects(work());
+        let refused: unknown;
+        await assert.rejects(work(), (error: unknown) => {
+          refused = error;
+          return true;
+        });
         assert.equal(
           readbacks,
           recovery === "original-live" || recovery === "controls-hold" ? 0 : 1,
@@ -597,6 +619,13 @@ for (const recovery of [
         assert.equal(f.traffic.calls, calls);
         if (recovery === "ambiguous-settlement") {
           const head = f.remote.refs.get(f.remote.stateRef)!;
+          if (head === checkpoint)
+            t.diagnostic(
+              JSON.stringify({
+                message: refused instanceof Error ? refused.message : "non-error refusal",
+                evidence: refused instanceof CoordinatorRemoteError ? refused.evidence : null,
+              }).slice(0, 8192),
+            );
           assert.notEqual(head, checkpoint, "partial remote settlement is retained, never reset");
           assert.equal(
             f.remote.refs.has(`refs/tags/portcove-fixture-checkpoint-proof/${head}`),
@@ -1483,4 +1512,110 @@ void test("selected signed publisher bounds local Git preparation to original re
     }),
     /stopped|recovery/,
   );
+});
+
+void test("selected journal bounds each distinct phase inside its original longer job without reviving refusals", async (t) => {
+  const f = await selectedOwnedHistoryFixture(
+    t,
+    undefined,
+    false,
+    "application",
+    false,
+    "coordinator",
+    600000,
+  );
+  assert.ok(f.deadline - performance.now() > 120000);
+  assert.equal(
+    await ensureOwnedCheckpointJournalHistory(f.session, f.bare, f.seed.checkpoint, async () => {}),
+    true,
+  );
+  assert.equal(f.heads(), 3);
+  await assert.rejects(
+    publishOwnedSignedCoordinatorCheckpoint(f.session, f.bare, f.seed.checkpoint, async () => {
+      throw new Error("retained phase refusal");
+    }),
+    /phase refusal/,
+  );
+  const before = f.heads();
+  await assert.rejects(
+    ensureOwnedCheckpointJournalHistory(f.session, f.bare, f.seed.checkpoint, async () => {
+      assert.fail("stopped phase cannot refresh");
+    }),
+    /stopped|recovery/,
+  );
+  assert.equal(f.heads(), before);
+});
+
+void test("native preparation excludes direct publishers and ensure calls throughout awaited private validation", async (t) => {
+  const f = await selectedOwnedHistoryFixture(
+    t,
+    undefined,
+    true,
+    "application",
+    false,
+    "aggregate-assembly",
+  );
+  let enter!: () => void, release!: () => void;
+  const entered = new Promise<void>((resolve) => {
+    enter = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  t.mock.module("./release-hosted-native-acceptance.mts", {
+    namedExports: {
+      async requirePreparedHostedNativeCustody() {
+        enter();
+        await gate;
+        throw new Error("inert native custody refusal; no imported proof accepted");
+      },
+    },
+  });
+  const result = prepareOwnedNativeCandidateCheckpoint(
+    f.session,
+    f.bare,
+    f.seed.checkpoint,
+    Object.freeze({ inert: "private-validation-seam" }),
+    async () => {},
+  ).then(
+    () => {
+      throw new Error("inert custody must refuse");
+    },
+    (error: unknown) => error,
+  );
+  await entered;
+  const before = f.heads();
+  try {
+    await assert.rejects(
+      publishOwnedSignedCoordinatorCheckpoint(f.session, f.bare, "f".repeat(40), async () => {
+        assert.fail("competing publisher cannot enter controls");
+      }),
+      /unavailable|stopped|recovery/,
+    );
+    await assert.rejects(
+      ensureOwnedCheckpointJournalHistory(f.session, f.bare, f.seed.checkpoint, async () => {
+        assert.fail("competing ensure cannot enter controls");
+      }),
+      /owns executor/,
+    );
+    await assert.rejects(
+      prepareOwnedNativeCandidateCheckpoint(f.session, f.bare, f.seed.checkpoint, {}, async () => {
+        assert.fail("second native preparer");
+      }),
+      /unused native/,
+    );
+    assert.equal(f.heads(), before, "no competing provider reads, signing or mutations");
+  } finally {
+    release();
+  }
+  const error = await result;
+  assert.ok(error instanceof Error);
+  assert.match(error.message, /inert native custody refusal/);
+  await assert.rejects(
+    ensureOwnedCheckpointJournalHistory(f.session, f.bare, f.seed.checkpoint, async () => {
+      assert.fail("refused native preparation cannot revive session");
+    }),
+    /stopped|recovery/,
+  );
+  assert.equal(f.heads(), before);
 });

@@ -182,6 +182,7 @@ export function inspectCandidateStageEvidence(raw: unknown, candidate: Record<st
           ![
             "native-check",
             "native-job",
+            "native-custody",
             "compiler-check",
             "semantic-check",
             "classification-commit",
@@ -197,6 +198,14 @@ export function inspectCandidateStageEvidence(raw: unknown, candidate: Record<st
           (locator.sha256 !== null && !hash(locator.sha256, 64))
         )
           throw new Error("candidate stage recovery locator invalid");
+        if (
+          locator.kind === "native-custody" &&
+          (typeof locator.sha256 !== "string" ||
+            typeof locator.id !== "string" ||
+            !new RegExp(`^${locator.sha256}:[1-9][0-9]{0,6}$`, "u").test(locator.id) ||
+            Number(locator.id.split(":")[1]) > 1024 * 1024)
+        )
+          throw new Error("candidate native custody digest/length invalid");
         const key = `${String(locator.kind)}:${locator.id}`;
         if (locatorKeys.has(key)) throw new Error("candidate stage recovery locator duplicated");
         locatorKeys.add(key);
