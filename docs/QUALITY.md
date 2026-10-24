@@ -130,6 +130,14 @@ keeps a fixed absolute observation deadline and never retries automatically.
 
 ## Test latency and reliability
 
+The extra Linux diagnostics replay stays broad for diagnostics, Core, CLI,
+Desktop, shared, dependency and uncertain inputs. Only ordinary added or modified
+regular Rust files within the independent release-tool crate may omit it;
+manifests, build scripts, fixtures, renames, deletions and permission changes keep
+the replay. The maintained Cargo consumer-boundary contract must fail if another
+workspace package starts depending on release tools. Required Windows Rust
+selection and full qualification coverage remain separate obligations.
+
 Cheap source-consumer contracts run before selected compilation/runtime work.
 The maintained native compatibility source inventory selects its declaration
 contract locally and in hosted ordinary coverage; those source bytes also

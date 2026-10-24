@@ -94,6 +94,7 @@ jobs:
       plan_gzip_base64: ${{ steps.plan.outputs.plan_gzip_base64 }}
       windows_helpers: ${{ steps.plan.outputs.windows_helpers }}
       native_tools: ${{ steps.plan.outputs.native_tools }}
+      linux_diagnostics: ${{ steps.plan.outputs.linux_diagnostics }}
       frontend_tools: ${{ steps.plan.outputs.frontend_tools }}
       frontend_workspace: ${{ steps.plan.outputs.frontend_workspace }}
     steps:
@@ -431,7 +432,7 @@ jobs:
           rustc --edition 2024 --test apps/desktop/src-tauri/src/application_update_process_environment.rs -o "$RUNNER_TEMP/portcove-update-environment-tests"
           "$RUNNER_TEMP/portcove-update-environment-tests"
       - name: Test typed runtime diagnostics and frontend admission on Linux
-        if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
+        if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust') && needs.classify.outputs.linux_diagnostics != 'false'
         shell: bash
         run: |
           PORTCOVE_DIAGNOSTICS_SOURCE_REVISION="$(node scripts/checked-git.mts rev-parse HEAD)"
@@ -442,7 +443,7 @@ jobs:
           node scripts/run-rust-tests.mts --guard-command cargo test --locked -p portcove-cli --test runtime_diagnostics --test host_diagnostics --test desktop_host_diagnostics -- --test-threads=1 --nocapture 2>&1 | tee "$PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/runtime-tests.txt"
           node scripts/run-rust-tests.mts --guard-command cargo test --locked -p portcove-core support_bundle_export -- --test-threads=1 --nocapture 2>&1 | tee "$PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/support-export-tests.txt"
       - name: Retain Linux runtime diagnostics acceptance evidence
-        if: always() && contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
+        if: always() && contains(fromJSON(needs.classify.outputs.groups_json), 'rust') && needs.classify.outputs.linux_diagnostics != 'false'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: runtime-diagnostics-linux-${{ github.run_id }}-${{ github.run_attempt }}

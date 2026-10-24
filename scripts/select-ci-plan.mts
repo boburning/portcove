@@ -19,6 +19,7 @@ import {
 
 import {
   buildValidationPlan,
+  linuxRuntimeDiagnosticsRequired,
   encodeValidationPlanEnvironment,
   digestValidationPlan,
   fastGroups,
@@ -232,6 +233,7 @@ export async function writeGithubOutputs(
     ),
     windows_helpers: String(windowsHelperChecksRequired(plan)),
     native_tools: String(windowsNativeToolsRequired(plan)),
+    linux_diagnostics: String(linuxRuntimeDiagnosticsRequired(plan)),
     frontend_tools: String(
       plan.mode !== "prose" &&
         (selection.repositoryLint ||

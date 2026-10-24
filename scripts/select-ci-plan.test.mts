@@ -23,6 +23,44 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 
 const sha = (character: string) => character.repeat(40);
 
+void test("GitHub outputs carry the conservative Linux diagnostics decision", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "portcove-linux-diagnostics-plan-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const [index, files, expected] of [
+    [0, ["crates/portcove-release-tools/src/main.rs"], "false"],
+    [1, ["crates/portcove-release-tools/src/main.rs", "crates/portcove-core/src/path.rs"], "true"],
+    [2, ["crates/portcove-release-tools/Cargo.toml"], "true"],
+  ] as const) {
+    const plan = buildValidationPlan({
+      changes: files.map((file) => ({
+        status: "M",
+        oldMode: "100644",
+        newMode: "100644",
+        oldPath: file,
+        newPath: file,
+      })),
+      eventName: "pull_request",
+      base: sha("a"),
+      mergeBase: sha("a"),
+      head: sha("b"),
+      checkout: sha("b"),
+    });
+    const output = path.join(root, String(index));
+    await writeGithubOutputs(output, plan);
+    const values = new Map(
+      (await readFile(output, "utf8"))
+        .trim()
+        .split("\n")
+        .map((line) => {
+          const split = line.indexOf("=");
+          return [line.slice(0, split), line.slice(split + 1)];
+        }),
+    );
+    assert.equal(values.get("linux_diagnostics"), expected);
+    assert.equal(values.get("plan_digest"), plan.digest);
+  }
+});
+
 void test("only an explicitly forced release reusable caller selects the beta qualification profile", async (t) => {
   const selected = {
     eventName: "workflow_dispatch",
@@ -78,6 +116,7 @@ void test("only an explicitly forced release reusable caller selects the beta qu
       }),
   );
   assert.equal(values.release_profile, "initial-beta-win-linux");
+  assert.equal(values.linux_diagnostics, "true");
   assert.deepEqual(
     JSON.parse(values.qualification_native_matrix_json!),
     qualificationMatrices(beta).native,
