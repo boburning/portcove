@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { parseDocument } from "yaml";
+import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import { checkStagedNodeTestInventory, requireNodeTestInventory } from "./node-test-inventory.mts";
 import {
   annotatedNodeCommands,
@@ -32,10 +33,21 @@ function surfaces(files = [first]) {
   };
 }
 function fixture(context: TestContext) {
-  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-node-index-é-"));
-  context.after(() => rmSync(root, { recursive: true, force: true }));
+  let writerExitUnproven = false;
+  const root = disposableDirectory(context, path.join(os.tmpdir(), "portcove-node-index-é-"), {
+    drain() {
+      assert.ok(!writerExitUnproven, `Git fixture writer exit is unproven; retained ${root}`);
+    },
+  });
   const git = (...args: string[]) => {
-    const result = spawnSync("git", args, { cwd: root, encoding: "utf8", windowsHide: true });
+    const result = spawnSync("git", args, {
+      cwd: root,
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 30_000,
+    });
+    if (result.error || result.signal) writerExitUnproven = true;
+    assert.ifError(result.error);
     assert.equal(result.status, 0, result.stderr);
     return result.stdout;
   };
