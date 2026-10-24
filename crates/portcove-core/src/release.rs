@@ -1,3 +1,5 @@
+#[cfg(test)]
+use crate::test_http::{ResponseTestEvent, ResponseTestPhase, observe_test_response};
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock as StdRwLock},
@@ -158,58 +160,6 @@ pub(crate) const PROVIDER_NETWORK_BOUNDS: ProviderNetworkBounds = ProviderNetwor
     read_idle: PROVIDER_READ_IDLE_TIMEOUT,
     request: PROVIDER_REQUEST_TIMEOUT,
 };
-
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ResponseTestPhase {
-    Headers,
-    Body,
-}
-
-#[cfg(test)]
-#[derive(Clone, Debug, Default)]
-struct ResponseTestObservation {
-    headers: Option<Instant>,
-    first_body: Option<Instant>,
-    last_body: Option<Instant>,
-    body_bytes: usize,
-    failed_phase: Option<ResponseTestPhase>,
-    timed_out: bool,
-    failed_at: Option<Instant>,
-}
-
-#[cfg(test)]
-enum ResponseTestEvent {
-    Headers,
-    Body(usize),
-    Failed(ResponseTestPhase, bool),
-}
-
-#[cfg(test)]
-tokio::task_local! {
-    static RESPONSE_TEST_OBSERVATION: std::cell::RefCell<ResponseTestObservation>;
-}
-
-#[cfg(test)]
-fn observe_test_response(event: ResponseTestEvent) {
-    let _ = RESPONSE_TEST_OBSERVATION.try_with(|state| {
-        let mut state = state.borrow_mut();
-        let now = Instant::now();
-        match event {
-            ResponseTestEvent::Headers => state.headers = Some(now),
-            ResponseTestEvent::Body(bytes) => {
-                state.first_body.get_or_insert(now);
-                state.last_body = Some(now);
-                state.body_bytes += bytes;
-            }
-            ResponseTestEvent::Failed(phase, timeout) => {
-                state.failed_phase = Some(phase);
-                state.timed_out = timeout;
-                state.failed_at = Some(now);
-            }
-        }
-    });
-}
 
 impl GithubReleaseProvider {
     pub(crate) fn for_acquisition_scope(scope: &crate::DefinitionAcquisitionScope) -> Result<Self> {
@@ -1784,6 +1734,7 @@ fn is_sha256(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_http::{DeadlineServer, observe_response, serve_deadline};
 
     #[tokio::test]
     async fn pending_auth_status_http_observation_releases_library_lease() {
@@ -1957,170 +1908,31 @@ mod tests {
         Trickle,
     }
 
-    #[derive(Debug, Default)]
-    struct DeadlineReport {
-        armed: bool,
-        request_received: bool,
-    }
-
-    struct DeadlineServer {
-        start: Option<mpsc::Sender<()>>,
-        release: mpsc::Sender<()>,
-        thread: Option<JoinHandle<std::io::Result<DeadlineReport>>>,
-    }
-
-    impl DeadlineServer {
-        fn start(&mut self) {
-            self.start.take().unwrap().send(()).unwrap();
-        }
-
-        fn finish(mut self) -> std::io::Result<DeadlineReport> {
-            self.start.take();
-            let _ = self.release.send(());
-            self.thread
-                .take()
-                .unwrap()
-                .join()
-                .map_err(|_| std::io::Error::other("deadline fixture thread panicked"))?
-        }
-    }
-
-    impl Drop for DeadlineServer {
-        fn drop(&mut self) {
-            self.start.take();
-            let _ = self.release.send(());
-            if let Some(thread) = self.thread.take() {
-                // Preserve an earlier assertion/panic while still draining the
-                // finite accept/read/write/stall fixture.
-                let _ = thread.join();
-            }
-        }
-    }
-
-    fn bound_deadline_socket(
-        stream: &std::net::TcpStream,
-        deadline: Instant,
-    ) -> std::io::Result<()> {
-        let remaining = deadline
-            .checked_duration_since(Instant::now())
-            .filter(|remaining| !remaining.is_zero())
-            .ok_or_else(|| {
-                std::io::Error::new(
-                    std::io::ErrorKind::TimedOut,
-                    "deadline fixture exhausted its socket budget",
-                )
-            })?;
-        stream.set_read_timeout(Some(remaining))?;
-        stream.set_write_timeout(Some(remaining))
-    }
-
     fn serve_deadline_response(mode: DeadlineResponse) -> (String, DeadlineServer) {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let address = listener.local_addr().unwrap();
-        listener.set_nonblocking(true).unwrap();
-        let (start, started) = mpsc::channel();
-        let (release, released) = mpsc::channel();
-        let server = thread::spawn(move || {
-            // Client construction can inspect system trust/proxy state. Its
-            // setup time must not consume this fixture's request-phase budget.
-            if started.recv_timeout(Duration::from_secs(30)).is_err() {
-                return Ok(DeadlineReport::default());
-            }
-            let deadline = Instant::now() + Duration::from_secs(2);
-            let mut stream = loop {
-                if released.try_recv().is_ok() || Instant::now() >= deadline {
-                    return Ok(DeadlineReport {
-                        armed: true,
-                        request_received: false,
-                    });
-                }
-                match listener.accept() {
-                    Ok((stream, _)) => break stream,
-                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                        thread::sleep(Duration::from_millis(1));
-                    }
-                    Err(error) => return Err(error),
-                }
-            };
-            stream.set_nonblocking(false)?;
-            let mut request = [0_u8; 4096];
-            let mut length = 0;
-            while !request[..length].ends_with(b"\r\n\r\n") {
-                if length == request.len() {
-                    return Err(std::io::Error::other(
-                        "deadline fixture request exceeded 4096 bytes",
-                    ));
-                }
-                bound_deadline_socket(&stream, deadline)?;
-                let read = stream.read(&mut request[length..])?;
-                if read == 0 {
-                    return Err(std::io::Error::other(
-                        "deadline fixture request ended before headers",
-                    ));
-                }
-                length += read;
-            }
-            let report = DeadlineReport {
-                armed: true,
-                request_received: true,
-            };
+        serve_deadline(move |connection| {
             if !matches!(mode, DeadlineResponse::HeaderStall) {
-                bound_deadline_socket(&stream, deadline)?;
-                stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n")?;
-                bound_deadline_socket(&stream, deadline)?;
-                stream.write_all(b"{")?;
-                stream.flush()?;
+                connection.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n")?;
+                connection.write_all(b"{")?;
+                connection.flush()?;
             }
             if matches!(mode, DeadlineResponse::Trickle) {
                 for _ in 0..30 {
-                    let wait = deadline
-                        .saturating_duration_since(Instant::now())
-                        .min(Duration::from_millis(10));
-                    if wait.is_zero()
-                        || released.recv_timeout(wait).is_ok()
-                        || Instant::now() >= deadline
-                    {
+                    if connection.wait(Duration::from_millis(10)) {
                         break;
                     }
-                    bound_deadline_socket(&stream, deadline)?;
-                    if stream
+                    if connection
                         .write_all(b" ")
-                        .and_then(|()| stream.flush())
+                        .and_then(|()| connection.flush())
                         .is_err()
                     {
                         break;
                     }
                 }
             } else {
-                let wait = deadline
-                    .saturating_duration_since(Instant::now())
-                    .min(Duration::from_millis(600));
-                if !wait.is_zero() {
-                    let _ = released.recv_timeout(wait);
-                }
+                connection.wait(Duration::from_millis(600));
             }
-            Ok(report)
-        });
-        (
-            format!("http://{address}"),
-            DeadlineServer {
-                start: Some(start),
-                release,
-                thread: Some(server),
-            },
-        )
-    }
-
-    async fn observe_response<T>(
-        future: impl std::future::Future<Output = Result<T>>,
-    ) -> (Result<T>, ResponseTestObservation) {
-        RESPONSE_TEST_OBSERVATION
-            .scope(std::cell::RefCell::default(), async {
-                let result = future.await;
-                let observation = RESPONSE_TEST_OBSERVATION.with(|state| state.borrow().clone());
-                (result, observation)
-            })
-            .await
+            Ok(())
+        })
     }
 
     #[test]

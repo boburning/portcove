@@ -103,6 +103,8 @@ mod support_bundle_read;
 mod support_bundle_stage;
 #[cfg(test)]
 mod test_fixture;
+#[cfg(test)]
+mod test_http;
 mod tool_process;
 mod transfer_copy;
 mod transfer_journal;

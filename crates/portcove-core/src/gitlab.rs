@@ -128,10 +128,14 @@ impl GitlabReleaseProvider {
                 request = request.header(header::IF_MODIFIED_SINCE, modified);
             }
         }
-        let response = request
-            .send()
-            .await
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
+        let response = request.send().await.map_err(|error| {
+            #[cfg(test)]
+            crate::test_http::observe_test_response(crate::test_http::ResponseTestEvent::Failed(
+                crate::test_http::ResponseTestPhase::Headers,
+                error.is_timeout(),
+            ));
+            PortcoveError::network(error.to_string())
+        })?;
         if response.status() == StatusCode::NOT_MODIFIED {
             let cached = cached
                 .ok_or_else(|| PortcoveError::state("GitLab returned 304 without cached data"))?;
@@ -593,6 +597,7 @@ fn is_beta_tag(tag: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_http::{DeadlineServer, ResponseTestPhase, observe_response, serve_deadline};
     use std::{
         io::{Read, Write},
         net::TcpListener,
@@ -623,42 +628,128 @@ mod tests {
         (format!("http://{address}"), requests_rx, server)
     }
 
-    fn serve_stalled_response(prefix: &'static [u8], stall: Duration) -> (String, JoinHandle<()>) {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let address = listener.local_addr().unwrap();
-        let server = thread::spawn(move || {
-            let (mut stream, _) = listener.accept().unwrap();
-            let mut request = [0_u8; 4096];
-            let _ = stream.read(&mut request).unwrap();
-            stream.write_all(prefix).unwrap();
-            stream.flush().unwrap();
-            thread::sleep(stall);
-        });
-        (format!("http://{address}"), server)
+    fn short_network_bounds() -> ProviderNetworkBounds {
+        ProviderNetworkBounds {
+            connect: Duration::from_millis(50),
+            read_idle: Duration::from_millis(50),
+            request: Duration::from_millis(180),
+        }
+    }
+
+    fn serve_deadline_metadata(trickle: bool) -> (String, DeadlineServer) {
+        serve_deadline(move |connection| {
+            // Preserve the old idle case's exact response; total needs more bytes.
+            if trickle {
+                connection.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n{")?;
+            } else {
+                connection.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{")?;
+            }
+            connection.flush()?;
+            if trickle {
+                for _ in 0..30 {
+                    if connection.wait(Duration::from_millis(10)) {
+                        break;
+                    }
+                    if connection
+                        .write_all(b" ")
+                        .and_then(|()| connection.flush())
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+            } else {
+                connection.wait(Duration::from_millis(600));
+            }
+            Ok(())
+        })
     }
 
     #[tokio::test]
-    async fn gitlab_metadata_enforces_idle_and_overall_bounds() {
-        let headers =
-            b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{";
-        let (root, server) = serve_stalled_response(headers, Duration::from_millis(600));
-        let provider = GitlabReleaseProvider::with_api_root_and_bounds(
-            &root,
-            ProviderNetworkBounds {
-                connect: Duration::from_millis(50),
-                read_idle: Duration::from_millis(50),
-                request: Duration::from_millis(180),
-            },
-        )
-        .unwrap();
+    async fn gitlab_metadata_body_progress_exhausts_the_overall_request_bound() {
+        let (metadata_root, mut metadata_server) = serve_deadline_metadata(true);
+        let bounds = short_network_bounds();
+        let provider =
+            GitlabReleaseProvider::with_api_root_and_bounds(&metadata_root, bounds).unwrap();
+        metadata_server.start();
         let started = Instant::now();
-        let error = provider
-            .get_json::<serde_json::Value>(&format!("{root}/metadata"))
-            .await
-            .unwrap_err();
+        let (result, observed) = observe_response(
+            provider.get_json::<serde_json::Value>(&format!("{metadata_root}/metadata")),
+        )
+        .await;
+        let elapsed = started.elapsed();
+        let server = metadata_server.finish();
+        eprintln!(
+            "GitLab metadata deadline: {elapsed:?}; observation={observed:?}; fixture={server:?}"
+        );
+        let error = result.unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Network);
-        assert!(started.elapsed() < Duration::from_millis(500));
-        server.join().unwrap();
+        assert!(elapsed < Duration::from_millis(500));
+        let server = server.unwrap();
+        assert!(server.armed && server.request_received);
+        assert!(observed.headers.is_some(), "{observed:?}");
+        assert!(observed.body_bytes >= 3, "{observed:?}");
+        assert_eq!(observed.failed_phase, Some(ResponseTestPhase::Body));
+        assert!(observed.timed_out);
+        assert!(
+            observed
+                .last_body
+                .unwrap()
+                .duration_since(observed.first_body.unwrap())
+                >= bounds.read_idle * 2,
+            "{observed:?}"
+        );
+        assert!(
+            observed
+                .failed_at
+                .unwrap()
+                .duration_since(observed.last_body.unwrap())
+                < bounds.read_idle / 2,
+            "recent body progress must exclude read-idle exhaustion: {observed:?}"
+        );
+        assert!(
+            elapsed >= bounds.request.saturating_sub(Duration::from_millis(10)),
+            "{elapsed:?}; {observed:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn gitlab_metadata_partial_body_exhausts_the_read_idle_bound() {
+        let (auth_root, mut auth_server) = serve_deadline_metadata(false);
+        let bounds = short_network_bounds();
+        let provider = GitlabReleaseProvider::with_api_root_and_bounds(&auth_root, bounds).unwrap();
+        auth_server.start();
+        let started = Instant::now();
+        let (result, observed) = observe_response(
+            provider.get_json::<serde_json::Value>(&format!("{auth_root}/metadata")),
+        )
+        .await;
+        let elapsed = started.elapsed();
+        let server = auth_server.finish();
+        eprintln!(
+            "GitLab body deadline: {elapsed:?}; observation={observed:?}; fixture={server:?}"
+        );
+        let error = result.unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Network);
+        assert!(elapsed < Duration::from_millis(500));
+        let server = server.unwrap();
+        assert!(server.armed && server.request_received);
+        assert!(observed.headers.is_some(), "{observed:?}");
+        assert_eq!(observed.body_bytes, 1, "{observed:?}");
+        assert_eq!(observed.failed_phase, Some(ResponseTestPhase::Body));
+        assert!(observed.timed_out);
+        assert!(
+            observed
+                .failed_at
+                .unwrap()
+                .duration_since(observed.last_body.unwrap())
+                >= bounds.read_idle / 2,
+            "{observed:?}"
+        );
+        assert!(
+            elapsed < bounds.request,
+            "idle timeout must precede total deadline: {elapsed:?}; {observed:?}"
+        );
     }
 
     #[tokio::test]
