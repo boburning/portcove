@@ -11,6 +11,7 @@ on:
       - crates/portcove-core/catalog/catalog.json
       - scripts/roadmap.mts
       - scripts/roadmap-scoped.mts
+      - scripts/roadmap-health.mts
       - scripts/repository-issue-inventory.mts
       - .github/workflows/roadmap-health.yml
   workflow_dispatch:

@@ -7,6 +7,7 @@ import { lstat, realpath, writeFile } from "node:fs/promises";
 import { createHash, randomBytes } from "node:crypto";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { requireActualHostedNativeParentSource } from "./release-hosted-native-parent.mts";
+import { requireActualHostedNativePostSignPayload } from "./release-hosted-native-postsign-inputs.mts";
 import { requireActualHostedNativeCandidate } from "./release-hosted-native-candidate.mts";
 import { prepareHostedNativeStageRequest } from "./release-native-stage-capture.mts";
 import { inspectHostedNativeLinuxHost } from "./release-native-wsl-host.mts";
@@ -16,12 +17,16 @@ import { releaseCanonicalDigest } from "./release-canonical.mts";
 const user = "portcove-native";
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const attempts = new WeakSet<object>();
+type Candidate =
+  | Awaited<ReturnType<typeof requireActualHostedNativeCandidate>>
+  | Awaited<ReturnType<typeof requireActualHostedNativePostSignPayload>>;
 type Parent = Awaited<ReturnType<typeof requireActualHostedNativeParentSource>>;
 const requests = new WeakMap<
   object,
   {
     snapshot: string;
     candidate: object;
+    readCandidate: () => Promise<Candidate>;
     nonce: string;
     host: Awaited<ReturnType<typeof observeHost>>;
     prepared: ReturnType<typeof prepareHostedNativeStageRequest>;
@@ -133,17 +138,30 @@ async function observeHost(parent: Parent, nonce: string) {
   };
 }
 
-export async function prepareActualHostedNativeLinuxRequest(candidateReceipt: object) {
-  const candidate = await requireActualHostedNativeCandidate(candidateReceipt);
+export function prepareActualHostedNativeLinuxRequest(candidateReceipt: object) {
+  return prepareRequest(candidateReceipt, "payload-signing");
+}
+export function prepareActualHostedNativeLinuxPostSignRequest(candidateReceipt: object) {
+  return prepareRequest(candidateReceipt, "release-publication");
+}
+async function prepareRequest(
+  candidateReceipt: object,
+  stage: "payload-signing" | "release-publication",
+) {
+  const readCandidate =
+    stage === "payload-signing"
+      ? () => requireActualHostedNativeCandidate(candidateReceipt)
+      : () => requireActualHostedNativePostSignPayload(candidateReceipt);
+  const candidate = await readCandidate();
   const parent = await requireActualHostedNativeParentSource(candidate.parent_source);
   if (
     candidate.platform_label !== "linux-x86_64" ||
-    candidate.stage !== "payload-signing" ||
+    candidate.stage !== stage ||
     parent.platform_label !== candidate.platform_label ||
     parent.stage !== candidate.stage ||
     attempts.has(candidateReceipt)
   )
-    throw new Error("one original hosted Linux pre-sign request preparation required");
+    throw new Error("one original hosted Linux request preparation required");
   attempts.add(candidateReceipt);
   let phase = "host-observation";
   try {
@@ -154,7 +172,7 @@ export async function prepareActualHostedNativeLinuxRequest(candidateReceipt: ob
       stage: candidate.stage,
       platform_label: candidate.platform_label,
       candidate: candidate.candidate,
-      journey: null,
+      journey: "journey" in candidate ? candidate.journey : null,
       invocation_id: "0".repeat(64),
       setup_descriptor_sha256: parent.configuration.journal.setup_plan_sha256,
     };
@@ -170,7 +188,7 @@ export async function prepareActualHostedNativeLinuxRequest(candidateReceipt: ob
       parent.configuration,
       host.projection,
     );
-    await requireActualHostedNativeCandidate(candidateReceipt);
+    await readCandidate();
     const record = Buffer.from(
       JSON.stringify({
         host_observation_nonce: nonce,
@@ -198,6 +216,7 @@ export async function prepareActualHostedNativeLinuxRequest(candidateReceipt: ob
     requests.set(receipt, {
       snapshot: JSON.stringify(receipt),
       candidate: candidateReceipt,
+      readCandidate,
       nonce,
       host,
       prepared,
@@ -226,17 +245,20 @@ export async function requireActualHostedNativeLinuxRequest(receipt: object) {
   if (!retained || retained.stopped || retained.snapshot !== JSON.stringify(receipt))
     throw new Error("original active hosted Linux request required");
   try {
-    const candidate = await requireActualHostedNativeCandidate(retained.candidate);
+    const candidate = await retained.readCandidate();
     const parent = await requireActualHostedNativeParentSource(candidate.parent_source);
     const record = await readControllerToolFile(retained.filename, retained.record.length);
     if (!record.equals(retained.record)) throw new Error("retained hosted Linux request changed");
     const host = await observeHost(parent, retained.nonce);
     if (releaseCanonicalDigest(host) !== releaseCanonicalDigest(retained.host))
       throw new Error("actual Linux host or account changed");
-    await requireActualHostedNativeCandidate(retained.candidate);
+    await retained.readCandidate();
+    if (retained.stopped) throw new Error("original active hosted Linux request required");
     return Object.freeze({
       directory: candidate.directory,
       package_path: candidate.package_path,
+      predecessor: "predecessor" in candidate ? candidate.predecessor : null,
+      payload_crypto: "payload_crypto" in candidate ? candidate.payload_crypto : null,
       prepared: structuredClone(retained.prepared),
       host: structuredClone(host),
       candidate_receipt: retained.candidate,

@@ -227,6 +227,7 @@ export async function deriveHostedNativePublicationJourneys(
   raw: NativePublicationJourneyInput,
   parent: string,
   deadline: number,
+  nativeParentReceipt?: object,
 ) {
   if (raw.authority_schema_version !== 4) throw new Error("selected hosted native source required");
   const active = () => {
@@ -263,15 +264,19 @@ export async function deriveHostedNativePublicationJourneys(
   if (!records.length) return prepared.journeys;
   if (records.length !== 2 || prepared.journeys.length !== 2)
     throw new Error("historical native lineage cannot mix Check and hosted authorities");
-  const { collectConfiguredHostedNativePredecessors } =
+  const { collectConfiguredHostedNativePredecessors, collectOriginalNativeParentPredecessors } =
     await import("./release-hosted-native-history.mts");
-  const historical = await collectConfiguredHostedNativePredecessors(
+  const args = [
     parent,
     records,
     { schema_version: 1, namespace: input.namespace },
     deadline,
     input.api,
-  );
+  ] as const;
+  const historical =
+    nativeParentReceipt === undefined
+      ? await collectConfiguredHostedNativePredecessors(...args)
+      : await collectOriginalNativeParentPredecessors(nativeParentReceipt, ...args);
   if (historical.evidence_scope !== "github.com")
     throw new Error("actual original native history required");
   prepared.stable();

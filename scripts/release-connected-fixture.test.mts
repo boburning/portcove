@@ -14,6 +14,7 @@ import { disposableTufWorkerFixture } from "./fixtures/tuf-worker-fixture.mts";
 import { assembleTrustedRelease } from "./trusted-release-assembly.mts";
 import { loadPackagePolicy, packagesForPlatform, artifactName } from "./release-package-policy.mts";
 import { updaterIdentity } from "./updater-artifact-inventory.mts";
+import { qualifyNativeChildren } from "./qualify-controller-tool-build.mts";
 import { signReleasePayload } from "./release-payload-signing.mts";
 import {
   reconstructApplicationUpdateRecords,
@@ -329,6 +330,38 @@ void test(
       }
       // Private payload material is gone before any consumer/metadata role runs.
       await rm(keyPath);
+      const packedPayloadEntry = process.env.PORTCOVE_CONNECTED_KEYLESS_ENTRY;
+      if (packedPayloadEntry) {
+        const identity = updaterIdentity(policy, "linux-x86_64", version);
+        const publicFixture = path.join(root, "packed-payload-fixture.json");
+        await writeFile(
+          publicFixture,
+          JSON.stringify({
+            tools: path.dirname(path.dirname(packedPayloadEntry)),
+            entry: packedPayloadEntry,
+            payload: path.join(root, "packages", identity.filename),
+            signature: path.join(root, "signed-linux-x86_64", `${identity.filename}.sig`),
+            publicKey,
+            publicId,
+            version,
+          }),
+          { flag: "wx", mode: 0o600 },
+        );
+        const observed = await run(
+          process.execPath,
+          [
+            "--test",
+            "--test-name-pattern=hosted signed inputs",
+            "scripts/release-hosted-native-job.test.mts",
+          ],
+          {
+            env: { ...process.env, PORTCOVE_CONNECTED_PAYLOAD_FIXTURE: publicFixture },
+            timeout: 50000,
+            maxBuffer: 65536,
+          },
+        );
+        t.diagnostic(observed.stdout);
+      }
       const signAndAssemble = async (context: string, name: string) => {
         const signed: Awaited<ReturnType<typeof signIsolatedTufRole>>[] = [];
         for (const role of roles) {
@@ -357,7 +390,7 @@ void test(
           );
           signed.push(result);
         }
-        return assembleIsolatedTufPublication(
+        const baseline = await assembleIsolatedTufPublication(
           {
             context_directory: context,
             tool: { path: tool, sha256: toolSha },
@@ -371,6 +404,69 @@ void test(
           },
           performance.now() + 10000,
         );
+        const packedEntry = process.env.PORTCOVE_CONNECTED_KEYLESS_ENTRY;
+        if (packedEntry) {
+          assert.ok(path.isAbsolute(packedEntry));
+          const childRoot = path.join(root, `packed-keyless-${name}`);
+          await mkdir(childRoot);
+          const childContext = path.join(childRoot, "context");
+          await cp(context, childContext, { recursive: true });
+          const envelopes = [];
+          for (const role of signed) {
+            const destination = path.join(childRoot, role.filename);
+            await cp(role.path, destination);
+            envelopes.push({
+              filename: role.filename,
+              path: destination,
+              bytes: role.bytes,
+              sha256: role.sha256,
+            });
+          }
+          const wire = Buffer.from(
+            JSON.stringify({
+              schema_version: 1,
+              context_directory: childContext,
+              output_parent: childRoot,
+              tool: { path: tool, sha256: toolSha },
+              signed_roles: envelopes,
+            }),
+          );
+          const plan = path.join(childRoot, "native-keyless-plan.json");
+          await writeFile(plan, wire, { flag: "wx", mode: 0o600 });
+          const settlement = await qualifyNativeChildren(
+            path.dirname(path.dirname(packedEntry)),
+            childRoot,
+            {
+              args: [packedEntry, plan, hash(wire)],
+              timeout: 100000,
+            },
+          );
+          assert.equal(settlement.chain, "prepared-reaper/bundled-supervisor/packed-keyless");
+          const actual = JSON.parse(
+            await readFile(path.join(childRoot, "native-keyless-result.json"), "utf8"),
+          ) as { plan_sha256: string; assembled: { publication: unknown; files: unknown } };
+          assert.equal(actual.plan_sha256, hash(wire));
+          assert.deepEqual(actual.assembled.publication, baseline.publication);
+          assert.deepEqual(actual.assembled.files, baseline.files);
+          t.diagnostic(
+            JSON.stringify({
+              name,
+              plan_sha256: hash(wire),
+              publication_sha256: digest(actual.assembled.publication),
+              files_sha256: digest(actual.assembled.files),
+              chain: settlement.chain,
+              settlement: JSON.parse(
+                await readFile(
+                  path.join(childRoot, "packed-keyless/fixture-settlement.json"),
+                  "utf8",
+                ),
+              ) as unknown,
+              scope:
+                "actual packed child matches independent disposable byte/crypto baseline; no native acceptance",
+            }),
+          );
+        }
+        return baseline;
       };
       const initial = await signAndAssemble(bootstrap, "initial");
       const context = path.join(root, "release-context");

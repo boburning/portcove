@@ -20,6 +20,7 @@ afterEach(async () => {
 
 for (const width of [320, 576]) {
   for (const theme of ["light", "dark"]) {
+    // Allow first-render setup and the complete multi-action journey; assertion waits stay unchanged.
     it(`exposes games and deliberate modal navigation at ${width}px in ${theme}`, async () => {
       await page.viewport(width, 900);
       transport = installInteractiveTransport("collection", (message) => {
@@ -80,7 +81,7 @@ for (const width of [320, 576]) {
         .getByRole("button", { name: "Find games", exact: true });
       await expect.element(desktopDestination).toBeVisible();
       await expect.element(desktopDestination).toHaveFocus();
-    });
+    }, 45_000);
   }
 }
 

@@ -6,6 +6,7 @@ import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import type { TufSigningRole } from "./release-control-phases.mts";
 import type { CatalogControlPhase } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
+import { hostedNativeJobProfile } from "./assembler-job-identity.mts";
 
 type SigningRole = "payload" | TufSigningRole;
 type ClockRole =
@@ -16,7 +17,9 @@ type ClockRole =
   | "candidate-building"
   | "coordinator"
   | "release-publication"
-  | "site-publication";
+  | "site-publication"
+  | "native-windows"
+  | "native-linux";
 type JobIdentity = {
   run_id: string;
   run_attempt: number;
@@ -55,12 +58,14 @@ function signingOriginalJobDeadline(
       "coordinator",
       "release-publication",
       "site-publication",
+      "native-windows",
+      "native-linux",
     ].includes(String(rawRole))
   )
     throw new Error("fixed online signing role required");
   const role = rawRole as ClockRole;
   const maximum =
-    role === "payload"
+    role === "payload" || role === "native-windows" || role === "native-linux"
       ? 570000
       : role === "candidate-building"
         ? 525000
@@ -95,15 +100,21 @@ function signingOriginalJobDeadline(
   const name =
     role === "coordinator" || role === "release-publication" || role === "site-publication"
       ? releaseControlPhaseProfile(role).reader_name
-      : role === "candidate-building"
-        ? "Authenticate release control inputs"
-        : role === "classification-writer"
-          ? "Persist independently reviewed classification"
-          : role === "classification-observer"
-            ? "Observe release input protections"
-            : releaseControlPhaseProfile(
-                role.startsWith("catalog-") ? role : role === "payload" ? "payload" : `tuf-${role}`,
-              ).reader_name;
+      : role === "native-windows" || role === "native-linux"
+        ? hostedNativeJobProfile(role === "native-linux" ? "linux-x86_64" : "windows-x86_64").job
+        : role === "candidate-building"
+          ? "Authenticate release control inputs"
+          : role === "classification-writer"
+            ? "Persist independently reviewed classification"
+            : role === "classification-observer"
+              ? "Observe release input protections"
+              : releaseControlPhaseProfile(
+                  role.startsWith("catalog-")
+                    ? role
+                    : role === "payload"
+                      ? "payload"
+                      : `tuf-${role}`,
+                ).reader_name;
   const matches = raw.jobs.filter((job: unknown) => isRecord(job) && job.name === name);
   const job: unknown = matches[0];
   if (
@@ -185,6 +196,20 @@ export function currentTufJobDeadline(role: unknown, ...args: CurrentArguments) 
 }
 export function currentPayloadJobDeadline(...args: CurrentArguments) {
   return currentSigningJobDeadline("payload", ...args);
+}
+
+function nativeClockRole(platform: unknown): "native-windows" | "native-linux" {
+  if (platform === "windows-x86_64") return "native-windows";
+  if (platform === "linux-x86_64") return "native-linux";
+  throw new Error("fixed native clock platform required");
+}
+/** The existing ten-minute native allocation includes both stages and waiting.
+ * Provider timestamps are clock metadata, never native/source authority. */
+export function nativeOriginalJobDeadline(platform: unknown, ...args: BudgetArguments) {
+  return signingOriginalJobDeadline(nativeClockRole(platform), ...args);
+}
+export function currentNativeJobDeadline(platform: unknown, ...args: CurrentArguments) {
+  return currentSigningJobDeadline(nativeClockRole(platform), ...args);
 }
 function catalogClockRole(raw: unknown): CatalogControlPhase {
   if (

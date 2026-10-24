@@ -607,6 +607,13 @@ direct dependents. It brackets live records with fresh semantic and full-body
 readback. The receipt names every checked issue and reports global health as
 `not_evaluated`; it cannot establish global uniqueness, origin coverage or release
 readiness. Missing, ambiguous or incomplete direct coverage remains inconclusive.
+Direct reads enumerate blocker identities before retrieving their memberships in
+batches of ten actual IDs. They retain complete pagination and reject missing,
+duplicate or changed dependencies. Query cost and reset metadata are recorded;
+an HTTP-200 GraphQL quota rejection is a rate-limit failure even when some points
+remain, not a transport failure.
+Global audits establish access through observable Project API reads, preserving
+the actual authorization and quota responses in the diagnostic receipt.
 
 `set`, `set-many`, port intake/normalization and promotion perform affected checks
 automatically. Exact item IDs resolve directly even when the Project listing
@@ -637,6 +644,11 @@ do not refresh diagnostic comments, so their timestamp describes the retained
 observation rather than the latest execution. Preserve historical failure evidence
 when annotating a superseded incident; only a matching scoped result establishes
 recovery of that scope.
+Diagnostics include bounded, redacted concrete findings and available provider
+quota/reset evidence. A completed planning evaluation retains its checked issue
+set even when it finds errors; an incomplete provider read establishes no checked
+set. Rerun affected issue checks after recovery; each retains its own evidence
+and cannot clear an unrelated failure.
 
 For an independently diagnosed collection discrepancy such as #2406, the manual
 workflow input `inventory_items` selects a read-only membership comparison instead

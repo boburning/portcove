@@ -82,7 +82,21 @@ export function selectHostedNativePredecessorScope(
   return current[0] ? ("current-run" as const) : ("completed-history" as const);
 }
 
-async function currentHostedPredecessorSource() {
+type PredecessorConsumer = {
+  source: {
+    controller_revision: string;
+    controller_ref: string;
+    actor_id: string;
+    run_id: string;
+    run_attempt: number;
+    authority_configuration_sha256: string;
+    grant_sha256: string;
+  };
+  configuration: ReturnType<typeof inspectSelectedPublicationAuthorityConfiguration>;
+  workflow_sha256: string;
+};
+
+async function currentHostedPredecessorSource(): Promise<PredecessorConsumer> {
   const view = await requireControllerApplicationJobPublicationAuthorities("release-publication");
   if (view.configuration.schema_version !== 4)
     throw new Error("selected current native predecessor source required");
@@ -90,8 +104,9 @@ async function currentHostedPredecessorSource() {
   if (configuration.purpose !== "application")
     throw new Error("current native predecessor application configuration required");
   const workflow = await readProductionControllerWorkflowBytes();
+  if (!view.source.run_id) throw new Error("original predecessor run identity required");
   return {
-    source: view.source,
+    source: { ...view.source, run_id: view.source.run_id },
     configuration,
     workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
   };
@@ -198,8 +213,43 @@ export function collectConfiguredHostedNativePredecessors(...args: PredecessorAr
   return collectHostedNativePredecessors(currentHostedPredecessorSource, ...args);
 }
 
+/** Fixed native-job consumer. A caller cannot appoint a principal with serialized
+ * configuration or a current-run flag. The original private parent supplies it. */
+export function collectOriginalNativeParentPredecessors(
+  parentReceipt: object,
+  ...args: PredecessorArguments
+) {
+  const namespace = inspectCoordinatorRemoteNamespace(args[2]);
+  const readCurrent = async (): Promise<PredecessorConsumer> => {
+    const { requireActualHostedNativeParentSource } =
+      await import("./release-hosted-native-parent.mts");
+    const parent = await requireActualHostedNativeParentSource(parentReceipt);
+    const configuration = inspectSelectedPublicationAuthorityConfiguration(parent.configuration);
+    if (
+      parent.stage !== "release-publication" ||
+      configuration.purpose !== "application" ||
+      configuration.journal.namespace !== namespace
+    )
+      throw new Error("original native post-sign predecessor consumer differs");
+    const workflow = await readProductionControllerWorkflowBytes();
+    parent.recheck();
+    const workflowSha = createHash("sha256").update(workflow).digest("hex");
+    if (workflowSha !== parent.producer.workflow_sha256)
+      throw new Error("original native predecessor workflow changed");
+    return {
+      configuration,
+      workflow_sha256: workflowSha,
+      source: {
+        ...parent.producer,
+        authority_configuration_sha256: parent.producer.configuration_sha256,
+      },
+    };
+  };
+  return collectHostedNativePredecessors(readCurrent, ...args);
+}
+
 async function collectHostedNativePredecessors(
-  readCurrent: typeof currentHostedPredecessorSource | undefined,
+  readCurrent: (() => Promise<PredecessorConsumer>) | undefined,
   parent: string,
   rawRecords: readonly unknown[],
   rawConfiguration: unknown,
@@ -349,10 +399,7 @@ async function collectHostedNativePredecessors(
         throw new Error("original native custody namespace differs");
       const assertCurrent = async () => {
         active();
-        if (
-          originalConsumer &&
-          digest(await currentHostedPredecessorSource()) !== digest(originalConsumer)
-        )
+        if (originalConsumer && digest(await readCurrent!()) !== digest(originalConsumer))
           throw new Error("current native predecessor consumer source changed");
         active();
       };

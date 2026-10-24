@@ -491,3 +491,227 @@ The source retains the exact candidate, checkpoint, operation, original producer
 Focused controlled verification ran both the existing source/parent suite and hosted job suite:26 PASS, zero skips. The new timestamp cases include current/history/recovered success, exact-source mismatch, unresolved-current-plus-historical-success refusal, missing/duplicate history, journal drift, hydration expiry, final-write expiry and tamper-then-restore refusal. The first recovered fixture omitted the schema's mandatory recovery checkpoint and remains a failed fixture run. Independent review found the missing local-Git deadline propagation; a controlled100ms inherited-budget case failed before the wrapper and passes with it, alongside an expired-budget refusal. These are controlled parent/provider/hydration observations, not actual provider, Git mutation, signed-context, native or production acceptance.
 
 The installed post-sign chain remains intact. This source receipt alone cannot enter its installed-parent map or claim its Tough/payload checks. The hosted signed-context/five-role/Tough/package/predecessor/shipping-verifier acquisition and complete capture path remain to be connected through genuine hosted admission. Their existing pure inspector and detached crypto-fixture tests do not supply a positive connected orchestration oracle. No workflow, role, credential, timeout, spending/resource ceiling or execution grant changes. Production held; capacity availability/headroom Unknown and no capacity reservation; #254 Done; #315/#534/#246 and Chameleon protected acceptance pending; slice5 excluded. No owner action requested.
+
+## Hosted signed-input custody continuation (October 24)
+
+The prepared hosted post-sign adapter consumes the original timestamp source,
+verified tool receipt and original Linux runtime receipt. It joins the complete
+reserved opportunity and compiler tuple to independently pinned public anchors,
+the default authenticated signing-context receiver and all five default role
+receivers. It does not import an installed-parent descriptor or fabricate an
+actual publication receipt.
+
+The fixed credential-free keyless entry executes only from the retained runtime
+root. Original parent/tool/runtime custody is checked before execution, after
+resource queue admission, after settlement and on later reads. Both prepared
+support callbacks are supplied; this path has no compiler/cache fallback. The
+five-minute phase starts before the first await and intersects the original
+parent deadline. Source, context, roles, complete artifact inventory, staged
+inputs, assembly report, repository, plan/result and final receipt are retained
+and rechecked. Refusal or observed drift permanently stops that attempt, even
+if bytes are restored; recovery remains explicit.
+
+The independent source review clears this preparation. The controlled receiver
+and supervisor tests establish their stated seams only. Windows cannot establish
+the Linux custody/process assertions. The hosted tool-build fixture now exercises
+the actual prepared reaper, bundled supervisor and packed keyless utility against
+an independently produced disposable crypto baseline; its source/run/attempt and
+result belong in the delivery receipt. No fixture establishes a real producer,
+protected execution, installed application behavior or same-client acceptance.
+
+This adds one tool entry but no production workflow job, permission, resource
+ceiling or execution grant. Context preflight deliberately repeats the bounded
+context download rather than injecting transport into the actual receiver.
+Compressed inputs are bounded to 290 MiB total (two context reads at 128 MiB,
+one 4 MiB context proof and five pairs of 2 MiB role/4 MiB proof archives).
+The additional preflight is at most 128 MiB of reads, not a capacity reservation.
+The plan/result/receipt bounds are 64 KiB/1 MiB/2 MiB, in addition to the existing
+bounded context, role and repository staging. Final whole-job resource fit and
+runnable source/graph/digest reconciliation remain pending under the existing
+99/100 job-minute and seven-day retention limits. Availability/headroom remain
+Unknown. Package/journey/capture integration and real native/public acceptance
+remain pending. No new owner action is requested for this preparation.
+
+## Hosted post-sign journey continuation (October 24)
+
+The prepared callable post-sign job now connects original native-parent/runtime,
+timestamp source, authenticated signed-input custody, both-platform predecessor
+verification, compiler package acquisition, immutable predecessor acquisition,
+fixed payload signature verification, Linux request/capture, report2 and original
+proof/upload handoff. It retains the current-job versus completed-history split:
+no failed current proof falls back to history, and the native principal does not
+impersonate a publication-job principal. The production workflow and runner CLI
+remain held and unchanged; this callable composition is preparation.
+
+Default context and role receiver deadlines remain unchanged. While live, they
+export only original public byte identities, which the private native receipt
+retains and rehashes with the context, repository and original source/runtime.
+Those snapshot objects cannot be imported as context, role, publication or native
+acceptance receipts. Acquisition stays bounded (15-minute source acquisition,
+five-minute signed-input construction, two-minute journey construction), including
+final writes and handoff. Subsequent custody uses the existing original parent's
+deadline and identity, without renewing a JWT, extending a job or raising a
+resource limit. This separates preparation time from native execution time.
+
+The post-sign request requires the private fixed-verifier result. Bootstrap has
+no predecessor package; an update requires the distinct Tough/history-bound
+immutable predecessor asset and retained bytes. The existing isolated Linux
+driver receives the candidate/predecessor plan and unchanged state paths; ordinary
+public updater/feed proof remains a separate obligation. Hosted report generation
+now selects its existing post-sign reconstructor for report2. A controlled
+original-constructor test exposed the prior unconditional pre-sign route; its
+failed evidence is retained separately from the corrected result.
+
+Controlled tests exercise both job/proof stages, bootstrap and ordinary report
+construction, metadata/predecessor refusal, copied receipts, tamper/restoration,
+gated concurrent corruption (including the final request handoff), original-parent custody past short preparation
+phases, final-write deadline refusal and honestly empty verifier stderr. These
+models passed 20 focused tests with no skips; they do not establish a real issuer,
+application or provider acceptance. The
+hosted packed-tool fixture additionally feeds its actual disposable signed Linux
+bytes through the fixed prepared reaper/verifier and the private payload getter,
+with empty stderr and corruption/concurrency refusals; its actual result and
+source/run/attempt belong in the owning delivery receipt. Peer/source authority
+remains explicitly controlled in that fixture. Framework fixtures remain distinct
+from two eligible repaired game artifacts.
+
+No production exposure, signing key, App, credential, protection or custody change
+is performed by this preparation. Additional bounded storage consists of the
+existing compiler archive (at most 512 MiB), selected package (at most 512 MiB), an
+optional immutable predecessor (at most 512 MiB), public signature/key (16 KiB each),
+payload plan/result/streams (64KiB/1MiB/two1MiB) and the existing bounded context,
+repository and capture evidence. Proof snapshots retain identities and rehash
+original bytes; they do not create another archive copy. The existing parser,
+concurrency, cache, archive, seven-day retention and $0 stop boundaries remain.
+Final whole-job fit and runnable graph/source/digest reconciliation are still
+required within the selected 99/100 job-minute boundary. Availability/headroom remain
+Unknown, with no capacity reservation.
+
+Remaining engineering includes the held caller/CLI graph, Windows counterpart
+and native/public journey continuity under their exact grants and observations.
+No owner-only action is requested by this source preparation. #254 remains Done;
+#315/#534/#246 acceptance and existing Chameleon runtime holds remain pending;
+production held; slice 5 excluded.
+
+## Fixed hosted post-sign caller (October 24)
+
+The fixed Linux runner now has named post-sign entry points for the original
+prepared job, verified-tool configuration, upload request and acknowledgement.
+Its CLI exposes `run-post-sign`, `upload-request-post-sign` and
+`upload-ack-post-sign`; the existing pre-sign command names retain their scope.
+Post-sign state stays under `portcove-native-linux-post-sign`, separately from
+`portcove-native-linux-pre-sign`. Both use the existing bounded public tool input,
+and the original private receipt remains in the preparing process through provider
+readback. Neither public routing data nor the operation name grants native
+admission or execution authority.
+
+The fixed stage determines the exact artifact-name pattern, original pipeline and
+readback function. Wrong-stage readers/acknowledgements refuse. Post-sign requires
+the original verified tool/runtime input; configuration cannot select another
+stage. The original cross-process monotonic deadline, private proof deadline and
+two-minute upload limit still intersect. No-replace markers, replay refusal,
+late-settlement refusal and ambiguous-effect recovery remain unchanged.
+
+Controlled original-process tests pass for both stages, including configured-tool
+handoff, separate-process acknowledgement, wrong-stage routes, replay, unavailable
+acknowledgement, provider ambiguity and delayed reads/settlement. Actual CLI
+subprocesses verify both public routing paths without native execution. The local
+Windows suite has 11 passing tests and two Linux-only skips; the existing Linux
+tool fixture supplies its corresponding hosted qualification. Fixtures remain
+distinct from actual producer/native/public acceptance.
+
+This connects the fixed callable CLI, without adding or activating production
+workflow jobs. The Windows counterpart, held workflow/bootstrap composition,
+whole-graph resource fit and actual authority/eligible-reservation observations
+remain required. No deadline, job count, credential, permission, retention,
+spending or custody boundary is increased. Availability/headroom remain Unknown,
+with no capacity reservation. No manual owner action is needed for this delivery.
+#254 stays Done; #315/#534/#246 acceptance and existing Chameleon runtime holds
+remain pending; production held; slice 5 excluded.
+
+## Original native source bootstrap and shared clock (October 24)
+
+`release-hosted-native-bootstrap.mts` prepares the fixed source-to-attested-runner
+join for `pre-sign` and `post-sign`. It admits the actual protected application
+source and full selected configuration before tool acquisition, reads the original
+fixed native job start, then consumes only successful fixed bootstrap/attester
+outputs. The receiver authenticates the exact artifact; the imported bundle uses
+its own default receiver again rather than accepting a serialized private receipt.
+Actual Node bytes must match the attested runtime.
+
+Both stages share one no-replace monotonic clock, bound to the original source,
+actor, configuration and workflow. The existing ten-minute native allocation
+includes setup, both stages and waiting; its usable clock reserves thirty seconds
+for cleanup. Post-sign requires the original clock and a successful local pre-sign
+settlement hint. That hint is sequencing data only: the post-sign pipeline still
+authenticates its coordinator, source and predecessor evidence independently.
+Changed bindings, missing/expired/enlarged clocks, incomplete tool outputs and
+replayed stage directories refuse. No stage receives a new job allowance.
+
+Review caught an import-order custody gap before delivery. The repaired bootstrap
+checks the original clock and the complete attested materialization, manifest and
+executing Node with the existing filesystem-custody inspector before import.
+Synchronous identity rechecks follow awaited byte/source reads and precede import
+and invocation. A later runtime check cannot substitute for this pre-import check.
+Writable or linked ancestry, foreign ownership and byte-identical file replacement
+must refuse before the imported runner's top level executes.
+
+Local controlled source/tool/worker tests and existing signing-clock contracts
+pass 21 tests with three Linux-only skips. A separate Linux fixture uses the real
+custody inspector and a private copied Node; source, artifact and worker authority
+remain controlled. Its hosted result is recorded on the delivery receipt. This
+does not establish actual producer, native or protected acceptance.
+
+Initial CI 40136707823/1's Linux contract lane and hosted fixture 40136707962/1
+reached the real custody cases, then failed with `EEXIST` because the copied `node`
+file collided with the `node` negative-test directory. The retained failure is a
+test-namespace defect. The copy now uses
+`bootstrap-node`; no custody assertion, product behavior or budget was relaxed.
+
+The held workflow/composite launcher still needs to supply a protected private
+Node and temporary tree automatically; shared-writable setup-node/cache/temp
+ancestry correctly refuses. No administrator or owner-host step is requested.
+The bootstrap does not add a production job, install software, change credentials
+or bypass these checks. Remaining composition must connect same-job pre/post
+handoffs without a DAG cycle, preserve exclusive coordinator/executor ownership,
+and demonstrate whole-graph fit inside 99/hard 100 job-minutes. A bounded clock is
+not evidence that the full graph fits or that an operation has capacity. Capacity
+remains bounded-attempt eligibility with Unknown availability/headroom and no
+reservation. Windows and actual native/public/client acceptance remain pending;
+#254 stays Done, existing Chameleon holds remain, production held, slice 5 excluded.
+
+## Private hosted Linux launch preparation (October 24)
+
+`release-hosted-native-launcher.mts` prepares the fixed private Node and temporary
+tree for the existing same-job bootstrap. It reuses actual source/configuration
+admission and the original provider job deadline before creating anything. The
+non-root broker's canonical, non-shared-writable home contains a no-replace root
+bound to the run, first attempt and controller revision. The default tool receiver
+authenticates the actual source/run artifact and independent attestation before
+its Node is copied as data. The shared setup-node path cannot select those bytes.
+Executable custody is verified, and its original
+file/ancestry identities are retained. The bootstrap still independently requires
+those bytes to match the attested tools before importing the worker.
+
+Post-sign consumes that same root, binding and original Node identity; replacing
+the file with identical bytes refuses. Stage-specific launch plans are no-replace
+and carry no execution or acceptance authority. This preparation API does not
+spawn a process or install anything. A plan is not a running native pipeline:
+the fixed composite must still validate its routing data, supply the private
+temporary path, start the original worker, bound streams and process lifetime,
+perform upload/readback handoffs and finish matching teardown. Partial
+preparation remains retained for readback and explicit recovery, without retry
+or deletion by this API.
+
+Focused Linux fixture coverage uses real private file custody and controlled
+source/provider peers. It checks pre/post continuity, missing predecessors,
+replay, changed bindings, replacement, byte tamper, shared writes, links,
+source/provider refusal, expired deadlines and existing retained roots. Its
+actual qualification result belongs in the owning delivery receipt; it cannot
+establish protected admission, actual provider enforcement or native acceptance.
+The public routing records add at most three 4096-byte records plus one private
+Node copy and one additional bounded tool receiver (at most320MiB compressed
+tools plus1MiB attestation, with the existing bounded tool inventory expansion).
+That receiver is used only before the first launch; post-sign retains the
+original executable identity. Final whole-job storage, download and graph fit remain
+required. No job, deadline, spending, cache, retention or authority is increased.

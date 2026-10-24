@@ -118,6 +118,44 @@ describe("browser trace invocation custody", () => {
     ).toThrow("outside the checkout");
     expect(readdirSync(outside)).toHaveLength(0);
   });
+  it("retains bounded accessibility rule and incomplete-finding packets on passing runs", () => {
+    const root = fixture(),
+      run = createBrowserTraceRun(root);
+    const annotate = (packet: unknown) =>
+      run.reporter.onTestCaseAnnotate?.({} as never, {
+        message: "Accessibility state",
+        type: "accessibility-audit",
+        attachment: { contentType: "application/json", body: JSON.stringify(packet) },
+      });
+    const packet = {
+      accessibility_audit: {
+        format_version: 1,
+        state: "library/rtl",
+        rule_selection: "all default axe rules",
+        passed_rules: ["button-name"],
+        inapplicable_rules: ["image-alt"],
+        violations: [],
+        incomplete: [
+          { id: "color-contrast", nodes: [{ target: ["h1"], failureSummary: "Needs review" }] },
+        ],
+      },
+    };
+    annotate(packet);
+    run.reporter.onTestRunEnd?.([], [], "passed");
+    const directory = path.join(root, ".vitest/attachments/accessibility-audit"),
+      files = readdirSync(directory);
+    expect(files).toHaveLength(1);
+    expect(JSON.parse(readFileSync(path.join(directory, files[0]!), "utf8"))).toEqual(packet);
+    expect(() => annotate({ accessibility_audit: { format_version: 1 } })).toThrow(
+      "explicit audit state",
+    );
+    expect(() =>
+      annotate({
+        accessibility_audit: { ...packet.accessibility_audit, state: "x".repeat(20_000) },
+      }),
+    ).toThrow("exceeds16KiB");
+    expect(readdirSync(directory)).toEqual(files);
+  });
   it("honors a probe's owned outer namespace without taking ownership of siblings", () => {
     const root = fixture();
     const parent = path.join(root, "work/bt/run-probe");

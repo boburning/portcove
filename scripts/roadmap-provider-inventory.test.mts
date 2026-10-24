@@ -2,9 +2,10 @@ import type { GitHubRunner } from "./github-api.mts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { createGitHubRunner } from "./github-api.mts";
+import { createGitHubRunner, GitHubApiError } from "./github-api.mts";
 
 import { RoadmapClient, readDoctorRepositoryIssues, runDoctor, fieldValue } from "./roadmap.mts";
+import { doctorFailureDiagnostics } from "./roadmap-scoped.mts";
 
 import {
   fixtureValue,
@@ -101,6 +102,88 @@ void test("doctor records one complete empty GraphQL observation", () => {
   const result = readDoctorRepositoryIssues(client);
   assert.deepEqual(result.issues, []);
   assert.equal(result.attempts[0]?.issues, 0);
+});
+
+void test("global doctor retains observable quota and authentication failures before planning", async () => {
+  const resetSeconds = 1792880126;
+  for (const failure of [
+    {
+      stage: "project",
+      status: 200,
+      remaining: 0,
+      body: { errors: [{ type: "RATE_LIMITED", message: "API rate limit exceeded" }] },
+      code: "rate_limited",
+      kind: "rate_limit",
+    },
+    {
+      stage: "project",
+      status: 403,
+      remaining: 4000,
+      body: { message: "Resource not accessible by personal access token" },
+      code: "command_failed",
+      kind: "authentication",
+    },
+    {
+      stage: "owner",
+      status: 401,
+      remaining: 4999,
+      body: { message: "Bad credentials" },
+      code: "command_failed",
+      kind: "authentication",
+    },
+  ] as const) {
+    const commands: (readonly string[])[] = [];
+    const client = new RoadmapClient(
+      config,
+      createGitHubRunner({
+        spawn: (_command, args, options) => {
+          commands.push(args);
+          assert.equal(args[0], "api", "Opaque CLI authentication must not mask API evidence");
+          if (args[2] === `users/${config.owner}` && failure.stage !== "owner")
+            return { status: 0, stdout: included({ type: "User" }), stderr: "" };
+          if (failure.stage === "project") {
+            assert.equal(args[1], "graphql");
+            assert.match(fixtureGraphql(options.input).query, /projectV2\(number:.*fields\(/u);
+          }
+          return {
+            status: 1,
+            stdout:
+              `HTTP/2.0 ${failure.status} Provider response\r\n` +
+              `x-ratelimit-resource: ${failure.stage === "owner" ? "core" : "graphql"}\r\n` +
+              `x-ratelimit-remaining: ${failure.remaining}\r\n` +
+              `x-ratelimit-reset: ${resetSeconds}\r\n\r\n` +
+              JSON.stringify(failure.body),
+            stderr: "gh: provider refused this request",
+          };
+        },
+      }),
+    );
+    // API-only clients need no opaque CLI command capability for a doctor read.
+    Object.defineProperty(client, "gh", { value: undefined });
+    const attempts: Parameters<typeof readDoctorRepositoryIssues>[1] = [];
+    await assert.rejects(
+      runDoctor(config, client, { quiet: true, repositoryIssueInventoryAttempts: attempts }),
+      (error) => {
+        assert(error instanceof GitHubApiError);
+        const diagnosis = doctorFailureDiagnostics(error);
+        assert.equal(diagnosis.kind, failure.kind);
+        assert.equal(diagnosis.coverage, "inconclusive");
+        assert.equal(diagnosis.error.code, failure.code);
+        assert.equal(diagnosis.provider?.status, failure.status);
+        assert.equal(diagnosis.provider?.rate?.remaining, failure.remaining);
+        assert.equal(
+          diagnosis.provider?.rate?.resetAt,
+          new Date(resetSeconds * 1000).toISOString(),
+        );
+        assert.equal("doctorErrors" in error, false);
+        return true;
+      },
+    );
+    assert.equal(commands.length, failure.stage === "owner" ? 1 : 2);
+    assert.equal(client.api.observations.length, commands.length);
+    assert.equal(client.api.observations.at(-1)?.failure, failure.code);
+    assert.deepEqual(attempts, [], "Unavailable provider reads cannot establish an inventory");
+  }
 });
 
 void test("runDoctor retains an incomplete GraphQL observation for its CLI receipt", async () => {
