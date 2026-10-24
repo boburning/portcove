@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { globSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import { requireNodeTestInventory } from "./node-test-inventory.mts";
 import { createBrowserTraceRun } from "./browser-traces.ts";
 import { isRecord, errorCode } from "./runtime-values.mts";
@@ -2439,6 +2442,44 @@ void test("browser uploads select the actual trace and screenshot output layout"
   await writeFile(trace, "owned layout fixture, not an executed browser trace");
   await writeFile(screenshot, "owned screenshot layout fixture");
   const files = [trace, screenshot].map((file) => path.relative(root, file).replaceAll("\\", "/"));
+  const producer = new URL(
+    "../apps/desktop/src/components/CatalogDownload.browser.test.tsx",
+    import.meta.url,
+  );
+  const producerSource = await readFile(producer, "utf8");
+  const checkout = fileURLToPath(new URL("../", import.meta.url));
+  const producerOutputs = [...producerSource.matchAll(/path: "([^"\n]+\.png)"/gu)].map((match) => {
+    const output = path.resolve(path.dirname(fileURLToPath(producer)), match[1]!);
+    const relative = path.relative(checkout, output).replaceAll("\\", "/");
+    assert.ok(!relative.startsWith("../") && !path.isAbsolute(relative));
+    return relative;
+  });
+  assert.equal(producerOutputs.length, 3, "retain the current rendered installation captures");
+  const additional = [
+    ".vitest/attachments/failure-screenshots/fixture.png",
+    "apps/desktop/.vitest/attachments/failure-screenshots/fixture.png",
+    ".vitest/attachments/capture-target/fixture.json",
+    "apps/desktop/.vitest/attachments/capture-target/fixture.json",
+    "outputs/slice5-cards/fixture.png",
+    ...producerOutputs,
+  ];
+  for (const file of additional) {
+    await mkdir(path.dirname(path.join(root, file)), { recursive: true });
+    await writeFile(path.join(root, file), `inert upload fixture: ${file}\n`);
+  }
+  const expected = new Map(
+    await Promise.all(
+      [...files, ...additional].map(
+        async (file) =>
+          [
+            file,
+            createHash("sha256")
+              .update(await readFile(path.join(root, file)))
+              .digest("hex"),
+          ] as const,
+      ),
+    ),
+  );
   const document = parseDocument(workflow, { uniqueKeys: true });
   assert.deepEqual(document.errors, []);
   const parsed: unknown = document.toJS();
@@ -2458,6 +2499,29 @@ void test("browser uploads select the actual trace and screenshot output layout"
       .split(/\r?\n/u)
       .map((line) => line.trim())
       .filter(Boolean);
+    assert.equal(upload.with["include-hidden-files"], true, id);
+    const resolve = (selection: readonly string[]) =>
+      new Set(globSync([...selection], { cwd: root }).map((file) => file.replaceAll("\\", "/")));
+    const selected = resolve(patterns);
+    for (const [file, digest] of expected) {
+      assert.ok(selected.has(file), `${id} does not select actual fixture output ${file}`);
+      assert.equal(
+        createHash("sha256")
+          .update(await readFile(path.join(root, file)))
+          .digest("hex"),
+        digest,
+        `${id} preserves selected bytes: ${file}`,
+      );
+    }
+    const renamed = producerOutputs.map((file) => file.replace("installation-rendered/", "moved/"));
+    for (const file of renamed) {
+      await mkdir(path.dirname(path.join(root, file)), { recursive: true });
+      await writeFile(path.join(root, file), "inert renamed producer output\n");
+    }
+    assert.ok(
+      renamed.every((file) => !resolve(patterns).has(file)),
+      `${id} would detect a producer directory move without uploader repair`,
+    );
     for (const file of files)
       assert.ok(
         patterns.some((pattern) => path.posix.matchesGlob(file, pattern)),

@@ -519,6 +519,7 @@ jobs:
             .vitest/attachments/**/*.json
             apps/desktop/.vitest/attachments/**/*.json
             outputs/slice5-cards/**/*.png
+            work/installation-rendered/**/*.png
           include-hidden-files: true
           retention-days: 7
           if-no-files-found: warn
@@ -1223,6 +1224,7 @@ jobs:
             .vitest/attachments/**/*.json
             apps/desktop/.vitest/attachments/**/*.json
             outputs/slice5-cards/**/*.png
+            work/installation-rendered/**/*.png
           include-hidden-files: true
           retention-days: 7
           if-no-files-found: warn
@@ -1407,6 +1409,10 @@ jobs:
             work/bt/**/screenshots/**/*.png
             .vitest/attachments/failure-screenshots/**/*.png
             apps/desktop/.vitest/attachments/failure-screenshots/**/*.png
+            .vitest/attachments/**/*.json
+            apps/desktop/.vitest/attachments/**/*.json
+            outputs/slice5-cards/**/*.png
+            work/installation-rendered/**/*.png
           include-hidden-files: true
           retention-days: 7
           if-no-files-found: warn
