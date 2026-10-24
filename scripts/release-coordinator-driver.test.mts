@@ -19,7 +19,147 @@ import {
 } from "./release-coordinator-driver.mts";
 import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
 import { performance } from "node:perf_hooks";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { pagesRecoveryOperationFixture } from "./fixtures/release-pages-recovery-fixture.mts";
+
+void test("actual catalog receiver comparison refuses grant-only drift before inspection (controlled retained map)", async () => {
+  const source = await readFile(
+    new URL("./release-coordinator-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("export async function requireActualCoordinatorCatalogPreparation(");
+  const end = source.indexOf("/** An inert proof parser", start);
+  assert.ok(start > 0 && end > start);
+  const body = source.slice(start, end).replace("export async", "async");
+  const dependency = 'await import("./release-authority-configuration.mts")';
+  assert.equal(body.split(dependency).length, 2);
+  const result = {},
+    original = {
+      source: { grant_sha256: "a".repeat(64), run_id: "123" },
+      configuration_sha256: "b".repeat(64),
+    };
+  let current = original,
+    inspected = 0;
+  const retained = new WeakMap<object, unknown>([
+    [
+      result,
+      {
+        deadline: performance.now() + 10000,
+        authorities_sha256: releaseCanonicalDigest(original),
+        inputs: { inspection: {} },
+      },
+    ],
+  ]);
+  const entry = runInNewContext(
+    stripTypeScriptTypes(body.replace(dependency, "authorityModule")) +
+      "\nrequireActualCoordinatorCatalogPreparation",
+    {
+      catalogPreparations: retained,
+      coordinatorContinuationDeadline,
+      withCoordinatorDeadline,
+      capacityDigest: releaseCanonicalDigest,
+      authorityModule: { requireControllerCatalogCoordinatorAuthorities: async () => current },
+      requireActualCatalogInspection: async () => {
+        inspected++;
+        throw new Error("controlled inspection boundary");
+      },
+    },
+  ) as (result: object) => Promise<unknown>;
+  await assert.rejects(entry(result), /controlled inspection boundary/);
+  current = { ...original, source: { ...original.source, grant_sha256: "c".repeat(64) } };
+  await assert.rejects(entry(result), /protected configuration changed/);
+  assert.equal(inspected, 1, "changed grant never reaches inspection or later effects");
+});
+
+void test("actual bootstrap source function preserves explicit setup branches and pre-tool publication/effect holds", async () => {
+  const source = await readFile(
+    new URL("./release-coordinator-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function prepareTrustedCoordinatorBootstrapAt(");
+  const end = source.indexOf(
+    "export async function requireActualCoordinatorBootstrapPreparation(",
+    start,
+  );
+  assert.ok(start > 0 && end > start);
+  let authorities: unknown,
+    calls = 0;
+  const entry = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end)) + "\nprepareTrustedCoordinatorBootstrapAt",
+    {
+      inspectPublishedMetadata: (value: unknown) => value,
+      coordinatorHasUnresolvedEffect: (input: { unresolved?: boolean }) =>
+        input.unresolved === true,
+      requireControllerApplicationCoordinatorPublicationAuthorities: async () => authorities,
+      inspectCoordinatorRemoteNamespace: () => "fixed",
+      receiveControllerTools: async () => {
+        calls++;
+        throw new Error("controlled inert tools boundary");
+      },
+    },
+  ) as (
+    directory: string,
+    selected: unknown,
+    recovered: unknown,
+    budget: unknown,
+  ) => Promise<unknown>;
+  const selected = { tools: { artifact: {}, bundle: {} }, remote_configuration: {} };
+  const recovered = { checkpoint: "retained", input: { published_metadata: null } };
+  const budget = { monotonicDeadline: performance.now() + 10000 };
+  for (const configuration of [
+    { schema_version: 2 },
+    { schema_version: 4, purpose: "application" },
+  ]) {
+    authorities = {
+      configuration,
+      namespace: "fixed",
+      publication: { public_source: { initial_site_preimage: {} } },
+    };
+    await assert.rejects(
+      entry("/inert", selected, recovered, budget),
+      /controlled inert tools boundary/,
+    );
+  }
+  assert.equal(calls, 2);
+  for (const configuration of [
+    { schema_version: 1 },
+    { schema_version: 3 },
+    { schema_version: 5 },
+    { schema_version: 4 },
+    { schema_version: 4, purpose: "catalog-publication" },
+  ]) {
+    authorities = {
+      configuration,
+      namespace: "fixed",
+      publication: { public_source: { initial_site_preimage: {} } },
+    };
+    await assert.rejects(entry("/inert", selected, recovered, budget), /explicit ratified/);
+  }
+  authorities = {
+    configuration: { schema_version: 4, purpose: "application" },
+    namespace: "fixed",
+    publication: { public_source: {} },
+  };
+  await assert.rejects(entry("/inert", selected, recovered, budget), /explicit ratified/);
+  const held = await entry(
+    "/inert",
+    selected,
+    { ...recovered, input: { unresolved: true } },
+    budget,
+  );
+  assert.equal((held as { decision: string }).decision, "held-bootstrap-unresolved-effect");
+  await assert.rejects(
+    entry(
+      "/inert",
+      selected,
+      { ...recovered, input: { published_metadata: { retained: true } } },
+      budget,
+    ),
+    /permanently closed/,
+  );
+  assert.equal(calls, 2, "holds and wrong setup branches never reach tools");
+});
 
 void test("initial bootstrap selection closes permanently on a real seed and never clears an existing effect", async () => {
   const { descriptor } = metadataBootstrapFixture();
@@ -711,7 +851,7 @@ void test("actual coordinator signing callgraph preserves initial0, original dea
   };
   const context = {
     selectCoordinatorCandidateSigningRecovery,
-    requireControllerReleaseAuthorities: async () => ({ namespace: "fixed" }),
+    requireControllerApplicationCoordinatorAuthorities: async () => ({ namespace: "fixed" }),
     inspectCoordinatorRemoteNamespace: () => "fixed",
     receiveControllerTools: async (...args: unknown[]) => {
       calls.push("tools");

@@ -28,7 +28,7 @@ import {
 import { continueActualCatalogPublication } from "./release-catalog-recovery.mts";
 import { completeCoordinatorCatalogSigningContext } from "./release-catalog-signing-context.mts";
 import {
-  requireControllerCatalogPublicationAuthorities,
+  requireControllerCatalogCoordinatorAuthorities,
   assertControllerCatalogPublisherScope,
 } from "./release-authority-configuration.mts";
 import {
@@ -77,10 +77,9 @@ import { collectReleaseSourceChanges } from "./release-source-changes.mts";
 import { createReleasePublicationReader } from "./release-publication-inventory.mts";
 import { createCoordinatorJournalApi } from "./release-coordinator-journal-api.mts";
 import {
-  readIndependentSemanticCheckInventory,
+  readIndependentCatalogSemanticCheckInventory,
   inspectCatalogSemanticRequestCheckMatches,
 } from "./release-semantic-disposition-reader.mts";
-import { semanticReviewCheckName } from "./release-semantic-review.mts";
 import { prepareControlReadiness, waitForControlArtifact } from "./release-control-handshake.mts";
 import { retainControlStepLocator } from "./release-control-step-bridge.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
@@ -252,7 +251,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
   return withCoordinatorDeadline(deadline, async () => {
     let stage = "actual-catalog-admission";
     try {
-      const authorities = await requireControllerCatalogPublicationAuthorities("coordinator");
+      const authorities = await requireControllerCatalogCoordinatorAuthorities();
       if (authorities.namespace !== selected.remote_configuration.namespace)
         throw new Error("catalog authority namespace differs");
       const workflow = await readProductionControllerWorkflowBytes(),
@@ -371,7 +370,11 @@ export async function runFixedCatalogCoordinatorConfiguration(
         }),
         inspection = await requireActualCatalogInspection(inspectionReceipt, deadline),
         files = await readCatalogPublicationBundle(inspection.bundle, deadline);
-      assertControllerCatalogPublisherScope(authorities, inspection.inspection, files);
+      assertControllerCatalogPublisherScope(
+        authorities.configuration,
+        inspection.inspection,
+        files,
+      );
       const pins = authorities.catalog.public_source,
         initialRaw = api.request("GET", `${repository}/git/commits/${pins.commit}`);
       if (initialRaw.status !== 200)
@@ -418,12 +421,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
         );
       if (pending) assertCatalogReviewRequestBaseline(pending, input);
       stage = "selected-independent-Check";
-      const producer = {
-        schema_version: 1,
-        review_app_id: authorities.apps.semantic.app_id,
-        writer_app_id: authorities.apps.classification.app_id,
-        review_check_name: semanticReviewCheckName,
-      };
+      const producer = authorities.semantic_producer;
       const request =
         pending ??
         createCatalogReviewRequest({
@@ -432,7 +430,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
           opportunity,
           core_inspection: core,
         });
-      const inventory = readIndependentSemanticCheckInventory(api, producer, sourceCommit),
+      const inventory = readIndependentCatalogSemanticCheckInventory(api, producer, sourceCommit),
         matches = inspectCatalogSemanticRequestCheckMatches(inventory.records, request);
       inventory.assertUnchanged();
       if (matches.negative.length && !pending)
@@ -580,7 +578,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
         throw new Error("catalog journal advanced before neutral request CAS");
       await requireActualCatalogInspection(inspectionReceipt, deadline);
       await verifiedControllerToolPaths(tools);
-      const current = await requireControllerCatalogPublicationAuthorities("coordinator");
+      const current = await requireControllerCatalogCoordinatorAuthorities();
       if (current.configuration_sha256 !== authorities.configuration_sha256)
         throw new Error("catalog authority changed before neutral request CAS");
       const environment = {

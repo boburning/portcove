@@ -6,6 +6,7 @@ import { inspectCatalogCoreReport } from "./release-catalog-publication-contract
 import {
   inspectReleaseControlPhase,
   releaseControlPhaseProfile,
+  semanticReviewCheckName,
 } from "./release-control-phases.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
 import { inspectInitialProofRisk706 } from "./linux-beta-risk-706-profile.mts";
@@ -529,6 +530,91 @@ export function requireFixedControllerJobSourceConfiguration(
     run_attempt: source.run_attempt,
   });
 }
+/** Inert coordinator inputs only. Retain the complete original configuration
+ * for publisher assertions; a view never supplies executor/control/key authority. */
+export function requireCoordinatorAuthorityConfiguration(
+  raw: unknown,
+  source: unknown,
+  purpose: "application" | "catalog-publication",
+) {
+  requireAdmittedProductionSource(
+    source,
+    releaseControlPhaseProfile("coordinator").reader_job,
+    purpose,
+  );
+  const admitted = source;
+  const binding = requireFixedControllerJobSourceConfiguration(
+    raw,
+    admitted,
+    "coordinator",
+    purpose,
+  );
+  const selected =
+    isRecord(raw) && (raw.schema_version === 4 || raw.kind === "two-app-fixed-jobs-v1");
+  if (selected) {
+    const { configuration } = inspectBoundSelectedPublicationAuthorities(raw, admitted, purpose);
+    const common = {
+      source: binding,
+      namespace: binding.namespace,
+      configuration_sha256: binding.authority_configuration_sha256,
+      dispatch_actor_id: binding.actor_id,
+      semantic_producer: {
+        schema_version: 2 as const,
+        purpose,
+        review_app_id: configuration.journal.apps.semantic.app_id,
+        review_check_name: semanticReviewCheckName,
+      },
+    };
+    return configuration.purpose === "application"
+      ? {
+          ...common,
+          purpose: configuration.purpose,
+          configuration,
+          publication: configuration.publication,
+        }
+      : {
+          ...common,
+          purpose: configuration.purpose,
+          configuration,
+          catalog: configuration.catalog,
+        };
+  }
+  if (purpose === "catalog-publication") {
+    const configuration = inspectBoundCatalogControllerAuthorities(raw, admitted);
+    return {
+      source: binding,
+      purpose,
+      namespace: configuration.namespace,
+      configuration_sha256: configuration.configuration_sha256,
+      dispatch_actor_id: configuration.apps.dispatch.actor_id,
+      configuration,
+      catalog: configuration.catalog,
+      semantic_producer: {
+        schema_version: 1 as const,
+        review_app_id: configuration.apps.semantic.app_id,
+        writer_app_id: configuration.apps.classification.app_id,
+        review_check_name: semanticReviewCheckName,
+      },
+    };
+  }
+  const configuration = inspectBoundControllerAuthorities(JSON.stringify(raw), admitted);
+  return {
+    source: binding,
+    purpose,
+    namespace: configuration.namespace,
+    configuration_sha256: binding.authority_configuration_sha256,
+    dispatch_actor_id: configuration.apps.dispatch.actor_id,
+    configuration,
+    publication: configuration.publication,
+    semantic_producer: {
+      schema_version: 1 as const,
+      review_app_id: configuration.apps.semantic.app_id,
+      writer_app_id: configuration.apps.classification.app_id,
+      review_check_name: semanticReviewCheckName,
+    },
+  };
+}
+
 /** Local routing-byte linkage only, never an imported grant or executor. The
  * caller must supply its freshly validated original full source binding. */
 export function fixedControllerConfigurationSource(

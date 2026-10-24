@@ -26,12 +26,13 @@ import {
   inspectBoundCatalogControllerAuthorities,
   inspectNativePrepublicationAuthorities,
   requireFixedControllerJobSourceConfiguration,
+  requireCoordinatorAuthorityConfiguration,
 } from "./release-authority-configuration-contract.mts";
 export * from "./release-authority-configuration-contract.mts";
 
 /** Source-bound entry routing, not an executor/control/signing capability. The
  * catalog path retains its existing actual named OIDC check before routing. */
-export async function requireControllerJobSourceConfiguration(rawPhase: unknown) {
+async function readControllerJobSourceConfiguration(rawPhase: unknown) {
   const environment = { ...process.env };
   const purpose = inspectControllerExecutionPurpose(environment.PORTCOVE_EXECUTION_PURPOSE);
   const phase = inspectReleaseControlPhase(rawPhase);
@@ -87,7 +88,38 @@ export async function requireControllerJobSourceConfiguration(rawPhase: unknown)
   recheck();
   if (performance.now() >= deadline)
     throw new Error("fixed job source original collection deadline exhausted");
+  return { binding, recheck, configuration, source };
+}
+export async function requireControllerJobSourceConfiguration(rawPhase: unknown) {
+  const { binding, recheck } = await readControllerJobSourceConfiguration(rawPhase);
   return { binding, recheck };
+}
+async function readControllerCoordinatorAuthorityConfiguration() {
+  const captured = await readControllerJobSourceConfiguration("coordinator");
+  const view = requireCoordinatorAuthorityConfiguration(
+    captured.configuration,
+    captured.source,
+    captured.binding.purpose,
+  );
+  captured.recheck();
+  return view;
+}
+/** Full source-bound coordinator inputs, not an executor or key capability. */
+export async function requireControllerApplicationCoordinatorAuthorities() {
+  const view = await readControllerCoordinatorAuthorityConfiguration();
+  if (view.purpose !== "application") throw new Error("application coordinator source required");
+  return view;
+}
+export async function requireControllerApplicationCoordinatorPublicationAuthorities() {
+  const view = await requireControllerApplicationCoordinatorAuthorities();
+  if (!view.publication) throw new Error("complete coordinator public setup pins required");
+  return { ...view, publication: view.publication };
+}
+export async function requireControllerCatalogCoordinatorAuthorities() {
+  const view = await readControllerCoordinatorAuthorityConfiguration();
+  if (view.purpose !== "catalog-publication")
+    throw new Error("catalog coordinator source required");
+  return view;
 }
 /** Actual source-bound role reader. The existing OIDC executor must separately
  * match this source; token availability and environment claims alone grant no
