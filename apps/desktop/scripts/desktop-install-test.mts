@@ -166,6 +166,26 @@ function assertStagedActionPlacement(layout: ReturnType<typeof readStagedLayout>
   assert.ok(play.bottom <= panel.top + 1, message);
 }
 
+export async function selectInstallTheme(browser: WebDriver, theme: "dark" | "light") {
+  await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+  await browser
+    .findElement(
+      By.css('nav[aria-label="Settings categories"] button[aria-controls="settings-appearance"]'),
+    )
+    .click();
+  await browser
+    .findElement(
+      By.xpath(
+        `//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`,
+      ),
+    )
+    .click();
+  assert.equal(
+    await executeBrowserScript(browser, () => document.documentElement.dataset.theme),
+    theme,
+  );
+}
+
 export async function installScenarios({
   browser,
   invoke,
@@ -181,14 +201,6 @@ export async function installScenarios({
   const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
   const buttonStarting = (label: string) =>
     By.xpath(`//button[starts-with(normalize-space(.),"${label}")]`);
-  const selectTheme = async (theme: string) => {
-    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
-    await browser.findElement(button(theme === "dark" ? "Dark" : "Light")).click();
-    assert.equal(
-      await executeBrowserScript(browser, () => document.documentElement.dataset.theme),
-      theme,
-    );
-  };
   const openFixture = async (port: FixturePort, installed = false) => {
     await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
     const search = await browser.findElement(By.id("port-search"));
@@ -637,8 +649,8 @@ export async function installScenarios({
     const originalWindow = await browser.manage().window().getRect();
     const layouts = [];
     try {
-      for (const theme of ["dark", "light"]) {
-        await selectTheme(theme);
+      for (const theme of ["dark", "light"] as const) {
+        await selectInstallTheme(browser, theme);
         await openFixture(port, true);
         for (const { width, height } of [
           { width: 960, height: 640 },
