@@ -82,7 +82,9 @@ fn cancelled_runtime_materialization_preserves_original_and_previous_output() {
                 .unwrap()
                 .map(|entry| entry.unwrap())
                 .filter(|entry| entry.path() != destination && entry.path() != marker)
-                .map(|entry| entry.metadata().unwrap().len())
+                // Directory-entry sizes can stay stale on Windows while the
+                // writer is open. Observe the copied bytes with a fresh handle.
+                .map(|entry| std::fs::read(entry.path()).unwrap().len() as u64)
                 .sum::<u64>()
         };
         let cancelled_after = std::cell::Cell::new(0_u64);
@@ -149,19 +151,22 @@ fn failed_runtime_copy_removes_staging_and_preserves_previous_bytes() {
     let destination = temporary.path().join("game.iso");
     std::fs::write(&destination, b"previous bytes").unwrap();
     let reader = std::io::Cursor::new(vec![0x55; 256 * 1024]).chain(FailedReader);
-    let observed_progress = std::cell::Cell::new(false);
-    let error = copy_runtime_reader(reader, &destination, 1024 * 1024, &|| {
-        if std::fs::read_dir(temporary.path()).unwrap().any(|entry| {
-            let entry = entry.unwrap();
-            entry.path() != destination && entry.metadata().unwrap().len() > 0
-        }) {
-            observed_progress.set(true);
-        }
+    let expected_size = 1024 * 1024;
+    let observed_progress = std::cell::Cell::new(0_u64);
+    let error = copy_runtime_reader(reader, &destination, expected_size, &|| {
+        let copied = std::fs::read_dir(temporary.path())
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path != &destination)
+            .map(|path| std::fs::read(path).unwrap().len() as u64)
+            .sum::<u64>();
+        observed_progress.set(observed_progress.get().max(copied));
         Ok(())
     })
     .unwrap_err();
     assert!(error.message.contains("injected source read failure"));
-    assert!(observed_progress.get());
+    assert!(observed_progress.get() > 0);
+    assert!(observed_progress.get() < expected_size);
     assert_eq!(std::fs::read(&destination).unwrap(), b"previous bytes");
     assert_eq!(std::fs::read_dir(temporary.path()).unwrap().count(), 1);
 }
