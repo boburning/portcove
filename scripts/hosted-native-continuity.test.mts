@@ -6,6 +6,11 @@ import os from "node:os";
 import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
 import test from "node:test";
+import { runPythonSuite } from "./python-test-results.mts";
+
+void test("hosted Linux readiness preserves original-generation recovery and refusal outcomes", (context) => {
+  runPythonSuite(new URL("./qualify-hosted-native-linux.test.py", import.meta.url), context, 30000);
+});
 
 const script = fileURLToPath(new URL("./rehearse-updater-artifacts.ps1", import.meta.url));
 function describe(workflow: string, caller: string) {
