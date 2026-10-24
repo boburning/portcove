@@ -35,8 +35,9 @@ void test("qualification inventory is nonzero and exactly covers exhaustive jobs
   );
 });
 
-void test("macOS qualification recognizes only the maintained native keyboard input routes", () => {
+void test("macOS qualification recognizes only the maintained portability input routes", () => {
   for (const file of [
+    "apps/desktop/scripts/browser-runtime.mts",
     "pnpm-workspace.yaml",
     "apps/desktop/src/browser/display-recovery.browser.test.tsx",
     "apps/desktop/src/browser/compact-navigation.browser.test.tsx",
