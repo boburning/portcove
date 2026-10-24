@@ -1078,13 +1078,51 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let helper = build_probe(temporary.path());
         let orphan_marker = temporary.path().join("orphan-marker");
-        let result = probe_definition(
+        let identities = std::cell::RefCell::new(None);
+        let result = probe_definition_with_cancellation(
             &test_definition(&["--tree", orphan_marker.to_str().unwrap()]),
             &helper,
             || {},
+            || {
+                if identities.borrow().is_none() && orphan_marker.with_extension("ready").is_file()
+                {
+                    // Observation failure must still return through normal tree
+                    // termination and drain before any assertion can panic.
+                    *identities.borrow_mut() = Some((|| {
+                        let text = fs::read_to_string(orphan_marker.with_extension("pids"))
+                            .map_err(|error| error.to_string())?;
+                        text.lines()
+                            .map(|line| {
+                                let pid = line.parse::<u32>().map_err(|error| error.to_string())?;
+                                let identity = crate::launch::process_identity(pid)
+                                    .map_err(|error| error.to_string())?
+                                    .ok_or_else(|| {
+                                        format!("fixture process {pid} exited before observation")
+                                    })?;
+                                Ok::<_, String>((pid, identity))
+                            })
+                            .collect::<std::result::Result<Vec<_>, String>>()
+                    })());
+                }
+                false
+            },
         );
         assert_eq!(result.state, HostToolProbeState::TimedOut);
-        thread::sleep(Duration::from_millis(1_100));
+        let identities = identities
+            .into_inner()
+            .expect("fixture readiness was observed")
+            .expect("root and descendant identities were captured before normal termination");
+        assert_eq!(
+            identities.len(),
+            2,
+            "the fixture observed its root and descendant"
+        );
+        for (pid, identity) in identities {
+            assert!(
+                !crate::launch::process_matches(pid, &identity).unwrap(),
+                "owned fixture process {pid} survived probe termination"
+            );
+        }
         assert!(!orphan_marker.exists());
     }
 
