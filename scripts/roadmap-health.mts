@@ -231,7 +231,7 @@ function diagnosticDetails(report: Record<string, unknown>) {
       // Markdown, and use the existing credential redactor before publishing it.
       `- ${sanitizeOperationError({ message })
         .message.replace(/[\r\n]+/gu, " ")
-        .replace(/[\\`*_{}\[\]()<>#!|@]/gu, "\\$&")}`,
+        .replace(/[\\`*_{}[\]()<>#!|@]/gu, "\\$&")}`,
   );
   const provider = isRecord(diagnosis.provider) ? diagnosis.provider : {};
   const rate = isRecord(provider.rate) ? provider.rate : {};
