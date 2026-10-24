@@ -8116,9 +8116,8 @@
       "summary": "Explore Descent 3 / Piccu Engine (InsanityBringer) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/InsanityBringer/PiccuEngine",
       "issue_number": 1868,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/InsanityBringer/PiccuEngine",
+      "availability": "packages",
+      "setup_url": "https://github.com/InsanityBringer/PiccuEngine/blob/v1.3.0-proto4/docs/readme.md",
       "artwork": {
         "game_id": 667,
         "cover_id": 426373,
@@ -8126,7 +8125,41 @@
         "image_sha256": "1ae44bba5a1cebee260ad49072657ac765ba4d92b5a78b63e918caf9164d1117",
         "game_slug": "descent-3",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Descent 3",
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "PiccuEngine-",
+          "-win32.zip"
+        ]
+      },
+      "release_url": "https://github.com/InsanityBringer/PiccuEngine/releases/tag/v1.3.0-proto4",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Add your own Descent 3 data before Play",
+            "instruction": "Before Play, open the new runtime folder and copy only the original data from your own patched Descent 3 1.4 installation: d3.hog, extra.hog, extra13.hog, and missions/d3.mn3, d3_2.mn3, d3voice1.hog, d3voice2.hog and training.mn3. Keep the old installation intact. Add merc.hog and missions/merc.mn3 only if you own Mercenary; the upstream also recognizes the Steam extra1.hog expansion layout. For multiplayer, follow the packaged README for your own netgames directory and missions/Fury.mn3 and bedlam.mn3; movies are optional. Do not copy old top-level executables or DLLs over this runtime. Then choose Play. This ZIP has no installer; Portcove does not verify a retail-edition checksum for this upstream setup route."
+          },
+          {
+            "title": "Keep a separate backup of your Saved Games profile",
+            "instruction": "Normal saves, pilots, demos, screenshots and temporary scripts use Windows Saved Games/Piccu Engine. The SDL configuration is Saved Games/Piccu Engine/PiccuEngine.registry, including when portable mode is used. Back up that external profile separately before changing runtime versions; older versions may not read newer data. Keep your original HOG files, missions, netgames and movies available separately too."
+          },
+          {
+            "title": "Keep customized copies separate",
+            "instruction": "Adding piccu_portable, custom -setdir/-tempdir arguments or failure to resolve Saved Games can place player data and generated DLL caches in the runtime folder. An early startup crash can also leave a dump beside the player. Close the game and preserve your actual player-data locations before changing a customized copy. Do not copy generated script caches into another engine version; follow upstream instructions when changing storage modes."
+          },
+          {
+            "title": "Choose this Preview deliberately",
+            "instruction": "This optional Windows Preview is the upstream SDL prototype, with fixes for pilot-control loading and input issues. Some settings do not import from older Piccu versions, and switching fullscreen/windowed can show a stray cursor. The stable v1.2.2 upstream copy remains available through the release list or an existing installation; it has separate known control issues. The player is Win32 and can run on 64-bit Windows through Windows compatibility support. Other platforms, gameplay, minimum Windows versions and populated-save restoration are not qualified here."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/InsanityBringer/PiccuEngine/blob/v1.3.0-proto4/docs/readme.md"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "interkarma-daggerfall-unity",
@@ -9794,9 +9827,39 @@
       "summary": "Explore Command & Conquer: Red Alert, Tiberian Dawn & Dune 2000 / OpenRA (OpenRA) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/OpenRA/OpenRA",
       "issue_number": 1852,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/OpenRA/OpenRA"
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64",
+        "macos-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/OpenRA/OpenRA/blob/release-20250330/INSTALL.md",
+      "release_url": "https://github.com/OpenRA/OpenRA/releases/tag/release-20250330",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "OpenRA-",
+          "-x64-winportable.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose the game you want to play",
+            "instruction": "For 64-bit Windows, use the official stable portable ZIP in a separate folder. It contains three different players: RedAlert.exe for Red Alert, TiberianDawn.exe for Tiberian Dawn, and Dune2000.exe for Dune 2000. Choose that game executable when finishing setup; OpenRA.Server and OpenRA.Utility are not the normal players. Portcove leaves this choice to you and does not run a discovered helper. Alternatively use the upstream Windows installer, the game-specific Linux AppImage, or the macOS disk image, then register the prepared player. An AppImage or disk image needs its own upstream platform instructions, not ZIP extraction."
+          },
+          {
+            "title": "Let your chosen game finish its own content setup",
+            "instruction": "Choose Play explicitly, then follow that player’s content installation screen. It can offer upstream downloads or import from your own original game media; available content differs between Red Alert, Tiberian Dawn and Dune 2000. Portcove does not run these content tools during discovery or supply original media."
+          },
+          {
+            "title": "Keep the OpenRA profile and current copy",
+            "instruction": "Updates come from OpenRA. Install a new release separately and keep your current copy usable while checking it; stable releases and playtests are different choices. Saves, settings, downloaded content, maps, replays and screenshots normally use %APPDATA%/OpenRA on Windows, ~/.config/openra on Linux, or ~/Library/Application Support/OpenRA on macOS. An existing legacy profile may be reused. A Support directory beside the engine, or an explicit support-directory setting, changes this location. Back up the profile you actually use separately; Portcove does not manage this runtime or promise Backup/Rollback for it. An older engine may not read newer saves/mods. Custom mods use their own matching engine/runtime instructions."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/OpenRA/OpenRA/blob/release-20250330/INSTALL.md"
+      }
     },
     {
       "id": "openrct2-openrct2",

@@ -6,8 +6,30 @@
     "summary": "Explore Command & Conquer: Red Alert, Tiberian Dawn & Dune 2000 / OpenRA (OpenRA) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/OpenRA/OpenRA",
     "issue_number": 1852,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/OpenRA/OpenRA"
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64", "macos-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/OpenRA/OpenRA/blob/release-20250330/INSTALL.md",
+    "release_url": "https://github.com/OpenRA/OpenRA/releases/tag/release-20250330",
+    "download_asset_hints": {
+      "windows-x86-64": ["OpenRA-", "-x64-winportable.zip"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose the game you want to play",
+          "instruction": "For 64-bit Windows, use the official stable portable ZIP in a separate folder. It contains three different players: RedAlert.exe for Red Alert, TiberianDawn.exe for Tiberian Dawn, and Dune2000.exe for Dune 2000. Choose that game executable when finishing setup; OpenRA.Server and OpenRA.Utility are not the normal players. Portcove leaves this choice to you and does not run a discovered helper. Alternatively use the upstream Windows installer, the game-specific Linux AppImage, or the macOS disk image, then register the prepared player. An AppImage or disk image needs its own upstream platform instructions, not ZIP extraction."
+        },
+        {
+          "title": "Let your chosen game finish its own content setup",
+          "instruction": "Choose Play explicitly, then follow that player’s content installation screen. It can offer upstream downloads or import from your own original game media; available content differs between Red Alert, Tiberian Dawn and Dune 2000. Portcove does not run these content tools during discovery or supply original media."
+        },
+        {
+          "title": "Keep the OpenRA profile and current copy",
+          "instruction": "Updates come from OpenRA. Install a new release separately and keep your current copy usable while checking it; stable releases and playtests are different choices. Saves, settings, downloaded content, maps, replays and screenshots normally use %APPDATA%/OpenRA on Windows, ~/.config/openra on Linux, or ~/Library/Application Support/OpenRA on macOS. An existing legacy profile may be reused. A Support directory beside the engine, or an explicit support-directory setting, changes this location. Back up the profile you actually use separately; Portcove does not manage this runtime or promise Backup/Rollback for it. An older engine may not read newer saves/mods. Custom mods use their own matching engine/runtime instructions."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/OpenRA/OpenRA/blob/release-20250330/INSTALL.md"
+    }
   }
 }
