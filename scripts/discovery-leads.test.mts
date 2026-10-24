@@ -26,6 +26,86 @@ const page = (items: ReturnType<typeof item>[], total_count = items.length) => (
   incomplete_results: false,
   items,
 });
+for (const driftingFamilies of [1, 2, 4])
+  void test(`${driftingFamilies} drifting search families cannot starve healthy searches and rotation`, (t) => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "discovery-drift-"));
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
+    const budget = new DiscoveryBudget("ordinary");
+    let leads = parseLeadState(undefined);
+    for (let family = 0; family < driftingFamilies; family++) {
+      leads.next_family = family;
+      leads = acceptLeadPage(
+        leads,
+        nextLeadPage(leads, now),
+        page(
+          Array.from({ length: 50 }, (_, i) => item(i + 1)),
+          51,
+        ),
+        now,
+        "previous-page.json",
+      );
+    }
+    leads.next_family = 0;
+    const requests: string[] = [];
+    Object.assign(session, {
+      stateDir: root,
+      runDir: root,
+      journalFile: path.join(root, "journal.json"),
+      checkpoint: {},
+      checkpointPreimage: "fixture",
+      inventory: { issues: [] },
+      journal: { format: 1, started_at: now, notes: [], candidates: {}, evidence: {} },
+      leads,
+      budget,
+      leadPages: 0,
+      searches: 0,
+      leadCollectionAttempted: false,
+      researchedLeads: new Set<number>(),
+      source: {
+        api: {
+          request: (_method: string, endpoint: string) => {
+            budget.charge("GET", endpoint, 1, 100, "200");
+            if (endpoint.includes("/releases?")) return { body: [] };
+            requests.push(endpoint);
+            return {
+              body:
+                requests.length <= driftingFamilies
+                  ? page([item(99 + requests.length)], 52)
+                  : page([]),
+            };
+          },
+        },
+      },
+    });
+    session.discover();
+    assert.equal(requests.length, 4, "attempt all four independent families once");
+    assert.equal(
+      requests.filter((r) => decodeURIComponent(r).includes("recompiled in:")).length,
+      1,
+      "never retry the drifting family in this session",
+    );
+    assert.equal(session.leadPages, 4 - driftingFamilies, "refused page is not validated coverage");
+    assert.equal(session.leads.slices["new-recompiled"]?.page, 1);
+    assert.equal(session.leads.slices["new-recompiled"]?.completed_at, undefined);
+    assert.equal(session.leads.records["1"]?.id, 1, "prior lead survives discarded pagination");
+    assert.equal(
+      session.leads.records["100"]?.id,
+      100,
+      "validated identities on drift page survive",
+    );
+    assert.equal(session.leadWorkComplete(), false, "research protection remains");
+    session.researchedLeads.add(1);
+    session.researchedLeads.add(2);
+    assert.equal(
+      session.leadWorkComplete(),
+      true,
+      "bounded partial search effort permits rotation",
+    );
+    const calls = requests.length;
+    session.discover();
+    assert.equal(requests.length, calls, "repeat discover does not retry any page");
+  });
 void test("Brawl missed by newest-ten remains discoverable and queued across paginated runs", () => {
   let state = parseLeadState(undefined);
   const first = nextLeadPage(state, now);
@@ -94,6 +174,24 @@ void test("failed, truncated, drifting and duplicate search pages preserve the l
     /count changed/,
   );
   assert.equal(next.slices[plan.family]?.page, 2);
+  assert.throws(
+    () =>
+      acceptLeadPage(next, nextLeadPage(next, now), page([item(100), item(100)], 52), now, "bad"),
+    /Duplicate or malformed lead identity/,
+    "count drift must not mask fatal page identity errors",
+  );
+  assert.throws(
+    () =>
+      acceptLeadPage(
+        next,
+        nextLeadPage(next, now),
+        page([item(1, "foreign/renamed")], 52),
+        now,
+        "bad",
+      ),
+    /relocation needs continuity/,
+    "count drift must not mask a provider identity relocation",
+  );
 });
 void test("query overlap deduplicates provider identities, preserves disposition and refuses relocation", () => {
   let state = parseLeadState(undefined);
@@ -356,6 +454,8 @@ void test("runner charges complementary pages, guards rotation and retains queue
   constrained.reserveDelivery(190, 1024);
   Object.assign(session, {
     budget: constrained,
+    leadFamilies: new Set(),
+    deferredLeadFamilies: new Set(),
     searches: 0,
     leadCollectionAttempted: false,
     leadPages: 0,

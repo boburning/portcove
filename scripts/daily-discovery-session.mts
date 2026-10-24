@@ -258,6 +258,8 @@ export class DiscoverySession {
   readonly head: string;
   leads: LeadState;
   leadPages = 0;
+  leadFamilies = new Set<string>();
+  deferredLeadFamilies = new Set<string>();
   researchedLeads = new Set<number>();
   leadCollectionAttempted = false;
   constructor(
@@ -665,6 +667,8 @@ export class DiscoverySession {
     const pending = this.inventory ? pendingLeads(this.leads, this.knownLeadUrls()) : undefined;
     return {
       searched_pages: this.leadPages,
+      observed_families: [...(this.leadFamilies ?? [])],
+      deferred_families: [...(this.deferredLeadFamilies ?? [])],
       investigated: [...this.researchedLeads],
       canonical_overlap: this.inventory ? "observed" : "unknown",
       pending: pending?.length ?? null,
@@ -676,13 +680,21 @@ export class DiscoverySession {
   discover() {
     if (this.leadCollectionAttempted) return this.leadSummary();
     this.leadCollectionAttempted = true;
+    this.leadFamilies ??= new Set();
+    this.deferredLeadFamilies ??= new Set();
     for (let turn = 0; turn < 6 && this.searches < 6; turn++) {
       const plan = nextLeadPage(this.leads, this.journal.started_at);
+      if (this.deferredLeadFamilies.has(plan.family)) {
+        this.leads.next_family = (this.leads.next_family + 1) % 4;
+        continue;
+      }
       if (plan.current) {
+        this.leadFamilies.add(plan.family);
         this.leads.next_family = (this.leads.next_family + 1) % 4;
         continue;
       }
       if (plan.capped) {
+        this.leadFamilies.add(plan.family);
         this.journal.notes.push({
           phase: "lead-search",
           status: "capped",
@@ -721,7 +733,17 @@ export class DiscoverySession {
         );
       } catch (error) {
         if (!(error instanceof LeadSearchChanged)) throw error;
+        // Keep independently validated positive identities, never the refused pagination.
+        this.leads = retainLeadResults(
+          this.leads,
+          object(response.body).items as unknown[],
+          this.journal.started_at,
+          path.join(this.runDir, `${name}.json`),
+        );
         this.leads = restartLeadSlice(this.leads, plan, errorMessage(error));
+        this.leadFamilies.add(plan.family);
+        this.deferredLeadFamilies.add(plan.family);
+        this.leads.next_family = (this.leads.next_family + 1) % 4;
         this.journal.notes.push({
           phase: "lead-search",
           status: "partial",
@@ -733,8 +755,9 @@ export class DiscoverySession {
             "Discard failed pagination and recollect this fixed slice on a later admitted run; no same-run retry",
         });
         this.persist();
-        break;
+        continue;
       }
+      this.leadFamilies.add(plan.family);
       this.leadPages++;
       this.persist();
     }
@@ -1294,7 +1317,10 @@ export class DiscoverySession {
       2,
       new Set([...pending.map((r) => r.id), ...this.researchedLeads]).size,
     );
-    return this.leadPages >= 4 && this.researchedLeads.size >= required;
+    return (
+      (this.leadPages >= 4 || this.leadFamilies?.size === 4) &&
+      this.researchedLeads.size >= required
+    );
   }
   async apply() {
     const candidates = Object.values(this.journal.candidates)
