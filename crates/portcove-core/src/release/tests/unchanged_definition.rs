@@ -581,7 +581,7 @@ async fn unchanged_psx_rules_follow_successors_for_every_converted_platform_scop
         successor
             .require_selection(port, platform, ReleaseChannel::Stable)
             .unwrap();
-        assert_eq!(successor.release.version, "999.123.456");
+        assert_eq!(successor.release.version, "v999.123.456");
         assert_eq!(successor.release.asset.name, new_name, "{id}: {platform:?}");
         assert_eq!(successor.release.asset.sha256, "b".repeat(64));
         let fresh = GithubReleaseProvider::with_api_root(root)
