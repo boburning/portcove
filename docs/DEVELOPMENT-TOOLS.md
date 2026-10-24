@@ -819,7 +819,7 @@ duration and bounded failure details; `Rust test execution inventory:` records
 separate the selected listing, selected identities, executed cases, ignored
 classifications and missing results. Complete workspace discovery remains with
 the selecting caller. Ignored declarations have no measured case duration or
-available declaration text; start records and cumulative suite chunks do not
+available declaration text; start records and repeated suite chunks do not
 count as executions. A successful native exit with missing, duplicate,
 contradictory or malformed results fails the join. An original failing status
 or process error remains primary. Native JSON is bounded to32MiB and selections

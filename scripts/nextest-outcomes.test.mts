@@ -94,6 +94,71 @@ void test("captured pinned nextest chunks count one terminal pass separately fro
   assert.match(result.ignored_reason, /declaration text unavailable/u);
 });
 
+function splitIgnoredChunks() {
+  const original = records(),
+    start = original[0]!,
+    summary = original.at(-1)!;
+  const ignoredStart = original[1]!,
+    passedStart = original[4]!,
+    passed = original[5]!;
+  const failingStart = {
+    ...passedStart,
+    name: String(passedStart.name).replace(/\$passed$/u, "$failing"),
+  };
+  const failing = { ...passed, name: String(passed.name).replace(/\$passed$/u, "$failing") };
+  return [
+    { ...start, test_count: 3 },
+    ignoredStart,
+    passedStart,
+    failingStart,
+    { ...ignoredStart, event: "ignored" },
+    passed,
+    summary,
+    { ...start, test_count: 3 },
+    failing,
+    summary,
+  ];
+}
+
+void test("pinned ignored outcomes and repeated binary chunks join local counts without double-counting ignores", () => {
+  const selection = nextestOutcomeSelection(
+    inventory(),
+    new Set([identity("passed"), identity("failing")]),
+  );
+  const result = parseNextestOutcomes(encode(splitIgnoredChunks()), selection);
+  assert.equal(result.complete, true, result.errors.join("; "));
+  assert.equal(result.executed.length, 2);
+  assert.deepEqual(result.ignored, [identity("ignored")]);
+  assert.deepEqual(result.missing, []);
+  // A pair of wrong chunk counts must not cancel into a plausible grand total.
+  const contradictory = splitIgnoredChunks();
+  contradictory[6] = { ...contradictory[6], passed: 0 };
+  contradictory[9] = { ...contradictory[9], passed: 2 };
+  const refused = parseNextestOutcomes(encode(contradictory), selection);
+  assert.equal(refused.complete, false);
+  assert.ok(refused.errors.some((error) => error.includes("chunk outcomes")));
+});
+
+void test("ignored terminals remain classifications and cannot invent or duplicate execution", () => {
+  for (const alter of [
+    (events: Record<string, unknown>[]) => events.splice(4, 0, events[4]!),
+    (events: Record<string, unknown>[]) => events.splice(1, 0, events[1]!),
+    (events: Record<string, unknown>[]) => {
+      events[4] = { ...events[4], name: `${packageName}::portcove_nextest_protocol$passed` };
+    },
+    (events: Record<string, unknown>[]) => events.splice(1, 1),
+  ]) {
+    const events = splitIgnoredChunks();
+    alter(events);
+    const result = parseNextestOutcomes(
+      encode(events),
+      nextestOutcomeSelection(inventory(), new Set([identity("passed"), identity("failing")])),
+    );
+    assert.equal(result.complete, false);
+    assert.equal(result.executed.length, 2);
+  }
+});
+
 void test("captured failed nextest outcomes retain identity, duration and original panic output", () => {
   const result = parseNextestOutcomes(fixture("failing.jsonl"), selected("failing"));
   assert.equal(result.complete, true, result.errors.join("; "));
@@ -102,6 +167,24 @@ void test("captured failed nextest outcomes retain identity, duration and origin
   assert.equal(result.executed[0]!.identity, identity("failing"));
   assert.match(result.executed[0]!.failure!, /protocol-primary-failure/u);
   assert.equal(result.executed[0]!.failure_truncated, false);
+});
+
+void test("pinned timeout-shaped failures retain a bounded native reason without inventing panic output", () => {
+  const events = records("failing");
+  const timeout = events.find((event) => event.type === "test" && event.event === "failed")!;
+  delete timeout.stdout;
+  timeout.reason = "time limit exceeded";
+  const parsed = parseNextestOutcomes(encode(events), selected("failing"));
+  assert.equal(parsed.complete, true, parsed.errors.join("; "));
+  assert.equal(parsed.executed[0]!.outcome, "failed");
+  assert.equal(parsed.executed[0]!.failure, "time limit exceeded");
+  assert.equal(parsed.executed[0]!.failure_raw_source, "original nextest JSON stdout");
+  timeout.reason = "x".repeat(20_000);
+  const bounded = parseNextestOutcomes(encode(events), selected("failing"));
+  assert.equal(bounded.executed[0]!.failure!.length, 16_384);
+  assert.equal(bounded.executed[0]!.failure_truncated, true);
+  timeout.reason = { unexpected: true };
+  assert.equal(parseNextestOutcomes(encode(events), selected("failing")).complete, false);
 });
 
 void test("ignored-only native records cannot establish execution of the selected active case", () => {

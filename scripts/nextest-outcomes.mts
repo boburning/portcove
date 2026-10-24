@@ -90,13 +90,15 @@ export function parseNextestOutcomes(
   >();
   const started = new Set<string>();
   const ignored = new Set<string>();
+  const ignoredTerminals = new Set<string>();
   const summaries = new Map<
     string,
     { passed: number; failed: number; ignored: number; measured: number }
   >();
   const startCounts = new Map<string, number>();
   const owners = new Map<string, string>();
-  let active: { key: string; binary: BinarySelection } | null = null;
+  let active: { key: string; binary: BinarySelection; passed: number; failed: number } | null =
+    null;
   if (Buffer.byteLength(text) > maximumBytes) error("Nextest result stream exceeds 32 MiB");
   else
     for (const line of text.split(/\r?\n/u)) {
@@ -131,7 +133,7 @@ export function parseNextestOutcomes(
               error("Nextest suite start count changed between chunks");
             startCounts.set(key, event.test_count);
           }
-          active = { key, binary };
+          active = { key, binary, passed: 0, failed: 0 };
         } else if (event.event === "ok" || event.event === "failed") {
           if (
             active?.key !== key ||
@@ -145,16 +147,19 @@ export function parseNextestOutcomes(
             error("Malformed nextest terminal suite summary");
           else {
             const previous = summaries.get(key);
+            // Pinned 0.9.100 can finalize and recreate one binary's reporter while
+            // ignored cases are arriving. Passed/failed are local to each block;
+            // ignored and the start count describe the entire selected binary.
             if (
-              previous &&
-              (event.passed < previous.passed ||
-                event.failed < previous.failed ||
-                event.ignored < previous.ignored)
+              event.passed !== active.passed ||
+              event.failed !== active.failed ||
+              event.measured !== 0 ||
+              (previous && previous.ignored !== event.ignored)
             )
-              error("Nextest cumulative suite counts moved backwards");
+              error("Nextest terminal counts differ from their chunk outcomes");
             summaries.set(key, {
-              passed: event.passed,
-              failed: event.failed,
+              passed: (previous?.passed ?? 0) + event.passed,
+              failed: (previous?.failed ?? 0) + event.failed,
               ignored: event.ignored,
               measured: event.measured,
             });
@@ -174,12 +179,21 @@ export function parseNextestOutcomes(
       }
       owners.set(entry.identity, active.key);
       if (event.event === "started") {
-        if (entry.ignored && !entry.selected) ignored.add(entry.identity);
-        else if (!entry.selected) error("Unselected nextest test started");
+        if (entry.ignored && !entry.selected) {
+          if (ignored.has(entry.identity)) error("Duplicate nextest ignored start");
+          ignored.add(entry.identity);
+        } else if (!entry.selected) error("Unselected nextest test started");
         else {
           if (started.has(entry.identity)) error("Duplicate nextest test start");
           started.add(entry.identity);
         }
+        continue;
+      }
+      if (event.event === "ignored") {
+        if (!entry.ignored || entry.selected || !ignored.has(entry.identity))
+          error("Nextest ignored outcome lacks its discovered ignored start");
+        else if (ignoredTerminals.has(entry.identity)) error("Duplicate nextest ignored outcome");
+        else ignoredTerminals.add(entry.identity);
         continue;
       }
       if (event.event !== "ok" && event.event !== "failed") {
@@ -194,12 +208,21 @@ export function parseNextestOutcomes(
         error("Duplicate nextest terminal outcome");
         continue;
       }
-      if (event.stdout !== undefined && typeof event.stdout !== "string") {
+      if (
+        (event.stdout !== undefined && typeof event.stdout !== "string") ||
+        (event.reason !== undefined && typeof event.reason !== "string")
+      ) {
         error("Malformed nextest failure output");
         continue;
       }
       const failure =
-        event.event === "failed" && typeof event.stdout === "string" ? event.stdout : null;
+        event.event !== "failed"
+          ? null
+          : typeof event.reason === "string"
+            ? event.reason + (typeof event.stdout === "string" ? "\n" + event.stdout : "")
+            : typeof event.stdout === "string"
+              ? event.stdout
+              : null;
       outcomes.set(entry.identity, {
         identity: entry.identity,
         outcome: event.event === "ok" ? "passed" : "failed",
@@ -208,6 +231,8 @@ export function parseNextestOutcomes(
         failure_truncated: (failure?.length ?? 0) > 16_384,
         failure_raw_source: failure === null ? null : "original nextest JSON stdout",
       });
+      if (event.event === "ok") active.passed++;
+      else active.failed++;
     }
   if (active) error("Nextest result stream ended before a terminal suite summary");
   const missing = [...selection.selected].filter((id) => !outcomes.has(id));
@@ -215,6 +240,8 @@ export function parseNextestOutcomes(
   for (const [key, binary] of selection.binaries) {
     const cases = [...outcomes.values()].filter((entry) => owners.get(entry.identity) === key);
     const skipped = [...ignored].filter((id) => owners.get(id) === key).length;
+    const discoveredIgnored = [...binary.cases.values()].filter((entry) => entry.ignored).length;
+    const selectedCount = [...binary.cases.values()].filter((entry) => entry.selected).length;
     const expected = [...binary.cases.values()].some((entry) => entry.selected);
     const summary = summaries.get(key);
     if (!summary) {
@@ -224,12 +251,14 @@ export function parseNextestOutcomes(
     if (
       summary.passed !== cases.filter((entry) => entry.outcome === "passed").length ||
       summary.failed !== cases.filter((entry) => entry.outcome === "failed").length ||
-      summary.ignored !== skipped
+      summary.ignored !== skipped ||
+      summary.ignored !== discoveredIgnored
     )
       error("Nextest terminal counts differ from observed case identities");
     if (
       startCounts.get(key) !==
-      summary.passed + summary.failed + summary.ignored + summary.measured
+        summary.passed + summary.failed + summary.ignored + summary.measured ||
+      startCounts.get(key) !== selectedCount + discoveredIgnored
     )
       error("Nextest final suite count differs from its start count");
   }
