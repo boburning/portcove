@@ -360,6 +360,7 @@ void test("held CLI source admission runs without installed dependencies and ref
     "release-coordinator-deadline.mts",
     "release-signing-job-budget.mts",
     "release-authority-configuration.mts",
+    "release-authority-configuration-contract.mts",
     "release-catalog-publication-contract.mts",
     "release-metadata-contract.mts",
     "controller-node-runtime.mts",

@@ -702,7 +702,7 @@ configuration, never candidate data or a dispatch input.
 Before checkout, the workflow compares repository ID/name, event, protected tag,
 source/workflow commit, workflow path/ref and first-attempt identity. It checks
 out that exact workflow commit with credential persistence disabled. The
-dependency-free `scripts/production-controller-admission.mts` then also validates
+dependency-free `scripts/production-controller-admission-cli.mts` then also validates
 the fixed source digest, configured actor, triggering actor, run, job and hosted
 runner identity. Its CLI accepts no candidate or policy-file arguments and reads
 only the fixed workflow file through one bounded regular-file handle.
