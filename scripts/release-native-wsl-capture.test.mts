@@ -1,3 +1,4 @@
+import { isRecord } from "./runtime-values.mts";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -326,3 +327,526 @@ void test("continuation capsule is a bounded fixed original capture input and ca
   ])
     assert.throws(() => inspectWslNativeDriverPlan(changed));
 });
+
+void test("hosted Linux capture routes are fixed noninteractive source-before-import operations", async () => {
+  const { inspectHostedLinuxDriverPlan, hostedLinuxCaptureCommands } =
+    await import("./release-hosted-native-linux-driver.mts");
+  const raw = hostedDriverFixture("/private/capture", "/private/controller");
+  const prepared = inspectHostedLinuxDriverPlan(raw),
+    commands = hostedLinuxCaptureCommands(prepared);
+  for (const command of [
+    commands.host,
+    commands.run,
+    commands.readback,
+    commands.settle,
+    commands.capture,
+  ]) {
+    assert.equal(command.executable, "/usr/bin/sudo");
+    assert.deepEqual(command.arguments.slice(0, 6), [
+      "-n",
+      "-H",
+      "-u",
+      "portcove-native",
+      "--",
+      "/usr/bin/python3",
+    ]);
+    assert.ok(command.arguments.includes("-I") && command.arguments.includes("-S"));
+    assert.ok(command.arguments.includes(prepared.entry_pins.controller_revision));
+    assert.equal(command.arguments.includes("bash"), false);
+  }
+  const stage = commands.stage("application", 3, "b".repeat(64));
+  assert.equal(
+    stage.arguments.at(-1),
+    createHash("sha256").update(stage.header.slice(0, -1)).digest("hex"),
+  );
+  const header: unknown = JSON.parse(stage.header);
+  assert.ok(isRecord(header));
+  assert.equal(header.entry, "application");
+  for (const changes of [
+    { broker_uid: raw.qualification_uid },
+    { qualification_uid: "0" },
+    { capture_directory: "/private/controller/capture" },
+    { tools: { ...raw.tools, sudo: { path: "/tmp/sudo", sha256: "e".repeat(64) } } },
+    { packages: [{ ...raw.packages[0], path: "/private/capture/auth.json" }] },
+    { packages: [raw.packages[0], raw.packages[0]] },
+    { extra: "caller authority" },
+  ])
+    assert.throws(() => inspectHostedLinuxDriverPlan({ ...raw, ...changes }));
+});
+function hostedDriverFixture(directory: string, root: string) {
+  const hash = "e".repeat(64);
+  return {
+    schema_version: 1,
+    broker_uid: "1000",
+    qualification_uid: "2001",
+    qualification_gid: "2001",
+    capture_directory: directory,
+    controller_root: root,
+    invocation_id: "a".repeat(64),
+    deadline_utc: new Date(Date.now() + 900000).toISOString(),
+    entry_pins: {
+      supervisor_sha256: hash,
+      transfer_sha256: hash,
+      controller_revision: "c".repeat(40),
+      controller_tree: "d".repeat(40),
+    },
+    node: { path: "/usr/bin/node", sha256: hash },
+    tools: Object.fromEntries(
+      ["sudo", "python", "git"].map((name) => [
+        name,
+        { path: `/usr/bin/${name === "python" ? "python3" : name}`, sha256: hash },
+      ]),
+    ),
+    host_expected: { machine_id_sha256: "f".repeat(64), minimum_os_version: "24.04" },
+    request_sha256: hash,
+    plan_sha256: hash,
+    stage_request_sha256: hash,
+    packages: [{ entry: "application", path: `${directory}/package.bin`, bytes: 3, sha256: hash }],
+  };
+}
+
+void test(
+  "hosted Linux driver stages actual fixture bytes once, retains ambiguity and requires matching closure before export",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    // Actual Linux filesystem/stream/CLI composition; account, tool measurement,
+    // process and supervisor outputs are controlled. No sudo or candidate runs.
+    const { PassThrough } = await import("node:stream");
+    const { EventEmitter } = await import("node:events");
+    const { fileURLToPath } = await import("node:url");
+    const { releaseCanonicalDigest } = await import("./release-canonical.mts");
+    const { nativeEmptyRecordsSha256 } =
+      await import("./release-native-qualification-contract.mts");
+    const resource = await import("./resource-command.mts");
+    const scheduler = await import("./release-native-scheduler.mts");
+    const childProcess = await import("node:child_process");
+    const root = fileURLToPath(new URL("..", import.meta.url)).replace(/\/$/u, "");
+    const driver = fileURLToPath(
+      new URL("./release-hosted-native-linux-driver.mts", import.meta.url),
+    );
+    const beforeArgs = process.argv,
+      beforeExit = process.exitCode;
+    type State = {
+      invocation: string;
+      requestSha: string;
+      fault: string;
+      calls: string[];
+      host: object;
+      task: Promise<number> | null;
+      headers: string[];
+      signals: string[];
+      expired: boolean;
+    };
+    let state: State;
+    const originalNow = performance.now.bind(performance);
+    t.mock.method(performance, "now", () => originalNow() + (state?.expired ? 2000000 : 0));
+    const filesystem = await import("node:fs/promises");
+    t.mock.module("node:fs/promises", {
+      namedExports: {
+        ...filesystem,
+        writeFile: async (...args: Parameters<typeof filesystem.writeFile>) => {
+          await filesystem.writeFile(...args);
+          if (
+            state?.fault === "late-summary" &&
+            typeof args[0] === "string" &&
+            args[0].endsWith("/hosted-linux-capture-summary.json")
+          )
+            state.expired = true;
+        },
+      },
+    });
+    t.mock.module("./release-native-scheduler.mts", {
+      namedExports: {
+        ...scheduler,
+        readNativeSchedulerToolDigest: async () => {
+          if (state?.fault === "preflight-expiry") state.expired = true;
+          return "e".repeat(64);
+        },
+      },
+    });
+    t.mock.module("./resource-command.mts", {
+      namedExports: {
+        ...resource,
+        resourceEntrypoint: (_profile: string, action: () => Promise<number>) => {
+          state.task = action();
+          return state.task;
+        },
+      },
+    });
+    t.mock.module("node:child_process", {
+      namedExports: {
+        ...childProcess,
+        spawn: (executable: string, args: string[], options: { env: Record<string, string> }) => {
+          assert.equal(executable, "/usr/bin/sudo");
+          assert.deepEqual(args.slice(0, 6), [
+            "-n",
+            "-H",
+            "-u",
+            "portcove-native",
+            "--",
+            "/usr/bin/python3",
+          ]);
+          assert.deepEqual(Object.keys(options.env).sort(), ["HOME", "LANG", "PATH", "TMPDIR"]);
+          const mode = args[args.lastIndexOf("--mode") + 1]!;
+          state.calls.push(mode);
+          const child = Object.assign(new EventEmitter(), {
+            stdin: new PassThrough(),
+            stdout: new PassThrough(),
+            stderr: new PassThrough(),
+            kill: (signal?: string) => {
+              state.signals.push(signal ?? "SIGTERM");
+              return true;
+            },
+          });
+          const chunks: Buffer[] = [];
+          child.stdin.on("data", (bytes: Buffer) => chunks.push(Buffer.from(bytes)));
+          child.stdin.once("finish", () => {
+            setImmediate(() => {
+              let result: unknown = {};
+              if (mode === "host") result = state.host;
+              else if (mode === "stage") {
+                const data = Buffer.concat(chunks),
+                  split = data.indexOf(10);
+                assert.ok(split > 0);
+                const headerBytes = data.subarray(0, split),
+                  payload = data.subarray(split + 1);
+                const header: unknown = JSON.parse(headerBytes.toString("utf8"));
+                assert.ok(isRecord(header) && typeof header.entry === "string");
+                assert.equal(createHash("sha256").update(headerBytes).digest("hex"), args.at(-1));
+                assert.equal(payload.length, header.bytes);
+                assert.equal(createHash("sha256").update(payload).digest("hex"), header.sha256);
+                state.headers.push(header.entry);
+                if (state.fault === "stage-refusal" && header.entry === "application") {
+                  child.stderr.end("fixture capacity refusal after partial staging");
+                  child.stdout.end();
+                  child.emit("close", 1);
+                  return;
+                }
+              } else if (mode === "run" && state.fault === "nonclosing") {
+                child.stdout.write(Buffer.alloc(65537));
+                child.stderr.write("inert fixture keeps pipes open");
+                return;
+              } else if (mode === "run" && state.fault === "ambiguous") {
+                child.stdout.end("fixture run response ambiguous");
+                child.stderr.end();
+                child.emit("error", new Error("fixture ambiguous remote effect"));
+                child.emit("close", null);
+                return;
+              } else if (mode === "readback" || mode === "settle") {
+                const closed =
+                  state.fault !== "unknown-settlement" &&
+                  (mode === "settle" || !["ambiguous", "nonclosing"].includes(state.fault));
+                result = {
+                  invocation_id:
+                    state.fault === "wrong-readback" ? "b".repeat(64) : state.invocation,
+                  request_sha256: state.requestSha,
+                  cgroup_empty: closed,
+                  unit_settled: closed,
+                };
+              } else if (mode === "capture") {
+                child.stdout.end("retained inert wire fixture");
+                child.stderr.end();
+                child.emit("close", 0);
+                return;
+              }
+              child.stdout.end(JSON.stringify(result));
+              child.stderr.end();
+              child.emit("close", 0);
+            });
+          });
+          return child;
+        },
+      },
+    });
+    t.mock.method(console, "error", () => {});
+    try {
+      let index = 0;
+      for (const kind of [
+        "pre-sign",
+        "initial",
+        "ordinary",
+        "stage-refusal",
+        "ambiguous",
+        "unknown-settlement",
+        "wrong-readback",
+        "nonclosing",
+        "late-summary",
+        "preflight-expiry",
+      ])
+        await t.test(kind, { timeout: 20000 }, async (context) => {
+          const directory = disposableDirectory(
+            context,
+            path.join(os.tmpdir(), "hosted-linux-driver-"),
+          );
+          const original = Buffer.from("inert-package"),
+            prior = Buffer.from("inert-predecessor");
+          await writeFile(path.join(directory, "package.bin"), original, { mode: 0o600 });
+          const raw = hostedDriverFixture(directory, root);
+          raw.broker_uid = String(process.getuid!());
+          raw.qualification_uid = String(process.getuid!() + 5000);
+          raw.qualification_gid = raw.qualification_uid;
+          raw.node.path = process.execPath;
+          const invocation = raw.invocation_id,
+            linux = "/home/portcove-native/portcove-native",
+            attempt = `${linux}/invocations/${invocation}`;
+          const binding = {
+            schema_version: 1,
+            invocation_id: invocation,
+            linux_root: linux,
+            account: { uid: Number(raw.qualification_uid), gid: Number(raw.qualification_gid) },
+            application: {
+              path: `${attempt}/install/Portcove.AppImage`,
+              bytes: original.length,
+              sha256: createHash("sha256").update(original).digest("hex"),
+            },
+            controller: {
+              root: `${linux}/controller`,
+              source_commit: raw.entry_pins.controller_revision,
+              source_tree: raw.entry_pins.controller_tree,
+              init_sha256: "e".repeat(64),
+            },
+            tools: Object.fromEntries(
+              Object.entries({
+                bwrap: "/usr/bin/bwrap",
+                driver: `${linux}/tools/tauri-driver`,
+                git: "/usr/bin/git",
+                node: `${linux}/tools/node`,
+                python: "/usr/bin/python3",
+                webkit_driver: "/usr/bin/WebKitWebDriver",
+                xvfb: "/usr/bin/Xvfb",
+              }).map(([name, path]) => [name, { path, sha256: "e".repeat(64) }]),
+            ),
+            capture_root: `${attempt}/capture`,
+            home: `${attempt}/work/home`,
+            deadline_utc: raw.deadline_utc,
+          };
+          const candidate = {
+            source_commit: "1".repeat(40),
+            source_tree: "2".repeat(40),
+            run_id: "123",
+            run_attempt: 1,
+            artifact_id: 456,
+            package: {
+              filename: "Portcove.AppImage",
+              bytes: original.length,
+              sha256: binding.application.sha256,
+            },
+          };
+          const priorCandidate = {
+            ...candidate,
+            artifact_id: 455,
+            package: {
+              ...candidate.package,
+              bytes: prior.length,
+              sha256: createHash("sha256").update(prior).digest("hex"),
+            },
+          };
+          const postSign = kind === "initial" || kind === "ordinary";
+          const stageRequest = {
+            native_report_schema_version: 2,
+            native_prepublication_profile: "signed-package-compatibility-v1",
+            invocation_id: invocation,
+            stage: "release-publication",
+            platform_label: "linux-x86_64",
+            candidate,
+            journey:
+              kind === "ordinary"
+                ? {
+                    predecessor: priorCandidate,
+                    signed_context_sha256: "8".repeat(64),
+                    signatures_sha256: "7".repeat(64),
+                  }
+                : {
+                    kind: "initial-empty-feed",
+                    empty_records_sha256: nativeEmptyRecordsSha256,
+                    initial_site_preimage_sha256: "6".repeat(64),
+                    metadata_bootstrap_sha256: "5".repeat(64),
+                    setup_plan_sha256: "4".repeat(64),
+                    signed_context_sha256: "8".repeat(64),
+                    signatures_sha256: "7".repeat(64),
+                  },
+          };
+          const plan = {
+            schema_version: postSign ? 2 : 1,
+            invocation_id: invocation,
+            stage: postSign ? "release-publication" : "payload-signing",
+            stage_request_sha256: postSign
+              ? releaseCanonicalDigest(stageRequest)
+              : raw.stage_request_sha256,
+            binding,
+            ...(postSign
+              ? {
+                  stage_request: stageRequest,
+                  predecessor:
+                    kind === "ordinary"
+                      ? {
+                          bytes: prior.length,
+                          sha256: priorCandidate.package.sha256,
+                          version: "0.4.0-beta.1",
+                        }
+                      : null,
+                }
+              : {}),
+          };
+          raw.stage_request_sha256 = plan.stage_request_sha256;
+          const planBytes = Buffer.from(JSON.stringify(plan));
+          raw.plan_sha256 = createHash("sha256").update(planBytes).digest("hex");
+          const requestBytes = Buffer.from(
+            JSON.stringify({
+              schema_version: 1,
+              invocation_id: invocation,
+              stage_request_sha256: raw.stage_request_sha256,
+              qualification_uid: Number(raw.qualification_uid),
+              qualification_gid: Number(raw.qualification_gid),
+              controller: {
+                source_commit: raw.entry_pins.controller_revision,
+                source_tree: raw.entry_pins.controller_tree,
+              },
+              plan_sha256: raw.plan_sha256,
+              supervisor_sha256: raw.entry_pins.supervisor_sha256,
+              deadline_utc: raw.deadline_utc,
+              timeout_seconds: 600,
+            }),
+          );
+          raw.request_sha256 = createHash("sha256").update(requestBytes).digest("hex");
+          raw.packages = [
+            {
+              entry: postSign ? "candidate" : "application",
+              path: path.join(directory, "package.bin"),
+              bytes: original.length,
+              sha256: binding.application.sha256,
+            },
+          ];
+          if (kind === "ordinary") {
+            await writeFile(path.join(directory, "predecessor.bin"), prior, { mode: 0o600 });
+            raw.packages.push({
+              entry: "predecessor",
+              path: path.join(directory, "predecessor.bin"),
+              bytes: prior.length,
+              sha256: priorCandidate.package.sha256,
+            });
+          }
+          await writeFile(path.join(directory, "native-request.json"), requestBytes, {
+            mode: 0o600,
+          });
+          await writeFile(path.join(directory, "native-plan.json"), planBytes, { mode: 0o600 });
+          const bytes = Buffer.from(JSON.stringify(raw)),
+            filename = path.join(directory, "hosted-linux-driver-plan.json");
+          await writeFile(filename, bytes, { mode: 0o600 });
+          state = {
+            invocation,
+            requestSha: raw.request_sha256,
+            fault: kind,
+            calls: [],
+            headers: [],
+            signals: [],
+            expired: false,
+            task: null,
+            host: {
+              schema_version: 1,
+              invocation_id: invocation,
+              qualification_uid: Number(raw.qualification_uid),
+              qualification_gid: Number(raw.qualification_gid),
+              machine_id_sha256: raw.host_expected.machine_id_sha256,
+              os_release: 'ID=ubuntu\nVERSION_ID="24.04"\n',
+              kernel_release: "6.8.0-azure",
+              architecture: "x86_64",
+              authority: "none",
+            },
+          };
+          const run = async () => {
+            process.argv = [
+              process.execPath,
+              driver,
+              "--driver",
+              filename,
+              createHash("sha256").update(bytes).digest("hex"),
+            ];
+            await import(
+              new URL(
+                `./release-hosted-native-linux-driver.mts?fixture=${index++}`,
+                import.meta.url,
+              ).href
+            );
+            assert.ok(state.task);
+            await state.task;
+          };
+          if (
+            ["stage-refusal", "wrong-readback", "late-summary", "preflight-expiry"].includes(kind)
+          ) {
+            await assert.rejects(
+              run(),
+              kind === "stage-refusal"
+                ? /fixed Linux operation refused/
+                : kind === "wrong-readback"
+                  ? /readback belongs to another native attempt/
+                  : /original capture lifetime expired/,
+            );
+            if (kind === "stage-refusal") {
+              assert.deepEqual(state.headers, ["request", "plan", "application"]);
+              assert.match(
+                await readFile(path.join(directory, "stage-application.stderr.bin"), "utf8"),
+                /capacity refusal after partial staging/,
+              );
+            }
+            if (kind === "wrong-readback") {
+              assert.ok(state.calls.includes("readback"));
+              assert.equal(state.calls.includes("settle"), false);
+            }
+            if (kind === "preflight-expiry") assert.deepEqual(state.calls, []);
+            if (kind === "late-summary")
+              assert.ok((await readdir(directory)).includes("hosted-linux-capture-summary.json"));
+            assert.ok((await readdir(directory)).includes("hosted-linux-driver-attempt.json"));
+            assert.equal(state.calls.includes("capture"), kind === "late-summary");
+            assert.equal(
+              state.calls.filter((x) => x === "run").length,
+              ["stage-refusal", "preflight-expiry"].includes(kind) ? 0 : 1,
+            );
+          } else {
+            await run();
+            const summary: unknown = JSON.parse(
+              await readFile(path.join(directory, "hosted-linux-capture-summary.json"), "utf8"),
+            );
+            assert.ok(isRecord(summary));
+            assert.equal(summary.native_acceptance, "not-established");
+            assert.equal(summary.authority, "none");
+            assert.equal(state.calls.filter((x) => x === "run").length, 1);
+            assert.equal(
+              state.calls.filter((x) => x === "settle").length,
+              ["ambiguous", "unknown-settlement", "nonclosing"].includes(kind) ? 1 : 0,
+            );
+            if (kind === "nonclosing") {
+              assert.equal(summary.status, null);
+              assert.equal(summary.operation_children_settled, false);
+              assert.equal(summary.capture_wire, null);
+              assert.match(String(summary.failure), /closure.*unknown/);
+              assert.deepEqual(state.signals, ["SIGTERM", "SIGKILL"]);
+            } else if (kind === "ambiguous") {
+              assert.equal(summary.status, null);
+              assert.match(String(summary.failure), /ambiguous/);
+              assert.ok(summary.capture_wire);
+            } else if (kind === "unknown-settlement") {
+              assert.equal(summary.capture_wire, null);
+              assert.match(String(summary.failure), /closure remains unknown/);
+            } else {
+              assert.equal(summary.failure, null);
+              assert.ok(summary.capture_wire);
+            }
+            assert.deepEqual(state.headers, [
+              "request",
+              "plan",
+              ...raw.packages.map((item) => item.entry),
+            ]);
+          }
+          const originalCalls = [...state.calls];
+          await assert.rejects(run(), /EEXIST|already exists/);
+          assert.deepEqual(state.calls, originalCalls);
+          await new Promise((resolve) => setImmediate(resolve));
+          process.exitCode = beforeExit;
+        });
+    } finally {
+      process.argv = beforeArgs;
+      process.exitCode = beforeExit;
+    }
+  },
+);
