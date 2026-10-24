@@ -1,4 +1,6 @@
 use crate::Result;
+mod requests;
+pub(crate) use requests::{serve_http, serve_routed_http};
 use std::{
     io::{self, Read, Write},
     net::{TcpListener, TcpStream},

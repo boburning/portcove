@@ -597,36 +597,19 @@ fn is_beta_tag(tag: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_http::{DeadlineServer, ResponseTestPhase, observe_response, serve_deadline};
+    use crate::test_http::{
+        DeadlineServer, ResponseTestPhase, observe_response, serve_deadline, serve_http,
+        serve_routed_http,
+    };
     use std::{
         io::{Read, Write},
         net::TcpListener,
         sync::{
             Arc,
             atomic::{AtomicUsize, Ordering},
-            mpsc::{self, Receiver},
         },
-        thread::{self, JoinHandle},
+        thread,
     };
-
-    fn serve_http(responses: Vec<String>) -> (String, Receiver<String>, JoinHandle<()>) {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let address = listener.local_addr().unwrap();
-        let (requests_tx, requests_rx) = mpsc::channel();
-        let server = thread::spawn(move || {
-            for response in responses {
-                let (mut stream, _) = listener.accept().unwrap();
-                stream
-                    .set_read_timeout(Some(Duration::from_secs(2)))
-                    .unwrap();
-                let mut request = vec![0_u8; 16 * 1024];
-                let size = stream.read(&mut request).unwrap();
-                let _ = requests_tx.send(String::from_utf8_lossy(&request[..size]).to_string());
-                stream.write_all(response.as_bytes()).unwrap();
-            }
-        });
-        (format!("http://{address}"), requests_rx, server)
-    }
 
     fn short_network_bounds() -> ProviderNetworkBounds {
         ProviderNetworkBounds {
@@ -800,38 +783,6 @@ mod tests {
         let cache = provider.cache.read().await;
         assert_eq!(cache.len(), RELEASE_CACHE_MAX_ENTRIES);
         assert!(!cache.contains_key(&oldest_key));
-    }
-
-    fn serve_routed_http(
-        request_limit: usize,
-        response: impl Fn(&str) -> String + Send + 'static,
-    ) -> (String, Receiver<String>, JoinHandle<()>) {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        listener.set_nonblocking(true).unwrap();
-        let address = listener.local_addr().unwrap();
-        let (requests_tx, requests_rx) = mpsc::channel();
-        let server = thread::spawn(move || {
-            let deadline = Instant::now() + Duration::from_secs(3);
-            let mut handled = 0;
-            while handled < request_limit && Instant::now() < deadline {
-                let (mut stream, _) = match listener.accept() {
-                    Ok(connection) => connection,
-                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                        thread::sleep(Duration::from_millis(5));
-                        continue;
-                    }
-                    Err(error) => panic!("test server could not accept a request: {error}"),
-                };
-                stream.set_nonblocking(false).unwrap();
-                let mut request = vec![0_u8; 16 * 1024];
-                let size = stream.read(&mut request).unwrap();
-                let request = String::from_utf8_lossy(&request[..size]).to_string();
-                stream.write_all(response(&request).as_bytes()).unwrap();
-                requests_tx.send(request).unwrap();
-                handled += 1;
-            }
-        });
-        (format!("http://{address}"), requests_rx, server)
     }
 
     fn ok_json(body: &str, extra_headers: &str) -> String {
