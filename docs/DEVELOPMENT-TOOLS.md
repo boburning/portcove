@@ -436,6 +436,32 @@ Selectors retain the deleted `apps/desktop/vitest.config.ts` and
 `apps/desktop/vitest.browser.config.ts` names for historical comparisons and both
 rename sides, so those changes still select full frontend tests and a build.
 
+For an opt-in ordering diagnostic, run a small literal family with an explicit
+unsigned 32-bit decimal seed:
+
+```sh
+node scripts/run-ui-tests.mts shuffled 17 src/browser/responsive-workspace.browser.test.tsx src/browser/display-recovery.browser.test.tsx src/browser/browser-fixture.browser.test.tsx
+```
+
+This is one ordinary execution, with at most 16 selected files and the existing
+resource/timeout/concurrency/cleanup limits. It changes no retries. Repeat the
+command with the same seed to reproduce the intended order, or another recorded
+seed to explore a different order; keep every failed invocation. The command
+prints seed and literal selection, checks the resolved project configuration and
+reconciles all selected files. Exact/related modes retain their normal ordering.
+Frontend case records include the runner's available `start_time_ms`; compare
+per-file order on equivalent source/runtime/platform, retaining ties and parallel
+execution as such rather than inferring a global serial order.
+
+`test/browser-fixture.ts` provides opt-in disposal for isolated browser fixtures.
+Declare storage, root attributes/style properties and viewport snapshots, and
+register renderer, root, listener and scenario-transport disposal immediately
+after acquisition. Disposal drains every registered resource in reverse order,
+restores declared initial state even after a cleanup fails, and retains cleanup
+errors. Scenario setup and interactions stay in each test. The responsive and
+display-recovery families use it; a partial-setup failure control verifies restored
+storage, theme, direction, font priority, viewport, DOM, listener and transport.
+
 Package scripts resolve the installed local CLI. `pnpm exec vp <command>`
 is the explicit route; `node scripts/run-viteplus.mts <command>` also runs the
 installed package without a package-manager hop. These installed operations do

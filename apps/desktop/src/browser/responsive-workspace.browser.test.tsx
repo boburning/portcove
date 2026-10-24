@@ -6,29 +6,37 @@ import { desktopApi } from "../api";
 import { initializeLocalization, LocalizationProvider } from "../localization";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { THEME_STORAGE_KEY, type ResolvedTheme } from "../theme";
+import { browserFixture } from "../../test/browser-fixture";
 
-let transport: ReturnType<typeof installInteractiveTransport> | undefined;
-let root: HTMLDivElement | undefined;
-beforeEach(() => localStorage.clear());
+let fixture: ReturnType<typeof browserFixture>;
+beforeEach(() => {
+  fixture = browserFixture({
+    storage: true,
+    attributes: ["data-theme", "lang", "dir"],
+    viewport: true,
+  });
+  localStorage.clear();
+});
 afterEach(async () => {
-  await cleanup();
-  root?.remove();
-  root = undefined;
-  transport?.dispose();
-  transport = undefined;
-  document.documentElement.removeAttribute("data-theme");
-  await page.viewport(1280, 800);
+  await fixture.dispose();
 });
 
 async function mount(theme: ResolvedTheme) {
-  transport = installInteractiveTransport("collection", (message) => {
+  const transport = installInteractiveTransport("collection", (message) => {
     throw new Error(message);
   });
-  initializeLocalization(["en"]);
+  fixture.defer(() => transport.dispose());
+  const localization = initializeLocalization(["en"]),
+    language = localization.language;
+  fixture.defer(async () => {
+    await localization.changeLanguage(language);
+  });
   localStorage.setItem(THEME_STORAGE_KEY, theme);
-  root = document.createElement("div");
+  const root = document.createElement("div");
   root.id = "root";
   document.body.append(root);
+  fixture.defer(() => root.remove());
+  fixture.defer(() => cleanup());
   await render(
     <LocalizationProvider api={desktopApi}>
       <App />
