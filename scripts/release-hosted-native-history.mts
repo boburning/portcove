@@ -54,7 +54,7 @@ export function selectHostedNativePredecessorScope(
     if (
       !isRecord(record) ||
       !Array.isArray(record.evidence_ids) ||
-      !["windows-x86_64", "linux-x86_64"].includes(String(record.target)) ||
+      (record.target !== "windows-x86_64" && record.target !== "linux-x86_64") ||
       platforms.has(record.target)
     )
       throw new Error("native predecessor platform pair differs");
