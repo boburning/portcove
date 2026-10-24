@@ -940,7 +940,15 @@ export async function requireActualLinuxNativeStageReport(receipt: object) {
 export async function requireActualHostedLinuxNativeStageReport(receipt: object) {
   const { retained, report } = await readReport(receipt, "hosted");
   const actual = await requireActualHostedNativeLinuxCapture(retained.capture);
-  return { ...actual, report, report_sha256: retained.report_sha256, authority: "none" as const };
+  return {
+    ...actual,
+    report,
+    report_sha256: retained.report_sha256,
+    original_file_identities: Object.freeze(
+      retained.files.map((file) => Object.freeze({ ...file })),
+    ),
+    authority: "none" as const,
+  };
 }
 export async function retainActualFailedLinuxNativeStage(captured: object, failure: string) {
   const actual = await requireActualWslNativeCapture(captured);

@@ -785,6 +785,22 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ],
   ],
   [
+    "scripts/release-hosted-native-proof-producer.mts",
+    [
+      "scripts/release-hosted-native-proof-producer.test.mts",
+      "scripts/release-hosted-native-proof.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-owned-capture-store.mts",
+    [
+      "scripts/release-checkpoint-store.test.mts",
+      "scripts/release-coordinator-checkpoint-signing.test.mts",
+      "scripts/release-semantic-broker.test.mts",
+      "scripts/release-hosted-native-proof-producer.test.mts",
+    ],
+  ],
+  [
     "scripts/fixtures/native-linux-report-fixture.mts",
     [
       "scripts/release-hosted-native-linux-report.test.mts",
@@ -1060,6 +1076,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/release-hosted-native-linux-report.test.mts",
       "scripts/release-native-pre-sign-report.test.mts",
       "scripts/release-native-source-provider.test.mts",
+      "scripts/release-hosted-native-proof-producer.test.mts",
       "scripts/release-native-wsl-capture.test.mts",
       "scripts/release-run-evidence.test.mts",
       "scripts/test-duration-reporter.test.mts",
@@ -1530,6 +1547,7 @@ const releaseContractTests = Object.freeze([
   "scripts/release-native-wsl-capture.test.mts",
   "scripts/release-hosted-native-linux-capture.test.mts",
   "scripts/release-hosted-native-linux-report.test.mts",
+  "scripts/release-hosted-native-proof-producer.test.mts",
   "scripts/release-native-source-provider.test.mts",
   "scripts/release-native-candidate.test.mts",
   "scripts/release-native-public-pair.test.mts",

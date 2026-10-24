@@ -7,6 +7,7 @@ import { performance } from "node:perf_hooks";
 import {
   verifyAssemblerJobIdentity,
   verifyHostedNativeJobIdentity,
+  verifyHostedNativeAttestationIdentity,
   requireVerifiedHostedNativeJobIdentity,
   verifyClassificationWriterJobIdentity,
   verifyProductionClassificationWriterJobIdentity,
@@ -179,6 +180,50 @@ void test("hosted native identity binds the fixed platform parent without granti
     );
     assert.equal(selectedAudience.counts().keyReads, 0);
   }
+});
+
+void test("native attestation audience authenticates only its fixed job and cannot become a native-parent identity", async () => {
+  const platform = "linux-x86_64";
+  const wanted = {
+    ...expected,
+    audience: "sigstore",
+    subject: controllerOidcSubject(expected.controller_ref, "production-native-linux"),
+  };
+  const claims = { aud: "sigstore", sub: wanted.subject, environment: "production-native-linux" };
+  const location = {
+    workflow: productionControllerWorkflow,
+    job: "Qualify hosted Linux installed continuity",
+  };
+  const good = fixture(claims, {}, location);
+  const identity = await verifyHostedNativeAttestationIdentity(platform, good.token, wanted, good);
+  assert.equal(identity.job_id, 501);
+  assert.equal(identity.authority, "none");
+  assert.throws(() => requireVerifiedHostedNativeJobIdentity(identity, platform, wanted));
+  await assert.rejects(verifyHostedNativeJobIdentity(platform, good.token, wanted, good));
+  for (const patch of [
+    { environment: "production-native-windows" },
+    { sha: "f".repeat(40) },
+    { run_attempt: "3" },
+    { runner_environment: "self-hosted" },
+  ]) {
+    const bad = fixture({ ...claims, ...patch }, {}, location);
+    await assert.rejects(verifyHostedNativeAttestationIdentity(platform, bad.token, wanted, bad));
+  }
+  const wrongJob = fixture(claims, {}, { ...location, job: "Trusted package assembly" });
+  await assert.rejects(
+    verifyHostedNativeAttestationIdentity(platform, wrongJob.token, wanted, wrongJob),
+  );
+  await assert.rejects(
+    verifyHostedNativeAttestationIdentity("windows-x86_64", good.token, wanted, good),
+  );
+  await assert.rejects(
+    verifyHostedNativeAttestationIdentity(
+      platform,
+      good.token,
+      { ...wanted, audience: "candidate-selected" },
+      good,
+    ),
+  );
 });
 
 void test("complete admission binds its protected environment while original read-only reader remains tag bound", async () => {
