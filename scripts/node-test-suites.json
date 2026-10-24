@@ -1666,6 +1666,13 @@
       ]
     },
     {
+      "file": "scripts/release-hosted-native-history.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15126],
+        ["release-check", 13426]
+      ]
+    },
+    {
       "file": "scripts/release-hosted-native-job.test.mts",
       "memberships": [
         ["catalog-full-2", 15144],
