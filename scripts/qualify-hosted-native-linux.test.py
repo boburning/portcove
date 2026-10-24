@@ -68,7 +68,8 @@ class HostedReadiness(unittest.TestCase):
 
     def test_actual_collision_refusal_keeps_bounded_identity_without_clearing_unknown(self):
         entry = PurePosixPath("/sys/kernel/security/apparmor/policy/profiles/controlled.7")
-        for attachment, condition in (("<unknown>", "observed"), ("", "missing-name"),
+        for attachment, condition in (("<unknown>", "observed"), ("<unknown>", "missing-name"),
+                                      ("<unknown>", "missing-hash"), ("", "empty"),
                                       ("/usr/bin/bwrap", "expired"), ("@{variable}", "long-name")):
             reads = []
             def bounded(filename, maximum, condition=condition, attachment=attachment, reads=reads):
@@ -80,6 +81,8 @@ class HostedReadiness(unittest.TestCase):
                     return attachment.encode()
                 if name == "name" and condition == "missing-name":
                     raise FileNotFoundError("controlled missing metadata")
+                if name == "sha256" and condition == "missing-hash":
+                    return b""
                 return ({"name": "x" * 4096 if condition == "long-name" else "controlled",
                          "mode": "enforce", "sha256": "a" * 64}[name]).encode()
             clock = Mock(side_effect=[10, 21, 21, 21]) if condition == "expired" else Mock(return_value=10)
@@ -95,8 +98,16 @@ class HostedReadiness(unittest.TestCase):
                     return entry.parent / name
             scope["Path"] = lambda value: RootDirectory() if str(value).endswith("/profiles") else PurePosixPath(value)
             self.root_functions({"profile_state", "profile_refusal", "attachment_clear", "digest"}, scope)
-            with self.subTest(attachment=attachment, condition=condition), self.assertRaises(AssertionError):
-                scope["profile_state"](True)
+            with self.subTest(attachment=attachment, condition=condition):
+                if condition == "observed":
+                    state = scope["profile_state"](True)
+                    self.assertEqual(state["attachments"]["controlled.7"], "<unknown>")
+                    self.assertEqual(state["opaque"]["controlled.7"],
+                                     {"name": "controlled", "mode": "enforce", "sha256": "a" * 64})
+                    self.assertNotIn("profile_refusal", scope["result"])
+                    continue
+                with self.assertRaises((AssertionError, FileNotFoundError)):
+                    scope["profile_state"](True)
             record = scope["result"]["profile_refusal"]
             self.assertEqual(record["entry"]["text"], "controlled.7")
             self.assertEqual(record["attachment"]["text"], attachment)
@@ -116,15 +127,18 @@ class HostedReadiness(unittest.TestCase):
         pin = "11d39094f044f0cda0febb3ad517b830301da6b2ce929664af09ee9e4dd264f9"
         source = b"x" * 1936  # Controlled provider bytes; no real policy or root operation.
         binary = b"controlled compiled policy"
-        before = {"labels": ["other (enforce)"], "attachments": {"other.1": "/usr/bin/other"}}
+        before = {"labels": ["other (enforce)"], "attachments": {"other.1": "<unknown>"},
+                  "opaque": {"other.1": {"name": "other", "mode": "enforce", "sha256": "a" * 64}}}
         after = {"labels": ["other (enforce)", "bwrap (enforce)", "unpriv_bwrap (enforce)"],
-                 "attachments": {"other.1": "/usr/bin/other", "bwrap.2": "/usr/bin/bwrap", "unpriv.3": "unpriv_bwrap"}}
+                 "attachments": {"other.1": "<unknown>", "bwrap.2": "/usr/bin/bwrap", "unpriv.3": "unpriv_bwrap"},
+                 "opaque": before["opaque"]}
         class RootPath:
             def __init__(self, value): self.value = value
             def __str__(self): return self.value
             def __fspath__(self): return self.value
             def lstat(self): return SimpleNamespace(st_uid=0, st_mode=stat.S_IFREG | 0o555)
-        for outcome in ("accepted", "collision", "site-alias", "changed-baseline", "load-timeout", "partial-readback"):
+        for outcome in ("accepted", "opaque-new-profiles", "opaque-body-drift", "opaque-before-drift",
+                        "wrong-new-opaque", "collision", "site-alias", "changed-baseline", "load-timeout", "partial-readback"):
             retained = {}
             def exclusive(filename, data, retained=retained):
                 self.assertNotIn(str(filename), retained)
@@ -158,9 +172,22 @@ class HostedReadiness(unittest.TestCase):
                 if outcome == "load-timeout":
                     raise subprocess.TimeoutExpired(arguments, 5)
                 return b""
-            state = Mock(side_effect=[before, before, after])
+            observed_after = json.loads(json.dumps(after))
+            if outcome in ("opaque-new-profiles", "wrong-new-opaque"):
+                for key, name in (("bwrap.2", "bwrap"), ("unpriv.3", "unpriv_bwrap")):
+                    observed_after["attachments"][key] = "<unknown>"
+                    observed_after["opaque"][key] = {"name": name, "mode": "enforce", "sha256": "b" * 64}
+                if outcome == "wrong-new-opaque":
+                    observed_after["opaque"]["bwrap.2"]["name"] = "unexpected"
+            elif outcome == "opaque-body-drift":
+                observed_after["opaque"]["other.1"]["sha256"] = "c" * 64
+            state = Mock(side_effect=[before, before, observed_after])
             if outcome == "collision":
                 state.side_effect = AssertionError("existing label")
+            elif outcome == "opaque-before-drift":
+                changed = json.loads(json.dumps(before))
+                changed["opaque"]["other.1"]["sha256"] = "d" * 64
+                state.side_effect = [before, changed]
             elif outcome == "changed-baseline":
                 state.side_effect = [before, after]
             elif outcome == "partial-readback":
@@ -173,14 +200,17 @@ class HostedReadiness(unittest.TestCase):
                      "exclusive": exclusive, "features": Mock(return_value={"fixed": "yes"}), "profile_state": state}
             self.root_functions({"setup_profile", "profile_summary"}, scope)
             with self.subTest(outcome=outcome):
-                if outcome == "accepted":
+                if outcome in ("accepted", "opaque-new-profiles"):
                     scope["setup_profile"]()
                     self.assertTrue(scope["result"]["profile"]["completed"])
+                    self.assertEqual(scope["result"]["profile"]["opaque_attachments"]["count"], 1)
+                    self.assertIn("unresolved", scope["result"]["profile"]["opaque_attachments"]["status"])
                 else:
                     with self.assertRaises((AssertionError, subprocess.TimeoutExpired)):
                         scope["setup_profile"]()
                 loads = [call for call in scope["run"].call_args_list if "--add" in call.args[0]]
-                self.assertEqual(len(loads), int(outcome in ("accepted", "load-timeout", "partial-readback")))
+                self.assertEqual(len(loads), int(outcome in ("accepted", "opaque-new-profiles", "opaque-body-drift",
+                                                           "wrong-new-opaque", "load-timeout", "partial-readback")))
                 self.assertFalse(any("--replace" in call.args[0] for call in scope["run"].call_args_list))
                 if loads:
                     self.assertTrue(scope["result"]["profile"]["load_attempted"])
