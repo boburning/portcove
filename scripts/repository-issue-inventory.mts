@@ -261,21 +261,43 @@ export function collectRestRepositoryIssueInventory(
     const identity = repository();
     evidence.repository_node_id = identity;
     const marker = (sort: "created" | "updated") => {
-      const values = rest.get(
-        `repos/${binding}/issues?state=all&sort=${sort}&direction=desc&per_page=1`,
-      ).body;
+      const endpoint = `repos/${binding}/issues?state=all&sort=${sort}&direction=desc&per_page=1`;
+      const values =
+        sort === "created"
+          ? rest.get(endpoint).body
+          : rest
+              .prefixThrough(
+                endpoint,
+                [`/repos/${binding}/issues`, `/repositories/${numericRepository}/issues`],
+                (row) => !row.pull_request,
+              )
+              .rows.filter((row) => !row.pull_request)
+              .slice(0, 1);
       if (!Array.isArray(values) || values.length > 1)
         throw new InventoryError("inventory_malformed", "Malformed REST repository marker");
       return values.map((raw: unknown) => {
         const value = object(raw);
         if (
           typeof value.node_id !== "string" ||
+          typeof value.created_at !== "string" ||
+          !Number.isFinite(Date.parse(value.created_at)) ||
           typeof value.updated_at !== "string" ||
+          !Number.isFinite(Date.parse(value.updated_at)) ||
+          typeof value.title !== "string" ||
+          !["open", "closed"].includes(String(value.state)) ||
           !("body" in value) ||
           (value.body !== null && typeof value.body !== "string")
         )
           throw new InventoryError("inventory_malformed", "Incomplete REST issue marker");
-        return { id: value.node_id, revision: value.updated_at, body: hash(value.body) };
+        return sort === "created"
+          ? { id: value.node_id, created: value.created_at }
+          : {
+              id: value.node_id,
+              revision: value.updated_at,
+              body: hash(value.body ?? ""),
+              title: value.title,
+              state: value.state,
+            };
       });
     };
     const before = { created: marker("created"), updated: marker("updated") };
@@ -327,10 +349,19 @@ export function collectRestRepositoryIssueInventory(
       );
     }
     const after = { created: marker("created"), updated: marker("updated") };
+    const newestIssue = before.updated[0];
+    const collectedNewest = issues.find((issue) => issue.id === newestIssue?.id);
     if (
       repository() !== identity ||
       hash(before) !== hash(after) ||
-      (collected.rows.at(-1)?.node_id ?? null) !== (before.created[0]?.id ?? null)
+      (collected.rows.at(-1)?.node_id ?? null) !== (before.created[0]?.id ?? null) ||
+      (newestIssue
+        ? !collectedNewest ||
+          collectedNewest.updatedAt !== newestIssue.revision ||
+          hash(collectedNewest.body) !== newestIssue.body ||
+          collectedNewest.title !== newestIssue.title ||
+          collectedNewest.state.toLowerCase() !== newestIssue.state
+        : issues.length !== 0)
     )
       throw new InventoryError(
         "inventory_changed",
