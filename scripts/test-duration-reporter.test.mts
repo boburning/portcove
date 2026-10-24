@@ -8,6 +8,7 @@ import type { TestEvent } from "node:test/reporters";
 import report, { isSlowTest, nodeFileObservation } from "./test-duration-reporter.mts";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import { isRecord } from "./runtime-values.mts";
+import { nodeCaseObservation, createNodeCaseObservations } from "./node-case-observations.mts";
 
 function event(duration: number, type = "test") {
   return {
@@ -292,4 +293,290 @@ void test("bounded file observations retain an earlier failure and disclose omit
   assert.equal(context.observed, 512);
   assert.equal(context.omitted, 3);
   assert.equal(context.invalid, 2);
+});
+
+function caseEvent() {
+  return {
+    type: "test:pass",
+    data: {
+      file: path.resolve("scripts/example.test.mts"),
+      entryFile: path.resolve("scripts/example.test.mts"),
+      name: "parameter",
+      classname: "group",
+      line: 10,
+      column: 3,
+      nesting: 1,
+      testNumber: 2,
+      testId: 3,
+      parentId: 1,
+      details: { type: "test", duration_ms: 1.25 },
+    },
+  };
+}
+
+void test("case definitions retain separate instances and normalize matching checkout roots", () => {
+  const input = caseEvent();
+  const original = nodeCaseObservation(input);
+  assert.ok(original);
+  assert.equal(original.file, "scripts/example.test.mts");
+  assert.equal(original.duration_ms, 1.25);
+  assert.equal(original.outcome, "passed");
+  const second = nodeCaseObservation({
+    ...input,
+    data: { ...input.data, testId: 4, testNumber: 3 },
+  });
+  assert.ok(second);
+  assert.equal(second.definition_id, original.definition_id);
+  assert.notEqual(second.test_id, original.test_id);
+  const root = path.resolve("alternate-checkout");
+  const relocated = nodeCaseObservation(
+    {
+      ...input,
+      data: {
+        ...input.data,
+        file: path.join(root, "scripts/example.test.mts"),
+        entryFile: path.join(root, "scripts/example.test.mts"),
+      },
+    },
+    root,
+  );
+  assert.equal(relocated?.definition_id, original.definition_id);
+  input.data.details.duration_ms = 99;
+  assert.equal(original.duration_ms, 1.25);
+});
+
+void test("case observations separate skips, TODO failures, cancellations and worker exits", () => {
+  const input = caseEvent();
+  for (const reason of [true, "", "requires owned platform"]) {
+    const skipped = nodeCaseObservation({ ...input, data: { ...input.data, skip: reason } });
+    assert.ok(skipped);
+    assert.equal(skipped.outcome, "skipped");
+    assert.equal(skipped.skip_reason, typeof reason === "string" ? reason : null);
+  }
+  const cause = new Error("original assertion");
+  const error = Object.assign(new Error("wrapper failure"), {
+    cause,
+    code: "ERR_TEST_FAILURE",
+    failureType: "testCodeFailure",
+  });
+  const failed = {
+    type: "test:fail",
+    data: { ...input.data, details: { ...input.data.details, error } },
+  };
+  const todo = nodeCaseObservation({ ...failed, data: { ...failed.data, todo: "pending route" } });
+  assert.ok(todo);
+  assert.equal(todo.outcome, "todo");
+  assert.equal(todo.event, "test:fail");
+  assert.equal(todo.failure?.cause?.message, "original assertion");
+  assert.equal(todo.todo_reason, "pending route");
+  assert.equal(
+    nodeCaseObservation({
+      ...failed,
+      data: {
+        ...failed.data,
+        details: {
+          ...failed.data.details,
+          error: { failureType: "cancelledByParent", message: "parent cancelled" },
+        },
+      },
+    })?.outcome,
+    "cancelled",
+  );
+  const worker = nodeCaseObservation({
+    ...failed,
+    data: {
+      ...failed.data,
+      details: {
+        ...failed.data.details,
+        error: { exitCode: 7, failureType: "testCodeFailure", message: "worker exited" },
+      },
+    },
+  });
+  assert.ok(worker);
+  assert.equal(worker.kind, "worker");
+  assert.equal(worker.outcome, "failed");
+  assert.equal(error.cause, cause);
+  assert.equal(cause.message, "original assertion");
+});
+
+void test("case diagnostics reject invalid measurements and survive unavailable error fields", () => {
+  const input = caseEvent();
+  for (const patch of [
+    { file: undefined },
+    { name: "" },
+    { nesting: -1 },
+    { testNumber: 0 },
+    { skip: 4 },
+    { todo: "x".repeat(2049) },
+  ])
+    assert.equal(nodeCaseObservation({ ...input, data: { ...input.data, ...patch } }), undefined);
+  for (const patch of [
+    { duration_ms: NaN },
+    { duration_ms: Infinity },
+    { duration_ms: -1 },
+    { type: "unknown" },
+  ])
+    assert.equal(
+      nodeCaseObservation({
+        ...input,
+        data: { ...input.data, details: { ...input.data.details, ...patch } },
+      }),
+      undefined,
+    );
+  const collector = createNodeCaseObservations("owned");
+  collector.capture({ type: "test:watch:drained" });
+  const error = Object.defineProperty({}, "message", {
+    get() {
+      throw new Error("diagnostic unavailable");
+    },
+  });
+  assert.doesNotThrow(() =>
+    collector.capture({
+      type: "test:fail",
+      data: { ...input.data, details: { ...input.data.details, error } },
+    }),
+  );
+  collector.capture(input);
+  assert.equal(collector.summary().invalid, 1);
+  assert.equal(collector.summary().observed, 1);
+  assert.equal(collector.summary().omitted, 0);
+});
+
+void test("bounded case records disclose count, byte and serialization omissions without collapsing repeats", () => {
+  const input = caseEvent();
+  const collector = createNodeCaseObservations("owned");
+  for (let index = 0; index < 4097; index++) collector.capture(input);
+  const summary = collector.summary();
+  assert.equal(summary.observed, 4096);
+  assert.equal(summary.omitted, 1);
+  assert.equal(summary.invalid, 0);
+  assert.ok(summary.bytes <= 4 * 1024 * 1024);
+  const rows = collector.records().map((line) => {
+    assert.ok(Buffer.byteLength(line) <= 16_384);
+    const row: unknown = JSON.parse(line.slice("Node test case observation: ".length));
+    assert.ok(isRecord(row));
+    return row;
+  });
+  assert.equal(rows[0]!.observation_index, 1);
+  assert.equal(rows[4095]!.observation_index, 4096);
+  assert.equal(rows[0]!.definition_id, rows[4095]!.definition_id);
+  collector.records().pop();
+  assert.equal(collector.summary().observed, 4096);
+  const oversized = createNodeCaseObservations("owned");
+  oversized.capture({
+    ...input,
+    data: { ...input.data, name: "\u0001".repeat(2048), classname: "\u0001".repeat(4096) },
+  });
+  assert.equal(oversized.summary().omitted, 1);
+  const bytes = createNodeCaseObservations("owned");
+  for (let index = 0; index < 900; index++)
+    bytes.capture({
+      ...input,
+      data: { ...input.data, name: "x".repeat(2048), classname: "y".repeat(4096) },
+    });
+  assert.ok(bytes.summary().observed < 900);
+  assert.ok(bytes.summary().omitted > 0);
+  assert.ok(bytes.summary().bytes <= 4 * 1024 * 1024);
+});
+
+void test("actual nested case outcomes join equivalent runs and preserve original failing exits", (t) => {
+  const root = disposableDirectory(t, path.join(os.tmpdir(), "portcove-case-observations-"));
+  const fixture = path.join(root, "cases.test.mjs");
+  writeFileSync(
+    fixture,
+    `import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+for (const name of ["first", "second"]) describe(name, { concurrency: true }, () => {
+  for (let index = 0; index < 2; index++) it("repeated child", () => {});
+  it("platform skip", { skip: "requires owned platform" }, () => assert.fail("skip ran"));
+  it("pending route", { todo: "awaits explicit fixture" }, () => {});
+});
+it("original assertion", () => assert.equal(1, 2, "retained assertion"));
+`,
+  );
+  const environment: NodeJS.ProcessEnv = { ...process.env, PORTCOVE_HEAD_SHA: "b".repeat(40) };
+  delete environment.NODE_TEST_CONTEXT;
+  const executions = [];
+  for (let iteration = 0; iteration < 2; iteration++) {
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--test",
+        "--test-timeout=10000",
+        "--test-concurrency=2",
+        `--test-reporter=${new URL("./test-duration-reporter.mts", import.meta.url).href}`,
+        fixture,
+      ],
+      { cwd: root, env: environment, encoding: "utf8", timeout: 20000, windowsHide: true },
+    );
+    assert.ifError(result.error);
+    assert.equal(result.status, 1, result.stderr);
+    assert.equal(result.signal, null);
+    assert.match(result.stdout, /retained assertion/u);
+    const parse = (prefix: string) =>
+      result.stdout
+        .split("\n")
+        .filter((line) => line.startsWith(prefix))
+        .map((line) => {
+          const row: unknown = JSON.parse(line.slice(prefix.length));
+          assert.ok(isRecord(row));
+          return row;
+        });
+    const rows = parse("Node test case observation: ");
+    const contexts = parse("Node test case observation context: ");
+    assert.equal(rows.length, 11);
+    assert.equal(contexts.length, 1);
+    assert.equal(contexts[0]!.observed, 11);
+    assert.equal(contexts[0]!.invalid, 0);
+    assert.equal(contexts[0]!.omitted, 0);
+    assert.equal(contexts[0]!.source, "b".repeat(40));
+    assert.equal(contexts[0]!.platform, process.platform);
+    assert.equal(rows.filter((row) => row.kind === "suite").length, 2);
+    assert.equal(rows.filter((row) => row.kind === "test" && row.outcome === "passed").length, 4);
+    assert.equal(
+      rows.filter(
+        (row) => row.outcome === "skipped" && row.skip_reason === "requires owned platform",
+      ).length,
+      2,
+    );
+    assert.equal(
+      rows.filter((row) => row.outcome === "todo" && row.todo_reason === "awaits explicit fixture")
+        .length,
+      2,
+    );
+    const failure = rows.find((row) => row.name === "original assertion");
+    assert.ok(failure && isRecord(failure.failure));
+    assert.equal(failure.outcome, "failed");
+    assert.match(String(failure.failure.message), /retained assertion/u);
+    assert.ok(
+      rows.every(
+        (row) =>
+          row.invocation_id === contexts[0]!.invocation_id &&
+          typeof row.duration_ms === "number" &&
+          row.duration_ms >= 0,
+      ),
+    );
+    assert.equal(new Set(rows.map((row) => row.observation_index)).size, 11);
+    const repeats = rows.filter((row) => row.name === "repeated child");
+    assert.equal(repeats.length, 4);
+    assert.equal(new Set(repeats.map((row) => row.test_id)).size, 4);
+    assert.equal(new Set(repeats.map((row) => row.definition_id)).size, 2);
+    const fileRows = parse("Node test file observation: ");
+    assert.equal(fileRows.length, 1);
+    assert.ok(isRecord(fileRows[0]!.counts));
+    assert.equal(fileRows[0]!.counts.tests, 9);
+    assert.equal(fileRows[0]!.counts.failed, 1);
+    executions.push(
+      rows.map(({ definition_id, test_id, parent_id, test_number, name, kind, outcome }) => ({
+        definition_id,
+        test_id,
+        parent_id,
+        test_number,
+        name,
+        kind,
+        outcome,
+      })),
+    );
+  }
+  assert.deepEqual(executions[0], executions[1]);
 });

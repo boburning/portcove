@@ -720,6 +720,19 @@ coverage, source custody or acceptance. Keep file durations separate from comman
 wall time and resource queueing; overlapping file durations are not critical-path
 latency. The existing five-second slow-case report and original test exits remain.
 
+`Node test case observation:` records separately retain each test, suite or failed
+worker result, measured duration, skip/TODO reason and bounded original error and
+cause messages. Repository paths are relative to the invocation root. Definition
+IDs describe source locations and names; repeated or parameterized definitions
+can have several instances and must not be deduplicated. Node test/parent IDs and
+sibling ordinals support instance correlation; they are not source attestations
+or guaranteed identities across changed registration order. The invocation ID
+and observation index identify each retained row. Compare matching source,
+runtime, platform and selected inventories before joining equivalent executions.
+The case context reports invalid/omitted counts and retained bytes. Limits are
+4096 records, 16 KiB per record and 4 MiB total; file summaries remain separate.
+Diagnostic collection failures retain the original runner output and exit status.
+
 The always-selected Node contract quartet retains decision and environment-isolation
 assertions. Its real child-timeout and subprocess-metrics fixtures run separately
 in `ci-baseline-execution.test.mts`: relevant baseline/metrics/runtime changes,

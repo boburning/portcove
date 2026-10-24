@@ -202,6 +202,20 @@ void test("persisted fingerprint runtime rejects unsafe fields while retaining u
 
 void test("behavioral script consumers invalidate optional audit fingerprints independently of format membership", () => {
   const cases: [string, ValidationDomain[]][] = [
+    [
+      "scripts/node-case-observations.mts",
+      [
+        "repository",
+        "development",
+        "roadmap",
+        "format",
+        "ui",
+        "rust",
+        "rscheck",
+        "lint",
+        "release",
+      ],
+    ],
     ["scripts/unclassified-helper.mts", ["development", "release", "repository"]],
     ["scripts/retained-package.mts", ["development", "release"]],
     ["scripts/retained-evidence.mts", ["development", "release"]],
