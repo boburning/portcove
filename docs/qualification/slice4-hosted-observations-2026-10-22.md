@@ -531,3 +531,64 @@ runnable source/graph/digest reconciliation remain pending under the existing
 99/100 job-minute and seven-day retention limits. Availability/headroom remain
 Unknown. Package/journey/capture integration and real native/public acceptance
 remain pending. No new owner action is requested for this preparation.
+
+## Hosted post-sign journey continuation (October 24)
+
+The prepared callable post-sign job now connects original native-parent/runtime,
+timestamp source, authenticated signed-input custody, both-platform predecessor
+verification, compiler package acquisition, immutable predecessor acquisition,
+fixed payload signature verification, Linux request/capture, report2 and original
+proof/upload handoff. It retains the current-job versus completed-history split:
+no failed current proof falls back to history, and the native principal does not
+impersonate a publication-job principal. The production workflow and runner CLI
+remain held and unchanged; this callable composition is preparation.
+
+Default context and role receiver deadlines remain unchanged. While live, they
+export only original public byte identities, which the private native receipt
+retains and rehashes with the context, repository and original source/runtime.
+Those snapshot objects cannot be imported as context, role, publication or native
+acceptance receipts. Acquisition stays bounded (15-minute source acquisition,
+five-minute signed-input construction, two-minute journey construction), including
+final writes and handoff. Subsequent custody uses the existing original parent's
+deadline and identity, without renewing a JWT, extending a job or raising a
+resource limit. This separates preparation time from native execution time.
+
+The post-sign request requires the private fixed-verifier result. Bootstrap has
+no predecessor package; an update requires the distinct Tough/history-bound
+immutable predecessor asset and retained bytes. The existing isolated Linux
+driver receives the candidate/predecessor plan and unchanged state paths; ordinary
+public updater/feed proof remains a separate obligation. Hosted report generation
+now selects its existing post-sign reconstructor for report2. A controlled
+original-constructor test exposed the prior unconditional pre-sign route; its
+failed evidence is retained separately from the corrected result.
+
+Controlled tests exercise both job/proof stages, bootstrap and ordinary report
+construction, metadata/predecessor refusal, copied receipts, tamper/restoration,
+gated concurrent corruption (including the final request handoff), original-parent custody past short preparation
+phases, final-write deadline refusal and honestly empty verifier stderr. These
+models passed 20 focused tests with no skips; they do not establish a real issuer,
+application or provider acceptance. The
+hosted packed-tool fixture additionally feeds its actual disposable signed Linux
+bytes through the fixed prepared reaper/verifier and the private payload getter,
+with empty stderr and corruption/concurrency refusals; its actual result and
+source/run/attempt belong in the owning delivery receipt. Peer/source authority
+remains explicitly controlled in that fixture. Framework fixtures remain distinct
+from two eligible repaired game artifacts.
+
+No production exposure, signing key, App, credential, protection or custody change
+is performed by this preparation. Additional bounded storage consists of the
+existing compiler archive (at most 512 MiB), selected package (at most 512 MiB), an
+optional immutable predecessor (at most 512 MiB), public signature/key (16 KiB each),
+payload plan/result/streams (64KiB/1MiB/two1MiB) and the existing bounded context,
+repository and capture evidence. Proof snapshots retain identities and rehash
+original bytes; they do not create another archive copy. The existing parser,
+concurrency, cache, archive, seven-day retention and $0 stop boundaries remain.
+Final whole-job fit and runnable graph/source/digest reconciliation are still
+required within the selected 99/100 job-minute boundary. Availability/headroom remain
+Unknown, with no capacity reservation.
+
+Remaining engineering includes the held caller/CLI graph, Windows counterpart
+and native/public journey continuity under their exact grants and observations.
+No owner-only action is requested by this source preparation. #254 remains Done;
+#315/#534/#246 acceptance and existing Chameleon runtime holds remain pending;
+production held; slice 5 excluded.

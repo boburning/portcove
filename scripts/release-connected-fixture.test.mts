@@ -330,6 +330,38 @@ void test(
       }
       // Private payload material is gone before any consumer/metadata role runs.
       await rm(keyPath);
+      const packedPayloadEntry = process.env.PORTCOVE_CONNECTED_KEYLESS_ENTRY;
+      if (packedPayloadEntry) {
+        const identity = updaterIdentity(policy, "linux-x86_64", version);
+        const publicFixture = path.join(root, "packed-payload-fixture.json");
+        await writeFile(
+          publicFixture,
+          JSON.stringify({
+            tools: path.dirname(path.dirname(packedPayloadEntry)),
+            entry: packedPayloadEntry,
+            payload: path.join(root, "packages", identity.filename),
+            signature: path.join(root, "signed-linux-x86_64", `${identity.filename}.sig`),
+            publicKey,
+            publicId,
+            version,
+          }),
+          { flag: "wx", mode: 0o600 },
+        );
+        const observed = await run(
+          process.execPath,
+          [
+            "--test",
+            "--test-name-pattern=hosted signed inputs",
+            "scripts/release-hosted-native-job.test.mts",
+          ],
+          {
+            env: { ...process.env, PORTCOVE_CONNECTED_PAYLOAD_FIXTURE: publicFixture },
+            timeout: 50000,
+            maxBuffer: 65536,
+          },
+        );
+        t.diagnostic(observed.stdout);
+      }
       const signAndAssemble = async (context: string, name: string) => {
         const signed: Awaited<ReturnType<typeof signIsolatedTufRole>>[] = [];
         for (const role of roles) {
