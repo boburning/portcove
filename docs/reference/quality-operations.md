@@ -322,6 +322,108 @@ global mutation score for behavior coverage. A broken selected guard must fail
 the expected property, and the original source must still pass afterward. These
 experiments establish no installed, native, signing or release acceptance.
 
+## Bounded raw TAR parser campaign
+
+`archive::fuzz_tests::bounded_raw_tar_mutation_campaign` is an opt-in,
+memory-only investigation of `preflight_raw_tar` through its real bounded reader.
+Its ordinary-test ignore reason identifies this route. It uses the existing
+pinned Rust/proptest/TAR dependencies and installs no fuzzer or mandatory tool.
+
+Eight synthetic, redistributable seeds cover an ordinary member, empty stream,
+truncated header, checksum corruption, the exact 64 KiB raw extension limit,
+oversized extension/file declarations and an unsupported long link. Refusal
+controls require the specific size-limit refusal and zero body-read attempts,
+including failed or zero-byte attempts after the first 512-byte header. EOF or
+truncation cannot substitute for the intended bound. Raw preflight acceptance
+does not establish semantic TAR acceptance.
+
+The campaign uses ChaCha seed `242047`, 256 generated cases, at most sixteen byte
+edits per case, truncation, optional checksum repair and four short-read shapes.
+Inputs and decoded work are capped at 128 KiB; retained seed bytes together also
+fit 128 KiB. It permits 1024 successful checkpoint calls plus the two refusal
+rechecks. The raw iterator returns fixed headers before the pinned TAR parser's
+long-name/PAX `read_all` preprocessing; declared sizes do not allocate payloads.
+Memory contains the bounded corpus, one bounded input and fixed reader/header
+state, plus bounded generator/shrinker state. This is not a resident-memory cap.
+There is no gzip expansion, semantic-entry extraction or filesystem publication
+in this boundary; those retain their separate tests and protections.
+
+Run from a clean, committed checkout. Set `PORTCOVE_FUZZ_EVIDENCE` and
+`PORTCOVE_FUZZ_TARGET` to new, separate absolute directories outside it, with
+existing parents. Keep the target short on Windows. Preserve the source while
+the commands run; earlier evidence/targets are refused. This recipe admits each
+stage through the existing resource supervisor, allows twenty minutes to compile
+and sixty seconds for the actual campaign, and preserves both logs on failure.
+
+```powershell
+@'
+import path from "node:path";
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, realpathSync, readFileSync, writeFileSync, openSync, closeSync } from "node:fs";
+import { runResourceCommand } from "./scripts/resource-command.mts";
+const workspace = realpathSync(".");
+if (execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()) throw Error("Clean committed campaign source required");
+function externalDirectory(requested) {
+  if (!requested || !path.isAbsolute(requested)) throw Error("Expected absolute output directory");
+  const result = path.join(realpathSync(path.dirname(requested)), path.basename(requested));
+  const relative = path.relative(workspace, result);
+  if (!relative || (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))) {
+    throw Error("Output must be outside the resolved workspace");
+  }
+  return result;
+}
+const output = externalDirectory(process.env.PORTCOVE_FUZZ_EVIDENCE);
+const target = externalDirectory(process.env.PORTCOVE_FUZZ_TARGET);
+if (!path.relative(output, target) || existsSync(output) || existsSync(target)) throw Error("New separate outputs required");
+const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
+const files = ["Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "crates/portcove-core/Cargo.toml", "crates/portcove-core/src/archive.rs", "crates/portcove-core/src/archive_fuzz_tests.rs"];
+const snapshot = () => Object.fromEntries(files.map(file => [file, hash(readFileSync(file))]));
+const source = snapshot();
+mkdirSync(output);
+mkdirSync(target);
+const receipt = { source, revision: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(), node: process.version, platform: process.platform, arch: process.arch, status: "running", stages: [] };
+const selection = ["test", "--locked", "-p", "portcove-core", "--lib", "archive::fuzz_tests::bounded_raw_tar_mutation_campaign"];
+try {
+  writeFileSync(path.join(output, "compiler.txt"), execFileSync("rustc", ["--version", "--verbose"], { env: { ...process.env, RUSTUP_AUTO_INSTALL: "0" } }));
+  for (const [name, args, budget] of [
+    ["build", [...selection, "--no-run"], 1_200_000],
+    ["campaign", [...selection, "--", "--ignored", "--exact", "--test-threads=1", "--nocapture"], 60_000],
+  ]) {
+    const log = path.join(output, `${name}.log`), fd = openSync(log, "wx");
+    let status = null;
+    try {
+      status = await runResourceCommand("rust", "cargo", args, {
+        executionTimeoutMilliseconds: budget, queueDeadline: performance.now() + 900_000,
+        output: { stdout: fd, stderr: fd }, environment: { ...process.env, CARGO_TARGET_DIR: target, RUSTUP_AUTO_INSTALL: "0" },
+      });
+    } finally {
+      closeSync(fd);
+      receipt.stages.push({ name, args, budget, status, log, sha256: hash(readFileSync(log)) });
+    }
+    if (JSON.stringify(snapshot()) !== JSON.stringify(source)) throw Error("Campaign inputs changed");
+    if (status !== 0) throw Error(`Retain failed ${name} evidence`);
+    if (name === "campaign" && !/1 passed; 0 failed; 0 ignored/u.test(readFileSync(log, "utf8"))) throw Error("Campaign did not execute exactly once");
+  }
+  if (execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()) throw Error("Campaign changed the source checkout");
+  receipt.status = "passed";
+} catch (error) {
+  receipt.status = "failed";
+  receipt.error = String(error);
+  throw error;
+} finally { writeFileSync(path.join(output, "receipt.json"), JSON.stringify(receipt, null, 2) + "\n", { flag: "wx" }); }
+'@ | node --input-type=module
+if ($LASTEXITCODE) { throw 'Parser campaign failed; retain its packet before repair' }
+```
+
+The existing shrinker allows at most 512 iterations. Failure persistence is
+disabled so it cannot change the input checkout; the retained failure prints the
+small seed index/edit/truncation tuple. Promote a minimized real failure into a
+named deterministic seed or regression and retain its original source, tuple and
+log before repair. Ordinary runs continue reporting the campaign as explicitly
+ignored. Passing this bounded campaign is investigative evidence, not broad
+format, extraction, native or release coverage.
+
 ## Fallow scopes and policy
 
 Use the repository-pinned Fallow through the maintained wrappers so reports retain
