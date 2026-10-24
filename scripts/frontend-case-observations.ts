@@ -102,6 +102,7 @@ export function createFrontendCaseObservations(
         mode: test.options.mode,
         skip_reason: result.state === "skipped" ? text(result.note, 1024) : null,
         duration_ms: duration(diagnostic?.duration),
+        start_time_ms: duration(diagnostic?.startTime),
         retry_count: integer(diagnostic?.retryCount),
         repeat_count: integer(diagnostic?.repeatCount),
         errors: errors.slice(0, 2).map((error) => failure(error)),
