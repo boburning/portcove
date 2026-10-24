@@ -2601,6 +2601,20 @@ for (const closeFails of [false, true]) {
   });
 }
 
+void test("native recovery keyboard changes retain macOS no-global portability coverage", () => {
+  const job = workflowJob("frontend_portability");
+  assert.equal(job["runs-on"], "macos-26");
+  assert.ok(typeof job.if === "string");
+  const ordinaryInputs = Array.from(
+    job.if.matchAll(/contains\(needs\.classify\.outputs\.files_json, '([^']+)'\)/gu),
+    (match) => match[1],
+  );
+  assert.deepEqual(
+    new Set(ordinaryInputs),
+    new Set(["pnpm-workspace.yaml", "apps/desktop/src/browser/display-recovery.browser.test.tsx"]),
+  );
+});
+
 void test("frontend tools resolve through the pinned Vite+ bundle", async () => {
   const manifest: unknown = JSON.parse(
     await readFile(new URL("../package.json", import.meta.url), "utf8"),

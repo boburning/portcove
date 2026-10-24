@@ -72,8 +72,14 @@ it.each([
     await userEvent.keyboard("{Tab}");
     expect(document.activeElement).toBe(diagnostics);
     expect(diagnostics.scrollHeight - diagnostics.clientHeight).toBeGreaterThan(long ? 0 : -1);
-    await userEvent.keyboard("{Control>}{End}{/Control}");
+    const endOfDetails = /Mac/u.test(navigator.platform)
+      ? "{Meta>}{ArrowDown}{/Meta}"
+      : "{Control>}{End}{/Control}";
+    await userEvent.keyboard(endOfDetails);
     await expect.poll(() => diagnostics.scrollTop).toBeGreaterThan(long ? 0 : -1);
+    await expect
+      .poll(() => diagnostics.scrollTop + diagnostics.clientHeight)
+      .toBeGreaterThanOrEqual(diagnostics.scrollHeight - 1);
     await userEvent.keyboard("{Shift>}{Tab}{Tab}{/Shift}");
     await expect.element(reload).toHaveFocus();
     expect(button.getBoundingClientRect().bottom).toBeLessThan(800);
