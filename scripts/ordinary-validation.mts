@@ -1402,6 +1402,10 @@ for (const file of [
   ]);
 }
 
+explicitNodeTests.set("scripts/fixtures/coordinator-fixture-phases.mts", [
+  "scripts/release-coordinator-state.test.mts",
+]);
+
 export const coordinatorStateContractTests = [
   "scripts/release-coordinator-state.test.mts",
   "scripts/release-coordinator-recovery.test.mts",

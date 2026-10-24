@@ -11,7 +11,7 @@ import { metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mt
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
@@ -29,6 +29,7 @@ import {
   CoordinatorRemoteError,
 } from "./release-coordinator-remote.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
+import { createCoordinatorFixturePhases } from "./fixtures/coordinator-fixture-phases.mts";
 
 import {
   remoteFixture,
@@ -40,6 +41,151 @@ const execute = promisify(execFile);
 
 const moduleUrl = new URL("./release-coordinator-state.mts", import.meta.url).href;
 
+void test("coordinator fixture phases retain the failed span through successful cleanup", async () => {
+  const lines: string[] = [];
+  let clock = 10;
+  const phases = createCoordinatorFixturePhases("owned phase control", {
+    write: (line) => {
+      lines.push(line);
+    },
+    now: () => ++clock,
+    environment: { PORTCOVE_HEAD_SHA: "b".repeat(40), NODE_TEST_CONTEXT: "child-v8" },
+    fileConcurrency: 1,
+  });
+  const value = {};
+  assert.equal(await phases.measure("directory", async () => value), value);
+  const original = new Error("retained setup failure");
+  await assert.rejects(
+    phases.measure("source", async () => {
+      throw original;
+    }),
+    (error) => error === original,
+  );
+  let cleaned = false;
+  await phases.measure("cleanup", async () => {
+    cleaned = true;
+  });
+  assert.equal(cleaned, true);
+  const rows = lines.map((line) => {
+    assert.ok(Buffer.byteLength(line) <= 4096);
+    const row: unknown = JSON.parse(line.slice("Coordinator fixture phase: ".length));
+    assert.ok(isRecord(row));
+    return row;
+  });
+  assert.deepEqual(
+    rows.map((row) => [row.phase, row.state]),
+    [
+      ["directory", "started"],
+      ["directory", "completed"],
+      ["source", "started"],
+      ["source", "failed"],
+      ["cleanup", "started"],
+      ["cleanup", "completed"],
+    ],
+  );
+  assert.equal(rows[3]!.last_completed, "directory");
+  assert.equal(rows[3]!.last_failed, "source");
+  assert.equal(rows[5]!.last_completed, "cleanup");
+  assert.equal(rows[5]!.last_failed, "source");
+  assert.ok(rows.every((row) => typeof row.elapsed_ms === "number" && row.elapsed_ms >= 0));
+  assert.ok(isRecord(rows[0]!.context));
+  assert.equal(rows[0]!.context.source, "b".repeat(40));
+  assert.equal(rows[0]!.context.file_concurrency, 1);
+});
+
+void test("coordinator fixture phases cannot replace operation results when diagnostics are unavailable", async () => {
+  const phases = createCoordinatorFixturePhases("owned diagnostic failure", {
+    write() {
+      throw new Error("diagnostic writer unavailable");
+    },
+    now() {
+      throw new Error("diagnostic clock unavailable");
+    },
+    environment: {},
+  });
+  const result = {};
+  assert.equal(await phases.measure("directory", async () => result), result);
+  const original = new Error("original operation failure");
+  await assert.rejects(
+    phases.measure("source", async () => {
+      throw original;
+    }),
+    (error) => error === original,
+  );
+  const bounded: string[] = [];
+  await createCoordinatorFixturePhases("x".repeat(100000), {
+    write: (line) => {
+      bounded.push(line);
+    },
+    environment: { PORTCOVE_HEAD_SHA: "invalid", GITHUB_SHA: "not a revision" },
+  }).measure("directory", async () => undefined);
+  assert.equal(bounded.length, 2);
+  for (const line of bounded) {
+    assert.ok(Buffer.byteLength(line) <= 4096);
+    const row: unknown = JSON.parse(line.slice("Coordinator fixture phase: ".length));
+    assert.ok(isRecord(row) && isRecord(row.context));
+    assert.equal(row.context.test_truncated, true);
+    assert.equal(row.context.source, null);
+    assert.equal(row.context.checkout, null);
+    assert.equal(row.context.file_concurrency, null);
+  }
+});
+
+void test("coordinator fixture phases are retained by an actually failing child and its cleanup", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-fixture-phase-control-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "phase.test.mjs");
+  const factory = new URL("./fixtures/coordinator-fixture-phases.mts", import.meta.url).href;
+  await writeFile(
+    file,
+    `import test from "node:test";
+import { createCoordinatorFixturePhases } from ${JSON.stringify(factory)};
+test("actual owned setup failure", async (t) => {
+  const phases = createCoordinatorFixturePhases(t.name, { fileConcurrency: 1 });
+  t.after(() => phases.measure("cleanup", async () => undefined));
+  await phases.measure("directory", async () => undefined);
+  await phases.measure("source", async () => { throw new Error("retained original phase failure"); });
+});\n`,
+  );
+  const environment = { ...process.env, PORTCOVE_HEAD_SHA: "b".repeat(40) };
+  const result = await execute(
+    process.execPath,
+    ["--test", "--test-timeout=10000", "--test-concurrency=1", file],
+    {
+      env: { ...environment, NODE_TEST_CONTEXT: undefined },
+      windowsHide: true,
+      timeout: 20000,
+    },
+  ).then(
+    (value) => ({ ...value, code: 0 }),
+    (error: unknown) => {
+      assert.ok(isRecord(error));
+      return error;
+    },
+  );
+  assert.equal(result.code, 1);
+  const output = String(result.stdout) + "\n" + String(result.stderr);
+  assert.match(output, /retained original phase failure/u);
+  const rows = output.split("\n").flatMap((line) => {
+    const marker = "Coordinator fixture phase: ",
+      index = line.indexOf(marker);
+    if (index < 0) return [];
+    const row: unknown = JSON.parse(line.slice(index + marker.length));
+    assert.ok(isRecord(row));
+    return [row];
+  });
+  assert.equal(rows.length, 6, output);
+  const failed = rows.find((row) => row.state === "failed");
+  assert.ok(failed && isRecord(failed.context));
+  assert.equal(failed.phase, "source");
+  assert.equal(failed.last_completed, "directory");
+  assert.equal(failed.context.source, "b".repeat(40));
+  assert.equal(failed.context.file_concurrency, 1);
+  assert.equal(rows.at(-1)?.state, "completed");
+  assert.equal(rows.at(-1)?.phase, "cleanup");
+  assert.equal(rows.at(-1)?.last_failed, "source");
+});
+
 void test(
   "report-only technical repair consumes existing journal counter and distinct dispatch while retaining original compiler and publication",
   { timeout: 180000 },
@@ -48,7 +194,7 @@ void test(
     const { releaseEffectFixture } = await import("./fixtures/release-effect-fixture.mts");
     const { reportRepairDispatchDestination, inspectConsumedPublicationReportRepair } =
       await import("./release-report-repair-contract.mts");
-    const f = await remoteCapacityFixture(t, true);
+    const f = await remoteCapacityFixture(t, true, createCoordinatorFixturePhases(t.name));
     let checkpoint = f.migrated.checkpoint;
     const read = () => recoverReleaseOpportunity(f.bare, checkpoint);
     const save = async (input: Record<string, unknown>) => {
