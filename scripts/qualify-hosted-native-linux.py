@@ -49,6 +49,28 @@ def begin_attempt(root, context, pins, tree):
     return directory
 
 
+def require_setup_readback(setup, broker_uid):
+    need(setup["completed"] is True and setup["failure"] is None,
+         "fixed account setup refused; retain original stage and partial readback")
+    need(type(setup["uid"]) is int and type(setup["gid"]) is int
+         and 0 < setup["uid"] <= 4294967294 and 0 < setup["gid"] <= 4294967294,
+         "actual setup identity must be nonroot")
+    need("readback_error" not in setup, "positive setup readback unavailable")
+    need(setup["readback"]["account"] == {
+        "uid": str(setup["uid"]), "gid": str(setup["gid"]),
+        "home": "/home/portcove-native", "shell": "/usr/sbin/nologin",
+    }, "actual setup account readback differs")
+    for filename in ("/home/portcove-native", str(GUEST)):
+        observed = setup["readback"]["paths"][filename]
+        need(observed["directory"] and observed["uid"] == setup["uid"]
+             and observed["gid"] == setup["gid"] and int(observed["mode"], 8) & 0o077 == 0,
+             "actual private setup path differs")
+    observed = setup["readback"]["paths"][str(INSTALLED)]
+    need(observed["directory"] and observed["uid"] == 0 and int(observed["mode"], 8) & 0o022 == 0,
+         "actual installed source custody differs")
+    need(setup["uid"] != broker_uid, "broker and qualification identities coincide")
+
+
 def command(arguments, timeout=15, environment=None):
     reply = subprocess.run(
         arguments, env=environment or ENV, stdin=subprocess.DEVNULL,
@@ -90,30 +112,79 @@ def hosted_context(environment):
 
 
 ROOT_SETUP = r'''
-import hashlib,json,os,pwd,shutil,stat,subprocess,sys
+import hashlib,json,os,pwd,signal,stat,subprocess,sys,time
 from pathlib import Path
 src=Path(sys.argv[1]); wanted=json.loads(sys.argv[2]); target=Path('/opt/portcove-native-readiness')
-assert os.getuid()==0 and not target.exists() and not Path('/home/portcove-native').exists()
-try: pwd.getpwnam('portcove-native')
-except KeyError: pass
-else: raise RuntimeError('preexisting qualification account refuses setup')
-for name,digest in wanted.items():
- p=src/name; info=p.lstat(); assert stat.S_ISREG(info.st_mode) and info.st_nlink==1 and info.st_size<=1048576
- assert hashlib.sha256(p.read_bytes()).hexdigest()==digest
-subprocess.run(['/usr/sbin/useradd','--create-home','--user-group','--shell','/usr/sbin/nologin','portcove-native'],check=True,timeout=10)
-user=pwd.getpwnam('portcove-native'); assert user.pw_uid>0 and user.pw_shell=='/usr/sbin/nologin'
-assert subprocess.run(['/usr/bin/passwd','-S','portcove-native'],check=True,capture_output=True,timeout=5).stdout.split()[1]==b'L'
-Path(user.pw_dir).chmod(0o700)
-target.mkdir(mode=0o755)
-for name,digest in wanted.items():
- data=(src/name).read_bytes(); assert hashlib.sha256(data).hexdigest()==digest
- p=target/name
- with p.open('xb') as f: f.write(data)
- p.chmod(0o444)
-root=Path('/home/portcove-native/portcove-native'); root.mkdir(mode=0o700); os.chown(root,user.pw_uid,user.pw_gid)
-subprocess.run(['/usr/bin/loginctl','enable-linger','portcove-native'],check=True,timeout=10)
-subprocess.run(['/usr/bin/systemctl','start',f'user@{user.pw_uid}.service'],check=True,timeout=15)
-print(json.dumps({'uid':user.pw_uid,'gid':user.pw_gid,'shell':user.pw_shell,'source_sha256':wanted}))
+result={'stage':'source-validation','completed':False,'failure':None,'source_sha256':wanted,'readback':None,'automatic_retry':False}
+deadline=time.monotonic()+60
+def run(arguments,seconds):
+ remaining=min(seconds,deadline-time.monotonic()); assert remaining>0
+ child=subprocess.Popen(arguments,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
+ try:
+  stdout,stderr=child.communicate(timeout=remaining)
+ except subprocess.TimeoutExpired as original:
+  # The original child has not been reaped, so its session/group identity
+  # cannot have been reused. Terminate only that fixed root command's group.
+  result['command_timeout']={'executable':arguments[0],'seconds':remaining,'group_kill_sent':False,'child_reaped':False}
+  try:
+   os.killpg(child.pid,signal.SIGKILL)
+   result['command_timeout']['group_kill_sent']=True
+   child.communicate(timeout=2)
+   result['command_timeout']['child_reaped']=True
+  except Exception as error: result['command_timeout']['settlement_error']=type(error).__name__
+  raise original
+ assert len(stdout)<=8192 and len(stderr)<=8192 and child.returncode==0, 'fixed setup command refused'
+ assert time.monotonic()<deadline, 'original setup deadline expired'
+ return stdout
+try:
+ assert os.getuid()==0 and not target.exists() and not Path('/home/portcove-native').exists()
+ try: pwd.getpwnam('portcove-native')
+ except KeyError: pass
+ else: raise RuntimeError('preexisting qualification account refuses setup')
+ for name,digest in wanted.items():
+  p=src/name; info=p.lstat(); assert stat.S_ISREG(info.st_mode) and info.st_nlink==1 and info.st_size<=1048576
+  assert hashlib.sha256(p.read_bytes()).hexdigest()==digest
+ result['stage']='useradd'
+ run(['/usr/sbin/useradd','--no-log-init','--no-create-home','--user-group','--shell','/usr/sbin/nologin','portcove-native'],30)
+ user=pwd.getpwnam('portcove-native'); assert user.pw_uid>0 and user.pw_gid>0 and user.pw_shell=='/usr/sbin/nologin' and user.pw_dir=='/home/portcove-native'
+ result['stage']='locked-account-readback'
+ assert run(['/usr/bin/passwd','-S','portcove-native'],5).split()[1]==b'L'
+ result['stage']='private-home-creation'
+ Path(user.pw_dir).mkdir(mode=0o700)
+ os.chown(user.pw_dir,user.pw_uid,user.pw_gid)
+ result['stage']='source-install'
+ target.mkdir(mode=0o755)
+ for name,digest in wanted.items():
+  data=(src/name).read_bytes(); assert hashlib.sha256(data).hexdigest()==digest
+  p=target/name
+  with p.open('xb') as f: f.write(data)
+  p.chmod(0o444)
+ root=Path('/home/portcove-native/portcove-native'); root.mkdir(mode=0o700); os.chown(root,user.pw_uid,user.pw_gid)
+ result['stage']='user-manager'
+ run(['/usr/bin/loginctl','enable-linger','portcove-native'],10)
+ run(['/usr/bin/systemctl','start',f'user@{user.pw_uid}.service'],15)
+ assert time.monotonic()<deadline
+ result.update(completed=True,uid=user.pw_uid,gid=user.pw_gid,shell=user.pw_shell)
+except Exception as error:
+ result['failure']=type(error).__name__+': '+str(error)[:2048]
+finally:
+ try:
+  # Local public files only; avoid another potentially blocking NSS lookup.
+  data=Path('/etc/passwd').read_bytes(); assert len(data)<=131072
+  rows=[line.split(':') for line in data.decode().splitlines() if line.startswith('portcove-native:')]
+  account=None if not rows else {'uid':rows[0][2],'gid':rows[0][3],'home':rows[0][5],'shell':rows[0][6]}
+  paths={}
+  for name in ('/home/portcove-native','/home/portcove-native/portcove-native','/opt/portcove-native-readiness'):
+   p=Path(name)
+   try:
+    info=p.lstat(); paths[name]={'uid':info.st_uid,'gid':info.st_gid,'mode':oct(info.st_mode),'directory':stat.S_ISDIR(info.st_mode)}
+   except FileNotFoundError: paths[name]=None
+  result['readback']={'account':account,'paths':paths}
+ except Exception as error: result['readback_error']=type(error).__name__
+ if time.monotonic()>=deadline:
+  result['completed']=False
+  result['failure']=result['failure'] or 'original setup readback deadline expired'
+ print(json.dumps(result))
 '''
 
 CHILD = r'''
@@ -287,11 +358,11 @@ def prepare():
             need(Path(tool).is_file(), "required hosted primitive missing: " + tool)
         result["stage"] = "fixed-account-setup"
         result["setup"] = json.loads(command([
-            "/usr/bin/sudo", "-n", "--", "/usr/bin/timeout", "--kill-after=2s", "45s",
+            "/usr/bin/sudo", "-n", "--", "/usr/bin/timeout", "--kill-after=2s", "70s",
             "/usr/bin/env", "-i", "PATH=/usr/bin:/bin", "LANG=C.UTF-8", "/usr/bin/python3", "-I", "-S", "-B", "-c",
             ROOT_SETUP, str(root / "scripts"), json.dumps(pins),
-        ], timeout=50))
-        need(result["setup"]["uid"] != os.getuid(), "broker and qualification identities coincide")
+        ], timeout=75))
+        require_setup_readback(result["setup"], os.getuid())
         result["stage"] = "inert-boundary-probe"
         reply = subprocess.run([
             "/usr/bin/sudo", "-n", "-H", "-u", USER, "--", "/usr/bin/env", "-i", "PATH=/usr/bin:/bin",
