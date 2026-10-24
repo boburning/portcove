@@ -1,0 +1,27 @@
+name: Hosted Linux native boundary readiness
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: hosted-native-linux-readiness-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  inert-boundary:
+    if: github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Observe the fixed credential-free native primitives once
+        run: /usr/bin/python3 -I -S -B scripts/qualify-hosted-native-linux.py --prepare
+      - name: Retain the original public diagnostic outcome
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hosted-linux-readiness-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/hosted-linux-runtime-evidence/*.json
+          if-no-files-found: error
+          retention-days: 7
