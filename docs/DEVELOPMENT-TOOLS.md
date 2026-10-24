@@ -419,16 +419,16 @@ pnpm build
 
 Choose test commands by their runner and evidence scope:
 
-| Command                                           | Runner and evidence                                                                                                                                          |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm test`                                       | Vite+ `unit` project in Node; frontend logic and pure tooling tests.                                                                                         |
-| `pnpm test:browser`                               | Vite+ `browser` and `browser-forced-colors` projects in headless Chromium; real DOM interactions and browser fixtures. Requires the browser bootstrap above. |
-| `just test-ui <literal-test-file> ...`            | Exact maintained unit/browser files; reconciles every requested file with actual execution.                                                                  |
-| `just test-ui-related <literal-source-file> ...`  | Import-related unit/browser tests; an empty related selection falls back to the maintained frontend projects.                                                |
-| `pnpm test:native-tools`                          | Node compiler/shell integration tests; Rust probe and platform shell prerequisites apply.                                                                    |
-| `pnpm exec vp test`                               | All three frontend projects: Node unit, Chromium browser and forced colors.                                                                                  |
-| `just desktop-verify --list-scenarios` / `--plan` | Native harness inventory or execution plan; does not build or launch the app.                                                                                |
-| `just desktop-verify --scenario <id>`             | Runs the selected scenario in the native Tauri/WebView harness with its declared fixture and observations.                                                   |
+| Command                                           | Runner and evidence                                                                                                                                                            |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm test`                                       | Vite+ `unit` project in Node; frontend logic and pure tooling tests.                                                                                                           |
+| `pnpm test:browser`                               | Vite+ `browser`, `browser-locale` and `browser-forced-colors` projects in headless Chromium; real DOM interactions and browser fixtures. Requires the browser bootstrap above. |
+| `just test-ui <literal-test-file> ...`            | Exact maintained unit/browser files; reconciles every requested file with actual execution.                                                                                    |
+| `just test-ui-related <literal-source-file> ...`  | Import-related unit/browser tests; an empty related selection falls back to the maintained frontend projects.                                                                  |
+| `pnpm test:native-tools`                          | Node compiler/shell integration tests; Rust probe and platform shell prerequisites apply.                                                                                      |
+| `pnpm exec vp test`                               | All four frontend projects: Node unit, Chromium browser, French/Auckland locale contracts and forced colors.                                                                   |
+| `just desktop-verify --list-scenarios` / `--plan` | Native harness inventory or execution plan; does not build or launch the app.                                                                                                  |
+| `just desktop-verify --scenario <id>`             | Runs the selected scenario in the native Tauri/WebView harness with its declared fixture and observations.                                                                     |
 
 `pnpm test` covers only the unit project. Browser fixtures, compiler/shell
 contracts and native scenario observations each establish their stated scope;
@@ -507,7 +507,7 @@ never changes persistent shell configuration. Frontend CI already uses
 
 VS Code's recommended Vite+ extension pack includes Oxc and Vitest Explorer.
 The workspace selects `vitest.rootConfig: "vite.config.ts"`, so discovery uses
-the root's `unit`, `browser` and `browser-forced-colors` projects rather than
+the root's `unit`, `browser`, `browser-locale` and `browser-forced-colors` projects rather than
 independently loading the application's production config as another test root.
 Vitest Explorer resolves local Vite+ natively; no global `vp` or package-path
 override is needed. Individual workspace language overrides select Oxfmt even
@@ -1330,6 +1330,11 @@ completion-focus predicate run in actual Chromium; a small separate project
 enables forced colors. Standard React rendering/cleanup and renderHook serve
 ordinary fixtures, while explicit roots preserve controlled lifetimes, remounts
 and same-turn races. Neither jsdom nor its type package is installed.
+
+The bounded accessibility matrix scans the complete Library in covers/rows, a narrow navigation modal, long-identity details and narrow engineering RTL language settings with all default axe rules. The narrow modal retains keyboard containment and return assertions; focused rule regressions elsewhere remain separate. Each scan retains an exact bounded JSON annotation under `.vitest/attachments/accessibility-audit` on success or failure, including rule IDs, incomplete findings, axe version and browser context. Existing always-run CI diagnostics upload these JSON files. An incomplete result requires explicit investigation; it never counts as an automatic pass.
+
+The separate `browser-locale` project assigns only `locale-input.browser.test.tsx` to a real French/Auckland browser context. It checks fixed UTC history identity against local display, supported English fallback and the bounded RTL engineering preview, plus Control/Meta application input. Simulated platform labels and Chromium key dispatch do not establish native operating-system shortcut acceptance. Existing recovery navigation still uses the actual host's native end-of-document chord.
+
 The static scenario page remains inert. Browser results are not native Tauri,
 WebView, controller, operating-system, or package qualification.
 

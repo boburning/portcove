@@ -37,7 +37,10 @@ const browserProject = {
     sequence: { groupOrder: 1 },
     setupFiles: ["test/browser-setup.mts"],
     include: ["src/**/*.browser.test.{ts,tsx}"],
-    exclude: ["src/browser/forced-colors.browser.test.tsx"],
+    exclude: [
+      "src/browser/forced-colors.browser.test.tsx",
+      "src/browser/locale-input.browser.test.tsx",
+    ],
     browser: {
       enabled: true,
       headless: true,
@@ -69,6 +72,22 @@ export const desktopProjects = [
     },
   },
   browserProject,
+  {
+    ...browserProject,
+    test: {
+      ...browserProject.test,
+      name: "browser-locale",
+      include: ["src/browser/locale-input.browser.test.tsx"],
+      exclude: [],
+      browser: {
+        ...browserProject.test.browser,
+        instances: [{ browser: "chromium" }],
+        provider: playwright({
+          contextOptions: { locale: "fr-FR", timezoneId: "Pacific/Auckland" },
+        }),
+      },
+    },
+  },
   {
     ...browserProject,
     test: {
