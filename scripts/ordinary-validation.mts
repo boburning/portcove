@@ -1504,6 +1504,7 @@ const releaseContractTests = Object.freeze([
   "scripts/native-qualification-linux-supervisor.test.mts",
   "scripts/native-qualification-linux-transfer.test.mts",
   "scripts/release-native-wsl-capture.test.mts",
+  "scripts/release-hosted-native-linux-capture.test.mts",
   "scripts/release-native-candidate.test.mts",
   "scripts/release-native-public-pair.test.mts",
   "scripts/release-native-public-attempt-contract.test.mts",
