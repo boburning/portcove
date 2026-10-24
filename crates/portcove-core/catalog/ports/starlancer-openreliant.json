@@ -21,7 +21,7 @@
       "steps": [
         {
           "title": "Start the game",
-          "instruction": "Follow the linked installation guide to run openreliant.exe install StarLancer yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration."
+          "instruction": "Follow the linked installation guide to run the player’s install command yourself from its folder: openreliant.exe install StarLancer on Windows or ./openreliant install StarLancer on Linux, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration."
         }
       ],
       "warnings": [],
@@ -31,23 +31,25 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
     "release": {
       "repository": "OpenReliant/openreliant",
       "asset_hints": {
-        "windows-x86-64": ["openreliant-", "-windows-x86_64.zip"]
+        "windows-x86-64": ["openreliant-", "-windows-x86_64.zip"],
+        "linux-x86-64": ["openreliant-", "-linux-x86_64.tar.gz"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": ["openreliant.exe"]
+      "windows-x86-64": ["openreliant.exe"],
+      "linux-x86-64": ["openreliant"]
     },
     "persistent_paths": ["StarLancer"],
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Follow the linked installation guide to run openreliant.exe install StarLancer yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration. The declared StarLancer folder contains original game assets, campaign saves, starlancer.ini and openreliant.log. It is retained during compatible runtime replacement and backup. Keep another copy of the original media. A game installed elsewhere or custom launch arguments can use external registration; such external data is outside Portcove backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations."
+      "manual_preparation": "Follow the linked installation guide to run openreliant.exe install StarLancer yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration. The declared StarLancer folder contains original game assets, campaign saves, starlancer.ini and openreliant.log. It is retained during compatible runtime replacement and backup. Keep another copy of the original media. A game installed elsewhere or custom launch arguments can use external registration; such external data is outside Portcove backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. On Linux, run ./openreliant install StarLancer yourself from the player folder with your own discs/images and upstream’s --from options. Play finds the resulting declared StarLancer folder. sltool is a helper, not the player. External or custom installed data remains outside backup. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run."
     }
   }
 }

@@ -5698,14 +5698,15 @@
         "steps": [
           {
             "title": "Start the game",
-            "instruction": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside OpenJazz.exe. Keep the original source copy. The managed route selects this folder automatically. For external registration, use Change launch details to add game-data as a launch argument, or follow upstream instructions for your existing game folder. No compiler or installer is needed."
+            "instruction": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside the OpenJazz player. Keep the original source copy. The managed route selects this folder automatically. For external registration, use Change launch details to add game-data as a launch argument, or follow upstream instructions for your existing game folder. No compiler or installer is needed."
           }
         ],
         "warnings": [],
         "help_url": "https://github.com/AlisterT/openjazz/blob/20260301/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -6164,7 +6165,8 @@
         "help_url": "https://github.com/sciaschi/CBFD-Recompiled/blob/V0.1.6/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -6195,7 +6197,8 @@
         "help_url": "https://github.com/cdlewis/snowboardkids-recomp/blob/v1.0.6/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -6286,14 +6289,15 @@
         "steps": [
           {
             "title": "Finish the game’s setup",
-            "instruction": "Before first Play, copy your own supported original Japanese Doraemon: Nobita to 3tsu no Seireiseki .z64 ROM beside Dora64.exe and name that copy doraemon.n64.jp.z64. The game validates its identity before starting. This reviewed v1.0.4 release page contains the Windows package labeled 1.0.5; those upstream labels are retained."
+            "instruction": "Before first Play, copy your own supported original Japanese Doraemon: Nobita to 3tsu no Seireiseki .z64 ROM beside the Dora64 player and name that copy doraemon.n64.jp.z64. The game validates its identity before starting. This reviewed v1.0.4 release page contains the Windows package labeled 1.0.5; those upstream labels are retained."
           }
         ],
         "warnings": [],
         "help_url": "https://github.com/citrongames/Dora64/blob/v1.0.4/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -6426,7 +6430,8 @@
         "help_url": "https://github.com/craigshaw/FZeroRecomp/blob/v0.6.0/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -6765,14 +6770,15 @@
         "steps": [
           {
             "title": "Start the game",
-            "instruction": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace the player executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route."
+            "instruction": "Before first Play, copy DATA from your own supported Carmageddon installation beside the dethrace player, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace the player executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route."
           }
         ],
         "warnings": [],
         "help_url": "https://github.com/dethrace-labs/dethrace/blob/v0.10.1/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -7442,7 +7448,8 @@
         "help_url": "https://github.com/openglad/openglad/blob/v2.1092/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -7749,7 +7756,8 @@
         "match_kind": "underlying-game"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -8953,7 +8961,8 @@
         "help_url": "https://github.com/NoahVl/Birdman64/blob/v1.5.1/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -9273,7 +9282,8 @@
         "match_kind": "underlying-game"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -10442,14 +10452,15 @@
         "steps": [
           {
             "title": "Start the game",
-            "instruction": "Follow the linked installation guide to run openreliant.exe install StarLancer yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration."
+            "instruction": "Follow the linked installation guide to run the player’s install command yourself from its folder: openreliant.exe install StarLancer on Windows or ./openreliant install StarLancer on Linux, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration."
           }
         ],
         "warnings": [],
         "help_url": "https://github.com/OpenReliant/openreliant/blob/v0.20.0/docs/guide/installation.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {

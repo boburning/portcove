@@ -21267,7 +21267,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -21275,12 +21276,18 @@
         "asset_hints": {
           "windows-x86-64": [
             "openjazz-windows-mingw-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "openjazz-linux-glibc2.35-x86_64.zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "OpenJazz.exe"
+        ],
+        "linux-x86-64": [
+          "OpenJazz"
         ]
       },
       "persistent_paths": [
@@ -21298,12 +21305,12 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside OpenJazz.exe. The maintained launch arguments select that folder; no compiler or installer is needed. Keep the original source copy. Portcove retains game-data, openjazz.cfg, openjazz.log, the openjazz.tmp multiplayer transfer file and the reviewed scene diagnostics during compatible replacement. These are distinct from runtime files. Runtime rollback carries current declared data without rewinding progress. Custom launch paths or editions remain available through external registration. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_preparation": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside OpenJazz.exe. The maintained launch arguments select that folder; no compiler or installer is needed. Keep the original source copy. Portcove retains game-data, openjazz.cfg, openjazz.log, the openjazz.tmp multiplayer transfer file and the reviewed scene diagnostics during compatible replacement. These are distinct from runtime files. Runtime rollback carries current declared data without rewinding progress. Custom launch paths or editions remain available through external registration. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. The offered Linux ZIP is the upstream glibc2.35 x86-64 build and requires system SDL2/C++ libraries. It uses the same supported game-data argument and declared in-folder fallbacks; upstream user-profile storage, when used, remains external. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
         "manual_setup": {
           "steps": [
             {
               "title": "Start the game",
-              "instruction": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside OpenJazz.exe. Keep the original source copy. The managed route selects this folder automatically. For external registration, use Change launch details to add game-data as a launch argument, or follow upstream instructions for your existing game folder. No compiler or installer is needed."
+              "instruction": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside the OpenJazz player. Keep the original source copy. The managed route selects this folder automatically. For external registration, use Change launch details to add game-data as a launch argument, or follow upstream instructions for your existing game folder. No compiler or installer is needed."
             }
           ],
           "warnings": [],
@@ -21390,7 +21397,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -21399,12 +21407,19 @@
           "windows-x86-64": [
             "conkerrecompiled-",
             "-windows.zip"
+          ],
+          "linux-x86-64": [
+            "conkerrecompiled-",
+            "-linux.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "ConkerRecomp.exe"
+        ],
+        "linux-x86-64": [
+          "ConkerRecomp"
         ]
       },
       "persistent_paths": [
@@ -21416,7 +21431,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On first Play, choose your own US Conker’s Bad Fur Day ROM in big-endian .z64 format. The launcher extracts what it needs from that ROM; the published player does not require compiling the game. The default imported ROM, EEPROM saves, save states, achievements, settings and mods live in LocalAppData/ConkerRecompiled, outside Portcove backups. Declared crash.log and rt64_fb_log.txt diagnostics beside the executable, and the conker_data legacy/headless directory, are retained if present. Use an external copy for portable.txt mode, headless flags or customized storage. Save states remain build-sensitive. Existing external installations retain their files and runtime owner. Gameplay and packaged Desktop acceptance remain separate observations.",
+        "manual_preparation": "On first Play, choose your own US Conker’s Bad Fur Day ROM in big-endian .z64 format. The launcher extracts what it needs from that ROM; the published player does not require compiling the game. The default imported ROM, EEPROM saves, save states, achievements, settings and mods live in LocalAppData/ConkerRecompiled, outside Portcove backups. Declared crash.log and rt64_fb_log.txt diagnostics beside the executable, and the conker_data legacy/headless directory, are retained if present. Use an external copy for portable.txt mode, headless flags or customized storage. Save states remain build-sensitive. Existing external installations retain their files and runtime owner. Gameplay and packaged Desktop acceptance remain separate observations. Linux normally keeps the imported ROM/settings/saves in ~/.config/ConkerRecompiled, outside Portcove backups. Install upstream’s SDL2, FreeType and D-Bus runtime dependencies. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
         "manual_setup": {
           "steps": [
             {
@@ -21447,7 +21462,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -21455,12 +21471,18 @@
         "asset_hints": {
           "windows-x86-64": [
             "snowboardkidsrecompiled-windows.zip"
+          ],
+          "linux-x86-64": [
+            "snowboardkidsrecompiled-linux-x64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "SnowboardKidsRecompiled.exe"
+        ],
+        "linux-x86-64": [
+          "SnowboardKidsRecompiled"
         ]
       },
       "persistent_paths": [],
@@ -21468,7 +21490,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On first Play, select your own North American Snowboard Kids ROM in the main menu. The game verifies and imports it, converting supported byte orders. No separate extraction or game build is required. Windows requires the upstream Visual C++ runtime. The default imported ROM, settings, saves and mods live in LocalAppData/SnowboardKidsRecompiled, outside Portcove backups. The runtime package has no declared in-folder player data. Keep the default storage mode; register an external copy for portable.txt mode or custom storage. Existing external installations retain their files and runtime owner. Gameplay and packaged Desktop acceptance remain separate observations.",
+        "manual_preparation": "On first Play, select your own North American Snowboard Kids ROM in the main menu. The game verifies and imports it, converting supported byte orders. No separate extraction or game build is required. Windows requires the upstream Visual C++ runtime. The default imported ROM, settings, saves and mods live in LocalAppData/SnowboardKidsRecompiled, outside Portcove backups. The runtime package has no declared in-folder player data. Keep the default storage mode; register an external copy for portable.txt mode or custom storage. Existing external installations retain their files and runtime owner. Gameplay and packaged Desktop acceptance remain separate observations. Linux normally uses ~/.config/SnowboardKidsRecompiled for imported ROM/settings/saves, outside Portcove backups. The selected binary requires system SDL2, GTK3, FreeType and X11 libraries. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
         "manual_setup": {
           "steps": [
             {
@@ -21499,7 +21521,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -21508,12 +21531,19 @@
           "windows-x86-64": [
             "dora64-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "dora64-",
+            "-linux-x86_64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "Dora64.exe"
+        ],
+        "linux-x86-64": [
+          "Dora64"
         ]
       },
       "persistent_paths": [
@@ -21530,12 +21560,12 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Before first Play, copy your own supported original Japanese Doraemon: Nobita to 3tsu no Seireiseki .z64 ROM beside Dora64.exe and name that copy doraemon.n64.jp.z64. The game validates its identity before starting. This reviewed v1.0.4 release page contains the Windows package labeled 1.0.5; those upstream labels are retained. The named original ROM, saves folder, input/game/touch settings and named diagnostics live beside Dora64.exe and are declared for compatible updates and backup. Keep the source original elsewhere too. A differently named ROM or custom profile can use external registration. Runtime rollback carries current declared data without rewinding saves. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_preparation": "Before first Play, copy your own supported original Japanese Doraemon: Nobita to 3tsu no Seireiseki .z64 ROM beside Dora64.exe and name that copy doraemon.n64.jp.z64. The game validates its identity before starting. This reviewed v1.0.4 release page contains the Windows package labeled 1.0.5; those upstream labels are retained. The named original ROM, saves folder, input/game/touch settings and named diagnostics live beside Dora64.exe and are declared for compatible updates and backup. Keep the source original elsewhere too. A differently named ROM or custom profile can use external registration. Runtime rollback carries current declared data without rewinding saves. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. Linux uses the same fixed original ROM name and declared executable-adjacent settings/saves. The selected build needs system SDL2/GTK3 and their runtime dependencies. Keep the shipped assets beside Dora64; the package requires no setup compiler. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
         "manual_setup": {
           "steps": [
             {
               "title": "Finish the game’s setup",
-              "instruction": "Before first Play, copy your own supported original Japanese Doraemon: Nobita to 3tsu no Seireiseki .z64 ROM beside Dora64.exe and name that copy doraemon.n64.jp.z64. The game validates its identity before starting. This reviewed v1.0.4 release page contains the Windows package labeled 1.0.5; those upstream labels are retained."
+              "instruction": "Before first Play, copy your own supported original Japanese Doraemon: Nobita to 3tsu no Seireiseki .z64 ROM beside the Dora64 player and name that copy doraemon.n64.jp.z64. The game validates its identity before starting. This reviewed v1.0.4 release page contains the Windows package labeled 1.0.5; those upstream labels are retained."
             }
           ],
           "warnings": [],
@@ -21682,7 +21712,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -21691,12 +21722,19 @@
           "windows-x86-64": [
             "fzerorecomp-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "fzerorecomp-",
+            "-linux-x64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "fzero_recomp.exe"
+        ],
+        "linux-x86-64": [
+          "fzero_recomp"
         ]
       },
       "persistent_paths": [
@@ -21713,7 +21751,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "On first Play, select your own F-Zero USA ROM and press Play in the launcher. The package includes its native runtime and does not require generating or compiling game code. The launcher remembers the selected ROM path. Settings, key bindings, the remembered ROM path, default saves and screenshots live beside fzero_recomp.exe and are declared for compatible updates and backup. The optional fzero_usa_reference.sfc original file is retained if supplied. A ROM selected elsewhere and a custom save folder remain external and outside backups. Runtime rollback carries current declared data; it does not rewind saves. Existing external installations retain their files and runtime owner. Gameplay and packaged Desktop acceptance remain separate observations.",
+        "manual_preparation": "On first Play, select your own F-Zero USA ROM and press Play in the launcher. The package includes its native runtime and does not require generating or compiling game code. The launcher remembers the selected ROM path. Settings, key bindings, the remembered ROM path, default saves and screenshots live beside fzero_recomp.exe and are declared for compatible updates and backup. The optional fzero_usa_reference.sfc original file is retained if supplied. A ROM selected elsewhere and a custom save folder remain external and outside backups. Runtime rollback carries current declared data; it does not rewind saves. Existing external installations retain their files and runtime owner. Gameplay and packaged Desktop acceptance remain separate observations. Linux uses the same executable-adjacent declared configurations and saves as Windows. Keep lib/libSDL3.so.0 with the player; the ELF runpath resolves that packaged companion. System OpenGL and C++ runtime libraries are required. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
         "manual_setup": {
           "steps": [
             {
@@ -21862,7 +21900,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -21871,12 +21910,19 @@
           "windows-x86-64": [
             "dethrace-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "dethrace-",
+            "-linux-x64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "dethrace.exe"
+        ],
+        "linux-x86-64": [
+          "dethrace"
         ]
       },
       "persistent_paths": [
@@ -21889,12 +21935,12 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace Portcove’s executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route. The reviewed Carmageddon data directory includes saves, options, captures and supported data changes. DATA, optional MUSIC and named diagnostics are retained for compatible runtime replacement and backup. The upstream AppData/dethrace fallback or DETHRACE_ROOT_DIR-selected data remains external and outside backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_preparation": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace Portcove’s executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route. The reviewed Carmageddon data directory includes saves, options, captures and supported data changes. DATA, optional MUSIC and named diagnostics are retained for compatible runtime replacement and backup. The upstream AppData/dethrace fallback or DETHRACE_ROOT_DIR-selected data remains external and outside backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. The Linux player uses the same declared DATA/MUSIC and named diagnostics. Keep the originals separately and follow upstream’s native dependencies. A custom DETHRACE_ROOT_DIR or external preference-data fallback remains outside Portcove backup. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
         "manual_setup": {
           "steps": [
             {
               "title": "Start the game",
-              "instruction": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace the player executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route."
+              "instruction": "Before first Play, copy DATA from your own supported Carmageddon installation beside the dethrace player, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace the player executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route."
             }
           ],
           "warnings": [],
@@ -22164,7 +22210,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -22172,12 +22219,18 @@
         "asset_hints": {
           "windows-x86-64": [
             "openglad-windows-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "openglad-linux-x86_64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "openglad.exe"
+        ],
+        "linux-x86-64": [
+          "openglad"
         ]
       },
       "persistent_paths": [],
@@ -22185,7 +22238,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target. OpenGlad normally stores companies, saves/backups, campaigns, settings, screenshots, replays and downloaded packs in LocalAppData/.openglad, outside Portcove backups. Packaged campaigns and engine assets remain version-owned. No in-folder player data is declared in this default mode. Use external registration for OPENGLAD_CONFIG_DIR overrides or a fallback current-folder profile. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_preparation": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target. OpenGlad normally stores companies, saves/backups, campaigns, settings, screenshots, replays and downloaded packs in LocalAppData/.openglad, outside Portcove backups. Packaged campaigns and engine assets remain version-owned. No in-folder player data is declared in this default mode. Use external registration for OPENGLAD_CONFIG_DIR overrides or a fallback current-folder profile. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. Linux normally keeps player data in ~/.openglad, outside Portcove backups. The selected binary requires OpenSSL3 and other upstream system libraries. The packaged campaigns and engine assets remain version-owned. Use an external copy for custom OPENGLAD_CONFIG_DIR or a current-folder fallback. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
         "manual_setup": {
           "steps": [
             {
@@ -22216,7 +22269,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -22225,12 +22279,19 @@
           "windows-x86-64": [
             "dfu_windows_64bit-",
             ".zip"
+          ],
+          "linux-x86-64": [
+            "dfu_linux_64bit-",
+            ".zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "DaggerfallUnity.exe"
+        ],
+        "linux-x86-64": [
+          "DaggerfallUnity.x86_64"
         ]
       },
       "persistent_paths": [
@@ -22243,7 +22304,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On first Play, use Daggerfall Unity’s setup wizard to select your compatible original Daggerfall game folder. It validates the game data. The package is a native Unity player and needs no separate game compilation. Keep external originals where they are. Normal saves, settings, logs, screenshots and mod data live in Unity’s Daggerfall Workshop/Daggerfall Unity user-data directory, outside Portcove backups. The reviewed Portable.txt mode uses PortableAppdata beside the player; that folder and the marker are declared. StreamingAssets/Mods and optional StreamingAssets/GameFiles are retained as supported user additions. Other replacements of version-owned assets require manual preservation or external registration. Mods and saves must remain compatible with the selected runtime. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_preparation": "On first Play, use Daggerfall Unity’s setup wizard to select your compatible original Daggerfall game folder. It validates the game data. The package is a native Unity player and needs no separate game compilation. Keep external originals where they are. Normal saves, settings, logs, screenshots and mod data live in Unity’s Daggerfall Workshop/Daggerfall Unity user-data directory, outside Portcove backups. The reviewed Portable.txt mode uses PortableAppdata beside the player; that folder and the marker are declared. StreamingAssets/Mods and optional StreamingAssets/GameFiles are retained as supported user additions. Other replacements of version-owned assets require manual preservation or external registration. Mods and saves must remain compatible with the selected runtime. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. Linux uses Unity’s external user profile by default, outside Portcove backups. The same declared Portable.txt/PortableAppdata and supported StreamingAssets Mods/GameFiles paths apply. Keep UnityPlayer.so, DaggerfallUnity_Data and their packaged companions together; a Windows package does not establish Linux execution. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
         "original_game_title": "The Elder Scrolls II: Daggerfall",
         "manual_setup": {
           "steps": [
@@ -22417,7 +22478,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -22425,12 +22487,18 @@
         "asset_hints": {
           "windows-x86-64": [
             "birdman64-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "birdman64-linux-x64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "Birdman64.exe"
+        ],
+        "linux-x86-64": [
+          "birdman64"
         ]
       },
       "persistent_paths": [],
@@ -22438,7 +22506,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On first Play, select your own supported Pilotwings 64 ROM. Birdman64 then downloads its pinned, hash-checked upstream source and compiles a game module using its bundled compiler, showing progress and errors in its own setup window. First setup needs network access and may take time. Portcove does not run this setup during download or registration. Portcove updates the shipped player and bundled compiler. Birdman64 owns first-launch setup and its external compiled-game cache: the cache key binds the player ABI/version, source commit and compiler/link flags, so a changed player builds its own compatible module. Default saves/settings/packs live in AppData/Birdman64 and the build cache in LocalAppData/Birdman64/cache, all outside Portcove backups. No in-folder player data is declared. Use an external registration for portable.txt, adjacent legacy saves or developer overrides. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_preparation": "On first Play, select your own supported Pilotwings 64 ROM. Birdman64 then downloads its pinned, hash-checked upstream source and compiles a game module using its bundled compiler, showing progress and errors in its own setup window. First setup needs network access and may take time. Portcove does not run this setup during download or registration. Portcove updates the shipped player and bundled compiler. Birdman64 owns first-launch setup and its external compiled-game cache: the cache key binds the player ABI/version, source commit and compiler/link flags, so a changed player builds its own compatible module. Default saves/settings/packs live in AppData/Birdman64 and the build cache in LocalAppData/Birdman64/cache, all outside Portcove backups. No in-folder player data is declared. Use an external registration for portable.txt, adjacent legacy saves or developer overrides. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. The Linux tar.gz contains the direct birdman64 player and its bundled toolchain/zig compiler. Default data is in $XDG_DATA_HOME/birdman64 or ~/.local/share/birdman64; the external build cache remains upstream-owned and outside Portcove backups. The separately packaged AppRun is for an AppDir layout and is not the launch target for this tar.gz. System udev, D-Bus, X11/Wayland/audio libraries are required. Use external registration for PW64_DATA_DIR or portable/legacy data modes. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
         "manual_setup": {
           "steps": [
             {
@@ -22575,7 +22643,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -22584,12 +22653,19 @@
           "windows-x86-64": [
             "openrct2-",
             "-windows-portable-x64.zip"
+          ],
+          "linux-x86-64": [
+            "openrct2-",
+            "-linux-bookworm-x86_64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "openrct2.exe"
+        ],
+        "linux-x86-64": [
+          "openrct2"
         ]
       },
       "persistent_paths": [],
@@ -22597,7 +22673,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On first Play, select your installed RollerCoaster Tycoon 2 files if they are not detected. Optional RollerCoaster Tycoon 1 files can be configured through upstream menus. This is the standalone portable engine; the separate upstream auto-updating launcher remains an external alternative. Settings, saves, custom objects, tracks, replays and downloaded content normally live in Documents/OpenRCT2, outside Portcove backups. Original installations remain external. No in-folder player data is declared for this default mode. Register an external copy for custom --user-data-path or the separate auto-updating launcher. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_preparation": "On first Play, select your installed RollerCoaster Tycoon 2 files if they are not detected. Optional RollerCoaster Tycoon 1 files can be configured through upstream menus. This is the standalone portable engine; the separate upstream auto-updating launcher remains an external alternative. Settings, saves, custom objects, tracks, replays and downloaded content normally live in Documents/OpenRCT2, outside Portcove backups. Original installations remain external. No in-folder player data is declared for this default mode. Register an external copy for custom --user-data-path or the separate auto-updating launcher. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. The Linux recommendation is upstream’s Debian Bookworm build, not an interchangeable build for every distribution. It requires the corresponding SDL2, ICU72, OpenSSL3, curl/font libraries and other upstream runtime dependencies. Keep libopenrct2.so with the player. User configuration and saves normally remain in OpenRCT2’s external XDG user directory, outside Portcove backups. Other distribution packages remain upstream alternatives. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
         "original_game_title": "RollerCoaster Tycoon 2",
         "manual_setup": {
           "steps": [
@@ -22791,7 +22867,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -22800,12 +22877,19 @@
           "windows-x86-64": [
             "openreliant-",
             "-windows-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "openreliant-",
+            "-linux-x86_64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "openreliant.exe"
+        ],
+        "linux-x86-64": [
+          "openreliant"
         ]
       },
       "persistent_paths": [
@@ -22815,12 +22899,12 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Follow the linked installation guide to run openreliant.exe install StarLancer yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration. The declared StarLancer folder contains original game assets, campaign saves, starlancer.ini and openreliant.log. It is retained during compatible runtime replacement and backup. Keep another copy of the original media. A game installed elsewhere or custom launch arguments can use external registration; such external data is outside Portcove backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_preparation": "Follow the linked installation guide to run openreliant.exe install StarLancer yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration. The declared StarLancer folder contains original game assets, campaign saves, starlancer.ini and openreliant.log. It is retained during compatible runtime replacement and backup. Keep another copy of the original media. A game installed elsewhere or custom launch arguments can use external registration; such external data is outside Portcove backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. On Linux, run ./openreliant install StarLancer yourself from the player folder with your own discs/images and upstream’s --from options. Play finds the resulting declared StarLancer folder. sltool is a helper, not the player. External or custom installed data remains outside backup. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
         "manual_setup": {
           "steps": [
             {
               "title": "Start the game",
-              "instruction": "Follow the linked installation guide to run openreliant.exe install StarLancer yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration."
+              "instruction": "Follow the linked installation guide to run the player’s install command yourself from its folder: openreliant.exe install StarLancer on Windows or ./openreliant install StarLancer on Linux, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration."
             }
           ],
           "warnings": [],
