@@ -60,6 +60,7 @@ jobs:
         with:
           version-file: pnpm-workspace.yaml
           node-version-file: .node-version
+          cache-toolchain: true
           cache: true
           run-install: |
             args: [--frozen-lockfile]

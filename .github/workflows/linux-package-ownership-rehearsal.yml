@@ -48,6 +48,7 @@ jobs:
         with:
           version-file: pnpm-workspace.yaml
           node-version-file: .node-version
+          cache-toolchain: true
           run-install: |
             args: [--filter, portcove-repository, --frozen-lockfile, --ignore-scripts]
       - id: selection

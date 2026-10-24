@@ -292,6 +292,14 @@ the event-driven hosted workflow has no periodic schedule. See
 
 ## Frontend workflow
 
+The existing setup-vp steps enable its exact toolchain cache using
+`pnpm-workspace.yaml` and `.node-version` as the version authorities. The versioned
+CLI/runtime and selected managed package manager caches are separate from the
+project dependency cache; configuration, credentials and package stores are not
+archived. Missing or invalid restores fall back to normal installation. Existing
+cache-save controls apply to both. Inspect setup and post-action time together
+before claiming a speedup; a cache-hit output alone is not a latency measurement.
+
 ### TypeScript execution and compatibility files
 
 Maintained first-party code defaults to TypeScript: `.ts`/`.tsx` for bundler
