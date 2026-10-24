@@ -6,9 +6,8 @@
     "summary": "Explore Ratchet & Clank (2002) / ReRAC (re-rac) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/re-rac/rerac",
     "issue_number": 1876,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/re-rac/rerac",
+    "availability": "packages",
+    "setup_url": "https://github.com/re-rac/rerac-launcher/releases/tag/v0.3.1-alpha",
     "artwork": {
       "game_id": 1289,
       "cover_id": 79006,
@@ -16,6 +15,54 @@
       "image_sha256": "bf88a5ba52a820c9494d6326c0a089032096bb5c82728c43d1915cd47316ed01",
       "game_slug": "ratchet-clank",
       "match_kind": "underlying-game"
+    },
+    "original_game_title": "Ratchet & Clank",
+    "recommended_download_channel": "beta",
+    "release_url": "https://github.com/re-rac/rerac/releases/tag/v0.3.6-alpha",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare your own disc before Play",
+          "instruction": "Before Play, prepare game-data beside the new player from your own Ratchet & Clank (2002) NTSC-U SCUS-97199 version 1.00 disc. Use a 2048-byte-sector .iso; BIN, CHD and another region are not accepted by this extractor. Open the installed runtime folder and deliberately run its bundled rerac-extract.exe on Windows, or ./rerac-extract on Linux/macOS: identify --iso \"<your ISO>\", then extract --iso \"<your ISO>\" --out game-data, then verify --out game-data. Wait for successful completion and verification; allow about 4.5 GB for extracted disc data plus prepared caches. Keep the complete runtime folder and its assets/shaders together. Then choose Play. Portcove never runs this extractor during discovery. The upstream runtime refuses missing, incomplete or incompatible extraction; wait for successful extraction and verification before Play."
+        },
+        {
+          "title": "Use the guided launcher when you prefer",
+          "instruction": "For guided ISO selection, progress, verification, re-extraction and version management, use the official ReRAC Launcher linked by Open setup guide. Its published Windows MSI, Linux AppImage and macOS disk images are separate from these game ZIPs. Follow its Version Management and Install via ISO flow, then register your prepared player with its real data directory, or register the launcher deliberately if you want its own interface. That copy’s runtime updates belong to the launcher. The project’s older README statement that nothing has been released does not describe the currently published launcher packages. Mod management is planned, not a delivered feature."
+        },
+        {
+          "title": "Keep a separate backup of your memory card",
+          "instruction": "Normal memory-card saves, settings and the crash log are outside the runtime: %APPDATA%/rerac on Windows, $XDG_CONFIG_HOME/rerac or ~/.config/rerac on Linux, and ~/Library/Application Support/rerac on macOS. Back up the profile you actually use separately. A custom RC_SAVE_DIR or RC_SETTINGS_FILE changes it. The launcher’s movable data/version/log folder can be different from the engine’s save/settings folder; preserve both when using it. Older versions may not read newer saves. Keep your original ISO and current working copy before re-extraction or changing versions."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/re-rac/rerac-launcher/releases/tag/v0.3.1-alpha"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "re-rac/rerac",
+      "asset_hints": {
+        "windows-x86-64": ["rerac-", "-windows-x86_64.zip"],
+        "linux-x86-64": ["rerac-", "-linux-x86_64.zip"],
+        "macos-aarch64": ["rerac-", "-macos-arm64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["rerac.exe"],
+      "linux-x86-64": ["rerac"],
+      "macos-aarch64": ["rerac"]
+    },
+    "launch_arguments": ["--data-dir", "game-data"],
+    "persistent_paths": ["game-data"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Before Play, prepare game-data beside the new player from your own Ratchet & Clank (2002) NTSC-U SCUS-97199 version 1.00 disc. Use a 2048-byte-sector .iso; BIN, CHD and another region are not accepted by this extractor. Open the installed runtime folder and deliberately run its bundled rerac-extract.exe on Windows, or ./rerac-extract on Linux/macOS: identify --iso \"<your ISO>\", then extract --iso \"<your ISO>\" --out game-data, then verify --out game-data. Wait for successful completion and verification; allow about 4.5 GB for extracted disc data plus prepared caches. Keep the complete runtime folder and its assets/shaders together. Then choose Play. Portcove never runs this extractor during discovery. The upstream runtime refuses missing, incomplete or incompatible extraction; wait for successful extraction and verification before Play. Normal memory-card saves, settings and the crash log are outside the runtime: %APPDATA%/rerac on Windows, $XDG_CONFIG_HOME/rerac or ~/.config/rerac on Linux, and ~/Library/Application Support/rerac on macOS. Back up the profile you actually use separately. A custom RC_SAVE_DIR or RC_SETTINGS_FILE changes it. The launcher’s movable data/version/log folder can be different from the engine’s save/settings folder; preserve both when using it. Older versions may not read newer saves. Keep your original ISO and current working copy before re-extraction or changing versions. Portcove replaces this separate portable runtime and carries the declared game-data directory, including extracted originals, extraction marker and prepared non-executable caches. The runtime checks the extraction’s data format and refuses missing, incomplete or incompatible data; a missing or stale prepared cache is rebuilt when possible or kept in memory. If a later format requires re-extraction, keep the previous runtime and data recoverable and follow that version’s bundled extractor instructions; Portcove does not guess at a migration. Runtime rollback carries current declared data and does not rewind the external memory card or guarantee older data compatibility. Windows x64, Linux x64 and Apple-silicon macOS archives were inspected separately; OS/GPU minimums, native execution, gameplay and real-save restoration remain unqualified. For guided ISO selection, progress, verification, re-extraction and version management, use the official ReRAC Launcher linked by Open setup guide. Its published Windows MSI, Linux AppImage and macOS disk images are separate from these game ZIPs. Follow its Version Management and Install via ISO flow, then register your prepared player with its real data directory, or register the launcher deliberately if you want its own interface. That copy’s runtime updates belong to the launcher. The project’s older README statement that nothing has been released does not describe the currently published launcher packages. Mod management is planned, not a delivered feature."
     }
   }
 }

@@ -4012,6 +4012,7 @@
         "help_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/blob/v0.2.4-alpha/README.md"
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/releases/tag/v0.2.4-alpha",
+      "original_game_title": "MediEvil II",
       "platforms": [
         "windows-x86-64"
       ]
@@ -5747,6 +5748,7 @@
         "warnings": [],
         "help_url": "https://github.com/AlisterT/openjazz/blob/20260301/README.md"
       },
+      "original_game_title": "Jazz Jackrabbit",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -5952,6 +5954,7 @@
         "warnings": [],
         "help_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/blob/v0.2.5/README.md"
       },
+      "original_game_title": "BattleTanx: Global Assault",
       "platforms": [
         "windows-x86-64"
       ]
@@ -6141,6 +6144,7 @@
         "warnings": [],
         "help_url": "https://github.com/Brawmario/infinite-mario-64-ever/blob/v0.1.5/README.md"
       },
+      "original_game_title": "Super Mario 64",
       "platforms": [
         "windows-x86-64"
       ]
@@ -6202,6 +6206,7 @@
         "warnings": [],
         "help_url": "https://github.com/bvschaik/julius/blob/v1.8.0/README.md"
       },
+      "original_game_title": "Caesar III",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -6519,6 +6524,7 @@
         "warnings": [],
         "help_url": "https://github.com/citrongames/Dora64/blob/v1.0.4/README.md"
       },
+      "original_game_title": "Doraemon: Nobita to Mittsu no Seireiseki",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -6551,6 +6557,7 @@
         "warnings": [],
         "help_url": "https://github.com/pablocpas/OpenCMR2/blob/v1.6.0/README.md"
       },
+      "original_game_title": "Colin McRae Rally 2.0",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -6653,6 +6660,7 @@
         "warnings": [],
         "help_url": "https://github.com/craigshaw/FZeroRecomp/blob/v0.6.0/README.md"
       },
+      "original_game_title": "F-Zero",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -7044,6 +7052,7 @@
         "warnings": [],
         "help_url": "https://github.com/dethrace-labs/dethrace/blob/v0.10.1/README.md"
       },
+      "original_game_title": "Carmageddon",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -7112,6 +7121,7 @@
         "warnings": [],
         "help_url": "https://github.com/djultra64/Blocksphere/blob/v1.1.0/README.md"
       },
+      "original_game_title": "Tetrisphere",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -7144,6 +7154,7 @@
         "warnings": [],
         "help_url": "https://github.com/elliotttate/DKC1Recomp/blob/v0.0.17/README.md"
       },
+      "original_game_title": "Donkey Kong Country",
       "platforms": [
         "windows-x86-64"
       ]
@@ -7537,6 +7548,7 @@
         "warnings": [],
         "help_url": "https://github.com/elliotttate/DKC2Recomp/blob/v0.0.8/README.md"
       },
+      "original_game_title": "Donkey Kong Country 2: Diddy's Kong Quest",
       "platforms": [
         "windows-x86-64"
       ]
@@ -7806,6 +7818,7 @@
         "warnings": [],
         "help_url": "https://github.com/tymsky/OpenGG/blob/v0.2.2/README.md"
       },
+      "original_game_title": "Gearhead Garage",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -7856,6 +7869,7 @@
         "warnings": [],
         "help_url": "https://github.com/openglad/openglad/blob/v2.1092/README.md"
       },
+      "original_game_title": "Gladiator",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -8297,6 +8311,7 @@
         "warnings": [],
         "help_url": "https://github.com/isledecomp/isle-portable/blob/continuous/README.md"
       },
+      "original_game_title": "LEGO Island",
       "platforms": [
         "windows-x86-64"
       ]
@@ -8511,6 +8526,7 @@
         "warnings": [],
         "help_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp-0.73.4/README.md"
       },
+      "original_game_title": "OpenTTD",
       "platforms": [
         "windows-x86-64"
       ]
@@ -8746,6 +8762,7 @@
         "warnings": [],
         "help_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/blob/v0.14.0/README.md"
       },
+      "original_game_title": "Knuckles' Chaotix",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -8984,9 +9001,12 @@
       "summary": "Explore Mario Kart: Super Circuit Recomp and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
       "issue_number": 285,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/MarioKartSuperCircuitRecomp/blob/d551cfc2893f01c089f918a625ec184af571ad60/README.md",
       "artwork": {
         "game_id": 2343,
         "cover_id": 357726,
@@ -8994,6 +9014,43 @@
         "image_sha256": "b4c4d19c169bb3ecccdf0e84b75bc6608a973c601b0d218ff9a9e0cbb8a24c1b",
         "game_slug": "mario-kart-super-circuit",
         "match_kind": "underlying-game"
+      },
+      "original_game_title": "Mario Kart: Super Circuit",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "MarioKartSuperCircuitRecomp-",
+          "windows-x64",
+          ".zip"
+        ],
+        "linux-x86-64": [
+          "MarioKartSuperCircuitRecomp-",
+          "linux-x86_64",
+          ".AppImage"
+        ]
+      },
+      "release_url": "https://github.com/mstan/MarioKartSuperCircuitRecomp/releases/tag/v0.1.8",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your own ROM and BIOS in the game",
+            "instruction": "The Windows ZIP is ready to open after extraction; it has no installer or player build step. Keep its DLLs, assets, any supplied mods and overlay_toolchain together. Finish setup with MarioKartSuperCircuitRecomp.exe, then choose Play explicitly. In the game’s launcher, select your own Mario Kart: Super Circuit USA, AMKE revision 0 ROM and retail GBA BIOS, then Play. The expected ROM SHA-1 is 9d327c030c3e2d9007990518594f70c3340ac56f; the retail BIOS SHA-1 is 300c20df6731a33952ded8c436f7f186d25d3492. The game remembers valid selections. The tcc programs are internal compiler helpers, not the player; Portcove does not run them during setup discovery."
+          },
+          {
+            "title": "Keep the saves and settings you actually use",
+            "instruction": "By default, cartridge saves use the selected ROM’s name with .sav, and save-state slots use the same name with .state1 through .state10, beside that ROM. Keep a separate copy of this folder; a save path shown in the launcher is not proof that the save moved there. Also preserve config.ini, keybinds.ini, rom.cfg, bios.cfg, your mod choices and any player-added mods beside the executable. Custom --save/--save-path or --state-dir choices change the save locations. Older builds may not read newer states or saves. Portcove registration preserves these externally owned files; it does not back up or restore them."
+          },
+          {
+            "title": "Keep your working copy when updating",
+            "instruction": "Updates come from the upstream project. Extract a new release into a separate folder and keep the current copy usable while checking it. Keep each release’s own DLLs, packaged mods and overlay_toolchain; do not overlay the old runtime folder onto the new one. The game can generate native code in recomp_cache during Play. Keep that old cache with the old copy and let the new release start with its own cache, rather than transferring generated DLLs. Transfer only compatible player settings, saves and mods using the matching upstream instructions, then change the registered player when ready. These previews remain experimental; downloading or registering one does not establish full-game compatibility."
+          },
+          {
+            "title": "Linux and optional netplay",
+            "instruction": "Upstream also publishes a Linux x86-64 AppImage. Follow its Linux instructions, make that AppImage executable and open it deliberately; do not treat it as the Windows ZIP. Its launcher selects your own matching ROM and BIOS. For optional two-player link-cable netplay, use the same release and ROM on both sides, choose the actual save file before connecting, and keep a backup. Higher resolution and widescreen are optional; upstream recommends at most 4x internal resolution. Portcove does not qualify Linux execution or a network session here."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/mstan/MarioKartSuperCircuitRecomp/blob/d551cfc2893f01c089f918a625ec184af571ad60/README.md"
       }
     },
     {
@@ -9059,6 +9116,7 @@
         "warnings": [],
         "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/v1.2.0/README.md"
       },
+      "original_game_title": "MDK",
       "platforms": [
         "windows-x86-64"
       ]
@@ -9349,9 +9407,11 @@
       "summary": "Explore Dragon Ball Z: Buu's Fury / Dragon Ball Z: Buu's Fury Recomp (mstan) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp",
       "issue_number": 1816,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/README.md",
       "artwork": {
         "game_id": 19835,
         "cover_id": 166679,
@@ -9359,6 +9419,34 @@
         "image_sha256": "95cd13d1653e6224973ed48c83a3b7ccb65bd2f3622496fd1ee5717b6a6e511d",
         "game_slug": "dragon-ball-z-buus-fury",
         "match_kind": "underlying-game"
+      },
+      "original_game_title": "Dragon Ball Z: Buu’s Fury",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "DragonBallZBuusFuryRecomp-",
+          "windows-x64",
+          ".zip"
+        ]
+      },
+      "release_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/releases/tag/v0.0.4",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your own ROM and BIOS in the game",
+            "instruction": "The Windows ZIP is ready to open after extraction; it has no installer or player build step. Keep its DLLs, assets, any supplied mods and overlay_toolchain together. Finish setup with DragonBallZBuusFuryRecomp.exe, then choose Play explicitly. In the game’s launcher, select your own Dragon Ball Z: Buu’s Fury USA, BG3E revision 0 ROM and retail GBA BIOS, then Play. The expected ROM SHA-1 is f1c4b07554d2a3b1ad2f325307051e775ce68087; the retail BIOS SHA-1 is 300c20df6731a33952ded8c436f7f186d25d3492. The game remembers valid selections. The tcc programs are internal compiler helpers, not the player; Portcove does not run them during setup discovery."
+          },
+          {
+            "title": "Keep the saves and settings you actually use",
+            "instruction": "By default, cartridge saves use the selected ROM’s name with .sav, and save-state slots use the same name with .state1 through .state10, beside that ROM. Keep a separate copy of this folder; a save path shown in the launcher is not proof that the save moved there. Also preserve config.ini, keybinds.ini, rom.cfg, bios.cfg, your mod choices and any player-added mods beside the executable. Custom --save/--save-path or --state-dir choices change the save locations. Older builds may not read newer states or saves. Portcove registration preserves these externally owned files; it does not back up or restore them."
+          },
+          {
+            "title": "Keep your working copy when updating",
+            "instruction": "Updates come from the upstream project. Extract a new release into a separate folder and keep the current copy usable while checking it. Keep each release’s own DLLs, packaged mods and overlay_toolchain; do not overlay the old runtime folder onto the new one. The game can generate native code in recomp_cache during Play. Keep that old cache with the old copy and let the new release start with its own cache, rather than transferring generated DLLs. Transfer only compatible player settings, saves and mods using the matching upstream instructions, then change the registered player when ready. These previews remain experimental; downloading or registering one does not establish full-game compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/README.md"
       }
     },
     {
@@ -9367,9 +9455,11 @@
       "summary": "Explore Dragon Ball Z: The Legacy of Goku II / Dragon Ball Z: The Legacy of Goku II Recomp (mstan) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp",
       "issue_number": 1815,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/README.md",
       "artwork": {
         "game_id": 19834,
         "cover_id": 138886,
@@ -9377,6 +9467,34 @@
         "image_sha256": "4c2205d020f94c85eb85f6eb5a4a8d604ea6c0186a9e02583a95a022f559fdff",
         "game_slug": "dragon-ball-z-the-legacy-of-goku-ii",
         "match_kind": "underlying-game"
+      },
+      "original_game_title": "Dragon Ball Z: The Legacy of Goku II",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "DragonBallZLegacyofGokuIIRecomp-",
+          "windows-x64",
+          ".zip"
+        ]
+      },
+      "release_url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/releases/tag/v0.0.3",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your own ROM and BIOS in the game",
+            "instruction": "The Windows ZIP is ready to open after extraction; it has no installer or player build step. Keep its DLLs, assets, any supplied mods and overlay_toolchain together. Finish setup with DragonBallZLegacyofGokuIIRecomp.exe, then choose Play explicitly. In the game’s launcher, select your own Dragon Ball Z: The Legacy of Goku II USA, ALFE revision 0 ROM and retail GBA BIOS, then Play. The expected ROM SHA-1 is 18e0715dec419f3501c301511530d2edcd590f8b; the retail BIOS SHA-1 is 300c20df6731a33952ded8c436f7f186d25d3492. The game remembers valid selections. The tcc programs are internal compiler helpers, not the player; Portcove does not run them during setup discovery."
+          },
+          {
+            "title": "Keep the saves and settings you actually use",
+            "instruction": "By default, cartridge saves use the selected ROM’s name with .sav, and save-state slots use the same name with .state1 through .state10, beside that ROM. Keep a separate copy of this folder; a save path shown in the launcher is not proof that the save moved there. Also preserve config.ini, keybinds.ini, rom.cfg, bios.cfg, your mod choices and any player-added mods beside the executable. Custom --save/--save-path or --state-dir choices change the save locations. Older builds may not read newer states or saves. Portcove registration preserves these externally owned files; it does not back up or restore them."
+          },
+          {
+            "title": "Keep your working copy when updating",
+            "instruction": "Updates come from the upstream project. Extract a new release into a separate folder and keep the current copy usable while checking it. Keep each release’s own DLLs, packaged mods and overlay_toolchain; do not overlay the old runtime folder onto the new one. The game can generate native code in recomp_cache during Play. Keep that old cache with the old copy and let the new release start with its own cache, rather than transferring generated DLLs. Transfer only compatible player settings, saves and mods using the matching upstream instructions, then change the registered player when ready. These previews remain experimental; downloading or registering one does not establish full-game compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/README.md"
       }
     },
     {
@@ -9421,9 +9539,11 @@
       "summary": "Explore Mega Man Zero / MegaManZeroRecomp (mstan) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/mstan/MegaManZeroRecomp",
       "issue_number": 1845,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/MegaManZeroRecomp",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/README.md",
       "artwork": {
         "game_id": 1775,
         "cover_id": 540253,
@@ -9431,6 +9551,34 @@
         "image_sha256": "3ed1ef20802473fa69f2657c7923a22a3f87ed200b7fdacf8b65978b4d0e47d9",
         "game_slug": "mega-man-zero",
         "match_kind": "underlying-game"
+      },
+      "original_game_title": "Mega Man Zero",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "MegaManZeroRecomp-",
+          "windows-x64",
+          ".zip"
+        ]
+      },
+      "release_url": "https://github.com/mstan/MegaManZeroRecomp/releases/tag/v0.0.7",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your own ROM and BIOS in the game",
+            "instruction": "The Windows ZIP is ready to open after extraction; it has no installer or player build step. Keep its DLLs, assets, any supplied mods and overlay_toolchain together. Finish setup with MegaManZeroRecomp.exe, then choose Play explicitly. In the game’s launcher, select your own Mega Man Zero USA, AZCE revision 0 ROM and retail GBA BIOS, then Play. The expected ROM SHA-1 is 193b14120119162518a73c70876f0b8bffdbd96e; the retail BIOS SHA-1 is 300c20df6731a33952ded8c436f7f186d25d3492. The game remembers valid selections. The tcc programs are internal compiler helpers, not the player; Portcove does not run them during setup discovery."
+          },
+          {
+            "title": "Keep the saves and settings you actually use",
+            "instruction": "By default, cartridge saves use the selected ROM’s name with .sav, and save-state slots use the same name with .state1 through .state10, beside that ROM. Keep a separate copy of this folder; a save path shown in the launcher is not proof that the save moved there. Also preserve config.ini, keybinds.ini, rom.cfg, bios.cfg, your mod choices and any player-added mods beside the executable. Custom --save/--save-path or --state-dir choices change the save locations. Older builds may not read newer states or saves. Portcove registration preserves these externally owned files; it does not back up or restore them."
+          },
+          {
+            "title": "Keep your working copy when updating",
+            "instruction": "Updates come from the upstream project. Extract a new release into a separate folder and keep the current copy usable while checking it. Keep each release’s own DLLs, packaged mods and overlay_toolchain; do not overlay the old runtime folder onto the new one. The game can generate native code in recomp_cache during Play. Keep that old cache with the old copy and let the new release start with its own cache, rather than transferring generated DLLs. Transfer only compatible player settings, saves and mods using the matching upstream instructions, then change the registered player when ready. These previews remain experimental; downloading or registering one does not establish full-game compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/README.md"
       }
     },
     {
@@ -9439,9 +9587,11 @@
       "summary": "Explore Super Mario World: Super Mario Advance 2 / SuperMarioAdvance2Recomp (mstan) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/mstan/SuperMarioAdvance2Recomp",
       "issue_number": 1894,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/SuperMarioAdvance2Recomp",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/README.md",
       "artwork": {
         "game_id": 16617,
         "cover_id": 310376,
@@ -9449,6 +9599,34 @@
         "image_sha256": "0ac54f18b9a1fc9cfa36ba2552b1956d5ff37863eb15d95ad494ed0bb33afc0f",
         "game_slug": "super-mario-world-super-mario-advance-2",
         "match_kind": "underlying-game"
+      },
+      "original_game_title": "Super Mario World",
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "SuperMarioAdvance2Recomp-",
+          "windows-x64",
+          ".zip"
+        ]
+      },
+      "release_url": "https://github.com/mstan/SuperMarioAdvance2Recomp/releases/tag/v0.0.4",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your own ROM and BIOS in the game",
+            "instruction": "The Windows ZIP is ready to open after extraction; it has no installer or player build step. Keep its DLLs, assets, any supplied mods and overlay_toolchain together. Finish setup with SuperMarioWorldRecomp.exe, then choose Play explicitly. In the game’s launcher, select your own Super Mario Advance 2: Super Mario World USA/Australia, AA2E revision 0 ROM and retail GBA BIOS, then Play. The expected ROM SHA-1 is 5101ddf223d1d918928fe1f306b63a42ada14a5e; the retail BIOS SHA-1 is 300c20df6731a33952ded8c436f7f186d25d3492. The game remembers valid selections. The tcc programs are internal compiler helpers, not the player; Portcove does not run them during setup discovery."
+          },
+          {
+            "title": "Keep the saves and settings you actually use",
+            "instruction": "By default, cartridge saves use the selected ROM’s name with .sav, and save-state slots use the same name with .state1 through .state10, beside that ROM. Keep a separate copy of this folder; a save path shown in the launcher is not proof that the save moved there. Also preserve config.ini, keybinds.ini, rom.cfg, bios.cfg, your mod choices and any player-added mods beside the executable. Custom --save/--save-path or --state-dir choices change the save locations. Older builds may not read newer states or saves. Portcove registration preserves these externally owned files; it does not back up or restore them."
+          },
+          {
+            "title": "Keep your working copy when updating",
+            "instruction": "Updates come from the upstream project. Extract a new release into a separate folder and keep the current copy usable while checking it. Keep each release’s own DLLs, packaged mods and overlay_toolchain; do not overlay the old runtime folder onto the new one. The game can generate native code in recomp_cache during Play. Keep that old cache with the old copy and let the new release start with its own cache, rather than transferring generated DLLs. Transfer only compatible player settings, saves and mods using the matching upstream instructions, then change the registered player when ready. These previews remain experimental; downloading or registering one does not establish full-game compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/README.md"
       }
     },
     {
@@ -9457,9 +9635,47 @@
       "summary": "Explore Super Mario Advance 4: Super Mario Bros. 3 / Super Mario Advance 4 Recomp (mstan) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/mstan/SuperMarioAdvance4Recomp",
       "issue_number": 1892,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/SuperMarioAdvance4Recomp"
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/SuperMarioAdvance4Recomp/blob/21ec4931da1f7395063ec30ab0e5a339cbc78d87/README.md",
+      "original_game_title": "Super Mario Advance 4",
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "SuperMarioAdvance4Recomp-",
+          "windows-x64",
+          ".zip"
+        ]
+      },
+      "release_url": "https://github.com/mstan/SuperMarioAdvance4Recomp/releases/tag/v0.0.3",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your own ROM and BIOS in the game",
+            "instruction": "The Windows ZIP is ready to open after extraction; it has no installer or player build step. Keep its DLLs, assets, any supplied mods and overlay_toolchain together. Finish setup with SuperMarioAdvance4Recomp.exe, then choose Play explicitly. In the game’s launcher, select your own Super Mario Advance 4: Super Mario Bros. 3 USA/Australia, AX4E revision 1 ROM and retail GBA BIOS, then Play. The expected ROM SHA-1 is 532f3307021637474b6dd37da059ca360f612337; the retail BIOS SHA-1 is 300c20df6731a33952ded8c436f7f186d25d3492. The game remembers valid selections. The tcc programs are internal compiler helpers, not the player; Portcove does not run them during setup discovery."
+          },
+          {
+            "title": "Keep the saves and settings you actually use",
+            "instruction": "By default, cartridge saves use the selected ROM’s name with .sav, and save-state slots use the same name with .state1 through .state10, beside that ROM. Keep a separate copy of this folder; a save path shown in the launcher is not proof that the save moved there. Also preserve config.ini, keybinds.ini, rom.cfg, bios.cfg, your mod choices and any player-added mods beside the executable. Custom --save/--save-path or --state-dir choices change the save locations. Older builds may not read newer states or saves. Portcove registration preserves these externally owned files; it does not back up or restore them."
+          },
+          {
+            "title": "Keep your working copy when updating",
+            "instruction": "Updates come from the upstream project. Extract a new release into a separate folder and keep the current copy usable while checking it. Keep each release’s own DLLs, packaged mods and overlay_toolchain; do not overlay the old runtime folder onto the new one. The game can generate native code in recomp_cache during Play. Keep that old cache with the old copy and let the new release start with its own cache, rather than transferring generated DLLs. Transfer only compatible player settings, saves and mods using the matching upstream instructions, then change the registered player when ready. These previews remain experimental; downloading or registering one does not establish full-game compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/mstan/SuperMarioAdvance4Recomp/blob/21ec4931da1f7395063ec30ab0e5a339cbc78d87/README.md"
+      },
+      "artwork": {
+        "game_id": 16748,
+        "cover_id": 96257,
+        "image_id": "co229t",
+        "image_sha256": "549d52069f2100f79c03ab5744e93ac495baa48caca51f95f22b71442b4fbc69",
+        "game_slug": "super-mario-advance-4-super-mario-bros-3",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "mstan-wariowaretwistedrecomp",
@@ -9467,9 +9683,11 @@
       "summary": "Explore WarioWare: Twisted! / WarioWare: Twisted! Recomp (mstan) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/mstan/WarioWareTwistedRecomp",
       "issue_number": 1906,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/WarioWareTwistedRecomp",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/WarioWareTwistedRecomp/blob/8e7a6e2e911a69ca1090f57bae2ab5d7bc7034b2/README.md",
       "artwork": {
         "game_id": 1704,
         "cover_id": 89078,
@@ -9477,6 +9695,38 @@
         "image_sha256": "e9c8ce1e7dfaf5c3cc581dc38280bc00565b4c0e9152a2f0e26c968862ea4c34",
         "game_slug": "warioware-twisted",
         "match_kind": "underlying-game"
+      },
+      "original_game_title": "WarioWare: Twisted!",
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "WarioWareTwistedRecomp-",
+          "windows-x64",
+          ".zip"
+        ]
+      },
+      "release_url": "https://github.com/mstan/WarioWareTwistedRecomp/releases/tag/v0.0.2",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your own ROM and BIOS in the game",
+            "instruction": "The Windows ZIP is ready to open after extraction; it has no installer or player build step. Keep its DLLs, assets, any supplied mods and overlay_toolchain together. Finish setup with WarioWareTwistedRecomp.exe, then choose Play explicitly. In the game’s launcher, select your own WarioWare: Twisted! USA ROM and retail GBA BIOS, then Play. The expected ROM SHA-1 is f0102d0d6f7596fe853d5d0a94682718278e083a; the retail BIOS SHA-1 is 300c20df6731a33952ded8c436f7f186d25d3492. The game remembers valid selections. The tcc programs are internal compiler helpers, not the player; Portcove does not run them during setup discovery."
+          },
+          {
+            "title": "Keep the saves and settings you actually use",
+            "instruction": "Keep a separate copy of your selected ROM folder, its matching .sav and .state1 through .state10 files, and any saves folder used by this copy. This package also contains variants/warioware_twisted/game.toml: explicitly launching with that configuration selects saves/warioware_twisted_usa.sav under the runtime folder. Keep the actual save location you use, rather than relying on the launcher’s displayed save path. Also preserve config.ini, keybinds.ini, rom.cfg, bios.cfg, your mod choices and any player-added mods beside the executable. Custom --save/--save-path or --state-dir choices change the save locations. Older builds may not read newer states or saves. Portcove registration preserves these externally owned files; it does not back up or restore them."
+          },
+          {
+            "title": "Keep your working copy when updating",
+            "instruction": "Updates come from the upstream project. Extract a new release into a separate folder and keep the current copy usable while checking it. Keep each release’s own DLLs, packaged mods and overlay_toolchain; do not overlay the old runtime folder onto the new one. The game can generate native code in recomp_cache during Play. Keep that old cache with the old copy and let the new release start with its own cache, rather than transferring generated DLLs. Transfer only compatible player settings, saves and mods using the matching upstream instructions, then change the registered player when ready. These previews remain experimental; downloading or registering one does not establish full-game compatibility."
+          },
+          {
+            "title": "Android uses its own app and storage",
+            "instruction": "For Android 9+ ARM64, choose this project’s separate experimental APK and select your own matching ROM and BIOS through its first-launch document picker. The app stores imported files in private app storage. Keep that app’s saves and data before uninstalling or clearing it; the debug-signed test build may need a different update path if signing changes. Rotate the phone for gyro input; Windows instead supports a compatible motion controller or left-mouse dragging. Android files and updates stay outside Portcove backup and runtime rollback."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/mstan/WarioWareTwistedRecomp/blob/8e7a6e2e911a69ca1090f57bae2ab5d7bc7034b2/README.md"
       }
     },
     {
@@ -9684,6 +9934,7 @@
         "warnings": [],
         "help_url": "https://github.com/NoahVl/Birdman64/blob/v1.5.1/README.md"
       },
+      "original_game_title": "Pilotwings 64",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -9875,6 +10126,7 @@
         "warnings": [],
         "help_url": "https://github.com/omf2097/openomf/blob/0.8.6/README.md"
       },
+      "original_game_title": "One Must Fall: 2097",
       "platforms": [
         "windows-x86-64"
       ]
@@ -9906,6 +10158,7 @@
         "warnings": [],
         "help_url": "https://github.com/OpenApoc/OpenApoc/blob/20260408/README.md"
       },
+      "original_game_title": "X-COM: Apocalypse",
       "platforms": [
         "windows-x86-64"
       ]
@@ -10029,6 +10282,7 @@
         "warnings": [],
         "help_url": "https://github.com/OpenLoco/OpenLoco/blob/v26.09/README.md"
       },
+      "original_game_title": "Chris Sawyer's Locomotion",
       "platforms": [
         "windows-x86-64"
       ]
@@ -10133,6 +10387,7 @@
         "warnings": [],
         "help_url": "https://github.com/opentyrian/opentyrian/blob/v2.1.20260913/README.md"
       },
+      "original_game_title": "Tyrian",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -10510,9 +10765,8 @@
       "summary": "Explore Ratchet & Clank (2002) / ReRAC (re-rac) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/re-rac/rerac",
       "issue_number": 1876,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/re-rac/rerac",
+      "availability": "packages",
+      "setup_url": "https://github.com/re-rac/rerac-launcher/releases/tag/v0.3.1-alpha",
       "artwork": {
         "game_id": 1289,
         "cover_id": 79006,
@@ -10520,7 +10774,33 @@
         "image_sha256": "bf88a5ba52a820c9494d6326c0a089032096bb5c82728c43d1915cd47316ed01",
         "game_slug": "ratchet-clank",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Ratchet & Clank",
+      "recommended_download_channel": "beta",
+      "release_url": "https://github.com/re-rac/rerac/releases/tag/v0.3.6-alpha",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own disc before Play",
+            "instruction": "Before Play, prepare game-data beside the new player from your own Ratchet & Clank (2002) NTSC-U SCUS-97199 version 1.00 disc. Use a 2048-byte-sector .iso; BIN, CHD and another region are not accepted by this extractor. Open the installed runtime folder and deliberately run its bundled rerac-extract.exe on Windows, or ./rerac-extract on Linux/macOS: identify --iso \"<your ISO>\", then extract --iso \"<your ISO>\" --out game-data, then verify --out game-data. Wait for successful completion and verification; allow about 4.5 GB for extracted disc data plus prepared caches. Keep the complete runtime folder and its assets/shaders together. Then choose Play. Portcove never runs this extractor during discovery. The upstream runtime refuses missing, incomplete or incompatible extraction; wait for successful extraction and verification before Play."
+          },
+          {
+            "title": "Use the guided launcher when you prefer",
+            "instruction": "For guided ISO selection, progress, verification, re-extraction and version management, use the official ReRAC Launcher linked by Open setup guide. Its published Windows MSI, Linux AppImage and macOS disk images are separate from these game ZIPs. Follow its Version Management and Install via ISO flow, then register your prepared player with its real data directory, or register the launcher deliberately if you want its own interface. That copy’s runtime updates belong to the launcher. The project’s older README statement that nothing has been released does not describe the currently published launcher packages. Mod management is planned, not a delivered feature."
+          },
+          {
+            "title": "Keep a separate backup of your memory card",
+            "instruction": "Normal memory-card saves, settings and the crash log are outside the runtime: %APPDATA%/rerac on Windows, $XDG_CONFIG_HOME/rerac or ~/.config/rerac on Linux, and ~/Library/Application Support/rerac on macOS. Back up the profile you actually use separately. A custom RC_SAVE_DIR or RC_SETTINGS_FILE changes it. The launcher’s movable data/version/log folder can be different from the engine’s save/settings folder; preserve both when using it. Older versions may not read newer saves. Keep your original ISO and current working copy before re-extraction or changing versions."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/re-rac/rerac-launcher/releases/tag/v0.3.1-alpha"
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "redahm-destroy-all-humans-path-of-the-furon",
@@ -10585,6 +10865,7 @@
         "warnings": [],
         "help_url": "https://github.com/lunarmeadow/barrett/blob/v1.3-beta/README.md"
       },
+      "original_game_title": "Rise of the Triad",
       "platforms": [
         "windows-x86-64"
       ]
@@ -10614,7 +10895,7 @@
       "project_url": "https://github.com/ThatGuyMcd/Rocket-R",
       "issue_number": 1449,
       "availability": "packages",
-      "setup_url": "https://github.com/ThatGuyMcd/Rocket-R/blob/v.1.0.1/README.md",
+      "setup_url": "https://github.com/ThatGuyMcd/Rocket-R/blob/d64e42a1e364c867d9ff100637d90fd8e27e5ac8/README.md",
       "artwork": {
         "game_id": 2644,
         "cover_id": 473896,
@@ -10627,13 +10908,26 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Finish the game’s setup",
+            "title": "Select your own Rocket ROM on first Play",
             "instruction": "On first Play, choose your own supported Rocket: Robot on Wheels US ROM in the upstream launcher. It verifies the game and remembers the chosen path. Use the upstream menus for controls and compatible mods; no game compilation or separate installer is needed for the published player."
+          },
+          {
+            "title": "Keep saves and mod profiles separately backed up",
+            "instruction": "Default Windows saves, settings, mod profiles, mod-specific saves, logs and crash reports use %APPDATA%/Rocket-R. Keep a separate backup of the actual profile before changing versions; older versions may not read newer saves. Its external profile is outside Portcove backup and runtime rollback; rollback does not rewind saves. Keep each release’s own bundled engine/mod resources together, and keep custom --config or developer paths backed up separately."
+          },
+          {
+            "title": "Linux uses its own upstream launcher",
+            "instruction": "Choose the Linux x86-64 AppImage, or extract the Linux Portable archive and deliberately run Launch-Rocket-R.sh when ordinary AppImage launch is unavailable. The tar.gz contains an AppImage and wrapper, not a bare native player. Steam Deck uses the separate x86-64 SteamDeck archive and START-ROCKET-R.sh; ARM64 packages are different choices. Follow the upstream Linux profile and update instructions and preserve the current copy. Portcove’s managed Windows route does not manage this wrapper."
+          },
+          {
+            "title": "Android keeps its own private copy",
+            "instruction": "Use the separate Android ARM64 APK on the Android device, open Rocket-R and select your own matching US ROM. The app keeps a private ROM copy; preserve its actual app saves and settings before updating, clearing storage or uninstalling. Its update and data handling stay with Android/upstream. Desktop archive inspection does not qualify Android execution or every device."
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/ThatGuyMcd/Rocket-R/blob/v.1.0.1/README.md"
+        "help_url": "https://github.com/ThatGuyMcd/Rocket-R/blob/d64e42a1e364c867d9ff100637d90fd8e27e5ac8/README.md"
       },
+      "original_game_title": "Rocket: Robot on Wheels",
       "platforms": [
         "windows-x86-64"
       ]
@@ -10747,6 +11041,7 @@
         "warnings": [],
         "help_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled/blob/v1.1.3/README.md"
       },
+      "original_game_title": "Sheep, Dog 'n' Wolf",
       "platforms": [
         "windows-x86-64"
       ]
@@ -11051,6 +11346,7 @@
         "warnings": [],
         "help_url": "https://github.com/RSDKModding/RSDKv3-Decompilation/blob/1.3.3/README.md"
       },
+      "original_game_title": "Sonic CD",
       "platforms": [
         "windows-x86-64"
       ]
@@ -11139,6 +11435,7 @@
         "warnings": [],
         "help_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/blob/1.3.3/README.md"
       },
+      "original_game_title": "Sonic the Hedgehog 2",
       "platforms": [
         "windows-x86-64"
       ]
@@ -11188,6 +11485,7 @@
         "warnings": [],
         "help_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/blob/1.3.3/README.md"
       },
+      "original_game_title": "Sonic the Hedgehog",
       "platforms": [
         "windows-x86-64"
       ]
@@ -11464,6 +11762,7 @@
         "warnings": [],
         "help_url": "https://github.com/OpenReliant/openreliant/blob/v0.20.0/docs/guide/installation.md"
       },
+      "original_game_title": "Starlancer",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -11956,7 +12255,7 @@
       "project_url": "https://github.com/ThatGuyMcd/Glover-R",
       "issue_number": 1822,
       "availability": "packages",
-      "setup_url": "https://github.com/ThatGuyMcd/Glover-R/blob/v1.0.1/README.md",
+      "setup_url": "https://github.com/ThatGuyMcd/Glover-R/blob/e4fc245900255f52305eea863de1f0e47708b6e5/docs/NATIVE-README.md",
       "artwork": {
         "game_id": 3348,
         "cover_id": 182078,
@@ -11969,13 +12268,22 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Finish the game’s setup",
-            "instruction": "On first Play, choose your own supported Glover USA ROM in the upstream launcher. Its reviewed Glover source adaptation keeps this game distinct from Rocket-R and verifies its own ROM identity. Configure controls and compatible mods through upstream menus; the published player requires no game compilation."
+            "title": "Select your own Glover ROM on first Play",
+            "instruction": "Choose Play, then select your own unmodified Glover USA revision 0 ROM when the game asks. The launcher accepts .z64, .n64 and .v64 byte order for this 8 MiB NGVE cartridge (canonical SHA-1 270be17b3c8da9b88a7b99c2a545b0bce16837f4). The published Windows player needs no game build or separate installer. Configure controls in the launcher or press F1/Escape while playing; use its Mods page for compatible mods and separate mod profiles."
+          },
+          {
+            "title": "Keep your saves and mod profiles safe",
+            "instruction": "Default Windows saves, settings, mod profiles, mod-specific saves, logs and crash reports use %APPDATA%/Glover-R. Keep a separate backup of that profile before changing versions; an older runtime may not read newer data. Optional custom configuration and developer paths need their own backup. Keep customized existing copies registered with their own launch details."
+          },
+          {
+            "title": "Linux uses the upstream AppImage route",
+            "instruction": "Use the Linux x86-64 AppImage, or extract the Linux Portable archive and deliberately run Launch-Glover-R.sh. That archive contains an AppImage and wrapper, rather than a bare player with ordinary libraries. The wrapper uses AppImage extraction mode when a normal AppImage launch is unavailable. Steam Deck uses its separate x86-64 package and START-GLOVER-R.sh. Linux saves/settings normally use $XDG_CONFIG_HOME/glover-r or ~/.config/glover-r; preserve that actual profile separately. Follow upstream updates for this copy; the Windows managed route does not manage the Linux wrapper or infer device/gameplay support."
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/ThatGuyMcd/Glover-R/blob/v1.0.1/README.md"
+        "help_url": "https://github.com/ThatGuyMcd/Glover-R/blob/e4fc245900255f52305eea863de1f0e47708b6e5/docs/NATIVE-README.md"
       },
+      "original_game_title": "Glover",
       "platforms": [
         "windows-x86-64"
       ]
@@ -12827,9 +13135,14 @@
       "summary": "Explore The Legend of Zelda: A Link to the Past / Zelda 3 Reborn / Z3R (xander-haj) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/xander-haj/Z3R",
       "issue_number": 1912,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/xander-haj/Z3R",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/xander-haj/lawn/releases/tag/v0.8.1",
       "artwork": {
         "game_id": 1026,
         "cover_id": 181427,
@@ -12837,6 +13150,32 @@
         "image_sha256": "915a51bfc7b7945bdae988ef18d315b98ad8d70855136f4b2f24f4e30ebe007a",
         "game_slug": "the-legend-of-zelda-a-link-to-the-past",
         "match_kind": "underlying-game"
+      },
+      "original_game_title": "The Legend of Zelda: A Link to the Past",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Z3R-Launcher-",
+          "windows-x64-setup.exe"
+        ]
+      },
+      "release_url": "https://github.com/xander-haj/lawn/releases/tag/v0.8.1",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Let the upstream launcher prepare your own game",
+            "instruction": "The recommended Windows download is the upstream lawn/Z3R Launcher setup package. Open that installer deliberately after downloading, then use its guided preparation. Install its published package for your platform, choose your own clean USA A Link to the Past .sfc, and follow its setup/extract/build steps. The Windows setup package includes the lightweight Git/Python/TCC/SDL2 toolkit; choosing a separate MSBuild route needs its own build tools. Linux and macOS use their matching upstream dependency guide. Portcove does not install these tools or run the launcher during discovery. When setup finishes, register the prepared zelda3.exe on Windows or native zelda3 player on Linux/macOS with its project folder as the working directory, then choose Play explicitly."
+          },
+          {
+            "title": "Keep the generated assets and player data together",
+            "instruction": "Keep the complete prepared project, your original ROM, zelda3_assets.dat, zelda3.user.ini overrides, saves, custom sprites/shaders/MSU packs, and any randomizer YAML, seed/spoiler files or selected feature-asset folders separately backed up. The game tries zelda3.user.ini before zelda3.ini. Keep packaged defaults with their own release and use user overrides for personal settings. The native release ZIP supplies a player and SDL but no generated zelda3_assets.dat; copying that executable alone is not finished setup."
+          },
+          {
+            "title": "Regenerate matching assets when updating",
+            "instruction": "Let the selected upstream launcher manage its own project setup and updates. The game’s guide requires asset regeneration after relevant executable/source, extraction-script, YAML or INI behavior changes. Copying an older generated asset file into a replacement runtime cannot satisfy that requirement. Preserve the old prepared copy and randomizer choices before regeneration; extracting clean ROM data after randomizing overwrites the randomized YAML. Portcove registers the prepared player without claiming Update, Backup or Rollback for these externally owned files. The related Python Z3R-Launcher and current lawn delivery are helpers for this same engine identity, not extra games."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/xander-haj/lawn/releases/tag/v0.8.1"
       }
     },
     {

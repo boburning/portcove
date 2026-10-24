@@ -7,7 +7,7 @@
     "project_url": "https://github.com/ThatGuyMcd/Glover-R",
     "issue_number": 1822,
     "availability": "packages",
-    "setup_url": "https://github.com/ThatGuyMcd/Glover-R/blob/v1.0.1/README.md",
+    "setup_url": "https://github.com/ThatGuyMcd/Glover-R/blob/e4fc245900255f52305eea863de1f0e47708b6e5/docs/NATIVE-README.md",
     "artwork": {
       "game_id": 3348,
       "cover_id": 182078,
@@ -20,13 +20,22 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Finish the game’s setup",
-          "instruction": "On first Play, choose your own supported Glover USA ROM in the upstream launcher. Its reviewed Glover source adaptation keeps this game distinct from Rocket-R and verifies its own ROM identity. Configure controls and compatible mods through upstream menus; the published player requires no game compilation."
+          "title": "Select your own Glover ROM on first Play",
+          "instruction": "Choose Play, then select your own unmodified Glover USA revision 0 ROM when the game asks. The launcher accepts .z64, .n64 and .v64 byte order for this 8 MiB NGVE cartridge (canonical SHA-1 270be17b3c8da9b88a7b99c2a545b0bce16837f4). The published Windows player needs no game build or separate installer. Configure controls in the launcher or press F1/Escape while playing; use its Mods page for compatible mods and separate mod profiles."
+        },
+        {
+          "title": "Keep your saves and mod profiles safe",
+          "instruction": "Default Windows saves, settings, mod profiles, mod-specific saves, logs and crash reports use %APPDATA%/Glover-R. Keep a separate backup of that profile before changing versions; an older runtime may not read newer data. Optional custom configuration and developer paths need their own backup. Keep customized existing copies registered with their own launch details."
+        },
+        {
+          "title": "Linux uses the upstream AppImage route",
+          "instruction": "Use the Linux x86-64 AppImage, or extract the Linux Portable archive and deliberately run Launch-Glover-R.sh. That archive contains an AppImage and wrapper, rather than a bare player with ordinary libraries. The wrapper uses AppImage extraction mode when a normal AppImage launch is unavailable. Steam Deck uses its separate x86-64 package and START-GLOVER-R.sh. Linux saves/settings normally use $XDG_CONFIG_HOME/glover-r or ~/.config/glover-r; preserve that actual profile separately. Follow upstream updates for this copy; the Windows managed route does not manage the Linux wrapper or infer device/gameplay support."
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/ThatGuyMcd/Glover-R/blob/v1.0.1/README.md"
-    }
+      "help_url": "https://github.com/ThatGuyMcd/Glover-R/blob/e4fc245900255f52305eea863de1f0e47708b6e5/docs/NATIVE-README.md"
+    },
+    "original_game_title": "Glover"
   },
   "integration": {
     "support_tier": "beta",
@@ -47,7 +56,7 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "On first Play, choose your own supported Glover USA ROM in the upstream launcher. Its reviewed Glover source adaptation keeps this game distinct from Rocket-R and verifies its own ROM identity. Configure controls and compatible mods through upstream menus; the published player requires no game compilation. Default settings, saves, mod profiles and mod-specific saves, logs and crash reports live in AppData/Glover-R, outside Portcove backups. The reviewed glover-r-data current-folder fallback is declared if present. Bundled engine/mod resources remain version-owned. Use an external registration for custom --config or developer overrides. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations."
+      "manual_preparation": "Choose Play, then select your own unmodified Glover USA revision 0 ROM when the game asks. The launcher accepts .z64, .n64 and .v64 byte order for this 8 MiB NGVE cartridge (canonical SHA-1 270be17b3c8da9b88a7b99c2a545b0bce16837f4). The published Windows player needs no game build or separate installer. Configure controls in the launcher or press F1/Escape while playing; use its Mods page for compatible mods and separate mod profiles. Default Windows saves, settings, mod profiles, mod-specific saves, logs and crash reports use %APPDATA%/Glover-R. Keep a separate backup of that profile before changing versions; an older runtime may not read newer data. Optional custom configuration and developer paths need their own backup. Keep customized existing copies registered with their own launch details. Portcove replaces the separate managed Windows runtime and preserves glover-r-data if the game uses that in-folder fallback. Its normal AppData profile stays outside Portcove backups and runtime rollback; rollback carries current declared data and does not rewind saves. Keep each release’s engine and bundled mod resources together. Existing external copies retain their files and update owner."
     }
   }
 }

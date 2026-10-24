@@ -10956,7 +10956,7 @@ fn main() {
     }
 
     #[tokio::test]
-    async fn external_ownership_refuses_managed_provider_work_before_resolution() {
+    async fn external_ownership_allows_route_inspection_but_refuses_managed_mutations() {
         struct UnexpectedProvider(Arc<AtomicUsize>);
         #[async_trait::async_trait]
         impl ReleaseProvider for UnexpectedProvider {
@@ -10975,11 +10975,17 @@ fn main() {
         let (_temporary, mut service, record) = external_location_fixture();
         let calls = Arc::new(AtomicUsize::new(0));
         service.releases = Arc::new(UnexpectedProvider(calls.clone()));
+        let inspection_failure = service
+            .plan_install(&record.port_id, None)
+            .await
+            .unwrap_err();
+        assert!(
+            inspection_failure
+                .message
+                .contains("external registration reached managed provider")
+        );
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
         let results = [
-            service
-                .plan_install(&record.port_id, None)
-                .await
-                .map(|_| ()),
             service
                 .install_at(
                     &record.port_id,
@@ -11005,9 +11011,15 @@ fn main() {
             service.check_update(&record.port_id).await.map(|_| ()),
         ];
         for result in results {
-            assert!(result.unwrap_err().message.contains("external folder"));
+            let failure = result.unwrap_err();
+            assert!(
+                failure.message.contains("external folder")
+                    || failure.message.contains("externally owned folder"),
+                "{}",
+                failure.message
+            );
         }
-        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
         assert_eq!(
             serde_json::to_value(
                 service

@@ -26,7 +26,8 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/craigshaw/FZeroRecomp/blob/v0.6.0/README.md"
-    }
+    },
+    "original_game_title": "F-Zero"
   },
   "integration": {
     "support_tier": "beta",

@@ -26,7 +26,8 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/blob/1.3.3/README.md"
-    }
+    },
+    "original_game_title": "Sonic the Hedgehog"
   },
   "integration": {
     "support_tier": "beta",

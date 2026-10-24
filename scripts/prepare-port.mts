@@ -11,7 +11,7 @@ import {
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
-import { collectPortFacts } from "./port-upstream-facts.mts";
+import { collectPortFacts, githubRepository } from "./port-upstream-facts.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
 import {
   prepareCatalogArtwork,
@@ -70,8 +70,14 @@ export function portablePreparationFeedback(
     persistence: Array.isArray(record.integration.persistent_paths)
       ? record.integration.persistent_paths
       : [],
+    launch_identity: {
+      original_game_title: record.listing.original_game_title ?? null,
+      next: record.listing.original_game_title
+        ? "Keep this underlying game title separate from its implementation and helper names."
+        : "Supply listing.original_game_title from the canonical game identity; do not make players distinguish the player from compiler or converter helpers.",
+    },
     data_review:
-      "Review runtime writes as well as saves: original inputs, generated content, mods, logs and fallback locations. An empty contract needs evidence that ordinary data lives outside the runtime; disclose external backup limits. Self-replacement and version-dependent regeneration need another supported route.",
+      "Review runtime writes as well as saves: original inputs, generated content, mods, logs and fallback locations. An empty contract needs evidence that ordinary data lives outside the runtime; disclose external backup limits. Self-replacement and version-dependent regeneration need another supported route. Generated executable caches need compatible producer identity or supported invalidation, not just a declared directory or ABI label.",
     scope:
       "Authoring observations only; Core retains package selection, trust and mutation authority.",
   };
@@ -375,34 +381,47 @@ export async function preparePort(options: PrepareOptions) {
     : null;
   if (explicit && options.id && explicit.listing.id !== options.id)
     throw new Error("Record and selected stable ID differ.");
-  openCheckpoint(root);
-  try {
-    const facts = await collectPortFacts({
-      ...options.facts,
-      projectUrl: options.projectUrl ?? explicit?.listing.project_url,
-      issue: options.issue,
-      route: options.route ?? "listing",
-      releaseTag: options.releaseTag,
-      cacheDirectory: join(root, "facts"),
-    });
-    const matching = authored.records.filter(
-      (record) => record.listing.project_url === facts.project_url,
-    );
-    if (!explicit && !options.id && !facts.issue?.id && matching.length > 1)
+  const selected = authored.records.find((record) => record.listing.id === options.id);
+  const resolveIdentity = (projectUrl: string, issuePortId?: string) => {
+    const matching = authored.records.filter((record) => record.listing.project_url === projectUrl);
+    if (!explicit && !options.id && !issuePortId && matching.length > 1)
       throw new Error("Several implementations share this upstream; select the stable ID.");
-    const suggested = facts.repository
+    const suggested = githubRepository(projectUrl)
       ?.split("/")[1]
       ?.toLowerCase()
       .replace(/[^a-z0-9]+/gu, "-")
       .replace(/^-|-$/gu, "");
     const id =
-      explicit?.listing.id ?? options.id ?? facts.issue?.id ?? matching[0]?.listing.id ?? suggested;
+      explicit?.listing.id ?? options.id ?? issuePortId ?? matching[0]?.listing.id ?? suggested;
     if (!id) throw new Error("Supply a stable --id for this project.");
-    if (facts.issue?.id && facts.issue.id !== id)
+    if (issuePortId && issuePortId !== id)
       throw new Error("Canonical issue and proposed stable ID differ.");
     const previous = authored.records.find((record) => record.listing.id === id);
+    return { id, previous, base: explicit ?? previous };
+  };
+  openCheckpoint(root);
+  try {
+    const facts = await collectPortFacts({
+      ...options.facts,
+      projectUrl:
+        options.projectUrl ?? explicit?.listing.project_url ?? selected?.listing.project_url,
+      issue: options.issue,
+      route: options.route ?? "listing",
+      releaseTag: options.releaseTag,
+      resolveReleaseUrl: ({ projectUrl, issuePortId }) => {
+        const { base } = resolveIdentity(projectUrl, issuePortId);
+        if (!base?.integration) return base?.listing.release_url;
+        const release = base.integration.release;
+        return isRecord(release) &&
+          (release.provider === undefined || release.provider === "github") &&
+          typeof release.repository === "string"
+          ? `https://github.com/${release.repository}`
+          : null;
+      },
+      cacheDirectory: join(root, "facts"),
+    });
+    const { id, previous, base } = resolveIdentity(facts.project_url, facts.issue?.id);
     const metadata = isRecord(facts.project?.body) ? facts.project.body : {};
-    const base = explicit ?? previous;
     let record = checkedAuthoredPort({
       ...(base ?? { format_version: 1 }),
       listing: {

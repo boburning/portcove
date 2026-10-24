@@ -6,9 +6,9 @@
     "summary": "Explore WarioWare: Twisted! / WarioWare: Twisted! Recomp (mstan) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/mstan/WarioWareTwistedRecomp",
     "issue_number": 1906,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/mstan/WarioWareTwistedRecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/mstan/WarioWareTwistedRecomp/blob/8e7a6e2e911a69ca1090f57bae2ab5d7bc7034b2/README.md",
     "artwork": {
       "game_id": 1704,
       "cover_id": 89078,
@@ -16,6 +16,34 @@
       "image_sha256": "e9c8ce1e7dfaf5c3cc581dc38280bc00565b4c0e9152a2f0e26c968862ea4c34",
       "game_slug": "warioware-twisted",
       "match_kind": "underlying-game"
+    },
+    "original_game_title": "WarioWare: Twisted!",
+    "recommended_download_channel": "beta",
+    "download_asset_hints": {
+      "windows-x86-64": ["WarioWareTwistedRecomp-", "windows-x64", ".zip"]
+    },
+    "release_url": "https://github.com/mstan/WarioWareTwistedRecomp/releases/tag/v0.0.2",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your own ROM and BIOS in the game",
+          "instruction": "The Windows ZIP is ready to open after extraction; it has no installer or player build step. Keep its DLLs, assets, any supplied mods and overlay_toolchain together. Finish setup with WarioWareTwistedRecomp.exe, then choose Play explicitly. In the game’s launcher, select your own WarioWare: Twisted! USA ROM and retail GBA BIOS, then Play. The expected ROM SHA-1 is f0102d0d6f7596fe853d5d0a94682718278e083a; the retail BIOS SHA-1 is 300c20df6731a33952ded8c436f7f186d25d3492. The game remembers valid selections. The tcc programs are internal compiler helpers, not the player; Portcove does not run them during setup discovery."
+        },
+        {
+          "title": "Keep the saves and settings you actually use",
+          "instruction": "Keep a separate copy of your selected ROM folder, its matching .sav and .state1 through .state10 files, and any saves folder used by this copy. This package also contains variants/warioware_twisted/game.toml: explicitly launching with that configuration selects saves/warioware_twisted_usa.sav under the runtime folder. Keep the actual save location you use, rather than relying on the launcher’s displayed save path. Also preserve config.ini, keybinds.ini, rom.cfg, bios.cfg, your mod choices and any player-added mods beside the executable. Custom --save/--save-path or --state-dir choices change the save locations. Older builds may not read newer states or saves. Portcove registration preserves these externally owned files; it does not back up or restore them."
+        },
+        {
+          "title": "Keep your working copy when updating",
+          "instruction": "Updates come from the upstream project. Extract a new release into a separate folder and keep the current copy usable while checking it. Keep each release’s own DLLs, packaged mods and overlay_toolchain; do not overlay the old runtime folder onto the new one. The game can generate native code in recomp_cache during Play. Keep that old cache with the old copy and let the new release start with its own cache, rather than transferring generated DLLs. Transfer only compatible player settings, saves and mods using the matching upstream instructions, then change the registered player when ready. These previews remain experimental; downloading or registering one does not establish full-game compatibility."
+        },
+        {
+          "title": "Android uses its own app and storage",
+          "instruction": "For Android 9+ ARM64, choose this project’s separate experimental APK and select your own matching ROM and BIOS through its first-launch document picker. The app stores imported files in private app storage. Keep that app’s saves and data before uninstalling or clearing it; the debug-signed test build may need a different update path if signing changes. Rotate the phone for gyro input; Windows instead supports a compatible motion controller or left-mouse dragging. Android files and updates stay outside Portcove backup and runtime rollback."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/mstan/WarioWareTwistedRecomp/blob/8e7a6e2e911a69ca1090f57bae2ab5d7bc7034b2/README.md"
     }
   }
 }

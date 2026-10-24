@@ -26,7 +26,8 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/pablocpas/OpenCMR2/blob/v1.6.0/README.md"
-    }
+    },
+    "original_game_title": "Colin McRae Rally 2.0"
   },
   "integration": {
     "support_tier": "beta",

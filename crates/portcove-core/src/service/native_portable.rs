@@ -22,6 +22,8 @@ impl PortcoveService {
             || retained.runtime_subdirectory != to.runtime_subdirectory
             || retained.launch_from_install_root != to.launch_from_install_root
             || retained.executable_hints.get(&platform) != to.executable_hints.get(&platform)
+            || retained.launch_arguments != to.launch_arguments
+            || retained.launch_environment != to.launch_environment
             || retained.user_data_environment != to.user_data_environment
         {
             return Err(PortcoveError::conflict(
@@ -933,6 +935,64 @@ mod tests {
             b"keep"
         );
         assert!(first.path.join("game.exe").exists());
+    }
+
+    #[tokio::test]
+    async fn portable_launch_coordinates_cannot_reinterpret_retained_player_data() {
+        for changed_field in ["launch_arguments", "launch_environment"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+            let mut service = build_service(library, provider.clone());
+            let mut document = serde_json::to_value(catalog().document()).unwrap();
+            document["ports"][0]["launch_arguments"] = serde_json::json!(["--data-dir", "data"]);
+            document["ports"][0]["launch_environment"] =
+                serde_json::json!({ "GAME_DATA_DIR": "data" });
+            service.catalog = Catalog::from_json(&document.to_string()).unwrap();
+            let first = service
+                .install("portable-fixture", None, None, None, true, |_| {})
+                .await
+                .unwrap();
+            fs::create_dir_all(first.path.join("data")).unwrap();
+            fs::write(first.path.join("data/progress.sav"), b"keep progress").unwrap();
+            *provider.0.lock().unwrap() = server.release("v2", 2);
+            let second = service
+                .update("portable-fixture", None, None, true, |_| {})
+                .await
+                .unwrap();
+            assert_eq!(second.version, "v2");
+            assert_eq!(
+                fs::read(second.path.join("data/progress.sav")).unwrap(),
+                b"keep progress"
+            );
+
+            document["ports"][0][changed_field] = if changed_field == "launch_arguments" {
+                serde_json::json!(["--data-dir", "another-data-directory"])
+            } else {
+                serde_json::json!({ "GAME_DATA_DIR": "another-data-directory" })
+            };
+            service.catalog = Catalog::from_json(&document.to_string()).unwrap();
+            *provider.0.lock().unwrap() = server.release("v3", 3);
+            let failure = service
+                .update("portable-fixture", None, None, true, |_| {})
+                .await
+                .unwrap_err();
+            assert_eq!(
+                failure.presentation().presentation_key,
+                "portable_data_contract_changed",
+                "{changed_field}"
+            );
+            let state = service.status("portable-fixture").unwrap();
+            assert_eq!(state.active.unwrap().id, second.id, "{changed_field}");
+            assert!(state.staged.is_none(), "{changed_field}");
+            assert_eq!(
+                fs::read(second.path.join("data/progress.sav")).unwrap(),
+                b"keep progress"
+            );
+            assert_eq!(fs::read(second.path.join("package.txt")).unwrap(), [2]);
+            assert!(first.path.join("game.exe").exists());
+        }
     }
 
     #[tokio::test]

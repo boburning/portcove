@@ -26,7 +26,8 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/opentyrian/opentyrian/blob/v2.1.20260913/README.md"
-    }
+    },
+    "original_game_title": "Tyrian"
   },
   "integration": {
     "support_tier": "beta",

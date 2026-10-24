@@ -26,7 +26,8 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/tymsky/OpenGG/blob/v0.2.2/README.md"
-    }
+    },
+    "original_game_title": "Gearhead Garage"
   },
   "integration": {
     "support_tier": "beta",

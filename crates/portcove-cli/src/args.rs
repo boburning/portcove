@@ -571,7 +571,9 @@ pub(crate) enum LaunchCommand {
 pub(crate) enum ExternalCommand {
     /// Review a separate managed copy while retaining the current external installation.
     ManagedPreview {
+        /// Catalog port ID whose current external registration must stay usable during review.
         port_id: String,
+        /// Managed release channel to review; defaults to the installation's saved channel.
         #[arg(long)]
         channel: Option<ChannelArg>,
         /// Separate managed output folder; the external folder cannot be reused.
@@ -580,9 +582,12 @@ pub(crate) enum ExternalCommand {
     },
     /// Prepare a verified managed copy, then switch registration without touching external files.
     ChangeToManaged {
+        /// Catalog port ID from the preceding external managed-preview review.
         port_id: String,
+        /// Managed release channel matching the preceding preview and its reviewed policy.
         #[arg(long)]
         channel: Option<ChannelArg>,
+        /// Separate managed output folder matching the preview; external files stay in place.
         #[arg(long)]
         output_directory: Option<PathBuf>,
         /// SHA-256 from `external managed-preview`; changed facts refuse the route change.

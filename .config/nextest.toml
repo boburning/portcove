@@ -102,8 +102,16 @@ success-output = "immediate"
 # refusal operations, preservation assertions, two workers and zero retries.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & test(/^service::tests::external_ownership_refuses_managed_provider_work_before_resolution$/)'
+filter = 'package(portcove-core) & test(/^service::tests::external_ownership_allows_route_inspection_but_refuses_managed_mutations$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+# The complete CLI registration/restart/relink/removal case reached 30.049s
+# locally. Retain its compiled native fixture, every subprocess and preservation
+# assertion, two workers and zero retries; allow this Windows case finite 90s.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-cli) & test(/^self_service_contract::listing_only_selected_runtime_survives_cli_restart_relink_and_registration_removal$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 
 # The second-audit Windows run retained a 30s runtime lifecycle timeout after
 # the first real install. Keep every install/update/rollback/preservation assertion with finite

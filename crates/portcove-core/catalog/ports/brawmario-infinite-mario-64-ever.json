@@ -18,7 +18,8 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/Brawmario/infinite-mario-64-ever/blob/v0.1.5/README.md"
-    }
+    },
+    "original_game_title": "Super Mario 64"
   },
   "integration": {
     "support_tier": "beta",

@@ -26,7 +26,8 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/OpenLoco/OpenLoco/blob/v26.09/README.md"
-    }
+    },
+    "original_game_title": "Chris Sawyer's Locomotion"
   },
   "integration": {
     "support_tier": "beta",

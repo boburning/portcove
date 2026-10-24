@@ -26,7 +26,8 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/NoahVl/Birdman64/blob/v1.5.1/README.md"
-    }
+    },
+    "original_game_title": "Pilotwings 64"
   },
   "integration": {
     "support_tier": "beta",

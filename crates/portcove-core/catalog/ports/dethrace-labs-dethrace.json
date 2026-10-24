@@ -26,7 +26,8 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/dethrace-labs/dethrace/blob/v0.10.1/README.md"
-    }
+    },
+    "original_game_title": "Carmageddon"
   },
   "integration": {
     "support_tier": "beta",

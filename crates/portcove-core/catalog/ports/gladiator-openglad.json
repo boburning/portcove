@@ -26,7 +26,8 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/openglad/openglad/blob/v2.1092/README.md"
-    }
+    },
+    "original_game_title": "Gladiator"
   },
   "integration": {
     "support_tier": "beta",

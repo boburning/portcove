@@ -26,7 +26,8 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/OpenApoc/OpenApoc/blob/20260408/README.md"
-    }
+    },
+    "original_game_title": "X-COM: Apocalypse"
   },
   "integration": {
     "support_tier": "beta",

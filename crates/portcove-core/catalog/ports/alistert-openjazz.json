@@ -26,7 +26,8 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/AlisterT/openjazz/blob/20260301/README.md"
-    }
+    },
+    "original_game_title": "Jazz Jackrabbit"
   },
   "integration": {
     "support_tier": "beta",

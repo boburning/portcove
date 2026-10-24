@@ -26,7 +26,8 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp-0.73.4/README.md"
-    }
+    },
+    "original_game_title": "OpenTTD"
   },
   "integration": {
     "support_tier": "beta",

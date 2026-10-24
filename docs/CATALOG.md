@@ -127,6 +127,8 @@ This does not establish game-specific dependencies, gameplay, or other processor
 compatibility. Supply the accurate `original_game_title` where the listing name
 also contains the engine/project name so bounded launch suggestions can identify
 the game among unrelated converters; equally plausible targets still require a choice.
+Portable preparation reports a missing original game title alongside package
+feedback. Use the canonical game identity; a helper name is not a substitute.
 
 Persistent paths are relative to the executable's directory, or the install root
 when `launch_from_install_root` is declared. Declare only compatible original
@@ -134,6 +136,12 @@ inputs, generated data, saves, settings and supported mods that should reach
 replacement versions. Outside data remains upstream/player-owned and outside
 Portcove backups. Describe setup and this limit in `presentation`; optional unknown
 gameplay evidence does not hide the listing or prevent a separately safe operation.
+
+Literal launch arguments and environment values also belong to that coordinate
+contract. A native portable replacement refuses changes to either, even when the
+declared data paths stay the same: changing `--data-dir` or a data-location
+environment variable cannot silently redirect a retained installation. A supported
+transition must establish compatibility before changing these execution facts.
 
 Put the actual next game-setup step first in the authored manual guide: original
 files the game will request, a required manual preparation, or an explicit statement
@@ -1404,6 +1412,14 @@ new route.
 The owned output directory is a resumable preparation checkpoint. Reuse it for
 several IDs sharing a repository to reuse endpoint observations. Collection is
 bounded to 12 HTTP requests including redirects, 8 MiB and two minutes per call.
+For a listing-only download, a reviewed `release_url` may identify a related
+upstream setup launcher while `project_url`, stable ID and canonical issue keep
+the game identity. Preparation records that public release repository separately
+and verifies release/asset provenance within the same budget and cache. The URL's
+tag path does not pin a version; `--release-tag` selects the exact observation.
+Managed package feedback uses the operational release specification instead of
+an optional listing helper. A provider outside the bounded GitHub collector
+remains explicitly unobserved; it never falls back to a different repository.
 Repository observations expire after 24 hours; issue/release/asset observations
 after one hour. Failed refreshes retain prior observations separately and do not
 report them as current; provider backoff survives resume. Malformed checkpoints

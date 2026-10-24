@@ -26,7 +26,8 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/OpenReliant/openreliant/blob/v0.20.0/docs/guide/installation.md"
-    }
+    },
+    "original_game_title": "Starlancer"
   },
   "integration": {
     "support_tier": "beta",

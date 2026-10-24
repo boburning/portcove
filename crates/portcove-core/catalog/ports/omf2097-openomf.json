@@ -26,7 +26,8 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/omf2097/openomf/blob/0.8.6/README.md"
-    }
+    },
+    "original_game_title": "One Must Fall: 2097"
   },
   "integration": {
     "support_tier": "beta",

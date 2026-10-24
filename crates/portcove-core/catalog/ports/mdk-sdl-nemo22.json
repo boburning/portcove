@@ -26,7 +26,8 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/v1.2.0/README.md"
-    }
+    },
+    "original_game_title": "MDK"
   },
   "integration": {
     "support_tier": "beta",

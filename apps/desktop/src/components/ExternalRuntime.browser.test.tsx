@@ -20,7 +20,8 @@ import { catalogEntries } from "../features/browsing/catalog-entry";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { DetailLayout } from "./DetailLayout";
 
-vi.mock("../file-picker", () => ({
+vi.mock("../file-picker", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../file-picker")>()),
   pickInstallFolder: vi.fn(),
   pickHostToolExecutable: vi.fn(),
   pickArtworkPath: vi.fn(),

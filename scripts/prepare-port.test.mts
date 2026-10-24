@@ -15,7 +15,11 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { collectPortFacts, githubRepository } from "./port-upstream-facts.mts";
+import {
+  collectPortFacts,
+  githubRepository,
+  githubReleaseRepository,
+} from "./port-upstream-facts.mts";
 import {
   preparePort,
   prepareArtworkBatch,
@@ -53,6 +57,8 @@ void test("portable preparation separates complete hint observations from lifecy
   const partial = portablePreparationFeedback(record, { assets_complete: false, assets: [asset] })!;
   assert.match(partial.platforms[0]!.next, /incomplete/);
   assert.equal(partial.platforms[0]!.hint_matches[0]!.published_sha256, true);
+  assert.equal(partial.launch_identity.original_game_title, null);
+  assert.match(partial.launch_identity.next, /Supply listing.original_game_title/);
   const ambiguous = portablePreparationFeedback(record, {
     assets_complete: true,
     assets: [asset, { ...asset, id: 2, name: "other-windows-x64.zip", digest: null }],
@@ -72,6 +78,13 @@ void test("portable preparation separates complete hint observations from lifecy
   assert.match(unique.platforms[0]!.next, /does not establish fit/);
   assert.deepEqual(unique.persistence, []);
   assert.match(unique.data_review, /empty contract needs evidence/);
+  assert.match(unique.data_review, /compatible producer identity or supported invalidation/);
+  const named = portablePreparationFeedback(
+    { ...record, listing: { ...record.listing, original_game_title: "Actual game" } },
+    { assets_complete: true, assets: [asset] },
+  )!;
+  assert.equal(named.launch_identity.original_game_title, "Actual game");
+  assert.match(named.launch_identity.next, /separate from its implementation and helper names/);
   assert.equal(
     portablePreparationFeedback(
       { format_version: 1, listing: record.listing },
@@ -132,6 +145,137 @@ const metadata = {
   name: "Fixture",
   description: "Fixture upstream project.",
 };
+
+void test("related release providers retain canonical identity, independent public facts and resumed bounded reads", async () => {
+  const f = fixture();
+  try {
+    const provider = "https://github.com/example/launcher";
+    const release = {
+      id: 44,
+      draft: false,
+      tag_name: "chosen/tag",
+      html_url: `${provider}/releases/tag/chosen%2Ftag`,
+    };
+    const asset = {
+      id: 45,
+      name: "setup.exe",
+      size: 123,
+      browser_download_url: `${provider}/releases/download/chosen%2Ftag/setup.exe`,
+    };
+    const options = {
+      projectUrl: project,
+      route: "download" as const,
+      releaseUrl: `${provider}/releases/tag/not-a-pin`,
+      releaseTag: "chosen/tag",
+      cacheDirectory: f.root,
+      fetcher: f.fetcher((url) =>
+        url.endsWith("/repos/example/fixture")
+          ? json(metadata)
+          : url.endsWith("/repos/example/launcher")
+            ? json({ id: 456, full_name: "example/launcher", private: false })
+            : url.endsWith("/tags/chosen%2Ftag")
+              ? json(release)
+              : url.includes("/assets?")
+                ? json([asset])
+                : assert.fail(`Unexpected request ${url}`),
+      ),
+    };
+    const first = await collectPortFacts(options);
+    assert.equal(first.repository, "example/fixture");
+    assert.deepEqual(first.project?.body, metadata);
+    assert.equal(first.release_repository, "example/launcher");
+    assert.deepEqual(first.release_project?.body, {
+      id: 456,
+      full_name: "example/launcher",
+      private: false,
+    });
+    assert.equal(first.assets_complete, true);
+    assert.equal(first.usage.requests, 4);
+    const resumed = await collectPortFacts(options);
+    assert.equal(resumed.usage.requests, 0);
+    assert.equal(resumed.release_project?.status, "reused");
+    assert.equal(f.requests.length, 4);
+    assert.ok(f.requests.every((url) => !url.includes("not-a-pin")));
+  } finally {
+    f.clean();
+  }
+});
+
+void test("related release providers refuse private, unknown, invalid and conflicting origins", async () => {
+  for (const providerMetadata of [
+    { ...metadata, private: true },
+    { ...metadata, private: false },
+    { full_name: "example/launcher" },
+  ]) {
+    const f = fixture();
+    try {
+      await assert.rejects(
+        collectPortFacts({
+          projectUrl: project,
+          route: "download",
+          releaseUrl: "https://github.com/example/launcher/releases",
+          cacheDirectory: f.root,
+          fetcher: f.fetcher((url) =>
+            json(url.endsWith("/repos/example/fixture") ? metadata : providerMetadata),
+          ),
+        }),
+        /matching observed public/,
+      );
+      assert.equal(f.requests.length, 2);
+    } finally {
+      f.clean();
+    }
+  }
+  for (const url of [
+    "",
+    "http://github.com/example/helper",
+    "https://user@github.com/example/helper",
+    "https://github.com:8443/example/helper",
+    "https://github.com/example/a%2Fb",
+    "https://github.com//example/helper",
+    "https://github.com/example//helper",
+    `https://github.com/example/${"x".repeat(99)}.git`,
+    "https://example.com/example/helper",
+    `https://github.com/example/${"x".repeat(101)}`,
+  ])
+    assert.throws(() => githubReleaseRepository(url));
+  const f = fixture();
+  try {
+    await assert.rejects(
+      collectPortFacts({
+        projectUrl: project,
+        route: "download",
+        releaseUrl: "https://github.com/example/launcher/releases",
+        releaseTag: "v1",
+        cacheDirectory: f.root,
+        fetcher: f.fetcher((url) =>
+          json(
+            url.endsWith("/repos/example/fixture")
+              ? metadata
+              : url.endsWith("/repos/example/launcher")
+                ? { id: 456, private: false, full_name: "example/launcher" }
+                : { id: 5, tag_name: "v1", draft: false, html_url: `${project}/releases/tag/v1` },
+          ),
+        ),
+      }),
+      /provenance conflicts/,
+    );
+    assert.equal(f.requests.length, 3);
+    await assert.rejects(
+      collectPortFacts({
+        projectUrl: project,
+        route: "download",
+        releaseUrl: project,
+        resolveReleaseUrl: () => project,
+        cacheDirectory: f.root,
+      }),
+      /either an explicit/,
+    );
+    assert.equal(f.requests.length, 3);
+  } finally {
+    f.clean();
+  }
+});
 
 void test("ordinary listing fetches identity only, shares fresh observations and preserves stale facts after outage", async () => {
   const f = fixture();
@@ -591,6 +735,103 @@ function clearFixtureArtwork(directory: string, ids: string[]) {
     writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
   }
 }
+
+void test("preparation resolves related downloads from stable ID and canonical issue while isolating managed releases", async () => {
+  for (const route of ["id", "issue", "managed", "managed-gitlab"] as const) {
+    const f = fixture();
+    try {
+      const source = copiedCatalog(join(f.root, "source"));
+      const record = readCatalogSource(source).records.find(
+        (entry) =>
+          Boolean(entry.integration) === route.startsWith("managed") &&
+          entry.listing.project_url.startsWith("https://github.com/"),
+      )!;
+      delete record.listing.artwork;
+      record.listing.release_url = "https://github.com/example/helper/releases/tag/unselected";
+      if (record.integration)
+        record.integration.release = {
+          ...(record.integration.release as Record<string, unknown>),
+          provider: route === "managed-gitlab" ? "gitlab" : "github",
+          repository: "example/operational",
+        };
+      writeFileSync(join(source, "ports", `${record.listing.id}.json`), JSON.stringify(record));
+      const repository = githubRepository(record.listing.project_url)!;
+      const releaseRepository = route.startsWith("managed")
+        ? "example/operational"
+        : "example/helper";
+      const result = await preparePort({
+        catalogRoot: source,
+        outputDirectory: join(f.root, "output"),
+        ...(route === "issue"
+          ? { issue: String(record.listing.issue_number) }
+          : { id: record.listing.id }),
+        route: "download",
+        releaseTag: "chosen",
+        artwork: { inspectGame: () => [] },
+        facts: {
+          fetcher: f.fetcher((url) => {
+            if (url.endsWith(`/issues/${record.listing.issue_number}`))
+              return json({
+                title: "[Port] Fixture",
+                body: `<!-- portcove-port-key: ${record.listing.id} -->\n<!-- portcove-upstream: ${record.listing.project_url} -->`,
+              });
+            if (url.endsWith(`/repos/${repository}`))
+              return json({ full_name: repository, private: false });
+            if (url.endsWith("/repos/example/helper"))
+              return json({ id: 777, full_name: "example/helper", private: false });
+            if (url.endsWith("/repos/example/operational"))
+              return json({ id: 888, full_name: "example/operational", private: false });
+            if (url.endsWith(`/repos/${releaseRepository}/releases/tags/chosen`))
+              return json({
+                id: 44,
+                draft: false,
+                tag_name: "chosen",
+                html_url: `https://github.com/${releaseRepository}/releases/tag/chosen`,
+              });
+            if (url.endsWith(`/repos/${releaseRepository}/releases/44/assets?per_page=100&page=1`))
+              return json([
+                {
+                  id: 45,
+                  name: "game.zip",
+                  size: 1,
+                  browser_download_url: `https://github.com/${releaseRepository}/releases/download/chosen/game.zip`,
+                },
+              ]);
+            return assert.fail(`Unexpected request ${url}`);
+          }),
+        },
+      });
+      assert.equal(result.report.port_id, record.listing.id);
+      const facts = JSON.parse(readFileSync(result.report.files.upstream, "utf8")) as {
+        repository: string;
+        release_repository: string;
+        release_project?: unknown;
+      };
+      assert.equal(facts.repository, repository);
+      assert.equal(facts.release_repository, route === "managed-gitlab" ? null : releaseRepository);
+      if (route === "managed-gitlab") assert.equal(facts.release_project, undefined);
+      assert.equal(
+        f.requests.some((url) => url.includes("/repos/example/helper")),
+        !route.startsWith("managed"),
+      );
+      const changedRecord = result.report.files.records[0];
+      const proposal = changedRecord
+        ? (JSON.parse(readFileSync(changedRecord.path, "utf8")) as AuthoredPort)
+        : record;
+      assert.equal(Boolean(changedRecord), route !== "managed-gitlab");
+      assert.equal(proposal.listing.project_url, record.listing.project_url);
+      assert.equal(
+        proposal.listing.release_url,
+        route === "managed-gitlab"
+          ? record.listing.release_url
+          : `https://github.com/${releaseRepository}/releases/tag/chosen`,
+      );
+      assert.equal(result.report.operational_changed, false);
+    } finally {
+      f.clean();
+    }
+  }
+});
 
 void test("bounded artwork batch enriches listing-only records in the complete large catalog and resumes without lookup", async () => {
   const f = fixture();

@@ -6,9 +6,9 @@
     "summary": "Explore Dragon Ball Z: Buu's Fury / Dragon Ball Z: Buu's Fury Recomp (mstan) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp",
     "issue_number": 1816,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/README.md",
     "artwork": {
       "game_id": 19835,
       "cover_id": 166679,
@@ -16,6 +16,30 @@
       "image_sha256": "95cd13d1653e6224973ed48c83a3b7ccb65bd2f3622496fd1ee5717b6a6e511d",
       "game_slug": "dragon-ball-z-buus-fury",
       "match_kind": "underlying-game"
+    },
+    "original_game_title": "Dragon Ball Z: Buu’s Fury",
+    "recommended_download_channel": "stable",
+    "download_asset_hints": {
+      "windows-x86-64": ["DragonBallZBuusFuryRecomp-", "windows-x64", ".zip"]
+    },
+    "release_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/releases/tag/v0.0.4",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your own ROM and BIOS in the game",
+          "instruction": "The Windows ZIP is ready to open after extraction; it has no installer or player build step. Keep its DLLs, assets, any supplied mods and overlay_toolchain together. Finish setup with DragonBallZBuusFuryRecomp.exe, then choose Play explicitly. In the game’s launcher, select your own Dragon Ball Z: Buu’s Fury USA, BG3E revision 0 ROM and retail GBA BIOS, then Play. The expected ROM SHA-1 is f1c4b07554d2a3b1ad2f325307051e775ce68087; the retail BIOS SHA-1 is 300c20df6731a33952ded8c436f7f186d25d3492. The game remembers valid selections. The tcc programs are internal compiler helpers, not the player; Portcove does not run them during setup discovery."
+        },
+        {
+          "title": "Keep the saves and settings you actually use",
+          "instruction": "By default, cartridge saves use the selected ROM’s name with .sav, and save-state slots use the same name with .state1 through .state10, beside that ROM. Keep a separate copy of this folder; a save path shown in the launcher is not proof that the save moved there. Also preserve config.ini, keybinds.ini, rom.cfg, bios.cfg, your mod choices and any player-added mods beside the executable. Custom --save/--save-path or --state-dir choices change the save locations. Older builds may not read newer states or saves. Portcove registration preserves these externally owned files; it does not back up or restore them."
+        },
+        {
+          "title": "Keep your working copy when updating",
+          "instruction": "Updates come from the upstream project. Extract a new release into a separate folder and keep the current copy usable while checking it. Keep each release’s own DLLs, packaged mods and overlay_toolchain; do not overlay the old runtime folder onto the new one. The game can generate native code in recomp_cache during Play. Keep that old cache with the old copy and let the new release start with its own cache, rather than transferring generated DLLs. Transfer only compatible player settings, saves and mods using the matching upstream instructions, then change the registered player when ready. These previews remain experimental; downloading or registering one does not establish full-game compatibility."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/README.md"
     }
   }
 }
