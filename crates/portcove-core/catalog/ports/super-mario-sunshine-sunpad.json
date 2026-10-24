@@ -6,9 +6,9 @@
     "summary": "Explore Super Mario Sunshine / SunPad and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/chrissotraidis/sunpad",
     "issue_number": 1634,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/chrissotraidis/sunpad",
+    "platforms": ["macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/chrissotraidis/sunpad/blob/v0.2.2/README.md",
     "artwork": {
       "game_id": 1075,
       "cover_id": 524521,
@@ -16,6 +16,24 @@
       "image_sha256": "d24815214c09cacb6947c63015545a19f94a54eda2762365f6c234ff2be167ed",
       "game_slug": "super-mario-sunshine",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Build your copy for Apple Silicon Mac",
+          "instruction": "Use upstream PadMint 0.5.5 or newer on an Apple Silicon Mac with Xcode. Choose SunPad, your own Super Mario Sunshine USA revision 0 GMSE01 raw ISO/GCM, and This Mac. Move the SunPad.app ZIP output to Applications after extracting it. The linked guide also provides a manual source-build route. Published iPhone/iPad app shells do not contain the translated game code and cannot play by themselves; they are not Mac packages."
+        },
+        {
+          "title": "Choose the original image in SunPad",
+          "instruction": "Open your prepared Mac app when ready. Choose the supported image in its launcher and select Extract and Play. Upstream owns that extraction, generated module and launch. Other regions, revisions and modified or compressed images are not established by this route. Portcove does not run the builder, obtain game files or sign Apple applications."
+        },
+        {
+          "title": "Keep the app data when updating",
+          "instruction": "Build a newer app separately and follow upstream’s replacement instructions while keeping your current working copy. Mac configuration, extracted game data, saves, logs and controller profiles are under ~/Library/Application Support/SunPad; keep a separate backup before replacing or re-preparing anything. iPhone/iPad signing identity and experimental Apple TV’s purgeable storage have separate rules in the platform guides. Portcove does not manage bundle replacement, back up this external data or promise runtime rollback. Check upstream’s known issues before replacing a working app."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/chrissotraidis/sunpad/blob/v0.2.2/README.md"
     }
   }
 }

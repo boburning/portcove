@@ -8,7 +8,7 @@
     "issue_number": 743,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/GTTeancum/OpenGTPS1",
+    "setup_url": "https://github.com/GTTeancum/OpenGTPS1/blob/main/README.md",
     "artwork": {
       "game_id": 1597,
       "cover_id": 93687,
@@ -16,6 +16,23 @@
       "image_sha256": "a6f251729a583e075d008435e77d8c7aa52b966890e45e2aa8ebb20dd3a2f6c0",
       "game_slug": "gran-turismo-2",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep an existing permitted prepared copy",
+          "instruction": "Upstream has not granted a license for its original OpenGTPS1 code; this guide does not establish permission to build, acquire or register another copy. If you already have a permitted prepared Windows x64 copy, its GranTurismo2PC.exe uses your own exact US GT2 Simulation revision 2 (SCUS-94488) and Arcade (SCUS-94455) raw Mode 2/2352 images, checked by upstream’s native setup. Choose that prepared game executable and its writable folder, and launch separately. Optional GT1 content merging is excluded from this handoff pending its separate acceptance; do not infer that it is qualified here."
+        },
+        {
+          "title": "Keep updates and data with your working copy",
+          "instruction": "Keep your original files and a separate working installation. You or upstream own runtime replacement, generated data, saves and settings; prepare updates in a separate folder and retain the current copy until ready. Portcove’s existing-installation review saves your selected launch details without running a helper. It does not back up, roll back or delete this external runtime."
+        }
+      ],
+      "warnings": [
+        "Fresh Portcove acquisition is paused because upstream has not granted a license for its original OpenGTPS1 code. Keep using an existing permitted prepared copy. Reconsider when an attributable compatible permission basis is established; publication of an archive alone is insufficient."
+      ],
+      "help_url": "https://github.com/GTTeancum/OpenGTPS1/blob/main/README.md"
+    },
+    "download_block_reason": "Fresh Portcove acquisition is paused because upstream has not granted a license for its original OpenGTPS1 code. Keep using an existing permitted prepared copy. Reconsider when an attributable compatible permission basis is established; publication of an archive alone is insufficient."
   }
 }

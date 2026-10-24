@@ -648,13 +648,14 @@ void test("inert Linux report2 reconstructs initial or real distinct predecessor
   for (const initial of [true, false]) {
     const f = await linuxPostFixture(initial);
     const result = reconstructNativeLinuxPostSignReport(f.prepared, f.input, f.base.source);
-    // Captured from unmodified production reconstruction at073ac7b9, before
-    // adding the separate hosted route; never regenerated from that new route.
+    // The original API80/library40 fixture at073ac7b9 reproduces its historical
+    // hashes exactly. These bind the same reconstruction with current API81/
+    // library41 inputs, including their transitive request/stream digests.
     assert.equal(
       createHash("sha256").update(JSON.stringify(result)).digest("hex"),
       initial
-        ? "9dfc40fc5da5e3598d54045adf4e8bbfccd9002a397d3357599086acdf593e49"
-        : "78a70162c527c514eb2cb7a0a90ecbbad5e158cb09abadb5f010410bc9b474e1",
+        ? "83fb3618165729248ea67910d28e3bbb34c6ac69ee2e6f673277b81178a8b8d5"
+        : "89dbfdaba749a062fd05921352a1458a0101cd14580ff68501300dd1643f21d8",
     );
     assert.equal(result.report.schema_version, 2);
     assert.equal(result.report.runtime.started_at, "2026-10-20T12:00:00.500Z");
@@ -712,7 +713,9 @@ void test("inert Linux reconstruction binds actual-shaped source/host/process/na
   const result = reconstructNativeLinuxPreSignReport(prepared, input, base.source);
   assert.equal(
     createHash("sha256").update(JSON.stringify(result)).digest("hex"),
-    "b656e626c15e9890829b5a5c42c164205c2de035f7aa8c28f938f65b9b0e5484",
+    // Same inert reconstruction as the historical API80/library40 fixture,
+    // now bound to the current API81/library41 request and stream identities.
+    "62c6db3da7e4edb52ba99771bee2505bec9c43a1a43663fd92f8db2d6492b17c",
   );
   assert.equal(result.authority, "none");
   assert.equal(result.report.host.loaded_engine.version, "2.52.6");

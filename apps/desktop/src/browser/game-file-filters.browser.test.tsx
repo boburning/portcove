@@ -233,7 +233,7 @@ it.each(["dark", "light"])(
       "Compatible complete files available",
       "Files missing",
       "Needs checking",
-      "No game files required",
+      "No files to add in Portcove",
       "Unavailable context",
     ])
       await expect.element(button(`${label} (1)`)).toBeEnabled();

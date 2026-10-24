@@ -6,9 +6,8 @@
     "summary": "Explore Glover / Glover-R (ThatGuyMcd) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/ThatGuyMcd/Glover-R",
     "issue_number": 1822,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/ThatGuyMcd/Glover-R",
+    "availability": "packages",
+    "setup_url": "https://github.com/ThatGuyMcd/Glover-R/blob/v1.0.1/README.md",
     "artwork": {
       "game_id": 3348,
       "cover_id": 182078,
@@ -16,6 +15,39 @@
       "image_sha256": "a0742a26cb550661366365fee043c0b2be423de9c2e2928aa1aa63455f98da77",
       "game_slug": "glover",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/ThatGuyMcd/Glover-R/releases/tag/v1.0.1",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Finish the game’s setup",
+          "instruction": "On first Play, choose your own supported Glover USA ROM in the upstream launcher. Its reviewed Glover source adaptation keeps this game distinct from Rocket-R and verifies its own ROM identity. Configure controls and compatible mods through upstream menus; the published player requires no game compilation."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/ThatGuyMcd/Glover-R/blob/v1.0.1/README.md"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "ThatGuyMcd/Glover-R",
+      "asset_hints": {
+        "windows-x86-64": ["glover-r-", "-windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["Glover-R.exe"]
+    },
+    "persistent_paths": ["glover-r-data"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "On first Play, choose your own supported Glover USA ROM in the upstream launcher. Its reviewed Glover source adaptation keeps this game distinct from Rocket-R and verifies its own ROM identity. Configure controls and compatible mods through upstream menus; the published player requires no game compilation. Default settings, saves, mod profiles and mod-specific saves, logs and crash reports live in AppData/Glover-R, outside Portcove backups. The reviewed glover-r-data current-folder fallback is declared if present. Bundled engine/mod resources remain version-owned. Use an external registration for custom --config or developer overrides. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations."
     }
   }
 }

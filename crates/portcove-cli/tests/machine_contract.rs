@@ -242,6 +242,23 @@ fn installation_and_external_help_explain_review_binding_and_file_ownership() {
             &["already prepared runtime", "no files are copied"][..],
         ),
         (
+            &["external", "managed-preview", "--help"][..],
+            &[
+                "retaining the current external installation",
+                "external folder cannot be reused",
+            ][..],
+        ),
+        (
+            &["external", "change-to-managed", "--help"][..],
+            &[
+                "without touching external files",
+                "--expected-preview",
+                "changed facts refuse",
+                "--yes",
+                "not adopted",
+            ][..],
+        ),
+        (
             &["external", "register", "--help"][..],
             &[
                 "use-in-place runtime registration",
@@ -2436,7 +2453,7 @@ fn capabilities_has_human_output_snapshot() {
     let root = tempfile::tempdir().unwrap();
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
-    assert!(capabilities.contains(" capabilities\nSchema: 80"));
+    assert!(capabilities.contains(" capabilities\nSchema: 81"));
     assert!(capabilities.contains("\nOperation event schema: 3"));
 }
 

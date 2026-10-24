@@ -6,9 +6,8 @@
     "summary": "Explore Conker's Bad Fur Day: Recompiled (sciaschi) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/sciaschi/CBFD-Recompiled",
     "issue_number": 1216,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/sciaschi/CBFD-Recompiled",
+    "availability": "packages",
+    "setup_url": "https://github.com/sciaschi/CBFD-Recompiled/blob/V0.1.6/README.md",
     "artwork": {
       "game_id": 1286,
       "cover_id": 86478,
@@ -16,6 +15,25 @@
       "image_sha256": "b069fddecc98b4807eca1682d4c3858eff1cbce95901329777305ee1338ccab7",
       "game_slug": "conker-s-bad-fur-day",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/sciaschi/CBFD-Recompiled/releases/tag/V0.1.6",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep an existing permitted copy",
+          "instruction": "If you already have a permitted, prepared copy, choose its ConkerRecompiled.exe game executable and supplied working folder in the existing-installation review. Use your own supported USA Conker ROM in the game’s picker. Keep its existing conker_data and user-profile saves/settings together with the upstream migration instructions. Saving those launch details does not run it; launch separately when ready."
+        },
+        {
+          "title": "Keep updates and data with upstream",
+          "instruction": "Retain the working folder and original game files. Follow the selected upstream version’s update instructions using a separate replacement folder. Portcove does not replace, back up or roll back this external runtime or its user-profile data."
+        }
+      ],
+      "warnings": [
+        "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
+      ],
+      "help_url": "https://github.com/sciaschi/CBFD-Recompiled/blob/V0.1.6/README.md"
+    },
+    "platforms": [],
+    "download_block_reason": "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
   }
 }

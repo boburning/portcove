@@ -7,8 +7,8 @@
     "project_url": "https://github.com/Kirby64Ret/Kirby64Recomp",
     "issue_number": 1574,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Kirby64Ret/Kirby64Recomp",
+    "availability": "source-only",
+    "setup_url": "https://github.com/Kirby64Ret/Kirby64Recomp/blob/dev/README.md",
     "artwork": {
       "game_id": 2713,
       "cover_id": 88595,
@@ -16,6 +16,20 @@
       "image_sha256": "89a352d789e3b4c813e537af3a77f2cdd5610d50bfdd9a610001e7efb2ef73ef",
       "game_slug": "kirby-64-the-crystal-shards",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Upstream says this project is under construction and has no downloads yet. Follow its selected build instructions for your own Kirby 64 source files; the documented game output is Kirby64Recompiled and it expects your NK4E.z64 beside that output. Register an existing native game build only after that preparation; do not select compiler tools."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/Kirby64Ret/Kirby64Recomp/blob/dev/README.md"
     }
   }
 }

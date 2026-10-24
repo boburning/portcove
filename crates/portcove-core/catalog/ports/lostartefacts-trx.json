@@ -7,7 +7,29 @@
     "project_url": "https://github.com/LostArtefacts/TRX",
     "issue_number": 1898,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/LostArtefacts/TRX"
+    "availability": "packages",
+    "setup_url": "https://github.com/LostArtefacts/TRX/blob/trx-1.11.1/docs/trx/INSTALLING.md",
+    "download_asset_hints": {
+      "windows-x86-64": ["TRX-", "-Windows_Installer.exe"]
+    },
+    "release_url": "https://github.com/LostArtefacts/TRX/releases/tag/trx-1.11.1",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the upstream Windows setup",
+          "instruction": "After downloading, open the download folder and run the TRX Windows Installer yourself when ready. Choose a new TRX folder, separate from your current working copy and original games. Select the packs you want and provide your own supported original Steam, GOG or disc installations. Upstream setup maps their files into the combined games folders. The installer needs the x64 .NET 8 Desktop Runtime; follow its upstream instructions if that prerequisite is missing."
+        },
+        {
+          "title": "Choose the installed player",
+          "instruction": "When setup finishes, choose TRX.exe from the folder you installed into, using that folder as its working directory. Choose the game pack in TRX. Save the launch details in Portcove, then choose Play separately. The downloaded installer is not the game executable."
+        },
+        {
+          "title": "Keep the working copy when updating",
+          "instruction": "You or upstream own runtime updates and the combined game folders. Prepare a new version separately and keep the current copy until it works. The upstream installer overwrites target files and removes unchecked game packs, so do not point it at your only working copy. Keep separate copies of saves, cfg settings and any custom data. Portcove registration does not back up, roll back or delete this external tree. The Windows/Linux manual ZIP route is also available upstream; follow its exact original-file mapping rather than copying an entire disc into the player folder."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/LostArtefacts/TRX/blob/trx-1.11.1/docs/trx/INSTALLING.md"
+    }
   }
 }

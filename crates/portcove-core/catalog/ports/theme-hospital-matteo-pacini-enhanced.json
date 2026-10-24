@@ -7,8 +7,8 @@
     "project_url": "https://github.com/matteo-pacini/theme-hospital-enhanced",
     "issue_number": 1950,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/matteo-pacini/theme-hospital-enhanced",
+    "availability": "source-only",
+    "setup_url": "https://github.com/matteo-pacini/theme-hospital-decomp/blob/master/README.md",
     "artwork": {
       "game_id": 1624,
       "cover_id": 182013,
@@ -16,6 +16,16 @@
       "image_sha256": "a94b929334cfd7a64b4e8c53084db5af44a1bc3a32e5c2f952d1aadcfa4335c4",
       "game_slug": "theme-hospital",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the appropriate runtime",
+          "instruction": "This project reconstructs the DOS Theme Hospital executable. Its hospital.exe/hosp.exe outputs use DOS/4GW and are documented for DOSBox, so they are not native Windows game players to register directly. Follow upstream’s DOS build/run guide for that project. For a separately managed native Theme Hospital route, look for CorsixTH in Discover; the two projects keep their own identities."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/matteo-pacini/theme-hospital-decomp/blob/master/README.md"
     }
   }
 }

@@ -316,6 +316,26 @@ pub(crate) fn external_preview(preview: &ExternalRuntimePreview, catalog: &Catal
     text
 }
 
+pub(crate) fn managed_route_preview(
+    review: &portcove_core::ManagedRouteChangePreview,
+    catalog: &Catalog,
+) -> String {
+    let preservation = if review.external_files_will_be_preserved
+        && !review.external_data_will_be_copied
+    {
+        "Portcove will manage the new runtime and its declared data. External saves are not copied; a game using an upstream profile can still read that same profile on explicit Play. Keep a separate backup of external data."
+    } else {
+        "This preview has different file or data handling. Keep your current copy and update Portcove before reviewing it again."
+    };
+    format!("Managed copy review\nGame: {}\nRelease: {} ({})\nDownload: {}\nDestination: {}\nCurrent external folder: {}\n{}\n{}\nPreview SHA-256: {}",
+        port_name(catalog, &review.port_id), clean(&review.installation.release.version), platform_name(review.installation.platform),
+        format_bytes(review.installation.download_bytes), clean(&review.installation.output_location.effective_output_directory.display().to_string()),
+        clean(&review.current_registration.path.display().to_string()),
+        preservation,
+        review.reason.as_deref().map(clean).unwrap_or_else(|| "Ready to prepare a separate managed copy; the current registration stays usable until verified publication.".into()),
+        clean(&review.preview_sha256))
+}
+
 pub(crate) fn external_relink_preview(
     preview: &ExternalRuntimeRelinkPreview,
     catalog: &Catalog,

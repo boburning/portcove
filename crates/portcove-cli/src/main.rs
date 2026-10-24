@@ -2033,6 +2033,90 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     |result| human::external_runtime(result, service.catalog()),
                 )?;
             }
+            ExternalCommand::ManagedPreview {
+                port_id,
+                channel,
+                output_directory,
+            } => {
+                let channel = channel.map(Into::into);
+                render_read_success(
+                    mode,
+                    "external.managed-preview",
+                    service
+                        .preview_managed_route_change(
+                            &port_id,
+                            channel,
+                            output_directory.as_deref(),
+                        )
+                        .await?,
+                    |review| human::managed_route_preview(review, service.catalog()),
+                )?;
+            }
+            ExternalCommand::ChangeToManaged {
+                port_id,
+                channel,
+                output_directory,
+                expected_preview,
+                yes,
+            } => {
+                let channel = channel.map(Into::into);
+                let review = service
+                    .preview_managed_route_change(&port_id, channel, output_directory.as_deref())
+                    .await?;
+                if review.preview_sha256 != expected_preview {
+                    return Err(PortcoveError::conflict(
+                        "the proposed managed route changed; review it again while keeping the external copy",
+                    ));
+                }
+                if mode == OutputMode::Human {
+                    println!(
+                        "{}",
+                        human::managed_route_preview(&review, service.catalog())
+                    );
+                }
+                if !review.permitted {
+                    return Err(PortcoveError::unsupported(
+                        review
+                            .reason
+                            .unwrap_or_else(|| "this transition is unavailable".into()),
+                    ));
+                }
+                if !review.external_files_will_be_preserved || review.external_data_will_be_copied {
+                    return Err(PortcoveError::unsupported(
+                        "this proposed change has different file or data handling; keep the external copy and update Portcove before reviewing it again",
+                    ));
+                }
+                require_confirmation(
+                    "Prepare this separate managed runtime and switch Portcove to it? External files stay untouched; external saves are not copied. The game may use its existing upstream profile on explicit Play.",
+                    yes,
+                    cli.non_interactive,
+                )?;
+                let authorization = service
+                    .authorize_managed_route_change(
+                        &port_id,
+                        channel,
+                        output_directory.as_deref(),
+                        &expected_preview,
+                    )
+                    .await?;
+                let mut progress = progress_renderer(mode, service.catalog());
+                let result = service
+                    .change_to_managed_runtime(
+                        &port_id,
+                        channel,
+                        output_directory.as_deref(),
+                        &authorization.token,
+                        &mut progress,
+                    )
+                    .await?;
+                render_read_success(mode, "external.change-to-managed", result, |result| {
+                    format!(
+                        "{}\nPrevious external files preserved at {}. External saves were not copied; Play remains a separate action.",
+                        human::install_result(&result.installation, service.catalog()),
+                        human::clean(&result.previous_registration.path.display().to_string())
+                    )
+                })?;
+            }
             ExternalCommand::RelinkPreview { port_id, path } => {
                 render_read_success(
                     mode,
@@ -3042,6 +3126,8 @@ fn command_name(command: &Commands) -> &'static str {
             LaunchCommand::Recover { .. } => "launch.recover",
         },
         Commands::External { command } => match command {
+            ExternalCommand::ManagedPreview { .. } => "external.managed-preview",
+            ExternalCommand::ChangeToManaged { .. } => "external.change-to-managed",
             ExternalCommand::SelectRelinkPreview { .. } => "external.select-relink-preview",
             ExternalCommand::SelectRelink { .. } => "external.select-relink",
             ExternalCommand::Preview { .. } => "external.preview",

@@ -15,13 +15,14 @@ export const states: Record<GameFileQuerySnapshot["routes"][number]["state"], st
   files_available: "Compatible complete files available",
   files_missing: "Files missing",
   needs_checking: "Needs checking",
-  no_files_required: "No game files required",
+  no_files_required: "No files to add in Portcove",
   unavailable_context: "Unavailable context",
 };
 export const reasons: Record<GameFileQuerySnapshot["routes"][number]["reason"], string> = {
   complete_compatible_observation: "Core observed a complete compatible set for this route.",
   no_connected_registration: "No game-file registration is connected for this route.",
-  explicit_empty_requirements: "This route explicitly declares no game-file requirement.",
+  explicit_empty_requirements:
+    "This action needs no files added to Portcove. The game may still ask for original files.",
   observation_unavailable: "An accepted observation is unavailable.",
   observation_stale: "The observation needs a fresh check.",
   source_needs_checking: "The connected files need checking.",

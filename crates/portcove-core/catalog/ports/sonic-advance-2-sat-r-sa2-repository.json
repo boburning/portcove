@@ -7,8 +7,8 @@
     "project_url": "https://github.com/SAT-R/sa2",
     "issue_number": 381,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/SAT-R/sa2",
+    "availability": "source-only",
+    "setup_url": "https://github.com/SAT-R/sa2/blob/main/README.md",
     "artwork": {
       "game_id": 6598,
       "cover_id": 93140,
@@ -16,6 +16,20 @@
       "image_sha256": "7fe26a0e23b4c01f84e0384a67b55a27e212de3a9983e481ec0a1d0d6cc06748",
       "game_slug": "sonic-advance-2",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Use your own supported Sonic Advance 2 ROM and upstream’s SDL build instructions. The documented Windows target is make sdl_win32, producing sa2.sdl_win32.exe; Linux/macOS use make sdl and sa2.sdl. The separate make win32 OpenGL target is documented as nonfunctional. These are Sonic Advance 2 outputs, not Sonic Advance 1. Keep the prepared working folder when registering your existing native player."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/SAT-R/sa2/blob/main/README.md"
     }
   }
 }

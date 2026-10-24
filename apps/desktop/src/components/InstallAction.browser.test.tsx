@@ -140,6 +140,8 @@ it.each([
         ready
         sourceReady
         biosReady
+        setupNote="Before first Play, add your own supported original-game-revision-with-a-long-distinguishing-filename.z64 beside the player. The game verifies it before starting."
+        externalData
         plan={{
           ...plan,
           temporary_space: {
@@ -211,6 +213,32 @@ it("shows preservation limits before installing the reviewed release", async () 
   expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain(notice);
   expect(install).not.toHaveBeenCalled();
   expect(button("Install ·").disabled).toBe(false);
+});
+
+it("shows upstream first-run requirements and external backup limits before installation", async () => {
+  const install = vi.fn();
+  const setup =
+    "On first Play, choose your own supported original game in the game’s setup window.";
+  await root.rerender(
+    <InstallAction
+      ready
+      sourceReady
+      biosReady
+      plan={plan}
+      setupNote={setup}
+      externalData
+      install={install}
+      review={vi.fn()}
+      dismiss={vi.fn()}
+    />,
+  );
+  const dialog = page.getByRole("dialog");
+  await expect.element(dialog.getByRole("region", { name: "Game setup" })).toBeVisible();
+  await expect.element(dialog.getByText(setup, { exact: true })).toBeVisible();
+  expect(dialog.element().textContent).toContain("outside Portcove backups");
+  expect(install).not.toHaveBeenCalled();
+  await click("Install · 64.0 MiB");
+  expect(install).toHaveBeenCalledOnce();
 });
 
 async function pressEscape() {

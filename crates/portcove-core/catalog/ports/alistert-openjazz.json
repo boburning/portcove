@@ -6,9 +6,8 @@
     "summary": "Explore Jazz Jackrabbit / OpenJazz (AlisterT) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/AlisterT/openjazz",
     "issue_number": 1853,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/AlisterT/openjazz",
+    "availability": "packages",
+    "setup_url": "https://github.com/AlisterT/openjazz/blob/20260301/README.md",
     "artwork": {
       "game_id": 3167,
       "cover_id": 104089,
@@ -16,6 +15,49 @@
       "image_sha256": "8f3e4f12d81b064bf80128999fd6758c8b5404dc848c58064aea0175139e5f5a",
       "game_slug": "jazz-jackrabbit",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/AlisterT/openjazz/releases/tag/20260301",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Start the game",
+          "instruction": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside the OpenJazz player. Keep the original source copy. The managed route selects this folder automatically. For external registration, use Change launch details to add game-data as a launch argument, or follow upstream instructions for your existing game folder. No compiler or installer is needed."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/AlisterT/openjazz/blob/20260301/README.md"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "AlisterT/openjazz",
+      "asset_hints": {
+        "windows-x86-64": ["openjazz-windows-mingw-x86_64.zip"],
+        "linux-x86-64": ["openjazz-linux-glibc2.35-x86_64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["OpenJazz.exe"],
+      "linux-x86-64": ["OpenJazz"]
+    },
+    "persistent_paths": [
+      "game-data",
+      "openjazz.cfg",
+      "openjazz.log",
+      "openjazz.tmp",
+      "ff-output.dat",
+      "cm-output.dat"
+    ],
+    "launch_arguments": ["game-data"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside OpenJazz.exe. The maintained launch arguments select that folder; no compiler or installer is needed. Keep the original source copy. Portcove retains game-data, openjazz.cfg, openjazz.log, the openjazz.tmp multiplayer transfer file and the reviewed scene diagnostics during compatible replacement. These are distinct from runtime files. Runtime rollback carries current declared data without rewinding progress. Custom launch paths or editions remain available through external registration. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. The offered Linux ZIP is the upstream glibc2.35 x86-64 build and requires system SDL2/C++ libraries. It uses the same supported game-data argument and declared in-folder fallbacks; upstream user-profile storage, when used, remains external. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run."
     }
   }
 }

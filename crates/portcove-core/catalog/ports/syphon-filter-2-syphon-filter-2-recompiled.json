@@ -8,7 +8,7 @@
     "issue_number": 345,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp/blob/v0.2.0/README.md",
     "artwork": {
       "game_id": 4116,
       "cover_id": 114617,
@@ -16,6 +16,24 @@
       "image_sha256": "c27eb518708cddafc38b0493633ad10df446f1afc5710cbadc74183af4bec3b8",
       "game_slug": "syphon-filter-2",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Run the reviewed upstream setup",
+          "instruction": "Extract the complete Windows owned-input setup kit to an ASCII path without spaces, such as C:\\SF2Kit. Place your own SCUS-94451 Disc 1 CUE/BIN beside the kit; Disc 2 may also be present. Run SETUP.bat yourself. It downloads verified pinned tools, builds locally and opens the launcher. Downloading through Portcove does not run setup."
+        },
+        {
+          "title": "Use the generated launcher",
+          "instruction": "Use the generated play.bat for later starts. It sets required runtime environment variables and passes the private game configuration, disc and memory-card paths. Selecting the native executable alone does not reproduce that supported invocation; keep using play.bat outside Portcove."
+        },
+        {
+          "title": "Keep setup and progress together",
+          "instruction": "The upstream launcher owns disc selection, video, controls and memory cards. Review setup.log if setup fails. Keep the complete kit and generated files; upstream owns updates and these external files stay outside Portcove backups. Portcove does not currently reproduce this batch launcher contract."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp/blob/v0.2.0/README.md"
     }
   }
 }

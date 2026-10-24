@@ -6,8 +6,27 @@
     "summary": "Explore Chameleon Twist: Recompiled and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp",
     "issue_number": 125,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp"
+    "availability": "packages",
+    "setup_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/v0.1/README.md",
+    "release_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/releases/tag/v0.1",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Download and add an external copy",
+          "instruction": "The official Windows ZIP has no published expected SHA-256 in the reviewed release. Portcove can disclose an unverified download and save native launch details with your consent. It cannot authenticate managed runtime replacement. You or upstream own updates; external files remain untouched and outside Portcove backups."
+        },
+        {
+          "title": "Start with your original game",
+          "instruction": "On first Play, select your own supported Japanese Chameleon Twist ROM in the launcher. It normalizes supported .z64, .n64 and .v64 byte orders and verifies the game identity. The selected release is a native Windows player; no compiler or game generation step is required."
+        },
+        {
+          "title": "Keep your progress",
+          "instruction": "The default imported ROM, saves and settings live in LocalAppData/ChameleonTwistRecompiled, outside Portcove backups. No in-folder player data is declared for this default mode. Keep portable.txt absent; use an external registration for portable or customized storage."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/v0.1/README.md"
+    },
+    "platforms": ["windows-x86-64"]
   }
 }

@@ -8,7 +8,7 @@
     "issue_number": 1795,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Vidanox/BanjoTooieRecompiled",
+    "setup_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/v1.0.0-build.7/README.md",
     "artwork": {
       "game_id": 3418,
       "cover_id": 295556,
@@ -16,6 +16,23 @@
       "image_sha256": "26b3761c34557f7325f55f859547c55b8f46525354ab10f946cb57169919e28b",
       "game_slug": "banjo-tooie",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep an existing permitted copy",
+          "instruction": "If you already have a permitted, prepared copy, choose its BanjoTooieRecompiled.exe game executable and supplied working folder in the existing-installation review. Use your own supported USA Banjo-Tooie big-endian .z64 in Select ROM. The runtime needs the supplied assets folder in its working directory. Default Windows data stays under LocalAppData/BanjoTooieRecompiled. Saving those launch details does not run it; launch separately when ready."
+        },
+        {
+          "title": "Keep updates and data with upstream",
+          "instruction": "Retain the working folder and original game files. Follow the selected upstream version’s update instructions using a separate replacement folder. Portcove does not replace, back up or roll back this external runtime or its user-profile data."
+        }
+      ],
+      "warnings": [
+        "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
+      ],
+      "help_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/v1.0.0-build.7/README.md"
+    },
+    "download_block_reason": "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
   }
 }

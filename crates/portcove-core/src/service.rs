@@ -52,6 +52,8 @@ pub use catalog_download::{
 pub use package_selection::{CatalogDownloadRelease, CatalogPackageAssessment};
 pub use setup_discovery::{SetupLaunchTarget, SetupLaunchTargets};
 mod external_relink;
+mod installation_route_change;
+pub use installation_route_change::{ManagedRouteChangePreview, ManagedRouteChangeResult};
 mod ghostship_compatibility;
 #[cfg(test)]
 mod ghostship_persistence_tests;
@@ -1130,7 +1132,6 @@ impl PortcoveService {
     ) -> Result<InstallPlan> {
         let port = self.catalog.port(port_id)?;
         let status = self.status(port_id)?;
-        self.require_managed_runtime_ownership(&status)?;
         self.require_definition_operation(
             &self.catalog,
             port,

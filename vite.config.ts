@@ -1,5 +1,6 @@
 import { defineConfig } from "vite-plus";
 import { desktopProjects, testReporters } from "./scripts/frontend-tests.ts";
+import { checkStagedFiles } from "./scripts/viteplus-cli.mts";
 
 export default defineConfig({
   defaultPackage: "./apps/desktop",
@@ -216,7 +217,7 @@ export default defineConfig({
     ],
   },
   test: { projects: desktopProjects, reporters: testReporters },
-  staged: { "*": "vp check --fix" },
+  staged: { "*": { title: "Check staged files", task: (files) => checkStagedFiles(files) } },
   run: {
     tasks: {
       "repository:static": { command: "node scripts/run-viteplus.mts check", cache: false },

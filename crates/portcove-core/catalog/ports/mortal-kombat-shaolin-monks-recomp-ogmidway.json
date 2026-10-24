@@ -7,8 +7,8 @@
     "project_url": "https://github.com/OGmidway/mksm-recomp",
     "issue_number": 1714,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/OGmidway/mksm-recomp",
+    "availability": "source-only",
+    "setup_url": "https://github.com/OGmidway/mksm-recomp/blob/main/README.md",
     "artwork": {
       "game_id": 1614,
       "cover_id": 94081,
@@ -16,6 +16,20 @@
       "image_sha256": "a132d9784146dac1e62f42c8bf1ae95325200ed6a30b936af160e25ba913fda5",
       "game_slug": "mortal-kombat-shaolin-monks",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "This upstream project explicitly reports that it is not a playable release yet: first-stage graphics are badly corrupted. Its developer build uses your own NTSC-U retail SLUS-210.87 files and docs/BUILDING.md. Keep that limitation with any experimental native build you register; Portcove does not supply a ready game package or repair the engine."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/OGmidway/mksm-recomp/blob/main/README.md"
     }
   }
 }

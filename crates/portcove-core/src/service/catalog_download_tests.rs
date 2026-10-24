@@ -52,6 +52,292 @@ fn archive() -> Vec<u8> {
     writer.finish().unwrap().into_inner()
 }
 
+#[tokio::test]
+async fn catalog_default_candidates_use_recommendation_and_explicit_choices_win() {
+    let (_temporary, mut service, request) = fixture();
+    assert_eq!(
+        service.catalog_download_channel(&request.port_id).unwrap(),
+        ReleaseChannel::Stable
+    );
+    let mut document = service.catalog.listing_document().clone();
+    document.listings[0].recommended_download_channel = Some(ReleaseChannel::Beta);
+    service.catalog = service
+        .catalog
+        .clone()
+        .with_listing_document(document)
+        .unwrap();
+    assert_eq!(
+        service.catalog_download_channel(&request.port_id).unwrap(),
+        ReleaseChannel::Beta
+    );
+    assert!(service.catalog_download_channel("missing-port").is_err());
+    let github = GithubFixture::new(archive(), None, None);
+    github.releases.lock().unwrap().insert(0, json!({"id":9,"tag_name":"v2-preview","draft":false,"prerelease":true,"published_at":null,"assets":[]}));
+    let mut preview_asset = github.assets.lock().unwrap()[0].clone();
+    preview_asset["id"] = json!(22);
+    github
+        .release_assets
+        .lock()
+        .unwrap()
+        .insert(9, vec![preview_asset]);
+    let recommended = service
+        .catalog_download_options_with_provider(
+            &request.port_id,
+            None,
+            None,
+            Some(&github.provider),
+        )
+        .await
+        .unwrap();
+    assert_eq!(recommended.selected_release_id, Some(9));
+    assert_eq!(recommended.candidates[0].asset_id, 22);
+    let explicit = service
+        .catalog_download_options_with_provider(
+            &request.port_id,
+            None,
+            Some(ReleaseChannel::Stable),
+            Some(&github.provider),
+        )
+        .await
+        .unwrap();
+    assert_eq!(explicit.selected_release_id, Some(7));
+    let historical = service
+        .catalog_download_options_with_provider(
+            &request.port_id,
+            Some(7),
+            None,
+            Some(&github.provider),
+        )
+        .await
+        .unwrap();
+    assert_eq!(historical.selected_release_id, Some(7));
+    assert!(service.pending_setups().unwrap().is_empty());
+}
+
+fn restrict_download(service: &mut PortcoveService, reason: &str) {
+    let mut document = service.catalog.listing_document().clone();
+    document.format_version = 2;
+    document.listings[0].download_block_reason = Some(reason.into());
+    service.catalog = service
+        .catalog
+        .clone()
+        .with_listing_document(document)
+        .unwrap();
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn downloaded_win32_game_is_distinguished_from_converter_without_running_either() {
+    let (_temporary, mut service, request) = fixture();
+    let mut listings = service.catalog.listing_document().clone();
+    listings.listings[0].name = "Classic Game / Reimplementation".into();
+    listings.listings[0].original_game_title = Some("Classic Game".into());
+    service.catalog = service
+        .catalog
+        .clone()
+        .with_listing_document(listings)
+        .unwrap();
+    let github = GithubFixture::new(archive(), None, None);
+    let preview = service
+        .catalog_download_preview_with_provider(&request, &github.provider)
+        .await
+        .unwrap();
+    let pending = service
+        .download_catalog_package_with_provider(
+            &request,
+            &preview.preview_sha256,
+            |_| {},
+            &github.provider,
+        )
+        .await
+        .unwrap();
+    let mut pe = vec![0_u8; 88];
+    pe[..2].copy_from_slice(b"MZ");
+    pe[60..64].copy_from_slice(&64_u32.to_le_bytes());
+    pe[64..68].copy_from_slice(b"PE\0\0");
+    pe[68..70].copy_from_slice(&0x014c_u16.to_le_bytes());
+    pe[86..88].copy_from_slice(&2_u16.to_le_bytes());
+    for name in ["ClassicGame.exe", "DataConverter.exe"] {
+        fs::write(pending.path.join(name), &pe).unwrap();
+    }
+    let targets = service
+        .discover_setup_launch_targets(&request.port_id, &pending.id)
+        .unwrap();
+    assert!(targets.complete);
+    assert_eq!(targets.candidates.len(), 2);
+    assert_eq!(
+        targets.recommended_executable,
+        Some(pending.path.join("ClassicGame.exe"))
+    );
+    assert!(service.library.all_installs().unwrap().is_empty());
+    assert!(
+        service
+            .library
+            .status(&request.port_id, ReleaseChannel::Stable)
+            .unwrap()
+            .external_runtime
+            .is_none()
+    );
+    fs::write(pending.path.join("ClassicGameAlternate.exe"), &pe).unwrap();
+    let ambiguous = service
+        .discover_setup_launch_targets(&request.port_id, &pending.id)
+        .unwrap();
+    assert!(ambiguous.complete);
+    assert!(ambiguous.recommended_executable.is_none());
+}
+
+#[test]
+fn retained_restricted_registration_survives_removal_from_the_current_directory() {
+    let (_temporary, mut service, request) = fixture();
+    restrict_download(
+        &mut service,
+        "Fresh acquisition needs upstream permission review.",
+    );
+    let working = request.destination_parent.join("existing-permitted-copy");
+    fs::create_dir(&working).unwrap();
+    let executable = crate::test_fixture::build_probe(&working);
+    let preview = service
+        .preview_user_selected_runtime(&request.port_id, &executable, &working, &[])
+        .unwrap();
+    let authorization = service
+        .authorize_user_selected_runtime(
+            &request.port_id,
+            &executable,
+            &working,
+            &[],
+            &preview.preview_sha256,
+        )
+        .unwrap();
+    let registered = service
+        .register_user_selected_runtime(
+            &request.port_id,
+            &executable,
+            &working,
+            &[],
+            &authorization.token,
+        )
+        .unwrap();
+    service.catalog = Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#).unwrap();
+    let projected = service
+        .catalog_with_registered_listings(
+            service.catalog.clone(),
+            &service.library.connection().unwrap(),
+        )
+        .unwrap();
+    assert_eq!(projected.listing_document().format_version, 2);
+    assert!(
+        projected
+            .listing(&request.port_id)
+            .unwrap()
+            .download_block_reason
+            .is_some()
+    );
+    assert_eq!(
+        service.listing_statuses().unwrap()[0]
+            .status
+            .external_runtime
+            .as_ref()
+            .unwrap()
+            .id,
+        registered.id
+    );
+    assert!(executable.exists());
+}
+
+#[test]
+fn retained_restricted_pending_setup_survives_a_legacy_current_directory() {
+    let (_temporary, mut service, request) = fixture();
+    restrict_download(
+        &mut service,
+        "Fresh acquisition needs upstream permission review.",
+    );
+    // A retained row can outlive the current catalog that described it. This
+    // constructs that accepted row, rather than bypassing the acquisition API.
+    let (pending, _stage, _) = intent(&service, &request);
+    service.catalog = Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#).unwrap();
+    let projected = service
+        .catalog_with_registered_listings(
+            service.catalog.clone(),
+            &service.library.connection().unwrap(),
+        )
+        .unwrap();
+    assert_eq!(projected.listing_document().format_version, 2);
+    assert_eq!(
+        projected
+            .listing(&request.port_id)
+            .unwrap()
+            .download_block_reason,
+        pending.listing.download_block_reason
+    );
+    assert_eq!(service.listing_statuses().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn authored_download_restriction_blocks_options_preview_and_mutation_before_network() {
+    let (_temporary, mut service, request) = fixture();
+    let upstream = GithubFixture::new(archive(), None, None);
+    let reason = "This release needs an attributable upstream component permission.";
+    restrict_download(&mut service, reason);
+    let options = service
+        .catalog_download_candidates(&request.port_id)
+        .await
+        .unwrap();
+    assert!(!options.allowed);
+    assert_eq!(options.reason.as_deref(), Some(reason));
+    assert!(options.candidates.is_empty());
+    assert!(options.coverage.is_none());
+    let error = service
+        .catalog_download_preview_with_provider(&request, &upstream.provider)
+        .await
+        .unwrap_err();
+    assert_eq!(error.message, reason);
+    let error = service
+        .download_catalog_package_with_provider(
+            &request,
+            &"a".repeat(64),
+            |_| {},
+            &upstream.provider,
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(error.message, reason);
+    assert_eq!(upstream.requests.load(Ordering::SeqCst), 0);
+    assert_eq!(
+        fs::read_dir(&request.destination_parent).unwrap().count(),
+        0
+    );
+    assert!(service.pending_setups().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn newly_restricted_listing_invalidates_an_earlier_download_review_without_publication() {
+    let (_temporary, mut service, request) = fixture();
+    let upstream = GithubFixture::new(archive(), None, None);
+    let preview = service
+        .catalog_download_preview_with_provider(&request, &upstream.provider)
+        .await
+        .unwrap();
+    let before = upstream.requests.load(Ordering::SeqCst);
+    restrict_download(
+        &mut service,
+        "Recheck the changed upstream permission before downloading.",
+    );
+    assert!(
+        service
+            .download_catalog_package_with_provider(
+                &request,
+                &preview.preview_sha256,
+                |_| {},
+                &upstream.provider
+            )
+            .await
+            .is_err()
+    );
+    assert_eq!(upstream.requests.load(Ordering::SeqCst), before);
+    assert!(!preview.destination_path.exists());
+    assert!(service.pending_setups().unwrap().is_empty());
+}
+
 struct GithubFixture {
     provider: GithubReleaseProvider,
     assets: Arc<Mutex<Vec<Value>>>,
@@ -819,5 +1105,146 @@ fn workspace_retains_legacy_registered_description_without_new_listing_revalidat
             .iter()
             .any(|status| status.port_id == record.port_id
                 && status.status.external_runtime.is_some())
+    );
+}
+
+#[tokio::test]
+async fn replacement_download_keeps_current_registration_until_reviewed_relink() {
+    let started = std::time::Instant::now();
+    let (temporary, service, request) = fixture();
+    let old_root = temporary.path().join("current-copy");
+    fs::create_dir(&old_root).unwrap();
+    let old_executable = crate::test_fixture::build_probe(&old_root);
+    fs::write(old_root.join("player-save.dat"), b"current progress").unwrap();
+    let preview = service
+        .preview_user_selected_runtime(&request.port_id, &old_executable, &old_root, &[])
+        .unwrap();
+    let authorization = service
+        .authorize_user_selected_runtime(
+            &request.port_id,
+            &old_executable,
+            &old_root,
+            &[],
+            &preview.preview_sha256,
+        )
+        .unwrap();
+    let original = service
+        .register_user_selected_runtime(
+            &request.port_id,
+            &old_executable,
+            &old_root,
+            &[],
+            &authorization.token,
+        )
+        .unwrap();
+    eprintln!("replacement fixture: registered at {:?}", started.elapsed());
+    let before_download = service
+        .preview_user_selected_runtime_relink(&request.port_id, &old_executable, &old_root, &[])
+        .unwrap();
+    let github = GithubFixture::new(archive(), None, None);
+    let download = service
+        .catalog_download_preview_with_provider(&request, &github.provider)
+        .await
+        .unwrap();
+    let pending = service
+        .download_catalog_package_with_provider(
+            &request,
+            &download.preview_sha256,
+            |_| {},
+            &github.provider,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(
+            service
+                .library
+                .status(&request.port_id, ReleaseChannel::Stable)
+                .unwrap()
+                .external_runtime
+        )
+        .unwrap(),
+        serde_json::to_value(Some(&original)).unwrap()
+    );
+    assert!(
+        service
+            .authorize_user_selected_runtime_relink(
+                &request.port_id,
+                &old_executable,
+                &old_root,
+                &[],
+                &before_download.preview_sha256,
+            )
+            .is_err(),
+        "a preview predating the pending download cannot consume it"
+    );
+    eprintln!(
+        "replacement fixture: downloaded and stale review refused at {:?}",
+        started.elapsed()
+    );
+    let new_executable = crate::test_fixture::build_probe(&pending.path);
+    let replacement = service
+        .preview_user_selected_runtime_relink(&request.port_id, &new_executable, &pending.path, &[])
+        .unwrap();
+    let state = service
+        .library
+        .external_runtime_relink_state(&request.port_id)
+        .unwrap()
+        .unwrap();
+    assert!(
+        service
+            .library
+            .relink_user_selected_runtime(
+                &request.port_id,
+                &state.row_sha256,
+                &replacement.proposed,
+                Some((&pending.id, "wrong pending preimage")),
+            )
+            .is_err()
+    );
+    assert_eq!(service.pending_setups().unwrap(), [pending.clone()]);
+    assert_eq!(
+        serde_json::to_value(
+            service
+                .library
+                .status(&request.port_id, ReleaseChannel::Stable)
+                .unwrap()
+                .external_runtime
+        )
+        .unwrap(),
+        serde_json::to_value(Some(&original)).unwrap()
+    );
+    let authorization = service
+        .authorize_user_selected_runtime_relink(
+            &request.port_id,
+            &new_executable,
+            &pending.path,
+            &[],
+            &replacement.preview_sha256,
+        )
+        .unwrap();
+    let changed = service
+        .relink_user_selected_runtime(
+            &request.port_id,
+            &new_executable,
+            &pending.path,
+            &[],
+            &authorization.token,
+        )
+        .unwrap();
+    eprintln!("replacement fixture: committed at {:?}", started.elapsed());
+    assert_eq!(changed.id, original.id);
+    assert_eq!(changed.registered_at, original.registered_at);
+    assert_eq!(changed.executable, new_executable);
+    assert!(service.pending_setups().unwrap().is_empty());
+    assert_eq!(
+        fs::read(old_root.join("player-save.dat")).unwrap(),
+        b"current progress"
+    );
+    assert!(old_executable.is_file());
+    assert!(pending.path.join("readme.txt").is_file());
+    assert!(
+        changed.archive_sha256.is_empty(),
+        "external replacement is not authenticated ownership"
     );
 }

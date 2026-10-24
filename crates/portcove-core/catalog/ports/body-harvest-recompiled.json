@@ -6,9 +6,8 @@
     "summary": "Explore Body Harvest: Recompiled and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/mcsoderh/BodyHarvestRecomp",
     "issue_number": 1448,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/mcsoderh/BodyHarvestRecomp",
+    "availability": "packages",
+    "setup_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/v1.0.0/README.md",
     "artwork": {
       "game_id": 3426,
       "cover_id": 258206,
@@ -16,6 +15,25 @@
       "image_sha256": "c14ab273e1271bb4fdee7feebc3bc6e9a34e7835e9fc42754f547fbbd853324a",
       "game_slug": "body-harvest",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/mcsoderh/BodyHarvestRecomp/releases/tag/v1.0.0",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep an existing permitted copy",
+          "instruction": "If you already have a permitted, prepared copy, choose its BodyHarvestRecompiled.exe game executable and supplied working folder in the existing-installation review. Use your own supported North American Body Harvest ROM in Load ROM. The default game data is under LocalAppData/BodyHarvestRecompiled on Windows, or ~/.config/BodyHarvestRecompiled on Linux. Saving those launch details does not run it; launch separately when ready."
+        },
+        {
+          "title": "Keep updates and data with upstream",
+          "instruction": "Retain the working folder and original game files. Follow the selected upstream version’s update instructions using a separate replacement folder. Portcove does not replace, back up or roll back this external runtime or its user-profile data."
+        }
+      ],
+      "warnings": [
+        "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
+      ],
+      "help_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/v1.0.0/README.md"
+    },
+    "platforms": [],
+    "download_block_reason": "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
   }
 }

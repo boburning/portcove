@@ -53,6 +53,16 @@ are independent: the game can ask for original files on first launch while
 Portcove continues to replace its runtime. A launcher that replaces its own
 runtime instead uses the non-owning existing-installation route.
 
+Adding this route does not adopt an existing external registration. Players can
+review a separate managed copy while keeping the current copy usable. Core can
+switch a fitting fresh native-portable route after verified separate publication;
+the external files stay untouched and external saves are not copied. Retain
+owner-neutral listing instructions, including upstream profile locations, and
+put managed preservation promises only in integration presentation. A shared
+upstream profile may still be read on the next explicit Play. A saved Core data
+store or richer preparation/account contract requires its own compatible
+transition rather than guessing at migration or rewriting retained definitions.
+
 Use an official ZIP, tar.gz or tgz with an independently expected SHA-256,
 reviewed native package and executable hints, and a small declared persistence
 contract. For example, the CorsixTH and SDL Sopwith records use the shared route
@@ -80,12 +90,63 @@ files and equally plausible variants. The existing channel and artifact-integrit
 rules remain in force. A missing digest can allow an explicitly unverified
 non-owning download, but cannot authenticate a managed installation.
 
+Review the actual linked or vendored components and their attributable grants,
+including packaged fonts. A parent's license, a published archive or resemblance
+to another project does not settle a separately authored component's permission.
+Retain a named acquisition condition at its exact operation scope. When fresh
+self-service acquisition is held, the authored listing can set
+`download_block_reason` to a bounded practical explanation and reconsideration
+condition. The generator emits listing format 2; Core refuses download options,
+preview and mutation before contacting the provider. This restriction grants no
+permission to acquire, register or execute an existing copy and does not rewrite
+its retained contract. Keep useful existing permitted-copy instructions and
+upstream links. Remove a restriction only after reviewing the changed fact.
+
+For an upstream-owned route, optional listing `download_asset_hints` maps a host
+platform to one through eight bounded, case-insensitive literal filename fragments.
+Optional `recommended_download_channel` selects `stable` or `beta` for the initial
+download lookup, for example when the reviewed player is published as a preview.
+A player's explicit saved channel or release takes precedence. This recommendation
+does not change an installed channel, version pin or update policy.
+Core uses all fragments together to recommend the reviewed player package or
+upstream installer. Prefer stable discriminators instead of a version string;
+retain a choice when incompatible variants are equally plausible. Operational
+release hints take precedence. `prepare-port` reports complete/partial selected
+asset coverage and competing literal matches as `download_preparation` feedback.
+This is advisory selection, compatible with descriptive listing format 1: it
+grants no authenticity, invocation or managed operation. Core still binds current
+release/asset IDs, destination and extraction in the download preview. A reviewed
+player ZIP named `debug` needs an explicit whole-filename hint; generic project
+or platform fragments do not override its exclusion. Symbols, source,
+checksum files, foreign platforms and processor mismatches remain excluded from
+recommendations. Explain the actual upstream setup and its update/data owner in
+the authored guide; downloading an installer never runs it.
+An explicitly hinted Win32 player can be recommended on a Windows x64 host;
+[Windows supplies WOW64 for x86 applications](https://learn.microsoft.com/en-us/windows/win32/winprog64/running-32-bit-applications).
+This does not establish game-specific dependencies, gameplay, or other processor
+compatibility. Supply the accurate `original_game_title` where the listing name
+also contains the engine/project name so bounded launch suggestions can identify
+the game among unrelated converters; equally plausible targets still require a choice.
+
 Persistent paths are relative to the executable's directory, or the install root
 when `launch_from_install_root` is declared. Declare only compatible original
 inputs, generated data, saves, settings and supported mods that should reach
 replacement versions. Outside data remains upstream/player-owned and outside
 Portcove backups. Describe setup and this limit in `presentation`; optional unknown
 gameplay evidence does not hide the listing or prevent a separately safe operation.
+
+Put the actual next game-setup step first in the authored manual guide: original
+files the game will request, a required manual preparation, or an explicit statement
+that the package is ready for Play. Avoid a redundant first step telling the player
+to install. Desktop uses this first step in the managed installation review and
+keeps the guide in Files even when Core needs no source profile. Listing guides
+also survive as saved-download handoffs after a definition disappears. Keep their
+steps truthful for both routes, spell out any external launch arguments, and put
+managed retention/backup/replacement details in the integration's
+`presentation.manual_preparation`, which Desktop scopes to managed ownership.
+An empty Core
+input requirement describes Portcove's action; it does not assert that the upstream
+game never needs original files.
 
 Native portable runtimes use complete immutable-file verification. Changed package
 files or undeclared additions block update, version switching and managed removal
@@ -1305,6 +1366,23 @@ metadata only. `--route download` collects one 20-release candidate window or th
 explicit `--release-tag` and at most two 100-asset pages. Truncated or unavailable
 assets remain Unknown. Metadata never supplies package authenticity or executable
 acceptance.
+
+For a proposed `native-portable` record, the completion receipt also shows literal
+package-hint matches among the supported ZIP/tar.gz/tgz archives for each declared platform, whether each matching asset has
+a published SHA-256, and whether the selected release's asset enumeration is
+complete. Resolve missing or ambiguous matches before acquisition review. This is
+authoring feedback, not a second package selector or a capability certificate.
+Review the executable headers and launch folder, then the runtime's actual writes
+and update behavior. Include compatible original inputs, generated data, mods,
+settings and relevant logs in the declared preservation contract. An empty
+contract is useful when evidence establishes external storage; describe that
+location and its backup limits, and classify the main saves/settings as
+`external-user-owned`. Inspect emitted writes beyond the save folder, including
+first-run failure instructions, preference exports, registry settings and mod
+state. A self-updater or a setup kit that regenerates
+version-dependent runtime code needs the appropriate existing integration or
+non-owning handoff. Keep the player's installed contract unchanged when adding a
+new route.
 
 The owned output directory is a resumable preparation checkpoint. Reuse it for
 several IDs sharing a repository to reuse endpoint observations. Collection is

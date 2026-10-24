@@ -8,7 +8,7 @@
     "issue_number": 828,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbatalov/arcanum-ce",
+    "setup_url": "https://github.com/alexbatalov/arcanum-ce/blob/main/README.md",
     "artwork": {
       "game_id": 255,
       "cover_id": 101605,
@@ -16,6 +16,20 @@
       "image_sha256": "5cc28e6a2310bad18bcfc73e511408f174d13a0a1a4ac8d769649bfe162cb7b0",
       "game_slug": "arcanum-of-steamworks-and-magick-obscura",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Set up a separate Arcanum copy",
+          "instruction": "Upstream describes a drop-in Community Edition runtime, but its GitHub release history currently has no published package. Keep an existing permitted build, or follow upstream’s source-build instructions. Use a separate copy of your own GOG/Steam Arcanum installation with the required DAT files and modules. On Windows, arcanum-ce.exe belongs in that game folder; choose it with that folder as the working directory. Linux uses the corresponding native arcanum-ce build. Portcove does not run innoextract or a game installer during discovery."
+        },
+        {
+          "title": "Keep updates and data with your working copy",
+          "instruction": "Keep your original files and a separate working installation. You or upstream own runtime replacement, generated data, saves and settings; prepare updates in a separate folder and retain the current copy until ready. Portcove’s existing-installation review saves your selected launch details without running a helper. It does not back up, roll back or delete this external runtime."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/alexbatalov/arcanum-ce/blob/main/README.md"
     }
   }
 }

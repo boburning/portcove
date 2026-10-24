@@ -23,7 +23,7 @@ pub(crate) async fn catalog_download_candidates(
         tauri::async_runtime::block_on(service.catalog_download_options(
             &port_id,
             selected_release_id,
-            channel.unwrap_or(portcove_core::ReleaseChannel::Stable),
+            channel.unwrap_or(service.catalog_download_channel(&port_id)?),
         ))
         .map_err(Into::into)
     })

@@ -569,6 +569,29 @@ pub(crate) enum LaunchCommand {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum ExternalCommand {
+    /// Review a separate managed copy while retaining the current external installation.
+    ManagedPreview {
+        port_id: String,
+        #[arg(long)]
+        channel: Option<ChannelArg>,
+        /// Separate managed output folder; the external folder cannot be reused.
+        #[arg(long)]
+        output_directory: Option<PathBuf>,
+    },
+    /// Prepare a verified managed copy, then switch registration without touching external files.
+    ChangeToManaged {
+        port_id: String,
+        #[arg(long)]
+        channel: Option<ChannelArg>,
+        #[arg(long)]
+        output_directory: Option<PathBuf>,
+        /// SHA-256 from `external managed-preview`; changed facts refuse the route change.
+        #[arg(long)]
+        expected_preview: String,
+        /// Confirm the separate managed copy; external files stay in place and are not adopted.
+        #[arg(long)]
+        yes: bool,
+    },
     /// Review new executable, directory and arguments for an existing selected installation.
     SelectRelinkPreview {
         /// Catalog port ID with an existing user-selected executable registration.

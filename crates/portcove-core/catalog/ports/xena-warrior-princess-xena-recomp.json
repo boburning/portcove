@@ -8,7 +8,7 @@
     "issue_number": 329,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp/blob/v0.1.2/README.md",
     "artwork": {
       "game_id": 3648,
       "cover_id": 564319,
@@ -16,6 +16,24 @@
       "image_sha256": "9fda3bf2d7351e9b860656b2ee7c17a5f8e6e01e5b70fe58a007809272623575",
       "game_slug": "xena-warrior-princess",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the game with upstream setup",
+          "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+        },
+        {
+          "title": "Supply only the files the upstream guide requires",
+          "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+        },
+        {
+          "title": "Confirm the game or launcher",
+          "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp/blob/v0.1.2/README.md"
     }
   }
 }

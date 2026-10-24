@@ -149,6 +149,9 @@ pub(crate) struct LifecycleOperation {
     /// `Some(true)` is durable proof that no setup process from this operation
     /// can still own the private tree. `None` is legacy or non-preparation state.
     pub preparation_process_quiesced: Option<bool>,
+    /// Exact registration replaced only by a verified, separately published
+    /// native runtime. Absent for ordinary installs and earlier journals.
+    pub external_registration_sha256: Option<String>,
     pub original_paths: Vec<PathBuf>,
     pub activate: bool,
     pub last_error: Option<String>,
@@ -180,6 +183,7 @@ impl LifecycleOperation {
             ghostship_recovery: None,
             backup_deletion: None,
             preparation_process_quiesced: None,
+            external_registration_sha256: None,
             original_paths: Vec::new(),
             activate: false,
             last_error: None,
@@ -200,6 +204,11 @@ impl OperationStore {
     }
 
     pub fn put(&self, operation: &mut LifecycleOperation) -> Result<()> {
+        validate_external_replacement(
+            operation.kind,
+            operation.activate,
+            operation.external_registration_sha256.as_deref(),
+        )?;
         validate_private_family(
             operation.kind,
             &operation.port_id,
@@ -255,8 +264,8 @@ impl OperationStore {
             "INSERT INTO lifecycle_operations(
                id, kind, port_id, phase, staging_path, final_path, quarantine_path,
                install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json,
-               preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)
+               preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json, external_registration_sha256
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)
              ON CONFLICT(id) DO UPDATE SET
                kind=excluded.kind,
                port_id=excluded.port_id,
@@ -272,6 +281,7 @@ impl OperationStore {
                preparation_process_quiesced=excluded.preparation_process_quiesced,
                ghostship_recovery_json=excluded.ghostship_recovery_json,
                backup_deletion_json=excluded.backup_deletion_json,
+               external_registration_sha256=excluded.external_registration_sha256,
                activate=excluded.activate,
                last_error=excluded.last_error,
                updated_at=excluded.updated_at",
@@ -295,6 +305,7 @@ impl OperationStore {
                 operation.preparation_process_quiesced.map(i64::from),
                 ghostship_recovery_json,
                 backup_deletion_json,
+                operation.external_registration_sha256,
             ],
         )?;
         transaction.commit()?;
@@ -327,7 +338,7 @@ impl OperationStore {
         let mut statement = connection.prepare(&format!(
             "SELECT id, kind, port_id, phase, staging_path, final_path, quarantine_path,
                     install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json,
-                    preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json
+                    preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json, external_registration_sha256
              FROM lifecycle_operations
              {where_or_order}"
         ))?;
@@ -352,6 +363,7 @@ impl OperationStore {
                 row.get::<_, Option<i64>>(16)?,
                 row.get::<_, Option<String>>(17)?,
                 row.get::<_, Option<String>>(18)?,
+                row.get::<_, Option<String>>(19)?,
             ))
         })?;
         rows.map(|row| {
@@ -375,8 +387,14 @@ impl OperationStore {
                 preparation_process_quiesced,
                 ghostship_recovery_json,
                 backup_deletion_json,
+                external_registration_sha256,
             ) = row?;
             let kind = kind.parse()?;
+            validate_external_replacement(
+                kind,
+                activate != 0,
+                external_registration_sha256.as_deref(),
+            )?;
             validate_private_family(
                 kind,
                 &port_id,
@@ -407,6 +425,7 @@ impl OperationStore {
                     .map(|value| serde_json::from_str(&value))
                     .transpose()?,
                 preparation_process_quiesced: preparation_process_quiesced.map(|value| value != 0),
+                external_registration_sha256,
                 ghostship_recovery: ghostship_recovery_json
                     .map(|value| serde_json::from_str(&value))
                     .transpose()?,
@@ -421,6 +440,26 @@ impl OperationStore {
         })
         .collect()
     }
+}
+
+fn validate_external_replacement(
+    kind: LifecycleOperationKind,
+    activate: bool,
+    expected: Option<&str>,
+) -> Result<()> {
+    if let Some(expected) = expected
+        && (kind != LifecycleOperationKind::Install
+            || !activate
+            || expected.len() != 64
+            || !expected
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()))
+    {
+        return Err(PortcoveError::state(
+            "external replacement journal has an invalid owner or registration identity",
+        ));
+    }
+    Ok(())
 }
 
 fn validate_private_family(

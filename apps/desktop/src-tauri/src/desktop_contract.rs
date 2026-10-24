@@ -446,6 +446,8 @@ pub fn export_transport_schemas() -> Value {
             "preparation_cleanup_preview": output::<portcove_core::PreparationCleanupPreview>(),
             "external_runtime_preview": output::<portcove_core::ExternalRuntimePreview>(),
             "external_runtime_relink_preview": output::<portcove_core::ExternalRuntimeRelinkPreview>(),
+            "managed_route_change_preview": output::<portcove_core::ManagedRouteChangePreview>(),
+            "managed_route_change_result": output::<portcove_core::ManagedRouteChangeResult>(),
             "external_runtime_removal_preview": output::<portcove_core::ExternalRuntimeRemovalPreview>(),
             "external_runtime_record": output::<portcove_core::ExternalRuntimeRecord>(),
             "catalog_download_candidates": output::<portcove_core::CatalogDownloadCandidates>(),
