@@ -87,7 +87,7 @@ class HostedReadiness(unittest.TestCase):
             public = b"portcove-native:x:1002:1002::/home/portcove-native:/usr/sbin/nologin\n"
             info = SimpleNamespace(st_uid=1002, st_gid=1002, st_mode=stat.S_IFDIR | 0o700)
             scope = {"result": result, "deadline": 20, "time": SimpleNamespace(monotonic=lambda: 21),
-                     "Path": lambda _filename: SimpleNamespace(read_bytes=lambda: public, lstat=lambda: info),
+                     "Path": Mock(return_value=SimpleNamespace(read_bytes=Mock(return_value=public), lstat=Mock(return_value=info))),
                      "stat": stat, "json": json, "print": Mock()}
             exec(compile(ast.Module(body=nodes[0].finalbody, type_ignores=[]), "actual-embedded-root-final-readback", "exec"), scope)
             self.assertFalse(result["completed"])
