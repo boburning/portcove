@@ -54,28 +54,40 @@ class HostedReadiness(unittest.TestCase):
                 retained[str(filename)] = data
             def bounded(filename, _maximum=131072):
                 name = str(filename)
-                if name.endswith(".apparmor"): return source
-                if name.endswith("/apparmor_parser"): return b"controlled parser"
-                if name.endswith("/apparmor_restrict_unprivileged_userns"): return b"1\n"
-                if name.endswith("/abi/4.0"): return b"controlled ABI"
-                if name.endswith("/profile.binary"): return binary
+                if name.endswith(".apparmor"):
+                    return source
+                if name.endswith("/apparmor_parser"):
+                    return b"controlled parser"
+                if name.endswith("/apparmor_restrict_unprivileged_userns"):
+                    return b"1\n"
+                if name.endswith("/abi/4.0"):
+                    return b"controlled ABI"
+                if name.endswith("/profile.binary"):
+                    return binary
                 raise AssertionError("unexpected root read " + name)
             def run(arguments, _seconds, _maximum=8192, outcome=outcome):
                 if "--preprocess" in arguments:
                     return b"alias\t/usr/bin/bwrap -> /other,\n" if outcome == "site-alias" else b"# controlled flattened profile\n"
-                if "--names" in arguments: return b"bwrap\nunpriv_bwrap\n"
-                if "--stdout" in arguments: return binary
-                if "--version" in arguments: return b"controlled parser version"
+                if "--names" in arguments:
+                    return b"bwrap\nunpriv_bwrap\n"
+                if "--stdout" in arguments:
+                    return binary
+                if "--version" in arguments:
+                    return b"controlled parser version"
                 self.assertIn("--add", arguments)
                 self.assertIn("--binary", arguments)
                 self.assertIn("--skip-cache", arguments)
                 self.assertIn("--config-file=/dev/null", arguments)
-                if outcome == "load-timeout": raise subprocess.TimeoutExpired(arguments, 5)
+                if outcome == "load-timeout":
+                    raise subprocess.TimeoutExpired(arguments, 5)
                 return b""
             state = Mock(side_effect=[before, before, after])
-            if outcome == "collision": state.side_effect = AssertionError("existing label")
-            elif outcome == "changed-baseline": state.side_effect = [before, after]
-            elif outcome == "partial-readback": state.side_effect = [before, before, before]
+            if outcome == "collision":
+                state.side_effect = AssertionError("existing label")
+            elif outcome == "changed-baseline":
+                state.side_effect = [before, after]
+            elif outcome == "partial-readback":
+                state.side_effect = [before, before, before]
             scope = {"Path": RootPath, "src": PurePosixPath("/controlled/scripts"), "target": PurePosixPath("/controlled/installed"),
                      "context": {"run": "controlled"}, "wanted": {"source": "controlled"}, "result": {},
                      "os": SimpleNamespace(path=SimpleNamespace(lexists=Mock(return_value=False)), uname=lambda: SimpleNamespace(release="controlled")),
@@ -97,7 +109,8 @@ class HostedReadiness(unittest.TestCase):
                     self.assertTrue(scope["result"]["profile"]["load_attempted"])
                     self.assertIn("/controlled/installed/profile-add-intent.json", retained)
                     self.assertEqual(retained["/controlled/installed/profile.binary"], binary)
-                if outcome == "collision": self.assertEqual(retained, {})
+                if outcome == "collision":
+                    self.assertEqual(retained, {})
 
     def test_postexec_policy_requires_enforcing_stack_unchanged_nnp_and_zero_capabilities(self):
         policy = {"apparmor": "bwrap//&unpriv_bwrap (enforce)", "NoNewPrivs": "1", "userns_restriction": "1",
@@ -115,7 +128,8 @@ class HostedReadiness(unittest.TestCase):
         for condition in ("accepted", "missing-intent", "foreign-context", "missing-binary", "changed-binary"):
             with tempfile.TemporaryDirectory() as temporary:
                 installed, destination = Path(temporary) / "installed", Path(temporary) / "destination"
-                installed.mkdir(); destination.mkdir()
+                installed.mkdir()
+                destination.mkdir()
                 context, pins = {"run": "new"}, {"source": "reviewed"}
                 binary, evidence = b"compiled", b"evidence"
                 result = {"failure": None, "setup": {"profile": {"completed": True,
@@ -124,12 +138,16 @@ class HostedReadiness(unittest.TestCase):
                 payloads = {"profile-intent.json": json.dumps({"context": context, "source_sha256": pins}).encode(),
                             "profile-add-intent.json": b"add intent", "profile-evidence.json": evidence,
                             "profile.expanded": b"expanded", "profile.abi": b"abi", "profile.binary": binary}
-                if condition == "missing-intent": del payloads["profile-intent.json"]
+                if condition == "missing-intent":
+                    del payloads["profile-intent.json"]
                 elif condition == "foreign-context":
                     payloads["profile-intent.json"] = json.dumps({"context": {"run": "old"}, "source_sha256": pins}).encode()
-                elif condition == "missing-binary": del payloads["profile.binary"]
-                elif condition == "changed-binary": payloads["profile.binary"] = b"different"
-                for name, data in payloads.items(): (installed / name).write_bytes(data)
+                elif condition == "missing-binary":
+                    del payloads["profile.binary"]
+                elif condition == "changed-binary":
+                    payloads["profile.binary"] = b"different"
+                for name, data in payloads.items():
+                    (installed / name).write_bytes(data)
                 scope = {"INSTALLED": installed, "context": context, "pins": pins, "result": result,
                          "directory": destination, "stat": stat, "json": json, "hashlib": hashlib,
                          "need": readiness.need, "retain": readiness.retain}
@@ -144,7 +162,8 @@ class HostedReadiness(unittest.TestCase):
                     self.assertIn("profile_evidence_failure", result)
                 self.assertFalse(result["automatic_retry"])
                 self.assertEqual(result["production"], "held")
-                if condition == "foreign-context": self.assertNotIn("profile_files", result)
+                if condition == "foreign-context":
+                    self.assertNotIn("profile_files", result)
 
     def test_actual_final_profile_readback_preserves_original_ambiguous_load(self):
         outer = [node for node in ast.parse(readiness.ROOT_SETUP).body if isinstance(node, ast.Try)]
@@ -160,8 +179,10 @@ class HostedReadiness(unittest.TestCase):
             self.assertEqual(result["failure"], "original parser timeout")
             self.assertTrue(result["profile"]["load_attempted"])
             self.assertNotIn("completed", result["profile"])
-            if available: self.assertEqual(result["profile"]["final_state"], state)
-            else: self.assertEqual(result["profile"]["readback_error"], "OSError")
+            if available:
+                self.assertEqual(result["profile"]["final_state"], state)
+            else:
+                self.assertEqual(result["profile"]["readback_error"], "OSError")
             reader.assert_called_once()
 
     def test_actual_inert_entry_executes_only_fixed_command_after_exact_release(self):
