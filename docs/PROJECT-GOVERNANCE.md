@@ -612,6 +612,8 @@ batches of ten actual IDs. They retain complete pagination and reject missing,
 duplicate or changed dependencies. Query cost and reset metadata are recorded;
 an HTTP-200 GraphQL quota rejection is a rate-limit failure even when some points
 remain, not a transport failure.
+Global audits establish access through observable Project API reads, preserving
+the actual authorization and quota responses in the diagnostic receipt.
 
 `set`, `set-many`, port intake/normalization and promotion perform affected checks
 automatically. Exact item IDs resolve directly even when the Project listing
