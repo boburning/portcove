@@ -22,6 +22,49 @@ import {
   baselineRequiresDesktopDependencies,
 } from "./ci-baseline.mts";
 
+void test("workflow Python provisioning follows its actual relocated consumer and declared renames", () => {
+  const consumer = "scripts/ci-rust-workflow.test.mts";
+  for (const input of [consumer, "scripts/ci-workflow-fixture.mts", ".github/workflows/ci.yml"]) {
+    for (const change of [
+      { status: "M", oldPath: input, newPath: input },
+      { status: "A", oldPath: input, newPath: input },
+      { status: "D", oldPath: input, newPath: input },
+      { status: "R100", oldPath: input, newPath: "scripts/renamed-contract.test.mts" },
+      { status: "R100", oldPath: "scripts/renamed-contract.test.mts", newPath: input },
+    ]) {
+      const plan = buildValidationPlan({
+        changes: [
+          {
+            ...change,
+            oldMode: change.status === "A" ? "000000" : "100644",
+            newMode: change.status === "D" ? "000000" : "100644",
+          },
+        ],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      const options = { fileExists: () => false };
+      assert.notEqual(plan.mode, "blocked", JSON.stringify(change));
+      if (plan.mode === "qualification") {
+        assert.equal(baselineRequiresPython(plan, options), true, JSON.stringify(change));
+        continue;
+      }
+      const selected = baselineContractTests(plan, options);
+      const removedConsumer = change.status === "D" && input === consumer;
+      const renamedConsumer = change.oldPath === consumer && change.newPath !== consumer;
+      assert.equal(
+        selected.includes(consumer),
+        !removedConsumer && !renamedConsumer,
+        JSON.stringify(change),
+      );
+      assert.equal(baselineRequiresPython(plan, options), !removedConsumer, JSON.stringify(change));
+    }
+  }
+});
+
 void test("hosted Node contracts enable fixed module mocks without changing budgets or selectors", () => {
   const files = ["scripts/release-coordinator-signing-custody.test.mts"];
   const common = [

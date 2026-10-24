@@ -1210,3 +1210,20 @@ export function requireReceivedCatalogSigningContext(receipt: object, phaseDeadl
 export function requireRetainedCatalogSigningContext(receipt: object, phaseDeadline?: number) {
   return readReceivedSigningContext(receipt, phaseDeadline, "retained", "catalog");
 }
+
+/** Export original authenticated byte identities while the receiver is live.
+ * This is snapshot data only; it cannot be imported as a context/publication
+ * receipt or renew the receiver's phase. An owning native parent may retain it. */
+export async function snapshotReceivedSigningContextEvidence(receipt: object, deadline: number) {
+  const context = await requireReceivedSigningContext(receipt, deadline);
+  const actual = received.get(receipt)!;
+  actual.active();
+  return {
+    context,
+    root: actual.directory,
+    files: [
+      ...actual.public_evidence.map((file) => ({ ...file })),
+      ...actual.files.map((file) => ({ ...file, path: `context/${file.path}` })),
+    ],
+  };
+}

@@ -319,11 +319,23 @@ void test("selected context collects typed relationships completely and matches 
   client.projectDetails = () => ({ id: "PVT-selected" });
   client.graphql = (query) => {
     if (query.includes("repository(owner")) return { repository: { issue } };
+    if (query.includes("nodes(ids:"))
+      return {
+        nodes: [
+          {
+            ...reference,
+            __typename: "Issue",
+            projectItems: connection([projectItem("dependency")]),
+          },
+        ],
+      };
+    assert(
+      !query.includes("projectItems"),
+      "relationship pagination must not expand hypothetical memberships",
+    );
     return {
       node: {
-        blockedBy: connection([
-          { ...reference, projectItems: connection([projectItem("dependency")]) },
-        ]),
+        blockedBy: connection([reference]),
       },
     };
   };

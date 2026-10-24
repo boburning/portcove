@@ -21,10 +21,12 @@ import {
   inspectSigningContextArchive,
   receiveSigningContextArtifact,
   requireReceivedSigningContext,
+  snapshotReceivedSigningContextEvidence,
 } from "./release-signing-context-artifact.mts";
 import {
   receiveTufRoleArtifact,
   requireReceivedTufRoleArtifact,
+  snapshotReceivedTufRoleEvidence,
 } from "./release-tuf-role-artifact.mts";
 import { inspectSelectedPublicationAuthorityConfiguration } from "./release-authority-configuration.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
@@ -41,6 +43,10 @@ import {
 } from "./release-readonly-child-environment.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { runRustTests } from "./run-rust-tests.mts";
+import {
+  hashNativeCapturedFile,
+  readNativeCapturedStream,
+} from "./release-native-capture-files.mts";
 import { isRecord } from "./runtime-values.mts";
 
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
@@ -87,6 +93,8 @@ type State = {
   tools_binding: string;
   inventory: unknown;
   context: object;
+  context_snapshot: Awaited<ReturnType<typeof requireReceivedSigningContext>>;
+  proof_snapshots: { root: string; files: { path: string; bytes: number; sha256: string }[] }[];
   roles: object[];
   plan: Buffer;
   result: Buffer;
@@ -135,6 +143,7 @@ async function child(
   deadline: number,
   expectedSource: string,
   expectedTools: string,
+  filename: "native-keyless-plan.json" | "native-payload-plan.json" = "native-keyless-plan.json",
 ) {
   const recheck = async () => {
     const source = await requireActualHostedNativePostSignController(sourceReceipt);
@@ -165,7 +174,7 @@ async function child(
     status = await runResourceCommand(
       "analysis",
       node,
-      [entry, path.join(directory, "native-keyless-plan.json"), hash(plan)],
+      [entry, path.join(directory, filename), hash(plan)],
       {
         cwd: runtimeRoot,
         queueDeadline: deadline,
@@ -432,6 +441,15 @@ export async function acquireActualHostedNativePostSignInputs(
         publication.records_sha256 !== context.manifest.binding.records_sha256
       )
         throw new Error("hosted keyless repository inventory or signed record set differs");
+      phase = "original-proof-snapshot-handoff";
+      const contextSnapshot = await snapshotReceivedSigningContextEvidence(
+        contextReceipt,
+        deadline,
+      );
+      const proofSnapshots = [{ root: contextSnapshot.root, files: contextSnapshot.files }];
+      for (const role of roles)
+        proofSnapshots.push(await snapshotReceivedTufRoleEvidence(role, deadline));
+      active({ stopped: false, deadline });
       phase = "final-input-retention";
       const record = Buffer.from(
         JSON.stringify({
@@ -439,6 +457,9 @@ export async function acquireActualHostedNativePostSignInputs(
           source_binding: sourceHash,
           tools_binding: toolsHash,
           inventory: preflight.inventory,
+          original_proof_snapshots: proofSnapshots,
+          construction_deadline: deadline,
+          original_parent_deadline: source.deadline,
           context: contextExpected,
           roles: preflight.inventory.roles.map((role) => role.role),
           plan_sha256: hash(plan),
@@ -466,11 +487,13 @@ export async function acquireActualHostedNativePostSignInputs(
         runtime: runtimeReceipt,
         runtime_root: runtime.root,
         directory,
-        deadline,
+        deadline: source.deadline,
         source_binding: sourceHash,
         tools_binding: toolsHash,
         inventory: preflight.inventory,
         context: contextReceipt,
+        context_snapshot: structuredClone(contextSnapshot.context),
+        proof_snapshots: structuredClone(proofSnapshots),
         roles,
         plan,
         result,
@@ -489,12 +512,21 @@ export async function acquireActualHostedNativePostSignInputs(
       };
       state.read = bindReadOnlyReleaseChildren(async () => {
         const value = await original(state);
-        const context = await requireReceivedSigningContext(state.context, state.deadline);
-        active(state);
-        for (const receipt of state.roles) {
-          await requireReceivedTufRoleArtifact(receipt, state.deadline);
-          active(state);
-        }
+        // The native parent owns these original verified bytes after the short
+        // receiver phase. Generic receiver deadlines are never extended/reused.
+        for (const proof of state.proof_snapshots)
+          for (const file of proof.files) {
+            const actual = await hashNativeCapturedFile(
+              proof.root,
+              file.path,
+              Math.max(file.bytes, 1),
+              state.deadline,
+            );
+            active(state);
+            if (digest(actual) !== digest(file))
+              throw new Error("original signed proof snapshot changed");
+          }
+        const context = structuredClone(state.context_snapshot);
         const inventory = await readActualHostedNativePostSignInventory(state.source);
         active(state);
         if (digest(inventory) !== digest(state.inventory))
@@ -551,8 +583,10 @@ export async function acquireActualHostedNativePostSignInputs(
         authority: "none",
         native_acceptance: "not-established",
       });
+      active({ stopped: false, deadline });
       retained.set(receipt, state);
       await requireActualHostedNativePostSignInputs(receipt);
+      active({ stopped: false, deadline });
       return receipt;
     });
   } catch {
@@ -592,6 +626,224 @@ export async function requireActualHostedNativePostSignInputs(receipt: object) {
       scope:
         "actual hosted signed-input/Tough custody only; package/journey/capture pending" as const,
     });
+  } catch (error) {
+    state.stopped = true;
+    throw error;
+  }
+}
+
+const payloadAttempts = new WeakSet<object>();
+const payloads = new WeakMap<
+  object,
+  {
+    read: () => Promise<
+      Awaited<
+        ReturnType<
+          typeof import("./release-hosted-native-candidate.mts").requireActualHostedNativePostSignPackage
+        >
+      >
+    >;
+    stopped: boolean;
+    package: object;
+    plan: Buffer;
+    result: Buffer;
+    directory: string;
+    signed_context_sha256: string;
+    signatures_sha256: string;
+  }
+>();
+
+/** Original package and context only; the fixed retained-runtime verifier never
+ * receives a signing key, provider credential, injected executable or callback. */
+export async function verifyActualHostedNativePostSignPayload(packageReceipt: object) {
+  if (payloadAttempts.has(packageReceipt))
+    throw new Error("one original hosted payload verification; explicit recovery required");
+  payloadAttempts.add(packageReceipt);
+  const { requireActualHostedNativePostSignPackage } =
+    await import("./release-hosted-native-candidate.mts");
+  const selected = await requireActualHostedNativePostSignPackage(packageReceipt);
+  const state = retained.get(selected.inputs_receipt);
+  if (!state || state.stopped) throw new Error("original payload signed-input custody required");
+  const directory = selected.directory;
+  let phase = "signed-payload-record";
+  try {
+    return await withReadOnlyReleaseChildren(directory, async () => {
+      const current = await requireActualHostedNativePostSignInputs(selected.inputs_receipt);
+      const contextFiles = await readBoundedReleaseContextFiles(
+        path.dirname(current.context.context),
+      );
+      const matches = [...contextFiles]
+        .filter(([name]) => name.startsWith("records/releases/"))
+        .map(([, bytes]) => JSON.parse(bytes.toString("utf8")) as unknown)
+        .filter(
+          (record) =>
+            isRecord(record) &&
+            record.target === selected.platform_label &&
+            record.version === selected.version &&
+            record.source_commit === selected.candidate.source_commit &&
+            record.source_tree === selected.candidate.source_tree &&
+            isRecord(record.artifact) &&
+            record.artifact.sha256 === selected.candidate.package.sha256 &&
+            record.artifact.bytes === selected.candidate.package.bytes,
+        );
+      if (matches.length !== 1 || !isRecord(matches[0]) || !isRecord(matches[0].artifact))
+        throw new Error("one original signed payload record required");
+      const artifact = matches[0].artifact;
+      const registryBytes = contextFiles.get("payload.json");
+      if (!registryBytes) throw new Error("original public payload registry absent");
+      const registry: unknown = JSON.parse(registryBytes.toString("utf8"));
+      if (!isRecord(registry) || !Array.isArray(registry.keys) || registry.keys.length > 32)
+        throw new Error("original public payload registry differs");
+      const keys = registry.keys.filter(
+        (key: unknown) => isRecord(key) && key.id === artifact.payload_key_id,
+      );
+      if (
+        keys.length !== 1 ||
+        !isRecord(keys[0]) ||
+        typeof keys[0].tauri_public_key !== "string" ||
+        typeof artifact.payload_key_id !== "string" ||
+        typeof artifact.tauri_signature !== "string"
+      )
+        throw new Error("original payload key/signature absent or ambiguous");
+      const signature = Buffer.from(artifact.tauri_signature),
+        key = Buffer.from(keys[0].tauri_public_key);
+      if (!signature.length || signature.length > 16384 || !key.length || key.length > 16384)
+        throw new Error("public payload verification material exceeds bound");
+      const signaturePath = path.join(directory, "native-payload.sig"),
+        keyPath = path.join(directory, "native-payload.key");
+      await writeFile(signaturePath, signature, { flag: "wx", mode: 0o600 });
+      await writeFile(keyPath, key, { flag: "wx", mode: 0o600 });
+      const rust = path.join(state.runtime_root, "bin/portcove-release-tools");
+      const toolBytes = await readControllerToolFile(rust);
+      const plan = Buffer.from(
+        JSON.stringify({
+          schema_version: 1,
+          output_parent: directory,
+          artifact: selected.package_path,
+          signature: signaturePath,
+          public_key: keyPath,
+          public_key_sha256: artifact.payload_key_id,
+          bytes: selected.candidate.package.bytes,
+          sha256: selected.candidate.package.sha256,
+          version: selected.version,
+          tool: { path: rust, sha256: hash(toolBytes) },
+        }),
+      );
+      if (plan.length > 65536) throw new Error("fixed hosted payload plan exceeds bound");
+      await writeFile(path.join(directory, "native-payload-plan.json"), plan, {
+        flag: "wx",
+        mode: 0o600,
+      });
+      phase = "fixed-payload-verifier";
+      await requireActualHostedNativePostSignPackage(packageReceipt);
+      await child(
+        state.source,
+        state.tools,
+        state.runtime,
+        state.runtime_root,
+        directory,
+        plan,
+        state.deadline,
+        state.source_binding,
+        state.tools_binding,
+        "native-payload-plan.json",
+      );
+      const result = await readBoundedPublicBuildInputFile(
+        directory,
+        "native-payload-result.json",
+        1024 * 1024,
+      );
+      const raw: unknown = JSON.parse(result.toString("utf8"));
+      if (
+        !isRecord(raw) ||
+        Object.keys(raw).sort().join(",") !==
+          "authority,plan_sha256,report,schema_version,stderr_sha256,stdout_sha256" ||
+        raw.schema_version !== 1 ||
+        raw.authority !== "none" ||
+        raw.plan_sha256 !== hash(plan) ||
+        !isRecord(raw.report) ||
+        raw.report.signature_verified !== true ||
+        raw.report.sha256 !== selected.candidate.package.sha256 ||
+        raw.report.bytes !== selected.candidate.package.bytes ||
+        raw.report.public_key_sha256 !== artifact.payload_key_id ||
+        !isRecord(selected.journey) ||
+        typeof selected.journey.signed_context_sha256 !== "string" ||
+        typeof selected.journey.signatures_sha256 !== "string"
+      )
+        throw new Error("original hosted payload verification result differs");
+      const resultIdentity = raw;
+      const read = bindReadOnlyReleaseChildren(async () => {
+        await requireActualHostedNativePostSignInputs(selected.inputs_receipt);
+        const repeated = await requireActualHostedNativePostSignPackage(packageReceipt);
+        for (const [name, bytes] of [
+          ["native-payload.sig", signature],
+          ["native-payload.key", key],
+          ["native-payload-plan.json", plan],
+          ["native-payload-result.json", result],
+        ] as const) {
+          if (!(await readBoundedPublicBuildInputFile(directory, name, bytes.length)).equals(bytes))
+            throw new Error("original hosted payload evidence changed");
+          active(state);
+        }
+        for (const stream of ["stdout", "stderr"] as const) {
+          const bytes = await readNativeCapturedStream(directory, `native-payload.${stream}.bin`);
+          if (bytes.length > 1024 * 1024) throw new Error("payload verifier stream exceeds bound");
+          if (hash(bytes) !== resultIdentity[`${stream}_sha256`])
+            throw new Error("original payload verifier capture changed");
+        }
+        await requireActualHostedNativePostSignInputs(selected.inputs_receipt);
+        return repeated;
+      });
+      const receipt = Object.freeze({
+        kind: "original-hosted-payload-verification",
+        directory,
+        authority: "none",
+        native_acceptance: "not-established",
+      });
+      payloads.set(receipt, {
+        read,
+        stopped: false,
+        package: packageReceipt,
+        plan,
+        result,
+        directory,
+        signed_context_sha256: selected.journey.signed_context_sha256,
+        signatures_sha256: selected.journey.signatures_sha256,
+      });
+      await requireActualHostedNativePostSignPayload(receipt);
+      return receipt;
+    });
+  } catch {
+    state.stopped = true;
+    await writeFile(
+      path.join(directory, "payload-refusal.json"),
+      JSON.stringify({ phase, automatic_retry: false, recovery_required: true, authority: "none" }),
+      { flag: "wx", mode: 0o600 },
+    ).catch(() => {});
+    throw new Error(`hosted payload verification refused; retain ${directory}`);
+  }
+}
+
+export async function requireActualHostedNativePostSignPayload(receipt: object) {
+  const state = payloads.get(receipt);
+  if (!state || state.stopped)
+    throw new Error("original active hosted payload verification required");
+  try {
+    const selected = await state.read();
+    if (state.stopped) throw new Error("original hosted payload stopped during readback");
+    return {
+      ...selected,
+      package_receipt: state.package,
+      payload_crypto: {
+        file: "native-payload-result.json",
+        sha256: hash(state.result),
+        signed_context_sha256: state.signed_context_sha256,
+        signatures_sha256: state.signatures_sha256,
+      },
+      signature_verification: "actual-fixed-verifier" as const,
+      authority: "none" as const,
+      native_acceptance: "not-established" as const,
+    };
   } catch (error) {
     state.stopped = true;
     throw error;

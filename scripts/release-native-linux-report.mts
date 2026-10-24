@@ -24,7 +24,9 @@ import { requireActualHostedNativeParentSource } from "./release-hosted-native-p
 import {
   requireActualHostedNativeCandidate,
   readActualHostedNativeSourceDeclarations,
+  readActualHostedNativePostSignSourceDeclarations,
 } from "./release-hosted-native-candidate.mts";
+import { requireActualHostedNativePostSignPayload } from "./release-hosted-native-postsign-inputs.mts";
 import { serializeHostedNativeStageCapture } from "./release-native-stage-capture.mts";
 import { readActualNativeSourceDeclarations } from "./release-native-candidate.mts";
 import { serializeNativeStageCapture } from "./release-native-stage-capture.mts";
@@ -573,14 +575,16 @@ async function reportBackend(captured: object, kind: "wsl" | "hosted") {
   }
   const actual = await requireActualHostedNativeLinuxCapture(captured);
   const parent = await requireActualHostedNativeParentSource(actual.actual.parent_source);
-  const candidate = await requireActualHostedNativeCandidate(actual.actual.candidate_receipt);
-  assert.equal(
-    actual.prepared.request.stage,
-    "payload-signing",
-    "hosted post-sign capture remains held",
-  );
+  const postSign = actual.prepared.request.stage === "release-publication";
+  const candidate = postSign
+    ? await requireActualHostedNativePostSignPayload(actual.actual.candidate_receipt)
+    : await requireActualHostedNativeCandidate(actual.actual.candidate_receipt);
   return {
-    selected: { version: candidate.version, predecessor: null, payload_cryptography: null },
+    selected: {
+      version: candidate.version,
+      predecessor: "predecessor" in candidate ? candidate.predecessor : null,
+      payload_cryptography: "payload_crypto" in candidate ? candidate.payload_crypto : null,
+    },
     prepared: actual.prepared,
     directory: actual.directory,
     summary: actual.summary,
@@ -595,7 +599,10 @@ async function reportBackend(captured: object, kind: "wsl" | "hosted") {
         actual.actual.host.projection,
         observation,
       ),
-    readSource: () => readActualHostedNativeSourceDeclarations(actual.actual.candidate_receipt),
+    readSource: () =>
+      "package_receipt" in candidate
+        ? readActualHostedNativePostSignSourceDeclarations(candidate.package_receipt)
+        : readActualHostedNativeSourceDeclarations(actual.actual.candidate_receipt),
     recheck: async () => {
       await requireActualHostedNativeLinuxCapture(captured);
       parent.recheck();
@@ -867,7 +874,9 @@ async function prepareLinuxReport(captured: object, backend: "wsl" | "hosted") {
   };
   const result =
     backend === "hosted"
-      ? reconstructHostedNativeLinuxPreSignReport(prepared, input, source.declaration)
+      ? publication
+        ? reconstructHostedNativeLinuxPostSignReport(prepared, input, source.declaration)
+        : reconstructHostedNativeLinuxPreSignReport(prepared, input, source.declaration)
       : publication
         ? reconstructNativeLinuxPostSignReport(prepared, input, source.declaration)
         : reconstructNativeLinuxPreSignReport(prepared, input, source.declaration);

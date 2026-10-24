@@ -7,8 +7,20 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { createActualHostedNativeParentSource } from "./release-hosted-native-parent.mts";
 import { prepareHostedNativeRuntime } from "./release-hosted-native-runtime.mts";
-import { acquireActualHostedNativeCandidate } from "./release-hosted-native-candidate.mts";
-import { prepareActualHostedNativeLinuxRequest } from "./release-hosted-native-linux-request.mts";
+import {
+  acquireActualHostedNativeCandidate,
+  readActualHostedNativePostSignController,
+  readActualHostedNativePostSignJourney,
+  acquireActualHostedNativePostSignPackage,
+} from "./release-hosted-native-candidate.mts";
+import {
+  acquireActualHostedNativePostSignInputs,
+  verifyActualHostedNativePostSignPayload,
+} from "./release-hosted-native-postsign-inputs.mts";
+import {
+  prepareActualHostedNativeLinuxRequest,
+  prepareActualHostedNativeLinuxPostSignRequest,
+} from "./release-hosted-native-linux-request.mts";
 import { captureActualHostedNativeLinuxInvocation } from "./release-hosted-native-linux-capture.mts";
 import { prepareActualHostedLinuxNativeStageReport } from "./release-native-linux-report.mts";
 import {
@@ -26,7 +38,13 @@ const keys = ["subject", "report", "capture", "bundle"] as const;
 type Proof = Awaited<ReturnType<typeof requireActualHostedLinuxNativeProof>>;
 const pending = new WeakMap<
   object,
-  { proof: object; ready: Buffer; original: Proof; attempted: boolean }
+  {
+    proof: object;
+    ready: Buffer;
+    original: Proof;
+    attempted: boolean;
+    stage: "payload-signing" | "release-publication";
+  }
 >();
 async function retain(file: string, bytes: Buffer) {
   const handle = await open(file, "wx", 0o600);
@@ -63,7 +81,40 @@ export async function prepareActualHostedLinuxPreSignJob(
   const capture = await captureActualHostedNativeLinuxInvocation(request, runtime);
   const report = await prepareActualHostedLinuxNativeStageReport(capture);
   const proof = await signActualHostedLinuxNativeProof(report);
+  return prepareUpload(proof, "payload-signing");
+}
+
+export async function prepareActualHostedLinuxPostSignJob(
+  parentDirectory: string,
+  originalDeadline: number,
+  runtimeInput: { tools: object; executing_entry: string },
+) {
+  const parent = await createActualHostedNativeParentSource(
+    parentDirectory,
+    "linux-x86_64",
+    "release-publication",
+    originalDeadline,
+  );
+  const runtime = await prepareHostedNativeRuntime(
+    runtimeInput.tools,
+    parent,
+    runtimeInput.executing_entry,
+  );
+  const source = await readActualHostedNativePostSignController(parent);
+  const inputs = await acquireActualHostedNativePostSignInputs(source, runtimeInput.tools, runtime);
+  const journey = await readActualHostedNativePostSignJourney(inputs);
+  const candidate = await acquireActualHostedNativePostSignPackage(journey);
+  const payload = await verifyActualHostedNativePostSignPayload(candidate);
+  const request = await prepareActualHostedNativeLinuxPostSignRequest(payload);
+  const capture = await captureActualHostedNativeLinuxInvocation(request, runtime);
+  const report = await prepareActualHostedLinuxNativeStageReport(capture);
+  const proof = await signActualHostedLinuxNativeProof(report);
+  return prepareUpload(proof, "release-publication");
+}
+
+async function prepareUpload(proof: object, stage: "payload-signing" | "release-publication") {
   const original = await requireActualHostedLinuxNativeProof(proof);
+  assert.equal(original.stage, stage);
   const ready = Buffer.from(
     JSON.stringify({
       schema_version: 1,
@@ -83,10 +134,13 @@ export async function prepareActualHostedLinuxPreSignJob(
   // Recheck after publication; a partially completed handoff is never retried.
   await requireActualHostedLinuxNativeProof(proof);
   const receipt = Object.freeze({
-    kind: "original-hosted-linux-pre-sign-upload",
+    kind:
+      stage === "payload-signing"
+        ? "original-hosted-linux-pre-sign-upload"
+        : "original-hosted-linux-post-sign-upload",
     authority: "none",
   });
-  pending.set(receipt, { proof, ready, original, attempted: false });
+  pending.set(receipt, { proof, ready, original, attempted: false, stage });
   return {
     receipt,
     ready_file: path.join(original.directory, "native-upload-ready.json"),
@@ -103,8 +157,18 @@ export async function readBackActualHostedLinuxPreSignUpload(
   receipt: object,
   acknowledgement: unknown,
 ) {
+  return readBackUpload(receipt, acknowledgement, "payload-signing");
+}
+export function readBackActualHostedLinuxPostSignUpload(receipt: object, acknowledgement: unknown) {
+  return readBackUpload(receipt, acknowledgement, "release-publication");
+}
+async function readBackUpload(
+  receipt: object,
+  acknowledgement: unknown,
+  stage: "payload-signing" | "release-publication",
+) {
   const state = pending.get(receipt);
-  if (!state || state.attempted)
+  if (!state || state.attempted || state.stage !== stage)
     throw new Error("original native upload requires explicit recovery");
   state.attempted = true;
   let phase = "acknowledgement";
@@ -147,7 +211,7 @@ export async function readBackActualHostedLinuxPreSignUpload(
           run_id: original.producer.run_id,
           run_attempt: original.producer.run_attempt,
           platform_label: "linux-x86_64",
-          stage: "payload-signing",
+          stage,
         },
         original.directory,
         deadline,
