@@ -315,8 +315,8 @@ resetting an unchanged endpoint incident.
 
 The workflow summary separates fresh, complete routine provider-metadata
 conditions (quiet but retained in JSON) from stale and partial conditions that
-still need evidence. It prioritizes changed conditions, then stale and partial
-history, and includes each visible port/provider/location, applicable release
+still need evidence. It prioritizes changed conditions and unaccounted failures
+before stale and partial acknowledged history, and includes each visible port/provider/location, applicable release
 reference, failed rule and HTTP status, metadata assessment, first and last
 observation clocks, occurrence count, observed time span, collection freshness,
 retry clock and existing resume condition. Occurrences count distinct matching
