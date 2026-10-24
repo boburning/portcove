@@ -3478,7 +3478,7 @@ export class RoadmapClient {
     const root = this.ownerType() === "Organization" ? "organization" : "user";
     const project = nestedGitHubField(
       this.graphql(
-        `query($login: String!, $number: Int!) { ${root}(login: $login) { projectV2(number: $number) { id number title url public closed shortDescription readme } } }`,
+        `query($login: String!, $number: Int!) { ${root}(login: $login) { projectV2(number: $number) { id number title url public closed shortDescription readme } } rateLimit { cost limit remaining resetAt used } }`,
         { login: this.config.owner, number },
       ),
       root,
@@ -3603,7 +3603,9 @@ export class RoadmapClient {
       "id fieldValues(first:25){totalCount nodes{...on ProjectV2ItemFieldSingleSelectValue{name field{...on ProjectV2SingleSelectField{name}}}} pageInfo{hasNextPage endCursor}}";
     const projectItems = `projectItems(first:100){totalCount nodes{${fields} project{id}} pageInfo{hasNextPage endCursor}}`;
     const identity = "id number title url state";
-    const query = `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){issue(number:$number){${identity} body ${projectItems} parent{${identity}} blockedBy(first:100){totalCount nodes{${identity} body ${projectItems}} pageInfo{hasNextPage endCursor}} blocking(first:100){totalCount nodes{${identity}} pageInfo{hasNextPage endCursor}} subIssues(first:100){totalCount nodes{${identity}} pageInfo{hasNextPage endCursor}}}}}`;
+    // Nesting 100 possible blockers' memberships here charges for their declared
+    // fan-out even when the issue has no blockers. Read actual identities first.
+    const query = `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){issue(number:$number){${identity} body ${projectItems} parent{${identity}} blockedBy(first:100){totalCount nodes{${identity} body} pageInfo{hasNextPage endCursor}} blocking(first:100){totalCount nodes{${identity}} pageInfo{hasNextPage endCursor}} subIssues(first:100){totalCount nodes{${identity}} pageInfo{hasNextPage endCursor}}}} rateLimit{cost limit remaining resetAt used}}`;
     const rawIssue = nestedGitHubField(
       this.graphql(query, { owner, name, number }),
       "repository",
@@ -3648,7 +3650,7 @@ export class RoadmapClient {
       )
         return firstNodes;
       const nodes = this.readInventory(
-        `query($id:ID!,$after:String){node(id:$id){...on Issue{${field}(first:100,after:$after){totalCount nodes{${selection}} pageInfo{hasNextPage endCursor}}}}}`,
+        `query($id:ID!,$after:String){node(id:$id){...on Issue{${field}(first:100,after:$after){totalCount nodes{${selection}} pageInfo{hasNextPage endCursor}}}} rateLimit{cost limit remaining resetAt used}}`,
         { id: source.id },
         (data) => nestedGitHubField(data, "node", field),
         (node) => qualificationField(node, "id"),
@@ -3675,15 +3677,53 @@ export class RoadmapClient {
     };
     const selected = projectItem(issue);
     if (!selected) throw new Error("selected issue is not in the configured active Project");
-    const blockedBy = connection(issue.blockedBy, "blockedBy", `${identity} body ${projectItems}`)
-      .map(executionRelationship)
-      .map((node) => {
-        const membership = projectItem(node);
-        const status = fieldValue(membership, "Status") ?? null;
-        if (status !== null && typeof status !== "string")
-          throw new Error("incomplete selected Project status");
-        return { ...node, projectStatus: status, projectItemId: membership?.id ?? null };
-      });
+    const blockers = connection(issue.blockedBy, "blockedBy", `${identity} body`).map(
+      executionRelationship,
+    );
+    const memberships = new Map<string, ExecutionRelationshipNode>();
+    for (let offset = 0; offset < blockers.length; offset += 10) {
+      const batch = blockers.slice(offset, offset + 10);
+      const result = this.graphql(
+        `query($ids:[ID!]!){nodes(ids:$ids){__typename ...on Issue{${identity} body ${projectItems}}} rateLimit{cost limit remaining resetAt used}}`,
+        { ids: batch.map((node) => node.id) },
+      );
+      const nodes = qualificationField(result, "nodes");
+      if (!Array.isArray(nodes) || nodes.length !== batch.length)
+        throw new InventoryError("inventory_incomplete", "Missing direct dependency memberships");
+      const expected = new Map(batch.map((node) => [node.id, node]));
+      for (const value of nodes) {
+        if (
+          !isRecord(value) ||
+          value.__typename !== "Issue" ||
+          typeof value.id !== "string" ||
+          !expected.has(value.id) ||
+          memberships.has(value.id)
+        )
+          throw new InventoryError("inventory_identity", "Invalid direct dependency identity");
+        const before = expected.get(value.id)!;
+        const node = executionRelationship(value);
+        if (
+          node.number !== before.number ||
+          node.url !== before.url ||
+          typeof node.body !== "string"
+        )
+          throw new InventoryError("inventory_identity", "Direct dependency identity differs");
+        if (node.title !== before.title || node.body !== before.body || node.state !== before.state)
+          throw new InventoryError(
+            "inventory_changed",
+            `Direct dependency #${node.number} changed during membership collection`,
+          );
+        memberships.set(value.id, node);
+      }
+    }
+    const blockedBy = blockers.map((before) => {
+      const node = memberships.get(before.id)!;
+      const membership = projectItem(node);
+      const status = fieldValue(membership, "Status") ?? null;
+      if (status !== null && typeof status !== "string")
+        throw new Error("incomplete selected Project status");
+      return { ...node, projectStatus: status, projectItemId: membership?.id ?? null };
+    });
     return {
       item: { ...selected, title: issue.title, content: { ...issue, type: "Issue" } },
       relationships: {
@@ -5508,9 +5548,10 @@ async function main(argv: readonly string[]) {
           kind: "roadmap-doctor",
           status: "failed",
           scope:
-            parsed.options["--issue"] === undefined
+            qualificationField(error, "doctorScope") ??
+            (parsed.options["--issue"] === undefined
               ? { kind: "global" }
-              : { kind: "issues", issues: [Number(parsed.options["--issue"])] },
+              : { kind: "issues", issues: [Number(parsed.options["--issue"])] }),
           coverage: Array.isArray(qualificationField(error, "doctorErrors"))
             ? "complete"
             : "inconclusive",
