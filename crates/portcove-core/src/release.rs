@@ -159,6 +159,58 @@ pub(crate) const PROVIDER_NETWORK_BOUNDS: ProviderNetworkBounds = ProviderNetwor
     request: PROVIDER_REQUEST_TIMEOUT,
 };
 
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ResponseTestPhase {
+    Headers,
+    Body,
+}
+
+#[cfg(test)]
+#[derive(Clone, Debug, Default)]
+struct ResponseTestObservation {
+    headers: Option<Instant>,
+    first_body: Option<Instant>,
+    last_body: Option<Instant>,
+    body_bytes: usize,
+    failed_phase: Option<ResponseTestPhase>,
+    timed_out: bool,
+    failed_at: Option<Instant>,
+}
+
+#[cfg(test)]
+enum ResponseTestEvent {
+    Headers,
+    Body(usize),
+    Failed(ResponseTestPhase, bool),
+}
+
+#[cfg(test)]
+tokio::task_local! {
+    static RESPONSE_TEST_OBSERVATION: std::cell::RefCell<ResponseTestObservation>;
+}
+
+#[cfg(test)]
+fn observe_test_response(event: ResponseTestEvent) {
+    let _ = RESPONSE_TEST_OBSERVATION.try_with(|state| {
+        let mut state = state.borrow_mut();
+        let now = Instant::now();
+        match event {
+            ResponseTestEvent::Headers => state.headers = Some(now),
+            ResponseTestEvent::Body(bytes) => {
+                state.first_body.get_or_insert(now);
+                state.last_body = Some(now);
+                state.body_bytes += bytes;
+            }
+            ResponseTestEvent::Failed(phase, timeout) => {
+                state.failed_phase = Some(phase);
+                state.timed_out = timeout;
+                state.failed_at = Some(now);
+            }
+        }
+    });
+}
+
 impl GithubReleaseProvider {
     pub(crate) fn for_acquisition_scope(scope: &crate::DefinitionAcquisitionScope) -> Result<Self> {
         scope.require_current()?;
@@ -520,7 +572,14 @@ impl GithubReleaseProvider {
         let response = Self::apply_conditional_headers(self.request(url), cached.as_ref())
             .send()
             .await
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
+            .map_err(|error| {
+                #[cfg(test)]
+                observe_test_response(ResponseTestEvent::Failed(
+                    ResponseTestPhase::Headers,
+                    error.is_timeout(),
+                ));
+                PortcoveError::network(error.to_string())
+            })?;
         if response.status() == StatusCode::NOT_MODIFIED {
             let cached = cached
                 .ok_or_else(|| PortcoveError::state("GitHub returned 304 without cached data"))?;
@@ -676,10 +735,14 @@ impl GithubReleaseProvider {
         // retain the provider's library lease across a desktop handoff.
         let request = self.request(&url);
         async move {
-            let response = request
-                .send()
-                .await
-                .map_err(|error| PortcoveError::network(error.to_string()))?;
+            let response = request.send().await.map_err(|error| {
+                #[cfg(test)]
+                observe_test_response(ResponseTestEvent::Failed(
+                    ResponseTestPhase::Headers,
+                    error.is_timeout(),
+                ));
+                PortcoveError::network(error.to_string())
+            })?;
             let status = response.status();
             let rate_limit = rate_limit_from_headers(response.headers());
             if status == StatusCode::UNAUTHORIZED && authenticated {
@@ -1577,6 +1640,8 @@ pub(crate) async fn bounded_response_bytes(
     limit: usize,
     label: &str,
 ) -> Result<Vec<u8>> {
+    #[cfg(test)]
+    observe_test_response(ResponseTestEvent::Headers);
     if response
         .content_length()
         .is_some_and(|length| length > limit as u64)
@@ -1588,13 +1653,24 @@ pub(crate) async fn bounded_response_bytes(
     let mut body = Vec::new();
     let mut stream = response.bytes_stream();
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|error| PortcoveError::network(error.to_string()))?;
+        let chunk = chunk.map_err(|error| {
+            #[cfg(test)]
+            observe_test_response(ResponseTestEvent::Failed(
+                ResponseTestPhase::Body,
+                error.is_timeout(),
+            ));
+            PortcoveError::network(error.to_string())
+        })?;
         if chunk.len() > limit.saturating_sub(body.len()) {
             return Err(PortcoveError::verification(format!(
                 "{label} exceeds the {limit} byte limit"
             )));
         }
         body.extend_from_slice(&chunk);
+        #[cfg(test)]
+        if !chunk.is_empty() {
+            observe_test_response(ResponseTestEvent::Body(chunk.len()));
+        }
     }
     Ok(body)
 }
@@ -1875,41 +1951,191 @@ mod tests {
         }
     }
 
-    fn serve_stalled_response(prefix: &'static [u8], stall: Duration) -> (String, JoinHandle<()>) {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let address = listener.local_addr().unwrap();
-        let server = thread::spawn(move || {
-            let (mut stream, _) = listener.accept().unwrap();
-            let mut request = [0_u8; 4096];
-            let _ = stream.read(&mut request).unwrap();
-            stream.write_all(prefix).unwrap();
-            stream.flush().unwrap();
-            thread::sleep(stall);
-        });
-        (format!("http://{address}"), server)
+    enum DeadlineResponse {
+        HeaderStall,
+        BodyStall,
+        Trickle,
     }
 
-    fn serve_trickling_response() -> (String, JoinHandle<()>) {
+    #[derive(Debug, Default)]
+    struct DeadlineReport {
+        armed: bool,
+        request_received: bool,
+    }
+
+    struct DeadlineServer {
+        start: Option<mpsc::Sender<()>>,
+        release: mpsc::Sender<()>,
+        thread: Option<JoinHandle<std::io::Result<DeadlineReport>>>,
+    }
+
+    impl DeadlineServer {
+        fn start(&mut self) {
+            self.start.take().unwrap().send(()).unwrap();
+        }
+
+        fn finish(mut self) -> std::io::Result<DeadlineReport> {
+            self.start.take();
+            let _ = self.release.send(());
+            self.thread
+                .take()
+                .unwrap()
+                .join()
+                .map_err(|_| std::io::Error::other("deadline fixture thread panicked"))?
+        }
+    }
+
+    impl Drop for DeadlineServer {
+        fn drop(&mut self) {
+            self.start.take();
+            let _ = self.release.send(());
+            if let Some(thread) = self.thread.take() {
+                // Preserve an earlier assertion/panic while still draining the
+                // finite accept/read/write/stall fixture.
+                let _ = thread.join();
+            }
+        }
+    }
+
+    fn bound_deadline_socket(
+        stream: &std::net::TcpStream,
+        deadline: Instant,
+    ) -> std::io::Result<()> {
+        let remaining = deadline
+            .checked_duration_since(Instant::now())
+            .filter(|remaining| !remaining.is_zero())
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    "deadline fixture exhausted its socket budget",
+                )
+            })?;
+        stream.set_read_timeout(Some(remaining))?;
+        stream.set_write_timeout(Some(remaining))
+    }
+
+    fn serve_deadline_response(mode: DeadlineResponse) -> (String, DeadlineServer) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let (start, started) = mpsc::channel();
+        let (release, released) = mpsc::channel();
         let server = thread::spawn(move || {
-            let (mut stream, _) = listener.accept().unwrap();
-            let mut request = [0_u8; 4096];
-            let _ = stream.read(&mut request).unwrap();
-            stream
-                .write_all(
-                    b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n",
-                )
-                .unwrap();
-            for _ in 0..30 {
-                if stream.write_all(b" ").is_err() {
-                    break;
-                }
-                let _ = stream.flush();
-                thread::sleep(Duration::from_millis(30));
+            // Client construction can inspect system trust/proxy state. Its
+            // setup time must not consume this fixture's request-phase budget.
+            if started.recv_timeout(Duration::from_secs(30)).is_err() {
+                return Ok(DeadlineReport::default());
             }
+            let deadline = Instant::now() + Duration::from_secs(2);
+            let mut stream = loop {
+                if released.try_recv().is_ok() || Instant::now() >= deadline {
+                    return Ok(DeadlineReport {
+                        armed: true,
+                        request_received: false,
+                    });
+                }
+                match listener.accept() {
+                    Ok((stream, _)) => break stream,
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(1));
+                    }
+                    Err(error) => return Err(error),
+                }
+            };
+            stream.set_nonblocking(false)?;
+            let mut request = [0_u8; 4096];
+            let mut length = 0;
+            while !request[..length].ends_with(b"\r\n\r\n") {
+                if length == request.len() {
+                    return Err(std::io::Error::other(
+                        "deadline fixture request exceeded 4096 bytes",
+                    ));
+                }
+                bound_deadline_socket(&stream, deadline)?;
+                let read = stream.read(&mut request[length..])?;
+                if read == 0 {
+                    return Err(std::io::Error::other(
+                        "deadline fixture request ended before headers",
+                    ));
+                }
+                length += read;
+            }
+            let report = DeadlineReport {
+                armed: true,
+                request_received: true,
+            };
+            if !matches!(mode, DeadlineResponse::HeaderStall) {
+                bound_deadline_socket(&stream, deadline)?;
+                stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n")?;
+                bound_deadline_socket(&stream, deadline)?;
+                stream.write_all(b"{")?;
+                stream.flush()?;
+            }
+            if matches!(mode, DeadlineResponse::Trickle) {
+                for _ in 0..30 {
+                    let wait = deadline
+                        .saturating_duration_since(Instant::now())
+                        .min(Duration::from_millis(10));
+                    if wait.is_zero()
+                        || released.recv_timeout(wait).is_ok()
+                        || Instant::now() >= deadline
+                    {
+                        break;
+                    }
+                    bound_deadline_socket(&stream, deadline)?;
+                    if stream
+                        .write_all(b" ")
+                        .and_then(|()| stream.flush())
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+            } else {
+                let wait = deadline
+                    .saturating_duration_since(Instant::now())
+                    .min(Duration::from_millis(600));
+                if !wait.is_zero() {
+                    let _ = released.recv_timeout(wait);
+                }
+            }
+            Ok(report)
         });
-        (format!("http://{address}"), server)
+        (
+            format!("http://{address}"),
+            DeadlineServer {
+                start: Some(start),
+                release,
+                thread: Some(server),
+            },
+        )
+    }
+
+    async fn observe_response<T>(
+        future: impl std::future::Future<Output = Result<T>>,
+    ) -> (Result<T>, ResponseTestObservation) {
+        RESPONSE_TEST_OBSERVATION
+            .scope(std::cell::RefCell::default(), async {
+                let result = future.await;
+                let observation = RESPONSE_TEST_OBSERVATION.with(|state| state.borrow().clone());
+                (result, observation)
+            })
+            .await
+    }
+
+    #[test]
+    fn deadline_fixture_can_stop_before_or_after_arming_without_a_client() {
+        for armed in [false, true] {
+            let (_, mut server) = serve_deadline_response(DeadlineResponse::HeaderStall);
+            if armed {
+                server.start();
+            }
+            let started = Instant::now();
+            let report = server.finish().unwrap();
+            assert_eq!(report.armed, armed);
+            assert!(!report.request_received);
+            assert!(started.elapsed() < Duration::from_millis(500));
+        }
     }
 
     #[test]
@@ -2115,31 +2341,114 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn metadata_and_auth_requests_enforce_idle_and_overall_bounds() {
-        let (metadata_root, metadata_server) = serve_trickling_response();
-        let provider = GithubReleaseProvider::with_api_root_and_bounds(
-            metadata_root.clone(),
-            short_network_bounds(),
-        )
-        .unwrap();
-        let started = Instant::now();
-        let error = provider
-            .get_json::<serde_json::Value>(&format!("{metadata_root}/metadata"))
-            .await
-            .unwrap_err();
-        assert_eq!(error.code, crate::ErrorCode::Network);
-        assert!(started.elapsed() < Duration::from_millis(500));
-        metadata_server.join().unwrap();
-
-        let (auth_root, auth_server) = serve_stalled_response(b"", Duration::from_millis(600));
+    async fn metadata_body_progress_exhausts_the_overall_request_bound() {
+        let (metadata_root, mut metadata_server) =
+            serve_deadline_response(DeadlineResponse::Trickle);
+        let bounds = short_network_bounds();
         let provider =
-            GithubReleaseProvider::with_api_root_and_bounds(auth_root, short_network_bounds())
-                .unwrap();
+            GithubReleaseProvider::with_api_root_and_bounds(metadata_root.clone(), bounds).unwrap();
+        metadata_server.start();
         let started = Instant::now();
-        let error = provider.auth_status().await.unwrap_err();
+        let (result, observed) = observe_response(
+            provider.get_json::<serde_json::Value>(&format!("{metadata_root}/metadata")),
+        )
+        .await;
+        let elapsed = started.elapsed();
+        let server = metadata_server.finish();
+        eprintln!("metadata deadline: {elapsed:?}; observation={observed:?}; fixture={server:?}");
+        let error = result.unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Network);
-        assert!(started.elapsed() < Duration::from_millis(500));
-        auth_server.join().unwrap();
+        assert!(elapsed < Duration::from_millis(500));
+        let server = server.unwrap();
+        assert!(server.armed && server.request_received);
+        assert!(observed.headers.is_some(), "{observed:?}");
+        assert!(observed.body_bytes >= 3, "{observed:?}");
+        assert_eq!(observed.failed_phase, Some(ResponseTestPhase::Body));
+        assert!(observed.timed_out);
+        assert!(
+            observed
+                .last_body
+                .unwrap()
+                .duration_since(observed.first_body.unwrap())
+                >= bounds.read_idle * 2,
+            "{observed:?}"
+        );
+        assert!(
+            observed
+                .failed_at
+                .unwrap()
+                .duration_since(observed.last_body.unwrap())
+                < bounds.read_idle / 2,
+            "recent body progress must exclude read-idle exhaustion: {observed:?}"
+        );
+        assert!(
+            elapsed >= bounds.request.saturating_sub(Duration::from_millis(10)),
+            "{elapsed:?}; {observed:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn authenticated_status_partial_body_exhausts_the_read_idle_bound() {
+        let (auth_root, mut auth_server) = serve_deadline_response(DeadlineResponse::BodyStall);
+        let bounds = short_network_bounds();
+        let provider = GithubReleaseProvider::with_api_root_and_bounds(auth_root, bounds).unwrap();
+        provider.set_credential(
+            Some("fixed-phase-fixture-token".into()),
+            GithubAuthSource::CredentialStore,
+        );
+        auth_server.start();
+        let started = Instant::now();
+        let (result, observed) = observe_response(provider.auth_status()).await;
+        let elapsed = started.elapsed();
+        let server = auth_server.finish();
+        eprintln!(
+            "authenticated body deadline: {elapsed:?}; observation={observed:?}; fixture={server:?}"
+        );
+        let error = result.unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Network);
+        assert!(elapsed < Duration::from_millis(500));
+        let server = server.unwrap();
+        assert!(server.armed && server.request_received);
+        assert!(observed.headers.is_some(), "{observed:?}");
+        assert_eq!(observed.body_bytes, 1, "{observed:?}");
+        assert_eq!(observed.failed_phase, Some(ResponseTestPhase::Body));
+        assert!(observed.timed_out);
+        assert!(
+            observed
+                .failed_at
+                .unwrap()
+                .duration_since(observed.last_body.unwrap())
+                >= bounds.read_idle / 2,
+            "{observed:?}"
+        );
+        assert!(
+            elapsed < bounds.request,
+            "idle timeout must precede total deadline: {elapsed:?}; {observed:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn authentication_request_reaches_server_before_header_idle_timeout() {
+        let (auth_root, mut auth_server) = serve_deadline_response(DeadlineResponse::HeaderStall);
+        let bounds = short_network_bounds();
+        let provider = GithubReleaseProvider::with_api_root_and_bounds(auth_root, bounds).unwrap();
+        auth_server.start();
+        let started = Instant::now();
+        let (result, observed) = observe_response(provider.auth_status()).await;
+        let elapsed = started.elapsed();
+        let server = auth_server.finish();
+        eprintln!(
+            "authentication header deadline: {elapsed:?}; observation={observed:?}; fixture={server:?}"
+        );
+        assert_eq!(result.unwrap_err().code, crate::ErrorCode::Network);
+        assert!(elapsed < Duration::from_millis(500));
+        let server = server.unwrap();
+        assert!(server.armed && server.request_received);
+        assert!(observed.headers.is_none(), "{observed:?}");
+        assert_eq!(observed.body_bytes, 0);
+        assert_eq!(observed.failed_phase, Some(ResponseTestPhase::Headers));
+        assert!(observed.timed_out);
+        assert!(elapsed < bounds.request, "{elapsed:?}; {observed:?}");
     }
 
     #[tokio::test]
