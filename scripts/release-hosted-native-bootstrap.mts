@@ -193,6 +193,22 @@ export async function launchFixedHostedLinuxNativeJob(rawOperation: unknown) {
     // This is a local sequencing hint only. The original post-sign producer
     // independently authenticates coordinator/source/predecessor evidence.
   }
+  const needs = data(environment.PORTCOVE_FIXED_NEEDS, 256 * 1024);
+  assert.ok(isRecord(needs));
+  const bootstrap = needs.tool_bootstrap,
+    attest = needs.tool_attest;
+  assert.ok(isRecord(bootstrap) && bootstrap.result === "success" && isRecord(bootstrap.outputs));
+  assert.ok(isRecord(attest) && attest.result === "success" && isRecord(attest.outputs));
+  const artifact = {
+    ...identity,
+    source_tree: hex(bootstrap.outputs.source_tree, 40),
+    artifact_id: positive(bootstrap.outputs.artifact_id),
+    sha256: hex(bootstrap.outputs.artifact_sha256),
+  };
+  const bundle = {
+    artifact_id: positive(attest.outputs.bundle_artifact_id),
+    sha256: hex(attest.outputs.bundle_artifact_sha256),
+  };
   active();
   const root = path.join(temporary, `portcove-native-linux-${operation}`);
   await mkdir(root, { mode: 0o700 });

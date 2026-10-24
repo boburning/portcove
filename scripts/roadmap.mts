@@ -4947,7 +4947,6 @@ function roadmapLockPath() {
 type DoctorClient = Pick<
   RoadmapClient,
   | "config"
-  | "gh"
   | "completeProjectContext"
   | "viewList"
   | "projectAudit"
@@ -4957,14 +4956,9 @@ type DoctorClient = Pick<
 function isDoctorClient(client: unknown): client is DoctorClient {
   return (
     isRecord(client) &&
-    [
-      "gh",
-      "completeProjectContext",
-      "viewList",
-      "projectAudit",
-      "itemList",
-      "repositoryIssues",
-    ].every((name) => typeof client[name] === "function")
+    ["completeProjectContext", "viewList", "projectAudit", "itemList", "repositoryIssues"].every(
+      (name) => typeof client[name] === "function",
+    )
   );
 }
 type LoadedQualificationCatalog = QualificationCatalogObservation & {
@@ -5217,7 +5211,6 @@ export async function runDoctor(
     throw new Error("Roadmap doctor client capabilities are unavailable");
   const client = clientInput;
   const log = quiet ? () => {} : console.log;
-  client.gh(["auth", "status"]);
   const number = config.project.number;
   const inventory = suppliedInventory
     ? requireRoadmapInventory(suppliedInventory, config.repository, clientInput)

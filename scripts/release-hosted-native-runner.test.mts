@@ -128,7 +128,7 @@ for (const actualCustody of [false, true])
         t,
         path.join(actualCustody ? os.homedir() : os.tmpdir(), ".native-source-bootstrap-"),
       );
-      const fixedNode = actualCustody ? path.join(root, "node") : process.execPath;
+      const fixedNode = actualCustody ? path.join(root, "bootstrap-node") : process.execPath;
       if (actualCustody) {
         copyFileSync(process.execPath, fixedNode);
         chmodSync(fixedNode, 0o700);

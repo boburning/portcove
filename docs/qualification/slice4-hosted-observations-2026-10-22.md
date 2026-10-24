@@ -662,6 +662,12 @@ custody inspector and a private copied Node; source, artifact and worker authori
 remain controlled. Its hosted result is recorded on the delivery receipt. This
 does not establish actual producer, native or protected acceptance.
 
+Initial CI 40136707823/1's Linux contract lane and hosted fixture 40136707962/1
+reached the real custody cases, then failed with `EEXIST` because the copied `node`
+file collided with the `node` negative-test directory. The retained failure is a
+test-namespace defect. The copy now uses
+`bootstrap-node`; no custody assertion, product behavior or budget was relaxed.
+
 The held workflow/composite launcher still needs to supply a protected private
 Node and temporary tree automatically; shared-writable setup-node/cache/temp
 ancestry correctly refuses. No administrator or owner-host step is requested.

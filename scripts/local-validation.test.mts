@@ -49,6 +49,64 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 
 const allFilesExist = () => true;
 
+void test("workflow contract families preserve surviving consumers across direct, missing and renamed inputs", () => {
+  const contracts = [
+    "scripts/ci-workflow.test.mts",
+    "scripts/ci-frontend-workflow.test.mts",
+    "scripts/ci-native-workflow.test.mts",
+    "scripts/ci-release-workflow.test.mts",
+    "scripts/ci-rust-workflow.test.mts",
+    "scripts/native-backup-evidence.test.mts",
+    "scripts/rust-toolchain-reader.test.mts",
+    "scripts/windows-rust-tests.test.mts",
+  ];
+  const formerCompanions = [
+    "scripts/check-catalog-repositories.test.mts",
+    "scripts/check-retcomm-upstreams.test.mts",
+    "scripts/deep-audit-summary.test.mts",
+  ];
+  for (const input of [
+    ...contracts,
+    "scripts/ci-workflow-fixture.mts",
+    "scripts/windows-rust-tests.mts",
+    "scripts/node-test-suites.json",
+    ".github/workflows/ci.yml",
+    ".github/actions/setup-rust/read-toolchain.ps1",
+  ]) {
+    for (const change of [
+      { status: "M", path: input },
+      { status: "A", path: input },
+      { status: "D", path: input },
+      { status: "R100", previousPath: input, path: "docs/moved-contract.md" },
+      { status: "R100", previousPath: "docs/moved-contract.md", path: input },
+    ]) {
+      const removed = change.status === "D" ? change.path : change.previousPath;
+      // No sibling fallback can hide a missing explicit ownership route.
+      const selection = classifyChanges([change], { fileExists: () => false });
+      for (const expected of [...contracts, ...formerCompanions]) {
+        if (expected === removed && contracts.includes(expected))
+          assert.equal(selection.nodeTests.has(expected), false, JSON.stringify(change));
+        else assert.ok(selection.nodeTests.has(expected), `${JSON.stringify(change)}:${expected}`);
+      }
+    }
+  }
+  const mixed = classifyChanges(
+    [
+      { status: "M", path: "scripts/ci-workflow-fixture.mts" },
+      { status: "R100", previousPath: "scripts/windows-rust-tests.mts", path: "docs/moved.md" },
+      { status: "M", path: "apps/desktop/src/App.tsx" },
+    ],
+    { fileExists: allFilesExist },
+  );
+  assert.equal(mixed.ui, true);
+  for (const file of contracts) assert.ok(mixed.nodeTests.has(file));
+  const unrelated = classifyChanges([{ status: "M", path: "docs/unrelated-guide.md" }]);
+  assert.equal(
+    contracts.some((file) => unrelated.nodeTests.has(file)),
+    false,
+  );
+});
+
 void test("required Node execution and diagnostic edits retain their affected caller contracts", () => {
   const required = "scripts/required-node-test-reporter.test.mts";
   for (const [helper, consumers] of [
@@ -1659,10 +1717,17 @@ void test("retired GitHub policy JSON remains owned without a file-specific tomb
   assert.deepEqual([...selection.nodeTests].sort(), [
     "scripts/check-catalog-repositories.test.mts",
     "scripts/check-retcomm-upstreams.test.mts",
+    "scripts/ci-frontend-workflow.test.mts",
+    "scripts/ci-native-workflow.test.mts",
+    "scripts/ci-release-workflow.test.mts",
+    "scripts/ci-rust-workflow.test.mts",
     "scripts/ci-workflow.test.mts",
     "scripts/deep-audit-summary.test.mts",
+    "scripts/native-backup-evidence.test.mts",
     "scripts/repository-settings.test.mts",
+    "scripts/rust-toolchain-reader.test.mts",
     "scripts/validation-plan.test.mts",
+    "scripts/windows-rust-tests.test.mts",
   ]);
 });
 

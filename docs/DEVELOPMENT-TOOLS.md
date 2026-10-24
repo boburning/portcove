@@ -1976,6 +1976,15 @@ Flags, file order, storage wrappers, native prerequisites and platform ownership
 remain explicit in those actual consumers. Dynamic diff-selected `ci-baseline` routes retain their separate
 routing contracts; registry membership is not execution evidence.
 
+Workflow contracts are grouped by responsibility: `ci-workflow.test.mts` retains
+the shared integration gates; `ci-{frontend,native,release,rust}-workflow.test.mts`
+owns the corresponding workflow policy. Pure Windows archive/partition contracts,
+retained native-backup bytes and real toolchain-reader controls live beside their
+owning modules. `ci-workflow-fixture.mts` only loads read-only source fixtures and
+registers no tests. Existing integration consumers select every companion;
+declared removals and renames retain the surviving contracts. Python setup follows
+the Rust policy suite that actually invokes it, including declared test renames.
+
 The optional Vite+ pre-commit hook checks the staged registry and executable
 consumers together when relevant tests or inventory inputs are staged. It uses
 the same assertion as CI: each indexed root test needs a qualification consumer
