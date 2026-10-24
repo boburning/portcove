@@ -136,6 +136,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
         },
         Commands::Setup { command } => match command {
             crate::setup::SetupCommand::Candidates { .. }
+            | crate::setup::SetupCommand::Targets { .. }
             | crate::setup::SetupCommand::Preview { .. }
             | crate::setup::SetupCommand::Pending => ReadOnly,
             crate::setup::SetupCommand::Download { .. }

@@ -276,13 +276,16 @@ export type BackupProblemKind =
   | "recovery_required";
 export type BackupInventoryState = "healthy" | "degraded" | "recovery_required";
 export type AdapterKind =
-  | "libultraship-portable"
-  | "n64-recomp-portable"
-  | "staged-source-portable"
-  | "referenced-disc"
-  | "generated-cache"
-  | "upstream-managed-setup"
-  | "psx-recomp-managed";
+  | (
+      | "libultraship-portable"
+      | "n64-recomp-portable"
+      | "staged-source-portable"
+      | "referenced-disc"
+      | "generated-cache"
+      | "upstream-managed-setup"
+      | "psx-recomp-managed"
+    )
+  | "native-portable";
 /**
  * Closed initialization recipes, never catalog-supplied scripts or file contents.
  */
@@ -721,6 +724,7 @@ export interface TransportOutputs {
   retained_build_reference: RetainedBuildReference;
   retained_build_removal_preview: OutputRetainedBuildRemovalPreview;
   retained_build_resolution: RetainedBuildResolution;
+  setup_launch_targets: OutputSetupLaunchTargets;
   signed_catalog_envelope: OutputSignedCatalogEnvelope;
   signed_catalog_payload: OutputSignedCatalogPayload;
   source: SourceRecord;
@@ -773,6 +777,7 @@ export interface TransportOutputs {
   desktop_pending_setup_record: PendingSetupRecord;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
+  desktop_setup_launch_targets: OutputSetupLaunchTargets;
   desktop_source_verification_outcome: OutputSourceBatchOutcome;
   desktop_steam_batch_review: OutputDesktopSteamBatchReview;
   desktop_steam_entry_apply_result: OutputDesktopSteamEntryApplyResult;
@@ -1716,8 +1721,13 @@ export interface OutputCatalogDownloadCandidates {
    */
   coverage: CatalogDownloadCoverage | null;
   default_destination_parent: string | null;
+  packages: CatalogPackageAssessment[];
   port_id: string;
   reason: string | null;
+  recommendation_reason: string;
+  recommended_asset_id: number | null;
+  releases: CatalogDownloadRelease[];
+  selected_release_id: number | null;
   upstream_url: string;
   [k: string]: unknown;
 }
@@ -1748,6 +1758,19 @@ export interface CatalogDownloadCoverage {
    * Published releases whose dedicated asset inventory was fully inspected.
    */
   releases_checked: number;
+  [k: string]: unknown;
+}
+export interface CatalogPackageAssessment {
+  asset_id: number;
+  reason: string;
+  suitability: string;
+  [k: string]: unknown;
+}
+export interface CatalogDownloadRelease {
+  assets_complete: boolean;
+  id: number;
+  preview: boolean;
+  tag: string;
   [k: string]: unknown;
 }
 export interface OutputCatalogDownloadPreview {
@@ -2881,6 +2904,23 @@ export interface RetainedBuildResolution {
 export interface OutputRetainedBuildRemovalPreview {
   preview_sha256: string;
   reference: RetainedBuildReference;
+  [k: string]: unknown;
+}
+export interface OutputSetupLaunchTargets {
+  candidates: SetupLaunchTarget[];
+  complete: boolean;
+  entries_checked: number;
+  explanation: string;
+  pending_id: string;
+  port_id: string;
+  recommended_executable: string | null;
+  [k: string]: unknown;
+}
+export interface SetupLaunchTarget {
+  executable: string;
+  reason: string;
+  supporting_program: boolean;
+  working_directory: string;
   [k: string]: unknown;
 }
 export interface OutputSignedCatalogEnvelope {

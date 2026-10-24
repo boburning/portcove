@@ -200,25 +200,25 @@ async fn bounded_discovery_does_not_claim_no_assets_when_older_releases_are_unch
         .unwrap()
         .insert(11, vec![older_asset]);
 
-    let (candidates, coverage) = github
+    let (candidates, coverage, _, _) = github
         .provider
-        .catalog_release_candidates("owner/game")
+        .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None)
         .await
         .unwrap();
     assert!(candidates.is_empty());
-    assert_eq!(coverage.releases_checked, 10);
+    assert_eq!(coverage.releases_checked, 1);
     assert!(!coverage.release_history_complete);
     assert!(coverage.candidates_complete);
     let reason = coverage.reason(true).unwrap();
     assert!(reason.contains("in the recent releases checked here"));
     assert!(reason.contains("Older downloads may be available"));
-    // One release page and ten complete empty inventories. The older package
+    // One release page and the selected complete empty inventory. The older package
     // remains outside the bounded query, not asserted absent.
-    assert_eq!(github.requests.load(Ordering::SeqCst), 11);
+    assert_eq!(github.requests.load(Ordering::SeqCst), 2);
 }
 
 #[tokio::test]
-async fn aggregate_candidate_limit_is_disclosed_without_discarding_valid_choices() {
+async fn selection_inspects_one_release_instead_of_combining_packages_across_history() {
     let github = GithubFixture::new(archive(), None, None);
     let asset = github.assets.lock().unwrap()[0].clone();
     *github.assets.lock().unwrap() = (1..=75)
@@ -233,23 +233,18 @@ async fn aggregate_candidate_limit_is_disclosed_without_discarding_valid_choices
         .map(|id| json!({"id":id,"tag_name":format!("v{id}"),"draft":false,"prerelease":false,"published_at":null,"assets":[]}))
         .collect();
 
-    let (candidates, coverage) = github
+    let (candidates, coverage, _, _) = github
         .provider
-        .catalog_release_candidates("owner/game")
+        .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None)
         .await
         .unwrap();
-    assert_eq!(candidates.len(), 200);
-    assert_eq!(coverage.releases_checked, 3);
+    assert_eq!(candidates.len(), 75);
+    assert_eq!(coverage.releases_checked, 1);
     assert!(coverage.release_history_complete);
-    assert!(!coverage.candidates_complete);
-    assert!(
-        coverage
-            .reason(false)
-            .unwrap()
-            .contains("at most 200 files")
-    );
-    assert_eq!(candidates.last().unwrap().release_id, 9);
-    assert_eq!(github.requests.load(Ordering::SeqCst), 4);
+    assert!(coverage.candidates_complete);
+    assert!(coverage.reason(false).is_none());
+    assert_eq!(candidates.last().unwrap().release_id, 7);
+    assert_eq!(github.requests.load(Ordering::SeqCst), 2);
 }
 
 #[tokio::test]
@@ -267,7 +262,7 @@ async fn discovery_completeness_requires_the_end_of_each_selected_asset_inventor
             .collect();
         let result = github
             .provider
-            .catalog_release_candidates("owner/game")
+            .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None)
             .await;
         if count > 200 {
             assert!(
@@ -277,7 +272,7 @@ async fn discovery_completeness_requires_the_end_of_each_selected_asset_inventor
                     .contains("complete 200-asset inventory bound")
             );
         } else {
-            let (candidates, coverage) = result.unwrap();
+            let (candidates, coverage, _, _) = result.unwrap();
             assert_eq!(candidates.len(), count);
             assert_eq!(coverage.releases_checked, 1);
             assert!(coverage.release_history_complete);

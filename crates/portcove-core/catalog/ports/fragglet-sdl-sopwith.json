@@ -3,10 +3,9 @@
   "listing": {
     "id": "fragglet-sdl-sopwith",
     "name": "SDL Sopwith",
-    "summary": "SDL Sopwith offers upstream packages for Sopwith. Follow upstream setup before registering your executable.",
+    "summary": "Fly SDL Sopwith's biplane through classic aerial combat.",
     "project_url": "https://github.com/fragglet/sdl-sopwith",
     "issue_number": 1879,
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/fragglet/sdl-sopwith/blob/sdl-sopwith-2.9.0/README.md",
     "original_game_title": "Sopwith",
@@ -14,16 +13,16 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Get the upstream package",
-          "instruction": "Choose the release and package for your computer. Download and extract a portable archive, or use the upstream installer yourself."
+          "title": "Install or keep your existing copy",
+          "instruction": "Choose Install for a portable runtime maintained by Portcove. Installation options also let you keep an existing copy or download an upstream package to a folder you own."
         },
         {
           "title": "Complete upstream setup",
           "instruction": "Extract the game package and follow the included instructions. This upstream package does not require a separate commercial game installation."
         },
         {
-          "title": "Select your executable",
-          "instruction": "After setup, choose the native game executable or upstream launcher and its working directory. Updates remain with you or the upstream launcher."
+          "title": "Launch and keep up to date",
+          "instruction": "Launch explicitly after installation. Portcove updates its managed portable runtime. If you register an existing copy instead, choose its executable and keep its current update workflow."
         }
       ],
       "warnings": ["This project has not been verified for play through Portcove."],
@@ -36,6 +35,28 @@
       "image_sha256": "4308b7dc47bea686b498f8e5788fcf5e7230177e982bd6d3e2e17f4e325d7587",
       "game_slug": "sopwith",
       "match_kind": "underlying-game"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "fragglet/sdl-sopwith",
+      "asset_hints": {
+        "windows-x86-64": ["win64", ".zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["sopwith.exe"]
+    },
+    "persistent_paths": ["sopwith.cfg", "hiscores.txt"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "No original game data is required. Portcove installs and updates the portable runtime. SDL Sopwith normally stores settings and high scores in its upstream preference folder, outside Portcove backups. Declared in-folder fallback files are preserved. Runtime rollback does not roll back those settings."
     }
   }
 }

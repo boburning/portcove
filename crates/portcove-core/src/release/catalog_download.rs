@@ -65,6 +65,114 @@ fn valid_download_origin(url: &reqwest::Url) -> bool {
 }
 
 impl GithubReleaseProvider {
+    pub(crate) async fn catalog_download_options(
+        &self,
+        repository: &str,
+        selected_id: Option<u64>,
+        channel: ReleaseChannel,
+        rolling_tag: Option<&str>,
+    ) -> Result<(
+        Vec<CatalogDownloadCandidate>,
+        CatalogDownloadCoverage,
+        Vec<crate::CatalogDownloadRelease>,
+        Option<u64>,
+    )> {
+        let url = paginated_url(
+            &format!("{}/repos/{repository}", self.api_root),
+            "releases",
+            1,
+            RELEASE_LIMIT,
+        )?;
+        let mut releases: Vec<GithubRelease> = self.get_json(&url).await?;
+        if releases.len() > RELEASE_LIMIT {
+            return Err(PortcoveError::verification(
+                "upstream release listing exceeds its bound",
+            ));
+        }
+        let history_complete = releases.len() < RELEASE_LIMIT;
+        if let Some(id) = selected_id {
+            if id == 0 {
+                return Err(PortcoveError::usage("release ID must be nonzero"));
+            }
+            if !releases.iter().any(|release| release.id == Some(id)) {
+                let release: GithubRelease = self
+                    .get_json(&format!(
+                        "{}/repos/{repository}/releases/{id}",
+                        self.api_root
+                    ))
+                    .await?;
+                if release.id != Some(id) || release.draft {
+                    return Err(PortcoveError::verification(
+                        "selected release is not published",
+                    ));
+                }
+                releases.push(release);
+            }
+        }
+        let mut ids = std::collections::BTreeSet::new();
+        for release in &releases {
+            if release.id.is_none_or(|id| id == 0 || !ids.insert(id))
+                || release.tag_name.len() > 512
+                || release.tag_name.chars().any(char::is_control)
+            {
+                return Err(PortcoveError::verification(
+                    "invalid or repeated release identity",
+                ));
+            }
+        }
+        let selected = if let Some(id) = selected_id {
+            releases
+                .iter()
+                .find(|release| !release.draft && release.id == Some(id))
+        } else {
+            select_channel_candidate(
+                &releases,
+                channel,
+                rolling_tag,
+                |release| !release.draft,
+                is_beta_release,
+                |release| release.tag_name.as_str(),
+            )
+        };
+        let selected_id = selected.and_then(|release| release.id);
+        let mut candidates = Vec::new();
+        if let Some(release) = selected {
+            let assets = self
+                .catalog_release_assets(repository, release.id.unwrap())
+                .await?;
+            let mut ids = std::collections::BTreeSet::new();
+            for asset in &assets {
+                let candidate = self.catalog_candidate(repository, release, asset)?;
+                if !ids.insert(candidate.asset_id) {
+                    return Err(PortcoveError::verification("release repeats an asset ID"));
+                }
+                candidates.push(candidate);
+            }
+        }
+        let summaries = releases
+            .iter()
+            .filter(|release| !release.draft)
+            .map(|release| crate::CatalogDownloadRelease {
+                id: release.id.unwrap(),
+                tag: release.tag_name.clone(),
+                preview: is_beta_release(release),
+                assets_complete: release.id == selected_id,
+            })
+            .collect();
+        Ok((
+            candidates,
+            CatalogDownloadCoverage {
+                release_limit: RELEASE_LIMIT,
+                candidate_limit: ASSET_LIMIT,
+                releases_checked: usize::from(selected_id.is_some()),
+                release_history_complete: history_complete,
+                candidates_complete: true,
+            },
+            summaries,
+            selected_id,
+        ))
+    }
+
     pub(crate) fn catalog_download_client(&self) -> Result<reqwest::Client> {
         #[cfg(test)]
         let fixture_origin = self.api_root.clone();
@@ -176,55 +284,6 @@ impl GithubReleaseProvider {
                 || lower.ends_with(".tar.gz")
                 || lower.ends_with(".tgz"),
         })
-    }
-
-    pub(crate) async fn catalog_release_candidates(
-        &self,
-        repository: &str,
-    ) -> Result<(Vec<CatalogDownloadCandidate>, CatalogDownloadCoverage)> {
-        let url = paginated_url(
-            &format!("{}/repos/{repository}", self.api_root),
-            "releases",
-            1,
-            RELEASE_LIMIT,
-        )?;
-        let releases: Vec<GithubRelease> = self.get_json(&url).await?;
-        if releases.len() > RELEASE_LIMIT {
-            return Err(PortcoveError::verification(
-                "upstream release listing exceeds its bound",
-            ));
-        }
-        let mut candidates = Vec::new();
-        let mut coverage = CatalogDownloadCoverage {
-            release_limit: RELEASE_LIMIT,
-            candidate_limit: ASSET_LIMIT,
-            releases_checked: 0,
-            // A full first page cannot establish whether older releases exist.
-            // Keep this explicit instead of fetching an unbounded history.
-            release_history_complete: releases.len() < RELEASE_LIMIT,
-            candidates_complete: true,
-        };
-        for release in releases.iter().filter(|release| !release.draft) {
-            if candidates.len() == ASSET_LIMIT {
-                coverage.candidates_complete = false;
-                break;
-            }
-            let release_id = release
-                .id
-                .filter(|id| *id > 0)
-                .ok_or_else(|| PortcoveError::verification("release has no stable ID"))?;
-            let assets = self.catalog_release_assets(repository, release_id).await?;
-            coverage.releases_checked += 1;
-            let remaining = ASSET_LIMIT - candidates.len();
-            coverage.candidates_complete = assets.len() <= remaining;
-            for asset in assets.iter().take(remaining) {
-                candidates.push(self.catalog_candidate(repository, release, asset)?);
-            }
-            if !coverage.candidates_complete {
-                break;
-            }
-        }
-        Ok((candidates, coverage))
     }
 
     async fn catalog_release_assets(

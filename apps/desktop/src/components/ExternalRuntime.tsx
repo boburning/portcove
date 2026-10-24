@@ -1,7 +1,7 @@
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { FolderOpen } from "lucide-react";
 import { gameIdentityLabel } from "../port-identity";
-import { useId, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import {
   catalogSetupPresentation,
@@ -9,6 +9,7 @@ import {
 } from "../features/port-actions/port-action-presentation";
 import { pickInstallFolder, pickHostToolExecutable } from "../file-picker";
 import { LatestRequestGeneration } from "../shared/concurrency-state";
+import { ChoiceSelect } from "./ChoiceSelect";
 import type {
   ExternalRuntimePreview,
   PortDefinition,
@@ -285,6 +286,52 @@ function UserSelectedRuntimeEditor({
   const [selected, setSelected] = useState<SelectedLaunch>();
   const [removing, setRemoving] = useState(false);
   const [pickerError, setPickerError] = useState<unknown>();
+  const [suggestions, setSuggestions] = useState<import("../types").SetupLaunchTargets>();
+  const [scanning, setScanning] = useState(
+    Boolean(port.pendingSetup?.state === "downloaded" && !registered),
+  );
+  const discoveryRequests = useRef(new LatestRequestGeneration());
+  const targetEdited = useRef(false);
+  const pendingId = port.pendingSetup?.id;
+  const pendingState = port.pendingSetup?.state;
+  const hasRegistered = Boolean(registered);
+  const loadTargets = useCallback(() => {
+    if (!pendingId || hasRegistered || pendingState !== "downloaded") return Promise.resolve();
+    const request = discoveryRequests.current.begin();
+    return Promise.resolve()
+      .then(() => desktopApi.discoverSetupLaunchTargets(port.id, pendingId, generation))
+      .then((next) => {
+        if (!discoveryRequests.current.isCurrent(request)) return;
+        if (next.port_id !== port.id || next.pending_id !== pendingId)
+          throw new Error("Setup changed. Refresh this game before continuing.");
+        setSuggestions(next);
+        const recommended = next.candidates.find(
+          (candidate) => candidate.executable === next.recommended_executable,
+        );
+        if (recommended && !targetEdited.current) {
+          setExecutable(recommended.executable);
+          setWorkingDirectory(recommended.working_directory);
+        }
+      })
+      .catch((failure: unknown) => {
+        if (discoveryRequests.current.isCurrent(request)) setPickerError(failure);
+      })
+      .finally(() => {
+        if (discoveryRequests.current.isCurrent(request)) setScanning(false);
+      });
+  }, [generation, hasRegistered, pendingId, pendingState, port.id]);
+  const refreshTargets = () => {
+    setScanning(true);
+    setPickerError(undefined);
+    return loadTargets();
+  };
+  useEffect(() => {
+    void loadTargets();
+    const requests = discoveryRequests.current;
+    return () => {
+      requests.begin();
+    };
+  }, [loadTargets]);
   const pickerRequests = useRef(new LatestRequestGeneration());
   useLayoutEffect(() => {
     const requests = pickerRequests.current;
@@ -305,6 +352,7 @@ function UserSelectedRuntimeEditor({
   const removeAssessment = listingActionAssessment(listingStatus, "remove-registration");
   const canRemove = requiresListingAssessment ? removeAssessment.allowed : !removal.blocked;
   const chooseExecutable = async () => {
+    targetEdited.current = true;
     const request = pickerRequests.current.begin();
     setPickerError(undefined);
     try {
@@ -318,6 +366,7 @@ function UserSelectedRuntimeEditor({
     }
   };
   const chooseDirectory = async () => {
+    targetEdited.current = true;
     const request = pickerRequests.current.begin();
     setPickerError(undefined);
     try {
@@ -376,6 +425,47 @@ function UserSelectedRuntimeEditor({
             Portcove only saves these launch details and starts it.
           </p>
           <AuthoredPreparationGuidance port={port} />
+          {pendingState === "downloaded" && (
+            <div className="grid min-w-0 gap-2" aria-label="Launch target suggestions">
+              <Button
+                variant="outline"
+                disabled={busy || scanning || !canEdit}
+                onClick={() => void refreshTargets()}
+              >
+                {scanning ? "Looking for launch targets…" : "Refresh launch suggestions"}
+              </Button>
+              {suggestions && (
+                <>
+                  <p role="status">{suggestions.explanation}</p>
+                  {suggestions.candidates.length > 0 && (
+                    <ChoiceSelect
+                      label="Launch target"
+                      value={executable}
+                      disabled={busy || !canEdit}
+                      options={[
+                        { value: "", label: "Choose a native application…" },
+                        ...suggestions.candidates.map((candidate) => ({
+                          value: candidate.executable,
+                          label: `${candidate.executable}${candidate.supporting_program ? " · Supporting program" : ""}`,
+                        })),
+                      ]}
+                      onChange={(value) => {
+                        const candidate = suggestions.candidates.find(
+                          (item) => item.executable === value,
+                        );
+                        targetEdited.current = true;
+                        setExecutable(value);
+                        if (candidate) setWorkingDirectory(candidate.working_directory);
+                      }}
+                    />
+                  )}
+                  {executable === suggestions.recommended_executable && (
+                    <p>Suggested game or upstream launcher. Confirm the launch details below.</p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
           <Button
             variant="outline"
             data-focusable
@@ -396,7 +486,10 @@ function UserSelectedRuntimeEditor({
               aria-label="Working directory"
               value={workingDirectory}
               disabled={busy}
-              onValueChange={setWorkingDirectory}
+              onValueChange={(value) => {
+                targetEdited.current = true;
+                setWorkingDirectory(value);
+              }}
             />
           </label>
           <p className="text-sm text-pc-muted-foreground">

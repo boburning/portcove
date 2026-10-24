@@ -132,6 +132,8 @@ pub enum SupportTier {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum AdapterKind {
+    /// Generic managed portable runtime; game-specific setup remains upstream.
+    NativePortable,
     LibultrashipPortable,
     N64RecompPortable,
     StagedSourcePortable,
@@ -238,7 +240,8 @@ pub enum IgdbArtworkMatch {
 }
 
 impl AdapterKind {
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 8] = [
+        Self::NativePortable,
         Self::LibultrashipPortable,
         Self::N64RecompPortable,
         Self::StagedSourcePortable,

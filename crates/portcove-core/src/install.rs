@@ -151,7 +151,10 @@ impl InstallQualification {
             )));
         }
         Ok(Self {
-            strict_staged_source: port.adapter == AdapterKind::StagedSourcePortable,
+            strict_staged_source: matches!(
+                port.adapter,
+                AdapterKind::StagedSourcePortable | AdapterKind::NativePortable
+            ),
             runtime_data_policy: port.runtime_data_policy,
             managed_shared_preferences: port.managed_shared_preferences,
             shared_preferences: None,
@@ -2978,11 +2981,13 @@ fn full_immutable_integrity(
 ) -> Result<bool> {
     let staged_source = match &manifest.retained_contract {
         Some(contract) => {
-            contract
-                .catalog(&install.port_id)?
-                .port(&install.port_id)?
-                .adapter
-                == AdapterKind::StagedSourcePortable
+            matches!(
+                contract
+                    .catalog(&install.port_id)?
+                    .port(&install.port_id)?
+                    .adapter,
+                AdapterKind::StagedSourcePortable | AdapterKind::NativePortable
+            )
         }
         None => fallback,
     };

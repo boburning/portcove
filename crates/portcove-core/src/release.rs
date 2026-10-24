@@ -1500,6 +1500,27 @@ fn choose_asset<'a>(
             {
                 return None;
             }
+            if port.adapter == AdapterKind::NativePortable
+                && ![".zip", ".tar.gz", ".tgz"]
+                    .iter()
+                    .any(|extension| name.ends_with(extension))
+            {
+                return None;
+            }
+            if port.adapter == AdapterKind::NativePortable {
+                // Managed replacement and the download recommendation share native
+                // suitability. Metadata hints cannot override a known mismatch.
+                if !hints
+                    .iter()
+                    .all(|hint| name.contains(&hint.to_ascii_lowercase()))
+                {
+                    return None;
+                }
+                let (_, _, score) = crate::service::package_selection::assess_package_name(
+                    &name, true, platform, &hints,
+                );
+                return score.map(|score| (score as i32, asset));
+            }
             if conflicts_with_platform(&name, platform) {
                 return None;
             }
@@ -3597,6 +3618,56 @@ mod tests {
         let error = choose_asset(port, Platform::WindowsX86_64, &assets).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Conflict);
         assert!(error.message.contains("equally qualified"));
+    }
+
+    #[test]
+    fn native_portable_replacement_requires_the_same_native_package_variant() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut port = catalog.port("fragglet-sdl-sopwith").unwrap().clone();
+        port.release
+            .asset_hints
+            .insert(Platform::WindowsX86_64, vec!["game".into()]);
+        let asset = |name: &str| GithubAsset {
+            id: None,
+            name: name.into(),
+            browser_download_url: "https://example.invalid/package.zip".into(),
+            size: 1,
+            digest: None,
+        };
+        for name in [
+            "game-win32.zip",
+            "game-windows-32bit.zip",
+            "game-windows-32-bit.zip",
+            "game-windows-x32.zip",
+            "game-windows-armv6.zip",
+            "game-windows-x86.zip",
+            "game-linux-x64.zip",
+            "game-macos-universal.zip",
+            "game-windows-arm64.zip",
+            "game-windows-x64-debug.zip",
+            "game-source.zip",
+            "unknown.zip",
+        ] {
+            assert!(
+                choose_asset(&port, Platform::WindowsX86_64, &[asset(name)]).is_err(),
+                "{name}"
+            );
+        }
+        let candidates = [
+            asset("game-windows-x64.zip"),
+            asset("game-hd-windows-x64.zip"),
+        ];
+        assert!(choose_asset(&port, Platform::WindowsX86_64, &candidates).is_err());
+        port.release
+            .asset_hints
+            .insert(Platform::WindowsX86_64, vec!["game-hd".into()]);
+        assert_eq!(
+            choose_asset(&port, Platform::WindowsX86_64, &candidates)
+                .unwrap()
+                .name,
+            "game-hd-windows-x64.zip"
+        );
+        assert!(choose_asset(&port, Platform::WindowsX86_64, &candidates[..1]).is_err());
     }
 
     #[tokio::test]
