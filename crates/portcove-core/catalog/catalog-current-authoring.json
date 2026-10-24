@@ -21191,6 +21191,77 @@
       }
     },
     {
+      "id": "alexbeav-medievil-ii-recomp",
+      "name": "MediEvil II / Alexbeav PSXRecomp",
+      "summary": "Explore MediEvil II / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "alexbeavs-ps1-ports/medievil-ii-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "medieviliirecomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "MediEvilIIRecomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "settings.toml",
+        "disc.cfg",
+        "bios.cfg",
+        "input.ini",
+        "config.ini",
+        "keybinds.ini",
+        "saves",
+        "mods/state.toml",
+        "mods/state.toml.tmp",
+        "mods/installed",
+        "mods/packages",
+        "mods/.staging",
+        "diagnostics-location.txt"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "On first Play, choose your own MediEvil II USA SCUS-94564 CUE with its BIN tracks, or a supported CHD, in the native launcher. The disc remains required. This precompiled player includes OpenBIOS and needs no compiler, Python, Generate step or retail BIOS. Its first run prepares a verified resident loading cache. Windows settings, remembered disc/BIOS paths, input bindings, saves/memory cards, diagnostics and installed mod packages are declared beside MediEvilIIRecomp.exe. Bundled mods stay version-owned; only installed/legacy user packages and their state/staging are retained. Resident decoded assets use the system user cache, outside Portcove backups. The selected external disc remains external. Use an external copy for custom BIOS preparation, cache-producing legacy mods or changed runtime files. Runtime rollback carries current declared data; it does not rewind saves or guarantee older save-state compatibility. Existing external installations keep their files and runtime owner. Gameplay, minimum environment and packaged Desktop acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your own USA disc",
+              "instruction": "On first Play, choose your own MediEvil II USA SCUS-94564 CUE with its BIN tracks, or a supported CHD, in the native launcher. The disc remains required. This precompiled player includes OpenBIOS and needs no compiler, Python, Generate step or retail BIOS. Its first run prepares a verified resident loading cache."
+            },
+            {
+              "title": "Keep saves and settings",
+              "instruction": "Windows settings, remembered disc/BIOS paths, input bindings, saves/memory cards, diagnostics and installed mod packages are declared beside MediEvilIIRecomp.exe. Bundled mods stay version-owned; only installed/legacy user packages and their state/staging are retained. Resident decoded assets use the system user cache, outside Portcove backups. The selected external disc remains external. Use an external copy for custom BIOS preparation, cache-producing legacy mods or changed runtime files. Runtime rollback carries current declared data; it does not rewind saves or guarantee older save-state compatibility."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/blob/v0.2.4-alpha/README.md"
+        },
+        "artwork": {
+          "game_id": 4002,
+          "cover_id": 84942,
+          "image_id": "co1tji",
+          "image_sha256": "a7a6b4931e4693816a02c5e8bd22b7c6cfca8b7f6f4d58a2c65e9c45504c62ff",
+          "game_slug": "medievil-ii--1",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "alistert-openjazz",
       "name": "Jazz Jackrabbit / OpenJazz (AlisterT)",
       "summary": "Explore Jazz Jackrabbit / OpenJazz (AlisterT) and follow the upstream project for requirements, downloads and setup.",
@@ -21434,6 +21505,72 @@
           "image_id": "co28cg",
           "image_sha256": "e6de2524e0b09d327d373cfd986e9f4c77cd451f56dcff7c09b68a0a8a5b49bb",
           "game_slug": "snowboard-kids",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "citrongames-dora64",
+      "name": "Doraemon: Nobita to Mittsu no Seireiseki / Dora64 (citrongames)",
+      "summary": "Explore Doraemon: Nobita to Mittsu no Seireiseki / Dora64 (citrongames) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/citrongames/Dora64",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "citrongames/Dora64",
+        "asset_hints": {
+          "windows-x86-64": [
+            "dora64-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Dora64.exe"
+        ]
+      },
+      "persistent_paths": [
+        "doraemon.n64.jp.z64",
+        "saves",
+        "doraemon_pc_settings.json",
+        "doraemon_input_settings.json",
+        "doraemon_touch_settings.json",
+        "doraemon_touch_settings.json.tmp",
+        "doraemon-draw-distance.log",
+        "android-trace.log"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy your own supported original Japanese Doraemon: Nobita to 3tsu no Seireiseki .z64 ROM beside Dora64.exe and name that copy doraemon.n64.jp.z64. The game validates its identity before starting. This reviewed v1.0.4 release page contains the Windows package labeled 1.0.5; those upstream labels are retained. The named original ROM, saves folder, input/game/touch settings and named diagnostics live beside Dora64.exe and are declared for compatible updates and backup. Keep the source original elsewhere too. A differently named ROM or custom profile can use external registration. Runtime rollback carries current declared data without rewinding saves. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Finish the game’s setup",
+              "instruction": "Before first Play, copy your own supported original Japanese Doraemon: Nobita to 3tsu no Seireiseki .z64 ROM beside Dora64.exe and name that copy doraemon.n64.jp.z64. The game validates its identity before starting. This reviewed v1.0.4 release page contains the Windows package labeled 1.0.5; those upstream labels are retained."
+            },
+            {
+              "title": "Keep your progress",
+              "instruction": "The named original ROM, saves folder, input/game/touch settings and named diagnostics live beside Dora64.exe and are declared for compatible updates and backup. Keep the source original elsewhere too. A differently named ROM or custom profile can use external registration. Runtime rollback carries current declared data without rewinding saves."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/citrongames/Dora64/blob/v1.0.4/README.md"
+        },
+        "artwork": {
+          "game_id": 70797,
+          "cover_id": 304257,
+          "image_id": "co6irl",
+          "image_sha256": "a8d755f08d07c9f8409b7e3703a78faaad6454da05ba2903367cbb16282271a3",
+          "game_slug": "doraemon-nobita-to-3-tsu-no-seireiseki",
           "match_kind": "underlying-game"
         }
       }
@@ -21701,6 +21838,65 @@
       }
     },
     {
+      "id": "danielgomesvieira2000-beetle-adventure-racing-recomp",
+      "name": "Beetle Adventure Racing! / Beetle Adventure Racing! Recomp (danielgomesvieira2000)",
+      "summary": "Explore Beetle Adventure Racing! / Beetle Adventure Racing! Recomp (danielgomesvieira2000) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "danielgomesvieira2000/beetle-adventure-racing-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "beetle-adventure-racing-recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "beetle-adventure-racing-recomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "bar_ui_trace.log"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, use Load ROM to choose your own supported Beetle Adventure Racing USA ROM. The launcher validates and imports it. This upstream alpha is offered through Preview; its Linux build is known to crash during boot and is not offered by this declaration. Default imported ROM, settings, saves, cheats, bindings, HUD choices and hang reports live in LocalAppData/beetle-adventure-racing-recomp, outside Portcove backups. Only the executable-folder bar_ui_trace.log diagnostic is declared. Keep portable.txt absent and use an external registration for portable/custom storage or a current-folder fallback. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Finish the game’s setup",
+              "instruction": "On first Play, use Load ROM to choose your own supported Beetle Adventure Racing USA ROM. The launcher validates and imports it. This upstream alpha is offered through Preview; its Linux build is known to crash during boot and is not offered by this declaration."
+            },
+            {
+              "title": "Keep your progress",
+              "instruction": "Default imported ROM, settings, saves, cheats, bindings, HUD choices and hang reports live in LocalAppData/beetle-adventure-racing-recomp, outside Portcove backups. Only the executable-folder bar_ui_trace.log diagnostic is declared. Keep portable.txt absent and use an external registration for portable/custom storage or a current-folder fallback."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/v0.4.2-alpha/README.md"
+        },
+        "artwork": {
+          "game_id": 2715,
+          "cover_id": 104718,
+          "image_id": "co28su",
+          "image_sha256": "cbcd2bd8f4371735cee53a83c72e5f694c09dd899c1d35ac08126389f63200e1",
+          "game_slug": "beetle-adventure-racing",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "dethrace-labs-dethrace",
       "name": "Carmageddon / Dethrace (dethrace-labs)",
       "summary": "Explore Carmageddon / Dethrace (dethrace-labs) and follow the upstream project for requirements, downloads and setup.",
@@ -21825,6 +22021,71 @@
           "image_id": "co3bag",
           "image_sha256": "1f36e0dc2de5ac31e008efd006545df8aa7c6d626f6ebf3a48b72c6b23250e6e",
           "game_slug": "tetrisphere",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "elliotttate-dkc2recomp",
+      "name": "Donkey Kong Country 2: Diddy's Kong Quest / DKC2Recomp (elliotttate)",
+      "summary": "Explore Donkey Kong Country 2: Diddy's Kong Quest / DKC2Recomp (elliotttate) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/elliotttate/DKC2Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "elliotttate/DKC2Recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "dkc2recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "DKC2Recomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "rom.cfg",
+        "launcher.cfg",
+        "kongs.cfg",
+        "msu1.cfg",
+        "saves",
+        "diagnostics",
+        "performance.log"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "On first Play, select your own North American v1.0 Donkey Kong Country 2 ROM in the launcher. It remembers that external path without copying the ROM. DKC2Recomp.exe is the upstream default; the bundled DKC2RecompSDL.exe remains an alternative through external registration. Character packs and MSU-1 audio are optional upstream-guided imports. The remembered ROM path, launcher/character/audio preferences, saves and save states, diagnostics and performance.log live beside the player and are declared for compatible replacement and backup. The selected external ROM, character pack and music folder remain outside backups. Pack/state compatibility follows upstream’s selected version; runtime rollback carries current saves without rewinding them. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Finish the game’s setup",
+              "instruction": "On first Play, select your own North American v1.0 Donkey Kong Country 2 ROM in the launcher. It remembers that external path without copying the ROM. DKC2Recomp.exe is the upstream default; the bundled DKC2RecompSDL.exe remains an alternative through external registration. Character packs and MSU-1 audio are optional upstream-guided imports."
+            },
+            {
+              "title": "Keep your progress",
+              "instruction": "The remembered ROM path, launcher/character/audio preferences, saves and save states, diagnostics and performance.log live beside the player and are declared for compatible replacement and backup. The selected external ROM, character pack and music folder remain outside backups. Pack/state compatibility follows upstream’s selected version; runtime rollback carries current saves without rewinding them."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/elliotttate/DKC2Recomp/blob/v0.0.8/README.md"
+        },
+        "artwork": {
+          "game_id": 1092,
+          "cover_id": 94882,
+          "image_id": "co217m",
+          "image_sha256": "14026039a1de169794ab52fb49d5b5675b059ab037ebccc8a4ce6891b31bcadd",
+          "game_slug": "donkey-kong-country-2-diddy-s-kong-quest",
           "match_kind": "underlying-game"
         }
       }
@@ -22227,6 +22488,62 @@
       }
     },
     {
+      "id": "noahvl-birdman64",
+      "name": "Pilotwings 64 / Birdman64 (NoahVl)",
+      "summary": "Explore Pilotwings 64 / Birdman64 (NoahVl) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/NoahVl/Birdman64",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "NoahVl/Birdman64",
+        "asset_hints": {
+          "windows-x86-64": [
+            "birdman64-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Birdman64.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, select your own supported Pilotwings 64 ROM. Birdman64 then downloads its pinned, hash-checked upstream source and compiles a game module using its bundled compiler, showing progress and errors in its own setup window. First setup needs network access and may take time. Portcove does not run this setup during download or registration. Portcove updates the shipped player and bundled compiler. Birdman64 owns first-launch setup and its external compiled-game cache: the cache key binds the player ABI/version, source commit and compiler/link flags, so a changed player builds its own compatible module. Default saves/settings/packs live in AppData/Birdman64 and the build cache in LocalAppData/Birdman64/cache, all outside Portcove backups. No in-folder player data is declared. Use an external registration for portable.txt, adjacent legacy saves or developer overrides. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Finish the game’s setup",
+              "instruction": "On first Play, select your own supported Pilotwings 64 ROM. Birdman64 then downloads its pinned, hash-checked upstream source and compiles a game module using its bundled compiler, showing progress and errors in its own setup window. First setup needs network access and may take time. Portcove does not run this setup during download or registration."
+            },
+            {
+              "title": "Keep your progress",
+              "instruction": "Portcove updates the shipped player and bundled compiler. Birdman64 owns first-launch setup and its external compiled-game cache: the cache key binds the player ABI/version, source commit and compiler/link flags, so a changed player builds its own compatible module. Default saves/settings/packs live in AppData/Birdman64 and the build cache in LocalAppData/Birdman64/cache, all outside Portcove backups. No in-folder player data is declared. Use an external registration for portable.txt, adjacent legacy saves or developer overrides."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/NoahVl/Birdman64/blob/v1.5.1/README.md"
+        },
+        "artwork": {
+          "game_id": 3573,
+          "cover_id": 257550,
+          "image_id": "co5iq6",
+          "image_sha256": "14f29e308d8b2d3c5541b1b098a0d19cf7a3e74fe871f7d0ef511437eb83f756",
+          "game_slug": "pilotwings-64",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "omf2097-openomf",
       "name": "One Must Fall 2097 / OpenOMF (omf2097)",
       "summary": "Explore One Must Fall 2097 / OpenOMF (omf2097) and follow the upstream project for requirements, downloads and setup.",
@@ -22510,6 +22827,65 @@
       }
     },
     {
+      "id": "rocket-robot-on-wheels-rocket-r",
+      "name": "Rocket: Robot on Wheels (Rocket-R)",
+      "summary": "Explore Rocket: Robot on Wheels (Rocket-R) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/ThatGuyMcd/Rocket-R",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "ThatGuyMcd/Rocket-R",
+        "asset_hints": {
+          "windows-x86-64": [
+            "rocket-r-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Rocket-R.exe"
+        ]
+      },
+      "persistent_paths": [
+        "rocket-r-data"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, choose your own supported Rocket: Robot on Wheels US ROM in the upstream launcher. It verifies the game and remembers the chosen path. Use the upstream menus for controls and compatible mods; no game compilation or separate installer is needed for the published player. Default settings, saves, mod profiles, mod-specific saves, logs and crash reports live in AppData/Rocket-R, outside Portcove backups. The reviewed rocket-r-data current-folder fallback is declared if present. Bundled engine/mod resources remain version-owned. Use an external registration for a custom --config directory or developer runtime overrides. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Finish the game’s setup",
+              "instruction": "On first Play, choose your own supported Rocket: Robot on Wheels US ROM in the upstream launcher. It verifies the game and remembers the chosen path. Use the upstream menus for controls and compatible mods; no game compilation or separate installer is needed for the published player."
+            },
+            {
+              "title": "Keep your progress",
+              "instruction": "Default settings, saves, mod profiles, mod-specific saves, logs and crash reports live in AppData/Rocket-R, outside Portcove backups. The reviewed rocket-r-data current-folder fallback is declared if present. Bundled engine/mod resources remain version-owned. Use an external registration for a custom --config directory or developer runtime overrides."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/ThatGuyMcd/Rocket-R/blob/v.1.0.1/README.md"
+        },
+        "artwork": {
+          "game_id": 2644,
+          "cover_id": 473896,
+          "image_id": "coa5ns",
+          "image_sha256": "0f3878dfa9cba869d0e0f8a57358c084bab20e44b14deaa0e6865f81337e0bae",
+          "game_slug": "rocket-robot-on-wheels",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "starlancer-openreliant",
       "name": "StarLancer / OpenReliant",
       "summary": "Explore StarLancer / OpenReliant and follow the upstream project for requirements, downloads and setup.",
@@ -22564,6 +22940,65 @@
           "image_id": "co2jps",
           "image_sha256": "2a7b18ba20d6b76160e03a771f901d2c3c3d0dd095d5b01852e81f2bc9d69741",
           "game_slug": "starlancer",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "thatguymcd-glover-r",
+      "name": "Glover / Glover-R (ThatGuyMcd)",
+      "summary": "Explore Glover / Glover-R (ThatGuyMcd) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/ThatGuyMcd/Glover-R",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "ThatGuyMcd/Glover-R",
+        "asset_hints": {
+          "windows-x86-64": [
+            "glover-r-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Glover-R.exe"
+        ]
+      },
+      "persistent_paths": [
+        "glover-r-data"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, choose your own supported Glover USA ROM in the upstream launcher. Its reviewed Glover source adaptation keeps this game distinct from Rocket-R and verifies its own ROM identity. Configure controls and compatible mods through upstream menus; the published player requires no game compilation. Default settings, saves, mod profiles and mod-specific saves, logs and crash reports live in AppData/Glover-R, outside Portcove backups. The reviewed glover-r-data current-folder fallback is declared if present. Bundled engine/mod resources remain version-owned. Use an external registration for custom --config or developer overrides. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Finish the game’s setup",
+              "instruction": "On first Play, choose your own supported Glover USA ROM in the upstream launcher. Its reviewed Glover source adaptation keeps this game distinct from Rocket-R and verifies its own ROM identity. Configure controls and compatible mods through upstream menus; the published player requires no game compilation."
+            },
+            {
+              "title": "Keep your progress",
+              "instruction": "Default settings, saves, mod profiles and mod-specific saves, logs and crash reports live in AppData/Glover-R, outside Portcove backups. The reviewed glover-r-data current-folder fallback is declared if present. Bundled engine/mod resources remain version-owned. Use an external registration for custom --config or developer overrides."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/ThatGuyMcd/Glover-R/blob/v1.0.1/README.md"
+        },
+        "artwork": {
+          "game_id": 3348,
+          "cover_id": 182078,
+          "image_id": "co3whq",
+          "image_sha256": "a0742a26cb550661366365fee043c0b2be423de9c2e2928aa1aa63455f98da77",
+          "game_slug": "glover",
           "match_kind": "underlying-game"
         }
       }

@@ -6,9 +6,8 @@
     "summary": "Explore Doraemon: Nobita to Mittsu no Seireiseki / Dora64 (citrongames) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/citrongames/Dora64",
     "issue_number": 1814,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/citrongames/Dora64",
+    "availability": "packages",
+    "setup_url": "https://github.com/citrongames/Dora64/blob/v1.0.4/README.md",
     "artwork": {
       "game_id": 70797,
       "cover_id": 304257,
@@ -16,6 +15,52 @@
       "image_sha256": "a8d755f08d07c9f8409b7e3703a78faaad6454da05ba2903367cbb16282271a3",
       "game_slug": "doraemon-nobita-to-3-tsu-no-seireiseki",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/citrongames/Dora64/releases/tag/v1.0.4",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Finish the game’s setup",
+          "instruction": "Before first Play, copy your own supported original Japanese Doraemon: Nobita to 3tsu no Seireiseki .z64 ROM beside Dora64.exe and name that copy doraemon.n64.jp.z64. The game validates its identity before starting. This reviewed v1.0.4 release page contains the Windows package labeled 1.0.5; those upstream labels are retained."
+        },
+        {
+          "title": "Keep your progress",
+          "instruction": "The named original ROM, saves folder, input/game/touch settings and named diagnostics live beside Dora64.exe and are declared for compatible updates and backup. Keep the source original elsewhere too. A differently named ROM or custom profile can use external registration. Runtime rollback carries current declared data without rewinding saves."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/citrongames/Dora64/blob/v1.0.4/README.md"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "citrongames/Dora64",
+      "asset_hints": {
+        "windows-x86-64": ["dora64-", "-windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["Dora64.exe"]
+    },
+    "persistent_paths": [
+      "doraemon.n64.jp.z64",
+      "saves",
+      "doraemon_pc_settings.json",
+      "doraemon_input_settings.json",
+      "doraemon_touch_settings.json",
+      "doraemon_touch_settings.json.tmp",
+      "doraemon-draw-distance.log",
+      "android-trace.log"
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Before first Play, copy your own supported original Japanese Doraemon: Nobita to 3tsu no Seireiseki .z64 ROM beside Dora64.exe and name that copy doraemon.n64.jp.z64. The game validates its identity before starting. This reviewed v1.0.4 release page contains the Windows package labeled 1.0.5; those upstream labels are retained. The named original ROM, saves folder, input/game/touch settings and named diagnostics live beside Dora64.exe and are declared for compatible updates and backup. Keep the source original elsewhere too. A differently named ROM or custom profile can use external registration. Runtime rollback carries current declared data without rewinding saves. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations."
     }
   }
 }

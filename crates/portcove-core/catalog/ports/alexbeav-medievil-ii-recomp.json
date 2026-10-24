@@ -6,8 +6,7 @@
     "summary": "Explore MediEvil II / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp",
     "issue_number": 459,
-    "platforms": [],
-    "availability": "unknown",
+    "availability": "packages",
     "setup_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/blob/v0.2.4-alpha/README.md",
     "artwork": {
       "game_id": 4002,
@@ -20,20 +19,53 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Start with the precompiled player",
-          "instruction": "Extract the complete Windows ZIP into a writable folder. MediEvilIIRecomp.exe is the player and launcher. OpenBIOS is included; no compiler, Python or Generate step is required."
-        },
-        {
           "title": "Choose your own USA disc",
-          "instruction": "In the launcher, select your MediEvil II USA SCUS-94564 CUE with its BIN tracks, or a supported CHD, then choose controls and Play. The disc remains required. The first run prepares a verified loading cache; later runs reuse it."
+          "instruction": "On first Play, choose your own MediEvil II USA SCUS-94564 CUE with its BIN tracks, or a supported CHD, in the native launcher. The disc remains required. This precompiled player includes OpenBIOS and needs no compiler, Python, Generate step or retail BIOS. Its first run prepares a verified resident loading cache."
         },
         {
-          "title": "Keep your progress",
-          "instruction": "Windows settings, memory cards, mods and diagnostics live beside the player. Linux uses the documented user-data location and a separate user cache. Preserve this data when updating an external copy; Portcove does not back up or replace that copy. Adding a native player saves launch details; Play is separate."
+          "title": "Keep saves and settings",
+          "instruction": "Windows settings, remembered disc/BIOS paths, input bindings, saves/memory cards, diagnostics and installed mod packages are declared beside MediEvilIIRecomp.exe. Bundled mods stay version-owned; only installed/legacy user packages and their state/staging are retained. Resident decoded assets use the system user cache, outside Portcove backups. The selected external disc remains external. Use an external copy for custom BIOS preparation, cache-producing legacy mods or changed runtime files. Runtime rollback carries current declared data; it does not rewind saves or guarantee older save-state compatibility."
         }
       ],
       "warnings": [],
       "help_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/blob/v0.2.4-alpha/README.md"
+    },
+    "release_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/releases/tag/v0.2.4-alpha"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "alexbeavs-ps1-ports/medievil-ii-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["medieviliirecomp-", "-windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["MediEvilIIRecomp.exe"]
+    },
+    "persistent_paths": [
+      "settings.toml",
+      "disc.cfg",
+      "bios.cfg",
+      "input.ini",
+      "config.ini",
+      "keybinds.ini",
+      "saves",
+      "mods/state.toml",
+      "mods/state.toml.tmp",
+      "mods/installed",
+      "mods/packages",
+      "mods/.staging",
+      "diagnostics-location.txt"
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "On first Play, choose your own MediEvil II USA SCUS-94564 CUE with its BIN tracks, or a supported CHD, in the native launcher. The disc remains required. This precompiled player includes OpenBIOS and needs no compiler, Python, Generate step or retail BIOS. Its first run prepares a verified resident loading cache. Windows settings, remembered disc/BIOS paths, input bindings, saves/memory cards, diagnostics and installed mod packages are declared beside MediEvilIIRecomp.exe. Bundled mods stay version-owned; only installed/legacy user packages and their state/staging are retained. Resident decoded assets use the system user cache, outside Portcove backups. The selected external disc remains external. Use an external copy for custom BIOS preparation, cache-producing legacy mods or changed runtime files. Runtime rollback carries current declared data; it does not rewind saves or guarantee older save-state compatibility. Existing external installations keep their files and runtime owner. Gameplay, minimum environment and packaged Desktop acceptance remain separate observations."
     }
   }
 }
