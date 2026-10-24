@@ -45,7 +45,9 @@ async function render(portId = "sample", generation = 7, imageId = "") {
   await root.rerender(
     <ArtworkProvider generation={generation} catalog={catalog}>
       <h2>{port.name}</h2>
-      <ArtworkImage port={port} />
+      <div style={{ display: "grid", width: 192, height: 256 }}>
+        <ArtworkImage port={port} />
+      </div>
       <ArtworkControls key={`${portId}:${generation}`} port={port} />
     </ArtworkProvider>,
   );
@@ -155,7 +157,9 @@ describe("local artwork controls", () => {
     const show = (item: PortListing) =>
       root.rerender(
         <ArtworkProvider generation={7} listings={{ format_version: 1, listings: [item] }}>
-          <ArtworkImage port={{ id: item.id }} />
+          <div style={{ display: "grid", width: 192, height: 256 }}>
+            <ArtworkImage port={{ id: item.id }} />
+          </div>
         </ArtworkProvider>,
       );
     await show(listing);
@@ -254,9 +258,12 @@ describe("local artwork controls", () => {
       expect(button("cover", "Choose local image").disabled).toBe(true);
       state = artworkState("sample", "cover", state.choice.revision + 1, kind === "import");
       await act(async () => finish(state));
-      expect(container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource).toBe(
-        state.resolved_source.kind,
-      );
+      await expect
+        .poll(() => container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource)
+        .toBe(state.resolved_source.kind);
+      expect(
+        container.querySelector(".artwork-image")!.getBoundingClientRect().height,
+      ).toBeGreaterThan(0);
       expect(button("cover", "Reset to default").disabled).toBe(kind === "reset");
       expect(button("cover", "Choose local image").disabled).toBe(false);
       expect(container.textContent).toContain(
@@ -300,9 +307,13 @@ describe("local artwork controls", () => {
     expect(container.textContent).not.toContain("Local image selected.");
     await act(async () => finishRead(preCommit));
     expect(reads).toBe(readsBefore + 2);
-    expect(container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource).toBe(
-      "local_import",
-    );
+    await expect
+      .poll(() => container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource)
+      .toBe("local_import");
+    expect(
+      container.querySelector(".artwork-image")!.getBoundingClientRect().height,
+    ).toBeGreaterThan(0);
+    expect(reads).toBe(readsBefore + 2);
     expect(button("cover", "Reset to default").disabled).toBe(false);
     expect(change).toHaveBeenCalledTimes(1);
   });

@@ -14,7 +14,10 @@ import {
 import type { NativeStageRequest } from "./release-native-stage-capture.mts";
 import type { inspectNativeCompatibilitySources } from "./release-native-source-contract.mts";
 import { inspectIsolatedNativeLinuxBinding } from "../apps/desktop/scripts/native-linux-isolated-plan.mts";
-import { inspectNativeWslGuestHost } from "./release-native-wsl-host.mts";
+import {
+  inspectNativeWslGuestHost,
+  inspectHostedNativeLinuxHost,
+} from "./release-native-wsl-host.mts";
 import { requireActualWslNativeCapture } from "./release-native-wsl-capture.mts";
 import { readActualNativeSourceDeclarations } from "./release-native-candidate.mts";
 import { serializeNativeStageCapture } from "./release-native-stage-capture.mts";
@@ -134,6 +137,7 @@ function reconstructNativeLinuxReport(
   prepared: NativeStageRequest,
   raw: unknown,
   source: ReturnType<typeof inspectNativeCompatibilitySources>,
+  profile: "wsl" | "hosted" = "wsl",
 ) {
   const input = object(raw),
     request = prepared.request;
@@ -152,7 +156,9 @@ function reconstructNativeLinuxReport(
     account = object(expectedHost.account),
     engine = object(expectedHost.engine),
     compatibility = object(request.expected.compatibility);
-  assert.equal(account.kind, "windows-wsl-uid");
+  assert.equal(account.kind, profile === "wsl" ? "windows-wsl-uid" : "linux-uid");
+  if (profile === "hosted")
+    assert.equal(expectedHost.qualification_profile, "fixed-hosted-native-v1");
   assert.equal(binding.invocation_id, request.invocation_id);
   assert.equal(binding.account.uid, Number(account.qualification));
   assert.equal(binding.controller.source_commit, request.expected.producer.source_commit);
@@ -228,7 +234,7 @@ function reconstructNativeLinuxReport(
     typeof expectedHost.machine_id_sha256 === "string" &&
       typeof compatibility.minimum_os_version === "string",
   );
-  inspectNativeWslGuestHost(
+  (profile === "wsl" ? inspectNativeWslGuestHost : inspectHostedNativeLinuxHost)(
     host,
     {
       account: { qualification: String(binding.account.uid) },
@@ -245,7 +251,10 @@ function reconstructNativeLinuxReport(
   assert.equal(host.kernel_release, observed.kernel_release);
   assert.equal(host.os_release, observed.os_release);
   assert.equal(expectedHost.minimum_platform, "ubuntu-24.04-x64");
-  assert.ok(atLeast(text(host.kernel_release).split(/[-+]/u)[0], compatibility.minimum_os_version));
+  if (profile === "wsl")
+    assert.ok(
+      atLeast(text(host.kernel_release).split(/[-+]/u)[0], compatibility.minimum_os_version),
+    );
   assert.equal(engine.name, "WebKitGTK");
   assert.ok(atLeast(browser.version, engine.minimum_version));
   assert.ok(Array.isArray(live.loaded_libraries) && live.loaded_libraries.length <= 8);
@@ -331,7 +340,10 @@ function reconstructNativeLinuxReport(
       qualification_profile: expectedHost.qualification_profile,
       os_version: host.kernel_release,
       minimum_platform: expectedHost.minimum_platform,
-      execution_context: "native-ubuntu-24.04-wsl2-account",
+      execution_context:
+        profile === "wsl"
+          ? "native-ubuntu-24.04-wsl2-account"
+          : "native-ubuntu-24.04-hosted-isolated-account",
       account,
       loaded_engine: { name: "WebKitGTK", version: browser.version, sha256: webkit.sha256 },
     },
@@ -375,12 +387,24 @@ export function reconstructNativeLinuxPreSignReport(
   assert.equal(prepared.request.stage, "payload-signing");
   return reconstructNativeLinuxReport(prepared, raw, source);
 }
-/** Signed-package compatibility only. Ordinary public discovery/apply/recovery
- * remains explicitly pending in report2; no private feed substitutes for it. */
-export function reconstructNativeLinuxPostSignReport(
+
+/** Hosted reconstruction is explicitly selected; importing host/capture JSON
+ * still cannot create the actual parent's private invocation capability. */
+export function reconstructHostedNativeLinuxPreSignReport(
   prepared: NativeStageRequest,
   raw: unknown,
   source: ReturnType<typeof inspectNativeCompatibilitySources>,
+) {
+  assert.equal(prepared.request.stage, "payload-signing");
+  return reconstructNativeLinuxReport(prepared, raw, source, "hosted");
+}
+/** Signed-package compatibility only. Ordinary public discovery/apply/recovery
+ * remains explicitly pending in report2; no private feed substitutes for it. */
+function reconstructNativeLinuxPostSignReportFor(
+  prepared: NativeStageRequest,
+  raw: unknown,
+  source: ReturnType<typeof inspectNativeCompatibilitySources>,
+  profile: "wsl" | "hosted",
 ) {
   const request = prepared.request,
     input = object(raw),
@@ -488,7 +512,23 @@ export function reconstructNativeLinuxPostSignReport(
     assert.ok(
       typeof details.predecessor_version === "string" && details.predecessor_version.length > 0,
     );
-  return reconstructNativeLinuxReport(prepared, input, source);
+  return reconstructNativeLinuxReport(prepared, input, source, profile);
+}
+
+export function reconstructNativeLinuxPostSignReport(
+  prepared: NativeStageRequest,
+  raw: unknown,
+  source: ReturnType<typeof inspectNativeCompatibilitySources>,
+) {
+  return reconstructNativeLinuxPostSignReportFor(prepared, raw, source, "wsl");
+}
+
+export function reconstructHostedNativeLinuxPostSignReport(
+  prepared: NativeStageRequest,
+  raw: unknown,
+  source: ReturnType<typeof inspectNativeCompatibilitySources>,
+) {
+  return reconstructNativeLinuxPostSignReportFor(prepared, raw, source, "hosted");
 }
 
 const actualReports = new WeakMap<

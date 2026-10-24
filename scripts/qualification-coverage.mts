@@ -75,7 +75,7 @@ export function isQualificationOnlyCondition(value: unknown) {
 }
 const intelCondition = `${qualificationMode}&&contains(fromJSON(needs.classify.outputs.platforms_json),'macos-x86_64')`;
 const portabilityCondition =
-  "(needs.classify.outputs.mode=='qualification'&&contains(fromJSON(needs.classify.outputs.platforms_json),'macos-aarch64'))||(needs.classify.outputs.mode!='qualification'&&(contains(needs.classify.outputs.files_json,'pnpm-workspace.yaml')||contains(needs.classify.outputs.files_json,'apps/desktop/src/browser/display-recovery.browser.test.tsx')||contains(needs.classify.outputs.files_json,'apps/desktop/src/browser/compact-navigation.browser.test.tsx')||contains(needs.classify.outputs.files_json,'apps/desktop/src/components/AdoptionModal.browser.test.tsx')))";
+  "(needs.classify.outputs.mode=='qualification'&&contains(fromJSON(needs.classify.outputs.platforms_json),'macos-aarch64'))||(needs.classify.outputs.mode!='qualification'&&(contains(needs.classify.outputs.files_json,'pnpm-workspace.yaml')||contains(needs.classify.outputs.files_json,'apps/desktop/src/browser/display-recovery.browser.test.tsx')||contains(needs.classify.outputs.files_json,'apps/desktop/src/browser/compact-navigation.browser.test.tsx')||contains(needs.classify.outputs.files_json,'apps/desktop/src/components/AdoptionModal.browser.test.tsx')||contains(needs.classify.outputs.files_json,'apps/desktop/src/components/Artwork.browser.test.tsx')||contains(needs.classify.outputs.files_json,'apps/desktop/src/browser/workspace-feedback-user-intent.browser.test.tsx')))";
 function qualificationCondition(value: unknown) {
   const condition = expression(value);
   if (

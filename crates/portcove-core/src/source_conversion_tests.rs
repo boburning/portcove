@@ -103,7 +103,6 @@ fn failed_and_cancelled_conversion_retains_logs_and_reaps_owned_processes() {
                 .to_string_lossy()
                 .starts_with("private.tmp-")
         }));
-        std::thread::sleep(Duration::from_millis(1100));
         assert!(!source.with_extension("orphan-output").exists());
         assert!(
             !source

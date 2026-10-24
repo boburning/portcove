@@ -6,6 +6,7 @@ import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 import {
   acquireReleaseAdmission,
+  acquireHostedNativePreparation,
   runFixedBuildingConfiguration,
   requireActualReleaseAdmissionContext,
   acquireActualCandidateBuildingEligibility,
@@ -81,6 +82,58 @@ void test("ordinary admission cannot activate the private qualifying path with c
     assert.equal(error.evidence.phase, "repository-and-reservation");
     return true;
   });
+});
+
+void test("native preparatory collection reaches immutable facts while qualifying without minting admission", async (t) => {
+  const f = await fixture(t);
+  const parent = Object.freeze({});
+  const original = await import("./release-hosted-native-parent.mts");
+  t.mock.module("./release-hosted-native-parent.mts", {
+    namedExports: {
+      ...original,
+      requireActualHostedNativeParentSource: async (raw: object) => {
+        if (raw !== parent) throw new Error("original parent required");
+        return { stage: "payload-signing" };
+      },
+    },
+  });
+  f.input.opportunity.change_set_sha256 = f.sourceFacts.expectedHash;
+  Object.assign(f.input.opportunity.classification, {
+    change_set_sha256: f.sourceFacts.expectedHash,
+    change_set_scope: "portcove-release-net-tree-delta-v1",
+  });
+  Object.assign(f.input.active_candidate, {
+    frozen_opportunity: structuredClone(f.input.opportunity),
+  });
+  let calls = 0;
+  const receive = async (facts: unknown) => {
+    calls++;
+    assert.ok(Object.isFrozen(facts));
+    // Deliberately return a forged success: the preparatory wrapper ignores it.
+    return { decision: "admitted", holds: [] };
+  };
+  for (const phase of ["qualifying", "building"]) {
+    f.input.active_candidate.phase = phase;
+    await assert.rejects(
+      acquireHostedNativePreparation(parent, f.root, f.config, f.options, receive),
+      (error: unknown) => {
+        assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
+        assert.equal(error.evidence.phase, "actual-stage-native-qualification");
+        return true;
+      },
+    );
+  }
+  assert.equal(calls, 2);
+  f.input.active_candidate.phase = "publishing";
+  await assert.rejects(
+    acquireHostedNativePreparation(parent, f.root, f.config, f.options, receive),
+    /repository-and-reservation/,
+  );
+  await assert.rejects(
+    acquireHostedNativePreparation({}, f.root, f.config, f.options, receive),
+    /original parent/,
+  );
+  assert.equal(calls, 2);
 });
 
 void test("imported or frozen zero-hold descriptors cannot mint an actual stage-specific admission continuation", () => {
