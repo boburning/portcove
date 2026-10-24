@@ -223,10 +223,10 @@ pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
                 serde_json::json!(sha(files.get(&d.definition_target).unwrap())),
             ),
         ] {
-            if let Some(actual) = decision.get(key) {
-                if actual != &want {
-                    return invalid("catalog policy exact definition binding differs");
-                }
+            if let Some(actual) = decision.get(key)
+                && actual != &want
+            {
+                return invalid("catalog policy exact definition binding differs");
             }
         }
         let needs_launch = matches!(d.policy_schema, 3 | 4)
