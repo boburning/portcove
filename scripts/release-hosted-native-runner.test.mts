@@ -8,6 +8,7 @@ import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import { createHash } from "node:crypto";
 import {
   chmodSync,
+  copyFileSync,
   linkSync,
   mkdirSync,
   mkdtempSync,
@@ -33,7 +34,7 @@ void test("prepared support accepts only the fixed Linux product and exact sourc
   const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
   const metadata = {
     schema_version: 1,
-    product: nativeRuntimeSupport.product,
+    product: String(nativeRuntimeSupport.product),
     platform: "linux-x86_64",
     compiler: {
       verbose_version: "build-time compiler",
@@ -69,7 +70,7 @@ void test("prepared support accepts only the fixed Linux product and exact sourc
       m.output.mode = 0o777;
     },
     (m: typeof metadata) => {
-      Object.assign(m.compiler.commands[0], { resolved: null });
+      Object.assign(m.compiler.commands[0]!, { resolved: null });
     },
     (m: typeof metadata) => {
       Object.assign(m, { runtime_compiler: "/usr/bin/rustc" });
@@ -102,7 +103,8 @@ void test(
     const original = inspectNativeRuntimeCustody([file]);
     recheckNativeRuntimeCustody([file], original);
     const brokerUid = process.getuid!();
-    const identityView = t.mock.method(process, "getuid", () => brokerUid + 1);
+    const linuxProcess = process as NodeJS.Process & { getuid: () => number };
+    const identityView = t.mock.method(linuxProcess, "getuid", () => brokerUid + 1);
     assert.throws(() => inspectNativeRuntimeCustody([file]), /foreign-owned/);
     identityView.mock.restore();
     chmodSync(directory, 0o777);
@@ -138,6 +140,11 @@ void test(
     const root = mkdtempSync(path.join(os.homedir(), ".portcove-runtime-binding-"));
     chmodSync(root, 0o700);
     t.after(() => rmSync(root, { recursive: true, force: true }));
+    // Hosted setup-node caches can have shared-writable ancestry. The actual
+    // fixed launcher uses its verified private Node copy; match that custody.
+    const fixedNode = path.join(root, "node");
+    copyFileSync(process.execPath, fixedNode);
+    chmodSync(fixedNode, 0o700);
     const entry = new URL("./release-hosted-native-runtime.mts", import.meta.url).href;
     const code = String.raw`
 import assert from 'node:assert/strict';import {registerHooks} from 'node:module';
@@ -185,7 +192,7 @@ for(const kind of ['writable-root','writable-file','wrong-source','wrong-run','c
 }
 console.log('controlled original-runtime and fixed support refusals passed; no provider or native acceptance');
 `;
-    const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
+    const result = spawnSync(fixedNode, ["--input-type=module", "--eval", code, root], {
       encoding: "utf8",
       timeout: 20000,
       maxBuffer: 65536,

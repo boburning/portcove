@@ -36,7 +36,7 @@ type ActualRequest = Awaited<ReturnType<typeof requireActualHostedNativeLinuxReq
 type Parent = Awaited<ReturnType<typeof requireActualHostedNativeParentSource>>;
 type Capture = {
   request: object;
-  runtime?: object;
+  runtime: object | undefined;
   snapshot: string;
   files: Map<string, { bytes: number; sha256: string }>;
   resource_status: number;
