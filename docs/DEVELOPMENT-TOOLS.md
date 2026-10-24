@@ -124,6 +124,10 @@ Authenticated conditional page requests require a fresh `304`; cached pages neve
 establish offline coverage. The existing credentials and provider backoff remain
 in force. Capture the issue identity through `onIssueCreated` before the separately
 fallible Project operation, as with the ordinary client.
+The repository scan brackets creation identities and the most recently updated
+issue. Pull-request edits do not invalidate issue coverage; newly created records
+and changed issues still invalidate the read. The update marker follows validated
+pages past pull requests, and must agree with the complete collected issue body.
 
 This route initializes only issues created by that client instance. REST Project
 lists are active-only in the verified provider contract; they cannot establish
