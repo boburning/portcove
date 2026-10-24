@@ -116,6 +116,23 @@ Use `--summary` on Roadmap context/doctor and Renovate inspection for a retained
 route also supports `renovate` and `ui` reports. Raw evidence is retained before
 summary success, and missing retention fails explicitly.
 
+For a bulk intake blocked by GraphQL quota, callers can import
+`RestPortIntakeClient` from `scripts/roadmap-rest-intake.mts`. It uses the same
+canonical `createPortIssue` renderer and duplicate checks, with a complete
+open/closed REST repository traversal and exact REST Project item/field readback.
+Authenticated conditional page requests require a fresh `304`; cached pages never
+establish offline coverage. The existing credentials and provider backoff remain
+in force. Capture the issue identity through `onIssueCreated` before the separately
+fallible Project operation, as with the ordinary client.
+
+This route initializes only issues created by that client instance. REST Project
+lists are active-only in the verified provider contract; they cannot establish
+archived membership, historical normalization or global Roadmap health. An
+ambiguous add is retained for explicit recovery, never blindly repeated. Preserve
+normal scoped/full-batch doctor requirements and use the archived-inclusive route
+for the final reconciliation. Fresh preimages and exact readbacks detect observed
+planning conflicts; the REST field update does not provide an atomic compare-and-swap.
+
 Use `node scripts/pr-delivery.mts inspect --pr N --head SHA --summary` for a bounded
 current delivery observation. Optional hashed review/acceptance/watcher references
 are described in [contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge).
