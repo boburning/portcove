@@ -6,9 +6,8 @@
     "summary": "Explore Tetrisphere / Blocksphere (djultra64) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/djultra64/Blocksphere",
     "issue_number": 1802,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/djultra64/Blocksphere",
+    "availability": "packages",
+    "setup_url": "https://github.com/djultra64/Blocksphere/blob/v1.1.0/README.md",
     "artwork": {
       "game_id": 3612,
       "cover_id": 154600,
@@ -16,6 +15,47 @@
       "image_sha256": "1f36e0dc2de5ac31e008efd006545df8aa7c6d626f6ebf3a48b72c6b23250e6e",
       "game_slug": "tetrisphere",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/djultra64/Blocksphere/releases/tag/v1.1.0",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install or keep your existing copy",
+          "instruction": "Choose Install for the official portable runtime maintained by Portcove. Installation options retain a non-owning route for an existing or customized copy."
+        },
+        {
+          "title": "Start with the required game files",
+          "instruction": "On first Play, choose your own Tetrisphere US NTPE revision 0 ROM in .z64, .v64, .n64 or ZIP form. The game validates and imports it; no separate installer or BIOS is required."
+        },
+        {
+          "title": "Keep your progress when updating",
+          "instruction": "The imported ROM, settings, progress and diagnostics live in data beside tetrisphere.exe. Portcove carries that declared folder between compatible runtime versions, including data present before first Play. Older upstream user-profile data is not silently imported: follow upstream instructions to copy it to data before launching. Runtime rollback carries current data and does not rewind saves."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/djultra64/Blocksphere/blob/v1.1.0/README.md"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "djultra64/Blocksphere",
+      "asset_hints": {
+        "windows-x86-64": ["blocksphere-", "-windows-x86_64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["tetrisphere.exe"]
+    },
+    "persistent_paths": ["data"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "On first Play, choose your own Tetrisphere US NTPE revision 0 ROM in .z64, .v64, .n64 or ZIP form. The game validates and imports it; no separate installer or BIOS is required. The imported ROM, settings, progress and diagnostics live in data beside tetrisphere.exe. Portcove carries that declared folder between compatible runtime versions, including data present before first Play. Older upstream user-profile data is not silently imported: follow upstream instructions to copy it to data before launching. Runtime rollback carries current data and does not rewind saves. Existing external copies keep their files and runtime update owner. Gameplay and installed-app acceptance remain separate observations."
     }
   }
 }

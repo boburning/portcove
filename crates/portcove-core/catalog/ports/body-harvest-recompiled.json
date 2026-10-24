@@ -6,9 +6,8 @@
     "summary": "Explore Body Harvest: Recompiled and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/mcsoderh/BodyHarvestRecomp",
     "issue_number": 1448,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/mcsoderh/BodyHarvestRecomp",
+    "availability": "packages",
+    "setup_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/v1.0.0/README.md",
     "artwork": {
       "game_id": 3426,
       "cover_id": 258206,
@@ -16,6 +15,47 @@
       "image_sha256": "c14ab273e1271bb4fdee7feebc3bc6e9a34e7835e9fc42754f547fbbd853324a",
       "game_slug": "body-harvest",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/mcsoderh/BodyHarvestRecomp/releases/tag/v1.0.0",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install the recommended runtime",
+          "instruction": "Choose Install to let Portcove maintain the official portable runtime, or keep a customized/upstream-managed copy through Installation options."
+        },
+        {
+          "title": "Supply your original game files on first launch",
+          "instruction": "Choose your North American Body Harvest ROM in Load ROM on first launch; .z64, .n64 and .v64 are accepted by upstream. The game checks and remembers its own copy."
+        },
+        {
+          "title": "Keep your progress and choose when to update",
+          "instruction": "The ROM copy, saves, settings and supported mods use the upstream LocalAppData/BodyHarvestRecompiled folder. They remain outside Portcove backups. Keep the default upstream storage mode; use an external registration if you want portable.txt or customized runtime files. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/v1.0.0/README.md"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "mcsoderh/BodyHarvestRecomp",
+      "asset_hints": {
+        "windows-x86-64": ["bodyharvestrecompiled-", "-windows.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["BodyHarvestRecompiled.exe"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Choose your North American Body Harvest ROM in Load ROM on first launch; .z64, .n64 and .v64 are accepted by upstream. The game checks and remembers its own copy. The ROM copy, saves, settings and supported mods use the upstream LocalAppData/BodyHarvestRecompiled folder. They remain outside Portcove backups. Keep the default upstream storage mode; use an external registration if you want portable.txt or customized runtime files. Existing external installations keep their files and update ownership. Package inspection does not establish gameplay qualification."
     }
   }
 }

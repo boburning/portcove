@@ -21191,6 +21191,132 @@
       }
     },
     {
+      "id": "body-harvest-recompiled",
+      "name": "Body Harvest: Recompiled",
+      "summary": "Explore Body Harvest: Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/mcsoderh/BodyHarvestRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "mcsoderh/BodyHarvestRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "bodyharvestrecompiled-",
+            "-windows.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "BodyHarvestRecompiled.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Choose your North American Body Harvest ROM in Load ROM on first launch; .z64, .n64 and .v64 are accepted by upstream. The game checks and remembers its own copy. The ROM copy, saves, settings and supported mods use the upstream LocalAppData/BodyHarvestRecompiled folder. They remain outside Portcove backups. Keep the default upstream storage mode; use an external registration if you want portable.txt or customized runtime files. Existing external installations keep their files and update ownership. Package inspection does not establish gameplay qualification.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install the recommended runtime",
+              "instruction": "Choose Install to let Portcove maintain the official portable runtime, or keep a customized/upstream-managed copy through Installation options."
+            },
+            {
+              "title": "Supply your original game files on first launch",
+              "instruction": "Choose your North American Body Harvest ROM in Load ROM on first launch; .z64, .n64 and .v64 are accepted by upstream. The game checks and remembers its own copy."
+            },
+            {
+              "title": "Keep your progress and choose when to update",
+              "instruction": "The ROM copy, saves, settings and supported mods use the upstream LocalAppData/BodyHarvestRecompiled folder. They remain outside Portcove backups. Keep the default upstream storage mode; use an external registration if you want portable.txt or customized runtime files. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/v1.0.0/README.md"
+        },
+        "artwork": {
+          "game_id": 3426,
+          "cover_id": 258206,
+          "image_id": "co5j8e",
+          "image_sha256": "c14ab273e1271bb4fdee7feebc3bc6e9a34e7835e9fc42754f547fbbd853324a",
+          "game_slug": "body-harvest",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "colin-mcrae-rally-2-opencmr2",
+      "name": "Colin McRae Rally 2.0 / OpenCMR2",
+      "summary": "Explore Colin McRae Rally 2.0 / OpenCMR2 and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/pablocpas/OpenCMR2",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "pablocpas/OpenCMR2",
+        "asset_hints": {
+          "windows-x86-64": [
+            "opencmr2-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "opencmr2.exe"
+        ]
+      },
+      "persistent_paths": [
+        "Data",
+        "opencmr2.ini",
+        "opencmr2.log",
+        "SaveGame"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Select your installed original Colin McRae Rally 2.0 game folder when OpenCMR2 asks on first launch. The supported original files can stay outside the managed runtime. An optional Data folder beside the executable is carried between compatible versions. OpenCMR2 normally keeps saves, settings and logs in AppData/OpenCMR2, outside Portcove backups. Declared Data and in-folder fallback opencmr2.ini/opencmr2.log are retained when present. The upstream game owns edition checks and its storage resolver; Portcove replaces the package only. Existing external installations keep their files and update ownership. Package inspection does not establish gameplay qualification. The declared SaveGame folder also preserves the upstream user-directory fallback. If preference storage fails or custom launch paths create other files in the runtime, keep the current copy and review those exact paths before replacement; use external registration for custom storage.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install the recommended runtime",
+              "instruction": "Choose Install to let Portcove maintain the official portable runtime, or keep a customized/upstream-managed copy through Installation options."
+            },
+            {
+              "title": "Supply your original game files on first launch",
+              "instruction": "Select your installed original Colin McRae Rally 2.0 game folder when OpenCMR2 asks on first launch. The supported original files can stay outside the managed runtime. An optional Data folder beside the executable is carried between compatible versions."
+            },
+            {
+              "title": "Keep your progress and choose when to update",
+              "instruction": "OpenCMR2 normally keeps saves, settings and logs in AppData/OpenCMR2, outside Portcove backups. Declared Data and in-folder fallback opencmr2.ini/opencmr2.log are retained when present. The upstream game owns edition checks and its storage resolver; Portcove replaces the package only. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/pablocpas/OpenCMR2/blob/v1.6.0/README.md"
+        },
+        "artwork": {
+          "game_id": 642,
+          "cover_id": 351921,
+          "image_id": "co7jjl",
+          "image_sha256": "f0017034b228e12a2d22522dc6510f8e546824db874cb70a968d8e283e0e312c",
+          "game_slug": "colin-mcrae-rally-2-0",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "corsixth-corsixth",
       "name": "CorsixTH",
       "summary": "Play Theme Hospital with CorsixTH.",
@@ -21252,6 +21378,132 @@
           "image_sha256": "85d8be21323ee5747b4316fbffc8045bff5916899e2746958c8beca93f894f2e",
           "game_slug": "corsixth",
           "match_kind": "port"
+        }
+      }
+    },
+    {
+      "id": "dahsidiabdallah-conkerbfdreloaded",
+      "name": "Conker's Bad Fur Day / ConkerBFDReloaded (DahSidiAbdallah)",
+      "summary": "Explore Conker's Bad Fur Day / ConkerBFDReloaded (DahSidiAbdallah) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "DahSidiAbdallah/ConkerBFDReloaded",
+        "asset_hints": {
+          "windows-x86-64": [
+            "conkerbfdreloaded-",
+            "-windows.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "ConkerBFDReloaded.exe"
+        ]
+      },
+      "persistent_paths": [
+        "crash.log"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Choose your own US Conker’s Bad Fur Day ROM in the upstream launcher on first launch. The game checks and remembers its copy. Install compatible mods and texture packs through its Mods menu. The ROM copy, saves, settings, save states and installed mods use upstream LocalAppData/ConkerBFDReloaded storage, outside Portcove backups. The declared in-folder crash.log is retained across replacement. Use an external registration for customized package files or a different storage mode. Existing external installations keep their files and update ownership. Package inspection does not establish gameplay qualification.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install the recommended runtime",
+              "instruction": "Choose Install to let Portcove maintain the official portable runtime, or keep a customized/upstream-managed copy through Installation options."
+            },
+            {
+              "title": "Supply your original game files on first launch",
+              "instruction": "Choose your own US Conker’s Bad Fur Day ROM in the upstream launcher on first launch. The game checks and remembers its copy. Install compatible mods and texture packs through its Mods menu."
+            },
+            {
+              "title": "Keep your progress and choose when to update",
+              "instruction": "The ROM copy, saves, settings, save states and installed mods use upstream LocalAppData/ConkerBFDReloaded storage, outside Portcove backups. The declared in-folder crash.log is retained across replacement. Use an external registration for customized package files or a different storage mode. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/v1.4.6/README.md"
+        },
+        "artwork": {
+          "game_id": 1286,
+          "cover_id": 86478,
+          "image_id": "co1uq6",
+          "image_sha256": "b069fddecc98b4807eca1682d4c3858eff1cbce95901329777305ee1338ccab7",
+          "game_slug": "conker-s-bad-fur-day",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "djultra64-blocksphere",
+      "name": "Tetrisphere / Blocksphere (djultra64)",
+      "summary": "Explore Tetrisphere / Blocksphere (djultra64) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/djultra64/Blocksphere",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "djultra64/Blocksphere",
+        "asset_hints": {
+          "windows-x86-64": [
+            "blocksphere-",
+            "-windows-x86_64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "tetrisphere.exe"
+        ]
+      },
+      "persistent_paths": [
+        "data"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "On first Play, choose your own Tetrisphere US NTPE revision 0 ROM in .z64, .v64, .n64 or ZIP form. The game validates and imports it; no separate installer or BIOS is required. The imported ROM, settings, progress and diagnostics live in data beside tetrisphere.exe. Portcove carries that declared folder between compatible runtime versions, including data present before first Play. Older upstream user-profile data is not silently imported: follow upstream instructions to copy it to data before launching. Runtime rollback carries current data and does not rewind saves. Existing external copies keep their files and runtime update owner. Gameplay and installed-app acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install or keep your existing copy",
+              "instruction": "Choose Install for the official portable runtime maintained by Portcove. Installation options retain a non-owning route for an existing or customized copy."
+            },
+            {
+              "title": "Start with the required game files",
+              "instruction": "On first Play, choose your own Tetrisphere US NTPE revision 0 ROM in .z64, .v64, .n64 or ZIP form. The game validates and imports it; no separate installer or BIOS is required."
+            },
+            {
+              "title": "Keep your progress when updating",
+              "instruction": "The imported ROM, settings, progress and diagnostics live in data beside tetrisphere.exe. Portcove carries that declared folder between compatible runtime versions, including data present before first Play. Older upstream user-profile data is not silently imported: follow upstream instructions to copy it to data before launching. Runtime rollback carries current data and does not rewind saves."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/djultra64/Blocksphere/blob/v1.1.0/README.md"
+        },
+        "artwork": {
+          "game_id": 3612,
+          "cover_id": 154600,
+          "image_id": "co3bag",
+          "image_sha256": "1f36e0dc2de5ac31e008efd006545df8aa7c6d626f6ebf3a48b72c6b23250e6e",
+          "game_slug": "tetrisphere",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -21318,6 +21570,247 @@
           "image_id": "coc8zf",
           "image_sha256": "4308b7dc47bea686b498f8e5788fcf5e7230177e982bd6d3e2e17f4e325d7587",
           "game_slug": "sopwith",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "gearhead-garage-opengg",
+      "name": "Gearhead Garage: The Virtual Mechanic (OpenGG)",
+      "summary": "Explore Gearhead Garage: The Virtual Mechanic (OpenGG) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/tymsky/OpenGG",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "tymsky/OpenGG",
+        "asset_hints": {
+          "windows-x86-64": [
+            "opengg-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "OpenGG.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, use GAME FOLDER to choose your installed Gearhead Garage folder containing Data/Cars. The original folder is read-only. NEW creates a mechanic; IMPORT MECHANICS brings over your own .mek saves. Without original files, upstream offers its limited placeholder beta. OpenGG normally stores saves, settings, snapshots and logs in AppData/Godot/app_userdata/OpenGG, outside Portcove backups. The package content remains version-owned; no in-folder player-data paths are declared. Keep the default storage mode; register an external copy for custom --user or --data paths. Existing external copies keep their files and runtime update owner. Gameplay and installed-app acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install or keep your existing copy",
+              "instruction": "Choose Install for the official portable runtime maintained by Portcove. Installation options retain a non-owning route for an existing or customized copy."
+            },
+            {
+              "title": "Start with the required game files",
+              "instruction": "On first Play, use GAME FOLDER to choose your installed Gearhead Garage folder containing Data/Cars. The original folder is read-only. NEW creates a mechanic; IMPORT MECHANICS brings over your own .mek saves. Without original files, upstream offers its limited placeholder beta."
+            },
+            {
+              "title": "Keep your progress when updating",
+              "instruction": "OpenGG normally stores saves, settings, snapshots and logs in AppData/Godot/app_userdata/OpenGG, outside Portcove backups. The package content remains version-owned; no in-folder player-data paths are declared. Keep the default storage mode; register an external copy for custom --user or --data paths."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/tymsky/OpenGG/blob/v0.2.2/README.md"
+        },
+        "artwork": {
+          "game_id": 73965,
+          "cover_id": 53177,
+          "image_id": "ozskcnrkpacgofnpqf4u",
+          "image_sha256": "3b3bcf884f0f11fd489398db4b034213700c2ee312a232732dd7293bbd480d79",
+          "game_slug": "gearhead-garage",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "knuckles-chaotix-recompiled",
+      "name": "Knuckles' Chaotix Recompiled",
+      "summary": "Explore Knuckles' Chaotix Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "YuutaTsubasa/ChaotixRecompiled",
+        "asset_hints": {
+          "windows-x86-64": [
+            "chaotixrecompiled-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "ChaotixRecompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "Game",
+        "Config",
+        "SaveData",
+        "ControllerMappings",
+        "States",
+        "Ghosts",
+        "Splits",
+        "Netplay",
+        "Mods",
+        "Screenshots",
+        "Cache"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, select your own supported Knuckles’ Chaotix ROM from the setup page. The game validates and installs its own copy. Configure controls and compatible mods through upstream menus. The default Windows storage is AppData/ChaotixRecompiled/ChaotixRecompiled, outside Portcove backups. Saves, settings, imported ROM, mods and recordings remain there across runtime updates. The source also has a current-folder fallback; its declared data directories are preserved if present. Save states are tied to the ROM, patches and program version. Use an external registration for custom launch flags or a custom data root. Existing external copies keep their files and runtime update owner. Gameplay and installed-app acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install or keep your existing copy",
+              "instruction": "Choose Install for the official portable runtime maintained by Portcove. Installation options retain a non-owning route for an existing or customized copy."
+            },
+            {
+              "title": "Start with the required game files",
+              "instruction": "On first Play, select your own supported Knuckles’ Chaotix ROM from the setup page. The game validates and installs its own copy. Configure controls and compatible mods through upstream menus."
+            },
+            {
+              "title": "Keep your progress when updating",
+              "instruction": "The default Windows storage is AppData/ChaotixRecompiled/ChaotixRecompiled, outside Portcove backups. Saves, settings, imported ROM, mods and recordings remain there across runtime updates. The source also has a current-folder fallback; its declared data directories are preserved if present. Save states are tied to the ROM, patches and program version. Use an external registration for custom launch flags or a custom data root."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/blob/v0.14.0/README.md"
+        },
+        "artwork": {
+          "game_id": 19762,
+          "cover_id": 138048,
+          "image_id": "co2yio",
+          "image_sha256": "7ffe990e065a345245423f4f51ad461fa5e40ab644a1ef97b8537a049ec8f2af",
+          "game_slug": "knuckles-chaotix",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "opentyrian-opentyrian",
+      "name": "Tyrian / OpenTyrian (opentyrian)",
+      "summary": "Explore Tyrian / OpenTyrian (opentyrian) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/opentyrian/opentyrian",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "opentyrian/opentyrian",
+        "asset_hints": {
+          "windows-x86-64": [
+            "opentyrian-",
+            "-windows-x86_64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "opentyrian.exe"
+        ]
+      },
+      "persistent_paths": [
+        "opentyrian.cfg",
+        "tyrian.cfg",
+        "tyrian.sav"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "demorec.",
+          "suffix": "0"
+        },
+        {
+          "prefix": "demorec.",
+          "suffix": "1"
+        },
+        {
+          "prefix": "demorec.",
+          "suffix": "2"
+        },
+        {
+          "prefix": "demorec.",
+          "suffix": "3"
+        },
+        {
+          "prefix": "demorec.",
+          "suffix": "4"
+        },
+        {
+          "prefix": "demorec.",
+          "suffix": "5"
+        },
+        {
+          "prefix": "demorec.",
+          "suffix": "6"
+        },
+        {
+          "prefix": "demorec.",
+          "suffix": "7"
+        },
+        {
+          "prefix": "demorec.",
+          "suffix": "8"
+        },
+        {
+          "prefix": "demorec.",
+          "suffix": "9"
+        }
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required. OpenTyrian normally stores settings, saves and recorded demos in AppData/OpenTyrian, outside Portcove backups. If upstream falls back to the executable folder, declared opentyrian.cfg, tyrian.cfg, tyrian.sav and demorec.* recordings are retained. Runtime rollback carries declared current data and does not rewind saves. Existing external copies keep their files and runtime update owner. Gameplay and installed-app acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install or keep your existing copy",
+              "instruction": "Choose Install for the official portable runtime maintained by Portcove. Installation options retain a non-owning route for an existing or customized copy."
+            },
+            {
+              "title": "Start with the required game files",
+              "instruction": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required."
+            },
+            {
+              "title": "Keep your progress when updating",
+              "instruction": "OpenTyrian normally stores settings, saves and recorded demos in AppData/OpenTyrian, outside Portcove backups. If upstream falls back to the executable folder, declared opentyrian.cfg, tyrian.cfg, tyrian.sav and demorec.* recordings are retained. Runtime rollback carries declared current data and does not rewind saves."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/opentyrian/opentyrian/blob/v2.1.20260913/README.md"
+        },
+        "artwork": {
+          "game_id": 3804,
+          "cover_id": 226763,
+          "image_id": "co4uyz",
+          "image_sha256": "c6c4fcf0decb20033ee4cf7c945357207f806e25de616cc98eaa8c7bdc5d4888",
+          "game_slug": "tyrian",
           "match_kind": "underlying-game"
         }
       }

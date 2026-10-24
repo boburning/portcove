@@ -6,9 +6,8 @@
     "summary": "Explore Conker's Bad Fur Day / ConkerBFDReloaded (DahSidiAbdallah) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded",
     "issue_number": 1806,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded",
+    "availability": "packages",
+    "setup_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/v1.4.6/README.md",
     "artwork": {
       "game_id": 1286,
       "cover_id": 86478,
@@ -16,6 +15,47 @@
       "image_sha256": "b069fddecc98b4807eca1682d4c3858eff1cbce95901329777305ee1338ccab7",
       "game_slug": "conker-s-bad-fur-day",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/releases/tag/v1.4.6",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install the recommended runtime",
+          "instruction": "Choose Install to let Portcove maintain the official portable runtime, or keep a customized/upstream-managed copy through Installation options."
+        },
+        {
+          "title": "Supply your original game files on first launch",
+          "instruction": "Choose your own US Conker’s Bad Fur Day ROM in the upstream launcher on first launch. The game checks and remembers its copy. Install compatible mods and texture packs through its Mods menu."
+        },
+        {
+          "title": "Keep your progress and choose when to update",
+          "instruction": "The ROM copy, saves, settings, save states and installed mods use upstream LocalAppData/ConkerBFDReloaded storage, outside Portcove backups. The declared in-folder crash.log is retained across replacement. Use an external registration for customized package files or a different storage mode. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/v1.4.6/README.md"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "DahSidiAbdallah/ConkerBFDReloaded",
+      "asset_hints": {
+        "windows-x86-64": ["conkerbfdreloaded-", "-windows.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["ConkerBFDReloaded.exe"]
+    },
+    "persistent_paths": ["crash.log"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Choose your own US Conker’s Bad Fur Day ROM in the upstream launcher on first launch. The game checks and remembers its copy. Install compatible mods and texture packs through its Mods menu. The ROM copy, saves, settings, save states and installed mods use upstream LocalAppData/ConkerBFDReloaded storage, outside Portcove backups. The declared in-folder crash.log is retained across replacement. Use an external registration for customized package files or a different storage mode. Existing external installations keep their files and update ownership. Package inspection does not establish gameplay qualification."
     }
   }
 }

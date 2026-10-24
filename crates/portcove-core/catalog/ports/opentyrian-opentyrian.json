@@ -6,9 +6,8 @@
     "summary": "Explore Tyrian / OpenTyrian (opentyrian) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/opentyrian/opentyrian",
     "issue_number": 1860,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/opentyrian/opentyrian",
+    "availability": "packages",
+    "setup_url": "https://github.com/opentyrian/opentyrian/blob/v2.1.20260913/README.md",
     "artwork": {
       "game_id": 3804,
       "cover_id": 226763,
@@ -16,6 +15,89 @@
       "image_sha256": "c6c4fcf0decb20033ee4cf7c945357207f806e25de616cc98eaa8c7bdc5d4888",
       "game_slug": "tyrian",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/opentyrian/opentyrian/releases/tag/v2.1.20260913",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install or keep your existing copy",
+          "instruction": "Choose Install for the official portable runtime maintained by Portcove. Installation options retain a non-owning route for an existing or customized copy."
+        },
+        {
+          "title": "Start with the required game files",
+          "instruction": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required."
+        },
+        {
+          "title": "Keep your progress when updating",
+          "instruction": "OpenTyrian normally stores settings, saves and recorded demos in AppData/OpenTyrian, outside Portcove backups. If upstream falls back to the executable folder, declared opentyrian.cfg, tyrian.cfg, tyrian.sav and demorec.* recordings are retained. Runtime rollback carries declared current data and does not rewind saves."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/opentyrian/opentyrian/blob/v2.1.20260913/README.md"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "opentyrian/opentyrian",
+      "asset_hints": {
+        "windows-x86-64": ["opentyrian-", "-windows-x86_64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["opentyrian.exe"]
+    },
+    "persistent_paths": ["opentyrian.cfg", "tyrian.cfg", "tyrian.sav"],
+    "persistent_file_patterns": [
+      {
+        "prefix": "demorec.",
+        "suffix": "0"
+      },
+      {
+        "prefix": "demorec.",
+        "suffix": "1"
+      },
+      {
+        "prefix": "demorec.",
+        "suffix": "2"
+      },
+      {
+        "prefix": "demorec.",
+        "suffix": "3"
+      },
+      {
+        "prefix": "demorec.",
+        "suffix": "4"
+      },
+      {
+        "prefix": "demorec.",
+        "suffix": "5"
+      },
+      {
+        "prefix": "demorec.",
+        "suffix": "6"
+      },
+      {
+        "prefix": "demorec.",
+        "suffix": "7"
+      },
+      {
+        "prefix": "demorec.",
+        "suffix": "8"
+      },
+      {
+        "prefix": "demorec.",
+        "suffix": "9"
+      }
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required. OpenTyrian normally stores settings, saves and recorded demos in AppData/OpenTyrian, outside Portcove backups. If upstream falls back to the executable folder, declared opentyrian.cfg, tyrian.cfg, tyrian.sav and demorec.* recordings are retained. Runtime rollback carries declared current data and does not rewind saves. Existing external copies keep their files and runtime update owner. Gameplay and installed-app acceptance remain separate observations."
     }
   }
 }
