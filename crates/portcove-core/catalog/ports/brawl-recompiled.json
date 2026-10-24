@@ -1,0 +1,15 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "brawl-recompiled",
+    "name": "Super Smash Bros. Brawl / BrawlRecompiled",
+    "summary": "Explore BrawlRecompiled and follow the upstream project for original-game requirements, downloads and setup.",
+    "project_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled",
+    "original_game_title": "Super Smash Bros. Brawl",
+    "issue_number": 2434,
+    "platforms": [],
+    "availability": "unknown",
+    "release_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled/releases",
+    "setup_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled"
+  }
+}

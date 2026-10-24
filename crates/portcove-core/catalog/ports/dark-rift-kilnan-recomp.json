@@ -2,8 +2,8 @@
   "format_version": 1,
   "listing": {
     "id": "dark-rift-kilnan-recomp",
-    "name": "[Port] Dark Rift / DarkRiftRecomp",
-    "summary": "Explore [Port] Dark Rift / DarkRiftRecomp and follow the upstream project for requirements, downloads and setup.",
+    "name": "Dark Rift / DarkRiftRecomp",
+    "summary": "Explore Dark Rift / DarkRiftRecomp and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/kilnan/DarkRiftRecomp",
     "issue_number": 2190,
     "platforms": [],
