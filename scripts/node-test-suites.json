@@ -2149,6 +2149,13 @@
       ]
     },
     {
+      "file": "scripts/roadmap-rest-intake.test.mts",
+      "memberships": [
+        ["catalog-full", 810],
+        ["roadmap-check", 810]
+      ]
+    },
+    {
       "file": "scripts/repository-issue-inventory.test.mts",
       "memberships": [
         ["catalog-full", 800],

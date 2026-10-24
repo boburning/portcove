@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { GitHubApiError, sanitizeOperationError } from "./github-api.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import { coordinatorCommandTimeout } from "./release-coordinator-deadline.mts";
+import { RestInventoryTransport } from "./github-rest-inventory.mts";
 
 export interface InventoryReader {
   config: { repository: string };
@@ -198,7 +199,7 @@ export function readCompleteConnection(
   }
 }
 export interface RepositoryInventoryEvidence {
-  source: "graphql";
+  source: "graphql" | "rest";
   repository: string;
   repository_node_id?: string;
   field_coverage: "metadata" | "bodies";
@@ -208,6 +209,7 @@ export interface RepositoryInventoryEvidence {
   pages: InventoryPageEvidence[];
   total?: number;
   project_memberships?: number;
+  rest_pages?: { endpoint_sha256: string; count: number; terminal: boolean }[];
 }
 export interface VerifiedRepositoryIssueInventory {
   readonly repository: string;
@@ -223,6 +225,136 @@ const verified = new WeakMap<
   VerifiedRepositoryIssueInventory,
   { reader: InventoryReader; hash: string }
 >();
+/** Complete open/closed REST issue inventory for intake; no Project-membership claim. */
+export function collectRestRepositoryIssueInventory(
+  reader: InventoryReader,
+  rest: RestInventoryTransport,
+): VerifiedRepositoryIssueInventory {
+  const binding = reader.config.repository;
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(binding))
+    throw new InventoryError("inventory_identity", "Invalid REST repository binding");
+  const evidence: RepositoryInventoryEvidence = {
+    source: "rest",
+    repository: binding,
+    field_coverage: "bodies",
+    started_at: new Date().toISOString(),
+    query_sha256: hash("REST state=all sort=created direction=asc"),
+    pages: [],
+  };
+  try {
+    let numericRepository: number | undefined;
+    const repository = () => {
+      const value = object(rest.get(`repos/${binding}`).body);
+      if (
+        typeof value.node_id !== "string" ||
+        !value.node_id ||
+        String(value.full_name).toLowerCase() !== binding.toLowerCase() ||
+        typeof value.id !== "number" ||
+        !Number.isSafeInteger(value.id) ||
+        value.id < 1 ||
+        (numericRepository !== undefined && numericRepository !== value.id)
+      )
+        throw new InventoryError("inventory_identity", "REST repository identity is unavailable");
+      numericRepository = value.id;
+      return value.node_id;
+    };
+    const identity = repository();
+    evidence.repository_node_id = identity;
+    const marker = (sort: "created" | "updated") => {
+      const values = rest.get(
+        `repos/${binding}/issues?state=all&sort=${sort}&direction=desc&per_page=1`,
+      ).body;
+      if (!Array.isArray(values) || values.length > 1)
+        throw new InventoryError("inventory_malformed", "Malformed REST repository marker");
+      return values.map((raw: unknown) => {
+        const value = object(raw);
+        if (
+          typeof value.node_id !== "string" ||
+          typeof value.updated_at !== "string" ||
+          !("body" in value) ||
+          (value.body !== null && typeof value.body !== "string")
+        )
+          throw new InventoryError("inventory_malformed", "Incomplete REST issue marker");
+        return { id: value.node_id, revision: value.updated_at, body: hash(value.body) };
+      });
+    };
+    const before = { created: marker("created"), updated: marker("updated") };
+    const collected = rest.pages(
+      `repos/${binding}/issues?state=all&sort=created&direction=asc&per_page=100`,
+      [`/repos/${binding}/issues`, `/repositories/${numericRepository}/issues`],
+    );
+    evidence.rest_pages = collected.pages;
+    let previousCreated = -Infinity;
+    const numbers = new Set<number>();
+    const issues: Readonly<RepositoryIssueRecord>[] = [];
+    for (const value of collected.rows) {
+      if (
+        !Number.isSafeInteger(value.number) ||
+        Number(value.number) < 1 ||
+        numbers.has(Number(value.number)) ||
+        value.html_url !==
+          `https://github.com/${binding}/${value.pull_request ? "pull" : "issues"}/${Number(value.number)}` ||
+        typeof value.title !== "string" ||
+        !("body" in value) ||
+        (value.body !== null && typeof value.body !== "string") ||
+        typeof value.created_at !== "string" ||
+        !Number.isFinite(Date.parse(value.created_at)) ||
+        Date.parse(value.created_at) < previousCreated ||
+        typeof value.updated_at !== "string" ||
+        !Number.isFinite(Date.parse(value.updated_at)) ||
+        !["open", "closed"].includes(String(value.state))
+      )
+        throw new InventoryError(
+          "inventory_malformed",
+          "Incomplete or unordered REST issue inventory",
+        );
+      previousCreated = Date.parse(String(value.created_at));
+      numbers.add(Number(value.number));
+      if (value.pull_request) continue;
+      issues.push(
+        Object.freeze({
+          id: String(value.node_id),
+          node_id: String(value.node_id),
+          number: Number(value.number),
+          title: value.title,
+          body: value.body ?? "",
+          url: String(value.html_url),
+          html_url: String(value.html_url),
+          state: value.state === "open" ? "OPEN" : "CLOSED",
+          updatedAt: value.updated_at,
+          type: "Issue",
+        }),
+      );
+    }
+    const after = { created: marker("created"), updated: marker("updated") };
+    if (
+      repository() !== identity ||
+      hash(before) !== hash(after) ||
+      (collected.rows.at(-1)?.node_id ?? null) !== (before.created[0]?.id ?? null)
+    )
+      throw new InventoryError(
+        "inventory_changed",
+        "REST repository changed during pagination; discard the read",
+      );
+    evidence.total = issues.length;
+    evidence.finished_at = new Date().toISOString();
+    const result = Object.freeze({
+      repository: binding,
+      repository_node_id: identity,
+      observed_at: new Date().toISOString(),
+      field_coverage: "bodies" as const,
+      issues: Object.freeze(issues),
+      evidence,
+    });
+    verified.set(result, { reader, hash: hash(result) });
+    return result;
+  } catch (error) {
+    if (error instanceof Error) Object.assign(error, { inventoryEvidence: evidence });
+    throw error;
+  } finally {
+    evidence.finished_at ??= new Date().toISOString();
+  }
+}
 export function requireRepositoryIssueInventory(
   value: VerifiedRepositoryIssueInventory,
   reader: Pick<InventoryReader, "config">,

@@ -15,6 +15,30 @@ import {
   sanitizeOperationError,
 } from "./github-api.mts";
 
+await test("only conditional REST GET accepts gh's nonzero valid304 response", () => {
+  const output = "HTTP/2.0 304 Not Modified\r\netag: tag\r\n\r\n";
+  const runner = createGitHubRunner({
+    spawn: () => ({ status: 1, stdout: output, stderr: "gh: HTTP 304" }),
+  });
+  const args = [
+    "api",
+    "--include",
+    "repos/example/repo/issues",
+    "--method",
+    "GET",
+    "--header",
+    "If-None-Match: tag",
+  ];
+  assert.equal(runner(args), output);
+  assert.throws(() => runner(args.slice(0, -2)));
+  assert.throws(() => runner(args.map((argument) => (argument === "GET" ? "PATCH" : argument))));
+  const api = new GitHubApiClient(runner);
+  assert.throws(
+    () => api.request("GET", "example", null, { "If-None-Match": "tag\r\nInjected: true" }),
+    /Invalid.*header/u,
+  );
+});
+
 void test("included GitHub responses expose the final headers body and rate limit", () => {
   const response = parseIncludedResponse(
     "HTTP/2.0 200 OK\r\n" +
