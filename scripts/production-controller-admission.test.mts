@@ -232,6 +232,7 @@ void test("hosted native parent default path retains original source and issuer 
   const checkpoint = "f".repeat(40);
   let currentCheckpoint = checkpoint;
   let collectorCalls = 0;
+  let transientRetries = 0;
   let outcome = "selected";
   const syntheticFacts = {
     checkpoint,
@@ -247,22 +248,23 @@ void test("hosted native parent default path retains original source and issuer 
   t.mock.module("./acquire-release-admission.mts", {
     namedExports: {
       ...originalCollector,
-      acquireReleaseAdmission: async (
+      acquireHostedNativePreparation: async (
+        originalParent: object,
         _root: string,
         _configuration: unknown,
-        options: NonNullable<Parameters<typeof originalCollector.acquireReleaseAdmission>[2]>,
+        options: Parameters<typeof originalCollector.acquireHostedNativePreparation>[3],
+        receiveFacts: Parameters<typeof originalCollector.acquireHostedNativePreparation>[4],
       ) => {
         collectorCalls++;
         if (outcome === "prior-hold")
           throw new CoordinatorRemoteError("hold", { phase: "repository-and-reservation" });
-        assert.equal(options.controlPhase, "payload");
-        assert.ok(options.retainDesktopPackage && options.establishNative);
+        await requireActualHostedNativeParentSource(originalParent);
+        assert.ok(options.retainDesktopPackage);
         await options.retainDesktopPackage(
           file,
           outcome === "bad-bytes" ? Buffer.from("changed") : packageBytes,
         );
-        const native = await options.establishNative(syntheticFacts);
-        assert.deepEqual(native, []);
+        await receiveFacts(syntheticFacts);
         if (outcome === "unexpected-success") return {};
         if (outcome === "changed-checkpoint") currentCheckpoint = "e".repeat(40);
         throw new CoordinatorRemoteError("no native acceptance", {
@@ -278,7 +280,12 @@ void test("hosted native parent default path retains original source and issuer 
       recoverRemoteCoordinator: async () => ({
         checkpoint: currentCheckpoint,
         input: {
-          active_candidate: { phase: "building", version: assembly.request.version },
+          active_candidate: {
+            phase: "qualifying",
+            version: assembly.request.version,
+            transient_retries: transientRetries,
+            substantive_repairs: 0,
+          },
           controller: {
             capacity_attempt: { schema_version: 2, operation: null, prior_operations: [] },
           },
@@ -291,6 +298,7 @@ void test("hosted native parent default path retains original source and issuer 
   assert.equal(collectorCalls, 0);
   const selected = await hostedCandidate.acquireActualHostedNativeCandidate(receipt);
   const selectedValue = await hostedCandidate.requireActualHostedNativeCandidate(selected);
+  assert.equal(selectedValue.parent_source, receipt);
   assert.equal(selectedValue.candidate.package.sha256, file.sha256);
   assert.equal(selectedValue.checkpoint, checkpoint);
   assert.equal(selectedValue.native_acceptance, "not-established");
@@ -300,6 +308,144 @@ void test("hosted native parent default path retains original source and issuer 
       .digest("hex"),
     file.sha256,
   );
+  // Real source/candidate private factories above; only the system observations
+  // below are controlled. No Linux account, host, isolation or native run occurs.
+  let hostFault = "";
+  let machine = "a".repeat(32);
+  const systemBytes = (filename: string) => {
+    if (filename === "/etc/passwd")
+      return Buffer.from(
+        hostFault === "missing-account"
+          ? "root:x:0:0::/root:/bin/bash\n"
+          : `portcove-native:x:${hostFault === "same-account" ? 1000 : 1002}:1002::/home/portcove-native:${hostFault === "interactive" ? "/bin/bash" : "/usr/sbin/nologin"}\n`,
+      );
+    if (filename === "/etc/machine-id") return Buffer.from(`${machine}\n`);
+    if (filename === "/usr/lib/os-release")
+      return Buffer.from(`ID=ubuntu\nVERSION_ID="${hostFault === "old-os" ? "22.04" : "24.04"}"\n`);
+    return null;
+  };
+  t.mock.module("node:process", {
+    defaultExport: {
+      ...process,
+      platform: "linux",
+      arch: "x64",
+      getuid: () => 1000,
+      getgid: () => 1000,
+    },
+  });
+  const originalLstat = filesystem.lstat;
+  const originalRealpath = filesystem.realpath;
+  t.mock.method(
+    filesystem,
+    "realpath",
+    async (filename: Parameters<typeof filesystem.realpath>[0]) => {
+      if (filename === "/etc/os-release") return "/usr/lib/os-release";
+      if (filename === "/etc/passwd" || filename === "/etc/machine-id") return filename;
+      return originalRealpath(filename);
+    },
+  );
+  t.mock.method(filesystem, "lstat", async (filename: Parameters<typeof filesystem.lstat>[0]) => {
+    if (typeof filename === "string") {
+      const bytes = systemBytes(filename);
+      if (bytes) {
+        const info = await originalLstat(selectedValue.package_path);
+        info.uid = hostFault === "root-owner" ? 1000 : 0;
+        info.mode = 0o100644;
+        info.nlink = 1;
+        info.size = bytes.length;
+        return info;
+      }
+      if (["/", "/etc", "/usr", "/usr/lib"].includes(filename)) {
+        const info = await originalLstat(selectedValue.directory);
+        info.uid = 0;
+        info.mode = hostFault === "writable-dir" ? 0o40777 : 0o40755;
+        return info;
+      }
+    }
+    return originalLstat(filename);
+  });
+  const originalTools = await import("./release-controller-tools.mts");
+  t.mock.module("./release-controller-tools.mts", {
+    namedExports: {
+      ...originalTools,
+      readControllerToolFile: async (filename: string, maximum?: number) => {
+        const bytes = systemBytes(filename);
+        if (bytes) {
+          assert.ok(bytes.length <= (maximum ?? 0));
+          return bytes;
+        }
+        return originalTools.readControllerToolFile(filename, maximum);
+      },
+    },
+  });
+  t.mock.method(os, "release", () => "6.8.0");
+  t.mock.method(os, "machine", () => "x86_64");
+  syncBuiltinESMExports();
+  const linuxRequest = await import("./release-hosted-native-linux-request.mts");
+  await assert.rejects(linuxRequest.prepareActualHostedNativeLinuxRequest({}), /original active/);
+  const linux = await linuxRequest.prepareActualHostedNativeLinuxRequest(selected);
+  const linuxValue = await linuxRequest.requireActualHostedNativeLinuxRequest(linux);
+  assert.deepEqual(linuxValue.prepared.request.expected.host.account, {
+    kind: "linux-uid",
+    broker: "1000",
+    qualification: "1002",
+  });
+  assert.equal(linuxValue.prepared.request.expected.compatibility.minimum_os_version, "24.04");
+  assert.equal(linuxValue.host.observed.kernel_release, "6.8.0");
+  assert.equal(linuxValue.authority, "none");
+  assert.equal(linuxValue.parent_source, receipt);
+  await assert.rejects(
+    linuxRequest.prepareActualHostedNativeLinuxRequest(selected),
+    /one original/,
+  );
+  await assert.rejects(
+    linuxRequest.requireActualHostedNativeLinuxRequest({ ...linux }),
+    /original active/,
+  );
+  machine = "b".repeat(32);
+  await assert.rejects(
+    linuxRequest.requireActualHostedNativeLinuxRequest(linux),
+    /host or account changed/,
+  );
+  machine = "a".repeat(32);
+  await assert.rejects(
+    linuxRequest.requireActualHostedNativeLinuxRequest(linux),
+    /original active/,
+  );
+  for (hostFault of [
+    "missing-account",
+    "same-account",
+    "interactive",
+    "old-os",
+    "root-owner",
+    "writable-dir",
+    "counter-limit",
+  ]) {
+    transientRetries = hostFault === "counter-limit" ? 3 : 0;
+    const sourceAttempt = await createActualHostedNativeParentSource(
+      parent,
+      "linux-x86_64",
+      "payload-signing",
+      performance.now() + 10000,
+    );
+    const candidateAttempt =
+      await hostedCandidate.acquireActualHostedNativeCandidate(sourceAttempt);
+    await assert.rejects(
+      linuxRequest.prepareActualHostedNativeLinuxRequest(candidateAttempt),
+      /retain/,
+    );
+    await assert.rejects(
+      linuxRequest.prepareActualHostedNativeLinuxRequest(candidateAttempt),
+      /one original/,
+    );
+    const value = await hostedCandidate.requireActualHostedNativeCandidate(candidateAttempt);
+    const refusal = JSON.parse(
+      await readFile(path.join(value.directory, "hosted-linux-request-refusal.json"), "utf8"),
+    ) as { automatic_retry: boolean };
+    assert.equal(refusal.automatic_retry, false);
+  }
+  hostFault = "";
+  transientRetries = 0;
   await assert.rejects(hostedCandidate.acquireActualHostedNativeCandidate(receipt), /one original/);
   await assert.rejects(
     hostedCandidate.requireActualHostedNativeCandidate({ ...selected }),

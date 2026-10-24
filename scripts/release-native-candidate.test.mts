@@ -22,6 +22,7 @@ import {
   nativeInvocationIdentity,
   inspectNativePostSignController,
   inspectNativeCurrentStage,
+  inspectHostedNativePreparationStage,
   acquireActualNativeStageCandidate,
   readActualNativePostSignController,
   requireActualNativePostSignController,
@@ -269,6 +270,24 @@ void test("post-sign source run comes from exact completed timestamp candidate o
     active_candidate: { ...candidate, phase: "building" },
     controller: { capacity_attempt: { schema_version: 2, operation, prior_operations: [] } },
   });
+  const qualifying = { ...snapshot(null), active_candidate: { ...candidate, phase: "qualifying" } };
+  assert.equal(inspectHostedNativePreparationStage(qualifying), "payload-signing");
+  assert.equal(inspectHostedNativePreparationStage(snapshot(null)), "payload-signing");
+  assert.throws(() => inspectNativeCurrentStage(qualifying), /not eligible/);
+  for (const effect of [
+    make(),
+    make({}, { outcome: "pending", completed_effects: [] }),
+    make({}, { outcome: "ambiguous" }),
+  ])
+    assert.throws(() => inspectHostedNativePreparationStage(snapshot(effect)), /timestamp effects/);
+  assert.throws(
+    () =>
+      inspectHostedNativePreparationStage({
+        ...snapshot(null),
+        active_candidate: { ...candidate, phase: "publishing" },
+      }),
+    /not eligible/,
+  );
   assert.equal(inspectNativeCurrentStage(snapshot(null)), "payload-signing");
   assert.equal(inspectNativeCurrentStage(snapshot(make())), "release-publication");
   assert.equal(

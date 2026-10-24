@@ -86,6 +86,7 @@ const base = `repos/${repository}`;
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 // A caller-supplied option/JSON field cannot activate qualifying acquisition.
 const qualifyingCollections = new WeakSet<object>();
+const nativePreparationCollections = new WeakSet<object>();
 const aggregateCollections = new WeakSet<object>();
 const publicationCompletionCollections = new WeakSet<object>();
 const aggregateReadbacks = new WeakSet<object>();
@@ -286,6 +287,41 @@ function configuration(raw: unknown) {
  * ref, executes candidate code or equates provider identity with acceptance.
  * Unconfigured independent control/producer authorities remain explicit holds.
  */
+/** Source-only acquisition before candidate-building. Only an original native
+ * parent can select this phase; the callback cannot supply acceptance receipts.
+ * The ordinary collector and its private admission capabilities stay separate. */
+export async function acquireHostedNativePreparation(
+  parentReceipt: object,
+  privateRoot: string,
+  configuration: unknown,
+  sources: Pick<
+    NonNullable<Parameters<typeof acquireReleaseAdmission>[2]>,
+    "api" | "recover" | "download" | "retainDesktopPackage"
+  >,
+  receiveFacts: (facts: Readonly<PreparedReleaseAdmissionFacts>) => Promise<unknown>,
+) {
+  const { requireActualHostedNativeParentSource } =
+    await import("./release-hosted-native-parent.mts");
+  const parent = await requireActualHostedNativeParentSource(parentReceipt);
+  if (parent.stage !== "payload-signing")
+    throw new Error("native preparation requires the original pre-sign source");
+  const collection: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]> = {
+    ...(sources.api ? { api: sources.api } : {}),
+    ...(sources.recover ? { recover: sources.recover } : {}),
+    ...(sources.download ? { download: sources.download } : {}),
+    ...(sources.retainDesktopPackage ? { retainDesktopPackage: sources.retainDesktopPackage } : {}),
+    controlPhase: "admission",
+    establishNative: async (facts) => {
+      await requireActualHostedNativeParentSource(parentReceipt);
+      await receiveFacts(facts);
+      await requireActualHostedNativeParentSource(parentReceipt);
+      return [];
+    },
+  };
+  nativePreparationCollections.add(collection);
+  return acquireReleaseAdmission(privateRoot, configuration, collection);
+}
+
 export async function acquireReleaseAdmission(
   privateRoot: string,
   rawConfiguration: unknown,
@@ -316,6 +352,7 @@ export async function acquireReleaseAdmission(
   } = {},
 ) {
   const qualifyingOnly = qualifyingCollections.has(rawOptions);
+  const nativePreparation = nativePreparationCollections.has(rawOptions);
   const aggregateResume = aggregateCollections.has(rawOptions);
   const allowPublicationCompletion = publicationCompletionCollections.has(rawOptions);
   // Preserve actual/injected transport provenance and capability references
@@ -333,7 +370,7 @@ export async function acquireReleaseAdmission(
       : {}),
   });
   const controlPhase = inspectReleaseControlPhase(options.controlPhase);
-  if (qualifyingOnly && controlPhase !== "admission")
+  if ((qualifyingOnly || nativePreparation) && controlPhase !== "admission")
     throw new Error("qualifying collection requires its fixed independent reader phase");
   const nativeStage: NativeQualificationStage =
     controlPhase === "release-publication" ? "release-publication" : "payload-signing";
@@ -464,17 +501,19 @@ export async function acquireReleaseAdmission(
     const state = record(before.input);
     const candidate = record(state.active_candidate);
     if (
-      qualifyingOnly
-        ? candidate.phase !== "qualifying" &&
-          !(
-            aggregateResume &&
-            ["building", "publishing", "promoting"].includes(String(candidate.phase))
-          )
-        : ![
-            "building",
-            "publishing",
-            ...(allowPublicationCompletion ? ["promoting"] : []),
-          ].includes(String(candidate.phase))
+      nativePreparation
+        ? !["qualifying", "building"].includes(String(candidate.phase))
+        : qualifyingOnly
+          ? candidate.phase !== "qualifying" &&
+            !(
+              aggregateResume &&
+              ["building", "publishing", "promoting"].includes(String(candidate.phase))
+            )
+          : ![
+              "building",
+              "publishing",
+              ...(allowPublicationCompletion ? ["promoting"] : []),
+            ].includes(String(candidate.phase))
     )
       throw new Error("admission cannot revive an inactive or failed candidate");
     for (const key of ["source_commit", "source_tree", "prepared_commit", "prepared_tree"])
@@ -838,6 +877,7 @@ export async function acquireReleaseAdmission(
           archives,
           nativeStage,
         );
+        if (nativePreparation) throw new Error("native preparation cannot establish admission");
         facts.native_evidence = nativeReports.map((report) => ({
           ...nativeQualificationTransportIdentity(report),
           stage: report.stage,
