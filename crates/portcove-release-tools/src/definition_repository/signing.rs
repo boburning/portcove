@@ -397,7 +397,7 @@ pub async fn sign_definition_role(
         return invalid("only snapshot/timestamp require catalog public role inputs");
     }
     let prior = if let Some(value) = &config.signed_roles {
-        let directory = io::resolve(base, &value)?;
+        let directory = io::resolve(base, value)?;
         let values = roles(
             &context,
             &directory,
@@ -476,8 +476,8 @@ pub async fn sign_definition_role(
     let bytes = io::canonical(&bytes)?;
     repository::check_proposed_role(&context, role, &bytes)?;
     recheck(&context)?;
-    if let Some(value) = &config.signed_roles {
-        if roles(
+    if let Some(value) = &config.signed_roles
+        && roles(
             &context,
             &io::resolve(base, value)?,
             if role == DefinitionOnlineRole::Timestamp {
@@ -486,9 +486,8 @@ pub async fn sign_definition_role(
                 2
             },
         )? != prior
-        {
-            return invalid("catalog signed prerequisite inputs changed during signing");
-        }
+    {
+        return invalid("catalog signed prerequisite inputs changed during signing");
     }
     let changed = io::write_new(&output, &bytes)?;
     recheck(&context)?;
