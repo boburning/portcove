@@ -1156,6 +1156,8 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       npm_config_audit: "false"
+      PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
+      PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
     defaults:
       run:
         working-directory: apps/desktop
@@ -1225,6 +1227,14 @@ jobs:
         run: |
           # node-suite: frontend-full-5
           node --test --test-reporter=./scripts/required-node-test-reporter.mts scripts/transport-values.test.mts
+      - name: Retain browser bootstrap timings
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: browser-bootstrap-full-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/ci-metrics/*.json
+          retention-days: 7
+          if-no-files-found: warn
       - name: Retain browser diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1394,11 +1404,13 @@ jobs:
     name: frontend-no-global (macos-arm64)
     needs: classify
     # Exercise the no-global route for toolchain changes and native text-navigation coverage.
-    if: (needs.classify.outputs.mode == 'qualification' && contains(fromJSON(needs.classify.outputs.platforms_json), 'macos-aarch64')) || (needs.classify.outputs.mode != 'qualification' && (contains(needs.classify.outputs.files_json, 'pnpm-workspace.yaml') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/display-recovery.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/compact-navigation.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/components/AdoptionModal.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/components/Artwork.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/workspace-feedback-user-intent.browser.test.tsx')))
+    if: (needs.classify.outputs.mode == 'qualification' && contains(fromJSON(needs.classify.outputs.platforms_json), 'macos-aarch64')) || (needs.classify.outputs.mode != 'qualification' && (contains(needs.classify.outputs.files_json, 'apps/desktop/scripts/browser-runtime.mts') || contains(needs.classify.outputs.files_json, 'pnpm-workspace.yaml') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/display-recovery.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/compact-navigation.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/components/AdoptionModal.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/components/Artwork.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/workspace-feedback-user-intent.browser.test.tsx')))
     runs-on: macos-26
     timeout-minutes: 15
     env:
       VP_GIT_HOOKS: "0"
+      PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
+      PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.classify.outputs.plan_gzip_base64 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
@@ -1420,6 +1432,14 @@ jobs:
       - run: pnpm exec vp toolchain
       - run: pnpm --dir apps/desktop browser:bootstrap
       - run: pnpm verify:frontend
+      - name: Retain browser bootstrap timings
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: browser-bootstrap-contributor-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/ci-metrics/*.json
+          retention-days: 7
+          if-no-files-found: warn
       - name: Retain failed contributor browser diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

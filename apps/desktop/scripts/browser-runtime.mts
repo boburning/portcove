@@ -1,8 +1,12 @@
 import { resourceEntrypoint } from "../../../scripts/resource-command.mts";
-import { mkdirSync, mkdtempSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolvePhysicalPath, spawnCommand } from "../../../scripts/dev-storage.mts";
+import { createCiMetrics } from "../../../scripts/ci-metrics.mts";
+import { isRecord } from "../../../scripts/runtime-values.mts";
 import {
   closeProbeRunner,
   createProbeArtifactReader,
@@ -35,22 +39,79 @@ if (
 }
 
 async function bootstrapChromium() {
-  const result = spawnCommand(
-    process.execPath,
-    [
-      path.join(desktop, "node_modules", "playwright", "cli.js"),
-      "install",
-      "--only-shell",
-      "chromium",
-    ],
-    { cwd: desktop, env: process.env, stdio: "inherit", windowsHide: true },
+  const metrics = createCiMetrics();
+  // Presence is an observation before installation, not proof of a usable cache.
+  // Diagnostic metadata must never replace the actual installer/readiness result.
+  try {
+    const manifest = readFileSync(
+      new URL("../node_modules/playwright/package.json", import.meta.url),
+    );
+    const metadata: unknown = JSON.parse(manifest.toString("utf8"));
+    const version = isRecord(metadata) ? metadata.version : null;
+    // Pinned Playwright exposes the same registry used by --only-shell and
+    // headless launch. BrowserType.executablePath() instead names full Chromium.
+    // Registry shape changes produce unknown diagnostics, never a guessed path.
+    const bundle: unknown = createRequire(import.meta.resolve("playwright"))(
+      "playwright-core/lib/coreBundle",
+    );
+    const registryModule = isRecord(bundle) ? bundle.registry : null;
+    const registry = isRecord(registryModule) ? registryModule.registry : null;
+    if (!isRecord(registry) || typeof registry.findExecutable !== "function")
+      throw new Error("Unknown pinned browser registry");
+    const shell: unknown = Reflect.apply(registry.findExecutable, registry, [
+      "chromium-headless-shell",
+    ]);
+    if (!isRecord(shell) || typeof shell.executablePath !== "function")
+      throw new Error("Missing pinned headless shell");
+    const shellExecutable: unknown = Reflect.apply(shell.executablePath, shell, []);
+    if (typeof shellExecutable !== "string") throw new Error("Missing pinned headless executable");
+    const shellPresent = existsSync(shellExecutable);
+    const physicalShell = shellPresent
+      ? realpathSync(shellExecutable)
+      : path.join(
+          resolvePhysicalPath(path.dirname(shellExecutable)),
+          path.basename(shellExecutable),
+        );
+    const relativeShell = path.relative(physicalCache, physicalShell);
+    if (
+      path.isAbsolute(relativeShell) ||
+      relativeShell === ".." ||
+      relativeShell.startsWith(`..${path.sep}`)
+    )
+      throw new Error("Headless executable outside browser cache");
+    metrics.record("browser-bootstrap:cache", {
+      cache_outcome: shellPresent ? "executable-present" : "executable-absent",
+      fingerprint: createHash("sha256").update(manifest).digest("hex"),
+      groups: [
+        `playwright=${typeof version === "string" ? version : "unknown"}`,
+        `executable=${relativeShell.split(path.sep).join("/")}`,
+      ],
+    });
+  } catch {
+    metrics.record("browser-bootstrap:cache", { cache_outcome: "unknown" });
+  }
+  const result = metrics.measure("browser-bootstrap:install", () =>
+    spawnCommand(
+      process.execPath,
+      [
+        path.join(desktop, "node_modules", "playwright", "cli.js"),
+        "install",
+        "--only-shell",
+        "chromium",
+      ],
+      { cwd: desktop, env: process.env, stdio: "inherit", windowsHide: true },
+    ),
   );
   if (result.status !== 0) process.exit(result.status ?? 1);
-  const browser = await chromium.launch({ headless: true });
+  const browser = await metrics.measureAsync("browser-bootstrap:launch", () =>
+    chromium.launch({ headless: true }),
+  );
   try {
-    console.log(`Browser ready: Chromium headless ${browser.version()} in ${browserCache}`);
+    const version = browser.version();
+    metrics.record("browser-bootstrap:ready", { groups: [`chromium=${version}`] });
+    console.log(`Browser ready: Chromium headless ${version} in ${browserCache}`);
   } finally {
-    await browser.close();
+    await metrics.measureAsync("browser-bootstrap:close", () => browser.close());
   }
 }
 

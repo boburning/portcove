@@ -2663,6 +2663,7 @@ void test("native recovery keyboard changes retain macOS no-global portability c
   assert.deepEqual(
     new Set(ordinaryInputs),
     new Set([
+      "apps/desktop/scripts/browser-runtime.mts",
       "pnpm-workspace.yaml",
       "apps/desktop/src/browser/display-recovery.browser.test.tsx",
       "apps/desktop/src/browser/compact-navigation.browser.test.tsx",
