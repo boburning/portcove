@@ -6,7 +6,6 @@
     "summary": "OpenRCT2 offers upstream packages for RollerCoaster Tycoon 2. Follow upstream setup before registering your executable.",
     "project_url": "https://github.com/OpenRCT2/OpenRCT2",
     "issue_number": 1854,
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/OpenRCT2/OpenRCT2/blob/v0.5.6/readme.md",
     "original_game_title": "RollerCoaster Tycoon 2",
@@ -14,19 +13,19 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Get the upstream package",
-          "instruction": "Choose the release and package for your computer. Download and extract a portable archive, or use the upstream installer yourself."
+          "title": "Install or keep your existing copy",
+          "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
         },
         {
-          "title": "Complete upstream setup",
-          "instruction": "Select your RollerCoaster Tycoon 2 files during setup. RollerCoaster Tycoon 1 files are optional and add more scenarios."
+          "title": "Start the game",
+          "instruction": "On first Play, select your installed RollerCoaster Tycoon 2 files if they are not detected. Optional RollerCoaster Tycoon 1 files can be configured through upstream menus. This is the standalone portable engine; the separate upstream auto-updating launcher remains an external alternative."
         },
         {
-          "title": "Select your executable",
-          "instruction": "After setup, choose the native game executable or upstream launcher and its working directory. Updates remain with you or the upstream launcher."
+          "title": "Keep your progress",
+          "instruction": "Settings, saves, custom objects, tracks, replays and downloaded content normally live in Documents/OpenRCT2, outside Portcove backups. Original installations remain external. No in-folder player data is declared for this default mode. Register an external copy for custom --user-data-path or the separate auto-updating launcher."
         }
       ],
-      "warnings": ["This project has not been verified for play through Portcove."],
+      "warnings": [],
       "help_url": "https://github.com/OpenRCT2/OpenRCT2/blob/v0.5.6/readme.md"
     },
     "artwork": {
@@ -36,6 +35,28 @@
       "image_sha256": "42de270c535f8959e1275cce56d5600997bf71ebd5cb2324a545ddff12329456",
       "game_slug": "rollercoaster-tycoon-2",
       "match_kind": "underlying-game"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "OpenRCT2/OpenRCT2",
+      "asset_hints": {
+        "windows-x86-64": ["openrct2-", "-windows-portable-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["openrct2.exe"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "On first Play, select your installed RollerCoaster Tycoon 2 files if they are not detected. Optional RollerCoaster Tycoon 1 files can be configured through upstream menus. This is the standalone portable engine; the separate upstream auto-updating launcher remains an external alternative. Settings, saves, custom objects, tracks, replays and downloaded content normally live in Documents/OpenRCT2, outside Portcove backups. Original installations remain external. No in-folder player data is declared for this default mode. Register an external copy for custom --user-data-path or the separate auto-updating launcher. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations."
     }
   }
 }

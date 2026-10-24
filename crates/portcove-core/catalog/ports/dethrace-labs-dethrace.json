@@ -6,9 +6,8 @@
     "summary": "Explore Carmageddon / Dethrace (dethrace-labs) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/dethrace-labs/dethrace",
     "issue_number": 1810,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/dethrace-labs/dethrace",
+    "availability": "packages",
+    "setup_url": "https://github.com/dethrace-labs/dethrace/blob/v0.10.1/README.md",
     "artwork": {
       "game_id": 626,
       "cover_id": 123331,
@@ -16,6 +15,47 @@
       "image_sha256": "37c005bc0bc73af82a8b2fb6d367c1d639395f6804cb064088773581d2b9264f",
       "game_slug": "carmageddon",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/dethrace-labs/dethrace/releases/tag/v0.10.1",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install or keep your existing copy",
+          "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
+        },
+        {
+          "title": "Start the game",
+          "instruction": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace Portcove’s executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route."
+        },
+        {
+          "title": "Keep your progress",
+          "instruction": "The reviewed Carmageddon data directory includes saves, options, captures and supported data changes. DATA, optional MUSIC and named diagnostics are retained for compatible runtime replacement and backup. The upstream AppData/dethrace fallback or DETHRACE_ROOT_DIR-selected data remains external and outside backups. Runtime rollback carries current declared data without rewinding saves."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/dethrace-labs/dethrace/blob/v0.10.1/README.md"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "dethrace-labs/dethrace",
+      "asset_hints": {
+        "windows-x86-64": ["dethrace-", "-windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["dethrace.exe"]
+    },
+    "persistent_paths": ["DATA", "MUSIC", "dethrace.log", "DIAGNOST.TXT"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace Portcove’s executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route. The reviewed Carmageddon data directory includes saves, options, captures and supported data changes. DATA, optional MUSIC and named diagnostics are retained for compatible runtime replacement and backup. The upstream AppData/dethrace fallback or DETHRACE_ROOT_DIR-selected data remains external and outside backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations."
     }
   }
 }

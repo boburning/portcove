@@ -21191,6 +21191,76 @@
       }
     },
     {
+      "id": "alistert-openjazz",
+      "name": "Jazz Jackrabbit / OpenJazz (AlisterT)",
+      "summary": "Explore Jazz Jackrabbit / OpenJazz (AlisterT) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/AlisterT/openjazz",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "AlisterT/openjazz",
+        "asset_hints": {
+          "windows-x86-64": [
+            "openjazz-windows-mingw-x86_64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "OpenJazz.exe"
+        ]
+      },
+      "persistent_paths": [
+        "game-data",
+        "openjazz.cfg",
+        "openjazz.log",
+        "openjazz.tmp",
+        "ff-output.dat",
+        "cm-output.dat"
+      ],
+      "launch_arguments": [
+        "game-data"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside OpenJazz.exe. The maintained launch arguments select that folder; no compiler or installer is needed. Keep the original source copy. Portcove retains game-data, openjazz.cfg, openjazz.log, the openjazz.tmp multiplayer transfer file and the reviewed scene diagnostics during compatible replacement. These are distinct from runtime files. Runtime rollback carries current declared data without rewinding progress. Custom launch paths or editions remain available through external registration. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install or keep your existing copy",
+              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
+            },
+            {
+              "title": "Start the game",
+              "instruction": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside OpenJazz.exe. The maintained launch arguments select that folder; no compiler or installer is needed. Keep the original source copy."
+            },
+            {
+              "title": "Keep your progress",
+              "instruction": "Portcove retains game-data, openjazz.cfg, openjazz.log, the openjazz.tmp multiplayer transfer file and the reviewed scene diagnostics during compatible replacement. These are distinct from runtime files. Runtime rollback carries current declared data without rewinding progress. Custom launch paths or editions remain available through external registration."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/AlisterT/openjazz/blob/20260301/README.md"
+        },
+        "artwork": {
+          "game_id": 3167,
+          "cover_id": 104089,
+          "image_id": "co28bd",
+          "image_sha256": "8f3e4f12d81b064bf80128999fd6758c8b5404dc848c58064aea0175139e5f5a",
+          "game_slug": "jazz-jackrabbit",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "body-harvest-recompiled",
       "name": "Body Harvest: Recompiled",
       "summary": "Explore Body Harvest: Recompiled and follow the upstream project for requirements, downloads and setup.",
@@ -21663,6 +21733,72 @@
       }
     },
     {
+      "id": "dethrace-labs-dethrace",
+      "name": "Carmageddon / Dethrace (dethrace-labs)",
+      "summary": "Explore Carmageddon / Dethrace (dethrace-labs) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/dethrace-labs/dethrace",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "dethrace-labs/dethrace",
+        "asset_hints": {
+          "windows-x86-64": [
+            "dethrace-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "dethrace.exe"
+        ]
+      },
+      "persistent_paths": [
+        "DATA",
+        "MUSIC",
+        "dethrace.log",
+        "DIAGNOST.TXT"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace Portcove’s executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route. The reviewed Carmageddon data directory includes saves, options, captures and supported data changes. DATA, optional MUSIC and named diagnostics are retained for compatible runtime replacement and backup. The upstream AppData/dethrace fallback or DETHRACE_ROOT_DIR-selected data remains external and outside backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install or keep your existing copy",
+              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
+            },
+            {
+              "title": "Start the game",
+              "instruction": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace Portcove’s executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route."
+            },
+            {
+              "title": "Keep your progress",
+              "instruction": "The reviewed Carmageddon data directory includes saves, options, captures and supported data changes. DATA, optional MUSIC and named diagnostics are retained for compatible runtime replacement and backup. The upstream AppData/dethrace fallback or DETHRACE_ROOT_DIR-selected data remains external and outside backups. Runtime rollback carries current declared data without rewinding saves."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/dethrace-labs/dethrace/blob/v0.10.1/README.md"
+        },
+        "artwork": {
+          "game_id": 626,
+          "cover_id": 123331,
+          "image_id": "co2n5v",
+          "image_sha256": "37c005bc0bc73af82a8b2fb6d367c1d639395f6804cb064088773581d2b9264f",
+          "game_slug": "carmageddon",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "djultra64-blocksphere",
       "name": "Tetrisphere / Blocksphere (djultra64)",
       "summary": "Explore Tetrisphere / Blocksphere (djultra64) and follow the upstream project for requirements, downloads and setup.",
@@ -21870,6 +22006,214 @@
       }
     },
     {
+      "id": "gladiator-openglad",
+      "name": "Gladiator / OpenGLaD",
+      "summary": "Explore Gladiator / OpenGLaD and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/openglad/openglad",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "openglad/openglad",
+        "asset_hints": {
+          "windows-x86-64": [
+            "openglad-windows-x86_64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "openglad.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target. OpenGlad normally stores companies, saves/backups, campaigns, settings, screenshots, replays and downloaded packs in LocalAppData/.openglad, outside Portcove backups. Packaged campaigns and engine assets remain version-owned. No in-folder player data is declared in this default mode. Use external registration for OPENGLAD_CONFIG_DIR overrides or a fallback current-folder profile. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install or keep your existing copy",
+              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
+            },
+            {
+              "title": "Start the game",
+              "instruction": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target."
+            },
+            {
+              "title": "Keep your progress",
+              "instruction": "OpenGlad normally stores companies, saves/backups, campaigns, settings, screenshots, replays and downloaded packs in LocalAppData/.openglad, outside Portcove backups. Packaged campaigns and engine assets remain version-owned. No in-folder player data is declared in this default mode. Use external registration for OPENGLAD_CONFIG_DIR overrides or a fallback current-folder profile."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/openglad/openglad/blob/v2.1092/README.md"
+        },
+        "artwork": {
+          "game_id": 100047,
+          "cover_id": 563025,
+          "image_id": "coc2fl",
+          "image_sha256": "ddabf593da503a4f6f737dcb5b5698da4a061998a8a34746d0985c8384e6a5a8",
+          "game_slug": "gladiator--1",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "interkarma-daggerfall-unity",
+      "name": "Daggerfall Unity",
+      "summary": "Daggerfall Unity offers upstream packages for The Elder Scrolls II: Daggerfall. Follow upstream setup before registering your executable.",
+      "project_url": "https://github.com/Interkarma/daggerfall-unity",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "Interkarma/daggerfall-unity",
+        "asset_hints": {
+          "windows-x86-64": [
+            "dfu_windows_64bit-",
+            ".zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "DaggerfallUnity.exe"
+        ]
+      },
+      "persistent_paths": [
+        "Portable.txt",
+        "PortableAppdata",
+        "DaggerfallUnity_Data/StreamingAssets/Mods",
+        "DaggerfallUnity_Data/StreamingAssets/GameFiles"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, use Daggerfall Unity’s setup wizard to select your compatible original Daggerfall game folder. It validates the game data. The package is a native Unity player and needs no separate game compilation. Keep external originals where they are. Normal saves, settings, logs, screenshots and mod data live in Unity’s Daggerfall Workshop/Daggerfall Unity user-data directory, outside Portcove backups. The reviewed Portable.txt mode uses PortableAppdata beside the player; that folder and the marker are declared. StreamingAssets/Mods and optional StreamingAssets/GameFiles are retained as supported user additions. Other replacements of version-owned assets require manual preservation or external registration. Mods and saves must remain compatible with the selected runtime. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "original_game_title": "The Elder Scrolls II: Daggerfall",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install or keep your existing copy",
+              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
+            },
+            {
+              "title": "Start the game",
+              "instruction": "On first Play, use Daggerfall Unity’s setup wizard to select your compatible original Daggerfall game folder. It validates the game data. The package is a native Unity player and needs no separate game compilation. Keep external originals where they are."
+            },
+            {
+              "title": "Keep your progress",
+              "instruction": "Normal saves, settings, logs, screenshots and mod data live in Unity’s Daggerfall Workshop/Daggerfall Unity user-data directory, outside Portcove backups. The reviewed Portable.txt mode uses PortableAppdata beside the player; that folder and the marker are declared. StreamingAssets/Mods and optional StreamingAssets/GameFiles are retained as supported user additions. Other replacements of version-owned assets require manual preservation or external registration. Mods and saves must remain compatible with the selected runtime."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/Interkarma/daggerfall-unity/blob/v1.1.1-cve-2025/README.md"
+        },
+        "artwork": {
+          "game_id": 53,
+          "cover_id": 91103,
+          "image_id": "co1yan",
+          "image_sha256": "d3363948d57336edfdb56921fbc4c174aa5b6d2f653b1ccd58a4c003f574da70",
+          "game_slug": "the-elder-scrolls-ii-daggerfall",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "jgrennison-openttd-patches",
+      "name": "OpenTTD / OpenTTD-patches (JGRennison)",
+      "summary": "Explore OpenTTD / OpenTTD-patches (JGRennison) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/JGRennison/OpenTTD-patches",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "JGRennison/OpenTTD-patches",
+        "asset_hints": {
+          "windows-x86-64": [
+            "openttd-jgrpp-",
+            "-windows-win64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "openttd.exe"
+        ]
+      },
+      "persistent_paths": [
+        "openttd.cfg",
+        "hs.dat",
+        "hotkeys.cfg",
+        "windows.cfg",
+        "private.cfg",
+        "secrets.cfg",
+        "favs.cfg",
+        "openttd.log",
+        "save",
+        "scenario",
+        "heightmap",
+        "orderlist",
+        "baseset",
+        "newgrf",
+        "ai",
+        "game",
+        "screenshot",
+        "social_integration",
+        "content_download"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, choose a base graphics set when requested. Upstream supports the free OpenGFX/OpenSFX/OpenMSX sets or your own compatible original Transport Tycoon Deluxe data. JGR Patch Pack is a separate game build, not a loadable mod; its saves and multiplayer peers must be compatible with that build. The default Windows save/config/content location is Documents/OpenTTD, shared with other OpenTTD copies and outside Portcove backups. Reviewed executable-folder fallback configs and content folders are declared if present. Portcove replaces this runtime only; it does not manage external shared saves, original game files or another OpenTTD installation. Older runtimes may not read newer saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install or keep your existing copy",
+              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
+            },
+            {
+              "title": "Start the game",
+              "instruction": "On first Play, choose a base graphics set when requested. Upstream supports the free OpenGFX/OpenSFX/OpenMSX sets or your own compatible original Transport Tycoon Deluxe data. JGR Patch Pack is a separate game build, not a loadable mod; its saves and multiplayer peers must be compatible with that build."
+            },
+            {
+              "title": "Keep your progress",
+              "instruction": "The default Windows save/config/content location is Documents/OpenTTD, shared with other OpenTTD copies and outside Portcove backups. Reviewed executable-folder fallback configs and content folders are declared if present. Portcove replaces this runtime only; it does not manage external shared saves, original game files or another OpenTTD installation. Older runtimes may not read newer saves."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp-0.73.4/README.md"
+        },
+        "artwork": {
+          "game_id": 5502,
+          "cover_id": 85659,
+          "image_id": "co1u3f",
+          "image_sha256": "3554c280028ad14f2991fc66c11dee1349690679b178a6af800b47dd160d9b0d",
+          "game_slug": "transport-tycoon-deluxe",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "knuckles-chaotix-recompiled",
       "name": "Knuckles' Chaotix Recompiled",
       "summary": "Explore Knuckles' Chaotix Recompiled and follow the upstream project for requirements, downloads and setup.",
@@ -21946,6 +22290,190 @@
           "image_id": "co2yio",
           "image_sha256": "7ffe990e065a345245423f4f51ad461fa5e40ab644a1ef97b8537a049ec8f2af",
           "game_slug": "knuckles-chaotix",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "omf2097-openomf",
+      "name": "One Must Fall 2097 / OpenOMF (omf2097)",
+      "summary": "Explore One Must Fall 2097 / OpenOMF (omf2097) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/omf2097/openomf",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "omf2097/openomf",
+        "asset_hints": {
+          "windows-x86-64": [
+            "openomf_",
+            "_windows.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "openomf.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "The official archive includes the freeware One Must Fall 2097 resources and the native OpenOMF player. Choose Play after installation; no commercial source files or generation step are needed. The package also includes an ARM64 player; this route uses openomf.exe for x86-64. OpenOMF resolves writable settings, saves, scores, screenshots, recordings and user mods through its OpenOMF user-preference directory, normally AppData/OpenOMF on Windows. That external data remains outside Portcove backups. Package resources and bundled mods remain version-owned; no in-folder player-data paths are declared. Use an external registration for custom OPENOMF_* storage overrides. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install or keep your existing copy",
+              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
+            },
+            {
+              "title": "Start the game",
+              "instruction": "The official archive includes the freeware One Must Fall 2097 resources and the native OpenOMF player. Choose Play after installation; no commercial source files or generation step are needed. The package also includes an ARM64 player; this route uses openomf.exe for x86-64."
+            },
+            {
+              "title": "Keep your progress",
+              "instruction": "OpenOMF resolves writable settings, saves, scores, screenshots, recordings and user mods through its OpenOMF user-preference directory, normally AppData/OpenOMF on Windows. That external data remains outside Portcove backups. Package resources and bundled mods remain version-owned; no in-folder player-data paths are declared. Use an external registration for custom OPENOMF_* storage overrides."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/omf2097/openomf/blob/0.8.6/README.md"
+        },
+        "artwork": {
+          "game_id": 14429,
+          "cover_id": 128159,
+          "image_id": "co2qvz",
+          "image_sha256": "1bc40ce34e65abbf3e01125acc5f319a1e40d2664f19a3b860c214f834e13c51",
+          "game_slug": "one-must-fall-2097",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "openloco-openloco",
+      "name": "Chris Sawyer's Locomotion / OpenLoco (OpenLoco)",
+      "summary": "Explore Chris Sawyer's Locomotion / OpenLoco (OpenLoco) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/OpenLoco/OpenLoco",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "OpenLoco/OpenLoco",
+        "asset_hints": {
+          "windows-x86-64": [
+            "openloco-",
+            "-windows-portable-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "OpenLoco.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, OpenLoco detects your installed Chris Sawyer’s Locomotion files or asks you to select the original folder containing Data/g1.DAT. The official portable engine needs no separate build or installer. OpenLoco normally keeps settings, saves, autosaves, custom objects, landscapes, screenshots and crashes under AppData/OpenLoco, outside Portcove backups. Its original Locomotion folder stays external. The runtime’s data folder contains version-owned engine assets, not a generic player-data folder; no in-folder persistence is declared. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install or keep your existing copy",
+              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
+            },
+            {
+              "title": "Start the game",
+              "instruction": "On first Play, OpenLoco detects your installed Chris Sawyer’s Locomotion files or asks you to select the original folder containing Data/g1.DAT. The official portable engine needs no separate build or installer."
+            },
+            {
+              "title": "Keep your progress",
+              "instruction": "OpenLoco normally keeps settings, saves, autosaves, custom objects, landscapes, screenshots and crashes under AppData/OpenLoco, outside Portcove backups. Its original Locomotion folder stays external. The runtime’s data folder contains version-owned engine assets, not a generic player-data folder; no in-folder persistence is declared."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/OpenLoco/OpenLoco/blob/v26.09/README.md"
+        },
+        "artwork": {
+          "game_id": 10737,
+          "cover_id": 218442,
+          "image_id": "co4oju",
+          "image_sha256": "90f17237bab990be10d78aa67afb190685854311ad3f54ffe229e0eb5bc93475",
+          "game_slug": "chris-sawyers-locomotion",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "openrct2-openrct2",
+      "name": "OpenRCT2",
+      "summary": "OpenRCT2 offers upstream packages for RollerCoaster Tycoon 2. Follow upstream setup before registering your executable.",
+      "project_url": "https://github.com/OpenRCT2/OpenRCT2",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "OpenRCT2/OpenRCT2",
+        "asset_hints": {
+          "windows-x86-64": [
+            "openrct2-",
+            "-windows-portable-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "openrct2.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, select your installed RollerCoaster Tycoon 2 files if they are not detected. Optional RollerCoaster Tycoon 1 files can be configured through upstream menus. This is the standalone portable engine; the separate upstream auto-updating launcher remains an external alternative. Settings, saves, custom objects, tracks, replays and downloaded content normally live in Documents/OpenRCT2, outside Portcove backups. Original installations remain external. No in-folder player data is declared for this default mode. Register an external copy for custom --user-data-path or the separate auto-updating launcher. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "original_game_title": "RollerCoaster Tycoon 2",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install or keep your existing copy",
+              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
+            },
+            {
+              "title": "Start the game",
+              "instruction": "On first Play, select your installed RollerCoaster Tycoon 2 files if they are not detected. Optional RollerCoaster Tycoon 1 files can be configured through upstream menus. This is the standalone portable engine; the separate upstream auto-updating launcher remains an external alternative."
+            },
+            {
+              "title": "Keep your progress",
+              "instruction": "Settings, saves, custom objects, tracks, replays and downloaded content normally live in Documents/OpenRCT2, outside Portcove backups. Original installations remain external. No in-folder player data is declared for this default mode. Register an external copy for custom --user-data-path or the separate auto-updating launcher."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/OpenRCT2/OpenRCT2/blob/v0.5.6/readme.md"
+        },
+        "artwork": {
+          "game_id": 331,
+          "cover_id": 111340,
+          "image_id": "co2dws",
+          "image_sha256": "42de270c535f8959e1275cce56d5600997bf71ebd5cb2324a545ddff12329456",
+          "game_slug": "rollercoaster-tycoon-2",
           "match_kind": "underlying-game"
         }
       }
@@ -22061,6 +22589,69 @@
           "image_id": "co4uyz",
           "image_sha256": "c6c4fcf0decb20033ee4cf7c945357207f806e25de616cc98eaa8c7bdc5d4888",
           "game_slug": "tyrian",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "starlancer-openreliant",
+      "name": "StarLancer / OpenReliant",
+      "summary": "Explore StarLancer / OpenReliant and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/OpenReliant/openreliant",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "OpenReliant/openreliant",
+        "asset_hints": {
+          "windows-x86-64": [
+            "openreliant-",
+            "-windows-x86_64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "openreliant.exe"
+        ]
+      },
+      "persistent_paths": [
+        "StarLancer"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Follow the linked installation guide to run openreliant.exe install StarLancer yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration. The declared StarLancer folder contains original game assets, campaign saves, starlancer.ini and openreliant.log. It is retained during compatible runtime replacement and backup. Keep another copy of the original media. A game installed elsewhere or custom launch arguments can use external registration; such external data is outside Portcove backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install or keep your existing copy",
+              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
+            },
+            {
+              "title": "Start the game",
+              "instruction": "Follow the linked installation guide to run openreliant.exe install StarLancer yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration."
+            },
+            {
+              "title": "Keep your progress",
+              "instruction": "The declared StarLancer folder contains original game assets, campaign saves, starlancer.ini and openreliant.log. It is retained during compatible runtime replacement and backup. Keep another copy of the original media. A game installed elsewhere or custom launch arguments can use external registration; such external data is outside Portcove backups. Runtime rollback carries current declared data without rewinding saves."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/OpenReliant/openreliant/blob/v0.20.0/docs/guide/installation.md"
+        },
+        "artwork": {
+          "game_id": 11230,
+          "cover_id": 118864,
+          "image_id": "co2jps",
+          "image_sha256": "2a7b18ba20d6b76160e03a771f901d2c3c3d0dd095d5b01852e81f2bc9d69741",
+          "game_slug": "starlancer",
           "match_kind": "underlying-game"
         }
       }

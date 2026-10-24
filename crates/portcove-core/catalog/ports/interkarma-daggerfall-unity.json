@@ -6,7 +6,6 @@
     "summary": "Daggerfall Unity offers upstream packages for The Elder Scrolls II: Daggerfall. Follow upstream setup before registering your executable.",
     "project_url": "https://github.com/Interkarma/daggerfall-unity",
     "issue_number": 1809,
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Interkarma/daggerfall-unity/blob/v1.1.1-cve-2025/README.md",
     "original_game_title": "The Elder Scrolls II: Daggerfall",
@@ -14,19 +13,19 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Get the upstream package",
-          "instruction": "Choose the release and package for your computer. Download and extract a portable archive, or use the upstream installer yourself."
+          "title": "Install or keep your existing copy",
+          "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
         },
         {
-          "title": "Complete upstream setup",
-          "instruction": "Get the original Daggerfall game data using the linked upstream instructions, then select it during setup."
+          "title": "Start the game",
+          "instruction": "On first Play, use Daggerfall Unity’s setup wizard to select your compatible original Daggerfall game folder. It validates the game data. The package is a native Unity player and needs no separate game compilation. Keep external originals where they are."
         },
         {
-          "title": "Select your executable",
-          "instruction": "After setup, choose the native game executable or upstream launcher and its working directory. Updates remain with you or the upstream launcher."
+          "title": "Keep your progress",
+          "instruction": "Normal saves, settings, logs, screenshots and mod data live in Unity’s Daggerfall Workshop/Daggerfall Unity user-data directory, outside Portcove backups. The reviewed Portable.txt mode uses PortableAppdata beside the player; that folder and the marker are declared. StreamingAssets/Mods and optional StreamingAssets/GameFiles are retained as supported user additions. Other replacements of version-owned assets require manual preservation or external registration. Mods and saves must remain compatible with the selected runtime."
         }
       ],
-      "warnings": ["This project has not been verified for play through Portcove."],
+      "warnings": [],
       "help_url": "https://github.com/Interkarma/daggerfall-unity/blob/v1.1.1-cve-2025/README.md"
     },
     "artwork": {
@@ -36,6 +35,33 @@
       "image_sha256": "d3363948d57336edfdb56921fbc4c174aa5b6d2f653b1ccd58a4c003f574da70",
       "game_slug": "the-elder-scrolls-ii-daggerfall",
       "match_kind": "underlying-game"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "Interkarma/daggerfall-unity",
+      "asset_hints": {
+        "windows-x86-64": ["dfu_windows_64bit-", ".zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["DaggerfallUnity.exe"]
+    },
+    "persistent_paths": [
+      "Portable.txt",
+      "PortableAppdata",
+      "DaggerfallUnity_Data/StreamingAssets/Mods",
+      "DaggerfallUnity_Data/StreamingAssets/GameFiles"
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "On first Play, use Daggerfall Unity’s setup wizard to select your compatible original Daggerfall game folder. It validates the game data. The package is a native Unity player and needs no separate game compilation. Keep external originals where they are. Normal saves, settings, logs, screenshots and mod data live in Unity’s Daggerfall Workshop/Daggerfall Unity user-data directory, outside Portcove backups. The reviewed Portable.txt mode uses PortableAppdata beside the player; that folder and the marker are declared. StreamingAssets/Mods and optional StreamingAssets/GameFiles are retained as supported user additions. Other replacements of version-owned assets require manual preservation or external registration. Mods and saves must remain compatible with the selected runtime. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations."
     }
   }
 }
