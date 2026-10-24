@@ -312,6 +312,26 @@ const roadmapFeatureTests = [
 ];
 const roadmapContractTests = ["scripts/roadmap.test.mts", ...roadmapFeatureTests];
 
+const catalogGeneratorFeatureTests = [
+  "scripts/catalog-source-authoring.test.mts",
+  "scripts/catalog-proposal-comparison.test.mts",
+  "scripts/catalog-artwork-dispatch.test.mts",
+  "scripts/catalog-artwork-batches.test.mts",
+  "scripts/catalog-artwork-provider.test.mts",
+  "scripts/catalog-artwork-lifecycle.test.mts",
+  "scripts/catalog-artwork-backoff.test.mts",
+];
+export const catalogGeneratorContractTests = [
+  "scripts/generate-catalog.test.mts",
+  ...catalogGeneratorFeatureTests,
+];
+const catalogAuthoringContractTests = [
+  "scripts/generate-catalog.test.mts",
+  "scripts/catalog-source-authoring.test.mts",
+  "scripts/catalog-proposal-comparison.test.mts",
+  "scripts/catalog-artwork-dispatch.test.mts",
+];
+
 const upstreamHealthObservationTests = [
   "scripts/upstream-health-providers.test.mts",
   "scripts/upstream-health-planning.test.mts",
@@ -347,13 +367,13 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/port-upstream-facts.mts", ["scripts/prepare-port.test.mts"]],
   [
     "scripts/catalog-authoring-inspector.mts",
-    ["scripts/prepare-port.test.mts", "scripts/generate-catalog.test.mts"],
+    ["scripts/prepare-port.test.mts", ...catalogGeneratorContractTests],
   ],
   [
     "scripts/catalog-authoring.mts",
     [
       "scripts/prepare-port.test.mts",
-      "scripts/generate-catalog.test.mts",
+      ...catalogAuthoringContractTests,
       "scripts/catalog-staged-check.test.mts",
     ],
   ],
@@ -1179,10 +1199,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ],
   ],
   ["scripts/windows-qualification-session.ps1", ["scripts/repository-skills.test.mts"]],
-  [
-    "crates/portcove-core/catalog/catalog-current-authoring.json",
-    ["scripts/generate-catalog.test.mts"],
-  ],
+  ["crates/portcove-core/catalog/catalog-current-authoring.json", catalogGeneratorContractTests],
   [
     "crates/portcove-core/catalog/catalog-schema1-fixture.json",
     ["scripts/migrate-catalog-schema2.test.mts"],
@@ -1193,7 +1210,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   [
     "crates/portcove-core/catalog/catalog.json",
-    ["scripts/generate-catalog.test.mts", "scripts/repository-skills.test.mts"],
+    [...catalogGeneratorContractTests, "scripts/repository-skills.test.mts"],
   ],
   ["crates/portcove-core/src/catalog.rs", ["scripts/repository-skills.test.mts"]],
   [
@@ -1367,6 +1384,23 @@ const workflowTests = new Map([
   ],
   ["pr-conventions.yml", ["scripts/pr-conventions.test.mts"]],
 ]);
+
+for (const file of [
+  "scripts/generate-catalog.mts",
+  "scripts/inspect-igdb-artwork.mts",
+  "scripts/upstream-lineage.mts",
+  "scripts/maintainer-config.mts",
+  "scripts/runtime-values.mts",
+  "scripts/fixtures/catalog-generator-fixtures.mts",
+  "crates/portcove-core/catalog/catalog-schema1-fixture.json",
+  "crates/portcove-core/catalog/catalog-schema2-migration-fixture.json",
+  "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",
+]) {
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    ...catalogGeneratorContractTests,
+  ]);
+}
 
 const releaseContractTests = Object.freeze([
   "scripts/hosted-native-continuity.test.mts",
@@ -1825,7 +1859,7 @@ function classifyOnePath(
     file === "crates/portcove-core/catalog/listings.json"
   ) {
     selection.scopes.add("tooling");
-    addNodeTest(selection, "scripts/generate-catalog.test.mts");
+    for (const testFile of catalogGeneratorContractTests) addNodeTest(selection, testFile);
     addNodeTest(selection, "scripts/catalog-staged-check.test.mts");
     recognized = true;
   }

@@ -10,6 +10,7 @@ import {
   buildPlan,
   executePlan,
   pythonContractTests,
+  catalogGeneratorContractTests,
 } from "./ordinary-validation.mts";
 import { validateValidationPlan, readValidationPlanInput } from "./validation-plan.mts";
 import { spawnCommand } from "./dev-storage.mts";
@@ -84,7 +85,7 @@ export function baselineContractTests(plan: ValidationPlan, options: ClassifyOpt
     for (const file of [
       "scripts/repository-settings.test.mts",
       "scripts/repository-skills.test.mts",
-      "scripts/generate-catalog.test.mts",
+      ...catalogGeneratorContractTests,
       "scripts/check-transport-contract.test.mts",
       "scripts/check-child-process-policy.test.mts",
     ])

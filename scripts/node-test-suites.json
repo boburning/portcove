@@ -237,10 +237,59 @@
       ]
     },
     {
+      "file": "scripts/catalog-artwork-backoff.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8970],
+        ["repository-tools-2", 3970]
+      ]
+    },
+    {
+      "file": "scripts/catalog-artwork-batches.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8940],
+        ["repository-tools-2", 3940]
+      ]
+    },
+    {
+      "file": "scripts/catalog-artwork-dispatch.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8930],
+        ["repository-tools-2", 3930]
+      ]
+    },
+    {
+      "file": "scripts/catalog-artwork-lifecycle.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8960],
+        ["repository-tools-2", 3960]
+      ]
+    },
+    {
+      "file": "scripts/catalog-artwork-provider.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8950],
+        ["repository-tools-2", 3950]
+      ]
+    },
+    {
+      "file": "scripts/catalog-proposal-comparison.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8920],
+        ["repository-tools-2", 3920]
+      ]
+    },
+    {
       "file": "scripts/catalog-proposal-costs.test.mts",
       "memberships": [
         ["catalog-full-2", 9400],
         ["repository-tools-2", 4400]
+      ]
+    },
+    {
+      "file": "scripts/catalog-source-authoring.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8910],
+        ["repository-tools-2", 3910]
       ]
     },
     {
