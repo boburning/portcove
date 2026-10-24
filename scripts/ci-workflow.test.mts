@@ -2619,6 +2619,8 @@ void test("native recovery keyboard changes retain macOS no-global portability c
       "apps/desktop/src/browser/display-recovery.browser.test.tsx",
       "apps/desktop/src/browser/compact-navigation.browser.test.tsx",
       "apps/desktop/src/components/AdoptionModal.browser.test.tsx",
+      "apps/desktop/src/components/Artwork.browser.test.tsx",
+      "apps/desktop/src/browser/workspace-feedback-user-intent.browser.test.tsx",
     ]),
   );
 });

@@ -149,11 +149,12 @@ for (const when of ["pending", "notice visible"] as const) {
     const search = page
       .getByRole("textbox", { name: "Search your library", exact: true })
       .element();
-    // A deliberate user reading/focus choice, distinct from the old bottom baseline.
+    await userEvent.click(search);
+    // Native focus may scroll the field into view. Establish the deliberate
+    // reading position after that click, distinct from the old bottom baseline.
     owner().scrollTo({
       top: owner().scrollTop + search.getBoundingClientRect().top - Math.min(100, innerHeight / 5),
     });
-    await userEvent.click(search);
     await painted();
     const searchBounds = search.getBoundingClientRect();
     expect(searchBounds.top).toBeGreaterThanOrEqual(0);
