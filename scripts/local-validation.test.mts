@@ -2515,3 +2515,127 @@ void test("catalog generator families retain shared inputs and narrow authoring 
     }
   }
 });
+
+void test("coordinator families preserve broad consumers and isolate the signing exchange", async () => {
+  const { buildValidationPlan } = await import("./validation-plan.mts");
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const broad = [
+    "scripts/release-coordinator-state.test.mts",
+    "scripts/release-coordinator-recovery.test.mts",
+    "scripts/release-coordinator-remote.test.mts",
+    "scripts/release-coordinator-checkpoint-evidence.test.mts",
+    "scripts/release-coordinator-capacity-effects.test.mts",
+    "scripts/release-coordinator-metadata.test.mts",
+    "scripts/release-coordinator-signing-exchange.test.mts",
+    "scripts/release-coordinator-owned-executor.test.mts",
+  ];
+  const signing = [
+    "scripts/release-coordinator-state.test.mts",
+    "scripts/release-coordinator-signing-exchange.test.mts",
+    "scripts/release-coordinator-owned-executor.test.mts",
+  ];
+  const shared = [
+    "scripts/fixtures/coordinator-state-fixtures.mts",
+    "scripts/fixtures/release-capacity-fixture.mts",
+    "scripts/release-capacity.mts",
+    "scripts/release-capacity-operation.mts",
+    "scripts/fixtures/release-metadata-fixture.mts",
+    "scripts/runtime-values.mts",
+    "apps/desktop/scripts/prepare-release-version.mts",
+    "scripts/release-coordinator-state.mts",
+    "scripts/release-coordinator-remote.mts",
+    "scripts/release-coordinator-checkpoint-evidence.mts",
+    "scripts/production-controller-admission.mts",
+    "scripts/github-api.mts",
+    "scripts/fixtures/assembler-identity-fixture.mts",
+    "scripts/fixtures/release-catalog-publication-fixture.mts",
+    "scripts/fixtures/checkpoint-proof-fixture.mts",
+    ".github/workflows/application-update-production.yml",
+    "scripts/release-coordinator-recovery.mts",
+    "scripts/release-coordinator-checkpoint-authentication.mts",
+    "scripts/release-coordinator-checkpoint-signing.mts",
+    "scripts/release-capacity-executor.mts",
+    "scripts/release-coordinator-journal-api.mts",
+    "scripts/release-readonly-child-environment.mts",
+    "docs/qualification/application-update-production.complete.yml",
+    ...broad,
+  ];
+  const focused = "scripts/release-coordinator-signing-exchange.mts";
+  const cases: {
+    label: string;
+    changes: {
+      status: string;
+      oldPath: string;
+      newPath: string;
+      oldMode: string;
+      newMode: string;
+    }[];
+    expected: string[];
+  }[] = [];
+  for (const file of [...shared, focused]) {
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      cases.push({
+        label: file + ":" + variant,
+        changes: [
+          {
+            status: variant.startsWith("R") ? "R100" : variant,
+            oldPath: variant === "R-new" ? "docs/moved.md" : file,
+            newPath: variant === "R-old" ? "docs/moved.md" : file,
+            oldMode: variant === "A" ? "000000" : "100644",
+            newMode: variant === "D" ? "000000" : "100644",
+          },
+        ],
+        expected: file === focused ? signing : broad,
+      });
+    }
+  }
+  for (const [oldPath, newPath] of [
+    [focused, "scripts/release-coordinator-state.mts"],
+    ["scripts/release-coordinator-state.mts", focused],
+  ] as const) {
+    cases.push({
+      label: oldPath + " -> " + newPath,
+      changes: [{ status: "R100", oldPath, newPath, oldMode: "100644", newMode: "100644" }],
+      expected: broad,
+    });
+  }
+  cases.push({
+    label: "mixed signing and shared state",
+    changes: [focused, "scripts/runtime-values.mts"].map((file) => ({
+      status: "M",
+      oldPath: file,
+      newPath: file,
+      oldMode: "100644",
+      newMode: "100644",
+    })),
+    expected: broad,
+  });
+  for (const scenario of cases) {
+    const local = classifyChanges(
+      scenario.changes.map((input) => ({
+        status: input.status,
+        path: input.newPath,
+        ...(input.newPath !== input.oldPath ? { previousPath: input.oldPath } : {}),
+      })),
+      { fileExists: () => false },
+    );
+    const plan = buildValidationPlan({
+      changes: scenario.changes,
+      eventName: "pull_request",
+      base: "a".repeat(40),
+      mergeBase: "a".repeat(40),
+      head: "b".repeat(40),
+      checkout: "b".repeat(40),
+    });
+    const hosted = baselineContractTests(plan, { fileExists: () => false });
+    for (const selected of [[...local.nodeTests], hosted]) {
+      assert.deepEqual(
+        selected.filter((file) => broad.includes(file)).sort(),
+        [...scenario.expected].sort(),
+        scenario.label,
+      );
+      for (const file of scenario.expected)
+        assert.equal(selected.filter((entry) => entry === file).length, 1, scenario.label);
+    }
+  }
+});
