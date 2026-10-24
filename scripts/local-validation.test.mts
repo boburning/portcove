@@ -64,6 +64,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
     "scripts/release-control-inputs.test.mts",
     "scripts/release-hosted-native-linux-capture.test.mts",
     "scripts/release-hosted-native-linux-report.test.mts",
+    "scripts/release-hosted-native-proof-producer.test.mts",
     "scripts/release-native-pre-sign-report.test.mts",
     "scripts/release-native-source-provider.test.mts",
     "scripts/release-native-wsl-capture.test.mts",

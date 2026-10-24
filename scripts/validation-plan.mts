@@ -243,6 +243,8 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-preview-withdrawals.mts",
   "scripts/release-native-stage-capture.mts",
   "scripts/release-hosted-native-proof-contract.mts",
+  "scripts/release-hosted-native-proof-producer.mts",
+  "scripts/release-owned-capture-store.mts",
   "scripts/release-hosted-native-acceptance.mts",
   "scripts/release-hosted-native-admission.mts",
   "scripts/release-hosted-native-linux-capture.mts",

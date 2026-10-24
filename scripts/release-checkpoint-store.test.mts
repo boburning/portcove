@@ -6,7 +6,8 @@ import path from "node:path";
 import {
   createAppRegistrationStore,
   createCheckpointSigningStore,
-} from "./release-app-registration-capture.mts";
+  createHostedNativeProofStore,
+} from "./release-owned-capture-store.mts";
 
 for (const checkpoint of [false, true]) {
   void test(
@@ -35,3 +36,30 @@ for (const checkpoint of [false, true]) {
     },
   );
 }
+
+void test(
+  "native proof custody admits the exact capture allowance and complete bounded exchange without widening other stores",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.homedir(), ".portcove-native-proof-store-inert-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const directory = path.join(root, "proof");
+    const store = await createHostedNativeProofStore(directory);
+    await store.write("capture.json", Buffer.alloc(128 * 1024 + 1));
+    await assert.rejects(store.write("transition.json", Buffer.alloc(128 * 1024 + 1)), /boundary/);
+    await assert.rejects(store.write("capture.json", Buffer.from("replace")), /EEXIST/);
+    for (const [name, bytes] of [
+      ["report.json", 65536],
+      ["subject.json", 16384],
+      ["bundle.json", 65536],
+      ["fulcio-response.body", 65536],
+      ["rekor-response.body", 65536],
+      ["rekor-request.body", 65536],
+      ["metadata.json", 24576],
+      ["padding.json", 24576],
+    ] as const)
+      await store.write(name, Buffer.alloc(bytes));
+    await assert.rejects(store.write("overflow.json", Buffer.from("x")), /boundary/);
+    assert.equal((await readFile(path.join(directory, "capture.json"))).length, 131073);
+  },
+);
