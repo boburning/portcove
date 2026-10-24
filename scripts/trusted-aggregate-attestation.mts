@@ -1,4 +1,5 @@
 import { inspectAggregateOriginalUpload } from "./release-aggregate-contract.mts";
+import { inspectNativeCheckpointLocator } from "./release-native-checkpoint-custody.mts";
 import { verifyControllerArtifactStatement } from "./github-controller-attestation.mts";
 import { orderedJsonValue as canonical } from "./json-values.mts";
 import { createHash } from "node:crypto";
@@ -256,10 +257,19 @@ export async function prepareAggregateAttestation(
     evidenceRequest?: ReleaseEvidenceRequest;
     evidence?: ReleaseEvidenceOptions;
     deadline?: number;
+    native_custody?: ReturnType<typeof inspectNativeCheckpointLocator>;
   },
 ) {
   const admitted = admittedPreparations.has(options);
   const original = recoveredPreparations.get(options);
+  const nativeCustody =
+    options.native_custody === undefined
+      ? undefined
+      : inspectNativeCheckpointLocator(structuredClone(options.native_custody));
+  if (nativeCustody && !admitted)
+    throw new Error("native custody requires the fixed admitted aggregate producer");
+  if (nativeCustody && original && nativeCustody.checkpoint !== original.before_checkpoint)
+    throw new Error("native custody differs from original aggregate operation");
   const deadline = Math.min(performance.now() + 120000, options.deadline ?? Infinity);
   const remaining = (cap: number) => {
     const left = deadline - performance.now();
@@ -380,6 +390,7 @@ export async function prepareAggregateAttestation(
       ? { producer_profile: original ? "admitted-aggregate-recovery-v1" : "admitted-aggregate-v1" }
       : {}),
     ...(original ? { original_upload: original } : {}),
+    ...(nativeCustody ? { native_custody: nativeCustody } : {}),
     role: "package-aggregate-assembler",
     evidence_scope,
     repository,
@@ -441,16 +452,27 @@ export async function verifyAggregateAttestation(
     candidate_artifact_ids: number[];
     producer_profile?: "admitted-aggregate-v1" | "admitted-aggregate-recovery-v1";
     original_upload?: ReturnType<typeof inspectAggregateOriginalUpload>;
+    native_custody?: ReturnType<typeof inspectNativeCheckpointLocator>;
   },
   options: { spawn?: Spawn } = {},
 ) {
   const expected = structuredClone(rawExpected);
+  const nativeCustody =
+    expected.native_custody === undefined
+      ? undefined
+      : inspectNativeCheckpointLocator(expected.native_custody);
   const original =
     expected.original_upload === undefined
       ? undefined
       : inspectAggregateOriginalUpload(expected.original_upload);
   if ((expected.producer_profile === "admitted-aggregate-recovery-v1") !== !!original)
     throw new Error("aggregate recovery requires exact original upload association");
+  if (
+    nativeCustody &&
+    (!expected.producer_profile ||
+      (original && nativeCustody.checkpoint !== original.before_checkpoint))
+  )
+    throw new Error("native custody differs from fixed aggregate lineage");
   if (
     !Buffer.isBuffer(rawArchive) ||
     rawArchive.length < 22 ||
@@ -537,6 +559,7 @@ export async function verifyAggregateAttestation(
       schema_version: 1,
       ...(expected.producer_profile ? { producer_profile: expected.producer_profile } : {}),
       ...(original ? { original_upload: original } : {}),
+      ...(nativeCustody ? { native_custody: nativeCustody } : {}),
       role: "package-aggregate-assembler",
       evidence_scope: "github.com",
       repository,
@@ -581,6 +604,7 @@ export async function verifyAggregateAttestation(
       artifact_id: expected.artifact_id,
       sha256: expected.sha256,
       assembler: predicate.assembler,
+      ...(nativeCustody ? { native_custody: nativeCustody } : {}),
       evidence_scope: options.spawn ? "injected-provider" : "github.com",
       original_compiler: null,
       release_authorization: "not-evaluated",

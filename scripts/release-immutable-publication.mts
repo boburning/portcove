@@ -47,6 +47,7 @@ import {
   capacityExecutorIdentity,
   executeOwnedCapacityEffect,
   refreshCapacityExecutor,
+  ensureOwnedCheckpointJournalHistory,
 } from "./release-capacity-executor.mts";
 import type { authenticateCapacityExecutor } from "./release-capacity-executor.mts";
 import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
@@ -1437,6 +1438,14 @@ export async function advanceOwnedImmutableReleasePublication(
     return structuredClone(current.capacity_source.capacity.boundary);
   };
   await readBoundary();
+  const signedJournal = await ensureOwnedCheckpointJournalHistory(
+    executor,
+    input.repository,
+    state.checkpoint,
+    async () => {
+      await readBoundary();
+    },
+  );
   const risk = await (
     await import("./linux-beta-risk-706-controller.mts")
   ).authorizeActualLinuxRisk706(admissionContext, controls, state.checkpoint, deadline);
@@ -1466,6 +1475,11 @@ export async function advanceOwnedImmutableReleasePublication(
           await readBoundary();
           return operation();
         },
+        signedJournal
+          ? async () => {
+              await readBoundary();
+            }
+          : undefined,
       ),
   });
 }

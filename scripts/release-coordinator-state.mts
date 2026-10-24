@@ -647,6 +647,20 @@ export async function exportCoordinatorCheckpoint(repository: string, expected: 
   return checkpoint;
 }
 
+/** Historical object validation only. Validate the same fixed commit bytes,
+ * one parent transition and source/prepared commit closure, without claiming
+ * that this old checkpoint owns today's ref or allocation locks. The caller
+ * must authenticate the retained signature and its independently selected pin.
+ * No ref, transaction, lazy fetch or checkout is performed. */
+export function exportRetainedCoordinatorCheckpoint(repository: string, expected: string) {
+  identity(expected);
+  const { verifies: _currentAllocationChecks, ...checkpoint } = inspectCheckpoint(
+    gitRepository(repository),
+    expected,
+  );
+  return { ...checkpoint, authority: "none" as const };
+}
+
 export interface CoordinatorGitObject {
   kind: "blob" | "tree" | "commit";
   oid: string;

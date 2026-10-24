@@ -497,7 +497,17 @@ void test("same-job aggregate outputs carry exact original custody to the mainta
     run_id: "12344",
     workflow: ".github/workflows/application-update-production.yml",
   };
-  for (const resumed of [false, true]) {
+  for (const [resumed, hosted] of [
+    [false, false],
+    [true, false],
+    [false, true],
+    [true, true],
+  ]) {
+    const nativeCustody = {
+      checkpoint: original.before_checkpoint,
+      native_bundle_sha256: "9".repeat(64),
+      native_bundle_bytes: 12345,
+    };
     const name = `trusted-release-final-${resumed ? original.run_id : fixed.run_id}-1`;
     const predicate = {
       role: "package-aggregate-assembler",
@@ -505,6 +515,7 @@ void test("same-job aggregate outputs carry exact original custody to the mainta
       artifact: { ...artifact, name },
       producer_profile: resumed ? "admitted-aggregate-recovery-v1" : "admitted-aggregate-v1",
       ...(resumed ? { original_upload: original } : {}),
+      ...(hosted ? { native_custody: nativeCustody } : {}),
     };
     const result = {
       decision: resumed
@@ -517,6 +528,7 @@ void test("same-job aggregate outputs carry exact original custody to the mainta
       subject_digest: `sha256:${artifact.sha256}`,
       predicate_type: "https://portcove.dev/attestations/package-aggregate/v1",
       ...(resumed ? { original_upload: original } : {}),
+      ...(hosted ? { native_custody: nativeCustody } : {}),
     };
     const outputs = projectFixedControllerJobOutputs(
       "building",
@@ -553,10 +565,19 @@ void test("same-job aggregate outputs carry exact original custody to the mainta
       resumed ? original : undefined,
     );
     assert.equal(outputs.stage, result.stage);
+    assert.deepEqual(
+      selected.configuration.aggregate.native_custody,
+      hosted ? nativeCustody : undefined,
+    );
+    assert.equal(outputs.native_custody, hosted ? JSON.stringify(nativeCustody) : undefined);
     for (const changed of [
       { ...predicate, evidence_scope: "injected-provider" },
       { ...predicate, artifact: { ...artifact, id: 99, name } },
       { ...predicate, producer_profile: "legacy" },
+      {
+        ...predicate,
+        native_custody: hosted ? { ...nativeCustody, checkpoint: "8".repeat(40) } : nativeCustody,
+      },
     ])
       assert.throws(() =>
         projectFixedControllerJobOutputs(

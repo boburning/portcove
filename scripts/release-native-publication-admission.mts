@@ -10,7 +10,8 @@ import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { currentApplicationSitePins } from "./release-catalog-metadata-contract.mts";
 import {
-  requireControllerNativePrepublicationAuthorities,
+  requireControllerApplicationJobPublicationAuthorities,
+  inspectNativePrepublicationAuthorities,
   inspectPublicationAuthorities,
 } from "./release-authority-configuration.mts";
 import { requireActualTufPublication } from "./release-tuf-publication.mts";
@@ -51,6 +52,10 @@ import {
 import { selectCoordinatorPublicationBaseline } from "./release-coordinator-driver.mts";
 import { inspectPublishedApplicationSource } from "./release-published-source.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  deriveHostedNativePayloadOpportunities,
+  collectConfiguredHostedNativePublicationPair,
+} from "./release-hosted-native-admission.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const inventory = (files: ReadonlyMap<string, Buffer>) =>
   [...files]
@@ -177,7 +182,7 @@ export function inspectNativeInitialPublicationJourney(raw: {
 
 /** Journey association only. The caller must establish actual Tough/source custody;
  * this shared calculation cannot mint a qualification or local/hosted authority. */
-export function deriveNativePublicationJourneys(input: {
+type NativePublicationJourneyInput = {
   files: ReadonlyMap<string, Buffer>;
   coordinator_input: Record<string, unknown>;
   manifest: Record<string, unknown>;
@@ -187,7 +192,102 @@ export function deriveNativePublicationJourneys(input: {
   public_pins: ReturnType<typeof inspectPublicationAuthorities>;
   authority_schema_version?: unknown;
   api: Pick<GitHubApiClient, "request" | "graphql">;
-}) {
+};
+
+function readLegacyNativePredecessor(
+  api: NativePublicationJourneyInput["api"],
+  record: Record<string, unknown>,
+) {
+  if (!Array.isArray(record.evidence_ids))
+    throw new Error("prior native evidence reference absent");
+  const refs = record.evidence_ids.filter(
+    (entry: unknown) =>
+      typeof entry === "string" && /^native-check:[1-9][0-9]*:[a-f0-9]{64}$/u.test(entry),
+  );
+  if (refs.length !== 1 || typeof refs[0] !== "string")
+    throw new Error("prior native evidence reference ambiguous");
+  const id = refs[0].split(":")[1],
+    check = api.request("GET", `repos/boburning/portcove/check-runs/${id}`);
+  if (check.status !== 200)
+    throw new Error("authenticated historical native attribution unavailable");
+  return inspectNativePublicationPredecessor(record, check.body);
+}
+
+export function deriveNativePublicationJourneys(input: NativePublicationJourneyInput) {
+  return deriveNativePublicationJourneysWithRecords(input, (record) =>
+    readLegacyNativePredecessor(input.api, record),
+  ).journeys;
+}
+
+/** Selected current producers may follow either the previously admitted Check
+ * lineage or its exact durable hosted successor. Old proof is verified through
+ * the historical receiver, never the current native admission constructor. */
+export async function deriveHostedNativePublicationJourneys(
+  raw: NativePublicationJourneyInput,
+  parent: string,
+  deadline: number,
+) {
+  if (raw.authority_schema_version !== 4) throw new Error("selected hosted native source required");
+  const active = () => {
+    if (!Number.isFinite(deadline) || performance.now() >= deadline)
+      throw new Error("historical native journey original deadline exhausted");
+  };
+  active();
+  const input = {
+    ...raw,
+    files: new Map([...raw.files].map(([name, bytes]) => [name, Buffer.from(bytes)])),
+    coordinator_input: structuredClone(raw.coordinator_input),
+    manifest: structuredClone(raw.manifest),
+    platform_labels: [...raw.platform_labels],
+    public_pins: structuredClone(raw.public_pins),
+    api: { request: raw.api.request.bind(raw.api), graphql: raw.api.graphql.bind(raw.api) },
+    // Selected setup carries the same complete public preimage contract as v2;
+    // the owning caller separately admits the actual full schema4 configuration.
+    authority_schema_version: 2,
+  };
+  const records: Record<string, unknown>[] = [];
+  const prepared = deriveNativePublicationJourneysWithRecords(input, (record) => {
+    if (
+      Array.isArray(record.evidence_ids) &&
+      record.evidence_ids.some(
+        (entry: unknown) => typeof entry === "string" && entry.startsWith("native-checkpoint:"),
+      )
+    ) {
+      records.push(structuredClone(record));
+      return null;
+    }
+    return readLegacyNativePredecessor(input.api, record);
+  });
+  active();
+  if (!records.length) return prepared.journeys;
+  if (records.length !== 2 || prepared.journeys.length !== 2)
+    throw new Error("historical native lineage cannot mix Check and hosted authorities");
+  const { collectHistoricalHostedNativePredecessors } =
+    await import("./release-hosted-native-history.mts");
+  const historical = await collectHistoricalHostedNativePredecessors(
+    parent,
+    records,
+    { schema_version: 1, namespace: input.namespace },
+    deadline,
+    input.api,
+  );
+  if (historical.evidence_scope !== "github.com")
+    throw new Error("actual original native history required");
+  prepared.stable();
+  active();
+  return prepared.journeys.map((journey, index) => {
+    if (!isRecord(journey)) throw new Error("historical native journey unavailable");
+    const platform = records[index]!.target;
+    const matching = historical.predecessors.filter((entry) => entry.platform_label === platform);
+    if (matching.length !== 1) throw new Error("historical native platform association differs");
+    return { ...journey, predecessor: matching[0]!.candidate };
+  });
+}
+
+function deriveNativePublicationJourneysWithRecords(
+  input: NativePublicationJourneyInput,
+  resolveRecord: (record: Record<string, unknown>) => unknown,
+) {
   const {
     files,
     manifest,
@@ -241,6 +341,7 @@ export function deriveNativePublicationJourneys(input: {
   )
     throw new Error("post-sign native prior differs from actual current published seed");
   let journeys: unknown[];
+  let stable = () => {};
   if (priorRecords.size === 0) {
     const controller = before.input.controller;
     if (
@@ -319,28 +420,19 @@ export function deriveNativePublicationJourneys(input: {
       if (records.length !== 1)
         throw new Error("exact admitted predecessor package absent or ambiguous");
       const record = records[0]!;
-      if (!Array.isArray(record.evidence_ids))
-        throw new Error("prior native evidence reference absent");
-      const refs = record.evidence_ids.filter(
-        (entry: unknown) =>
-          typeof entry === "string" && /^native-check:[1-9][0-9]*:[a-f0-9]{64}$/u.test(entry),
-      );
-      if (refs.length !== 1 || typeof refs[0] !== "string")
-        throw new Error("prior native evidence reference ambiguous");
-      const id = refs[0].split(":")[1],
-        check = api.request("GET", `repos/boburning/portcove/check-runs/${id}`);
-      if (check.status !== 200)
-        throw new Error("authenticated historical native attribution unavailable");
       return {
-        predecessor: inspectNativePublicationPredecessor(record, check.body),
+        predecessor: resolveRecord(record),
         signed_context_sha256: signedContext,
         signatures_sha256: binding.signatures_sha256,
       };
     });
-    if (digest(reader.releases()) !== digest(releases) || digest(reader.tags()) !== digest(tags))
-      throw new Error("publication baseline changed during native attribution");
+    stable = () => {
+      if (digest(reader.releases()) !== digest(releases) || digest(reader.tags()) !== digest(tags))
+        throw new Error("publication baseline changed during native attribution");
+    };
+    stable();
   }
-  return journeys;
+  return { journeys, stable };
 }
 
 /** Select only the exact temporal branch; subsequent old/new repository checks
@@ -454,6 +546,9 @@ async function collectNativePublicationPair(
     return Math.min(left, 15000);
   };
   remaining();
+  // One bounded verification subphase within the caller's original job clock;
+  // historical predecessor and current proof collection share this deadline.
+  const hostedDeadline = Math.min(deadline, performance.now() + 120000);
   const locators: unknown = structuredClone(rawLocators),
     assembly: unknown = structuredClone(rawAssembly),
     archives: unknown = structuredClone(rawArchives);
@@ -462,14 +557,20 @@ async function collectNativePublicationPair(
     throw new Error("post-sign native context differs from actual signed repository");
   const context = await requireReceivedSigningContext(receivedContext, deadline),
     manifest = context.manifest,
-    authorities = await requireControllerNativePrepublicationAuthorities(),
-    publicPins = inspectPublicationAuthorities(authorities.publication, authorities.schema_version);
+    authorityView =
+      await requireControllerApplicationJobPublicationAuthorities("release-publication"),
+    authorities =
+      authorityView.configuration.schema_version === 4
+        ? authorityView.configuration
+        : inspectNativePrepublicationAuthorities(authorityView.configuration),
+    selectedHosted = authorities.schema_version === 4,
+    publicPins = authorityView.publication;
   if (
     !isRecord(manifest.facts) ||
     !isRecord(manifest.facts.configuration) ||
     !isRecord(manifest.facts.opportunity) ||
     !isRecord(manifest.binding) ||
-    manifest.facts.configuration.namespace !== authorities.namespace ||
+    manifest.facts.configuration.namespace !== authorityView.namespace ||
     digest(manifest.facts.assembly) !== digest(assembly) ||
     digest(manifest.facts.archives) !== digest(archives)
   )
@@ -477,7 +578,9 @@ async function collectNativePublicationPair(
   const signedContext = tuf.publication.repository_sha256;
   if (typeof signedContext !== "string")
     throw new Error("actual signed repository identity missing");
-  const expectedBefore = await deriveNativeQualificationTemplates(authorities, assembly, archives);
+  const expectedBefore = selectedHosted
+    ? await deriveHostedNativePayloadOpportunities(authorities, assembly, archives)
+    : await deriveNativeQualificationTemplates(authorities, assembly, archives);
   const files = await readBoundedReleaseContextFiles(path.dirname(context.context));
   const required = (name: string) => {
     const bytes = files.get(name);
@@ -496,14 +599,14 @@ async function collectNativePublicationPair(
     const snapshot = () =>
       readRemoteCoordinatorSnapshot(
         directory,
-        { schema_version: 1, namespace: authorities.namespace },
+        { schema_version: 1, namespace: authorityView.namespace },
         { transport: { cwd: directory, deadline } },
       );
     const before = await snapshot();
     const descriptor = JSON.stringify({
       schema_version: 1,
       checkpoint: before.checkpoint,
-      coordinator: { schema_version: 1, namespace: authorities.namespace },
+      coordinator: { schema_version: 1, namespace: authorityView.namespace },
       assembly,
       archives,
       evidence: {},
@@ -624,48 +727,80 @@ async function collectNativePublicationPair(
         { flag: "wx", mode: 0o600 },
       );
     }
-    const journeys = deriveNativePublicationJourneys({
+    const journeyArguments = {
       files,
       coordinator_input: journeyInput,
       manifest,
-      namespace: authorities.namespace,
+      namespace: authorityView.namespace,
       signed_context_sha256: signedContext,
       platform_labels: expectedBefore.map((item) => item.platform_label),
       public_pins: publicPins,
       authority_schema_version: authorities.schema_version,
       api,
-    });
-    const templates = expectedBefore.map((item, index) =>
-      inspectNativeQualificationTemplate({
-        ...item,
-        schema_version: 2,
-        native_prepublication_profile: nativePrepublicationProfile,
-        stage: "release-publication",
-        journey: journeys[index],
-      }),
-    );
-    const selectedLocators =
-      locators === null ? discoverNativeQualificationLocators(templates, deadline) : locators;
-    const expected = bindNativeQualificationLocators(selectedLocators, templates);
+    };
+    const journeys = selectedHosted
+      ? await deriveHostedNativePublicationJourneys(journeyArguments, directory, hostedDeadline)
+      : deriveNativePublicationJourneys(journeyArguments);
+    const templates = selectedHosted
+      ? null
+      : expectedBefore.map((item, index) =>
+          inspectNativeQualificationTemplate({
+            ...item,
+            schema_version: 2,
+            native_prepublication_profile: nativePrepublicationProfile,
+            stage: "release-publication",
+            journey: journeys[index],
+          }),
+        );
+    const expected =
+      templates === null
+        ? expectedBefore.map((item, index) => ({
+            platform_label: item.platform_label,
+            journey: journeys[index],
+          }))
+        : bindNativeQualificationLocators(
+            locators === null ? discoverNativeQualificationLocators(templates, deadline) : locators,
+            templates,
+          );
     await writeFile(path.join(directory, "expected.json"), JSON.stringify(expected), {
       flag: "wx",
       mode: 0o600,
     });
     phase = "actual-current-native-pair";
-    const pair = await collectNativeReleaseQualificationPair(
-      directory,
-      expected,
-      assembly,
-      archives,
-      "release-publication",
-      deadline,
-    );
+    const pair = selectedHosted
+      ? await collectConfiguredHostedNativePublicationPair(
+          directory,
+          locators,
+          assembly,
+          archives,
+          expected,
+          hostedDeadline,
+        )
+      : await collectNativeReleaseQualificationPair(
+          directory,
+          expected,
+          assembly,
+          archives,
+          "release-publication",
+          deadline,
+        );
     await requireActualTufPublication(actualTufPublication, deadline);
     await requireReceivedSigningContext(receivedContext, deadline);
     const after = await snapshot();
     if (after.checkpoint !== before.checkpoint)
       throw new Error("native publication reservation changed during collection");
     await associate(descriptor, after);
+    if (selectedHosted) {
+      const rechecked =
+        await requireControllerApplicationJobPublicationAuthorities("release-publication");
+      if (
+        digest(rechecked.source) !== digest(authorityView.source) ||
+        rechecked.configuration_sha256 !== authorityView.configuration_sha256
+      )
+        throw new Error("native publication source changed during collection");
+      if (performance.now() >= hostedDeadline)
+        throw new Error("native publication original verification deadline exhausted");
+    }
     remaining();
     return pair;
   } catch {

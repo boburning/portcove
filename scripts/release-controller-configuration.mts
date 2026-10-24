@@ -286,6 +286,9 @@ export function prepareFixedControllerConfiguration(input: {
       ...(built.original_upload === undefined || built.original_upload === ""
         ? {}
         : { original_upload: json(built.original_upload) }),
+      ...(built.native_custody === undefined || built.native_custody === ""
+        ? {}
+        : { native_custody: json(built.native_custody) }),
     });
   };
   const coordinated = output(needs, "coordinator");

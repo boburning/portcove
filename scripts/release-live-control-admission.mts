@@ -547,6 +547,9 @@ async function authenticateControlSource(
       ]);
       if (capacity.commit !== pause.commit)
         throw new Error("pause and capacity configuration ref changed");
+      // The final observer GET can itself cross the observation/identity window.
+      // Reusing this authenticated round never refreshes its original clock.
+      guard();
       const facts = {
         phase,
         reader: readerFacts,

@@ -24,6 +24,46 @@ import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
+void test("selected aggregate verification binds the exact native carrier without creating native acceptance", async (t) => {
+  const f = await verificationFixture(t);
+  const native = {
+    checkpoint: "c".repeat(40),
+    native_bundle_sha256: "d".repeat(64),
+    native_bundle_bytes: 12345,
+  };
+  const predicate = f.value[0]!.verificationResult.statement.predicate;
+  Object.assign(predicate, { producer_profile: "admitted-aggregate-v1", native_custody: native });
+  const selected = {
+    ...f.verificationExpected,
+    producer_profile: "admitted-aggregate-v1" as const,
+    native_custody: native,
+  };
+  const run = (expected: typeof selected) =>
+    verifyAggregateAttestation(f.root, f.archive, Buffer.from("inert verifier output"), expected, {
+      spawn: f.spawn,
+    });
+  const result = await run(selected);
+  assert.deepEqual(result.native_custody, native);
+  assert.equal(result.authority, "none");
+  await assert.rejects(
+    run({ ...selected, native_custody: { ...native, checkpoint: "e".repeat(40) } }),
+  );
+  await assert.rejects(
+    run({ ...selected, native_custody: { ...native, native_bundle_sha256: "e".repeat(64) } }),
+  );
+  await assert.rejects(
+    run({
+      ...selected,
+      native_custody: { ...native, native_bundle_bytes: native.native_bundle_bytes + 1 },
+    }),
+  );
+  await assert.rejects(
+    verifyAggregateAttestation(f.root, f.archive, Buffer.from("inert"), f.verificationExpected, {
+      spawn: f.spawn,
+    }),
+  );
+});
+
 void test("current admitted custodian binds original failed-run artifact without relabeling or replacing its producer", async (t) => {
   const f = await fixture(t);
   const subject = controllerOidcSubject(expected.controller_ref, "production-release-admission");
