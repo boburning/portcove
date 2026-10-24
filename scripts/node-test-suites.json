@@ -1666,6 +1666,20 @@
       ]
     },
     {
+      "file": "scripts/release-hosted-native-runner.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15145],
+        ["release-check", 13445]
+      ]
+    },
+    {
+      "file": "scripts/release-routing-marker.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15146],
+        ["release-check", 13446]
+      ]
+    },
+    {
       "file": "scripts/release-hosted-native-proof-producer.test.mts",
       "memberships": [
         ["catalog-full-2", 15143],
