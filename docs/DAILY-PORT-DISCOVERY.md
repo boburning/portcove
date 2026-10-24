@@ -245,6 +245,17 @@ For an unresolved candidate without a public mutation, `op: hold` accepts
 resume condition. Reconcile ambiguous or unfinished public writes first.
 A new proposal may supersede an uncreated held draft for the same target.
 
+For a created intake whose canonical owner has since revised its text, `op: reconcile`
+accepts `reconciliation: {candidate_id}` and saves the complete current issue/Project
+snapshot for separate non-writing review. Repeat with `reconciliation: {candidate_id,
+review: {verdict: clear, reviewer, model: gpt-6.1-sol, reasoning: high,
+snapshot_sha256}}` only after that review. Fresh complete collection must match the
+exact reviewed snapshot, retained intake marker, upstream/key and unique active
+Project identity; scoped doctor must pass. This acknowledges external completion
+without writing issue text or Project fields. Original draft/review and the new
+snapshot/doctor/review stay in the journal; only then is its delivery reservation
+released. Drift, ambiguity, incomplete collection and mismatched review still refuse.
+
 Intake proposals must satisfy the same non-catalog research/watchlist metadata
 and support disclaimer checked by the scoped doctor before they can be reviewed
 or created. If a retained created intake fails that check, `op: amend` accepts
