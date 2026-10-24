@@ -721,8 +721,10 @@ wall time and resource queueing; overlapping file durations are not critical-pat
 latency. The existing five-second slow-case report and original test exits remain.
 
 `Node test case observation:` records separately retain each test, suite or failed
-worker result, measured duration, skip/TODO reason and bounded original error and
-cause messages. Repository paths are relative to the invocation root. Definition
+worker result, measured duration, skip/TODO reason, worker exit/signal and bounded
+original error/cause messages and stacks. Timeout and AbortSignal results retain
+Node's cancellation category and original failing event. Repository paths are
+relative to the invocation root. Definition
 IDs describe source locations and names; repeated or parameterized definitions
 can have several instances and must not be deduplicated. Node test/parent IDs and
 sibling ordinals support instance correlation; they are not source attestations

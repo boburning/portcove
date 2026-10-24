@@ -40,6 +40,11 @@ function failureObservation(error: unknown) {
     stack: field(error, "stack", 4096),
     code: field(error, "code", 128),
     failure_type: field(error, "failureType", 128),
+    exit_code: integer(error.exitCode) ? error.exitCode : null,
+    signal:
+      typeof error.signal === "string" && /^SIG[A-Z0-9]{1,12}$/u.test(error.signal)
+        ? error.signal
+        : null,
     cause: cause
       ? {
           name: field(cause, "name", 128),
@@ -115,7 +120,8 @@ export function nodeCaseObservation(event: unknown, root = process.cwd()) {
       ? "skipped"
       : todo
         ? "todo"
-        : error?.failureType === "cancelledByParent"
+        : typeof error?.failureType === "string" &&
+            ["cancelledByParent", "testTimeoutFailure", "testAborted"].includes(error.failureType)
           ? "cancelled"
           : event.type === "test:pass"
             ? "passed"

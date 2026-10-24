@@ -71,6 +71,16 @@ void test("an abnormal worker exit retains bounded status and remains a failed r
     failureType: "testCodeFailure",
     code: "ERR_TEST_FAILURE",
   });
+  const cases = result.stdout
+    .split("\n")
+    .filter((line) => line.startsWith("Node test case observation: "));
+  assert.equal(cases.length, 1, result.stdout);
+  const observation: unknown = JSON.parse(cases[0]!.slice("Node test case observation: ".length));
+  assert.ok(isRecord(observation) && isRecord(observation.failure));
+  assert.equal(observation.kind, "worker");
+  assert.equal(observation.outcome, "failed");
+  assert.equal(observation.failure.exit_code, 7);
+  assert.equal(observation.failure.signal, null);
 });
 
 // Watch lifecycle events have no data object; they must not mask later results.
@@ -395,9 +405,107 @@ void test("case observations separate skips, TODO failures, cancellations and wo
   assert.ok(worker);
   assert.equal(worker.kind, "worker");
   assert.equal(worker.outcome, "failed");
+  assert.equal(worker.failure?.exit_code, 7);
   assert.equal(error.cause, cause);
   assert.equal(cause.message, "original assertion");
 });
+
+void test("actual timeout and AbortSignal rows retain cancellation counts and a failing exit", (t) => {
+  const root = disposableDirectory(t, path.join(os.tmpdir(), "portcove-case-cancellation-"));
+  const fixture = path.join(root, "cancelled.test.mjs");
+  writeFileSync(
+    fixture,
+    `import { it } from "node:test";
+import assert from "node:assert/strict";
+it("original timeout", { timeout: 20 }, async () => { await new Promise(resolve => setTimeout(resolve, 200)); });
+it("original abort", { signal: AbortSignal.abort(new Error("owned abort reason")) }, () => assert.fail("aborted callback ran"));
+`,
+  );
+  const environment = { ...process.env };
+  delete environment.NODE_TEST_CONTEXT;
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--test",
+      "--test-timeout=10000",
+      `--test-reporter=${new URL("./test-duration-reporter.mts", import.meta.url).href}`,
+      fixture,
+    ],
+    { cwd: root, env: environment, encoding: "utf8", timeout: 20000, windowsHide: true },
+  );
+  assert.ifError(result.error);
+  assert.equal(result.status, 1, result.stderr);
+  assert.equal(result.signal, null);
+  const parse = (prefix: string) =>
+    result.stdout
+      .split("\n")
+      .filter((line) => line.startsWith(prefix))
+      .map((line) => {
+        const row: unknown = JSON.parse(line.slice(prefix.length));
+        assert.ok(isRecord(row));
+        return row;
+      });
+  const rows = parse("Node test case observation: ");
+  const files = parse("Node test file observation: ");
+  assert.equal(rows.length, 2, result.stdout);
+  assert.ok(rows.every((row) => row.outcome === "cancelled" && row.event === "test:fail"));
+  assert.deepEqual(
+    rows
+      .map((row) => {
+        assert.ok(isRecord(row.failure));
+        assert.equal(typeof row.failure.failure_type, "string");
+        return String(row.failure.failure_type);
+      })
+      .sort((left, right) => left.localeCompare(right)),
+    ["testAborted", "testTimeoutFailure"],
+  );
+  assert.equal(files.length, 1);
+  assert.ok(isRecord(files[0]!.counts));
+  assert.equal(files[0]!.success, false);
+  assert.equal(files[0]!.counts.cancelled, 2);
+  assert.equal(files[0]!.counts.failed, 0);
+  assert.equal(files[0]!.counts.passed, 0);
+  assert.match(result.stdout, /owned abort reason/u);
+});
+
+void test(
+  "actual POSIX worker signal is retained in the joined case failure",
+  {
+    skip:
+      process.platform === "win32"
+        ? "POSIX worker signals execute in the Linux reporter contract route"
+        : false,
+  },
+  (t) => {
+    const root = disposableDirectory(t, path.join(os.tmpdir(), "portcove-case-signal-"));
+    const fixture = path.join(root, "signal.test.mjs");
+    writeFileSync(fixture, 'process.kill(process.pid, "SIGTERM");\n');
+    const environment = { ...process.env };
+    delete environment.NODE_TEST_CONTEXT;
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--test",
+        "--test-timeout=10000",
+        `--test-reporter=${new URL("./test-duration-reporter.mts", import.meta.url).href}`,
+        fixture,
+      ],
+      { cwd: root, env: environment, encoding: "utf8", timeout: 20000, windowsHide: true },
+    );
+    assert.ifError(result.error);
+    assert.equal(result.status, 1, result.stderr);
+    const rows = result.stdout
+      .split("\n")
+      .filter((line) => line.startsWith("Node test case observation: "));
+    assert.equal(rows.length, 1, result.stdout);
+    const row: unknown = JSON.parse(rows[0]!.slice("Node test case observation: ".length));
+    assert.ok(isRecord(row) && isRecord(row.failure));
+    assert.equal(row.kind, "worker");
+    assert.equal(row.outcome, "failed");
+    assert.equal(row.failure.exit_code, null);
+    assert.equal(row.failure.signal, "SIGTERM");
+  },
+);
 
 void test("case diagnostics reject invalid measurements and survive unavailable error fields", () => {
   const input = caseEvent();
