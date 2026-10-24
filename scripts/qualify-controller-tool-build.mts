@@ -23,6 +23,18 @@ import {
 import { inspectLinuxSupervisor } from "./run-rust-tests.mts";
 import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
 
+/** Bound JSON escape expansion as well as process output; preserve full-byte identity. */
+function boundedFixtureOutput(value: string) {
+  const bytes = Buffer.from(value);
+  return {
+    bytes: bytes.length,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    prefix: value.slice(0, 1024),
+    prefix_limit_code_units: 1024,
+    truncated: value.length > 1024,
+  };
+}
+
 /** Real fixed reaper -> bundled supervisor -> fixed driver, plus orphan closure.
  * Credential-free ordinary fixture only; neither case grants native acceptance. */
 export async function qualifyNativeChildren(
@@ -431,9 +443,9 @@ async function main() {
     });
     await record("connected-release.json", {
       status: connected.status,
-      error: connected.error?.message ?? null,
-      stdout: connected.stdout,
-      stderr: connected.stderr,
+      error: connected.error?.message.slice(0, 1024) ?? null,
+      stdout: boundedFixtureOutput(connected.stdout),
+      stderr: boundedFixtureOutput(connected.stderr),
       scope: "disposable byte/crypto and prepared process chain only",
       authority: "none",
       native_acceptance: "not-established",
