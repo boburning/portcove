@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { generateKeyPairSync } from "node:crypto";
+import childProcess from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
 import { performance } from "node:perf_hooks";
 import {
   verifyAssemblerJobIdentity,
   verifyHostedNativeJobIdentity,
+  requireVerifiedHostedNativeJobIdentity,
   verifyClassificationWriterJobIdentity,
   verifyProductionClassificationWriterJobIdentity,
   verifyProductionClassificationObserverJobIdentity,
@@ -53,6 +56,61 @@ import {
   jwk,
   assemblerIdentityFixture as fixture,
 } from "./fixtures/assembler-identity-fixture.mts";
+
+void test("native parent identity getter requires original default issuer/provider binding and preserves expiry and wrong-source refusals", async (t) => {
+  const platform = "linux-x86_64";
+  const wanted = {
+    ...expected,
+    run_attempt: 1,
+    audience: "portcove-hosted-native-linux-v1",
+    subject: controllerOidcSubject(expected.controller_ref, "production-native-linux"),
+  };
+  const good = fixture(
+    { aud: wanted.audience, sub: wanted.subject, environment: "production-native-linux" },
+    {},
+    {
+      workflow: productionControllerWorkflow,
+      job: "Qualify hosted Linux installed continuity",
+      runAttempt: 1,
+    },
+  );
+  const injected = await verifyHostedNativeJobIdentity(platform, good.token, wanted, good);
+  assert.throws(
+    () => requireVerifiedHostedNativeJobIdentity(injected, platform, wanted),
+    /original unexpired/,
+  );
+  t.mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ keys: [jwk] })));
+  t.mock.method(
+    childProcess,
+    "spawnSync",
+    (
+      command: string,
+      args: readonly string[],
+      options: Parameters<typeof good.transport.spawn>[2],
+    ) => good.transport.spawn(command, args, options) as ReturnType<typeof childProcess.spawnSync>,
+  );
+  syncBuiltinESMExports();
+  t.after(() => {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+  const actual = await verifyHostedNativeJobIdentity(platform, good.token, wanted, {
+    transport: { cwd: process.cwd(), deadline: performance.now() + 10000 },
+  });
+  requireVerifiedHostedNativeJobIdentity(actual, platform, wanted);
+  assert.equal(actual.authority, "none");
+  assert.equal(actual.native_acceptance, "not-established");
+  for (const copy of [{ ...actual }, JSON.parse(JSON.stringify(actual)) as unknown])
+    assert.throws(() => requireVerifiedHostedNativeJobIdentity(copy, platform, wanted));
+  assert.throws(() => requireVerifiedHostedNativeJobIdentity(actual, "windows-x86_64", wanted));
+  assert.throws(() =>
+    requireVerifiedHostedNativeJobIdentity(actual, platform, { ...wanted, run_id: "9989" }),
+  );
+  for (const now of [NaN, Infinity, -1, Date.parse(actual.expires_at)])
+    assert.throws(() => requireVerifiedHostedNativeJobIdentity(actual, platform, wanted, now));
+  actual.job_id = 502;
+  assert.throws(() => requireVerifiedHostedNativeJobIdentity(actual, platform, wanted));
+});
 
 void test("hosted native identity binds the fixed platform parent without granting native acceptance", async () => {
   for (const [platform, job, environment, audience] of [

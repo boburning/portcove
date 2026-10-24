@@ -47,3 +47,12 @@ export function readOnlyReleaseChildEnvironment(): NodeJS.ProcessEnv | undefined
   const selected = environments.getStore();
   return selected === undefined ? undefined : { ...selected };
 }
+
+/** Retained parent callbacks must explicitly re-enter this exact reader scope.
+ * Creating a closure inside AsyncLocalStorage.run does not bind later calls.
+ * This captures only the existing private child environment, not other scopes. */
+export function bindReadOnlyReleaseChildren<T>(work: () => T): () => T {
+  const environment = environments.getStore();
+  if (!environment) throw new Error("existing private reader scope required");
+  return () => environments.run(environment, work);
+}
