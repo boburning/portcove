@@ -49,3 +49,37 @@ A user-selected external installation can keep playing while another copy downlo
 Focused browser tests passed 69/69 with zero skips before target reconciliation. The Core replacement fixture passed under a calibrated finite 90-second Windows harness budget after a retained 30.078-second timeout. The run verifies stale-plan refusal, wrong-pending-preimage rollback, atomic registration identity/history retention and preservation of both external copies. These fixtures establish neither real-game execution nor native UI acceptance. The separate Spec and Standards repair reviews cleared source 3728898582cdd6a1f0a342ea058907e14febf7c4. Later metadata and target interactions still need their own review and final exact-head hosted checks.
 
 Preparation feedback contracts passed 15 tests; formatting, lint, types and styles passed. Earlier browser assertion failures, a source-change resource refusal, the original Core timeout and the malformed empty-suffix proposal remain retained. Passing after calibration is not evidence of a product timing repair.
+
+## Production acquisition observations
+
+The production CLI built from source `ff636257aafbc8d9fb6a4592495f382caf0be38d` has SHA-256 `b9ef39702cbe5b182cfd7bbebb34a006720b2b2d14d7d859bc496e441c1c2c34`. Each of the seven Windows definitions above completed a fresh Core plan, managed installation, immutable verification and activation in the isolated `windows-portable-observation-1/library`. No original game inputs were supplied and no Play/native game process was started. The retained `results.json` records each artifact, manifest, selected executable and verification result. These are acquisition/installation/verification observations, not setup-window, gameplay, data-compatibility or packaged-Desktop acceptance.
+
+| Port                              | Selected native target                                       | Verified package files |
+| --------------------------------- | ------------------------------------------------------------ | ---------------------: |
+| body-harvest-recompiled           | `BodyHarvestRecompiled.exe`                                  |                     33 |
+| dahsidiabdallah-conkerbfdreloaded | `ConkerBFDReloaded-v1.4.6-Windows/ConkerBFDReloaded.exe`     |                    123 |
+| colin-mcrae-rally-2-opencmr2      | `OpenCMR2-Windows-x64/opencmr2.exe`                          |                     10 |
+| djultra64-blocksphere             | `blocksphere-1.1.0-windows-x86_64/tetrisphere.exe`           |                     21 |
+| gearhead-garage-opengg            | `build/OpenGG/OpenGG.exe`                                    |                    369 |
+| opentyrian-opentyrian             | `opentyrian/opentyrian.exe`                                  |                    113 |
+| knuckles-chaotix-recompiled       | `ChaotixRecompiled-0.14.0-windows-x64/ChaotixRecompiled.exe` |                     24 |
+
+The same production Core downloaded each separately selected Linux x86-64 archive into a user-owned observation folder and completed bounded extraction. Read-only header inspection established one declared ELF64 x86-64 target per package. Maintainer-installed readelf inspected dynamic dependencies and library search paths; no Linux binary was executed. Body Harvest and Conker use upstream system SDL2/GTK/FreeType dependencies. OpenCMR2 and Chaotix use `$ORIGIN` for bundled SDL companions; Blocksphere uses `$ORIGIN/lib`; OpenGG retains its complete Godot/.NET companions. OpenTyrian has no bundled-library search wrapper. The selected archives contain no required shell launch wrapper. Linux system/GPU prerequisites and execution remain unqualified.
+
+| Port                              | Linux archive                                                                                                                                                         | Expected and observed SHA-256                                      |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| body-harvest-recompiled           | [BodyHarvestRecompiled-v1.0.0-Linux-X64.tar.gz](https://github.com/mcsoderh/BodyHarvestRecomp/releases/download/v1.0.0/BodyHarvestRecompiled-v1.0.0-Linux-X64.tar.gz) | `7e64896d65a161a6ccf3fe1976e496df630b34985d8192e1bf6e1f27f2b96a08` |
+| dahsidiabdallah-conkerbfdreloaded | [ConkerBFDReloaded-v1.4.6-Linux.tar.gz](https://github.com/DahSidiAbdallah/ConkerBFDReloaded/releases/download/v1.4.6/ConkerBFDReloaded-v1.4.6-Linux.tar.gz)          | `8c84c574740ed98cc873f4e627fd237d42d548a94b49cbfc2bdcc8a07f8ab357` |
+| colin-mcrae-rally-2-opencmr2      | [OpenCMR2-Linux-x86_64.tar.gz](https://github.com/pablocpas/OpenCMR2/releases/download/v1.6.0/OpenCMR2-Linux-x86_64.tar.gz)                                           | `a96dd48151c7f03e84ec951b5f8fa0579650e862e164c769edfff146b3d20582` |
+| djultra64-blocksphere             | [blocksphere-1.1.0-linux-x86_64.tar.gz](https://github.com/djultra64/Blocksphere/releases/download/v1.1.0/blocksphere-1.1.0-linux-x86_64.tar.gz)                      | `02d1d2d456efd2c7a447a22de1ba417eaa457af4b97b58b3c28c3c7c0a9d2250` |
+| gearhead-garage-opengg            | [OpenGG-0.2.2-linux-x64.tar.gz](https://github.com/tymsky/OpenGG/releases/download/v0.2.2/OpenGG-0.2.2-linux-x64.tar.gz)                                              | `8b5968168a780f699ca29687c80e41ee5ea6736ea04d06aa10e8c29f271ff47d` |
+| opentyrian-opentyrian             | [opentyrian-v2.1.20260913-linux-x86_64.tar.gz](https://github.com/opentyrian/opentyrian/releases/download/v2.1.20260913/opentyrian-v2.1.20260913-linux-x86_64.tar.gz) | `77dc7ba68540e1333aa243af122e2745ce54196fdba19a9141ed37ea17eab9e3` |
+| knuckles-chaotix-recompiled       | [ChaotixRecompiled-0.14.0-linux-x64.tar.gz](https://github.com/YuutaTsubasa/ChaotixRecompiled/releases/download/v0.14.0/ChaotixRecompiled-0.14.0-linux-x64.tar.gz)    | `6c6af5ca447f28f3f96e0138db714e04e2dbc2a474e502f9ba3afce926b392ac` |
+
+The later Linux declarations share only the reviewed compatible data contract with their Windows sibling; they do not inherit Windows execution evidence. Native executable hints and package hints are platform-specific. Core’s supported host model has no Linux ARM64 target. macOS bundles require their supported upstream/non-owning route; this change does not invent bundle installation.
+
+The combined proposal inspector accepted 122 operational declarations and all 524 listings, binding generated catalog SHA-256 `46ca19e0934c8c1b827e5f436bdf7e459a392f0b34e1a54439915a9fa5a295d5`. This records declaration validation at that checkpoint, not final CI.
+
+## Non-owning setup handoffs
+
+Ninety listing-only PSX setup packages now link their exact reviewed README reference and explain the upstream generation/build handoff, original-disc/BIOS responsibility, selecting the resulting native game or supported launcher, and explicit Play. Each retained README contains its own generation contract. None gains a managed adapter or a new promise to replace generated runtime files. Existing richer PSX integrations remain unchanged. `setup-proposal-evidence.json` retains the per-ID canonical owner, exact reference and README blob hash; complete all-port dispositions and final delivery are still required.

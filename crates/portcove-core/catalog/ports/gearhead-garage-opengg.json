@@ -29,7 +29,7 @@
         },
         {
           "title": "Keep your progress when updating",
-          "instruction": "OpenGG normally stores saves, settings, snapshots and logs in AppData/Godot/app_userdata/OpenGG, outside Portcove backups. The package content remains version-owned; no in-folder player-data paths are declared. Keep the default storage mode; register an external copy for custom --user or --data paths."
+          "instruction": "OpenGG normally stores saves, settings, snapshots and logs in AppData/Godot/app_userdata/OpenGG, outside Portcove backups. The package content remains version-owned; no in-folder player-data paths are declared. Keep the default storage mode; register an external copy for custom --user or --data paths. Linux normally uses ~/.local/share/godot/app_userdata/OpenGG. Keep the complete data and data_OpenGG_linuxbsd_x86_64 package directories beside OpenGG.x86_64."
         }
       ],
       "warnings": [],
@@ -39,23 +39,25 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
     "release": {
       "repository": "tymsky/OpenGG",
       "asset_hints": {
-        "windows-x86-64": ["opengg-", "-windows-x64.zip"]
+        "windows-x86-64": ["opengg-", "-windows-x64.zip"],
+        "linux-x86-64": ["opengg-", "-linux-x64.tar.gz"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": ["OpenGG.exe"]
+      "windows-x86-64": ["OpenGG.exe"],
+      "linux-x86-64": ["OpenGG.x86_64"]
     },
     "persistent_paths": [],
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "On first Play, use GAME FOLDER to choose your installed Gearhead Garage folder containing Data/Cars. The original folder is read-only. NEW creates a mechanic; IMPORT MECHANICS brings over your own .mek saves. Without original files, upstream offers its limited placeholder beta. OpenGG normally stores saves, settings, snapshots and logs in AppData/Godot/app_userdata/OpenGG, outside Portcove backups. The package content remains version-owned; no in-folder player-data paths are declared. Keep the default storage mode; register an external copy for custom --user or --data paths. Existing external copies keep their files and runtime update owner. Gameplay and installed-app acceptance remain separate observations."
+      "manual_preparation": "On first Play, use GAME FOLDER to choose your installed Gearhead Garage folder containing Data/Cars. The original folder is read-only. NEW creates a mechanic; IMPORT MECHANICS brings over your own .mek saves. Without original files, upstream offers its limited placeholder beta. OpenGG normally stores saves, settings, snapshots and logs in AppData/Godot/app_userdata/OpenGG, outside Portcove backups. The package content remains version-owned; no in-folder player-data paths are declared. Keep the default storage mode; register an external copy for custom --user or --data paths. Existing external copies keep their files and runtime update owner. Play has not been tested through Portcove. Linux normally uses ~/.local/share/godot/app_userdata/OpenGG. Keep the complete data and data_OpenGG_linuxbsd_x86_64 package directories beside OpenGG.x86_64. Play has not been tested through Portcove on Linux."
     }
   }
 }

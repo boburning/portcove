@@ -2464,7 +2464,25 @@
       "issue_number": 328,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp"
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp/blob/v0.3.6/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp/blob/v0.3.6/README.md"
+      }
     },
     {
       "id": "ace-combat-5-static-recompilation",
@@ -2564,7 +2582,7 @@
       "issue_number": 426,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp/blob/v0.3.6/README.md",
       "artwork": {
         "game_id": 1960,
         "cover_id": 88564,
@@ -2572,6 +2590,24 @@
         "image_sha256": "7a15bca139bc9bf733b45f019188df176908dc82c0ab7250a4ca4f75242ccf9f",
         "game_slug": "alone-in-the-dark-the-new-nightmare",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp/blob/v0.3.6/README.md"
       }
     },
     {
@@ -2582,7 +2618,7 @@
       "issue_number": 430,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/apocalypse-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/apocalypse-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 15547,
         "cover_id": 519449,
@@ -2590,6 +2626,24 @@
         "image_sha256": "305be3b0f3a1846f2a075c64dc47f7c3d12226990e092b3639503bea270aeccf",
         "game_slug": "apocalypse--1",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/apocalypse-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -2600,7 +2654,7 @@
       "issue_number": 1585,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 19424,
         "cover_id": 178349,
@@ -2608,6 +2662,24 @@
         "image_sha256": "68e6ca1e489d4fd6c637fe82d7021f4563d120f375acda1a1b519921e4bd7327",
         "game_slug": "armored-core-master-of-arena",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -2618,7 +2690,7 @@
       "issue_number": 1586,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 19428,
         "cover_id": 117089,
@@ -2626,6 +2698,24 @@
         "image_sha256": "c410648fecc50ffbab5cbc7b5c6c8165538e7fa9632cb1845f2fd3f16ed561f8",
         "game_slug": "armored-core-project-phantasma",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/armored-core-project-phantasma-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -2636,7 +2726,7 @@
       "issue_number": 1587,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 6545,
         "cover_id": 155244,
@@ -2644,6 +2734,24 @@
         "image_sha256": "08b8df0d4b5ff787dfe466017caa31efa2bd14b293831337b6d3dd0e1784f7f1",
         "game_slug": "azure-dreams",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/azure-dreams-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -2654,7 +2762,7 @@
       "issue_number": 432,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp/blob/v0.1.2/README.md",
       "artwork": {
         "game_id": 4140,
         "cover_id": 197342,
@@ -2662,6 +2770,24 @@
         "image_sha256": "1d9da18c25e734f649a742ed62e39893226d02633e7d65ec18752fd6b4736072",
         "game_slug": "bloody-roar-2",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp/blob/v0.1.2/README.md"
       }
     },
     {
@@ -2672,7 +2798,7 @@
       "issue_number": 1588,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 1419,
         "cover_id": 232215,
@@ -2680,6 +2806,24 @@
         "image_sha256": "adbb4260d6903edac93c5384815a2d6ecb539dd7495c442f1b3fb228c7abc805",
         "game_slug": "bushido-blade-2",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -2690,7 +2834,7 @@
       "issue_number": 433,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp/blob/v0.3.6/README.md",
       "artwork": {
         "game_id": 642,
         "cover_id": 351921,
@@ -2698,6 +2842,24 @@
         "image_sha256": "f0017034b228e12a2d22522dc6510f8e546824db874cb70a968d8e283e0e312c",
         "game_slug": "colin-mcrae-rally-2-0",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp/blob/v0.3.6/README.md"
       }
     },
     {
@@ -2708,7 +2870,7 @@
       "issue_number": 437,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 8280,
         "cover_id": 98216,
@@ -2716,6 +2878,24 @@
         "image_sha256": "e2852791410c34eeb997fa87b3a353a7d73e48de973071d2ca1e20fee11b877a",
         "game_slug": "colony-wars",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -2726,7 +2906,7 @@
       "issue_number": 1589,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 8282,
         "cover_id": 98214,
@@ -2734,6 +2914,24 @@
         "image_sha256": "455e6e2b1d670ec218257f86dc79552d17ae812539cc3d856a1d9ef022b9e424",
         "game_slug": "colony-wars-red-sun",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -2744,7 +2942,7 @@
       "issue_number": 439,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/crash-bandicoot-3-warped-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/crash-bandicoot-3-warped-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 1187,
         "cover_id": 382460,
@@ -2752,6 +2950,24 @@
         "image_sha256": "2d841a936efb3dec0f15a12479b11bc6a49dd7f26dfd0496e88b646366257d51",
         "game_slug": "crash-bandicoot-warped",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/crash-bandicoot-3-warped-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -2762,7 +2978,7 @@
       "issue_number": 438,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp/blob/v0.3.6/README.md",
       "artwork": {
         "game_id": 1170,
         "cover_id": 123322,
@@ -2770,6 +2986,24 @@
         "image_sha256": "1b2115d1d64e40d85cab358306d7bedefbc6d557b3920b077e21df9e713edaf1",
         "game_slug": "destruction-derby-2",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp/blob/v0.3.6/README.md"
       }
     },
     {
@@ -2780,7 +3014,7 @@
       "issue_number": 1590,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 1169,
         "cover_id": 371176,
@@ -2788,6 +3022,24 @@
         "image_sha256": "57552e4b598b6db052e91116fc2f2ac97f58dd7c6e68b3515182966fb7974124",
         "game_slug": "destruction-derby-raw",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -2798,7 +3050,7 @@
       "issue_number": 1591,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 28400,
         "cover_id": 101151,
@@ -2806,6 +3058,24 @@
         "image_sha256": "fb9953d85b0f86a28f820a24526d4a599fc329b3e5362f8fd3add4d406b221bc",
         "game_slug": "devil-dice",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/devil-dice-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -2816,7 +3086,7 @@
       "issue_number": 440,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp/blob/v0.3.6/README.md",
       "artwork": {
         "game_id": 8234,
         "cover_id": 133614,
@@ -2824,6 +3094,24 @@
         "image_sha256": "02a4599930c063a7b299791af4d31cc0f70bb331ff3e8dea42d3e7ee552559e6",
         "game_slug": "die-hard-trilogy",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp/blob/v0.3.6/README.md"
       }
     },
     {
@@ -2834,7 +3122,7 @@
       "issue_number": 1592,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 36508,
         "cover_id": 85711,
@@ -2842,6 +3130,24 @@
         "image_sha256": "26270ce540b53c94de9dde72607de9d641c36a2f9c55df661b53102d8b1fca75",
         "game_slug": "digimon-world-2",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -2852,7 +3158,7 @@
       "issue_number": 1593,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 2543,
         "cover_id": 404393,
@@ -2860,6 +3166,24 @@
         "image_sha256": "10de6af54dd907373e7c239d010ee4e3e9b7ff01e7cd63f3aa78939217cd2dc7",
         "game_slug": "dragon-ball-z-ultimate-battle-22",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/dragon-ball-z-ultimate-battle-22-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -2870,7 +3194,7 @@
       "issue_number": 1594,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 8601,
         "cover_id": 126643,
@@ -2878,6 +3202,24 @@
         "image_sha256": "304f1d6d5eebe507e647a58f7c5b9f82a0c78d4870a6fe727acc7cde479c686f",
         "game_slug": "fear-effect-2-retro-helix",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -2888,7 +3230,7 @@
       "issue_number": 447,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 8600,
         "cover_id": 398165,
@@ -2896,6 +3238,24 @@
         "image_sha256": "ab4ef365d47d1c79def199cff02846100a7cbbfe2ee69a6253ed0d12c572130c",
         "game_slug": "fear-effect",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -2906,7 +3266,7 @@
       "issue_number": 448,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp/blob/v0.1.2/README.md",
       "artwork": {
         "game_id": 2542,
         "cover_id": 97859,
@@ -2914,6 +3274,24 @@
         "image_sha256": "7041f766c018d891df4e91f6c6e472715ac0ac0a4a02b13b5e6b70cd907fa93d",
         "game_slug": "fighting-force",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp/blob/v0.1.2/README.md"
       }
     },
     {
@@ -2924,7 +3302,7 @@
       "issue_number": 450,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-ix-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-ix-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 421,
         "cover_id": 133032,
@@ -2932,6 +3310,24 @@
         "image_sha256": "379e466f02aba5ce556094222e6edd9f7b86034484323a99e7c42cfc17feabeb",
         "game_slug": "final-fantasy-ix",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-ix-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -2942,7 +3338,7 @@
       "issue_number": 449,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-viii-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-viii-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 425,
         "cover_id": 138937,
@@ -2950,6 +3346,24 @@
         "image_sha256": "0eb01a9e190dda911b8f9216ee23e69ca198691b5372f0b76f33652282498c9c",
         "game_slug": "final-fantasy-viii",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-viii-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -2960,7 +3374,7 @@
       "issue_number": 1595,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 11235,
         "cover_id": 98577,
@@ -2968,6 +3382,24 @@
         "image_sha256": "0d65e5caa71e7f2580db82e7497a50e899942e7556b9c3ddeeafe61253be7083",
         "game_slug": "future-cop-lapd",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -2978,7 +3410,7 @@
       "issue_number": 452,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/g-police-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/g-police-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 8305,
         "cover_id": 482651,
@@ -2986,6 +3418,24 @@
         "image_sha256": "0b21f7285ec7c25347077dc2f71d36df39778758a668880e91402d8089bb3b35",
         "game_slug": "g-police",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/g-police-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -2996,7 +3446,7 @@
       "issue_number": 1596,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 8306,
         "cover_id": 448319,
@@ -3004,6 +3454,24 @@
         "image_sha256": "700209a6e3e182c237e6bca5310c86431b1ad0fcb6aa22b0e0b26a6538dfb11a",
         "game_slug": "g-police-weapons-of-justice",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -3014,7 +3482,7 @@
       "issue_number": 1597,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/galerians-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/galerians-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 54552,
         "cover_id": 220251,
@@ -3022,6 +3490,24 @@
         "image_sha256": "55a63b62e83d29cc69f8394f5e2d07dce4f010203ec327b9e1377c8f7662e42d",
         "game_slug": "galerians",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/galerians-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -3032,7 +3518,7 @@
       "issue_number": 451,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/ghost-in-the-shell-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/ghost-in-the-shell-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 8336,
         "cover_id": 557561,
@@ -3040,6 +3526,24 @@
         "image_sha256": "145999e91a3f73b429b8392eb61cc70639589c518b8e3cc9c3de882b911fca90",
         "game_slug": "ghost-in-the-shell",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/ghost-in-the-shell-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -3050,7 +3554,7 @@
       "issue_number": 458,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp/blob/v0.3.6/README.md",
       "artwork": {
         "game_id": 9680,
         "cover_id": 276485,
@@ -3058,6 +3562,24 @@
         "image_sha256": "106480e2cbf77c276dcf4492a12c716cded6cfd73303d05d38d8bb6d13a50355",
         "game_slug": "in-cold-blood",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp/blob/v0.3.6/README.md"
       }
     },
     {
@@ -3068,7 +3590,7 @@
       "issue_number": 1598,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 26637,
         "cover_id": 456447,
@@ -3076,6 +3598,24 @@
         "image_sha256": "20f6afd87ff34d69c2a7147894d957a13bb2049de17e29e037599e99c5a2fcdc",
         "game_slug": "incredible-crisis",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/incredible-crisis-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -3086,7 +3626,7 @@
       "issue_number": 457,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/jackie-chan-stuntmaster-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/jackie-chan-stuntmaster-recomp/blob/v0.1.2/README.md",
       "artwork": {
         "game_id": 18943,
         "cover_id": 113058,
@@ -3094,6 +3634,24 @@
         "image_sha256": "3ccb32aac7e3b1b15561c58359847af01fdd9f164f331682e994adfe0f94b604",
         "game_slug": "jackie-chan-stuntmaster",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/jackie-chan-stuntmaster-recomp/blob/v0.1.2/README.md"
       }
     },
     {
@@ -3104,7 +3662,7 @@
       "issue_number": 1599,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 45000,
         "cover_id": 474674,
@@ -3112,6 +3670,24 @@
         "image_sha256": "b2f6abf34d920f98fe5c059251fb46d20df0e42fa8e7e1a55d2e1f82cbbbb32c",
         "game_slug": "jade-cocoon-story-of-the-tamamayu",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -3122,7 +3698,7 @@
       "issue_number": 1600,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 45222,
         "cover_id": 557400,
@@ -3130,6 +3706,24 @@
         "image_sha256": "f54f3abfcf4cb3864a567ff84ce88f7f384867e80be318d0a9acd789804ddd87",
         "game_slug": "kartia-the-word-of-fate",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -3140,7 +3734,7 @@
       "issue_number": 454,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/blob/v0.3.6/README.md",
       "artwork": {
         "game_id": 7422,
         "cover_id": 224806,
@@ -3148,6 +3742,24 @@
         "image_sha256": "3b4c0a90fd89f6f0f494030333abe2835f80d813dae559bc395831684508dc6d",
         "game_slug": "king-s-field",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/blob/v0.3.6/README.md"
       }
     },
     {
@@ -3158,7 +3770,7 @@
       "issue_number": 453,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/koudelka-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/koudelka-recomp/blob/v0.3.6/README.md",
       "artwork": {
         "game_id": 4169,
         "cover_id": 335366,
@@ -3166,6 +3778,24 @@
         "image_sha256": "a13c7b3ae7be0310a8ec3170e86aaefa400e72f9a424c75260cd15bd7083a242",
         "game_slug": "koudelka",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/koudelka-recomp/blob/v0.3.6/README.md"
       }
     },
     {
@@ -3176,7 +3806,7 @@
       "issue_number": 455,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/kula-world-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/kula-world-recomp/blob/v0.3.6/README.md",
       "artwork": {
         "game_id": 9678,
         "cover_id": 264068,
@@ -3184,6 +3814,24 @@
         "image_sha256": "37b675caecfaeb258c2a58c28807beaf61851483616769b5c79f27d2bc84b185",
         "game_slug": "roll-away",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/kula-world-recomp/blob/v0.3.6/README.md"
       }
     },
     {
@@ -3194,7 +3842,7 @@
       "issue_number": 456,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/blob/v0.1.4/README.md",
       "artwork": {
         "game_id": 4122,
         "cover_id": 91101,
@@ -3202,6 +3850,24 @@
         "image_sha256": "e604bb0235b9239088dacc44834b6729fd02a14b3e2b134baa354257ae35897f",
         "game_slug": "legacy-of-kain-soul-reaver",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/blob/v0.1.4/README.md"
       }
     },
     {
@@ -3212,7 +3878,7 @@
       "issue_number": 460,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/martian-gothic-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/martian-gothic-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 24120,
         "cover_id": 220124,
@@ -3220,6 +3886,24 @@
         "image_sha256": "31ab131c4521c65f80bdd8856b3ba6162f535691dda91f116e421072b838e575",
         "game_slug": "martian-gothic-unification",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/martian-gothic-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -3230,7 +3914,7 @@
       "issue_number": 464,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/blob/v0.1.4/README.md",
       "artwork": {
         "game_id": 219,
         "cover_id": 100005,
@@ -3238,6 +3922,24 @@
         "image_sha256": "1419a475923b58ac1c10e48944b6dff9744b2afb9825a095d42426113fbcd61b",
         "game_slug": "mdk",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/mdk-recomp/blob/v0.1.4/README.md"
       }
     },
     {
@@ -3248,7 +3950,7 @@
       "issue_number": 459,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/blob/v0.2.4-alpha/README.md",
       "artwork": {
         "game_id": 4002,
         "cover_id": 84942,
@@ -3256,6 +3958,24 @@
         "image_sha256": "a7a6b4931e4693816a02c5e8bd22b7c6cfca8b7f6f4d58a2c65e9c45504c62ff",
         "game_slug": "medievil-ii--1",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/blob/v0.2.4-alpha/README.md"
       }
     },
     {
@@ -3266,7 +3986,7 @@
       "issue_number": 461,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/blob/v0.1.4/README.md",
       "artwork": {
         "game_id": 4000,
         "cover_id": 84944,
@@ -3274,6 +3994,24 @@
         "image_sha256": "a592d900ce17c971b523af9b3996c552dcee9a1b4bcf723c6bbaa71e534cebc8",
         "game_slug": "medievil",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/blob/v0.1.4/README.md"
       }
     },
     {
@@ -3284,7 +4022,7 @@
       "issue_number": 1601,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 1754,
         "cover_id": 364441,
@@ -3292,6 +4030,24 @@
         "image_sha256": "8492a7f7c79be88b8f87fcf828af4026d321d9a9701093dcb3b5f3bf8439bf0d",
         "game_slug": "mega-man-legends-2",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -3302,7 +4058,7 @@
       "issue_number": 462,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp/blob/v0.3.6/README.md",
       "artwork": {
         "game_id": 1752,
         "cover_id": 515296,
@@ -3310,6 +4066,24 @@
         "image_sha256": "97e5c9d299d1547a95db9079571c26e2655b4695985fdca68631b411c9b17d47",
         "game_slug": "mega-man-legends",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp/blob/v0.3.6/README.md"
       }
     },
     {
@@ -3320,7 +4094,25 @@
       "issue_number": 463,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp"
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp/blob/v0.3.6/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp/blob/v0.3.6/README.md"
+      }
     },
     {
       "id": "alexbeav-metal-gear-solid-recomp",
@@ -3330,7 +4122,7 @@
       "issue_number": 466,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/metal-gear-solid-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/metal-gear-solid-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 375,
         "cover_id": 545996,
@@ -3338,6 +4130,24 @@
         "image_sha256": "2acd6f7ec640cb08c1c6bd7b52aec1d69133d371905f8c0a89d09bb68dd58863",
         "game_slug": "metal-gear-solid",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/metal-gear-solid-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -3348,7 +4158,7 @@
       "issue_number": 469,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/metal-slug-x-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/metal-slug-x-recomp/blob/v0.1.2/README.md",
       "artwork": {
         "game_id": 191478,
         "cover_id": 493594,
@@ -3356,6 +4166,24 @@
         "image_sha256": "842e29bfa9ab34b99692b8a95f44a8b8052a9d321b0f00fd171916ee072d659c",
         "game_slug": "metal-slug-x--1",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/metal-slug-x-recomp/blob/v0.1.2/README.md"
       }
     },
     {
@@ -3366,7 +4194,7 @@
       "issue_number": 1602,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 1753,
         "cover_id": 313161,
@@ -3374,6 +4202,24 @@
         "image_sha256": "2ee7a7b47b2143442c364a0fa366eaab83ccb8732249084eb62a3f5f020fc544",
         "game_slug": "the-misadventures-of-tron-bonne",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/misadventures-of-tron-bonne-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -3384,7 +4230,7 @@
       "issue_number": 465,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp/blob/v0.1.3/README.md",
       "artwork": {
         "game_id": 4106,
         "cover_id": 604629,
@@ -3392,6 +4238,24 @@
         "image_sha256": "860cbed7ee7ec8f5e80f5d7b79333ac77f66866749fe1697a64706d9db79bafb",
         "game_slug": "monster-rancher-2",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-2-recomp/blob/v0.1.3/README.md"
       }
     },
     {
@@ -3402,7 +4266,7 @@
       "issue_number": 467,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 4104,
         "cover_id": 277154,
@@ -3410,6 +4274,24 @@
         "image_sha256": "394dd22a691ff5564f20b4861daedd4cdd5a1e19272aaf562bf5feb008a8711d",
         "game_slug": "monster-rancher",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -3420,7 +4302,7 @@
       "issue_number": 468,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 4121,
         "cover_id": 90798,
@@ -3428,6 +4310,24 @@
         "image_sha256": "76ba7e3d108ac917ec6164b7985da023681426182726351b82dd0f7bcbabd703",
         "game_slug": "mortal-kombat-trilogy",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-trilogy-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -3438,7 +4338,7 @@
       "issue_number": 1603,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 45860,
         "cover_id": 99814,
@@ -3446,6 +4346,24 @@
         "image_sha256": "5620d34fd781e41b0e0c9478c8c3a34ef6176b955e6d79dd8c543e0b8a727e92",
         "game_slug": "nightmare-creatures-ii",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -3456,7 +4374,7 @@
       "issue_number": 472,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp/blob/v0.1.3/README.md",
       "artwork": {
         "game_id": 3414,
         "cover_id": 258182,
@@ -3464,6 +4382,24 @@
         "image_sha256": "09a5818258730eb15ac2a392fff1c0a2b640a0e3a25bb4efe3bdbdf749edb84b",
         "game_slug": "nightmare-creatures",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-recomp/blob/v0.1.3/README.md"
       }
     },
     {
@@ -3474,7 +4410,7 @@
       "issue_number": 475,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp/blob/v0.1.3/README.md",
       "artwork": {
         "game_id": 999,
         "cover_id": 385472,
@@ -3482,6 +4418,24 @@
         "image_sha256": "1fdb0a42c9fe7d87464d610b83edcc3b69fad0f3fe7270542be97d8322303957",
         "game_slug": "oddworld-abe-s-oddysee",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp/blob/v0.1.3/README.md"
       }
     },
     {
@@ -3492,7 +4446,7 @@
       "issue_number": 473,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/parasite-eve-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/parasite-eve-recomp/blob/v0.4.0/README.md",
       "artwork": {
         "game_id": 7357,
         "cover_id": 220129,
@@ -3500,6 +4454,24 @@
         "image_sha256": "4e777e5888466d303dbabfc8c0ef863b8a842d7dac977f0c09b47dbca412980b",
         "game_slug": "parasite-eve",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/parasite-eve-recomp/blob/v0.4.0/README.md"
       }
     },
     {
@@ -3510,7 +4482,7 @@
       "issue_number": 470,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/pro-pinball-timeshock-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/pro-pinball-timeshock-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 12905,
         "cover_id": 101170,
@@ -3518,6 +4490,24 @@
         "image_sha256": "86a7025f69321486ffef5ec67a4408fc20dee074e60500073a7a7427a3821955",
         "game_slug": "pro-pinball-timeshock",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/pro-pinball-timeshock-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -3528,7 +4518,7 @@
       "issue_number": 474,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/blob/v0.1.2/README.md",
       "artwork": {
         "game_id": 286,
         "cover_id": 434744,
@@ -3536,6 +4526,24 @@
         "image_sha256": "0582a3455678d4ed8db6a726c1bfeebf0a70bf7996a26c242ddfa8e6da337f80",
         "game_slug": "quake-ii",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/blob/v0.1.2/README.md"
       }
     },
     {
@@ -3546,7 +4554,7 @@
       "issue_number": 471,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/r-type-delta-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/r-type-delta-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 28397,
         "cover_id": 554948,
@@ -3554,6 +4562,24 @@
         "image_sha256": "5d3d3130e7cd8fee067a6c3c0191eee4c5b30cae084d12bfac4d9c3485de6241",
         "game_slug": "r-type-delta",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/r-type-delta-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -3564,7 +4590,7 @@
       "issue_number": 477,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 966,
         "cover_id": 134615,
@@ -3572,6 +4598,24 @@
         "image_sha256": "b31e1d21e58215c80168692466d4cdf392072546e5060e438df440ba56f5f4b3",
         "game_slug": "resident-evil-3-nemesis",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/resident-evil-3-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -3582,7 +4626,7 @@
       "issue_number": 1604,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 13095,
         "cover_id": 585104,
@@ -3590,6 +4634,24 @@
         "image_sha256": "5eb6eac4d72871845c9fcacffaf364ef0733d03e97c8fcccd9ec24863bd1c452",
         "game_slug": "rival-schools-united-by-fate",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -3600,7 +4662,7 @@
       "issue_number": 1605,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 13095,
         "cover_id": 585104,
@@ -3608,6 +4670,24 @@
         "image_sha256": "5eb6eac4d72871845c9fcacffaf364ef0733d03e97c8fcccd9ec24863bd1c452",
         "game_slug": "rival-schools-united-by-fate",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -3618,7 +4698,7 @@
       "issue_number": 1606,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 3163,
         "cover_id": 88308,
@@ -3626,6 +4706,24 @@
         "image_sha256": "0467766928426ee089d2987fd9f69f4caf00792ad6f5aa6175a0e773e0e1c2ca",
         "game_slug": "rollcage-stage-ii",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -3636,7 +4734,7 @@
       "issue_number": 478,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 24131,
         "cover_id": 480584,
@@ -3644,6 +4742,24 @@
         "image_sha256": "9b4951eb9b721fb20d75d62d5dd31a9b1a320a3adec8981234c543a95757e533",
         "game_slug": "silent-bomber",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -3654,7 +4770,7 @@
       "issue_number": 1607,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 4118,
         "cover_id": 120899,
@@ -3662,6 +4778,24 @@
         "image_sha256": "9208130624a36235f99803a0ca5d871821e1b5622e9abbf8793a402469375382",
         "game_slug": "spider-man-2-enter-electro",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -3672,7 +4806,7 @@
       "issue_number": 476,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/spider-man-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/spider-man-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 3603,
         "cover_id": 137294,
@@ -3680,6 +4814,24 @@
         "image_sha256": "e8d0f7ad0d7ff43c0dda1bc8a77da8ba2ee4c5bc7d7ed511439c83351f5fb9ae",
         "game_slug": "spider-man--5",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/spider-man-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -3690,7 +4842,25 @@
       "issue_number": 479,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp"
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/blob/v0.1.4/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/blob/v0.1.4/README.md"
+      }
     },
     {
       "id": "alexbeav-star-wars-episode-i-the-phantom-menace-recomp",
@@ -3700,7 +4870,7 @@
       "issue_number": 480,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/star-wars-episode-i-the-phantom-menace-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/star-wars-episode-i-the-phantom-menace-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 158,
         "cover_id": 526420,
@@ -3708,6 +4878,24 @@
         "image_sha256": "f1936a0421855c88c347d10c897dbc700c9e3f9d41c9cbcef9f428a83bfe1989",
         "game_slug": "star-wars-episode-i-the-phantom-menace",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/star-wars-episode-i-the-phantom-menace-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -3718,7 +4906,7 @@
       "issue_number": 1608,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 1454,
         "cover_id": 90946,
@@ -3726,6 +4914,24 @@
         "image_sha256": "f873de55d28c6ceb08a27ad6705831271e04f80905832c6f6626b0bc436b9178",
         "game_slug": "suikoden-ii",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/suikoden-ii-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -3736,7 +4942,7 @@
       "issue_number": 481,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 1447,
         "cover_id": 493093,
@@ -3744,6 +4950,24 @@
         "image_sha256": "a8fa47a6df8d9c1318d5d9a18ec8fd730da34ad9f071be0ee1c9f63c5e742f89",
         "game_slug": "suikoden",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -3754,7 +4978,7 @@
       "issue_number": 484,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp/blob/v0.1.3/README.md",
       "artwork": {
         "game_id": 4117,
         "cover_id": 425275,
@@ -3762,6 +4986,24 @@
         "image_sha256": "0c6276bd0bb6b8d85137f91f852e2956f81a6dcf4344adbe4a403347c7f368ec",
         "game_slug": "syphon-filter-3",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp/blob/v0.1.3/README.md"
       }
     },
     {
@@ -3772,7 +5014,7 @@
       "issue_number": 1609,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 38513,
         "cover_id": 124484,
@@ -3780,6 +5022,24 @@
         "image_sha256": "dfe69e1d57c729cbeb9f1fac17bb396ed11e536f56f23b98c5964d02fc0cd611",
         "game_slug": "tail-concerto",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -3790,7 +5050,7 @@
       "issue_number": 1610,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 45024,
         "cover_id": 343072,
@@ -3798,6 +5058,24 @@
         "image_sha256": "57e24550df3b8305738c77b3347b775581e3321e1834d714e3ff632e68258712",
         "game_slug": "team-buddies",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -3808,7 +5086,7 @@
       "issue_number": 487,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp/blob/v0.1.3/README.md",
       "artwork": {
         "game_id": 4113,
         "cover_id": 112868,
@@ -3816,6 +5094,24 @@
         "image_sha256": "da006c601a4dc6bfe35683082ddbbf1b719abe092b9e949ebee77f449bc27f81",
         "game_slug": "tenchu-stealth-assassins",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp/blob/v0.1.3/README.md"
       }
     },
     {
@@ -3826,7 +5122,7 @@
       "issue_number": 482,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/the-fifth-element-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/the-fifth-element-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 50805,
         "cover_id": 504476,
@@ -3834,6 +5130,24 @@
         "image_sha256": "63f410dfc26c3ac5290f8fb846a70b6e15b0afc7e69d4b97cf61184372898c37",
         "game_slug": "the-fifth-element",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/the-fifth-element-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -3844,7 +5158,25 @@
       "issue_number": 483,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp"
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp/blob/v0.3.6/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp/blob/v0.3.6/README.md"
+      }
     },
     {
       "id": "alexbeav-the-mummy-recomp",
@@ -3854,7 +5186,7 @@
       "issue_number": 485,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp/blob/v0.3.6/README.md",
       "artwork": {
         "game_id": 80821,
         "cover_id": 198917,
@@ -3862,6 +5194,24 @@
         "image_sha256": "4972cc3b44dfef4051aca4dc7d6a4f2d2bfc6117a16362985157a4b9e1df0e17",
         "game_slug": "the-mummy--1",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp/blob/v0.3.6/README.md"
       }
     },
     {
@@ -3872,7 +5222,7 @@
       "issue_number": 486,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/threads-of-fate-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/threads-of-fate-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 28402,
         "cover_id": 126116,
@@ -3880,6 +5230,24 @@
         "image_sha256": "576811c48f2919c8f850b749e1aaae34352c14f43a0cfa2239612a84afcbf3ab",
         "game_slug": "threads-of-fate",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/threads-of-fate-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -3890,7 +5258,7 @@
       "issue_number": 490,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/tokyo-highway-battle-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/tokyo-highway-battle-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 20797,
         "cover_id": 304393,
@@ -3898,6 +5266,24 @@
         "image_sha256": "f42a0741bedcdfe88b0bde2a2ec565ab672db0df478bac990e00b0fb1fd62d50",
         "game_slug": "tokyo-highway-battle",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/tokyo-highway-battle-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -3908,7 +5294,7 @@
       "issue_number": 488,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp/blob/v0.1.3/README.md",
       "artwork": {
         "game_id": 913,
         "cover_id": 90979,
@@ -3916,6 +5302,24 @@
         "image_sha256": "579f5a142ac8a29ac0c8df37e531b20a43ada128b6493a37115183307921ab6f",
         "game_slug": "tony-hawk-s-pro-skater-2",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-2-recomp/blob/v0.1.3/README.md"
       }
     },
     {
@@ -3926,7 +5330,7 @@
       "issue_number": 493,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp/blob/v0.1.3/README.md",
       "artwork": {
         "game_id": 194213,
         "cover_id": 212738,
@@ -3934,6 +5338,24 @@
         "image_sha256": "c30a6ef9c26e9c965953c8b1be7a161ac366e55c013c177d8cfa4be257cd237d",
         "game_slug": "tony-hawks-pro-skater-3",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp/blob/v0.1.3/README.md"
       }
     },
     {
@@ -3944,7 +5366,7 @@
       "issue_number": 489,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp/blob/v0.1.3/README.md",
       "artwork": {
         "game_id": 210463,
         "cover_id": 233403,
@@ -3952,6 +5374,24 @@
         "image_sha256": "fed042cb78bf23a63861cebd0d021c3a7fbab0c8bca61ecdd2e63d7d599d0049",
         "game_slug": "tony-hawks-pro-skater-4--1",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp/blob/v0.1.3/README.md"
       }
     },
     {
@@ -3962,7 +5402,7 @@
       "issue_number": 492,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp/blob/v0.1.3/README.md",
       "artwork": {
         "game_id": 6692,
         "cover_id": 90981,
@@ -3970,6 +5410,24 @@
         "image_sha256": "6c678c082ed9c612ddaa3f469ef647caaef097a78d1cc0405fc568af4f7ee870",
         "game_slug": "tony-hawk-s-pro-skater",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-recomp/blob/v0.1.3/README.md"
       }
     },
     {
@@ -3980,7 +5438,7 @@
       "issue_number": 491,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp/blob/v0.1.3/README.md",
       "artwork": {
         "game_id": 3998,
         "cover_id": 85749,
@@ -3988,6 +5446,24 @@
         "image_sha256": "e9453314a3e19807fa7ee8b6d174bcc7373e0a878978b93797a50c51a6139491",
         "game_slug": "valkyrie-profile",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp/blob/v0.1.3/README.md"
       }
     },
     {
@@ -3998,7 +5474,7 @@
       "issue_number": 494,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp/blob/v0.3.6/README.md",
       "artwork": {
         "game_id": 126469,
         "cover_id": 130299,
@@ -4006,6 +5482,24 @@
         "image_sha256": "4a541afc919025490761ab70d674313b47427f0b96220b2c05851c430c202da4",
         "game_slug": "vampire-hunter-d",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp/blob/v0.3.6/README.md"
       }
     },
     {
@@ -4016,7 +5510,7 @@
       "issue_number": 495,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 9676,
         "cover_id": 323297,
@@ -4024,6 +5518,24 @@
         "image_sha256": "1ddf13927fd41c2456029dfd8f6f6844e3f4c3569807a18767416ac3ff95de40",
         "game_slug": "vib-ribbon",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -4034,7 +5546,7 @@
       "issue_number": 498,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp/blob/v0.3.6/README.md",
       "artwork": {
         "game_id": 3332,
         "cover_id": 154515,
@@ -4042,6 +5554,24 @@
         "image_sha256": "551b7f4b5b448bf32085e869fe36b08d8725faaba9d023668676c273e7ad7fe3",
         "game_slug": "vigilante-8",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp/blob/v0.3.6/README.md"
       }
     },
     {
@@ -4052,7 +5582,7 @@
       "issue_number": 1611,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp/blob/v0.1.0/README.md",
       "artwork": {
         "game_id": 1677,
         "cover_id": 88515,
@@ -4060,6 +5590,24 @@
         "image_sha256": "c7c304991c52cf3aacdde6613c12b3278608161aa33fc94ff2f429872437a05a",
         "game_slug": "wild-arms",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp/blob/v0.1.0/README.md"
       }
     },
     {
@@ -4070,7 +5618,7 @@
       "issue_number": 496,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp/blob/v0.1.4/README.md",
       "artwork": {
         "game_id": 1083,
         "cover_id": 200827,
@@ -4078,6 +5626,24 @@
         "image_sha256": "5d3fb7f3e64b5b51edd29df22c7c15d5f8abdc6849443f284a5bbed6453360c3",
         "game_slug": "wipeout",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/wipeout-recomp/blob/v0.1.4/README.md"
       }
     },
     {
@@ -4088,7 +5654,7 @@
       "issue_number": 497,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/blob/v0.1.1/README.md",
       "artwork": {
         "game_id": 1538,
         "cover_id": 200817,
@@ -4096,6 +5662,24 @@
         "image_sha256": "a306ddcaf6d24f17a938e8b9eb6f5c83ded3ca97a5e67c214ff0fd1e750cf6bf",
         "game_slug": "wipeout-xl",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/blob/v0.1.1/README.md"
       }
     },
     {
@@ -4381,14 +5965,15 @@
           },
           {
             "title": "Keep your progress and choose when to update",
-            "instruction": "The ROM copy, saves, settings and supported mods use the upstream LocalAppData/BodyHarvestRecompiled folder. They remain outside Portcove backups. Keep the default upstream storage mode; use an external registration if you want portable.txt or customized runtime files. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility."
+            "instruction": "The ROM copy, saves, settings and supported mods use the upstream LocalAppData/BodyHarvestRecompiled folder. They remain outside Portcove backups. Keep the default upstream storage mode; use an external registration if you want portable.txt or customized runtime files. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility. Linux normally uses ~/.config/BodyHarvestRecompiled. Its SDL2, GTK3 and FreeType system dependencies remain upstream prerequisites."
           }
         ],
         "warnings": [],
         "help_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/v1.0.0/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -4680,14 +6265,15 @@
           },
           {
             "title": "Keep your progress and choose when to update",
-            "instruction": "OpenCMR2 normally keeps saves, settings and logs in AppData/OpenCMR2, outside Portcove backups. Declared Data and in-folder fallback opencmr2.ini/opencmr2.log are retained when present. The upstream game owns edition checks and its storage resolver; Portcove replaces the package only. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility."
+            "instruction": "OpenCMR2 normally keeps saves, settings and logs in AppData/OpenCMR2, outside Portcove backups. Declared Data and in-folder fallback opencmr2.ini/opencmr2.log are retained when present. The upstream game owns edition checks and its storage resolver; Portcove replaces the package only. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility. Linux normally uses ~/.local/share/OpenCMR2. Keep the packaged libSDL3.so.0 beside opencmr2; the game needs that companion library."
           }
         ],
         "warnings": [],
         "help_url": "https://github.com/pablocpas/OpenCMR2/blob/v1.6.0/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -4905,14 +6491,15 @@
           },
           {
             "title": "Keep your progress and choose when to update",
-            "instruction": "The ROM copy, saves, settings, save states and installed mods use upstream LocalAppData/ConkerBFDReloaded storage, outside Portcove backups. The declared in-folder crash.log is retained across replacement. Use an external registration for customized package files or a different storage mode. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility."
+            "instruction": "The ROM copy, saves, settings, save states and installed mods use upstream LocalAppData/ConkerBFDReloaded storage, outside Portcove backups. The declared in-folder crash.log is retained across replacement. Use an external registration for customized package files or a different storage mode. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility. Linux normally uses ~/.config/ConkerBFDReloaded. Its SDL2, GTK3 and FreeType system dependencies remain upstream prerequisites."
           }
         ],
         "warnings": [],
         "help_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/v1.4.6/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -5178,14 +6765,15 @@
           },
           {
             "title": "Keep your progress when updating",
-            "instruction": "The imported ROM, settings, progress and diagnostics live in data beside tetrisphere.exe. Portcove carries that declared folder between compatible runtime versions, including data present before first Play. Older upstream user-profile data is not silently imported: follow upstream instructions to copy it to data before launching. Runtime rollback carries current data and does not rewind saves."
+            "instruction": "The imported ROM, settings, progress and diagnostics live in data beside tetrisphere.exe. Portcove carries that declared folder between compatible runtime versions, including data present before first Play. Older upstream user-profile data is not silently imported: follow upstream instructions to copy it to data before launching. Runtime rollback carries current data and does not rewind saves. Linux uses the same adjacent data directory. Keep lib/ beside tetrisphere; the game needs those companion files. A compatible Vulkan driver and upstream system dependencies are required."
           }
         ],
         "warnings": [],
         "help_url": "https://github.com/djultra64/Blocksphere/blob/v1.1.0/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -5733,14 +7321,15 @@
           },
           {
             "title": "Keep your progress when updating",
-            "instruction": "OpenGG normally stores saves, settings, snapshots and logs in AppData/Godot/app_userdata/OpenGG, outside Portcove backups. The package content remains version-owned; no in-folder player-data paths are declared. Keep the default storage mode; register an external copy for custom --user or --data paths."
+            "instruction": "OpenGG normally stores saves, settings, snapshots and logs in AppData/Godot/app_userdata/OpenGG, outside Portcove backups. The package content remains version-owned; no in-folder player-data paths are declared. Keep the default storage mode; register an external copy for custom --user or --data paths. Linux normally uses ~/.local/share/godot/app_userdata/OpenGG. Keep the complete data and data_OpenGG_linuxbsd_x86_64 package directories beside OpenGG.x86_64."
           }
         ],
         "warnings": [],
         "help_url": "https://github.com/tymsky/OpenGG/blob/v0.2.2/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -6438,14 +8027,15 @@
           },
           {
             "title": "Keep your progress when updating",
-            "instruction": "The default Windows storage is AppData/ChaotixRecompiled/ChaotixRecompiled, outside Portcove backups. Saves, settings, imported ROM, mods and recordings remain there across runtime updates. The source also has a current-folder fallback; its declared data directories are preserved if present. Save states are tied to the ROM, patches and program version. Use an external registration for custom launch flags or a custom data root."
+            "instruction": "The default Windows storage is AppData/ChaotixRecompiled/ChaotixRecompiled, outside Portcove backups. Saves, settings, imported ROM, mods and recordings remain there across runtime updates. The source also has a current-folder fallback; its declared data directories are preserved if present. Save states are tied to the ROM, patches and program version. Use an external registration for custom launch flags or a custom data root. Linux normally uses ~/.local/share/ChaotixRecompiled/ChaotixRecompiled. Keep the packaged SDL3 and SDL3_ttf libraries beside the executable; the game needs those companion files."
           }
         ],
         "warnings": [],
         "help_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/blob/v0.14.0/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -7593,14 +9183,15 @@
           },
           {
             "title": "Keep your progress when updating",
-            "instruction": "OpenTyrian normally stores settings, saves and recorded demos in AppData/OpenTyrian, outside Portcove backups. If upstream falls back to the executable folder, declared opentyrian.cfg, tyrian.cfg, tyrian.sav and demorec.* recordings are retained. Runtime rollback carries declared current data and does not rewind saves."
+            "instruction": "OpenTyrian normally stores settings, saves and recorded demos in AppData/OpenTyrian, outside Portcove backups. If upstream falls back to the executable folder, declared opentyrian.cfg, tyrian.cfg, tyrian.sav and demorec.* recordings are retained. Runtime rollback carries declared current data and does not rewind saves. Linux normally uses $XDG_CONFIG_HOME/opentyrian or ~/.config/opentyrian. The same declared in-folder fallback files and recordings are retained."
           }
         ],
         "warnings": [],
         "help_url": "https://github.com/opentyrian/opentyrian/blob/v2.1.20260913/README.md"
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -9017,7 +10608,7 @@
       "issue_number": 345,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp/blob/v0.2.0/README.md",
       "artwork": {
         "game_id": 4116,
         "cover_id": 114617,
@@ -9025,6 +10616,24 @@
         "image_sha256": "c27eb518708cddafc38b0493633ad10df446f1afc5710cbadc74183af4bec3b8",
         "game_slug": "syphon-filter-2",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp/blob/v0.2.0/README.md"
       }
     },
     {
@@ -9863,7 +11472,7 @@
       "issue_number": 329,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp/blob/v0.1.2/README.md",
       "artwork": {
         "game_id": 3648,
         "cover_id": 564319,
@@ -9871,6 +11480,24 @@
         "image_sha256": "9fda3bf2d7351e9b860656b2ee7c17a5f8e6e01e5b70fe58a007809272623575",
         "game_slug": "xena-warrior-princess",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the game with upstream setup",
+            "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          },
+          {
+            "title": "Supply only the files the upstream guide requires",
+            "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          },
+          {
+            "title": "Confirm the game or launcher",
+            "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp/blob/v0.1.2/README.md"
       }
     },
     {

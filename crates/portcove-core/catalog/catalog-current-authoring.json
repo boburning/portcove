@@ -21200,7 +21200,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -21209,12 +21210,19 @@
           "windows-x86-64": [
             "bodyharvestrecompiled-",
             "-windows.zip"
+          ],
+          "linux-x86-64": [
+            "bodyharvestrecompiled-",
+            "-linux-x64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "BodyHarvestRecompiled.exe"
+        ],
+        "linux-x86-64": [
+          "BodyHarvestRecompiled"
         ]
       },
       "persistent_paths": [],
@@ -21222,7 +21230,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Choose your North American Body Harvest ROM in Load ROM on first launch; .z64, .n64 and .v64 are accepted by upstream. The game checks and remembers its own copy. The ROM copy, saves, settings and supported mods use the upstream LocalAppData/BodyHarvestRecompiled folder. They remain outside Portcove backups. Keep the default upstream storage mode; use an external registration if you want portable.txt or customized runtime files. Existing external installations keep their files and update ownership. Package inspection does not establish gameplay qualification.",
+        "manual_preparation": "Choose your North American Body Harvest ROM in Load ROM on first launch; .z64, .n64 and .v64 are accepted by upstream. The game checks and remembers its own copy. The ROM copy, saves, settings and supported mods use the upstream LocalAppData/BodyHarvestRecompiled folder. They remain outside Portcove backups. Keep the default upstream storage mode; use an external registration if you want portable.txt or customized runtime files. Existing external installations keep their files and update ownership. Play has not been tested through Portcove. Linux normally uses ~/.config/BodyHarvestRecompiled. Its SDL2, GTK3 and FreeType system dependencies remain upstream prerequisites. Play has not been tested through Portcove on Linux.",
         "manual_setup": {
           "steps": [
             {
@@ -21235,7 +21243,7 @@
             },
             {
               "title": "Keep your progress and choose when to update",
-              "instruction": "The ROM copy, saves, settings and supported mods use the upstream LocalAppData/BodyHarvestRecompiled folder. They remain outside Portcove backups. Keep the default upstream storage mode; use an external registration if you want portable.txt or customized runtime files. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility."
+              "instruction": "The ROM copy, saves, settings and supported mods use the upstream LocalAppData/BodyHarvestRecompiled folder. They remain outside Portcove backups. Keep the default upstream storage mode; use an external registration if you want portable.txt or customized runtime files. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility. Linux normally uses ~/.config/BodyHarvestRecompiled. Its SDL2, GTK3 and FreeType system dependencies remain upstream prerequisites."
             }
           ],
           "warnings": [],
@@ -21261,7 +21269,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -21269,12 +21278,18 @@
         "asset_hints": {
           "windows-x86-64": [
             "opencmr2-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "opencmr2-linux-x86_64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "opencmr2.exe"
+        ],
+        "linux-x86-64": [
+          "opencmr2"
         ]
       },
       "persistent_paths": [
@@ -21287,7 +21302,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Select your installed original Colin McRae Rally 2.0 game folder when OpenCMR2 asks on first launch. The supported original files can stay outside the managed runtime. An optional Data folder beside the executable is carried between compatible versions. OpenCMR2 normally keeps saves, settings and logs in AppData/OpenCMR2, outside Portcove backups. Declared Data and in-folder fallback opencmr2.ini/opencmr2.log are retained when present. The upstream game owns edition checks and its storage resolver; Portcove replaces the package only. Existing external installations keep their files and update ownership. Package inspection does not establish gameplay qualification. The declared SaveGame folder also preserves the upstream user-directory fallback. If preference storage fails or custom launch paths create other files in the runtime, keep the current copy and review those exact paths before replacement; use external registration for custom storage.",
+        "manual_preparation": "Select your installed original Colin McRae Rally 2.0 game folder when OpenCMR2 asks on first launch. The supported original files can stay outside the managed runtime. An optional Data folder beside the executable is carried between compatible versions. OpenCMR2 normally keeps saves, settings and logs in AppData/OpenCMR2, outside Portcove backups. Declared Data and in-folder fallback opencmr2.ini/opencmr2.log are retained when present. The upstream game owns edition checks and its storage resolver; Portcove replaces the package only. Existing external installations keep their files and update ownership. Play has not been tested through Portcove. The declared SaveGame folder also preserves the upstream user-directory fallback. If preference storage fails or custom launch paths create other files in the runtime, keep the current copy and review those exact paths before replacement; use external registration for custom storage. Linux normally uses ~/.local/share/OpenCMR2. Keep the packaged libSDL3.so.0 beside opencmr2; the game needs that companion library. Play has not been tested through Portcove on Linux.",
         "manual_setup": {
           "steps": [
             {
@@ -21300,7 +21315,7 @@
             },
             {
               "title": "Keep your progress and choose when to update",
-              "instruction": "OpenCMR2 normally keeps saves, settings and logs in AppData/OpenCMR2, outside Portcove backups. Declared Data and in-folder fallback opencmr2.ini/opencmr2.log are retained when present. The upstream game owns edition checks and its storage resolver; Portcove replaces the package only. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility."
+              "instruction": "OpenCMR2 normally keeps saves, settings and logs in AppData/OpenCMR2, outside Portcove backups. Declared Data and in-folder fallback opencmr2.ini/opencmr2.log are retained when present. The upstream game owns edition checks and its storage resolver; Portcove replaces the package only. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility. Linux normally uses ~/.local/share/OpenCMR2. Keep the packaged libSDL3.so.0 beside opencmr2; the game needs that companion library."
             }
           ],
           "warnings": [],
@@ -21391,7 +21406,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -21400,12 +21416,19 @@
           "windows-x86-64": [
             "conkerbfdreloaded-",
             "-windows.zip"
+          ],
+          "linux-x86-64": [
+            "conkerbfdreloaded-",
+            "-linux.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "ConkerBFDReloaded.exe"
+        ],
+        "linux-x86-64": [
+          "ConkerBFDReloaded"
         ]
       },
       "persistent_paths": [
@@ -21415,7 +21438,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Choose your own US Conker’s Bad Fur Day ROM in the upstream launcher on first launch. The game checks and remembers its copy. Install compatible mods and texture packs through its Mods menu. The ROM copy, saves, settings, save states and installed mods use upstream LocalAppData/ConkerBFDReloaded storage, outside Portcove backups. The declared in-folder crash.log is retained across replacement. Use an external registration for customized package files or a different storage mode. Existing external installations keep their files and update ownership. Package inspection does not establish gameplay qualification.",
+        "manual_preparation": "Choose your own US Conker’s Bad Fur Day ROM in the upstream launcher on first launch. The game checks and remembers its copy. Install compatible mods and texture packs through its Mods menu. The ROM copy, saves, settings, save states and installed mods use upstream LocalAppData/ConkerBFDReloaded storage, outside Portcove backups. The declared in-folder crash.log is retained across replacement. Use an external registration for customized package files or a different storage mode. Existing external installations keep their files and update ownership. Play has not been tested through Portcove. Linux normally uses ~/.config/ConkerBFDReloaded. Its SDL2, GTK3 and FreeType system dependencies remain upstream prerequisites. Play has not been tested through Portcove on Linux.",
         "manual_setup": {
           "steps": [
             {
@@ -21428,7 +21451,7 @@
             },
             {
               "title": "Keep your progress and choose when to update",
-              "instruction": "The ROM copy, saves, settings, save states and installed mods use upstream LocalAppData/ConkerBFDReloaded storage, outside Portcove backups. The declared in-folder crash.log is retained across replacement. Use an external registration for customized package files or a different storage mode. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility."
+              "instruction": "The ROM copy, saves, settings, save states and installed mods use upstream LocalAppData/ConkerBFDReloaded storage, outside Portcove backups. The declared in-folder crash.log is retained across replacement. Use an external registration for customized package files or a different storage mode. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility. Linux normally uses ~/.config/ConkerBFDReloaded. Its SDL2, GTK3 and FreeType system dependencies remain upstream prerequisites."
             }
           ],
           "warnings": [],
@@ -21454,7 +21477,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -21463,12 +21487,19 @@
           "windows-x86-64": [
             "blocksphere-",
             "-windows-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "blocksphere-",
+            "-linux-x86_64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "tetrisphere.exe"
+        ],
+        "linux-x86-64": [
+          "tetrisphere"
         ]
       },
       "persistent_paths": [
@@ -21478,7 +21509,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "On first Play, choose your own Tetrisphere US NTPE revision 0 ROM in .z64, .v64, .n64 or ZIP form. The game validates and imports it; no separate installer or BIOS is required. The imported ROM, settings, progress and diagnostics live in data beside tetrisphere.exe. Portcove carries that declared folder between compatible runtime versions, including data present before first Play. Older upstream user-profile data is not silently imported: follow upstream instructions to copy it to data before launching. Runtime rollback carries current data and does not rewind saves. Existing external copies keep their files and runtime update owner. Gameplay and installed-app acceptance remain separate observations.",
+        "manual_preparation": "On first Play, choose your own Tetrisphere US NTPE revision 0 ROM in .z64, .v64, .n64 or ZIP form. The game validates and imports it; no separate installer or BIOS is required. The imported ROM, settings, progress and diagnostics live in data beside tetrisphere.exe. Portcove carries that declared folder between compatible runtime versions, including data present before first Play. Older upstream user-profile data is not silently imported: follow upstream instructions to copy it to data before launching. Runtime rollback carries current data and does not rewind saves. Existing external copies keep their files and runtime update owner. Play has not been tested through Portcove. Linux uses the same adjacent data directory. Keep lib/ beside tetrisphere; the game needs those companion files. A compatible Vulkan driver and upstream system dependencies are required. Play has not been tested through Portcove on Linux.",
         "manual_setup": {
           "steps": [
             {
@@ -21491,7 +21522,7 @@
             },
             {
               "title": "Keep your progress when updating",
-              "instruction": "The imported ROM, settings, progress and diagnostics live in data beside tetrisphere.exe. Portcove carries that declared folder between compatible runtime versions, including data present before first Play. Older upstream user-profile data is not silently imported: follow upstream instructions to copy it to data before launching. Runtime rollback carries current data and does not rewind saves."
+              "instruction": "The imported ROM, settings, progress and diagnostics live in data beside tetrisphere.exe. Portcove carries that declared folder between compatible runtime versions, including data present before first Play. Older upstream user-profile data is not silently imported: follow upstream instructions to copy it to data before launching. Runtime rollback carries current data and does not rewind saves. Linux uses the same adjacent data directory. Keep lib/ beside tetrisphere; the game needs those companion files. A compatible Vulkan driver and upstream system dependencies are required."
             }
           ],
           "warnings": [],
@@ -21584,7 +21615,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -21593,12 +21625,19 @@
           "windows-x86-64": [
             "opengg-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "opengg-",
+            "-linux-x64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "OpenGG.exe"
+        ],
+        "linux-x86-64": [
+          "OpenGG.x86_64"
         ]
       },
       "persistent_paths": [],
@@ -21606,7 +21645,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On first Play, use GAME FOLDER to choose your installed Gearhead Garage folder containing Data/Cars. The original folder is read-only. NEW creates a mechanic; IMPORT MECHANICS brings over your own .mek saves. Without original files, upstream offers its limited placeholder beta. OpenGG normally stores saves, settings, snapshots and logs in AppData/Godot/app_userdata/OpenGG, outside Portcove backups. The package content remains version-owned; no in-folder player-data paths are declared. Keep the default storage mode; register an external copy for custom --user or --data paths. Existing external copies keep their files and runtime update owner. Gameplay and installed-app acceptance remain separate observations.",
+        "manual_preparation": "On first Play, use GAME FOLDER to choose your installed Gearhead Garage folder containing Data/Cars. The original folder is read-only. NEW creates a mechanic; IMPORT MECHANICS brings over your own .mek saves. Without original files, upstream offers its limited placeholder beta. OpenGG normally stores saves, settings, snapshots and logs in AppData/Godot/app_userdata/OpenGG, outside Portcove backups. The package content remains version-owned; no in-folder player-data paths are declared. Keep the default storage mode; register an external copy for custom --user or --data paths. Existing external copies keep their files and runtime update owner. Play has not been tested through Portcove. Linux normally uses ~/.local/share/godot/app_userdata/OpenGG. Keep the complete data and data_OpenGG_linuxbsd_x86_64 package directories beside OpenGG.x86_64. Play has not been tested through Portcove on Linux.",
         "manual_setup": {
           "steps": [
             {
@@ -21619,7 +21658,7 @@
             },
             {
               "title": "Keep your progress when updating",
-              "instruction": "OpenGG normally stores saves, settings, snapshots and logs in AppData/Godot/app_userdata/OpenGG, outside Portcove backups. The package content remains version-owned; no in-folder player-data paths are declared. Keep the default storage mode; register an external copy for custom --user or --data paths."
+              "instruction": "OpenGG normally stores saves, settings, snapshots and logs in AppData/Godot/app_userdata/OpenGG, outside Portcove backups. The package content remains version-owned; no in-folder player-data paths are declared. Keep the default storage mode; register an external copy for custom --user or --data paths. Linux normally uses ~/.local/share/godot/app_userdata/OpenGG. Keep the complete data and data_OpenGG_linuxbsd_x86_64 package directories beside OpenGG.x86_64."
             }
           ],
           "warnings": [],
@@ -21645,7 +21684,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -21654,12 +21694,19 @@
           "windows-x86-64": [
             "chaotixrecompiled-",
             "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "chaotixrecompiled-",
+            "-linux-x64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "ChaotixRecompiled.exe"
+        ],
+        "linux-x86-64": [
+          "ChaotixRecompiled"
         ]
       },
       "persistent_paths": [
@@ -21679,7 +21726,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On first Play, select your own supported Knuckles’ Chaotix ROM from the setup page. The game validates and installs its own copy. Configure controls and compatible mods through upstream menus. The default Windows storage is AppData/ChaotixRecompiled/ChaotixRecompiled, outside Portcove backups. Saves, settings, imported ROM, mods and recordings remain there across runtime updates. The source also has a current-folder fallback; its declared data directories are preserved if present. Save states are tied to the ROM, patches and program version. Use an external registration for custom launch flags or a custom data root. Existing external copies keep their files and runtime update owner. Gameplay and installed-app acceptance remain separate observations.",
+        "manual_preparation": "On first Play, select your own supported Knuckles’ Chaotix ROM from the setup page. The game validates and installs its own copy. Configure controls and compatible mods through upstream menus. The default Windows storage is AppData/ChaotixRecompiled/ChaotixRecompiled, outside Portcove backups. Saves, settings, imported ROM, mods and recordings remain there across runtime updates. The source also has a current-folder fallback; its declared data directories are preserved if present. Save states are tied to the ROM, patches and program version. Use an external registration for custom launch flags or a custom data root. Existing external copies keep their files and runtime update owner. Play has not been tested through Portcove. Linux normally uses ~/.local/share/ChaotixRecompiled/ChaotixRecompiled. Keep the packaged SDL3 and SDL3_ttf libraries beside the executable; the game needs those companion files. Play has not been tested through Portcove on Linux.",
         "manual_setup": {
           "steps": [
             {
@@ -21692,7 +21739,7 @@
             },
             {
               "title": "Keep your progress when updating",
-              "instruction": "The default Windows storage is AppData/ChaotixRecompiled/ChaotixRecompiled, outside Portcove backups. Saves, settings, imported ROM, mods and recordings remain there across runtime updates. The source also has a current-folder fallback; its declared data directories are preserved if present. Save states are tied to the ROM, patches and program version. Use an external registration for custom launch flags or a custom data root."
+              "instruction": "The default Windows storage is AppData/ChaotixRecompiled/ChaotixRecompiled, outside Portcove backups. Saves, settings, imported ROM, mods and recordings remain there across runtime updates. The source also has a current-folder fallback; its declared data directories are preserved if present. Save states are tied to the ROM, patches and program version. Use an external registration for custom launch flags or a custom data root. Linux normally uses ~/.local/share/ChaotixRecompiled/ChaotixRecompiled. Keep the packaged SDL3 and SDL3_ttf libraries beside the executable; the game needs those companion files."
             }
           ],
           "warnings": [],
@@ -21718,7 +21765,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -21727,12 +21775,19 @@
           "windows-x86-64": [
             "opentyrian-",
             "-windows-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "opentyrian-",
+            "-linux-x86_64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "opentyrian.exe"
+        ],
+        "linux-x86-64": [
+          "opentyrian"
         ]
       },
       "persistent_paths": [
@@ -21786,7 +21841,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required. OpenTyrian normally stores settings, saves and recorded demos in AppData/OpenTyrian, outside Portcove backups. If upstream falls back to the executable folder, declared opentyrian.cfg, tyrian.cfg, tyrian.sav and demorec.* recordings are retained. Runtime rollback carries declared current data and does not rewind saves. Existing external copies keep their files and runtime update owner. Gameplay and installed-app acceptance remain separate observations.",
+        "manual_preparation": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required. OpenTyrian normally stores settings, saves and recorded demos in AppData/OpenTyrian, outside Portcove backups. If upstream falls back to the executable folder, declared opentyrian.cfg, tyrian.cfg, tyrian.sav and demorec.* recordings are retained. Runtime rollback carries declared current data and does not rewind saves. Existing external copies keep their files and runtime update owner. Play has not been tested through Portcove. Linux normally uses $XDG_CONFIG_HOME/opentyrian or ~/.config/opentyrian. The same declared in-folder fallback files and recordings are retained. Play has not been tested through Portcove on Linux.",
         "manual_setup": {
           "steps": [
             {
@@ -21799,7 +21854,7 @@
             },
             {
               "title": "Keep your progress when updating",
-              "instruction": "OpenTyrian normally stores settings, saves and recorded demos in AppData/OpenTyrian, outside Portcove backups. If upstream falls back to the executable folder, declared opentyrian.cfg, tyrian.cfg, tyrian.sav and demorec.* recordings are retained. Runtime rollback carries declared current data and does not rewind saves."
+              "instruction": "OpenTyrian normally stores settings, saves and recorded demos in AppData/OpenTyrian, outside Portcove backups. If upstream falls back to the executable folder, declared opentyrian.cfg, tyrian.cfg, tyrian.sav and demorec.* recordings are retained. Runtime rollback carries declared current data and does not rewind saves. Linux normally uses $XDG_CONFIG_HOME/opentyrian or ~/.config/opentyrian. The same declared in-folder fallback files and recordings are retained."
             }
           ],
           "warnings": [],

@@ -2,6 +2,41 @@ import { closeSync, openSync, readFileSync, readSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
+import { spawnSync } from "node:child_process";
+
+/** Bound native argv too; never send filenames through a command-shell shim. */
+export function stagedFileBatches(files: readonly string[], limit = 6000): string[][] {
+  const batches: string[][] = [];
+  let batch: string[] = [];
+  let length = 0;
+  for (const file of files) {
+    const size = JSON.stringify(file).length + 1;
+    if (size > limit) throw new Error(`Staged path exceeds argument budget: ${file}`);
+    if (length + size > limit) {
+      batches.push(batch);
+      batch = [];
+      length = 0;
+    }
+    batch.push(file);
+    length += size;
+  }
+  if (batch.length) batches.push(batch);
+  return batches;
+}
+
+export function checkStagedFiles(files: readonly string[], cwd = process.cwd()) {
+  const cli = vitePlusCommand(cwd);
+  for (const batch of stagedFileBatches(files)) {
+    const result = spawnSync(cli.command, [...cli.args, "check", "--fix", "--", ...batch], {
+      cwd,
+      stdio: "inherit",
+      windowsHide: true,
+    });
+    if (result.error) throw result.error;
+    if (result.status !== 0)
+      throw new Error(`Staged Vite+ check failed (${result.signal ?? result.status ?? "unknown"})`);
+  }
+}
 
 /** Resolve the installed package's declared executable, never PATH or a download. */
 export function vitePlusCommand(cwd: string) {

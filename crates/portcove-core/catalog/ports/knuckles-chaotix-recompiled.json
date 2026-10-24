@@ -29,7 +29,7 @@
         },
         {
           "title": "Keep your progress when updating",
-          "instruction": "The default Windows storage is AppData/ChaotixRecompiled/ChaotixRecompiled, outside Portcove backups. Saves, settings, imported ROM, mods and recordings remain there across runtime updates. The source also has a current-folder fallback; its declared data directories are preserved if present. Save states are tied to the ROM, patches and program version. Use an external registration for custom launch flags or a custom data root."
+          "instruction": "The default Windows storage is AppData/ChaotixRecompiled/ChaotixRecompiled, outside Portcove backups. Saves, settings, imported ROM, mods and recordings remain there across runtime updates. The source also has a current-folder fallback; its declared data directories are preserved if present. Save states are tied to the ROM, patches and program version. Use an external registration for custom launch flags or a custom data root. Linux normally uses ~/.local/share/ChaotixRecompiled/ChaotixRecompiled. Keep the packaged SDL3 and SDL3_ttf libraries beside the executable; the game needs those companion files."
         }
       ],
       "warnings": [],
@@ -39,16 +39,18 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
     "release": {
       "repository": "YuutaTsubasa/ChaotixRecompiled",
       "asset_hints": {
-        "windows-x86-64": ["chaotixrecompiled-", "-windows-x64.zip"]
+        "windows-x86-64": ["chaotixrecompiled-", "-windows-x64.zip"],
+        "linux-x86-64": ["chaotixrecompiled-", "-linux-x64.tar.gz"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": ["ChaotixRecompiled.exe"]
+      "windows-x86-64": ["ChaotixRecompiled.exe"],
+      "linux-x86-64": ["ChaotixRecompiled"]
     },
     "persistent_paths": [
       "Game",
@@ -67,7 +69,7 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "On first Play, select your own supported Knuckles’ Chaotix ROM from the setup page. The game validates and installs its own copy. Configure controls and compatible mods through upstream menus. The default Windows storage is AppData/ChaotixRecompiled/ChaotixRecompiled, outside Portcove backups. Saves, settings, imported ROM, mods and recordings remain there across runtime updates. The source also has a current-folder fallback; its declared data directories are preserved if present. Save states are tied to the ROM, patches and program version. Use an external registration for custom launch flags or a custom data root. Existing external copies keep their files and runtime update owner. Gameplay and installed-app acceptance remain separate observations."
+      "manual_preparation": "On first Play, select your own supported Knuckles’ Chaotix ROM from the setup page. The game validates and installs its own copy. Configure controls and compatible mods through upstream menus. The default Windows storage is AppData/ChaotixRecompiled/ChaotixRecompiled, outside Portcove backups. Saves, settings, imported ROM, mods and recordings remain there across runtime updates. The source also has a current-folder fallback; its declared data directories are preserved if present. Save states are tied to the ROM, patches and program version. Use an external registration for custom launch flags or a custom data root. Existing external copies keep their files and runtime update owner. Play has not been tested through Portcove. Linux normally uses ~/.local/share/ChaotixRecompiled/ChaotixRecompiled. Keep the packaged SDL3 and SDL3_ttf libraries beside the executable; the game needs those companion files. Play has not been tested through Portcove on Linux."
     }
   }
 }
