@@ -1,14 +1,17 @@
 """Inert failure/recovery contracts; no account, sudo, unit or namespace runs."""
 
 import ast
+import fnmatch
+import hashlib
 import importlib.util
 import io
 import json
+import re
 import stat
 import subprocess
 import tempfile
 import unittest
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -18,6 +21,149 @@ spec.loader.exec_module(readiness)
 
 
 class HostedReadiness(unittest.TestCase):
+    def root_functions(self, names, scope):
+        nodes = [node for node in ast.parse(readiness.ROOT_SETUP).body if isinstance(node, ast.FunctionDef) and node.name in names]
+        self.assertEqual(len(nodes), len(names))
+        exec(compile(ast.Module(body=nodes, type_ignores=[]), "actual-root-profile-functions", "exec"), scope)
+        return scope
+
+    def test_attachment_collision_guard_refuses_unknown_and_overlapping_patterns(self):
+        scope = self.root_functions({"attachment_clear"}, {"re": re, "fnmatch": fnmatch})
+        for value in ("/usr/bin/other", "/{,usr/}sbin/tcpdump", "unprivileged_userns", "/opt/application/**"):
+            scope["attachment_clear"](value)
+        for value in ("/usr/bin/bwrap", "/{,usr/}bin/bwrap", "/usr/**", "<unknown>", "@{variable}", "/usr/bin/[ab]*"):
+            with self.subTest(value=value), self.assertRaises(AssertionError):
+                scope["attachment_clear"](value)
+
+    def test_actual_profile_setup_is_add_only_and_keeps_ambiguous_load_intent(self):
+        pin = "11d39094f044f0cda0febb3ad517b830301da6b2ce929664af09ee9e4dd264f9"
+        source = b"x" * 1936  # Controlled provider bytes; no real policy or root operation.
+        binary = b"controlled compiled policy"
+        before = {"labels": ["other (enforce)"], "attachments": {"other.1": "/usr/bin/other"}}
+        after = {"labels": ["other (enforce)", "bwrap (enforce)", "unpriv_bwrap (enforce)"],
+                 "attachments": {"other.1": "/usr/bin/other", "bwrap.2": "/usr/bin/bwrap", "unpriv.3": "unpriv_bwrap"}}
+        class RootPath:
+            def __init__(self, value): self.value = value
+            def __str__(self): return self.value
+            def __fspath__(self): return self.value
+            def lstat(self): return SimpleNamespace(st_uid=0, st_mode=stat.S_IFREG | 0o555)
+        for outcome in ("accepted", "collision", "site-alias", "changed-baseline", "load-timeout", "partial-readback"):
+            retained = {}
+            def exclusive(filename, data, retained=retained):
+                self.assertNotIn(str(filename), retained)
+                retained[str(filename)] = data
+            def bounded(filename, _maximum=131072):
+                name = str(filename)
+                if name.endswith(".apparmor"): return source
+                if name.endswith("/apparmor_parser"): return b"controlled parser"
+                if name.endswith("/apparmor_restrict_unprivileged_userns"): return b"1\n"
+                if name.endswith("/abi/4.0"): return b"controlled ABI"
+                if name.endswith("/profile.binary"): return binary
+                raise AssertionError("unexpected root read " + name)
+            def run(arguments, _seconds, _maximum=8192, outcome=outcome):
+                if "--preprocess" in arguments:
+                    return b"alias\t/usr/bin/bwrap -> /other,\n" if outcome == "site-alias" else b"# controlled flattened profile\n"
+                if "--names" in arguments: return b"bwrap\nunpriv_bwrap\n"
+                if "--stdout" in arguments: return binary
+                if "--version" in arguments: return b"controlled parser version"
+                self.assertIn("--add", arguments)
+                self.assertIn("--binary", arguments)
+                self.assertIn("--skip-cache", arguments)
+                self.assertIn("--config-file=/dev/null", arguments)
+                if outcome == "load-timeout": raise subprocess.TimeoutExpired(arguments, 5)
+                return b""
+            state = Mock(side_effect=[before, before, after])
+            if outcome == "collision": state.side_effect = AssertionError("existing label")
+            elif outcome == "changed-baseline": state.side_effect = [before, after]
+            elif outcome == "partial-readback": state.side_effect = [before, before, before]
+            scope = {"Path": RootPath, "src": PurePosixPath("/controlled/scripts"), "target": PurePosixPath("/controlled/installed"),
+                     "context": {"run": "controlled"}, "wanted": {"source": "controlled"}, "result": {},
+                     "os": SimpleNamespace(path=SimpleNamespace(lexists=Mock(return_value=False)), uname=lambda: SimpleNamespace(release="controlled")),
+                     "stat": stat, "json": json, "re": re, "hashlib": hashlib, "run": Mock(side_effect=run),
+                     "bounded": bounded, "digest": lambda value: pin if value == source else hashlib.sha256(value).hexdigest(),
+                     "exclusive": exclusive, "features": Mock(return_value={"fixed": "yes"}), "profile_state": state}
+            self.root_functions({"setup_profile", "profile_summary"}, scope)
+            with self.subTest(outcome=outcome):
+                if outcome == "accepted":
+                    scope["setup_profile"]()
+                    self.assertTrue(scope["result"]["profile"]["completed"])
+                else:
+                    with self.assertRaises((AssertionError, subprocess.TimeoutExpired)):
+                        scope["setup_profile"]()
+                loads = [call for call in scope["run"].call_args_list if "--add" in call.args[0]]
+                self.assertEqual(len(loads), int(outcome in ("accepted", "load-timeout", "partial-readback")))
+                self.assertFalse(any("--replace" in call.args[0] for call in scope["run"].call_args_list))
+                if loads:
+                    self.assertTrue(scope["result"]["profile"]["load_attempted"])
+                    self.assertIn("/controlled/installed/profile-add-intent.json", retained)
+                    self.assertEqual(retained["/controlled/installed/profile.binary"], binary)
+                if outcome == "collision": self.assertEqual(retained, {})
+
+    def test_postexec_policy_requires_enforcing_stack_unchanged_nnp_and_zero_capabilities(self):
+        policy = {"apparmor": "bwrap//&unpriv_bwrap (enforce)", "NoNewPrivs": "1", "userns_restriction": "1",
+                  "capabilities": dict.fromkeys(("CapEff", "CapPrm", "CapInh", "CapAmb", "CapBnd"), "0000000000000000")}
+        readiness.check_namespace_policy(policy)
+        for field, value in (("apparmor", "unconfined"), ("NoNewPrivs", "0"), ("userns_restriction", "0"),
+                             ("capabilities", {**policy["capabilities"], "CapEff": "0000000000000001"})):
+            with self.subTest(field=field), self.assertRaises(RuntimeError):
+                readiness.check_namespace_policy({**policy, field: value})
+
+    def test_actual_profile_evidence_collection_refuses_missing_changed_and_foreign_inputs(self):
+        module = ast.parse(Path(readiness.__file__).read_text())
+        function = next(node for node in module.body if isinstance(node, ast.FunctionDef) and node.name == "prepare")
+        outer = next(node for node in function.body if isinstance(node, ast.Try))
+        for condition in ("accepted", "missing-intent", "foreign-context", "missing-binary", "changed-binary"):
+            with tempfile.TemporaryDirectory() as temporary:
+                installed, destination = Path(temporary) / "installed", Path(temporary) / "destination"
+                installed.mkdir(); destination.mkdir()
+                context, pins = {"run": "new"}, {"source": "reviewed"}
+                binary, evidence = b"compiled", b"evidence"
+                result = {"failure": None, "setup": {"profile": {"completed": True,
+                          "compiled_sha256": hashlib.sha256(binary).hexdigest(),
+                          "evidence_sha256": hashlib.sha256(evidence).hexdigest()}}}
+                payloads = {"profile-intent.json": json.dumps({"context": context, "source_sha256": pins}).encode(),
+                            "profile-add-intent.json": b"add intent", "profile-evidence.json": evidence,
+                            "profile.expanded": b"expanded", "profile.abi": b"abi", "profile.binary": binary}
+                if condition == "missing-intent": del payloads["profile-intent.json"]
+                elif condition == "foreign-context":
+                    payloads["profile-intent.json"] = json.dumps({"context": {"run": "old"}, "source_sha256": pins}).encode()
+                elif condition == "missing-binary": del payloads["profile.binary"]
+                elif condition == "changed-binary": payloads["profile.binary"] = b"different"
+                for name, data in payloads.items(): (installed / name).write_bytes(data)
+                scope = {"INSTALLED": installed, "context": context, "pins": pins, "result": result,
+                         "directory": destination, "stat": stat, "json": json, "hashlib": hashlib,
+                         "need": readiness.need, "retain": readiness.retain}
+                info = SimpleNamespace(st_mode=stat.S_IFREG | 0o444, st_uid=0, st_nlink=1, st_size=1)
+                with self.subTest(condition=condition), patch.object(type(installed), "lstat", return_value=info), patch("builtins.print"):
+                    exec(compile(ast.Module(body=outer.finalbody, type_ignores=[]), "actual-prepare-final-profile-collection", "exec"), scope)
+                if condition == "accepted":
+                    self.assertIsNone(result["failure"])
+                    self.assertEqual(len(result["profile_files"]), 6)
+                else:
+                    self.assertIsNotNone(result["failure"])
+                    self.assertIn("profile_evidence_failure", result)
+                self.assertFalse(result["automatic_retry"])
+                self.assertEqual(result["production"], "held")
+                if condition == "foreign-context": self.assertNotIn("profile_files", result)
+
+    def test_actual_final_profile_readback_preserves_original_ambiguous_load(self):
+        outer = [node for node in ast.parse(readiness.ROOT_SETUP).body if isinstance(node, ast.Try)]
+        self.assertEqual(len(outer), 1)
+        nodes = [node for node in outer[0].finalbody if isinstance(node, ast.If) and ast.unparse(node.test) == "result.get('profile')"]
+        self.assertEqual(len(nodes), 1)
+        for available in (True, False):
+            result = {"profile": {"load_attempted": True}, "failure": "original parser timeout"}
+            state = {"labels": ["bwrap (enforce)"]}  # Only one label observed: never whole-load success.
+            reader = Mock(return_value=state) if available else Mock(side_effect=OSError("readback unavailable"))
+            scope = {"result": result, "profile_state": reader, "profile_summary": lambda value: value}
+            exec(compile(ast.Module(body=nodes, type_ignores=[]), "actual-final-profile-readback", "exec"), scope)
+            self.assertEqual(result["failure"], "original parser timeout")
+            self.assertTrue(result["profile"]["load_attempted"])
+            self.assertNotIn("completed", result["profile"])
+            if available: self.assertEqual(result["profile"]["final_state"], state)
+            else: self.assertEqual(result["profile"]["readback_error"], "OSError")
+            reader.assert_called_once()
+
     def test_actual_inert_entry_executes_only_fixed_command_after_exact_release(self):
         invocation = "a" * 64
         creation = {"pid": 42, "creation_ticks": "123"}
@@ -244,6 +390,9 @@ class HostedReadiness(unittest.TestCase):
     def test_setup_success_requires_actual_account_and_private_path_readback(self):
         setup = {
             "completed": True, "failure": None, "uid": 1002, "gid": 1002,
+            "profile": {"completed": True, "source_sha256": "11d39094f044f0cda0febb3ad517b830301da6b2ce929664af09ee9e4dd264f9",
+                        "after": {"labels": ["bwrap (enforce)", "unpriv_bwrap (enforce)"]},
+                        "final_state": {"labels": ["bwrap (enforce)", "unpriv_bwrap (enforce)"]}},
             "readback": {
                 "account": {"uid": "1002", "gid": "1002", "home": "/home/portcove-native", "shell": "/usr/sbin/nologin"},
                 "paths": {
@@ -254,7 +403,7 @@ class HostedReadiness(unittest.TestCase):
             },
         }
         readiness.require_setup_readback(setup, 1001)
-        for change in ("failed", "missing-readback", "wrong-account", "writable-path", "same-broker"):
+        for change in ("failed", "missing-readback", "wrong-account", "writable-path", "same-broker", "missing-profile", "partial-load", "changed-profile"):
             modified = json.loads(json.dumps(setup))
             broker = 1001
             if change == "failed":
@@ -265,6 +414,12 @@ class HostedReadiness(unittest.TestCase):
                 modified["readback"]["account"]["uid"] = "1003"
             elif change == "writable-path":
                 modified["readback"]["paths"][str(readiness.GUEST)]["mode"] = "0o40777"
+            elif change == "missing-profile":
+                del modified["profile"]
+            elif change == "partial-load":
+                modified["profile"]["completed"] = False
+            elif change == "changed-profile":
+                modified["profile"]["final_state"] = {"labels": ["bwrap (complain)"]}
             else:
                 broker = 1002
             original = json.dumps(modified)

@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Prepare the observed missing Ubuntu bubblewrap dependency
+      - name: Prepare fixed Ubuntu Bubblewrap and profile inputs
         shell: bash
         run: |
           set -euo pipefail
@@ -25,18 +25,31 @@ jobs:
           printf 'source=%s\nrun=%s\nattempt=%s\nautomatic_retry=false\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" > work/hosted-linux-package-evidence/intent.txt
           taskStage=package-observation
           trap 'taskStatus=$?; printf "stage=%s\nexit=%s\n" "$taskStage" "$taskStatus" > work/hosted-linux-package-evidence/result.txt; exit "$taskStatus"' EXIT
+          taskSources=/etc/apt/sources.list.d/ubuntu.sources
+          test -s "$taskSources"
+          taskApt=(-o "Dir::Etc::sourcelist=$taskSources" -o Dir::Etc::sourceparts=- -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 -o DPkg::Lock::Timeout=5 -o Acquire::AllowInsecureRepositories=false -o Acquire::AllowDowngradeToInsecureRepositories=false -o APT::Get::AllowUnauthenticated=false -o APT::Update::Error-Mode=any)
+          taskStage=ubuntu-index
+          sudo -n /usr/bin/timeout --kill-after=5s 45s /usr/bin/env DEBIAN_FRONTEND=noninteractive /usr/bin/apt-get "${taskApt[@]}" update
           if [[ ! -x /usr/bin/bwrap ]]; then
-            taskSources=/etc/apt/sources.list.d/ubuntu.sources
-            test -s "$taskSources"
-            taskApt=(-o "Dir::Etc::sourcelist=$taskSources" -o Dir::Etc::sourceparts=- -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 -o DPkg::Lock::Timeout=5)
-            taskStage=ubuntu-index
-            sudo -n /usr/bin/timeout --kill-after=5s 45s /usr/bin/env DEBIAN_FRONTEND=noninteractive /usr/bin/apt-get "${taskApt[@]}" update
             taskStage=bubblewrap-install
             sudo -n /usr/bin/timeout --kill-after=5s 45s /usr/bin/env DEBIAN_FRONTEND=noninteractive /usr/bin/apt-get "${taskApt[@]}" install --yes --no-install-recommends bubblewrap
           fi
           taskStage=package-readback
           /usr/bin/dpkg-query --show --showformat='${Package} ${Version}\n' bubblewrap > work/hosted-linux-package-evidence/package.txt
           /usr/bin/sha256sum /usr/bin/bwrap > work/hosted-linux-package-evidence/bwrap-sha256.txt
+          taskStage=selected-profile-download
+          mkdir work/hosted-linux-package-evidence/download
+          (
+            cd work/hosted-linux-package-evidence/download
+            /usr/bin/timeout --kill-after=2s 30s /usr/bin/apt-get "${taskApt[@]}" download apparmor-profiles=4.0.1really4.0.1-0ubuntu0.24.04.9
+            taskDeb=apparmor-profiles_4.0.1really4.0.1-0ubuntu0.24.04.9_all.deb
+            test "$(stat -c %s "$taskDeb")" = 39592
+            printf '90b02aa006eea7702cd4e851343e469e41365dda42145a3cb035de1d6c773b8c  %s\n' "$taskDeb" | sha256sum --check --strict
+            # No package install, maintainer scripts or extraction to the host.
+            /usr/bin/timeout 10s /usr/bin/dpkg-deb --fsys-tarfile "$taskDeb" | /usr/bin/timeout 10s /usr/bin/tar --extract --to-stdout --occurrence=1 --file=- ./usr/share/apparmor/extra-profiles/bwrap-userns-restrict > ../bwrap-userns-restrict.apparmor
+          )
+          test "$(stat -c %s work/hosted-linux-package-evidence/bwrap-userns-restrict.apparmor)" = 1936
+          printf '11d39094f044f0cda0febb3ad517b830301da6b2ce929664af09ee9e4dd264f9  work/hosted-linux-package-evidence/bwrap-userns-restrict.apparmor\n' | sha256sum --check --strict
           taskStage=package-ready
       - name: Observe the fixed credential-free native primitives once
         run: /usr/bin/python3 -I -S -B scripts/qualify-hosted-native-linux.py --prepare
@@ -47,6 +60,11 @@ jobs:
           name: hosted-linux-readiness-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             work/hosted-linux-runtime-evidence/*.json
+            work/hosted-linux-runtime-evidence/profile.expanded
+            work/hosted-linux-runtime-evidence/profile.abi
+            work/hosted-linux-runtime-evidence/profile.binary
             work/hosted-linux-package-evidence/*.txt
+            work/hosted-linux-package-evidence/*.apparmor
+            work/hosted-linux-package-evidence/download/*.deb
           if-no-files-found: error
           retention-days: 7

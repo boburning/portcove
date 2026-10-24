@@ -70,6 +70,12 @@ def require_setup_readback(setup, broker_uid):
     need(observed["directory"] and observed["uid"] == 0 and int(observed["mode"], 8) & 0o022 == 0,
          "actual installed source custody differs")
     need(setup["uid"] != broker_uid, "broker and qualification identities coincide")
+    profile = setup.get("profile", {})
+    need(profile.get("completed") is True and profile.get("source_sha256") ==
+         "11d39094f044f0cda0febb3ad517b830301da6b2ce929664af09ee9e4dd264f9"
+         and profile.get("after") == profile.get("final_state")
+         and profile.get("after", {}).get("labels") == ["bwrap (enforce)", "unpriv_bwrap (enforce)"]
+         and "readback_error" not in profile, "actual profile setup/readback differs")
 
 
 def command(arguments, timeout=15, environment=None):
@@ -113,12 +119,12 @@ def hosted_context(environment):
 
 
 ROOT_SETUP = r'''
-import hashlib,json,os,pwd,signal,stat,subprocess,sys,time
+import fnmatch,hashlib,json,os,pwd,re,signal,stat,subprocess,sys,time
 from pathlib import Path
-src=Path(sys.argv[1]); wanted=json.loads(sys.argv[2]); target=Path('/opt/portcove-native-readiness')
+src=Path(sys.argv[1]); wanted=json.loads(sys.argv[2]); context=json.loads(sys.argv[3]); target=Path('/opt/portcove-native-readiness')
 result={'stage':'source-validation','completed':False,'failure':None,'source_sha256':wanted,'readback':None,'automatic_retry':False}
 deadline=time.monotonic()+60
-def run(arguments,seconds):
+def run(arguments,seconds,maximum=8192):
  remaining=min(seconds,deadline-time.monotonic()); assert remaining>0
  child=subprocess.Popen(arguments,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
  try:
@@ -134,9 +140,105 @@ def run(arguments,seconds):
    result['command_timeout']['child_reaped']=True
   except Exception as error: result['command_timeout']['settlement_error']=type(error).__name__
   raise original
- assert len(stdout)<=8192 and len(stderr)<=8192 and child.returncode==0, 'fixed setup command refused'
+ assert len(stdout)<=maximum and len(stderr)<=8192 and child.returncode==0, 'fixed setup command refused'
  assert time.monotonic()<deadline, 'original setup deadline expired'
  return stdout
+def bounded(filename,maximum=131072):
+ with Path(filename).open('rb') as f: data=f.read(maximum+1)
+ assert len(data)<=maximum, 'profile input exceeds bound'
+ return data
+def digest(data): return hashlib.sha256(data).hexdigest()
+def exclusive(filename,data):
+ with Path(filename).open('xb') as f: f.write(data)
+ Path(filename).chmod(0o444)
+def attachment_clear(pattern):
+ # Conservative superset of AARE: fnmatch's star also crosses '/', so it can
+ # refuse extra patterns but cannot admit an overlapping supported glob.
+ assert pattern and pattern!='<unknown>', 'kernel attachment unavailable'
+ patterns=[pattern]
+ while any('{' in value for value in patterns):
+  expanded=[]
+  for value in patterns:
+   if '{' not in value: expanded.append(value); continue
+   match=re.search(r'\{([^{}]*)\}',value); assert match, 'unsupported attachment alternation'
+   expanded.extend(value[:match.start()]+part+value[match.end():] for part in match[1].split(','))
+  assert len(expanded)<=32, 'attachment alternation exceeds bound'
+  patterns=expanded
+ for value in patterns:
+  assert not any(char in value for char in ('[',']','\\','@','}')), 'unsupported kernel attachment'
+  assert not fnmatch.fnmatchcase('/usr/bin/bwrap',value), 'existing bwrap attachment'
+def profile_state(check_collision=False):
+ labels=bounded('/sys/kernel/security/apparmor/profiles',131072).decode().splitlines()
+ assert len(labels)<=4096
+ entries=list(Path('/sys/kernel/security/apparmor/policy/profiles').iterdir()); assert len(entries)<=4096
+ attachments={}; total=0
+ for entry in sorted(entries):
+  assert time.monotonic()<deadline
+  attachments[entry.name]=bounded(entry/'attach',4096).decode().strip()
+  total+=len(entry.name.encode())+len(attachments[entry.name].encode()); assert total<=131072
+ if check_collision:
+  assert not any(re.search(r'(^|//|&)(bwrap|unpriv_bwrap)(?= |$|//|&)',line) for line in labels), 'existing profile label'
+  for value in attachments.values(): attachment_clear(value)
+ return {'labels':labels,'attachments':attachments}
+def profile_summary(state):
+ return {'sha256':digest(json.dumps(state,sort_keys=True).encode()),'labels':sorted(line for line in state['labels'] if re.search(r'(^|//|&)(bwrap|unpriv_bwrap)(?= |$|//|&)',line))}
+def features():
+ root=Path('/sys/kernel/security/apparmor/features'); records={}; total=0
+ for directory,dirs,files in os.walk(root,followlinks=False):
+  assert len(dirs)+len(files)<=256 and time.monotonic()<deadline
+  for name in dirs: assert stat.S_ISDIR((Path(directory)/name).lstat().st_mode)
+  for name in sorted(files):
+   p=Path(directory)/name; assert stat.S_ISREG(p.lstat().st_mode)
+   data=bounded(p,8192); total+=len(data); assert total<=131072 and len(records)<256
+   records[str(p.relative_to(root))]=data.decode('ascii')
+ assert records, 'kernel feature observation unavailable'
+ return records
+def setup_profile():
+ result['stage']='profile-preflight'
+ profile=src.parent/'work/hosted-linux-package-evidence/bwrap-userns-restrict.apparmor'
+ data=bounded(profile,1936)
+ assert len(data)==1936 and digest(data)=='11d39094f044f0cda0febb3ad517b830301da6b2ce929664af09ee9e4dd264f9'
+ policy=Path('/etc/apparmor.d/portcove-native-readiness-bwrap')
+ assert not os.path.lexists(policy)
+ for name in ('bwrap-userns-restrict','unpriv_bwrap'):
+  assert not os.path.lexists('/etc/apparmor.d/local/'+name), 'local profile override refuses preparation'
+ assert bounded('/proc/sys/kernel/apparmor_restrict_unprivileged_userns',16).strip()==b'1'
+ parser=Path('/usr/sbin/apparmor_parser'); info=parser.lstat()
+ assert stat.S_ISREG(info.st_mode) and info.st_uid==0 and not info.st_mode&0o022
+ parser_sha=digest(bounded(parser,16777216))
+ before=profile_state(True); kernel=features(); abi=bounded('/etc/apparmor.d/abi/4.0')
+ result['profile']={'source_sha256':digest(data),'parser_sha256':parser_sha,'baseline_sha256':digest(json.dumps(before,sort_keys=True).encode()),'load_attempted':False}
+ intent=json.dumps({'context':context,'source_sha256':wanted,'profile':result['profile'],'before':before,'operation':'add-only; disposable diagnostic host only','automatic_retry':False}).encode(); assert len(intent)<=524288
+ exclusive(target/'profile-intent.json',intent)
+ # Freeze expanded includes and ABI; parse no site config and read/write no
+ # parser cache. Compile once without loading, then add that exact binary.
+ exclusive(target/'profile.abi',abi)
+ exclusive(policy,data)
+ expanded=run([str(parser),'--config-file=/dev/null','--skip-cache','--preprocess',str(policy)],5,131072)
+ assert not any(re.match(r'\s*alias\s',line) for line in expanded.decode().splitlines()), 'site alias refuses fixed attachment'
+ exclusive(target/'profile.expanded',expanded)
+ names=run([str(parser),'--config-file=/dev/null','--skip-cache','--names',str(target/'profile.expanded')],5).decode().splitlines()
+ assert sorted(names)==['bwrap','unpriv_bwrap'], 'compiled profile labels differ'
+ binary=run([str(parser),'--config-file=/dev/null','--skip-cache','--jobs=1','--stdout','--override-policy-abi',str(target/'profile.abi'),str(target/'profile.expanded')],15,1048576)
+ assert binary
+ exclusive(target/'profile.binary',binary)
+ evidence={'source':data.decode(),'expanded':expanded.decode(),'abi':abi.decode(),'kernel_features':kernel,'before':before,'parser_sha256':parser_sha,'parser_version':run([str(parser),'--version'],3).decode(),'kernel_release':os.uname().release,'compiled_sha256':digest(binary),'compiled_bytes':len(binary)}
+ encoded=json.dumps(evidence).encode(); assert len(encoded)<=524288
+ exclusive(target/'profile-evidence.json',encoded)
+ assert profile_state(True)==before and features()==kernel and digest(bounded(parser,16777216))==parser_sha
+ assert bounded(target/'profile.binary',1048576)==binary
+ assert bounded('/proc/sys/kernel/apparmor_restrict_unprivileged_userns',16).strip()==b'1'
+ result['stage']='profile-add'; result['profile'].update(load_attempted=True,compiled_sha256=digest(binary),evidence_sha256=digest(encoded))
+ exclusive(target/'profile-add-intent.json',json.dumps({'context':context,'compiled_sha256':digest(binary),'operation':'add-only','automatic_retry':False}).encode())
+ run([str(parser),'--config-file=/dev/null','--skip-cache','--add','--binary',str(target/'profile.binary')],5)
+ after=profile_state(); result['profile']['after']=profile_summary(after)
+ assert 'bwrap (enforce)' in after['labels'] and 'unpriv_bwrap (enforce)' in after['labels'], 'profile enforcement readback differs'
+ assert set(after['labels'])==set(before['labels'])|{'bwrap (enforce)','unpriv_bwrap (enforce)'}, 'unrelated kernel profile changed'
+ added=set(after['attachments'])-set(before['attachments'])
+ assert len(added)==2 and sorted(after['attachments'][name] for name in added)==['/usr/bin/bwrap','unpriv_bwrap'], 'new profile attachments differ'
+ assert all(after['attachments'].get(name)==value for name,value in before['attachments'].items()), 'prior profile attachment changed'
+ assert bounded('/proc/sys/kernel/apparmor_restrict_unprivileged_userns',16).strip()==b'1'
+ result['profile']['completed']=True
 try:
  assert os.getuid()==0 and not target.exists() and not Path('/home/portcove-native').exists()
  try: pwd.getpwnam('portcove-native')
@@ -161,6 +263,7 @@ try:
   with p.open('xb') as f: f.write(data)
   p.chmod(0o444)
  root=Path('/home/portcove-native/portcove-native'); root.mkdir(mode=0o700); os.chown(root,user.pw_uid,user.pw_gid)
+ setup_profile()
  result['stage']='user-manager'
  run(['/usr/bin/loginctl','enable-linger','portcove-native'],10)
  run(['/usr/bin/systemctl','start',f'user@{user.pw_uid}.service'],15)
@@ -182,6 +285,9 @@ finally:
    except FileNotFoundError: paths[name]=None
   result['readback']={'account':account,'paths':paths}
  except Exception as error: result['readback_error']=type(error).__name__
+ if result.get('profile'):
+  try: result['profile']['final_state']=profile_summary(profile_state())
+  except Exception as error: result['profile']['readback_error']=type(error).__name__
  if time.monotonic()>=deadline:
   result['completed']=False
   result['failure']=result['failure'] or 'original setup readback deadline expired'
@@ -198,9 +304,13 @@ mounts=[line.split() for line in Path('/proc/self/mountinfo').read_text().splitl
 matches=[parts[parts.index('-')+1] for parts in mounts if parts[4]==str(home)]
 assert matches==['tmpfs']
 child=subprocess.Popen(['/usr/bin/python3','-I','-S','-B','-c','import time;time.sleep(120)'],env={'PATH':'/usr/bin:/bin'},stdin=subprocess.DEVNULL)
+status=dict(line.split(':',1) for line in Path('/proc/self/status').read_text().splitlines() if ':' in line)
+policy={'apparmor':Path('/proc/self/attr/current').read_text().strip(),'NoNewPrivs':status['NoNewPrivs'].strip(),
+        'capabilities':{name:status[name].strip() for name in ('CapEff','CapPrm','CapInh','CapAmb','CapBnd')},
+        'userns_restriction':Path('/proc/sys/kernel/apparmor_restrict_unprivileged_userns').read_text().strip()}
 partial=ready.with_suffix('.partial')
 with partial.open('xb') as f:
- f.write(json.dumps({'pid':os.getpid(),'child_pid':child.pid,'uid':os.getuid(),'gid':os.getgid(),'cgroup':Path('/proc/self/cgroup').read_text().strip(),'writable_bytes':size.f_blocks*size.f_frsize}).encode())
+ f.write(json.dumps({'pid':os.getpid(),'child_pid':child.pid,'uid':os.getuid(),'gid':os.getgid(),'cgroup':Path('/proc/self/cgroup').read_text().strip(),'writable_bytes':size.f_blocks*size.f_frsize,'policy':policy}).encode())
 # Publish a complete record atomically, refusing an existing destination. Keep
 # the matching partial inode as diagnostic evidence rather than deleting it.
 os.link(partial,ready)
@@ -329,6 +439,14 @@ def denial_observation(probe_result, started, ended):
             "stderr": reply.stderr.decode("utf-8", "replace"), "automatic_retry": False}
 
 
+def check_namespace_policy(policy):
+    need(policy["apparmor"] == "bwrap//&unpriv_bwrap (enforce)"
+         and policy["NoNewPrivs"] == "1" and policy["userns_restriction"] == "1"
+         and all(value == "0000000000000000" for value in policy["capabilities"].values())
+         and set(policy["capabilities"]) == {"CapEff", "CapPrm", "CapInh", "CapAmb", "CapBnd"},
+         "actual namespace profile or privilege boundary differs")
+
+
 def inert_entry(invocation):
     import pwd
 
@@ -423,6 +541,7 @@ def probe():
         observed = json.loads(raw)
         need(observed["uid"] == user.pw_uid and observed["gid"] == user.pw_gid,
              "actual namespace account differs")
+        check_namespace_policy(observed["policy"])
         need(observed["cgroup"] == "0::" + str(group.path).removeprefix("/sys/fs/cgroup"),
              "actual namespace cgroup differs")
         need(str(observed["pid"]) in group.read("cgroup.procs").splitlines()
@@ -495,16 +614,20 @@ def prepare():
          and 'VERSION_ID="24.04"' in Path("/etc/os-release").read_text(), "actual Ubuntu24.04 required")
     pins = {name: file_hash(root / "scripts" / name) for name in
             ("qualify-hosted-native-linux.py", "native-qualification-linux-supervisor.py")}
+    context["profile_sha256"] = "11d39094f044f0cda0febb3ad517b830301da6b2ce929664af09ee9e4dd264f9"
+    context["profile_scope"] = "two add-only Ubuntu bwrap labels; global bwrap attachment on this disposable diagnostic host only"
     directory = begin_attempt(root, context, pins, git("rev-parse", "HEAD^{tree}"))
     result = {"stage": "tool-observation", "failure": None, "setup": None, "probe": None}
     try:
-        for tool in ("/usr/bin/bwrap", "/usr/bin/systemd-run", "/usr/bin/systemctl", "/usr/bin/sudo"):
+        for tool in ("/usr/bin/bwrap", "/usr/bin/systemd-run", "/usr/bin/systemctl", "/usr/bin/sudo", "/usr/sbin/apparmor_parser"):
             need(Path(tool).is_file(), "required hosted primitive missing: " + tool)
+        need(file_hash(root / "work/hosted-linux-package-evidence/bwrap-userns-restrict.apparmor") == context["profile_sha256"],
+             "reviewed Ubuntu profile bytes differ")
         result["stage"] = "fixed-account-setup"
         result["setup"] = json.loads(command([
             "/usr/bin/sudo", "-n", "--", "/usr/bin/timeout", "--kill-after=2s", "70s",
             "/usr/bin/env", "-i", "PATH=/usr/bin:/bin", "LANG=C.UTF-8", "/usr/bin/python3", "-I", "-S", "-B", "-c",
-            ROOT_SETUP, str(root / "scripts"), json.dumps(pins),
+            ROOT_SETUP, str(root / "scripts"), json.dumps(pins), json.dumps(context),
         ], timeout=75))
         require_setup_readback(result["setup"], os.getuid())
         result["stage"] = "inert-boundary-probe"
@@ -528,6 +651,40 @@ def prepare():
     except Exception as error:
         result["failure"] = str(error)
     finally:
+        try:
+            intent_path = INSTALLED / "profile-intent.json"
+            complete_profile = bool(result.get("setup") and result["setup"].get("profile", {}).get("completed"))
+            need(intent_path.exists() or not complete_profile, "completed root profile intent unavailable")
+            if intent_path.exists():
+                def read_profile_file(filename, maximum):
+                    info = filename.lstat()
+                    need(stat.S_ISREG(info.st_mode) and info.st_uid == 0 and info.st_nlink == 1
+                         and info.st_mode & 0o222 == 0 and info.st_size <= maximum, "root profile evidence custody differs")
+                    with filename.open("rb") as source:
+                        data = source.read(maximum + 1)
+                    need(len(data) <= maximum, "root profile evidence exceeds bound")
+                    return data
+                intent = json.loads(read_profile_file(intent_path, 524288))
+                need(intent["context"] == context and intent["source_sha256"] == pins,
+                     "root profile evidence belongs to another attempt")
+                result["profile_files"] = {}
+                for name, maximum in (("profile-intent.json", 524288), ("profile-add-intent.json", 4096),
+                                      ("profile-evidence.json", 524288), ("profile.expanded", 131072),
+                                      ("profile.abi", 131072), ("profile.binary", 1048576)):
+                    filename = INSTALLED / name
+                    if filename.exists():
+                        data = read_profile_file(filename, maximum)
+                        with (directory / name).open("xb") as output:
+                            output.write(data)
+                        result["profile_files"][name] = {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+                if complete_profile:
+                    need(len(result["profile_files"]) == 6
+                         and result["profile_files"]["profile.binary"]["sha256"] == result["setup"]["profile"]["compiled_sha256"]
+                         and result["profile_files"]["profile-evidence.json"]["sha256"] == result["setup"]["profile"]["evidence_sha256"],
+                         "completed root profile evidence/hash readback differs")
+        except Exception as error:
+            result["profile_evidence_failure"] = str(error)
+            result["failure"] = result["failure"] or "root profile evidence unavailable"
         result.update(authority="none", native_acceptance="not-established", production="held", automatic_retry=False)
         retain(directory / "result.json", result)
         print(json.dumps(result))
