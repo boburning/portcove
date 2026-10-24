@@ -2,26 +2,40 @@
   "format_version": 2,
   "suites": {
     "prose-checks": {
-      "arguments": ["--test", "--test-timeout=30000"]
+      "arguments": [
+        "--test",
+        "--test-timeout=30000",
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
+      ]
     },
     "windows-helpers": {
-      "arguments": ["--test", "--test-timeout=30000", "--test-name-pattern=Windows reader sharing"]
+      "arguments": [
+        "--test",
+        "--test-timeout=30000",
+        "--test-name-pattern=Windows reader sharing",
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
+      ]
     },
     "windows-helpers-2": {
-      "arguments": ["--test", "--test-concurrency=1", "--test-timeout=30000"]
+      "arguments": [
+        "--test",
+        "--test-concurrency=1",
+        "--test-timeout=30000",
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
+      ]
     },
     "windows-helpers-3": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "windows-storage": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
-        "--test-reporter=./scripts/test-duration-reporter.mts",
+        "--test-reporter=./scripts/required-node-test-reporter.mts",
         "--test-skip-pattern",
         "pnpm uses|direct just recipes"
       ]
@@ -30,14 +44,14 @@
       "arguments": [
         "--test",
         "--test-timeout=30000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "windows-storage-3": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "windows-storage-4": {
@@ -45,38 +59,38 @@
         "--test",
         "--test-concurrency=1",
         "--test-timeout=30000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "rust-quality-full": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "rust-quality-full-2": {
-      "arguments": ["--test"]
+      "arguments": ["--test", "--test-reporter=./scripts/required-node-test-reporter.mts"]
     },
     "rust-quality-full-3": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "frontend-full": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "frontend-full-2": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
-        "--test-reporter=./scripts/test-duration-reporter.mts",
+        "--test-reporter=./scripts/required-node-test-reporter.mts",
         "--test-name-pattern",
         "pnpm uses|direct just recipes"
       ]
@@ -85,28 +99,32 @@
       "arguments": [
         "--test",
         "--test-timeout=30000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "frontend-full-4": {
-      "arguments": ["--test", "--test-timeout=30000"]
+      "arguments": [
+        "--test",
+        "--test-timeout=30000",
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
+      ]
     },
     "frontend-full-5": {
-      "arguments": ["--test"]
+      "arguments": ["--test", "--test-reporter=./scripts/required-node-test-reporter.mts"]
     },
     "frontend-full-6": {
       "arguments": [
         "--test",
         "--experimental-test-module-mocks",
         "--test-timeout=60000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "catalog-full": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "catalog-full-2": {
@@ -114,14 +132,14 @@
         "--test",
         "--experimental-test-module-mocks",
         "--test-timeout=60000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "catalog-full-3": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "development-tools": {
@@ -129,28 +147,28 @@
         "--test",
         "--test-concurrency=2",
         "--test-timeout=30000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "process-policy": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "transport-contract": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "fallow": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "repository-tools": {
@@ -158,7 +176,7 @@
         "--test",
         "--test-concurrency=2",
         "--test-timeout=30000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "repository-tools-2": {
@@ -166,7 +184,7 @@
         "--test",
         "--test-concurrency=2",
         "--test-timeout=30000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "release-check": {
@@ -174,18 +192,18 @@
         "--test",
         "--experimental-test-module-mocks",
         "--test-timeout=60000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "roadmap-check": {
       "arguments": [
         "--test",
         "--test-timeout=30000",
-        "--test-reporter=./scripts/test-duration-reporter.mts"
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
     "mutex-owned-payload": {
-      "arguments": ["--test"]
+      "arguments": ["--test", "--test-reporter=./scripts/required-node-test-reporter.mts"]
     }
   },
   "tests": [
@@ -664,6 +682,13 @@
       ]
     },
     {
+      "file": "scripts/fixture-module-closure.test.mts",
+      "memberships": [
+        ["frontend-full", 50],
+        ["development-tools", 5200]
+      ]
+    },
+    {
       "file": "scripts/frontend-build-compare.test.mts",
       "memberships": [
         ["catalog-full-2", 7000],
@@ -895,6 +920,13 @@
       "memberships": [
         ["catalog-full-2", 5300],
         ["repository-tools-2", 900]
+      ]
+    },
+    {
+      "file": "scripts/nextest-outcomes.test.mts",
+      "memberships": [
+        ["catalog-full-2", 6351],
+        ["repository-tools-2", 2351]
       ]
     },
     {
@@ -1663,6 +1695,13 @@
       "memberships": [
         ["catalog-full-2", 15125],
         ["release-check", 13425]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-history.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15126],
+        ["release-check", 13426]
       ]
     },
     {
@@ -2486,6 +2525,13 @@
       "memberships": [
         ["catalog-full-2", 2400],
         ["release-check", 500]
+      ]
+    },
+    {
+      "file": "scripts/required-node-test-reporter.test.mts",
+      "memberships": [
+        ["catalog-full-2", 6350],
+        ["repository-tools-2", 2350]
       ]
     }
   ]

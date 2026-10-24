@@ -178,7 +178,12 @@ void test("the Windows payload counts only through active callers and its review
   const file = "scripts/windows-qualification-session.integration.test.mts";
   const registry = JSON.stringify({
     format_version: 1,
-    suites: { "mutex-owned-payload": { arguments: ["--test"], files: [file] } },
+    suites: {
+      "mutex-owned-payload": {
+        arguments: ["--test", "--test-reporter=./scripts/required-node-test-reporter.mts"],
+        files: [file],
+      },
+    },
   });
   const runner = readFileSync(new URL("./run-windows-qualification.ps1", import.meta.url), "utf8");
   const workflow =

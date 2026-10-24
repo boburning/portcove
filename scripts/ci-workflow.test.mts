@@ -3,6 +3,7 @@ import { globSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { requireNodeTestInventory } from "./node-test-inventory.mts";
+import { annotatedNodeCommands, parseNodeTestSuites } from "./node-test-suites.mts";
 import { createBrowserTraceRun } from "./browser-traces.ts";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import type {
@@ -697,7 +698,7 @@ void test("fixed-account cases execute on Windows in both fast and qualification
         workflowStep(job, "Test inert fixed-account setup and capability contracts on Windows").run,
       ),
       [
-        "node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts",
+        "node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts",
       ],
     );
   }
@@ -814,7 +815,7 @@ void test("Windows diagnostics serialize file workers without changing coverage 
     "--test",
     "--test-concurrency=1",
     "--test-timeout=30000",
-    "--test-reporter=./scripts/test-duration-reporter.mts",
+    "--test-reporter=./scripts/required-node-test-reporter.mts",
   ]);
   assert.deepEqual(command.slice(9), [
     "scripts/desktop-scenarios.test.mts",
@@ -898,7 +899,7 @@ void test("full repository contracts run the bounded release evidence collector 
   assert.deepEqual(
     executableLines(workflowStep("catalog_full", "Test bounded release run evidence").run),
     [
-      "node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/release-run-evidence.test.mts",
+      "node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-run-evidence.test.mts",
     ],
   );
 });
@@ -1944,7 +1945,7 @@ void test("Windows Rust keeps exhaustive parallel gates without duplicate setup"
   assert.match(windowsStorage, /\.\/scripts\/run-windows-qualification\.ps1/);
   assert.match(
     windowsStorage,
-    /--test-timeout=30000 --test-reporter=\.\/scripts\/test-duration-reporter\.mts/,
+    /--test-timeout=30000 --test-reporter=\.\/scripts\/required-node-test-reporter\.mts/,
   );
   assert.match(
     windowsStorage,
@@ -2204,16 +2205,25 @@ void test(
   },
 );
 
-void test("Windows qualification serializes machine-global registry fixtures with a bounded lock", () => {
+void test("Windows qualification serializes machine-global registry fixtures with a bounded lock", async () => {
   const wrapper = windowsQualificationRunner;
   assert.match(wrapper, /Local\\Portcove\.WindowsQualification\.v1/);
   assert.match(wrapper, /WaitOne\(\[TimeSpan\]::FromSeconds\(\$WaitSeconds\)\)/);
   assert.match(wrapper, /AbandonedMutexException/);
   assert.match(wrapper, /finally \{[\s\S]*ReleaseMutex\(\)[\s\S]*Dispose\(\)/);
-  assert.match(
-    wrapper,
-    /node --test scripts\/windows-qualification-session\.integration\.test\.mts/,
+  const registry = parseNodeTestSuites(
+    await readFile(new URL("./node-test-suites.json", import.meta.url), "utf8"),
   );
+  const commands = annotatedNodeCommands(wrapper, registry);
+  assert.equal(commands.length, 1);
+  assert.equal(commands[0]!.id, "mutex-owned-payload");
+  assert.deepEqual(commands[0]!.arguments, [
+    "--test",
+    "--test-reporter=./scripts/required-node-test-reporter.mts",
+  ]);
+  assert.deepEqual(commands[0]!.files, [
+    "scripts/windows-qualification-session.integration.test.mts",
+  ]);
 });
 
 void test("native Rust runs the full workspace on every supported Unix architecture", () => {

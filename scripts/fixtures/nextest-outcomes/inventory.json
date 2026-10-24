@@ -1,0 +1,33 @@
+{
+  "test-count": 3,
+  "rust-suites": {
+    "portcove-nextest-protocol": {
+      "package-name": "portcove-nextest-protocol",
+      "binary-id": "portcove-nextest-protocol",
+      "binary-name": "portcove_nextest_protocol",
+      "kind": "lib",
+      "status": "listed",
+      "testcases": {
+        "failing": {
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        },
+        "ignored": {
+          "ignored": true,
+          "filter-match": {
+            "status": "mismatch",
+            "reason": "ignored"
+          }
+        },
+        "passed": {
+          "ignored": false,
+          "filter-match": {
+            "status": "matches"
+          }
+        }
+      }
+    }
+  }
+}

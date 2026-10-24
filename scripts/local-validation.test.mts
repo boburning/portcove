@@ -49,6 +49,82 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 
 const allFilesExist = () => true;
 
+void test("required Node execution and diagnostic edits retain their affected caller contracts", () => {
+  const required = "scripts/required-node-test-reporter.test.mts";
+  for (const [helper, consumers] of [
+    [
+      "scripts/required-node-test-reporter.mts",
+      [required, "scripts/ci-baseline.test.mts", "scripts/node-test-inventory.test.mts"],
+    ],
+    ["scripts/test-duration-reporter.mts", [required, "scripts/test-duration-reporter.test.mts"]],
+    ["scripts/node-case-observations.mts", [required, "scripts/test-duration-reporter.test.mts"]],
+  ] as const) {
+    for (const change of [
+      { status: "M", path: helper },
+      { status: "A", path: helper },
+      { status: "D", path: helper },
+      { status: "R100", previousPath: helper, path: "docs/renamed.md" },
+      { status: "R100", previousPath: "docs/renamed.md", path: helper },
+    ]) {
+      const selection = classifyChanges([change], { fileExists: allFilesExist });
+      for (const consumer of consumers) assert.ok(selection.nodeTests.has(consumer), consumer);
+      const command = buildPlan(selection).find((entry) => entry.id === "node-tests");
+      assert.ok(command);
+      assert.ok(command.args.includes("--test-reporter=./scripts/required-node-test-reporter.mts"));
+      for (const consumer of consumers) assert.ok(command.args.includes(consumer), consumer);
+    }
+  }
+});
+
+void test("selected nextest outcome edits retain native execution and every outcome consumer", () => {
+  const helper = "scripts/nextest-outcomes.mts";
+  for (const change of [
+    { status: "M", path: helper },
+    { status: "A", path: helper },
+    { status: "D", path: helper },
+    { status: "R100", previousPath: helper, path: "docs/renamed.md" },
+    { status: "R100", previousPath: "docs/renamed.md", path: helper },
+  ]) {
+    const selection = classifyChanges([change], { fileExists: allFilesExist });
+    assert.equal(selection.workspaceRustTests, true);
+    for (const consumer of [
+      "scripts/nextest-outcomes.test.mts",
+      "scripts/rust-test-impact.test.mts",
+      "scripts/ci-workflow.test.mts",
+    ])
+      assert.ok(selection.nodeTests.has(consumer), consumer);
+    const hosted = buildValidationPlan({
+      changes: [
+        {
+          status: change.status,
+          oldPath: change.previousPath ?? change.path,
+          newPath: change.path,
+          oldMode: change.status === "A" ? "000000" : "100644",
+          newMode: change.status === "D" ? "000000" : "100644",
+        },
+      ],
+      eventName: "pull_request",
+      checkout: "a".repeat(40),
+      head: "a".repeat(40),
+      base: "b".repeat(40),
+      mergeBase: "b".repeat(40),
+    });
+    assert.ok(hosted.groups.includes("rust"));
+  }
+  for (const name of [
+    "passed.jsonl",
+    "failing.jsonl",
+    "ignored.jsonl",
+    "inventory.json",
+    "provenance.json",
+  ])
+    assert.ok(
+      classifyChanges([{ status: "M", path: `scripts/fixtures/nextest-outcomes/${name}` }], {
+        fileExists: allFilesExist,
+      }).nodeTests.has("scripts/nextest-outcomes.test.mts"),
+    );
+});
+
 void test("disposable fixture helper changes retain every cleanup consumer across lifecycle and rename edits", async () => {
   const { baselineRequiresDesktopDependencies, baselineFrontendPlan } =
     await import("./ci-baseline.mts");
@@ -57,11 +133,13 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
   const consumers = [
     "apps/desktop/scripts/desktop-listener-lifetime.test.mts",
     "scripts/catalog-proposal-costs.test.mts",
+    "scripts/fixture-module-closure.test.mts",
     "scripts/node-test-inventory.test.mts",
     "scripts/precommit-check.test.mts",
     "scripts/python-test-results.test.mts",
     "scripts/release-catalog-review-request.test.mts",
     "scripts/release-control-inputs.test.mts",
+    "scripts/release-hosted-native-history.test.mts",
     "scripts/release-hosted-native-linux-capture.test.mts",
     "scripts/release-hosted-native-linux-report.test.mts",
     "scripts/release-hosted-native-proof-producer.test.mts",
@@ -72,6 +150,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
     "scripts/release-native-source-provider.test.mts",
     "scripts/release-native-wsl-capture.test.mts",
     "scripts/release-run-evidence.test.mts",
+    "scripts/required-node-test-reporter.test.mts",
     "scripts/test-duration-reporter.test.mts",
   ];
   const root = fileURLToPath(new URL("../", import.meta.url));
@@ -128,6 +207,39 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
         ?.args.includes(path.resolve(root, desktop)),
     );
     assert.ok(!selection.unknown.has(helper));
+  }
+});
+
+void test("fixture module closure edits retain all independent policy and construction consumers", () => {
+  const helper = "scripts/fixtures/module-closure.mts";
+  const consumers = [
+    "scripts/daily-discovery.test.mts",
+    "scripts/fixture-module-closure.test.mts",
+    "scripts/precommit-check.test.mts",
+  ];
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const importers = readdirSync(path.join(root, "scripts"))
+    .filter((file) => file.endsWith(".test.mts"))
+    .map((file) => `scripts/${file}`)
+    .filter((file) =>
+      /(?:\bfrom\s+|\bimport\(\s*)["']\.\/fixtures\/module-closure\.mts["']/u.test(
+        readFileSync(path.join(root, file), "utf8"),
+      ),
+    );
+  assert.deepEqual(importers.sort(), consumers);
+  for (const change of [
+    { status: "M", path: helper },
+    { status: "A", path: helper },
+    { status: "D", path: helper },
+    { status: "R100", previousPath: helper, path: "docs/renamed.md" },
+    { status: "R100", previousPath: "docs/renamed.md", path: helper },
+  ]) {
+    const selection = classifyChanges([change], { fileExists: allFilesExist });
+    for (const consumer of consumers)
+      assert.ok(selection.nodeTests.has(consumer), `${JSON.stringify(change)}: ${consumer}`);
+    const command = buildPlan(selection).find((entry) => entry.id === "node-tests");
+    assert.ok(command);
+    for (const consumer of consumers) assert.ok(command.args.includes(consumer), consumer);
   }
 });
 
@@ -1414,7 +1526,7 @@ void test("workflow and justfile changes select exact contract tests and actionl
   assert.ok(selection.nodeTests.has("scripts/local-validation.test.mts"));
   assert.ok(ids(plan).includes("actionlint"));
   const nodeTests = requiredFixture(plan.find((entry) => entry.id === "node-tests"));
-  assert.ok(nodeTests.args.includes("--test-reporter=./scripts/test-duration-reporter.mts"));
+  assert.ok(nodeTests.args.includes("--test-reporter=./scripts/required-node-test-reporter.mts"));
 });
 
 void test("changed Node implementations select sibling tests and syntax checks", () => {

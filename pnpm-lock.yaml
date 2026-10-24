@@ -207,6 +207,9 @@ importers:
       '@types/semver':
         specifier: 7.8.0
         version: 7.8.0
+      es-module-lexer:
+        specifier: 2.3.2
+        version: 2.3.2
       fallow:
         specifier: 3.34.1
         version: 3.34.1

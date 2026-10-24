@@ -558,7 +558,7 @@ void test("hosted native parent default path retains original source and issuer 
   await assert.rejects(requireActualHostedNativeParentSource(expired), /deadline exhausted/);
 });
 
-void test("native parent source admits only the four exact bounded application jobs without appointing execution authority", () => {
+void test("native parent source binds both closed stages to one exact bounded job per platform without execution authority", () => {
   const bounded = {
     ...policy,
     schema_version: 2,
@@ -570,6 +570,14 @@ void test("native parent source admits only the four exact bounded application j
   for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
     for (const stage of ["payload-signing", "release-publication"] as const) {
       const job = productionHostedNativeJob(platform, stage);
+      assert.equal(job, platform === "windows-x86_64" ? "native_windows" : "native_linux");
+      assert.equal(
+        job,
+        productionHostedNativeJob(
+          platform,
+          stage === "payload-signing" ? "release-publication" : "payload-signing",
+        ),
+      );
       const current = {
         ...environment,
         PORTCOVE_EXECUTION_PURPOSE: "application",
@@ -586,8 +594,8 @@ void test("native parent source admits only the four exact bounded application j
         {
           ...current,
           GITHUB_JOB: productionHostedNativeJob(
-            platform,
-            stage === "payload-signing" ? "release-publication" : "payload-signing",
+            platform === "windows-x86_64" ? "linux-x86_64" : "windows-x86_64",
+            stage,
           ),
         },
         { ...current, GITHUB_RUN_ATTEMPT: "2" },

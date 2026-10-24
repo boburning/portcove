@@ -1,7 +1,7 @@
 use std::{
     collections::BTreeMap,
     fs::File,
-    io::{Read, Seek, SeekFrom},
+    io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
 };
 
@@ -10,7 +10,7 @@ use sha1::Sha1;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
-use crate::source_file::{single_zip_source_index, validate_source_hashes};
+use crate::source_file::{single_zip_source_index_with_checkpoint, validate_source_hashes};
 
 use crate::{
     AdapterKind, ChildProcessClass, ChildProcessPolicy, DiscIdentityProfile, HostPreferenceStore,
@@ -798,18 +798,20 @@ fn prepare_runtime_source_input(
                 })
             });
         match verified {
-            Ok(()) => return Ok(()),
+            Ok(()) => return checkpoint(),
             Err(error) if error.code == crate::ErrorCode::Verification => {}
             Err(error) => return Err(error),
         }
     }
 
     match materialization {
-        RuntimeSourceMaterialization::N64BigEndian => prepare_n64_source(source, destination)?,
+        RuntimeSourceMaterialization::N64BigEndian => {
+            prepare_n64_source(source, destination, checkpoint)?
+        }
         RuntimeSourceMaterialization::Copy | RuntimeSourceMaterialization::RegaidenGbc => {
             match &admitted_zip {
                 Some(copy) => copy.materialize(destination, checkpoint)?,
-                None => copy_runtime_source(source, destination)?,
+                None => copy_runtime_source(source, destination, checkpoint)?,
             }
         }
         RuntimeSourceMaterialization::GamecubeIso => materialize_gamecube_iso_with_tool(
@@ -822,7 +824,14 @@ fn prepare_runtime_source_input(
         RuntimeSourceMaterialization::PsxBinCue => {
             materialize_psx_bin_cue(source, destination, pinned_host_tool, checkpoint, observer)?
         }
-        RuntimeSourceMaterialization::PsxRawSet => materialize_psx_raw_set(source, destination)?,
+        RuntimeSourceMaterialization::PsxRawSet => materialize_psx_set(
+            source,
+            destination,
+            false,
+            pinned_host_tool,
+            checkpoint,
+            observer,
+        )?,
         RuntimeSourceMaterialization::Ps2Iso => {
             materialize_ps2_iso(source, destination, pinned_host_tool, checkpoint, observer)?
         }
@@ -858,7 +867,7 @@ fn prepare_transient_n64_launch_source(
     cleanup_transient_n64_launch_sources(parent)?;
     std::fs::create_dir_all(parent)?;
     let temporary = parent.join(format!(".portcove-launch-source-{}", Uuid::new_v4()));
-    let prepared = prepare_n64_source(source, &temporary)
+    let prepared = prepare_n64_source(source, &temporary, checkpoint)
         .and_then(|()| checkpoint())
         .and_then(|()| {
             let (actual_sha256, actual_size) = hash_file_with_checkpoint(&temporary, checkpoint)?;
@@ -989,7 +998,8 @@ fn prepare_runtime_source_set_member(
     let file = File::open(source_root)?;
     let mut archive = zip::ZipArchive::new(file)
         .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP: {error}")))?;
-    let index = source_set_zip_member_index(&mut archive, source_root, accepted_filenames)?;
+    let index =
+        source_set_zip_member_index(&mut archive, source_root, accepted_filenames, checkpoint)?;
     let member_name = archive
         .by_index(index)
         .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP entry: {error}")))?
@@ -1008,11 +1018,11 @@ fn prepare_runtime_source_set_member(
             .as_ref()
             == Some(&expected);
     if reusable {
-        return Ok(());
+        return checkpoint();
     }
 
     const MAX_RUNTIME_SOURCE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
-    let mut entry = archive
+    let entry = archive
         .by_index(index)
         .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP entry: {error}")))?;
     if entry.size() > MAX_RUNTIME_SOURCE_BYTES {
@@ -1021,11 +1031,8 @@ fn prepare_runtime_source_set_member(
             source_root.display()
         )));
     }
-    let temporary = destination.with_extension(format!("tmp-{}", Uuid::new_v4()));
-    let mut output = File::create(&temporary)?;
-    std::io::copy(&mut entry, &mut output)?;
-    output.sync_all()?;
-    replace_atomic(&temporary, destination)?;
+    let size = entry.size();
+    copy_runtime_reader(entry, destination, size, checkpoint)?;
     atomic_write_json(&marker_path, &expected)
 }
 
@@ -1040,14 +1047,19 @@ fn materialize_stfs_directory(
         .ok_or_else(|| PortcoveError::state("STFS destination has no parent directory"))?;
     std::fs::create_dir_all(parent)?;
     let temporary = parent.join(format!(".portcove-stfs-{}", Uuid::new_v4()));
-    if let Err(error) = crate::stfs::extract(source, &temporary)
+    if let Err(error) = crate::stfs::extract_with_checkpoint(source, &temporary, checkpoint)
         .and_then(|()| checkpoint())
         .and_then(|()| verify_runtime_source_hashes(&temporary, required_hashes, checkpoint))
+        .and_then(|()| checkpoint())
     {
         let _ = std::fs::remove_dir_all(&temporary);
         return Err(error);
     }
-    replace_directory_transactional(&temporary, destination)
+    let replaced = replace_directory_transactional(&temporary, destination);
+    if replaced.is_err() {
+        let _ = std::fs::remove_dir_all(&temporary);
+    }
+    replaced
 }
 
 fn verify_runtime_source_hashes(
@@ -1234,9 +1246,13 @@ fn runtime_source_marker_path(destination: &Path) -> Result<PathBuf> {
     Ok(destination.with_file_name(format!("{name}.portcove-source.json")))
 }
 
-fn copy_runtime_source(source: &Path, destination: &Path) -> Result<()> {
+fn copy_runtime_source(
+    source: &Path,
+    destination: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
     const MAX_RUNTIME_SOURCE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
-    let temporary = destination.with_extension(format!("tmp-{}", Uuid::new_v4()));
+    checkpoint()?;
     let extension = source
         .extension()
         .and_then(|value| value.to_str())
@@ -1249,18 +1265,20 @@ fn copy_runtime_source(source: &Path, destination: &Path) -> Result<()> {
         let file = File::open(source)?;
         let mut archive = zip::ZipArchive::new(file)
             .map_err(|error| PortcoveError::source(format!("invalid source ZIP: {error}")))?;
-        let matches = (0..archive.len())
-            .filter(|index| {
-                archive.by_index(*index).ok().is_some_and(|entry| {
-                    !entry.is_dir()
-                        && entry.enclosed_name().is_some_and(|path| {
-                            path.extension()
-                                .and_then(|value| value.to_str())
-                                .is_some_and(|value| value.eq_ignore_ascii_case(expected_extension))
-                        })
-                })
-            })
-            .collect::<Vec<_>>();
+        let mut matches = Vec::new();
+        for index in 0..archive.len() {
+            checkpoint()?;
+            if archive.by_index(index).ok().is_some_and(|entry| {
+                !entry.is_dir()
+                    && entry.enclosed_name().is_some_and(|path| {
+                        path.extension()
+                            .and_then(|value| value.to_str())
+                            .is_some_and(|value| value.eq_ignore_ascii_case(expected_extension))
+                    })
+            }) {
+                matches.push(index);
+            }
+        }
         if matches.len() != 1 {
             return Err(PortcoveError::source(format!(
                 "{} must contain exactly one .{} runtime source",
@@ -1268,7 +1286,7 @@ fn copy_runtime_source(source: &Path, destination: &Path) -> Result<()> {
                 expected_extension
             )));
         }
-        let mut entry = archive
+        let entry = archive
             .by_index(matches[0])
             .map_err(|error| PortcoveError::source(format!("invalid source ZIP entry: {error}")))?;
         if entry.size() > MAX_RUNTIME_SOURCE_BYTES {
@@ -1277,9 +1295,8 @@ fn copy_runtime_source(source: &Path, destination: &Path) -> Result<()> {
                 source.display()
             )));
         }
-        let mut output = File::create(&temporary)?;
-        std::io::copy(&mut entry, &mut output)?;
-        output.sync_all()?;
+        let size = entry.size();
+        copy_runtime_reader(entry, destination, size, checkpoint)
     } else {
         let size = std::fs::metadata(source)?.len();
         if size > MAX_RUNTIME_SOURCE_BYTES {
@@ -1288,8 +1305,51 @@ fn copy_runtime_source(source: &Path, destination: &Path) -> Result<()> {
                 source.display()
             )));
         }
-        std::fs::copy(source, &temporary)?;
+        copy_runtime_reader(File::open(source)?, destination, size, checkpoint)
     }
+}
+
+/// Copy into disposable sibling storage and check cancellation between bounded
+/// reads/writes. The old runtime remains authoritative until the final rename.
+fn copy_runtime_reader(
+    reader: impl Read,
+    destination: &Path,
+    expected_size: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    checkpoint()?;
+    let parent = destination
+        .parent()
+        .ok_or_else(|| PortcoveError::state("runtime source destination has no parent"))?;
+    let mut temporary = tempfile::Builder::new()
+        .prefix(".portcove-source-")
+        .tempfile_in(parent)?;
+    let mut reader = reader.take(expected_size.saturating_add(1));
+    let mut size = 0_u64;
+    let mut buffer = [0; 128 * 1024];
+    loop {
+        checkpoint()?;
+        let count = reader.read(&mut buffer)?;
+        if count == 0 {
+            break;
+        }
+        size += count as u64;
+        if size > expected_size {
+            return Err(PortcoveError::source(
+                "runtime source grew beyond its checked size",
+            ));
+        }
+        temporary.write_all(&buffer[..count])?;
+    }
+    if size != expected_size {
+        return Err(PortcoveError::source(
+            "runtime source changed size while being copied",
+        ));
+    }
+    temporary.as_file().sync_all()?;
+    // Close the file before publication and cleanup, including on Windows.
+    let temporary = temporary.into_temp_path();
+    checkpoint()?;
     replace_atomic(&temporary, destination)
 }
 
@@ -1309,7 +1369,7 @@ fn materialize_ps2_iso(
         .and_then(|value| value.to_str())
         .unwrap_or_default();
     if extension.eq_ignore_ascii_case("iso") {
-        return copy_runtime_source(source, destination);
+        return copy_runtime_source(source, destination, checkpoint);
     }
     if !extension.eq_ignore_ascii_case("chd") {
         return Err(PortcoveError::source(format!(
@@ -1702,15 +1762,26 @@ fn materialize_psx_bin_cue(
     replace_directory_transactional(&temporary, destination)
 }
 
-fn materialize_psx_raw_set(source: &Path, destination: &Path) -> Result<()> {
-    materialize_psx_set(source, destination, false)
-}
-
 pub(crate) fn materialize_psx_cue_set(source: &Path, destination: &Path) -> Result<()> {
-    materialize_psx_set(source, destination, true)
+    materialize_psx_set(
+        source,
+        destination,
+        true,
+        None,
+        &|| Ok(()),
+        crate::tool_process::ToolProcessObserver::default(),
+    )
 }
 
-fn materialize_psx_set(source: &Path, destination: &Path, retain_cues: bool) -> Result<()> {
+fn materialize_psx_set(
+    source: &Path,
+    destination: &Path,
+    retain_cues: bool,
+    pinned_tool: Option<&Path>,
+    checkpoint: &dyn Fn() -> Result<()>,
+    mut observer: crate::tool_process::ToolProcessObserver<'_>,
+) -> Result<()> {
+    checkpoint()?;
     if !source.is_dir() {
         return Err(PortcoveError::source(format!(
             "multi-disc PS1 runtime extraction requires a CHD directory: {}",
@@ -1730,10 +1801,34 @@ fn materialize_psx_set(source: &Path, destination: &Path, retain_cues: bool) -> 
     std::fs::create_dir_all(parent)?;
     let temporary = parent.join(format!(".portcove-psx-set-{}", Uuid::new_v4()));
     std::fs::create_dir_all(&temporary)?;
+    let mut all_tools_quiesced = true;
     let materialized = (|| {
         for (index, source) in sources.iter().enumerate() {
+            checkpoint()?;
             let extracted = temporary.join(format!(".disc-{:02}", index + 1));
-            let cue = materialize_psx_chd(source, &extracted)?;
+            let mut command_quiesced = false;
+            let cue = materialize_psx_chd_with_tool(
+                source,
+                &extracted,
+                pinned_tool,
+                checkpoint,
+                crate::tool_process::ToolProcessObserver {
+                    diagnostics: observer.diagnostics.as_mut().map(|sink| {
+                        crate::tool_process::ToolDiagnosticSink {
+                            activity_id: sink.activity_id,
+                            phase: sink.phase,
+                            record: &mut *sink.record,
+                        }
+                    }),
+                    quiesced: Some(&mut || {
+                        command_quiesced = true;
+                        Ok(())
+                    }),
+                },
+            );
+            // A later command cannot erase an earlier uncertain process owner.
+            all_tools_quiesced &= command_quiesced;
+            let cue = cue?;
             let (track_count, data_track) = inspect_psx_cue(&cue)?;
             let bin_name = format!("disc-{:02}.bin", index + 1);
             let bin_destination = temporary.join(&bin_name);
@@ -1772,10 +1867,17 @@ fn materialize_psx_set(source: &Path, destination: &Path, retain_cues: bool) -> 
             }
             std::fs::remove_dir_all(&extracted)?;
         }
-        Ok(())
+        checkpoint()
     })();
+    // The caller persists this as a proof for the entire preparation. Reporting
+    // it between discs would authorize recovery while a later tool is active.
+    if all_tools_quiesced && let Some(confirm) = observer.quiesced.as_mut() {
+        confirm()?;
+    }
     if let Err(error) = materialized {
-        let _ = std::fs::remove_dir_all(&temporary);
+        if all_tools_quiesced {
+            let _ = std::fs::remove_dir_all(&temporary);
+        }
         return Err(error);
     }
     replace_directory_transactional(&temporary, destination)
@@ -1818,7 +1920,12 @@ fn replace_directory_transactional(temporary: &Path, destination: &Path) -> Resu
     Ok(())
 }
 
-fn prepare_n64_source(source: &Path, destination: &Path) -> Result<()> {
+fn prepare_n64_source(
+    source: &Path,
+    destination: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    checkpoint()?;
     let extension = source
         .extension()
         .and_then(|value| value.to_str())
@@ -1834,14 +1941,24 @@ fn prepare_n64_source(source: &Path, destination: &Path) -> Result<()> {
     }
 
     let rom = if extension.eq_ignore_ascii_case("zip") {
-        read_zip_source(source, &["z64", "v64", "n64"], 512 * 1024 * 1024)?
+        read_zip_source_with_checkpoint(
+            source,
+            &["z64", "v64", "n64"],
+            512 * 1024 * 1024,
+            checkpoint,
+        )?
     } else {
-        std::fs::read(source)?
+        read_runtime_bytes(File::open(source)?, u64::MAX, checkpoint)?
     };
-    write_n64_big_endian(rom, destination)
+    write_n64_big_endian(rom, destination, checkpoint)
 }
 
-fn write_n64_big_endian(mut rom: Vec<u8>, destination: &Path) -> Result<()> {
+fn write_n64_big_endian(
+    mut rom: Vec<u8>,
+    destination: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    checkpoint()?;
     if rom.len() < 4 {
         return Err(PortcoveError::source(format!(
             "N64 ROM is too short: {} bytes",
@@ -1854,13 +1971,19 @@ fn write_n64_big_endian(mut rom: Vec<u8>, destination: &Path) -> Result<()> {
     match rom[..4] {
         [0x80, 0x37, 0x12, 0x40] => {}
         [0x37, 0x80, 0x40, 0x12] => {
-            for pair in rom.as_chunks_mut::<2>().0 {
-                pair.swap(0, 1);
+            for chunk in rom.chunks_mut(128 * 1024) {
+                checkpoint()?;
+                for pair in chunk.as_chunks_mut::<2>().0 {
+                    pair.swap(0, 1);
+                }
             }
         }
         [0x40, 0x12, 0x37, 0x80] => {
-            for word in rom.as_chunks_mut::<4>().0 {
-                word.reverse();
+            for chunk in rom.chunks_mut(128 * 1024) {
+                checkpoint()?;
+                for word in chunk.as_chunks_mut::<4>().0 {
+                    word.reverse();
+                }
             }
         }
         _ => {
@@ -1871,9 +1994,7 @@ fn write_n64_big_endian(mut rom: Vec<u8>, destination: &Path) -> Result<()> {
         }
     }
 
-    let temporary = destination.with_extension(format!("tmp-{}", Uuid::new_v4()));
-    std::fs::write(&temporary, rom)?;
-    replace_atomic(&temporary, destination)
+    copy_runtime_reader(rom.as_slice(), destination, rom.len() as u64, checkpoint)
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -1974,7 +2095,8 @@ fn validate_file_set_source_from_archive(
     let mut total_size = 0_u64;
     for member in &profile.members {
         let (sha256, sha1, crc32, size) = if let Some(archive) = archive.as_mut() {
-            let index = source_set_zip_member_index(archive, path, &member.accepted_filenames)?;
+            let index =
+                source_set_zip_member_index(archive, path, &member.accepted_filenames, &|| Ok(()))?;
             let mut entry = archive.by_index(index).map_err(|error| {
                 PortcoveError::source(format!("invalid file-set ZIP entry: {error}"))
             })?;
@@ -2078,9 +2200,11 @@ fn source_set_zip_member_index(
     archive: &mut zip::ZipArchive<File>,
     archive_path: &Path,
     accepted_filenames: &[String],
+    checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<usize> {
     let mut matches = Vec::new();
     for index in 0..archive.len() {
+        checkpoint()?;
         let entry = archive.by_index(index).map_err(|error| {
             PortcoveError::source(format!("invalid file-set ZIP entry: {error}"))
         })?;
@@ -2438,7 +2562,7 @@ fn materialize_gamecube_iso_controlled(
         .and_then(|value| value.to_str())
         .unwrap_or_default();
     if matches!(extension.to_ascii_lowercase().as_str(), "iso" | "gcm") {
-        return copy_runtime_source(source, destination);
+        return copy_runtime_source(source, destination, checkpoint);
     }
     if !["rvz", "ciso", "gcz", "wia"]
         .iter()
@@ -3075,11 +3199,13 @@ pub(crate) fn inspect_psx_volume_id(data_track: &Path) -> Result<String> {
     )))
 }
 
-fn read_zip_source(
+fn read_zip_source_with_checkpoint(
     path: &Path,
     accepted_extensions: &[&str],
     maximum_size: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<Vec<u8>> {
+    checkpoint()?;
     let file = File::open(path)?;
     let mut archive = zip::ZipArchive::new(file)
         .map_err(|error| PortcoveError::source(format!("invalid source ZIP: {error}")))?;
@@ -3087,8 +3213,8 @@ fn read_zip_source(
         .iter()
         .map(|value| (*value).into())
         .collect();
-    let index = single_zip_source_index(&mut archive, &accepted)?;
-    let mut entry = archive
+    let index = single_zip_source_index_with_checkpoint(&mut archive, &accepted, checkpoint)?;
+    let entry = archive
         .by_index(index)
         .map_err(|error| PortcoveError::source(format!("invalid source ZIP entry: {error}")))?;
     if entry.size() > maximum_size {
@@ -3096,15 +3222,29 @@ fn read_zip_source(
             "compressed cartridge source exceeds its safety limit",
         ));
     }
-    let mut bytes = Vec::with_capacity(entry.size() as usize);
-    entry
-        .by_ref()
-        .take(maximum_size + 1)
-        .read_to_end(&mut bytes)?;
-    if bytes.len() as u64 > maximum_size {
-        return Err(PortcoveError::source(
-            "compressed cartridge source exceeds its safety limit",
-        ));
+    read_runtime_bytes(entry, maximum_size, checkpoint)
+}
+
+fn read_runtime_bytes(
+    reader: impl Read,
+    maximum_size: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<Vec<u8>> {
+    let mut reader = reader.take(maximum_size.saturating_add(1));
+    let mut bytes = Vec::new();
+    let mut buffer = [0; 128 * 1024];
+    loop {
+        checkpoint()?;
+        let count = reader.read(&mut buffer)?;
+        if count == 0 {
+            break;
+        }
+        if (bytes.len() as u64).saturating_add(count as u64) > maximum_size {
+            return Err(PortcoveError::source(
+                "runtime source exceeds its safety limit",
+            ));
+        }
+        bytes.extend_from_slice(&buffer[..count]);
     }
     Ok(bytes)
 }
@@ -3133,8 +3273,6 @@ pub(crate) fn walk_files(root: &Path) -> Result<Vec<PathBuf>> {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write as _;
-
     use super::*;
     use crate::Catalog;
 
@@ -3263,23 +3401,115 @@ mod tests {
     }
 
     fn write_stfs_fixture(path: &Path) {
-        let mut package = vec![0_u8; 0xe000];
+        write_stfs_payload_fixture(path, b"XEX2");
+    }
+
+    fn write_stfs_payload_fixture(path: &Path, payload: &[u8]) {
+        let blocks = payload.len().div_ceil(0x1000) as u32;
+        let mut package = vec![0_u8; 0xd000 + blocks as usize * 0x1000];
         package[..4].copy_from_slice(b"LIVE");
         package[0x340..0x344].copy_from_slice(&0xad0e_u32.to_be_bytes());
         package[0x37b] = 1;
         package[0x37c..0x37e].copy_from_slice(&1_u16.to_le_bytes());
-        package[0x395..0x399].copy_from_slice(&2_u32.to_be_bytes());
+        package[0x395..0x399].copy_from_slice(&(blocks + 1).to_be_bytes());
         package[0xb014..0xb018].copy_from_slice(&0x00ff_ffff_u32.to_be_bytes());
-        package[0xb02c..0xb030].copy_from_slice(&0x00ff_ffff_u32.to_be_bytes());
+        for block in 1..=blocks {
+            let next = if block == blocks {
+                0x00ff_ffff
+            } else {
+                block + 1
+            };
+            let slot = 0xb000 + block as usize * 24 + 20;
+            package[slot..slot + 4].copy_from_slice(&next.to_be_bytes());
+        }
         let entry = &mut package[0xc000..0xc040];
         entry[..11].copy_from_slice(b"default.xex");
         entry[0x28] = 11;
-        entry[0x29] = 1;
+        entry[0x29..0x2c].copy_from_slice(&blocks.to_le_bytes()[..3]);
         entry[0x2f] = 1;
         entry[0x32..0x34].copy_from_slice(&u16::MAX.to_be_bytes());
-        entry[0x34..0x38].copy_from_slice(&4_u32.to_be_bytes());
-        package[0xd000..0xd004].copy_from_slice(b"XEX2");
+        entry[0x34..0x38].copy_from_slice(&(payload.len() as u32).to_be_bytes());
+        package[0xd000..0xd000 + payload.len()].copy_from_slice(payload);
         std::fs::write(path, package).unwrap();
+    }
+
+    #[test]
+    fn cancelled_stfs_extraction_preserves_previous_runtime_and_marker() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let payload = vec![0x55; 3 * 0x1000];
+        write_stfs_payload_fixture(&source, &payload);
+        let source_bytes = std::fs::read(&source).unwrap();
+        let destination = temporary.path().join("assets");
+        let marker = runtime_source_marker_path(&destination).unwrap();
+        std::fs::create_dir(&destination).unwrap();
+        std::fs::write(destination.join("previous.bin"), b"previous").unwrap();
+        std::fs::write(&marker, b"previous marker").unwrap();
+        let required =
+            BTreeMap::from([("default.xex".into(), hex::encode(Sha256::digest(&payload)))]);
+        let observed_progress = std::cell::Cell::new(0_u64);
+        let error = prepare_runtime_source(
+            &source,
+            &destination,
+            RuntimeSourceMaterialization::StfsDirectory,
+            &required,
+            &|| {
+                for entry in std::fs::read_dir(temporary.path()).unwrap() {
+                    let entry = entry.unwrap();
+                    if entry.path() != destination
+                        && let Ok(metadata) = std::fs::metadata(entry.path().join("default.xex"))
+                        && metadata.len() > 0
+                        && metadata.len() < payload.len() as u64
+                    {
+                        observed_progress.set(metadata.len());
+                        return Err(PortcoveError::new(
+                            crate::ErrorCode::Cancelled,
+                            "stop after observing private extracted bytes",
+                        ));
+                    }
+                }
+                Ok(())
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        assert!(observed_progress.get() > 0);
+        assert!(observed_progress.get() < payload.len() as u64);
+        assert_eq!(std::fs::read(&source).unwrap(), source_bytes);
+        assert_eq!(std::fs::read(&marker).unwrap(), b"previous marker");
+        assert_eq!(
+            std::fs::read(destination.join("previous.bin")).unwrap(),
+            b"previous"
+        );
+        assert_eq!(std::fs::read_dir(&destination).unwrap().count(), 1);
+        assert_eq!(std::fs::read_dir(temporary.path()).unwrap().count(), 3);
+
+        prepare_runtime_source(
+            &source,
+            &destination,
+            RuntimeSourceMaterialization::StfsDirectory,
+            &required,
+            &|| Ok(()),
+        )
+        .unwrap();
+        assert_eq!(
+            std::fs::read(destination.join("default.xex")).unwrap(),
+            payload
+        );
+        let accepted_marker = std::fs::read(&marker).unwrap();
+        prepare_runtime_source(
+            &source,
+            &destination,
+            RuntimeSourceMaterialization::StfsDirectory,
+            &required,
+            &|| {
+                assert_eq!(std::fs::read_dir(temporary.path()).unwrap().count(), 3);
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert_eq!(std::fs::read(&marker).unwrap(), accepted_marker);
+        assert_eq!(std::fs::read(&source).unwrap(), source_bytes);
     }
 
     #[test]
@@ -3375,7 +3605,7 @@ mod tests {
         let destination = temporary.path().join("runtime/source.iso");
         std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
         std::fs::write(&source, b"disc bytes").unwrap();
-        let checks = std::cell::Cell::new(0_u32);
+        let observed_complete = std::cell::Cell::new(false);
 
         let error = prepare_runtime_source(
             &source,
@@ -3383,11 +3613,11 @@ mod tests {
             RuntimeSourceMaterialization::Ps2Iso,
             &BTreeMap::new(),
             &|| {
-                checks.set(checks.get() + 1);
-                if checks.get() == 3 {
+                if std::fs::read(&destination).is_ok_and(|bytes| bytes == b"disc bytes") {
+                    observed_complete.set(true);
                     Err(PortcoveError::new(
                         crate::ErrorCode::Cancelled,
-                        "test cancellation",
+                        "cancel after observing completed conversion",
                     ))
                 } else {
                     Ok(())
@@ -3397,7 +3627,10 @@ mod tests {
         .unwrap_err();
 
         assert_eq!(error.code, crate::ErrorCode::Cancelled);
-        assert_eq!(std::fs::read(destination).unwrap(), b"disc bytes");
+        assert!(observed_complete.get());
+        assert_eq!(std::fs::read(&destination).unwrap(), b"disc bytes");
+        assert_eq!(std::fs::read(&source).unwrap(), b"disc bytes");
+        assert!(!runtime_source_marker_path(&destination).unwrap().exists());
     }
 
     #[test]
@@ -3782,7 +4015,7 @@ mod tests {
         assert_eq!(record.size, rom.len() as u64);
 
         let destination = temporary.path().join("materialized.z64");
-        prepare_n64_source(&record.path, &destination).unwrap();
+        prepare_n64_source(&record.path, &destination, &|| Ok(())).unwrap();
         assert_eq!(std::fs::read(destination).unwrap(), rom);
     }
 
@@ -4154,17 +4387,37 @@ mod tests {
         let destination = temporary
             .path()
             .join("library/runtime-sources/lighthouse/portcove-launch-source.z64");
+        let restored_after_materialization = std::cell::Cell::new(false);
 
         let error = prepare_transient_n64_launch_source(&source, &admitted, &destination, &|| {
-            std::fs::write(&source, &admitted_storage)?;
+            if !restored_after_materialization.get()
+                && std::fs::read_dir(destination.parent().unwrap())?.any(|entry| {
+                    let path = entry.unwrap().path();
+                    path != destination
+                        && std::fs::read(path).is_ok_and(|bytes| bytes == replacement_rom)
+                })
+            {
+                // Restore the original container only after the different ROM
+                // has reached private output. Final admission must verify those
+                // materialized bytes, even when the source matches again.
+                std::fs::write(&source, &admitted_storage)?;
+                restored_after_materialization.set(true);
+            }
             Ok(())
         })
         .unwrap_err();
 
         assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(restored_after_materialization.get());
         assert!(error.message.contains("admitted identity"));
         assert_eq!(std::fs::read(&source).unwrap(), admitted_storage);
         assert!(!destination.exists());
+        assert_eq!(
+            std::fs::read_dir(destination.parent().unwrap())
+                .unwrap()
+                .count(),
+            0
+        );
     }
 
     #[test]
@@ -4625,7 +4878,7 @@ mod tests {
             let source = temporary.path().join(name);
             let destination = temporary.path().join(format!("stored-{index}.z64"));
             std::fs::write(&source, bytes).unwrap();
-            prepare_n64_source(&source, &destination).unwrap();
+            prepare_n64_source(&source, &destination, &|| Ok(())).unwrap();
             assert_eq!(std::fs::read(destination).unwrap(), canonical);
         }
     }

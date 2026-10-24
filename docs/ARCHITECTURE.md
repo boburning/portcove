@@ -1263,6 +1263,23 @@ required output-hash verification.
 This extends an existing core responsibility without introducing another runner,
 scheduler, domain owner, dependency or trust grant.
 
+Runtime-source materialization also carries that Core checkpoint through raw
+copies, single-member and file-set ZIP reads, N64 normalization and STFS
+extraction. Copy and normalization loops check between bounded 128 KiB chunks;
+STFS checks while parsing its bounded table, planning entries and transferring
+4 KiB blocks. Multi-disc runtime conversion forwards the selected host tool,
+checkpoint and diagnostic sink to each supervised child. Whole-set quiescence is
+reported once, after every started child has provided its process-tree proof;
+errors without that proof retain private conversion work for safe recovery.
+File copies use disposable sibling storage, check exact copied size and sync
+before the final cancellation check and replacement. STFS keeps its directory
+replacement transaction. Cancellation before publication preserves the previous
+runtime and source marker. In-process copies, normalization and extraction clean
+their partial output; original sources are read-only. The replacement itself is
+not interrupted between rename steps. Cancellation observed after publication
+does not undo the replacement or assert completed preparation: final hash checks
+and marker acceptance retain their existing authority on retry.
+
 Startup recovery closes an interrupted, unpublished preparation's running
 activity only after acquiring its port and activity ownership locks and checking
 the recorded activity's operation and port identity. The report preserves private

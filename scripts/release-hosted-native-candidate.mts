@@ -14,10 +14,16 @@ import {
   inspectSelectedNativeCandidate,
   inspectHostedNativePreparationStage,
   inspectNativeSourceCommand,
+  inspectNativePostSignController,
 } from "./release-native-candidate.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
-import { recoverRemoteCoordinator } from "./release-coordinator-recovery.mts";
+import {
+  recoverRemoteCoordinator,
+  hydrateRetainedCoordinatorOperation,
+} from "./release-coordinator-recovery.mts";
+import { inspectCompactCapacityOperations } from "./release-capacity.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import {
@@ -50,6 +56,68 @@ const candidates = new WeakMap<
   }
 >();
 
+async function hostedNativeSourceTransport(parentReceipt: object, directory: string) {
+  const parent = await requireActualHostedNativeParentSource(parentReceipt);
+  const deadline = Math.min(parent.deadline, performance.now() + 15 * 60 * 1000);
+  const remaining = (maximum: number) => {
+    parent.recheck();
+    const left = Math.floor(Math.min(maximum, deadline - performance.now()));
+    if (left < 1) throw new Error("original hosted native acquisition lifetime exhausted");
+    return left;
+  };
+  const childEnvironment = readOnlyReleaseChildEnvironment();
+  if (!childEnvironment) throw new Error("fixed hosted native reader environment absent");
+  const spawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]> = (
+    command,
+    args,
+    options,
+  ) => {
+    if (command !== "gh") throw new Error("fixed hosted native source executable differs");
+    inspectNativeSourceCommand(args, options.input);
+    const result = spawnSync(command, args, {
+      ...options,
+      timeout: remaining(options.timeout ?? 15000),
+      env: childEnvironment,
+    });
+    remaining(1);
+    return result;
+  };
+  const api = new GitHubApiClient((args, input) =>
+    createGitHubRunner({ cwd: directory, maxBuffer: 2 * 1024 * 1024, spawn })(
+      [...args, "--hostname", "github.com"],
+      input,
+    ),
+  );
+  const download: typeof readGitHubArtifactArchive = (endpoint, options) =>
+    readGitHubArtifactArchive(endpoint, {
+      ...options,
+      spawn: (command, args, settings) => {
+        if (command !== "gh") throw new Error("fixed hosted native source executable differs");
+        inspectNativeSourceCommand(args);
+        const result = spawnSync(command, args, {
+          ...settings,
+          env: childEnvironment,
+          timeout: remaining(settings.timeout ?? 60000),
+        });
+        remaining(1);
+        return result;
+      },
+    });
+  const recover = bindReadOnlyReleaseChildren(async () => {
+    await requireActualHostedNativeParentSource(parentReceipt);
+    remaining(1);
+    const current = await recoverRemoteCoordinator(
+      directory,
+      { schema_version: 1, namespace: parent.configuration.journal.namespace },
+      { transport: { cwd: directory, spawn, deadline } },
+    );
+    await requireActualHostedNativeParentSource(parentReceipt);
+    remaining(1);
+    return current;
+  });
+  return { parent, deadline, remaining, api, download, recover };
+}
+
 export async function acquireActualHostedNativeCandidate(parentReceipt: object) {
   const parent = await requireActualHostedNativeParentSource(parentReceipt);
   if (parent.stage !== "payload-signing" || attempted.has(parentReceipt))
@@ -62,63 +130,10 @@ export async function acquireActualHostedNativeCandidate(parentReceipt: object) 
   let phase = "reserved-source";
   try {
     return await withReadOnlyReleaseChildren(directory, async () => {
-      const deadline = Math.min(parent.deadline, performance.now() + 15 * 60 * 1000);
-      const remaining = (maximum: number) => {
-        parent.recheck();
-        const left = Math.floor(Math.min(maximum, deadline - performance.now()));
-        if (left < 1) throw new Error("original hosted native acquisition lifetime exhausted");
-        return left;
-      };
-      const childEnvironment = readOnlyReleaseChildEnvironment();
-      if (!childEnvironment) throw new Error("fixed hosted native reader environment absent");
-      const spawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]> = (
-        command,
-        args,
-        options,
-      ) => {
-        if (command !== "gh") throw new Error("fixed hosted native source executable differs");
-        inspectNativeSourceCommand(args, options.input);
-        const result = spawnSync(command, args, {
-          ...options,
-          timeout: remaining(options.timeout ?? 15000),
-          env: childEnvironment,
-        });
-        remaining(1);
-        return result;
-      };
-      const api = new GitHubApiClient((args, input) =>
-        createGitHubRunner({ cwd: directory, maxBuffer: 2 * 1024 * 1024, spawn })(
-          [...args, "--hostname", "github.com"],
-          input,
-        ),
+      const { remaining, api, download, recover } = await hostedNativeSourceTransport(
+        parentReceipt,
+        directory,
       );
-      const download: typeof readGitHubArtifactArchive = (endpoint, options) =>
-        readGitHubArtifactArchive(endpoint, {
-          ...options,
-          spawn: (command, args, settings) => {
-            if (command !== "gh") throw new Error("fixed hosted native source executable differs");
-            inspectNativeSourceCommand(args);
-            const result = spawnSync(command, args, {
-              ...settings,
-              env: childEnvironment,
-              timeout: remaining(settings.timeout ?? 60000),
-            });
-            remaining(1);
-            return result;
-          },
-        });
-      const recover = bindReadOnlyReleaseChildren(async () => {
-        await requireActualHostedNativeParentSource(parentReceipt);
-        remaining(1);
-        const current = await recoverRemoteCoordinator(
-          directory,
-          { schema_version: 1, namespace: parent.configuration.journal.namespace },
-          { transport: { cwd: directory, spawn, deadline } },
-        );
-        await requireActualHostedNativeParentSource(parentReceipt);
-        remaining(1);
-        return current;
-      });
       const before = await recover();
       if (inspectHostedNativePreparationStage(before.input) !== "payload-signing")
         throw new Error("original reservation is not at the native pre-sign stage");
@@ -315,6 +330,218 @@ export async function readActualHostedNativeSourceDeclarations(receipt: object) 
     });
   } catch (error) {
     retained.stopped = true;
+    throw error;
+  }
+}
+
+const postSignAttempted = new WeakSet<object>();
+const postSignSources = new WeakMap<
+  object,
+  {
+    parent: object;
+    directory: string;
+    record: Buffer;
+    checkpoint: string;
+    candidate: Record<string, unknown>;
+    controller: ReturnType<typeof inspectNativePostSignController>;
+    source: Awaited<ReturnType<typeof hostedNativeSourceTransport>>;
+    stopped: boolean;
+  }
+>();
+
+/** Read-only original-parent join, not candidate/crypto/native acceptance. The
+ * timestamp run is obtained from the authenticated coordinator, never supplied
+ * by a caller or inferred from the compiler run. No operation is repeated. */
+export async function readActualHostedNativePostSignController(parentReceipt: object) {
+  const parent = await requireActualHostedNativeParentSource(parentReceipt);
+  if (parent.stage !== "release-publication" || postSignAttempted.has(parentReceipt))
+    throw new Error(
+      "one original post-sign hosted native source required; explicit recovery required",
+    );
+  postSignAttempted.add(parentReceipt);
+  const directory = await mkdtemp(path.join(parent.directory, "post-sign-source-"));
+  await chmod(directory, 0o700);
+  let phase = "timestamp-source";
+  try {
+    return await withReadOnlyReleaseChildren(directory, async () => {
+      const source = await hostedNativeSourceTransport(parentReceipt, directory);
+      const before = await source.recover();
+      const candidate = before.input.active_candidate;
+      if (!isRecord(before.input.controller))
+        throw new Error("original hosted coordinator source required");
+      const capacity = before.input.controller.capacity_attempt;
+      if (!isRecord(candidate) || !isRecord(capacity) || capacity.schema_version !== 2)
+        throw new Error("original post-sign reservation and operation history required");
+      const matches: {
+        checkpoint: string;
+        operation: unknown;
+        controller: ReturnType<typeof inspectNativePostSignController>;
+      }[] = [];
+      const consider = (checkpoint: string, operation: unknown) => {
+        try {
+          const controller = inspectNativePostSignController(
+            operation,
+            candidate,
+            parent.producer.controller_revision,
+          );
+          // Bind the original parent's revision/ref/run/attempt/actor. This is
+          // not an explicit operation-to-parent grant-digest association.
+          if (
+            controller.controller_ref !== parent.producer.controller_ref ||
+            controller.run_id !== parent.producer.run_id ||
+            controller.run_attempt !== parent.producer.run_attempt ||
+            !isRecord(operation) ||
+            !isRecord(operation.executor_identity) ||
+            operation.executor_identity.actor_id !== parent.producer.actor_id
+          )
+            throw new Error("timestamp executor differs from original native parent");
+          matches.push({ checkpoint, operation, controller });
+        } catch {
+          // Unrelated completed operations do not appoint this source. Missing
+          // or ambiguous matching success is refused below.
+        }
+      };
+      const destination = `github-actions:boburning/portcove:${String(candidate.version)}:tuf-timestamp-envelope`;
+      if (capacity.operation !== null) {
+        const operation = capacity.operation;
+        if (
+          isRecord(operation) &&
+          operation.destination === destination &&
+          isRecord(operation.candidate) &&
+          operation.candidate.prepared_commit === candidate.prepared_commit &&
+          operation.candidate.transient_retries === candidate.transient_retries &&
+          operation.candidate.substantive_repairs === candidate.substantive_repairs
+        ) {
+          // A pending/refused/ambiguous current effect cannot be hidden by an
+          // older completed receipt. Its existing coordinator recovery is first.
+          inspectNativePostSignController(
+            operation,
+            candidate,
+            parent.producer.controller_revision,
+          );
+        }
+        consider(before.checkpoint, operation);
+      }
+      phase = "retained-timestamp-history";
+      const groups = inspectCompactCapacityOperations(capacity.prior_operations).filter(
+        (group) =>
+          group.subject.kind === "candidate" &&
+          group.subject.identity === candidate.prepared_commit &&
+          group.transient_retries === candidate.transient_retries &&
+          group.substantive_repairs === candidate.substantive_repairs &&
+          group.kind === "upload" &&
+          group.destination_sha256 === releaseCanonicalDigest(destination),
+      );
+      for (const group of groups)
+        for (const proof of group.attempts) {
+          const operation = await withCoordinatorDeadline(source.deadline, () =>
+            hydrateRetainedCoordinatorOperation(before.repository, proof, { api: source.api }),
+          );
+          await requireActualHostedNativeParentSource(parentReceipt);
+          source.remaining(1);
+          consider(proof.checkpoint, operation);
+        }
+      if (matches.length !== 1)
+        throw new Error("exact original hosted timestamp source missing or ambiguous");
+      const selected = matches[0]!;
+      const after = await source.recover();
+      if (
+        after.checkpoint !== before.checkpoint ||
+        releaseCanonicalDigest(after.input.active_candidate) !== releaseCanonicalDigest(candidate)
+      )
+        throw new Error("hosted post-sign reservation changed during source acquisition");
+      phase = "source-retention";
+      const record = Buffer.from(
+        JSON.stringify({
+          schema_version: 1,
+          checkpoint: before.checkpoint,
+          candidate,
+          timestamp: selected,
+          producer: parent.producer,
+          configuration_sha256: releaseCanonicalDigest(parent.configuration),
+          authority: "none",
+          native_acceptance: "not-established",
+        }),
+      );
+      if (record.length > 256 * 1024)
+        throw new Error("hosted timestamp source exceeds retention bound");
+      await writeFile(path.join(directory, "original-controller-selection.json"), record, {
+        flag: "wx",
+        mode: 0o600,
+      });
+      const receipt = Object.freeze({
+        kind: "hosted-native-post-sign-controller-source",
+        directory,
+        authority: "none",
+        native_acceptance: "not-established",
+      });
+      postSignSources.set(receipt, {
+        parent: parentReceipt,
+        directory,
+        record,
+        checkpoint: before.checkpoint,
+        candidate: structuredClone(candidate),
+        controller: selected.controller,
+        source,
+        stopped: false,
+      });
+      // Getter includes fresh source/retention/journal checks after the last
+      // awaited write. No completed result is returned from expired custody.
+      await requireActualHostedNativePostSignController(receipt);
+      return receipt;
+    });
+  } catch {
+    await writeFile(
+      path.join(directory, "refusal.json"),
+      JSON.stringify({
+        phase,
+        automatic_retry: false,
+        recovery_required: true,
+        authority: "none",
+        native_acceptance: "not-established",
+      }),
+      { flag: "wx", mode: 0o600 },
+    );
+    throw new Error(`hosted native post-sign source refused; retain ${directory}`);
+  }
+}
+
+export async function requireActualHostedNativePostSignController(receipt: object) {
+  const state = postSignSources.get(receipt);
+  if (!state || state.stopped) throw new Error("original active hosted post-sign source required");
+  try {
+    const parent = await requireActualHostedNativeParentSource(state.parent);
+    const record = await readControllerToolFile(
+      path.join(state.directory, "original-controller-selection.json"),
+      state.record.length,
+    );
+    if (!record.equals(state.record)) throw new Error("retained hosted timestamp source changed");
+    const current = await state.source.recover();
+    if (
+      current.checkpoint !== state.checkpoint ||
+      releaseCanonicalDigest(current.input.active_candidate) !==
+        releaseCanonicalDigest(state.candidate)
+    )
+      throw new Error("hosted post-sign reservation advanced; explicit recovery required");
+    await requireActualHostedNativeParentSource(state.parent);
+    state.source.remaining(1);
+    if (state.stopped) throw new Error("original hosted post-sign source stopped during readback");
+    return Object.freeze({
+      parent_source: state.parent,
+      directory: state.directory,
+      checkpoint: state.checkpoint,
+      candidate: structuredClone(state.candidate),
+      controller: structuredClone(state.controller),
+      producer: parent.producer,
+      configuration: parent.configuration,
+      deadline: state.source.deadline,
+      authority: "none" as const,
+      native_acceptance: "not-established" as const,
+      scope:
+        "original parent/coordinator timestamp source only; signed context, package and capture pending" as const,
+    });
+  } catch (error) {
+    state.stopped = true;
     throw error;
   }
 }
