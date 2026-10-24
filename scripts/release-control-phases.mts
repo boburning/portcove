@@ -159,6 +159,19 @@ export function isMaintenanceReleaseControlPhase(
     raw === "catalog-timestamp"
   );
 }
+/** Shared job names do not grant a phase in the other publication purpose. */
+export function inspectControllerPurposePhase(raw: unknown, rawPurpose: unknown) {
+  const phase = inspectReleaseControlPhase(raw);
+  const purpose = inspectControllerExecutionPurpose(rawPurpose);
+  const catalogRole = phase.startsWith("catalog-");
+  if (
+    purpose === "application"
+      ? catalogRole
+      : !catalogRole && phase !== "coordinator" && phase !== "site-publication"
+  )
+    throw new Error("fixed controller phase differs from publication purpose");
+  return phase;
+}
 export function releaseControlPhaseProfile(raw: unknown = "admission") {
   return phases[inspectReleaseControlPhase(raw)];
 }

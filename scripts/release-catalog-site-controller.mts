@@ -23,7 +23,7 @@ import {
   assembleActualCatalogRepository,
   requireActualCatalogRepository,
 } from "./release-catalog-signing.mts";
-import { requireControllerCatalogPublicationAuthorities } from "./release-authority-configuration.mts";
+import { requireControllerCatalogJobAuthorities } from "./release-authority-configuration.mts";
 import { authenticateCatalogReleaseControlRound } from "./release-live-control-admission.mts";
 import {
   recoverRemoteCoordinator,
@@ -219,10 +219,10 @@ export async function runCatalogSitePublicationController(
   )
     throw new Error("catalog site executor differs from authenticated controller tools");
   return withCoordinatorDeadline(deadline, async () => {
-    const authorities = await requireControllerCatalogPublicationAuthorities("site-publication");
+    const authorities = await requireControllerCatalogJobAuthorities("site-publication");
     if (
       actual.descriptor.publisher_configuration_sha256 !== authorities.configuration_sha256 ||
-      identity.actor_id !== authorities.apps.dispatch.actor_id
+      identity.actor_id !== authorities.dispatch_actor_id
     )
       throw new Error("catalog site controller differs from protected catalog appointments");
     const remote = { schema_version: 1, namespace: authorities.namespace };

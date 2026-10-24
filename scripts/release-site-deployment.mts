@@ -66,8 +66,8 @@ import {
   inspectMetadataSigningReservation,
 } from "./release-metadata-signing-contract.mts";
 import {
-  requireControllerPublicationAuthorities,
-  requireControllerCatalogPublicationAuthorities,
+  requireControllerApplicationJobPublicationAuthorities,
+  requireControllerCatalogJobAuthorities,
 } from "./release-authority-configuration.mts";
 import {
   readConfiguredBootstrapSite,
@@ -401,10 +401,16 @@ async function requireInitialSiteContext(receipt: object, deadline: number) {
   );
   if (metadata.facts.mode !== "bootstrap")
     throw new Error("initial site cannot reinterpret a routine context");
-  const authorities = await requireControllerPublicationAuthorities("site-publication"),
+  const authorities =
+      await requireControllerApplicationJobPublicationAuthorities("site-publication"),
     descriptor = metadata.facts.descriptor;
   if (
-    authorities.schema_version !== 2 ||
+    !(
+      authorities.configuration.schema_version === 2 ||
+      (authorities.configuration.schema_version === 4 &&
+        "purpose" in authorities.configuration &&
+        authorities.configuration.purpose === "application")
+    ) ||
     !authorities.publication.public_source.initial_site_preimage ||
     metadata.facts.namespace !== authorities.namespace ||
     metadata.facts.setup_plan_sha256 !== authorities.publication.setup_plan_sha256 ||
@@ -661,7 +667,7 @@ export async function prepareCatalogSiteDeploymentFromActualRepository(
   const actual = await requireActualCatalogRepository(assembly, request.deadline);
   const deadline = Math.min(request.deadline, actual.deadline);
   const authorities = await withCoordinatorDeadline(deadline, () =>
-    requireControllerCatalogPublicationAuthorities("site-publication"),
+    requireControllerCatalogJobAuthorities("site-publication"),
   );
   remaining(deadline, 15000);
   const recovered = await recoverReleaseOpportunity(request.repository, request.checkpoint);
@@ -813,7 +819,7 @@ export async function prepareCatalogSiteHandoffFromActualRepository(
   ).requireActualCatalogRepositoryForRecovery(assembly, request.deadline);
   const deadline = Math.min(request.deadline, actual.deadline);
   const authorities = await withCoordinatorDeadline(deadline, () =>
-    requireControllerCatalogPublicationAuthorities("coordinator"),
+    requireControllerCatalogJobAuthorities("coordinator"),
   );
   const state = await recoverReleaseOpportunity(request.repository, request.checkpoint);
   const subject = inspectCatalogPublicationDescriptor(state.input.catalog_publication);

@@ -405,15 +405,22 @@ void test("source-bound shared recovery requires exact terminal publisher/effect
     runInNewContext(
       stripTypeScriptTypes(
         source.slice(
-          source.indexOf("function recoveryJournalApi("),
-          source.indexOf("export async function recoverOwnedCapacityEffect("),
+          source.indexOf("function ownedCheckpointTransport("),
+          source.indexOf("export async function executeOwnedCapacityEffect("),
         ),
       ) +
+        stripTypeScriptTypes(
+          source.slice(
+            source.indexOf("function recoveryJournalApi("),
+            source.indexOf("export async function recoverOwnedCapacityEffect("),
+          ),
+        ) +
         stripTypeScriptTypes(source.slice(start)) +
         "\nrecoverOwnedPublishedMetadataWithinScope",
       {
         sessions: new Map([["session", { role: "coordinator", directory: "inert" }]]),
         effectStates: new Map(),
+        selectedJournalRequired: () => false,
         capacityRecoveryProviderApi: () => api,
         createCoordinatorJournalApi: () => api,
         refreshCapacityExecutor: async () => ({ run_id: "124", job_id: 45 }),

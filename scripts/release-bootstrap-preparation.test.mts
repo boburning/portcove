@@ -3,6 +3,7 @@ import test from "node:test";
 import { inspectPublicationAuthorities } from "./release-authority-configuration.mts";
 import { createHash } from "node:crypto";
 import { sourceFixtureCommit } from "./fixtures/release-source-fixture.mts";
+import { selectedPublicationAuthoritiesFixture } from "./fixtures/checkpoint-proof-fixture.mts";
 import {
   deriveMetadataBootstrapDescriptor,
   metadataBootstrapContextBytes,
@@ -341,6 +342,30 @@ void test("bootstrap paths are bound to reconstructed Git trees, exact raw blobs
   assert.equal(catalogResult.files.has("payload_key_registry"), false);
   assert.equal(catalogResult.authority, "none");
   assert.deepEqual(catalogResult.files.get("initial_site_preimage"), data.get("preimage.json"));
+  const selected = selectedPublicationAuthoritiesFixture("catalog-publication");
+  const selectedResult = readCatalogBootstrapPublicSource(
+    api,
+    {
+      ...selected,
+      journal: { ...selected.journal, setup_plan_sha256: catalog.catalog.setup_plan_sha256 },
+      catalog: catalog.catalog,
+    },
+    "2026-10-20T00:00:00Z",
+    performance.now() + 10000,
+  );
+  assert.deepEqual(selectedResult.files, catalogResult.files);
+  assert.equal(selectedResult.api_reads, catalogResult.api_reads);
+  assert.equal(selectedResult.authority, "none");
+  assert.throws(
+    () =>
+      readCatalogBootstrapPublicSource(
+        api,
+        selectedPublicationAuthoritiesFixture("application"),
+        "2026-10-20T00:00:00Z",
+        performance.now() + 10000,
+      ),
+    /catalog purpose/,
+  );
   const { initial_site_preimage: _catalogPreimage, ...noPreimage } = catalog.catalog.public_source;
   assert.throws(
     () =>

@@ -325,7 +325,7 @@ void test("injected actual continuation body joins original five receivers befor
         createGitHubRunner: () => () => {
           throw new Error("injected client should own transport");
         },
-        requireControllerCatalogPublicationAuthorities: async () => ({
+        requireControllerCatalogJobAuthorities: async () => ({
           namespace: "portcove-production",
           configuration_sha256: descriptor.publisher_configuration_sha256,
         }),

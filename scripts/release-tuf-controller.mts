@@ -33,7 +33,7 @@ import {
 } from "./release-controller-tool-admission.mts";
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
-import { requireControllerPublicationAuthorities } from "./release-authority-configuration.mts";
+import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
 import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
 import {
   authenticateCapacityExecutor,
@@ -104,7 +104,7 @@ export async function runTufRoleController(
   const tools = await verifiedControllerToolPaths(toolsReceipt),
     context = await requireReceivedSigningContext(contextReceipt, deadline),
     manifest = context.manifest,
-    authorities = await requireControllerPublicationAuthorities(phase);
+    authorities = await requireControllerApplicationJobPublicationAuthorities(phase);
   if (
     !isRecord(manifest.controller) ||
     !isRecord(manifest.binding) ||
@@ -114,7 +114,7 @@ export async function runTufRoleController(
     identity.controller_ref !== tools.identity.controller_ref ||
     identity.run_id !== tools.identity.run_id ||
     identity.run_attempt !== tools.identity.run_attempt ||
-    identity.actor_id !== authorities.apps.dispatch.actor_id ||
+    identity.actor_id !== authorities.dispatch_actor_id ||
     identity.audience !== "portcove-capacity-executor" ||
     manifest.controller.controller_revision !== tools.identity.controller_revision ||
     manifest.controller.controller_ref !== tools.identity.controller_ref ||

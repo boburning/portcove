@@ -25,7 +25,7 @@ import {
   executeOwnedCapacityEffect,
 } from "./release-capacity-executor.mts";
 import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
-import { requireControllerPublicationAuthorities } from "./release-authority-configuration.mts";
+import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
 import { receiveControllerTools } from "./release-controller-tool-admission.mts";
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
@@ -59,7 +59,7 @@ export async function runPayloadSigningAndContextController(
   const deadline = payloadSigningPhaseDeadline();
   signingContextRemaining(deadline, 15000);
   const signed = await requirePreparedPayloadSignatures(payload);
-  const authorities = await requireControllerPublicationAuthorities("payload");
+  const authorities = await requireControllerApplicationJobPublicationAuthorities("payload");
   const directory = path.dirname(signed.public_key.path);
   const contextReceipt = await prepareControllerReleaseSigningContext(payload, directory, deadline);
   const context = await requireReleaseSigningContext(contextReceipt);

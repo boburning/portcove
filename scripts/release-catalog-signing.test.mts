@@ -888,7 +888,14 @@ void test("catalog same App Check receiver binds fresh exact proof without impor
       semantic_proof_sha256: proof_sha256,
       context_sha256: hash(catalogSigningContextBytes(facts)),
     },
-    authorities = { apps: { semantic: { app_id: 101 }, classification: { app_id: 202 } } };
+    authorities = {
+      semantic_producer: {
+        schema_version: 1,
+        review_app_id: 101,
+        writer_app_id: 202,
+        review_check_name: semanticReviewCheckName,
+      },
+    };
   assert.equal(
     recheckCatalogSemanticProof(api, authorities, facts, binding, descriptor.prior)
       .semantic_check_id,
@@ -901,6 +908,28 @@ void test("catalog same App Check receiver binds fresh exact proof without impor
     proof_sha256,
   );
   assert.ok(reads > before);
+  const selected = {
+    semantic_producer: {
+      schema_version: 2,
+      purpose: "catalog-publication",
+      review_app_id: 101,
+      review_check_name: semanticReviewCheckName,
+    },
+  };
+  assert.equal(
+    recheckCatalogSemanticProof(api, selected, facts, binding, descriptor.prior)
+      .semantic_proof_sha256,
+    proof_sha256,
+  );
+  assert.throws(() =>
+    recheckCatalogSemanticProof(
+      api,
+      { semantic_producer: { ...selected.semantic_producer, purpose: "application" } },
+      facts,
+      binding,
+      descriptor.prior,
+    ),
+  );
   for (const changed of [
     { app: { id: 202 } },
     { head_sha: "9".repeat(40) },
@@ -910,6 +939,9 @@ void test("catalog same App Check receiver binds fresh exact proof without impor
     observed = { ...body, ...changed };
     assert.throws(() =>
       recheckCatalogSemanticProof(api, authorities, facts, binding, descriptor.prior),
+    );
+    assert.throws(() =>
+      recheckCatalogSemanticProof(api, selected, facts, binding, descriptor.prior),
     );
   }
   observed = body;

@@ -20,7 +20,7 @@ import {
 } from "./release-capacity-executor.mts";
 import { controllerOidcSubject } from "./assembler-job-identity.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
-import { requireControllerPublicationAuthorities } from "./release-authority-configuration.mts";
+import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { reconcileCoordinatorSigningContext } from "./release-metadata-context-recovery.mts";
 
@@ -58,7 +58,7 @@ export async function completeCoordinatorSigningContext(
       signingContextRemaining(deadline, 15000);
       return result;
     }
-    const authorities = await requireControllerPublicationAuthorities("coordinator"),
+    const authorities = await requireControllerApplicationJobPublicationAuthorities("coordinator"),
       identity = {
         audience: "portcove-capacity-executor",
         subject: controllerOidcSubject(
@@ -69,7 +69,7 @@ export async function completeCoordinatorSigningContext(
         controller_ref: context.tools.identity.controller_ref,
         run_id: context.tools.identity.run_id,
         run_attempt: context.tools.identity.run_attempt,
-        actor_id: authorities.apps.dispatch.actor_id,
+        actor_id: authorities.dispatch_actor_id,
       };
     const executor = await authenticateCapacityExecutor("coordinator", identity, parent, deadline);
     const artifact = await prepareMetadataSigningContextArtifact(receipt, parent);

@@ -36,7 +36,7 @@ import {
   coordinatorCommandTimeout,
 } from "./release-coordinator-deadline.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
-import { requireControllerCatalogPublicationAuthorities } from "./release-authority-configuration.mts";
+import { requireControllerCatalogJobAuthorities } from "./release-authority-configuration.mts";
 import {
   readProductionControllerWorkflowBytes,
   productionControllerWorkflow,
@@ -321,7 +321,7 @@ export async function continueActualCatalogPublication(
     };
     let phase = "actual-coordinator";
     try {
-      const authorities = await requireControllerCatalogPublicationAuthorities("coordinator");
+      const authorities = await requireControllerCatalogJobAuthorities("coordinator");
       if (authorities.namespace !== remote.namespace)
         throw new Error("catalog continuation namespace differs");
       const protectedEnvironment = Object.fromEntries(

@@ -65,8 +65,8 @@ import { releaseControlPhaseProfile, type ReleaseControlPhase } from "./release-
 import { retainProtectionObservationOutputs } from "./release-reviewed-inputs.mts";
 import {
   requireControllerJobSourceConfiguration,
-  requireControllerCatalogCoordinatorAuthorities,
-  requireControllerApplicationCoordinatorAuthorities,
+  requireControllerCatalogJobAuthorities,
+  requireControllerApplicationJobAuthorities,
 } from "./release-authority-configuration.mts";
 
 void test("observer output transport refuses expiry after every awaited write and retains partial effects", async (t) => {
@@ -1119,106 +1119,114 @@ void test("only selected online metadata roles may read pause/capacity without i
   }
 });
 
-void test("actual selected catalog entry retains default signed OIDC/provider verification before source routing", async (t) => {
-  const runtime = liveControlRuntimeFixture(
-    protectionFixture("a".repeat(40)),
-    undefined,
-    "coordinator",
-    true,
-  );
-  const configuration = selectedPublicationAuthoritiesFixture("catalog-publication");
-  assert.ok("catalog" in configuration);
-  const workflow = await readFile(
-    new URL("../.github/workflows/application-update-production.yml", import.meta.url),
-  );
-  const profile = releaseControlPhaseProfile("coordinator");
-  const provider = assemblerIdentityFixture(
-    {
-      aud: profile.reader_audience,
-      sub: controllerOidcSubject(runtime.policy.execution_ref, profile.reader_environment),
-      environment: profile.reader_environment,
-    },
-    {},
-    { workflow: productionControllerWorkflow, job: profile.reader_name, runAttempt: 1 },
-  );
-  const environment = {
-    ...runtime.environment,
-    PORTCOVE_EXECUTION_PURPOSE: "catalog-publication",
-    PORTCOVE_CATALOG_AUTHORITIES: JSON.stringify(configuration),
-    PORTCOVE_CATALOG_CONTROLLER_ADMISSION: JSON.stringify({
-      ...runtime.policy,
-      mode: "bounded-catalog-publication",
-      workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
-      authority_configuration_sha256: capacityDigest(configuration),
-    }),
-    ACTIONS_ID_TOKEN_REQUEST_URL: "https://fixture.actions.githubusercontent.com/token?fixture=1",
-    ACTIONS_ID_TOKEN_REQUEST_TOKEN: "inert-fixture-control-bearer",
-  };
-  const before = new Map(Object.keys(environment).map((key) => [key, process.env[key]]));
-  Object.assign(process.env, environment);
-  const actualSpawn = childProcess.spawnSync;
-  let driftDuringTokenRead = false;
-  t.mock.method(globalThis, "fetch", async (input: Parameters<typeof fetch>[0]) => {
-    const url = new URL(
-      input instanceof Request ? input.url : input instanceof URL ? input.href : input,
+for (const phase of [
+  "coordinator",
+  "site-publication",
+  "catalog-definitions",
+  "catalog-policy",
+  "catalog-snapshot",
+  "catalog-timestamp",
+] as const)
+  void test(`actual selected catalog ${phase} entry retains default signed OIDC/provider verification before source routing`, async (t) => {
+    const runtime = liveControlRuntimeFixture(
+      protectionFixture("a".repeat(40)),
+      undefined,
+      phase,
+      true,
     );
-    if (url.hostname === "fixture.actions.githubusercontent.com") {
-      assert.equal(url.searchParams.get("audience"), profile.reader_audience);
-      if (driftDuringTokenRead) process.env.PORTCOVE_EXECUTION_PURPOSE = "application";
-      return new Response(JSON.stringify({ value: provider.token }));
-    }
-    assert.equal(url.hostname, "token.actions.githubusercontent.com");
-    return new Response(JSON.stringify({ keys: [jwk] }));
-  });
-  t.mock.method(
-    childProcess,
-    "spawnSync",
-    (
-      command: string,
-      args: readonly string[],
-      options: childProcess.SpawnSyncOptionsWithStringEncoding,
-    ) =>
-      command === "gh"
-        ? provider.transport.spawn(command, args, options)
-        : actualSpawn(command, args, options),
-  );
-  syncBuiltinESMExports();
-  t.after(() => {
-    t.mock.restoreAll();
+    const configuration = selectedPublicationAuthoritiesFixture("catalog-publication");
+    assert.ok("catalog" in configuration);
+    const workflow = await readFile(
+      new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+    );
+    const profile = releaseControlPhaseProfile(phase);
+    const provider = assemblerIdentityFixture(
+      {
+        aud: profile.reader_audience,
+        sub: controllerOidcSubject(runtime.policy.execution_ref, profile.reader_environment),
+        environment: profile.reader_environment,
+      },
+      {},
+      { workflow: productionControllerWorkflow, job: profile.reader_name, runAttempt: 1 },
+    );
+    const environment = {
+      ...runtime.environment,
+      PORTCOVE_EXECUTION_PURPOSE: "catalog-publication",
+      PORTCOVE_CATALOG_AUTHORITIES: JSON.stringify(configuration),
+      PORTCOVE_CATALOG_CONTROLLER_ADMISSION: JSON.stringify({
+        ...runtime.policy,
+        mode: "bounded-catalog-publication",
+        workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
+        authority_configuration_sha256: capacityDigest(configuration),
+      }),
+      ACTIONS_ID_TOKEN_REQUEST_URL: "https://fixture.actions.githubusercontent.com/token?fixture=1",
+      ACTIONS_ID_TOKEN_REQUEST_TOKEN: "inert-fixture-control-bearer",
+    };
+    const before = new Map(Object.keys(environment).map((key) => [key, process.env[key]]));
+    Object.assign(process.env, environment);
+    const actualSpawn = childProcess.spawnSync;
+    let driftDuringTokenRead = false;
+    t.mock.method(globalThis, "fetch", async (input: Parameters<typeof fetch>[0]) => {
+      const url = new URL(
+        input instanceof Request ? input.url : input instanceof URL ? input.href : input,
+      );
+      if (url.hostname === "fixture.actions.githubusercontent.com") {
+        assert.equal(url.searchParams.get("audience"), profile.reader_audience);
+        if (driftDuringTokenRead) process.env.PORTCOVE_EXECUTION_PURPOSE = "application";
+        return new Response(JSON.stringify({ value: provider.token }));
+      }
+      assert.equal(url.hostname, "token.actions.githubusercontent.com");
+      return new Response(JSON.stringify({ keys: [jwk] }));
+    });
+    t.mock.method(
+      childProcess,
+      "spawnSync",
+      (
+        command: string,
+        args: readonly string[],
+        options: childProcess.SpawnSyncOptionsWithStringEncoding,
+      ) =>
+        command === "gh"
+          ? provider.transport.spawn(command, args, options)
+          : actualSpawn(command, args, options),
+    );
     syncBuiltinESMExports();
-    for (const [key, value] of before) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
+    t.after(() => {
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+      for (const [key, value] of before) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    });
+    const actual = await requireControllerJobSourceConfiguration(phase);
+    assert.equal(actual.binding.purpose, "catalog-publication");
+    assert.equal(actual.binding.actor_id, runtime.policy.actor_id);
+    assert.equal(actual.binding.namespace, configuration.journal.namespace);
+    assert.ok(
+      provider.counts().requests > 0,
+      "default named verifier used controlled provider readback",
+    );
+    actual.recheck();
+    const coordinator = await requireControllerCatalogJobAuthorities(phase);
+    assert.equal(coordinator.configuration_sha256, capacityDigest(configuration));
+    assert.equal(coordinator.dispatch_actor_id, runtime.policy.actor_id);
+    assert.deepEqual(coordinator.catalog, configuration.catalog);
+    assert.deepEqual(coordinator.semantic_producer, {
+      schema_version: 2,
+      purpose: "catalog-publication",
+      review_app_id: configuration.journal.apps.semantic.app_id,
+      review_check_name: semanticReviewCheckName,
+    });
+    await assert.rejects(
+      requireControllerApplicationJobAuthorities(phase),
+      /application job source/,
+    );
+    driftDuringTokenRead = true;
+    await assert.rejects(requireControllerCatalogJobAuthorities(phase), /environment changed/);
+    process.env.PORTCOVE_EXECUTION_PURPOSE = "catalog-publication";
+    driftDuringTokenRead = false;
+    provider.faults.value = "job-completed";
+    await assert.rejects(requireControllerJobSourceConfiguration(phase));
+    await assert.rejects(requireControllerCatalogJobAuthorities(phase));
   });
-  const actual = await requireControllerJobSourceConfiguration("coordinator");
-  assert.equal(actual.binding.purpose, "catalog-publication");
-  assert.equal(actual.binding.actor_id, runtime.policy.actor_id);
-  assert.equal(actual.binding.namespace, configuration.journal.namespace);
-  assert.ok(
-    provider.counts().requests > 0,
-    "default named verifier used controlled provider readback",
-  );
-  actual.recheck();
-  const coordinator = await requireControllerCatalogCoordinatorAuthorities();
-  assert.equal(coordinator.configuration_sha256, capacityDigest(configuration));
-  assert.equal(coordinator.dispatch_actor_id, runtime.policy.actor_id);
-  assert.deepEqual(coordinator.catalog, configuration.catalog);
-  assert.deepEqual(coordinator.semantic_producer, {
-    schema_version: 2,
-    purpose: "catalog-publication",
-    review_app_id: configuration.journal.apps.semantic.app_id,
-    review_check_name: semanticReviewCheckName,
-  });
-  await assert.rejects(
-    requireControllerApplicationCoordinatorAuthorities(),
-    /application coordinator source/,
-  );
-  driftDuringTokenRead = true;
-  await assert.rejects(requireControllerCatalogCoordinatorAuthorities(), /environment changed/);
-  process.env.PORTCOVE_EXECUTION_PURPOSE = "catalog-publication";
-  driftDuringTokenRead = false;
-  provider.faults.value = "job-completed";
-  await assert.rejects(requireControllerJobSourceConfiguration("coordinator"));
-  await assert.rejects(requireControllerCatalogCoordinatorAuthorities());
-});

@@ -23,7 +23,7 @@ import type { SigningContextArtifactExpected } from "./release-signing-context-a
 import { receiveTufRoleArtifact } from "./release-tuf-role-artifact.mts";
 import { prepareActualTufPublication } from "./release-tuf-publication.mts";
 import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
-import { requireControllerReleaseAuthorities } from "./release-authority-configuration.mts";
+import { requireControllerApplicationJobAuthorities } from "./release-authority-configuration.mts";
 import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
 import {
   collectConfiguredNativePublicationQualificationPair,
@@ -360,7 +360,7 @@ export async function runReleasePublicationController(
     const binding = context.manifest.binding;
     if (!isRecord(contextFacts) || !isRecord(producer) || !isRecord(binding))
       throw new Error("complete authenticated payload context facts unavailable");
-    const authorities = await requireControllerReleaseAuthorities("release-publication");
+    const authorities = await requireControllerApplicationJobAuthorities("release-publication");
     if (
       configuration.admission_configuration.namespace !== authorities.namespace ||
       identity.controller_revision !== tools.identity.controller_revision ||

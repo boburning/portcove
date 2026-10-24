@@ -294,9 +294,9 @@ async function authorizeRiskSubject706(
   // A supplied later-round source must itself have the existing private brand.
   requireAuthenticatedReleaseControlSource(rawControls ?? context.controls, stage);
   const controls = (rawControls ?? context.controls) as typeof context.controls;
-  const { requireControllerReleaseAuthorities } =
+  const { requireControllerApplicationJobAuthorities } =
     await import("./release-authority-configuration.mts");
-  const authorities = await requireControllerReleaseAuthorities(stage);
+  const authorities = await requireControllerApplicationJobAuthorities(stage);
   const { verifiedControllerToolPaths } = await import("./release-controller-tool-admission.mts");
   const tools = await verifiedControllerToolPaths(measured.source.tools);
   const directory = context.private_parent;
@@ -415,9 +415,9 @@ async function authorizeRiskSubject706(
       releaseAuthorization: "risk-component-only; other admission still required",
     });
   }
-  if (!authorities.linux_risk_profile)
+  if (!authorities.configuration.linux_risk_profile)
     throw new Error("protected Linux risk held: explicit newly ratified owner amendment absent");
-  const profile = authorities.linux_risk_profile;
+  const profile = authorities.configuration.linux_risk_profile;
   const comment = api.request("GET", `${base}/issues/comments/${profile.amendment.comment_id}`);
   if (comment.status !== 200) throw new Error("new owner amendment unavailable");
   inspectInitialProofRisk706Comment(profile, comment.body, now);

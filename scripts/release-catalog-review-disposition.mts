@@ -365,9 +365,9 @@ async function actualInputs(owned: {
     typeof owned.controls.readMaintenance !== "function"
   )
     throw new Error("actual catalog coordinator controls required");
-  const { requireControllerCatalogPublicationAuthorities } =
+  const { requireControllerCatalogJobAuthorities } =
       await import("./release-authority-configuration.mts"),
-    authorities = await requireControllerCatalogPublicationAuthorities("coordinator");
+    authorities = await requireControllerCatalogJobAuthorities("coordinator");
   const { createGitHubRunner, GitHubApiClient } = await import("./github-api.mts");
   const transport = { cwd: owned.parent, deadline: owned.deadline };
   const client = new GitHubApiClient((args, input) => {
@@ -407,15 +407,9 @@ async function actualInputs(owned: {
   assertCatalogReviewRequestBaseline(owned.request, snapshot.input);
   const { discoverIndependentCatalogSemanticDisposition, createCatalogReviewDispositionReceipt } =
     await import("./release-semantic-disposition-reader.mts");
-  const { semanticReviewCheckName } = await import("./release-semantic-review.mts");
   const observed = discoverIndependentCatalogSemanticDisposition(
     api,
-    {
-      schema_version: 1,
-      review_app_id: authorities.apps.semantic.app_id,
-      writer_app_id: authorities.apps.classification.app_id,
-      review_check_name: semanticReviewCheckName,
-    },
+    authorities.semantic_producer,
     owned.request,
   );
   // LAST provider validation before returning: original observation must still be fresh.

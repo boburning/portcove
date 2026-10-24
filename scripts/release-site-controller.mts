@@ -26,7 +26,7 @@ import type { SigningContextArtifactExpected } from "./release-signing-context-a
 import { receiveTufRoleArtifact } from "./release-tuf-role-artifact.mts";
 import { prepareActualTufPublication } from "./release-tuf-publication.mts";
 import { releasePathContains } from "./release-path-safety.mts";
-import { requireControllerPublicationAuthorities } from "./release-authority-configuration.mts";
+import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
 import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
 import {
   materializePublishedCompleteSite,
@@ -309,7 +309,8 @@ export async function runSitePublicationController(
   )
     throw new Error("whole-site current controller and authenticated context differ");
   return withCoordinatorDeadline(deadline, async () => {
-    const authorities = await requireControllerPublicationAuthorities("site-publication");
+    const authorities =
+      await requireControllerApplicationJobPublicationAuthorities("site-publication");
     const remote = { schema_version: 1, namespace: authorities.namespace };
     const directory = await mkdtemp(path.join(outputParent, "site-controller-"));
     let stage = "current-journal-and-whole-site";

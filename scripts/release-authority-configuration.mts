@@ -3,6 +3,7 @@ import { isRecord } from "./runtime-values.mts";
 import {
   inspectReleaseControlPhase,
   inspectControllerExecutionPurpose,
+  inspectControllerPurposePhase,
 } from "./release-control-phases.mts";
 import type { CapacityExecutorRole } from "./assembler-job-identity.mts";
 import { performance } from "node:perf_hooks";
@@ -26,16 +27,25 @@ import {
   inspectBoundCatalogControllerAuthorities,
   inspectNativePrepublicationAuthorities,
   requireFixedControllerJobSourceConfiguration,
-  requireCoordinatorAuthorityConfiguration,
+  requireControllerJobAuthorityConfiguration,
 } from "./release-authority-configuration-contract.mts";
 export * from "./release-authority-configuration-contract.mts";
 
 /** Source-bound entry routing, not an executor/control/signing capability. The
  * catalog path retains its existing actual named OIDC check before routing. */
-async function readControllerJobSourceConfiguration(rawPhase: unknown) {
+async function readControllerJobSourceConfiguration(
+  rawPhase: unknown,
+  expectedPurpose?: "application" | "catalog-publication",
+) {
   const environment = { ...process.env };
   const purpose = inspectControllerExecutionPurpose(environment.PORTCOVE_EXECUTION_PURPOSE);
-  const phase = inspectReleaseControlPhase(rawPhase);
+  if (expectedPurpose && purpose !== expectedPurpose)
+    throw new Error(
+      expectedPurpose === "application"
+        ? "application job source required"
+        : "catalog job source required",
+    );
+  const phase = inspectControllerPurposePhase(rawPhase, purpose);
   const raw =
     purpose === "application"
       ? environment.PORTCOVE_RELEASE_AUTHORITIES
@@ -94,11 +104,15 @@ export async function requireControllerJobSourceConfiguration(rawPhase: unknown)
   const { binding, recheck } = await readControllerJobSourceConfiguration(rawPhase);
   return { binding, recheck };
 }
-async function readControllerCoordinatorAuthorityConfiguration() {
-  const captured = await readControllerJobSourceConfiguration("coordinator");
-  const view = requireCoordinatorAuthorityConfiguration(
+async function readControllerJobAuthorityConfiguration(
+  phase: unknown,
+  expectedPurpose?: "application" | "catalog-publication",
+) {
+  const captured = await readControllerJobSourceConfiguration(phase, expectedPurpose);
+  const view = requireControllerJobAuthorityConfiguration(
     captured.configuration,
     captured.source,
+    phase,
     captured.binding.purpose,
   );
   captured.recheck();
@@ -106,7 +120,7 @@ async function readControllerCoordinatorAuthorityConfiguration() {
 }
 /** Full source-bound coordinator inputs, not an executor or key capability. */
 export async function requireControllerApplicationCoordinatorAuthorities() {
-  const view = await readControllerCoordinatorAuthorityConfiguration();
+  const view = await readControllerJobAuthorityConfiguration("coordinator");
   if (view.purpose !== "application") throw new Error("application coordinator source required");
   return view;
 }
@@ -116,9 +130,26 @@ export async function requireControllerApplicationCoordinatorPublicationAuthorit
   return { ...view, publication: view.publication };
 }
 export async function requireControllerCatalogCoordinatorAuthorities() {
-  const view = await readControllerCoordinatorAuthorityConfiguration();
+  const view = await readControllerJobAuthorityConfiguration("coordinator");
   if (view.purpose !== "catalog-publication")
     throw new Error("catalog coordinator source required");
+  return view;
+}
+/** Full original source/configuration, still requiring separate live executor,
+ * control, custody and pending-effect checks at each operation boundary. */
+export async function requireControllerApplicationJobAuthorities(phase: unknown) {
+  const view = await readControllerJobAuthorityConfiguration(phase, "application");
+  if (view.purpose !== "application") throw new Error("application job source required");
+  return view;
+}
+export async function requireControllerApplicationJobPublicationAuthorities(phase: unknown) {
+  const view = await requireControllerApplicationJobAuthorities(phase);
+  if (!view.publication) throw new Error("complete job public setup pins required");
+  return { ...view, publication: view.publication };
+}
+export async function requireControllerCatalogJobAuthorities(phase: unknown) {
+  const view = await readControllerJobAuthorityConfiguration(phase, "catalog-publication");
+  if (view.purpose !== "catalog-publication") throw new Error("catalog job source required");
   return view;
 }
 /** Actual source-bound role reader. The existing OIDC executor must separately

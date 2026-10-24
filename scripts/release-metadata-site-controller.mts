@@ -21,7 +21,7 @@ import type { ControllerToolArtifactExpected } from "./release-controller-tool-a
 import { receiveTufRoleArtifact } from "./release-tuf-role-artifact.mts";
 import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
 import { currentSiteJobDeadline } from "./release-site-job-budget.mts";
-import { requireControllerPublicationAuthorities } from "./release-authority-configuration.mts";
+import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
 import {
   recoverRemoteCoordinator,
   readRemoteCoordinatorSnapshot,
@@ -168,7 +168,8 @@ export async function runMetadataSitePublicationController(
     throw new Error("metadata site actual context/current tools differ");
   const deadline = currentSiteJobDeadline(identity, outputParent, phaseDeadline);
   return withCoordinatorDeadline(deadline, async () => {
-    const authorities = await requireControllerPublicationAuthorities("site-publication"),
+    const authorities =
+        await requireControllerApplicationJobPublicationAuthorities("site-publication"),
       remote = { schema_version: 1, namespace: authorities.namespace };
     const directory = await mkdtemp(path.join(outputParent, "metadata-site-controller-"));
     let stage = "current-metadata-journal";
