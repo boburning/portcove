@@ -5349,11 +5349,35 @@ impl PortcoveService {
         let Some(active) = self.status_without_rollback_assessment(port_id)?.active else {
             return Ok(Vec::new());
         };
+        if !active.path.join(LAUNCH_MARKER).is_file() {
+            // Preserve the historical unlaunched path for deeper integrations.
+            // Only a verified retained portable contract can collect before launch;
+            // today's catalog cannot silently grant that ownership to a legacy row.
+            let retained = self
+                .managed_install_root(port_id, &active.path)
+                .and_then(|_| Installer::new(self.library.clone())?.retained_catalog(&active));
+            let current_portable = self
+                .catalog
+                .port(port_id)
+                .is_ok_and(|port| port.adapter == AdapterKind::NativePortable);
+            match retained {
+                Ok(Some(catalog)) => {
+                    if catalog.port(port_id)?.adapter != AdapterKind::NativePortable {
+                        return Ok(Vec::new());
+                    }
+                }
+                Ok(None) if current_portable => {
+                    return Err(PortcoveError::verification(
+                        "Portable player data cannot be collected without its retained installation contract. Preserve the installation and review its current state.",
+                    ));
+                }
+                Err(error) if current_portable => return Err(error),
+                _ => return Ok(Vec::new()),
+            }
+        }
         let port = self.installed_mutability_port(&active)?;
         if port.adapter == AdapterKind::NativePortable {
             self.require_portable_runtime_unchanged(&active)?;
-        } else if !active.path.join(LAUNCH_MARKER).is_file() {
-            return Ok(Vec::new());
         }
         self.collect_user_data_from(&port, &active.path)
     }

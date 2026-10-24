@@ -3,7 +3,7 @@
   "listing": {
     "id": "corsixth-corsixth",
     "name": "CorsixTH",
-    "summary": "Play Theme Hospital with CorsixTH. Portcove maintains the portable runtime; CorsixTH asks for your original game files on first launch.",
+    "summary": "Play Theme Hospital with CorsixTH.",
     "project_url": "https://github.com/CorsixTH/CorsixTH",
     "issue_number": 1807,
     "availability": "packages",

@@ -21193,7 +21193,7 @@
     {
       "id": "corsixth-corsixth",
       "name": "CorsixTH",
-      "summary": "Play Theme Hospital with CorsixTH. Portcove maintains the portable runtime; CorsixTH asks for your original game files on first launch.",
+      "summary": "Play Theme Hospital with CorsixTH.",
       "project_url": "https://github.com/CorsixTH/CorsixTH",
       "support_tier": "beta",
       "channels": [
@@ -21258,7 +21258,7 @@
     {
       "id": "fragglet-sdl-sopwith",
       "name": "SDL Sopwith",
-      "summary": "Fly SDL Sopwith from an upstream portable package. Portcove can maintain the runtime; upstream owns its settings and high scores.",
+      "summary": "Fly SDL Sopwith's biplane through classic aerial combat.",
       "project_url": "https://github.com/fragglet/sdl-sopwith",
       "support_tier": "beta",
       "channels": [

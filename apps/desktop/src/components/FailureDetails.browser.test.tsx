@@ -97,6 +97,39 @@ describe("diagnostic clipboard outcomes", () => {
     expect(host.querySelector("details")?.open).toBe(false);
   });
 
+  it.each([
+    [
+      "portable_runtime_modified",
+      "Portcove found changed runtime files or unrecognized additions and stopped this operation. Your existing files were preserved. Review the affected paths in technical details. Back up your changes outside the managed installation, then restore changed package files or move unrecognized additions before trying again.",
+    ],
+    [
+      "portable_data_contract_changed",
+      "This package changes where player data is stored or how it is located. Portcove stopped the transition and kept the current installation and files. Keep using the current version; use upstream instructions until a compatible package or supported data migration is available.",
+    ],
+  ])("shows %s recovery instructions before technical details", async (key, summary) => {
+    const error = failureReport();
+    error.code = "conflict";
+    error.presentation.presentation_key = key;
+    error.presentation.summary = summary;
+    error.presentation.mutation_state = "unknown";
+    error.presentation.technical_context = { failures: "package.txt" };
+    document.body.append(host);
+    try {
+      await act(async () => root.render(<ActionReviewFailure error={error} />));
+      const message = host.querySelector('[role="alert"] > p')!;
+      expect(message.textContent).toBe(summary);
+      expect(message.closest("details")).toBeNull();
+      expect(message.getBoundingClientRect().height).toBeGreaterThan(0);
+      const details = host.querySelector("details")!;
+      expect(details.open).toBe(false);
+      await act(async () => host.querySelector("summary")!.click());
+      expect(details.open).toBe(true);
+      expect(details.textContent).toContain("package.txt");
+    } finally {
+      host.remove();
+    }
+  });
+
   it("announces failure with exact selectable details and recovers without changing the outcome", async () => {
     const presentation = failurePresentation(failureReport())!;
     presentation.mutation_state = "committed";

@@ -68,7 +68,9 @@ pub(crate) enum SetupCommand {
     Pending,
     /// Inspect a completed download without running files. Registration still requires review.
     Targets {
+        /// Listing ID owning the completed download; use `portcove setup pending` to find it.
         port_id: String,
+        /// Exact downloaded setup record ID returned by `portcove setup pending`.
         #[arg(long)]
         pending_id: String,
     },

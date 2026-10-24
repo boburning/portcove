@@ -77,6 +77,13 @@ hashes. Setup pending was empty afterward; a stale forget request was refused.
 This is a native version-process observation, not a
 gameplay or setup-window observation. The `real-sopwith-*` receipts retain this run.
 
+A separate normal managed installation of the same Sopwith package also completed.
+Core launched its literal `--version` argument and reported `SDL Sopwith 2.9.0`
+with exit zero; full managed verification checked nine package files successfully.
+`real-sopwith-managed-install-2.json` and `real-sopwith-managed-verify.json`
+retain those observations. This establishes managed acquisition and a native
+version process, without establishing gameplay or an interactive setup window.
+
 CorsixTH normally keeps configuration and saves in `%APPDATA%/CorsixTH`, outside
 Portcove's managed data and backups. Its exact-tag
 [configuration implementation](https://github.com/CorsixTH/CorsixTH/blob/v0.70.1/CorsixTH/Lua/config_finder.lua)
@@ -101,6 +108,34 @@ the prior active installation. Fault injection after committed activation report
 the new authoritative version; recovery preserves that state rather than claiming
 an automatic rollback. Unknown data is not silently adopted as package content.
 Runtime rollback carries declared current data; it does not restore older saves.
+
+Portable refusals present concrete recovery instructions before technical details:
+back up and restore changed package files or move unknown additions, or keep using
+the current version when a data contract needs a supported migration. Typed causes
+preserve the original mutation state, including a refusal after staging has already
+published a retained replacement. Adding executable hints for another platform
+does not invalidate the current platform's compatible transition.
+
+The first hosted run caught an unlaunched deeper-integration backup regression.
+Collection before first launch now requires a verified retained portable contract;
+the previous unlaunched behavior of other adapters remains intact. A fixture also
+checks portable collection when the current catalog no longer contains its entry.
+
+Two local Windows portable lifecycle fixtures reached the 30-second harness limit
+at 30.042 and 30.085 seconds while another completed at 28.979 seconds. The original
+logs remain retained. Only Windows portable lifecycle fixtures receive a finite 90-second budget;
+assertions, two workers, zero retries, product deadlines and cleanup remain intact.
+This is harness calibration, not a claim that a product defect was repaired by time.
+
+A later focused run passed nine cases but one initial localhost download failed.
+Its fixture accepted a socket from a nonblocking listener without explicitly
+restoring blocking I/O, then ignored request-read errors before replying. The
+fixture now uses bounded blocking I/O, consumes complete headers within five
+seconds and 8 KiB, and reports read/write failures. Product networking is unchanged.
+The follow-up focused run passed all ten selected Core cases; its longest portable
+case completed at 32.742 seconds under the calibrated budget. Both focused CLI
+repairs passed, and all 35 rendered failure-detail tests passed. The PR retains
+the final source identity and required hosted results separately.
 
 Focused Core tests cover package/release selection, native executable discovery,
 handoff integrity and portable lifecycle failures. Browser tests render the

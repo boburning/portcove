@@ -3,7 +3,7 @@
   "listing": {
     "id": "fragglet-sdl-sopwith",
     "name": "SDL Sopwith",
-    "summary": "Fly SDL Sopwith from an upstream portable package. Portcove can maintain the runtime; upstream owns its settings and high scores.",
+    "summary": "Fly SDL Sopwith's biplane through classic aerial combat.",
     "project_url": "https://github.com/fragglet/sdl-sopwith",
     "issue_number": 1879,
     "availability": "packages",
