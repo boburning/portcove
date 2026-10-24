@@ -8,25 +8,26 @@ import os from "node:os";
 import { hostedNativeProofFixture } from "./fixtures/hosted-native-proof-fixture.mts";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 
-void test("original hosted proof signs exact capture once and retains refusal/ambiguity/custody effects", async (t) => {
-  const root = disposableDirectory(t, path.join(os.tmpdir(), "hosted-proof-producer-"));
-  const fixture = hostedNativeProofFixture("linux-x86_64");
-  await writeFile(
-    path.join(root, "fixture.json"),
-    JSON.stringify({
-      root,
-      authorities: fixture.authorities,
-      producer: fixture.producer,
-      report: fixture.report,
-      request: fixture.request,
-      host: fixture.host,
-      files: Object.fromEntries(
-        Object.entries(fixture.files).map(([key, bytes]) => [key, bytes.toString("base64")]),
-      ),
-    }),
-  );
-  const entry = new URL("./release-hosted-native-proof-producer.mts", import.meta.url).href;
-  const code = String.raw`
+for (const proofStage of ["payload-signing", "release-publication"] as const)
+  void test(`original hosted ${proofStage} proof signs exact capture once and retains refusal/ambiguity/custody effects`, async (t) => {
+    const root = disposableDirectory(t, path.join(os.tmpdir(), "hosted-proof-producer-"));
+    const fixture = hostedNativeProofFixture("linux-x86_64", proofStage);
+    await writeFile(
+      path.join(root, "fixture.json"),
+      JSON.stringify({
+        root,
+        authorities: fixture.authorities,
+        producer: fixture.producer,
+        report: fixture.report,
+        request: fixture.request,
+        host: fixture.host,
+        files: Object.fromEntries(
+          Object.entries(fixture.files).map(([key, bytes]) => [key, bytes.toString("base64")]),
+        ),
+      }),
+    );
+    const entry = new URL("./release-hosted-native-proof-producer.mts", import.meta.url).href;
+    const code = String.raw`
 import assert from 'node:assert/strict';
 import {registerHooks} from 'node:module';
 import {readFileSync,writeFileSync,mkdirSync,existsSync} from 'node:fs';
@@ -42,7 +43,7 @@ Object.defineProperty(performance,'now',{value:()=>clock});
 const realNow=Date.now;
 let wall=realNow();Date.now=()=>wall;
 const requests=[];
-const parent=()=>{if(stale)throw Error('original custody expired');return {platform_label:'linux-x86_64',stage:'payload-signing',configuration:f.authorities,producer:f.producer,deadline:performance.now()+110000}};
+const parent=()=>{if(stale)throw Error('original custody expired');return {platform_label:'linux-x86_64',stage:f.report.stage,configuration:f.authorities,producer:f.producer,deadline:performance.now()+110000}};
 const host={schema_version:1,invocation_id:f.report.producer.invocation_id,qualification_uid:Number(f.host.account.qualification),qualification_gid:1002,machine_id_sha256:f.host.machine_id_sha256,os_release:'ID=ubuntu\nVERSION_ID="24.04"\n',kernel_release:f.report.host.os_version,architecture:'x86_64',authority:'none'};
 globalThis.fixture={
  report:async value=>{assert.equal(value,reportReceipt);parent();if(fault==='postsign')throw Error('post-sign held');if(fault==='delayed-input'&&!delayed){clock+=120001;delayed=true}return {directory,report:f.report,original_file_identities:['report','capture'].map(key=>({name:key==='report'?'native-report.json':'capture.json',bytes:files[key].length,sha256:createHash('sha256').update(files[key]).digest('hex')})),prepared:{request:{invocation_id:host.invocation_id}},actual:{parent_source:parentReceipt,host:{projection:f.host,observed:host}}}},
@@ -79,7 +80,7 @@ const receipt=await api.signActualHostedLinuxNativeProof(reportReceipt);
 assert.equal(posts,2);
 const got=await api.requireActualHostedLinuxNativeProof(receipt);
 assert.equal(got.signature_verification,'not-performed');
-assert.equal(got.artifact_name,'hosted-native-payload-signing-linux-x86_64-9988-1');
+assert.equal(got.artifact_name,'hosted-native-'+f.report.stage+'-linux-x86_64-9988-1');
 assert.ok(got.files.report.equals(files.report));
 await assert.rejects(api.signActualHostedLinuxNativeProof(reportReceipt),/recovery/);
 assert.equal(posts,2);
@@ -112,11 +113,11 @@ for(const name of ['swapped-report','delayed-input','delayed-store','clock-expir
 }
 console.log(JSON.stringify({controlled_composition:'passed',actual_signing_or_native_acceptance:false}));
 `;
-  const result = spawnSync(
-    process.execPath,
-    ["--input-type=module", "--eval", code, path.join(root, "fixture.json")],
-    { encoding: "utf8", timeout: 45000, maxBuffer: 1024 * 1024 },
-  );
-  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-  assert.match(result.stdout, /"controlled_composition":"passed"/u);
-});
+    const result = spawnSync(
+      process.execPath,
+      ["--input-type=module", "--eval", code, path.join(root, "fixture.json")],
+      { encoding: "utf8", timeout: 45000, maxBuffer: 1024 * 1024 },
+    );
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /"controlled_composition":"passed"/u);
+  });

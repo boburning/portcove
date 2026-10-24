@@ -359,7 +359,23 @@ export const pythonContractTests = [
   "scripts/semantic-review-linux-supervisor.test.mts",
   "scripts/release-semantic-source.test.mts",
 ];
+const workflowFeatureTests = [
+  "scripts/ci-frontend-workflow.test.mts",
+  "scripts/ci-native-workflow.test.mts",
+  "scripts/ci-release-workflow.test.mts",
+  "scripts/ci-rust-workflow.test.mts",
+  "scripts/native-backup-evidence.test.mts",
+  "scripts/rust-toolchain-reader.test.mts",
+  "scripts/windows-rust-tests.test.mts",
+];
+const workflowContractTests = ["scripts/ci-workflow.test.mts", ...workflowFeatureTests];
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ["scripts/ci-workflow.test.mts", workflowContractTests],
+  ["scripts/ci-workflow-fixture.mts", workflowContractTests],
+  ...workflowFeatureTests.map((file): [string, string[]] => [
+    file,
+    ["scripts/ci-workflow.test.mts"],
+  ]),
   [
     "scripts/node-case-observations.mts",
     ["scripts/test-duration-reporter.test.mts", "scripts/required-node-test-reporter.test.mts"],
@@ -807,6 +823,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   [
     "scripts/release-hosted-native-runner.mts",
+    ["scripts/release-hosted-native-runner.test.mts", "scripts/release-hosted-native-job.test.mts"],
+  ],
+  [
+    "scripts/release-hosted-native-bootstrap.mts",
     ["scripts/release-hosted-native-runner.test.mts", "scripts/release-hosted-native-job.test.mts"],
   ],
   ...[
@@ -1767,6 +1787,7 @@ function addNodeTest(selection: ValidationSelection, file: string) {
   // Preserve every former workflow-suite consumer after responsibility-based colocation.
   if (normalized === "scripts/ci-workflow.test.mts")
     for (const companion of [
+      ...workflowFeatureTests,
       "scripts/check-catalog-repositories.test.mts",
       "scripts/check-retcomm-upstreams.test.mts",
       "scripts/deep-audit-summary.test.mts",
@@ -2275,6 +2296,13 @@ export function classifyChanges(
         selection.uiFullTests = true;
       }
     }
+  }
+  // A removed/renamed family member cannot be executed, but all surviving
+  // workflow contracts still run through the old integration consumer route.
+  for (const change of changes) {
+    const removed = change.status === "D" ? change.path : change.previousPath;
+    if (removed && workflowContractTests.includes(removed) && !fileExists(removed))
+      selection.nodeTests.delete(removed);
   }
   return selection;
 }

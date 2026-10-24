@@ -116,6 +116,8 @@ import {registerHooks} from 'node:module';
 import {readFileSync,mkdirSync,existsSync,readdirSync} from 'node:fs';
 import path from 'node:path';
 import {performance} from 'node:perf_hooks';
+import {createHash} from 'node:crypto';
+const nativeParent={};
 const fixture=JSON.parse(readFileSync(process.argv[1],'utf8')), root=process.argv[2];
 const {inspectHostedNativeProofFiles}=await import(${JSON.stringify(contract)});
 const {inspectSelectedPublicationAuthorityConfiguration}=await import(${JSON.stringify(configurationContract)});
@@ -139,6 +141,7 @@ const collect=kind=>async(dir,config,expected,files,deadline)=>{
  receipts.set(receipt,{...prepared.report});return receipt;
 };
 globalThis.fixture={
+ nativeParent:async receipt=>{assert.equal(receipt,nativeParent);const view=await readSource();return {stage:'release-publication',configuration:view.configuration,producer:{...view.source,configuration_sha256:view.source.authority_configuration_sha256,workflow_sha256:createHash('sha256').update(fixture.workflow).digest('hex')},recheck(){}}},
  inspectConfiguration:inspectSelectedPublicationAuthorityConfiguration,
  source:readSource,workflow:async()=>Buffer.from(state.workflow),
  environment:()=>({PATH:process.env.PATH,SystemRoot:process.env.SystemRoot}),
@@ -151,6 +154,7 @@ globalThis.fixture={
  readHistorical:async receipt=>receipt.kind==='historical'?receipts.get(receipt):undefined,
 };
 const routes={
+ './release-hosted-native-parent.mts':{requireActualHostedNativeParentSource:'nativeParent'},
  './release-coordinator-recovery.mts':{hydrateRetainedCoordinatorCheckpointExport:'hydrate'},
  './release-coordinator-checkpoint-evidence.mts':{readCoordinatorCheckpointEvidence:'evidence'},
  './release-coordinator-checkpoint-authentication.mts':{authenticateCoordinatorCheckpointEvidence:'authenticate',requireAuthenticatedCheckpointEvidence:'requireCheckpoint'},
@@ -162,6 +166,7 @@ const routes={
 registerHooks({resolve(spec,ctx,next){if(ctx.parentURL===${JSON.stringify(entry)}&&routes[spec])return {url:'inert-history:'+spec,shortCircuit:true};return next(spec,ctx)},load(url,ctx,next){if(url.startsWith('inert-history:'))return {format:'module',source:Object.entries(routes[url.slice(14)]).map(([name,key])=>'export const '+name+'=globalThis.fixture.'+key+';').join('\n'),shortCircuit:true};return next(url,ctx)}});
 const api=await import(${JSON.stringify(entry)});
 const provider={request(){throw Error('unexpected transport')},graphql(){throw Error('unexpected GraphQL')}};
+for(const consumer of ['publication','native']){
 for(const fault of ['valid','caller-mutation','source','configuration','grant','workflow','package','checkpoint-pin','checkpoint-signature','native-proof','changed-source','final-source-drift','configured-history','configured-live-history','history','live-history']){
  state=structuredClone(fixture);state.fault=fault;reads=sourceReads=currentReads=historicalReads=checkpointChecks=0;
  if(fault==='source')state.view.source.actor_id='9999';
@@ -171,8 +176,8 @@ for(const fault of ['valid','caller-mutation','source','configuration','grant','
  if(fault==='package')state.records[0].artifact.sha256='e'.repeat(64);
  if(fault==='checkpoint-pin')state.records[0].evidence_ids[0]=state.records[0].evidence_ids[0].replace(state.pin.checkpoint,'e'.repeat(40));
  if(fault==='configured-history'||fault==='configured-live-history')state.view.source.run_id='99999';
- const directory=path.join(root,fault);mkdirSync(directory);
- const collect=fault==='history'||fault==='live-history'?api.collectHistoricalHostedNativePredecessors:api.collectConfiguredHostedNativePredecessors;
+ const directory=path.join(root,consumer+'-'+fault);mkdirSync(directory);
+ const collect=fault==='history'||fault==='live-history'?api.collectHistoricalHostedNativePredecessors:consumer==='native'?((...args)=>api.collectOriginalNativeParentPredecessors(nativeParent,...args)):api.collectConfiguredHostedNativePredecessors;
  const operation=()=>collect(directory,state.records,{schema_version:1,namespace:state.custody.configuration.journal.namespace},performance.now()+60000,provider);
  if(['valid','caller-mutation','history','configured-history'].includes(fault)){
    const pending=operation();
@@ -188,6 +193,7 @@ for(const fault of ['valid','caller-mutation','source','configuration','grant','
    if(reads){const [capture]=readdirSync(directory);assert.ok(existsSync(path.join(directory,capture,'failure.json')))}
  }
  if(!['history','live-history','configured-history','configured-live-history'].includes(fault))assert.equal(historicalReads,0,'current failure must not fall back');
+}
 }
 console.log('controlled current/history checkpoint handoff passed');
 `;

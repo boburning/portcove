@@ -50,7 +50,7 @@ async function original(reportReceipt: object) {
   const parentReceipt = actual.actual.parent_source;
   const parent = await requireActualHostedNativeParentSource(parentReceipt);
   assert.equal(parent.platform_label, "linux-x86_64");
-  assert.equal(parent.stage, "payload-signing", "hosted post-sign production remains held");
+  assert.ok(parent.stage === "payload-signing" || parent.stage === "release-publication");
   assert.equal(actual.report.stage, parent.stage);
   assert.equal(actual.report.platform_label, parent.platform_label);
   return { actual, parent, parentReceipt };
@@ -339,6 +339,7 @@ export async function requireActualHostedLinuxNativeProof(receipt: object) {
     const producer = retained.prepared.producer;
     return {
       deadline: retained.deadline,
+      stage: input.parent.stage,
       producer: Object.freeze({ ...producer }),
       directory: retained.directory,
       artifact_name: hostedNativeArtifactName({
@@ -346,7 +347,7 @@ export async function requireActualHostedLinuxNativeProof(receipt: object) {
         run_id: producer.run_id,
         run_attempt: producer.run_attempt,
         platform_label: "linux-x86_64",
-        stage: "payload-signing",
+        stage: input.parent.stage,
       }),
       files: Object.fromEntries(
         Object.entries(retained.files).map(([key, bytes]) => [key, Buffer.from(bytes)]),

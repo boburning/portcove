@@ -649,3 +649,18 @@ export function requireReceivedCatalogRoleArtifact(receipt: object, phaseDeadlin
 export function requireRetainedCatalogRoleArtifact(receipt: object, phaseDeadline?: number) {
   return readReceivedTufRoleArtifact(receipt, phaseDeadline, "retained", "catalog");
 }
+
+/** Data-only original proof snapshot, never a received-role brand or lifetime
+ * renewal. The actual default receiver must still be live at this handoff. */
+export async function snapshotReceivedTufRoleEvidence(receipt: object, deadline: number) {
+  await requireReceivedTufRoleArtifact(receipt, deadline);
+  const actual = received.get(receipt)!;
+  if (performance.now() >= actual.deadline) throw new Error("original role phase exhausted");
+  return {
+    root: actual.data.directory,
+    files: actual.files.map((file) => ({
+      ...file,
+      path: path.relative(actual.data.directory, file.path),
+    })),
+  };
+}
