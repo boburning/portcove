@@ -192,12 +192,8 @@ export function baselineTestArguments(tests: string[], contracts = false) {
     "--test",
     "--test-timeout=60000",
     "--experimental-test-module-mocks",
-    ...(contracts
-      ? [
-          "--test-skip-pattern=pnpm uses|direct just recipes",
-          "--test-reporter=./scripts/test-duration-reporter.mts",
-        ]
-      : []),
+    "--test-reporter=./scripts/required-node-test-reporter.mts",
+    ...(contracts ? ["--test-skip-pattern=pnpm uses|direct just recipes"] : []),
     ...tests,
   ];
 }

@@ -1,0 +1,7 @@
+{"type":"suite","event":"started","test_count":2,"nextest":{"crate":"portcove-nextest-protocol","test_binary":"portcove_nextest_protocol","kind":"lib"}}
+{"type":"test","event":"started","name":"portcove-nextest-protocol::portcove_nextest_protocol$ignored"}
+{"type":"suite","event":"ok","passed":0,"failed":0,"ignored":1,"measured":0,"filtered_out":1,"exec_time":0,"nextest":{"crate":"portcove-nextest-protocol","test_binary":"portcove_nextest_protocol","kind":"lib"}}
+{"type":"suite","event":"started","test_count":2,"nextest":{"crate":"portcove-nextest-protocol","test_binary":"portcove_nextest_protocol","kind":"lib"}}
+{"type":"test","event":"started","name":"portcove-nextest-protocol::portcove_nextest_protocol$failing"}
+{"type":"test","event":"failed","name":"portcove-nextest-protocol::portcove_nextest_protocol$failing","exec_time":0.0165543,"stdout":"\nthread 'failing' (30872) panicked at src\\lib.rs:2:24:\nprotocol-primary-failure\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"}
+{"type":"suite","event":"failed","passed":0,"failed":1,"ignored":1,"measured":0,"filtered_out":1,"exec_time":0.0165543,"nextest":{"crate":"portcove-nextest-protocol","test_binary":"portcove_nextest_protocol","kind":"lib"}}
