@@ -167,6 +167,21 @@ def attachment_clear(pattern):
  for value in patterns:
   assert not any(char in value for char in ('[',']','\\','@','}')), 'unsupported kernel attachment'
   assert not fnmatch.fnmatchcase('/usr/bin/bwrap',value), 'existing bwrap attachment'
+def profile_refusal(entry,value,attachments,labels):
+ # Public kernel metadata only. Preserve the original refusal even when its
+ # optional diagnostic reads fail or the original deadline has elapsed.
+ def summary(text):
+  return {'text':text[:256],'utf8_bytes':len(text.encode()),'sha256':digest(text.encode()),'truncated':len(text)>256}
+ record={'entry':summary(entry.name),'attachment':summary(value),'kernel_release':os.uname().release[:256],
+         'attachments_sha256':digest(json.dumps(attachments,sort_keys=True).encode()),
+         'labels_sha256':digest(json.dumps(labels,sort_keys=True).encode())}
+ result['profile_refusal']=record
+ for field in ('name','mode','sha256'):
+  try:
+   assert time.monotonic()<deadline, 'original deadline expired'
+   record[field]=summary(bounded(entry/field,4096).decode().strip())
+  except Exception as error: record[field]={'error':type(error).__name__}
+
 def profile_state(check_collision=False):
  labels=bounded('/sys/kernel/security/apparmor/profiles',131072).decode().splitlines()
  assert len(labels)<=4096
@@ -178,8 +193,34 @@ def profile_state(check_collision=False):
   total+=len(entry.name.encode())+len(attachments[entry.name].encode()); assert total<=131072
  if check_collision:
   assert not any(re.search(r'(^|//|&)(bwrap|unpriv_bwrap)(?= |$|//|&)',line) for line in labels), 'existing profile label'
-  for value in attachments.values(): attachment_clear(value)
- return {'labels':labels,'attachments':attachments}
+ opaque={}
+ for name,value in attachments.items():
+  entry=Path('/sys/kernel/security/apparmor/policy/profiles')/name
+  if value=='<unknown>':
+   # Only this fixed credential-free inert helper may attempt an operation
+   # with opaque attachment expressions. Never call them nonoverlapping.
+   # Bind the actual policy body as well as its label/attachment strings.
+   try:
+    identity={}
+    for field,maximum in (('name',4096),('mode',64),('sha256',128)):
+     assert time.monotonic()<deadline, 'original deadline expired'
+     identity[field]=bounded(entry/field,maximum).decode().strip()
+    assert identity['name'] and '\n' not in identity['name'] and '\x00' not in identity['name']
+    assert identity['mode'] and '\n' not in identity['mode']
+    assert re.fullmatch(r'[a-f0-9]{64}',identity['sha256']), 'opaque kernel policy hash unavailable'
+    opaque[name]=identity
+    assert len(json.dumps(opaque).encode())<=131072, 'opaque profile identities exceed bound'
+   except Exception:
+    try: profile_refusal(entry,value,attachments,labels)
+    except Exception as error: result['profile_refusal']={'observation_error':type(error).__name__}
+    raise
+  elif check_collision:
+   try: attachment_clear(value)
+   except AssertionError:
+    try: profile_refusal(entry,value,attachments,labels)
+    except Exception as error: result['profile_refusal']={'observation_error':type(error).__name__}
+    raise
+ return {'labels':labels,'attachments':attachments,'opaque':opaque}
 def profile_summary(state):
  return {'sha256':digest(json.dumps(state,sort_keys=True).encode()),'labels':sorted(line for line in state['labels'] if re.search(r'(^|//|&)(bwrap|unpriv_bwrap)(?= |$|//|&)',line))}
 def features():
@@ -207,7 +248,8 @@ def setup_profile():
  assert stat.S_ISREG(info.st_mode) and info.st_uid==0 and not info.st_mode&0o022
  parser_sha=digest(bounded(parser,16777216))
  before=profile_state(True); kernel=features(); abi=bounded('/etc/apparmor.d/abi/4.0')
- result['profile']={'source_sha256':digest(data),'parser_sha256':parser_sha,'baseline_sha256':digest(json.dumps(before,sort_keys=True).encode()),'load_attempted':False}
+ result['profile']={'source_sha256':digest(data),'parser_sha256':parser_sha,'baseline_sha256':digest(json.dumps(before,sort_keys=True).encode()),'load_attempted':False,
+                    'opaque_attachments':{'count':len(before.get('opaque',{})),'sha256':digest(json.dumps(before.get('opaque',{}),sort_keys=True).encode()),'status':'unresolved; fixed inert execution observation only'}}
  intent=json.dumps({'context':context,'source_sha256':wanted,'profile':result['profile'],'before':before,'operation':'add-only; disposable diagnostic host only','automatic_retry':False}).encode(); assert len(intent)<=524288
  exclusive(target/'profile-intent.json',intent)
  # Freeze expanded includes and ABI; parse no site config and read/write no
@@ -235,8 +277,20 @@ def setup_profile():
  assert 'bwrap (enforce)' in after['labels'] and 'unpriv_bwrap (enforce)' in after['labels'], 'profile enforcement readback differs'
  assert set(after['labels'])==set(before['labels'])|{'bwrap (enforce)','unpriv_bwrap (enforce)'}, 'unrelated kernel profile changed'
  added=set(after['attachments'])-set(before['attachments'])
- assert len(added)==2 and sorted(after['attachments'][name] for name in added)==['/usr/bin/bwrap','unpriv_bwrap'], 'new profile attachments differ'
+ assert len(added)==2, 'new profile count differs'
+ observed=[]
+ for name in added:
+  attachment=after['attachments'][name]
+  if attachment=='<unknown>':
+   identity=after['opaque'][name]; assert identity['mode']=='enforce'
+   observed.append(identity['name'])
+  else:
+   assert attachment in ('/usr/bin/bwrap','unpriv_bwrap'), 'new profile attachment differs'
+   observed.append('bwrap' if attachment=='/usr/bin/bwrap' else 'unpriv_bwrap')
+ assert sorted(observed)==['bwrap','unpriv_bwrap'], 'new profile identities differ'
  assert all(after['attachments'].get(name)==value for name,value in before['attachments'].items()), 'prior profile attachment changed'
+ assert all(after.get('opaque',{}).get(name)==value for name,value in before.get('opaque',{}).items()), 'prior opaque policy changed'
+ assert set(after.get('opaque',{}))-set(before.get('opaque',{}))<=added, 'unrelated opaque policy appeared'
  assert bounded('/proc/sys/kernel/apparmor_restrict_unprivileged_userns',16).strip()==b'1'
  result['profile']['completed']=True
 try:
@@ -295,14 +349,21 @@ finally:
 '''
 
 CHILD = r'''
-import json,os,subprocess,sys,time
+import json,os,stat,subprocess,sys,time
 from pathlib import Path
+def null_device():
+ info=os.stat('/dev/null',follow_symlinks=False)
+ assert stat.S_ISCHR(info.st_mode) and (os.major(info.st_rdev),os.minor(info.st_rdev))==(1,3)
+ descriptor=os.open('/dev/null',os.O_RDWR|os.O_CLOEXEC|os.O_NOFOLLOW)
+ os.close(descriptor)
+ return {'kind':'character','major':1,'minor':3,'readwrite_opened':True}
 os.umask(0o077)
 home,ready=map(Path,sys.argv[1:]); size=os.statvfs(home)
 assert 0<size.f_blocks*size.f_frsize<=512*1024*1024
 mounts=[line.split() for line in Path('/proc/self/mountinfo').read_text().splitlines()]
 matches=[parts[parts.index('-')+1] for parts in mounts if parts[4]==str(home)]
 assert matches==['tmpfs']
+devices={'null':null_device()}
 child=subprocess.Popen(['/usr/bin/python3','-I','-S','-B','-c','import time;time.sleep(120)'],env={'PATH':'/usr/bin:/bin'},stdin=subprocess.DEVNULL)
 status=dict(line.split(':',1) for line in Path('/proc/self/status').read_text().splitlines() if ':' in line)
 policy={'apparmor':Path('/proc/self/attr/current').read_text().strip(),'NoNewPrivs':status['NoNewPrivs'].strip(),
@@ -310,7 +371,7 @@ policy={'apparmor':Path('/proc/self/attr/current').read_text().strip(),'NoNewPri
         'userns_restriction':Path('/proc/sys/kernel/apparmor_restrict_unprivileged_userns').read_text().strip()}
 partial=ready.with_suffix('.partial')
 with partial.open('xb') as f:
- f.write(json.dumps({'pid':os.getpid(),'child_pid':child.pid,'uid':os.getuid(),'gid':os.getgid(),'cgroup':Path('/proc/self/cgroup').read_text().strip(),'writable_bytes':size.f_blocks*size.f_frsize,'policy':policy}).encode())
+ f.write(json.dumps({'pid':os.getpid(),'child_pid':child.pid,'uid':os.getuid(),'gid':os.getgid(),'cgroup':Path('/proc/self/cgroup').read_text().strip(),'writable_bytes':size.f_blocks*size.f_frsize,'policy':policy,'devices':devices}).encode())
 # Publish a complete record atomically, refusing an existing destination. Keep
 # the matching partial inode as diagnostic evidence rather than deleting it.
 os.link(partial,ready)
@@ -470,7 +531,8 @@ def inert_entry(invocation):
     os.execve("/usr/bin/bwrap", [
         "/usr/bin/bwrap", "--die-with-parent", "--new-session", "--unshare-user",
         "--uid", str(user.pw_uid), "--gid", str(user.pw_gid), "--cap-drop", "ALL",
-        "--bind", "/", "/", "--size", "536870912", "--tmpfs", str(home), "--chdir", str(home),
+        "--bind", "/", "/", "--dev-bind", "/dev/null", "/dev/null",
+        "--size", "536870912", "--tmpfs", str(home), "--chdir", str(home),
         "--setenv", "HOME", str(home), "--setenv", "TMPDIR", str(home), "--",
         "/usr/bin/python3", "-I", "-S", "-B", "-c", CHILD, str(home), str(ready),
     ], ENV)
@@ -542,6 +604,8 @@ def probe():
         need(observed["uid"] == user.pw_uid and observed["gid"] == user.pw_gid,
              "actual namespace account differs")
         check_namespace_policy(observed["policy"])
+        need(observed["devices"] == {"null": {"kind": "character", "major": 1, "minor": 3, "readwrite_opened": True}},
+             "actual fixed null device differs")
         need(observed["cgroup"] == "0::" + str(group.path).removeprefix("/sys/fs/cgroup"),
              "actual namespace cgroup differs")
         need(str(observed["pid"]) in group.read("cgroup.procs").splitlines()
