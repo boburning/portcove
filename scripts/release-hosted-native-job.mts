@@ -6,6 +6,7 @@ import { open } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { createActualHostedNativeParentSource } from "./release-hosted-native-parent.mts";
+import { prepareHostedNativeRuntime } from "./release-hosted-native-runtime.mts";
 import { acquireActualHostedNativeCandidate } from "./release-hosted-native-candidate.mts";
 import { prepareActualHostedNativeLinuxRequest } from "./release-hosted-native-linux-request.mts";
 import { captureActualHostedNativeLinuxInvocation } from "./release-hosted-native-linux-capture.mts";
@@ -43,16 +44,23 @@ async function retain(file: string, bytes: Buffer) {
 export async function prepareActualHostedLinuxPreSignJob(
   parentDirectory: string,
   originalDeadline: number,
+  runtimeInput?: { tools: object; executing_entry: string },
 ) {
+  const runtimeTools = runtimeInput?.tools;
+  const executingEntry = runtimeInput?.executing_entry;
   const parent = await createActualHostedNativeParentSource(
     parentDirectory,
     "linux-x86_64",
     "payload-signing",
     originalDeadline,
   );
+  const runtime =
+    runtimeTools === undefined
+      ? undefined
+      : await prepareHostedNativeRuntime(runtimeTools, parent, executingEntry!);
   const candidate = await acquireActualHostedNativeCandidate(parent);
   const request = await prepareActualHostedNativeLinuxRequest(candidate);
-  const capture = await captureActualHostedNativeLinuxInvocation(request);
+  const capture = await captureActualHostedNativeLinuxInvocation(request, runtime);
   const report = await prepareActualHostedLinuxNativeStageReport(capture);
   const proof = await signActualHostedLinuxNativeProof(report);
   const original = await requireActualHostedLinuxNativeProof(proof);
@@ -82,6 +90,7 @@ export async function prepareActualHostedLinuxPreSignJob(
   return {
     receipt,
     ready_file: path.join(original.directory, "native-upload-ready.json"),
+    deadline: original.deadline,
     authority: "none" as const,
   };
 }

@@ -119,7 +119,8 @@ pub use artwork::{
     ArtworkImageFormat, ArtworkMetadata, ArtworkResolvedSource, ArtworkSlot, ArtworkState,
     ArtworkThumbnail, DestinationArtworkBytes, DestinationArtworkContent,
     DestinationArtworkHandoff, DestinationArtworkRole, DestinationArtworkSource,
-    DestinationArtworkUnavailableReason, GeneratedArtworkFallback, LocalArtworkAsset,
+    DestinationArtworkUnavailableReason, GeneratedArtworkFallback, IGDB_ARTWORK_WORK_LIMIT,
+    LocalArtworkAsset,
 };
 pub use auth::{
     GithubAuthSource, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,

@@ -801,6 +801,26 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   ["scripts/release-hosted-native-job.mts", ["scripts/release-hosted-native-job.test.mts"]],
   [
+    "scripts/release-hosted-native-runner.mts",
+    ["scripts/release-hosted-native-runner.test.mts", "scripts/release-hosted-native-job.test.mts"],
+  ],
+  ...[
+    "scripts/release-hosted-native-runtime.mts",
+    "scripts/release-native-runtime-custody.mts",
+    "scripts/release-native-runtime-support.mts",
+  ].map((file): [string, string[]] => [
+    file,
+    ["scripts/release-hosted-native-runner.test.mts", "scripts/release-controller-tools.test.mts"],
+  ]),
+  [
+    "scripts/release-routing-marker.mts",
+    [
+      "scripts/release-routing-marker.test.mts",
+      "scripts/release-controller-transport.test.mts",
+      "scripts/release-hosted-native-runner.test.mts",
+    ],
+  ],
+  [
     "scripts/release-hosted-native-proof-producer.mts",
     [
       "scripts/release-hosted-native-proof-producer.test.mts",
@@ -1084,6 +1104,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/fixtures/disposable-directory.mts",
     [
       "scripts/catalog-proposal-costs.test.mts",
+      "scripts/fixture-module-closure.test.mts",
       "scripts/node-test-inventory.test.mts",
       "scripts/precommit-check.test.mts",
       "scripts/python-test-results.test.mts",
@@ -1096,9 +1117,19 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/release-hosted-native-proof-producer.test.mts",
       "scripts/release-native-wsl-capture.test.mts",
       "scripts/release-hosted-native-job.test.mts",
+      "scripts/release-hosted-native-runner.test.mts",
+      "scripts/release-routing-marker.test.mts",
       "scripts/release-run-evidence.test.mts",
       "scripts/required-node-test-reporter.test.mts",
       "scripts/test-duration-reporter.test.mts",
+    ],
+  ],
+  [
+    "scripts/fixtures/module-closure.mts",
+    [
+      "scripts/fixture-module-closure.test.mts",
+      "scripts/precommit-check.test.mts",
+      "scripts/daily-discovery.test.mts",
     ],
   ],
   [

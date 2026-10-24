@@ -1,6 +1,6 @@
 /** Unprivileged fixed-source tool production. No role key or publication effect. */
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire, isBuiltin } from "node:module";
@@ -9,10 +9,16 @@ import { isRecord } from "./runtime-values.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { prepareReleaseCompilerSourceClosure } from "./release-compiler-source.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
+import { prepareRustSupportArtifact, rustSupportCompilerIdentity } from "./rust-support-cache.mts";
+import {
+  nativeRuntimeSupport,
+  inspectNativeRuntimeSupport,
+} from "./release-native-runtime-support.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 import {
   controllerToolEntries,
+  controllerToolChildren,
   controllerToolAssets,
   controllerToolPaths,
   readControllerToolFile,
@@ -36,12 +42,15 @@ export async function bundleControllerEntries(sourceRoot: string, outputRoot: st
   )
     throw new Error("repository-pinned pack version differs");
   await mkdir(path.join(outputRoot, "scripts"), { recursive: true, mode: 0o700 });
-  for (const name of controllerToolEntries) {
-    const entry = path.join(
-      sourceRoot,
-      "scripts",
-      `${name === "production-controller-admission" ? "production-controller-admission-cli" : name}.mts`,
-    );
+  const entries = [
+    ...controllerToolEntries.map((name) => ({
+      source: `scripts/${name === "production-controller-admission" ? "production-controller-admission-cli" : name}.mts`,
+      output: `${name}.bundle.mjs`,
+    })),
+    ...controllerToolChildren.map((source) => ({ source, output: path.posix.basename(source) })),
+  ];
+  for (const definition of entries) {
+    const entry = path.join(sourceRoot, definition.source);
     await pack.build({
       config: false,
       cwd: sourceRoot,
@@ -57,7 +66,7 @@ export async function bundleControllerEntries(sourceRoot: string, outputRoot: st
       env: {},
       envPrefix: [],
       deps: { alwaysBundle: [/.*/] },
-      outputOptions: { entryFileNames: `${name}.bundle.mjs`, codeSplitting: false },
+      outputOptions: { entryFileNames: definition.output, codeSplitting: false },
       plugins: [
         {
           name: "portcove-fixed-module-locations",
@@ -266,6 +275,8 @@ export async function buildControllerTools(
         { flag: "wx", mode: 0o600 },
       );
     }
+    phase = "fixed-native-support-product";
+    await materializeControllerNativeSupport(sourceRoot, tools, env);
     phase = "fixed-compiler-source-closure";
     await materializeControllerCompilerSource(sourceRoot, tools, expected);
     guard();
@@ -303,4 +314,52 @@ export async function buildControllerTools(
     ).catch(() => {});
     throw new Error(`fixed controller bootstrap refused; retain ${directory}`);
   }
+}
+
+/** Build only in the unprivileged source bootstrap. Protected native runtime
+ * receives this product through the existing attested tool inventory. */
+export async function materializeControllerNativeSupport(
+  sourceRoot: string,
+  tools: string,
+  environment: NodeJS.ProcessEnv,
+) {
+  if (process.platform !== "linux" || process.arch !== "x64")
+    throw new Error("fixed Linux support build required");
+  const compiler = rustSupportCompilerIdentity({ runSync: spawnSync, environment });
+  const output = path.join(tools, nativeRuntimeSupport.binary);
+  const prepared = prepareRustSupportArtifact({
+    root: sourceRoot,
+    product: nativeRuntimeSupport.product,
+    source: nativeRuntimeSupport.source,
+    output,
+    rustcArgs: nativeRuntimeSupport.arguments,
+    compiler,
+    environment,
+    platform: "linux",
+    architecture: "x64",
+    runSync: spawnSync,
+  });
+  await chmod(output, 0o700);
+  const source = await readControllerToolFile(
+    path.join(sourceRoot, nativeRuntimeSupport.source),
+    65536,
+  );
+  const binary = await readControllerToolFile(output, nativeRuntimeSupport.maximumBinaryBytes);
+  const metadata = {
+    schema_version: 1,
+    product: nativeRuntimeSupport.product,
+    platform: "linux-x86_64",
+    compiler,
+    input_fingerprint: prepared.fingerprint,
+    rustc_arguments: nativeRuntimeSupport.arguments,
+    source: { bytes: source.length, sha256: hash(source) },
+    output: { bytes: binary.length, sha256: hash(binary), mode: 0o700 },
+  };
+  inspectNativeRuntimeSupport(metadata, source, binary);
+  const bytes = Buffer.from(JSON.stringify(metadata));
+  if (bytes.length > 65536) throw new Error("native support metadata exceeds bound");
+  await writeFile(path.join(tools, nativeRuntimeSupport.metadata), bytes, {
+    flag: "wx",
+    mode: 0o600,
+  });
 }

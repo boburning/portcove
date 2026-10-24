@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { once } from "node:events";
-import { stripTypeScriptTypes } from "node:module";
 import {
   DiscoveryBudget,
   selectDiscoveryProfile,
@@ -91,24 +90,24 @@ void test(
     }
   },
 );
-void test("bootstrap identity covers the complete statically loaded module closure", () => {
+void test("bootstrap identity covers the complete statically loaded module closure", async () => {
+  // The filtered Windows reader-sharing route runs before package installation.
+  const { readFixtureModuleClosure } = await import("./fixtures/module-closure.mts");
   const entry = new URL("./daily-discovery.mts", import.meta.url);
   const source = readFileSync(entry, "utf8");
   const declaration = source.match(/const bootstrap = \[([\s\S]*?)\];/u);
   assert.ok(declaration, "bootstrap identity list is present");
   const bound = [...declaration[1]!.matchAll(/"([^"]+)"/gu)].map((match) => match[1]!);
-  const loaded = new Set<string>();
-  function visit(file: URL) {
-    const name = path.relative(path.dirname(fileURLToPath(entry)), fileURLToPath(file));
-    if (loaded.has(name)) return;
-    loaded.add(name);
-    const runtime = stripTypeScriptTypes(readFileSync(file, "utf8"));
-    for (const match of runtime.matchAll(/^import\s+(?:[^;]+?\s+from\s+)?["']([^"']+)["'];/gmu)) {
-      if (match[1]!.startsWith(".")) visit(new URL(match[1]!, file));
-    }
-  }
-  visit(entry);
-  assert.deepEqual([...new Set(bound)].sort(), [...loaded].sort());
+  // The maintained production bootstrap list remains the independent expectation.
+  // Later imports belong to the separately captured runner/execution inputs.
+  const loaded = readFixtureModuleClosure(
+    path.dirname(fileURLToPath(entry)),
+    ["daily-discovery.mts"],
+    {
+      includeDynamicImports: false,
+    },
+  ).modules.map((module) => module.path);
+  assert.deepEqual([...new Set(bound)].sort(), loaded.sort());
 });
 void test("noninteractive run refuses before Git, credentials, inventory or lock acquisition", (t) => {
   const root = fileURLToPath(new URL("../", import.meta.url));
