@@ -51,7 +51,14 @@ for (const width of [320, 576]) {
       await expect.element(selected).toHaveFocus();
       for (let index = 0; index < 10; index += 1) {
         await userEvent.keyboard("{Tab}");
-        expect(dialog.element().contains(document.activeElement)).toBe(true);
+        const popup = dialog.element();
+        const active = document.activeElement;
+        const ownedGuard =
+          active instanceof HTMLElement &&
+          active.matches("[data-base-ui-focus-guard]") &&
+          [popup.previousElementSibling, popup.nextElementSibling].includes(active);
+        expect(popup.contains(active) || ownedGuard).toBe(true);
+        await expect.poll(() => popup.contains(document.activeElement)).toBe(true);
       }
       expect((await axe.run(dialog.element())).violations).toEqual([]);
       await userEvent.keyboard("{Escape}");

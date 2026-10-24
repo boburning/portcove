@@ -35,6 +35,25 @@ void test("qualification inventory is nonzero and exactly covers exhaustive jobs
   );
 });
 
+void test("macOS qualification recognizes only the maintained native keyboard input routes", () => {
+  for (const file of [
+    "pnpm-workspace.yaml",
+    "apps/desktop/src/browser/display-recovery.browser.test.tsx",
+    "apps/desktop/src/browser/compact-navigation.browser.test.tsx",
+    "apps/desktop/src/components/AdoptionModal.browser.test.tsx",
+  ]) {
+    const changed = editedWorkflow((jobs) => {
+      const job = record(jobs.frontend_portability);
+      assert.ok(typeof job.if === "string" && job.if.includes(file));
+      job.if = job.if.replace(file, "unowned-neighbor");
+    });
+    assert.throws(
+      () => validateQualificationCoverage(inventory, changed),
+      /Unsupported qualification condition/u,
+    );
+  }
+});
+
 void test("missing, extra, duplicate, or zero inventories fail closed", () => {
   assert.throws(
     () => validateQualificationCoverage({ ...inventory, jobs: [] }, workflow),
