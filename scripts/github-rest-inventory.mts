@@ -8,6 +8,7 @@ const version = { "X-GitHub-Api-Version": "2026-03-10" };
 /** Cache entries are usable only after a fresh authorized 304, never as offline evidence. */
 export class RestInventoryTransport {
   private cache = new Map<string, { response: IncludedResponse; digest: string; etag: string }>();
+  private unconditional = new Set<string>();
   readonly api: GitHubApiClient;
   constructor(api: GitHubApiClient) {
     this.api = api;
@@ -17,7 +18,8 @@ export class RestInventoryTransport {
     const old = this.cache.get(endpoint);
     // Refresh terminal pages unconditionally: a newly appended page can change Link
     // without changing the preceding page's representation/ETag.
-    const conditional = old && nextLink(old.response.headers) !== null;
+    const conditional =
+      old && !this.unconditional.has(endpoint) && nextLink(old.response.headers) !== null;
     let response = this.api.request("GET", endpoint, null, {
       ...version,
       ...(conditional ? { "If-None-Match": old.etag } : {}),
@@ -26,6 +28,9 @@ export class RestInventoryTransport {
       if (!old || !conditional || hash(old.response.body) !== old.digest)
         throw new Error("REST 304 has no unchanged authenticated page preimage");
       if (!response.headers.has("link")) {
+        // This endpoint cannot refresh pagination through 304. Avoid paying for
+        // the same failed conditional request on every subsequent traversal.
+        this.unconditional.add(endpoint);
         response = this.api.request("GET", endpoint, null, version);
       } else {
         response = { ...response, body: old.response.body };

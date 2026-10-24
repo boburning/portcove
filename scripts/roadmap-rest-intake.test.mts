@@ -393,3 +393,24 @@ await test("REST issue inventory ignores PR-only edits but refuses creations and
       );
   }
 });
+
+await test("REST endpoints omitting Link on304 use complete unconditional pages afterward", () => {
+  const requests: string[][] = [];
+  const link = `<${base}/items?after=next>; rel="next"`;
+  const rest = new RestInventoryTransport(
+    new GitHubApiClient((args) => {
+      requests.push([...args]);
+      return requests.length === 2
+        ? response(null, { etag: "tag" }, 304)
+        : response([{ node_id: "one" }], { etag: "tag", link });
+    }),
+  );
+  rest.get("items");
+  rest.get("items");
+  rest.get("items");
+  assert.equal(requests.length, 4);
+  assert.ok(requests[1]!.includes("If-None-Match: tag"));
+  assert.ok(
+    requests.slice(2).every((args) => !args.some((value) => value.startsWith("If-None-Match:"))),
+  );
+});
