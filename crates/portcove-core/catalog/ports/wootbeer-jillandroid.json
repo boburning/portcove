@@ -7,8 +7,8 @@
     "project_url": "https://github.com/wootbeer/jillandroid",
     "issue_number": 1834,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/wootbeer/jillandroid",
+    "availability": "packages",
+    "setup_url": "https://github.com/wootbeer/jillandroid/blob/0.1/README.md",
     "artwork": {
       "game_id": 9641,
       "cover_id": 227910,
@@ -16,6 +16,21 @@
       "image_sha256": "ec8df70a1a71273622ecd3a41852f1f4e90cd335c41f32a0f78a6f65c8776ded",
       "game_slug": "jill-of-the-jungle",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/wootbeer/jillandroid/releases/tag/0.1",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Install this fork’s Android APK and choose the folder containing your own licensed Jill of the Jungle data on first launch. The guide recommends the GOG data and accepts one episode or all three. Keep the episode files together: .sha, .vcl, .mac, .dem, .ddt, jill.dma and numbered files 0–50. Copying your complete original game folder avoids a missing-file sort; no desktop executable is the Android player."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Keep the chosen game folder available and preserve it plus the Android app’s actual save/config data before an update or uninstall. The reviewed guide does not establish an exact save/export path or transferable-save contract. A close immediately after folder selection can indicate the wrong data version. This is an upstream beta; Portcove has no device/gameplay qualification or Android runtime backup/rollback promise."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/wootbeer/jillandroid/blob/0.1/README.md"
     }
   }
 }

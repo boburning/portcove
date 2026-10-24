@@ -7,8 +7,8 @@
     "project_url": "https://github.com/ogdanimal/Goemon64Recomp-Android",
     "issue_number": 1823,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/ogdanimal/Goemon64Recomp-Android",
+    "availability": "packages",
+    "setup_url": "https://github.com/ogdanimal/Goemon64Recomp-Android/blob/v1.0.8/README.md",
     "artwork": {
       "game_id": 3545,
       "cover_id": 241636,
@@ -16,6 +16,21 @@
       "image_sha256": "e3c3c516bb9ceba21e919d8e36758d5c97de20a42e6289ef61fc9e86d00ad564",
       "game_slug": "mystical-ninja-starring-goemon",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/ogdanimal/Goemon64Recomp-Android/releases/tag/v1.0.8",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Install this fork’s Android ARM64 APK, open it and choose your own supported Mystical Ninja Starring Goemon ROM through its file picker. The app verifies and copies the ROM into app-scoped storage; no manual folder placement or legacy storage permission is needed. Then choose Start. Upstream requires Android 9+ and Vulkan; a physical controller is useful but current releases also have touch controls."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Saves and settings share the app-scoped profile. Before starting a game, Settings > Saves can import a checked compatible save and keeps the previous file alongside as .pre-import.bak. That is an upstream import safeguard, not a complete backup or compatibility promise for arbitrary emulator saves. Preserve app data using the upstream Android methods before uninstalling or clearing storage. For an affected Adreno launch crash, the guide offers disabling Framebuffer Effects before selecting an optional custom driver. Portcove does not install drivers, update the APK or back up its profile."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/ogdanimal/Goemon64Recomp-Android/blob/v1.0.8/README.md"
     }
   }
 }

@@ -7,7 +7,22 @@
     "project_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone",
     "issue_number": 1848,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone"
+    "availability": "packages",
+    "setup_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/blob/2.9.1-ds.1.0.2/README.md",
+    "release_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/releases/tag/2.9.1-ds.1.0.2",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "This fork’s published APK is for Android, specifically the AYN Thor dual-screen UZDoom route. Install this fork’s APK on the Android device, open its launcher deliberately, and select your own compatible Doom-family IWAD/content through the UZDoom setup. Other engines named in the inherited parent README have been excluded from this fork; do not prepare Doom RPG, Wolfenstein RPG or another parent engine for this APK."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Keep your selected IWADs, mods and actual Android app data backed up before changing versions. This fork’s reviewed guide does not establish an exact save/export location. Its UZDoom renderer notes distinguish Adreno from Mali/PowerVR; follow the fork’s device guidance. Updates and device setup belong to the upstream Android app, outside Portcove runtime backup and rollback."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/blob/2.9.1-ds.1.0.2/README.md"
+    }
   }
 }

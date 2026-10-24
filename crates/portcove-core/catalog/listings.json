@@ -5759,8 +5759,23 @@
       "project_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone",
       "issue_number": 1848,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone"
+      "availability": "packages",
+      "setup_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/blob/2.9.1-ds.1.0.2/README.md",
+      "release_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/releases/tag/2.9.1-ds.1.0.2",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish setup in the upstream Android app",
+            "instruction": "This fork’s published APK is for Android, specifically the AYN Thor dual-screen UZDoom route. Install this fork’s APK on the Android device, open its launcher deliberately, and select your own compatible Doom-family IWAD/content through the UZDoom setup. Other engines named in the inherited parent README have been excluded from this fork; do not prepare Doom RPG, Wolfenstein RPG or another parent engine for this APK."
+          },
+          {
+            "title": "Keep your data when changing versions",
+            "instruction": "Keep your selected IWADs, mods and actual Android app data backed up before changing versions. This fork’s reviewed guide does not establish an exact save/export location. Its UZDoom renderer notes distinguish Adreno from Mali/PowerVR; follow the fork’s device guidance. Updates and device setup belong to the upstream Android app, outside Portcove runtime backup and rollback."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/blob/2.9.1-ds.1.0.2/README.md"
+      }
     },
     {
       "id": "andyvand-opentyrian2000",
@@ -5819,8 +5834,8 @@
       "project_url": "https://github.com/AurelioB/BanjoRecomp-Android",
       "issue_number": 1794,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/AurelioB/BanjoRecomp-Android",
+      "availability": "packages",
+      "setup_url": "https://github.com/AurelioB/BanjoRecomp-Android/blob/android-v0.1.1/README.md",
       "artwork": {
         "game_id": 2148,
         "cover_id": 528449,
@@ -5828,6 +5843,21 @@
         "image_sha256": "578beb8f394d692c83b886b70aad4effd70a6d9f29bb872c3714b9703e9a69fa",
         "game_slug": "banjo-kazooie",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/AurelioB/BanjoRecomp-Android/releases/tag/android-v0.1.1",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish setup in the upstream Android app",
+            "instruction": "Install the Android ARM64 APK from this fork’s selected release, then open the app and choose your own North American 1.0 Banjo-Kazooie ROM when asked. The app handles its supported ROM import; there is no PC extraction/build step for the player. Desktop Banjo releases and another fork’s setup are separate choices."
+          },
+          {
+            "title": "Keep your data when changing versions",
+            "instruction": "Saves, configuration, imported ROM, mods, texture packs and caches use app-private storage under com.aure.banjorecomp. Preserve that data before uninstalling or clearing app data. Follow the upstream Android update process so the installed app identity/signature can be retained. Portcove does not back up this Android profile or manage APK replacement."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/AurelioB/BanjoRecomp-Android/blob/android-v0.1.1/README.md"
       }
     },
     {
@@ -7400,8 +7430,8 @@
       "project_url": "https://github.com/Edwin2929/sma3-recomp-android.",
       "issue_number": 1885,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Edwin2929/sma3-recomp-android.",
+      "availability": "packages",
+      "setup_url": "https://github.com/Edwin2929/sma3-recomp-android./blob/Descarga/README.md",
       "artwork": {
         "game_id": 16747,
         "cover_id": 200020,
@@ -7409,6 +7439,21 @@
         "image_sha256": "82c1d426dbafbac5b8121ac036f8158c7db23def20cab27d16f5484f65a48236",
         "game_slug": "yoshis-island-super-mario-advance-3",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/Edwin2929/sma3-recomp-android./releases/tag/Descarga",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish setup in the upstream Android app",
+            "instruction": "The upstream guide describes this Android ARM64 setup: CHOOSE ROM for your own Yoshi’s Island: Super Mario Advance 3 USA ROM, CHOOSE BIOS for your own GBA BIOS, then PLAY. It identifies the 4,194,304-byte ROM by SHA-1 7352d2bd064d9ebaec579e264228aa21c7345b80 and the 16,384-byte BIOS by SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The published APK names a different version from that guide, so check its release instructions before changing a working copy. Portcove supplies neither original file."
+          },
+          {
+            "title": "Keep your data when changing versions",
+            "instruction": "The published APK and setup guide name different versions (0.9 and 0.4). The input and save-transfer details for that APK are still being checked. Keep existing saves, app data and your originals separately before changing builds; a locally signed build cannot update a differently signed app in place. Preserve a working copy’s data before any uninstall required by a signing change."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/Edwin2929/sma3-recomp-android./blob/Descarga/README.md"
       }
     },
     {
@@ -7940,8 +7985,8 @@
       "project_url": "https://github.com/GreenNaugahyde/ZeldaWWHDRecompAndroid",
       "issue_number": 1896,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/GreenNaugahyde/ZeldaWWHDRecompAndroid",
+      "availability": "packages",
+      "setup_url": "https://github.com/GreenNaugahyde/ZeldaWWHDRecompAndroid/blob/v0.9.5/README.md",
       "artwork": {
         "game_id": 2276,
         "cover_id": 172350,
@@ -7949,6 +7994,21 @@
         "image_sha256": "2a1bbeb196640888a17f5911593796fe7fe73c25fff25201c789ad6ea0cec8f6",
         "game_slug": "the-legend-of-zelda-the-wind-waker-hd",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/GreenNaugahyde/ZeldaWWHDRecompAndroid/releases/tag/v0.9.5",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish setup in the upstream Android app",
+            "instruction": "On an Android 11+ ARM64 device with Vulkan 1.1, install this fork’s stable APK and choose Extract from your disc image or .wua. Use your own Wind Waker HD USA, European or Japanese Wii U dump: .wud/.wux with its same-name disc .key and your own common.key in one folder, or an already decrypted .wua. The app extracts and compiles on the device once; it shows progress and supports continuation. No PC recompiler or desktop setup is required."
+          },
+          {
+            "title": "Keep your data when changing versions",
+            "instruction": "Allow roughly 2 GB of free storage and memory for the upstream setup. Keep original inputs and exported game saves/save states separately before app updates or deletion; use the app’s save import/export controls. Save-state compatibility can depend on the app build. Optional Lossless Scaling frame generation requires your own separate licensed copy; it is not included or needed for ordinary setup. The PowerVR test release is an alternative to the stable release, not a general device guarantee."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/GreenNaugahyde/ZeldaWWHDRecompAndroid/blob/v0.9.5/README.md"
       }
     },
     {
@@ -8063,8 +8123,8 @@
       "project_url": "https://github.com/igawa6/dualsouls",
       "issue_number": 1829,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/igawa6/dualsouls",
+      "availability": "packages",
+      "setup_url": "https://github.com/igawa6/dualsouls/blob/1.0.3/README.md",
       "artwork": {
         "game_id": 14593,
         "cover_id": 533941,
@@ -8072,7 +8132,23 @@
         "image_sha256": "ca8e7bee79563f001a8ed24a7a9f60de61567affcb1022a72594c5a47ed93a4f",
         "game_slug": "hollow-knight",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/igawa6/dualsouls/releases/tag/1.0.3",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep a permitted prepared copy",
+            "instruction": "For an already obtained permitted copy, follow this fork’s on-device Import Game flow with your own complete Hollow Knight GOG/Steam v1.5.12620 Voidheart folder and its matching release patch. The folder contains Hollow Knight_Data or hollow_knight_Data. Choose the game folder and patch, then Build game data and START GAME. Do not substitute another game version or describe the published patch as containing no game content."
+          },
+          {
+            "title": "Keep your data when changing versions",
+            "instruction": "The upstream Save Files page exports/imports slots; saves use Android/data/igawa6.dualsouls/files and imports retain the previous slot as .bak. Preserve an export before changing the app. Upstream says to update over the same signed app and never uninstall first: uninstall or Clear storage deletes saves and built data. A required data rebuild uses the matching new patch; PC save wrapping is not directly compatible."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/igawa6/dualsouls/blob/1.0.3/README.md"
+      },
+      "download_block_reason": "The selected upstream README states that the APK contains Hollow Knight compiled game code; its redistribution audit also identifies the patch as carrying game content. No publisher permission for that distribution is established here. Fresh Portcove downloads remain unavailable until an attributable grant or a package that creates those materials from the player’s own inputs resolves this boundary. Existing permitted copies keep their files and upstream ownership."
     },
     {
       "id": "infinite-undiscovery-doc-haz",
@@ -8232,8 +8308,8 @@
       "project_url": "https://github.com/izzy2lost/Lighthouse",
       "issue_number": 1841,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/izzy2lost/Lighthouse",
+      "availability": "packages",
+      "setup_url": "https://github.com/izzy2lost/Lighthouse/blob/1.0.2/README.md",
       "artwork": {
         "game_id": 2148,
         "cover_id": 528449,
@@ -8241,6 +8317,21 @@
         "image_sha256": "578beb8f394d692c83b886b70aad4effd70a6d9f29bb872c3714b9703e9a69fa",
         "game_slug": "banjo-kazooie",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/izzy2lost/Lighthouse/releases/tag/1.0.2",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish setup in the upstream Android app",
+            "instruction": "Install this fork’s Android APK and open it to generate the Banjo-Kazooie O2R on the device. No PC or separate extraction app is needed. Supply your own supported .z64 ROM; the selected guide lists US 1.0, US 1.1, Japanese and PAL versions. US 1.0 is the recommended base if you need the fork’s ROM-hack support. Follow the app’s own import and Play flow."
+          },
+          {
+            "title": "Keep your data when changing versions",
+            "instruction": "Keep your original ROM and back up the Android app’s actual saves, configuration, generated O2R and mods before changing or removing it. The selected release confirms on-device generation and mod/ROM-hack support, but does not establish an Android save/export path. Parent desktop paths are not an Android storage contract. Updates remain upstream-owned."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/izzy2lost/Lighthouse/blob/1.0.2/README.md"
       }
     },
     {
@@ -8250,8 +8341,8 @@
       "project_url": "https://github.com/izzy2lost/perfect_dark",
       "issue_number": 1867,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/izzy2lost/perfect_dark",
+      "availability": "packages",
+      "setup_url": "https://github.com/izzy2lost/perfect_dark/blob/2.0.0/README.md",
       "artwork": {
         "game_id": 1463,
         "cover_id": 336883,
@@ -8259,6 +8350,21 @@
         "image_sha256": "b4527efe3caaec5486b90fecdad0978574ce819f4024e5dd29f4565443871afc",
         "game_slug": "perfect-dark",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/izzy2lost/perfect_dark/releases/tag/2.0.0",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish setup in the upstream Android app",
+            "instruction": "Open this fork’s Android APK and use its ROM picker for your own Perfect Dark NTSC-U Rev 1/US 1.1 .z64, the recommended edition (MD5 e03b088b6ac9e0080440efed07c1e40f). The app verifies and copies it to Android/data/com.perfectdark.port/files/data/pd.ntsc-final.z64. US 1.0 is a separate warned alternative; do not assume the parent’s custom PAL/Japanese desktop executables are Android builds."
+          },
+          {
+            "title": "Keep your data when changing versions",
+            "instruction": "Before moving from the older signed app to version 2.0.0, preserve and verify a separate copy of Android/data/com.perfectdark.port/files/eeprom.bin and any other app data you need. The maintainer lost the former signing key: this release requires a manual uninstall/reinstall, which must not precede preservation of the working copy’s data. Keep the saved copy until the new app works and the upstream restore path is confirmed. Portcove does not perform this Android transition or promise an automatic restore. Optional local netplay/mod support remains upstream-limited."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/izzy2lost/perfect_dark/blob/2.0.0/README.md"
       }
     },
     {
@@ -8268,8 +8374,8 @@
       "project_url": "https://github.com/izzy2lost/SpaghettiKart",
       "issue_number": 1889,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/izzy2lost/SpaghettiKart",
+      "availability": "packages",
+      "setup_url": "https://github.com/izzy2lost/SpaghettiKart/blob/2.0.0/README.md",
       "artwork": {
         "game_id": 2342,
         "cover_id": 289642,
@@ -8277,6 +8383,21 @@
         "image_sha256": "6024ad15454ac8e18d972b6d5544e85bb975cdde2f1717c3aff547e351b36ff2",
         "game_slug": "mario-kart-64",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/izzy2lost/SpaghettiKart/releases/tag/2.0.0",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish setup in the upstream Android app",
+            "instruction": "Install this fork’s Android APK, open it, and choose your own Mario Kart 64 US .z64 ROM. The upstream guide identifies SHA-1 579c48e211ae952530ffc8738709f078d5dd215e. This app verifies the ROM and creates mk64.o2r on the device; no PC Spaghettify/Torch step is required."
+          },
+          {
+            "title": "Keep your data when changing versions",
+            "instruction": "The Android guide puts game data under Android/data/com.izzy.kart/files. Mods go in its mods folder as supported .o2r, .zip or plain folders and load next launch; .otr is not supported. Preserve your app data, saves, generated O2R and mods before updating or removing the app. Android/upstream owns replacement and storage; Portcove backup and runtime rollback do not cover it."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/izzy2lost/SpaghettiKart/blob/2.0.0/README.md"
       }
     },
     {
@@ -8286,8 +8407,8 @@
       "project_url": "https://github.com/izzy2lost/Starship",
       "issue_number": 1890,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/izzy2lost/Starship",
+      "availability": "packages",
+      "setup_url": "https://github.com/izzy2lost/Starship/blob/v2.0.0/README.md",
       "artwork": {
         "game_id": 2591,
         "cover_id": 524514,
@@ -8295,6 +8416,21 @@
         "image_sha256": "2c004bd7f2d6fdcdbd306a1cf9bca990bfae075dae322dda2d9fc223e0011518",
         "game_slug": "star-fox-64",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/izzy2lost/Starship/releases/tag/v2.0.0",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish setup in the upstream Android app",
+            "instruction": "Install this fork’s Starship Android APK, open it and use the system file picker for your own Star Fox 64 US 1.0 or US 1.1 .z64 ROM. The app converts the ROM on the device; no PC Torch or copied sf64.o2r is needed. Japanese/European ROMs may supply optional voice language data with a US base; they are not base-game replacements."
+          },
+          {
+            "title": "Keep your data when changing versions",
+            "instruction": "The release provides in-game mods and saves managers. Use those to preserve your data before changing or removing the app, and retain your original ROM. It reads the chosen ROM through the system picker rather than requiring a broad storage grant. The release lists Android 7+ with ARM64 or ARMv7; these are upstream requirements, not Portcove device observations. Updates and profile handling remain upstream-owned."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/izzy2lost/Starship/blob/v2.0.0/README.md"
       }
     },
     {
@@ -8322,8 +8458,8 @@
       "project_url": "https://github.com/jakobkhansen/SilksongAndroid",
       "issue_number": 1884,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/jakobkhansen/SilksongAndroid",
+      "availability": "packages",
+      "setup_url": "https://github.com/jakobkhansen/SilksongAndroid/blob/v2.0.0/README.md",
       "artwork": {
         "game_id": 115289,
         "cover_id": 531786,
@@ -8331,6 +8467,21 @@
         "image_sha256": "5ccc0412e66ff956dc125b477e97e355ec0e3449c1fc6b2b94685941439c966b",
         "game_slug": "hollow-knight-silksong",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/jakobkhansen/SilksongAndroid/releases/tag/v2.0.0",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish setup in the upstream Android app",
+            "instruction": "Install this fork’s Android APK. Supply your own Silksong Linux game files by choosing the complete folder containing Hollow Knight Silksong.x86_64, UnityPlayer.so and Hollow Knight Silksong_Data; the Windows and macOS depots are not compatible. You can copy that folder from your own PC without signing in. The app also offers optional Steam sign-in on the device. Portcove does not request or handle your account credentials. Start the app’s build and then Play; this can take substantial time on the device."
+          },
+          {
+            "title": "Keep your data when changing versions",
+            "instruction": "Leave the selected Linux game folder on the device: the app reads it every Play and during rebuilds instead of copying the whole game into app storage. Moving or deleting it stops the game. Keep a separate save backup before updates or Steam Cloud synchronization; cloud pull/push is an optional app feature, not a Portcove data-restore guarantee. The APK is an upstream build system that downloads its toolchain and builds from your inputs, outside the native-portable replacement contract."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/jakobkhansen/SilksongAndroid/blob/v2.0.0/README.md"
       }
     },
     {
@@ -8661,8 +8812,8 @@
       "project_url": "https://github.com/linkzenic/2ship2harkinian-Android",
       "issue_number": 1787,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/linkzenic/2ship2harkinian-Android",
+      "availability": "packages",
+      "setup_url": "https://github.com/linkzenic/2ship2harkinian-Android/blob/v5.0.1-android.3/README.md",
       "artwork": {
         "game_id": 1030,
         "cover_id": 172745,
@@ -8670,6 +8821,21 @@
         "image_sha256": "342f842607e49e0f37fc9bb70b0ac967c18c760410031e473123655d21c903d5",
         "game_slug": "the-legend-of-zelda-majora-s-mask",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/linkzenic/2ship2harkinian-Android/releases/tag/v5.0.1-android.3",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish setup in the upstream Android app",
+            "instruction": "Install the APK from this fork, open it once to create its data folder and support files, and select your own supported Majora’s Mask MM.z64 when prompted. The app creates mm.o2r on the device. Its Android route needs no desktop 2Ship extraction or separate native plugin package."
+          },
+          {
+            "title": "Keep your data when changing versions",
+            "instruction": "The selected 2S2H data folder is shown and changed under Settings > General, including an SD card location. Preserve that actual folder’s saves, configuration, generated mm.o2r, mods and presets before changing or removing the app. If diagnosing an O2R problem, preserve the existing data before regenerating it from your own ROM. Android 7+/OpenGL ES 3.0 are upstream requirements; Portcove does not qualify every device or back up this external app profile."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/linkzenic/2ship2harkinian-Android/blob/v5.0.1-android.3/README.md"
       }
     },
     {
@@ -8679,8 +8845,8 @@
       "project_url": "https://github.com/linkzenic/Zelda64Recomp-Android",
       "issue_number": 1915,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/linkzenic/Zelda64Recomp-Android",
+      "availability": "packages",
+      "setup_url": "https://github.com/linkzenic/Zelda64Recomp-Android/blob/0.6.10/README.md",
       "artwork": {
         "game_id": 1030,
         "cover_id": 172745,
@@ -8688,6 +8854,21 @@
         "image_sha256": "342f842607e49e0f37fc9bb70b0ac967c18c760410031e473123655d21c903d5",
         "game_slug": "the-legend-of-zelda-majora-s-mask",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/linkzenic/Zelda64Recomp-Android/releases/tag/0.6.10",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish setup in the upstream Android app",
+            "instruction": "Choose the Android App APK from this fork, not its separate Android randomizer-mod ZIP, and install it on an ARM64 Android device with a working Vulkan driver. Open the app and choose your own supported Majora’s Mask ROM when asked; it contains no game assets. Grant the requested storage access for its /sdcard/Zelda64 profile."
+          },
+          {
+            "title": "Keep your data when changing versions",
+            "instruction": "Back up /sdcard/Zelda64, including saves, config and mods, before replacing or removing this beta app. Install mods through its own Mods menu. Native-code mods require Android ARM64 .so libraries; desktop Linux, Windows or macOS plugins cannot substitute for them. This beta APK is debug-signed, so keep data safe before a future signing change. Its profile and updates remain upstream-owned and outside Portcove runtime backup/rollback."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/linkzenic/Zelda64Recomp-Android/blob/0.6.10/README.md"
       }
     },
     {
@@ -9359,8 +9540,8 @@
       "project_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled",
       "issue_number": 1580,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled",
+      "availability": "packages",
+      "setup_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled/blob/78a6df91f538d011c80c5f5dbcd567651c1b67e6/README.md",
       "artwork": {
         "game_id": 98,
         "cover_id": 93655,
@@ -9368,7 +9549,23 @@
         "image_sha256": "25ed7f5aa7dacdb1853021d593dcc536d240f5e757ae2db568d60b33639ad23d",
         "game_slug": "need-for-speed-most-wanted",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled/releases/tag/latest",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep a permitted prepared copy",
+            "instruction": "For a permitted locally built Windows copy, follow this project’s complete upstream ReXGlue bootstrap/extraction/build instructions with your own Need for Speed: Most Wanted Xbox 360 PAL Spain dump. The selected guide explicitly excludes PAL UK and NTSC US for this route. Its private ready-to-play build contains translated game code; the publishable Portable folder deliberately omits that executable. Register only your prepared native player, keeping the original dump and working copy separate."
+          },
+          {
+            "title": "Keep your data when changing versions",
+            "instruction": "The current Android release is separate from that Windows build and has its own game-path selector for an ISO or extracted default.xex. Its generated-code distribution boundary has not been resolved: the release declares source commit 78a6df91f538d011c80c5f5dbcd567651c1b67e6, whose Android CMake links app/generated/default sources despite the selected project’s rule against publishing the compiled game. Keep existing app/native data intact and follow the owning upstream setup; Portcove does not build, replace or back up these runtimes."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled/blob/78a6df91f538d011c80c5f5dbcd567651c1b67e6/README.md"
+      },
+      "download_block_reason": "The selected project explicitly prohibits distributing its generated game sources and compiled game executable. The Android release’s declared source links those generated game sources into its native library. Permission for fresh acquisition of that translated game-code package is not established. Keep existing permitted/local builds; fresh Portcove downloads require an attributable distribution grant or a code-free package with a supported owned-input preparation route."
     },
     {
       "id": "nevercookfirst-dimensionsrecomp",
@@ -9553,8 +9750,8 @@
       "project_url": "https://github.com/ogdanimal/Goemon64Recomp-Android",
       "issue_number": 1823,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ogdanimal/Goemon64Recomp-Android",
+      "availability": "packages",
+      "setup_url": "https://github.com/ogdanimal/Goemon64Recomp-Android/blob/v1.0.8/README.md",
       "artwork": {
         "game_id": 3545,
         "cover_id": 241636,
@@ -9562,6 +9759,21 @@
         "image_sha256": "e3c3c516bb9ceba21e919d8e36758d5c97de20a42e6289ef61fc9e86d00ad564",
         "game_slug": "mystical-ninja-starring-goemon",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/ogdanimal/Goemon64Recomp-Android/releases/tag/v1.0.8",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish setup in the upstream Android app",
+            "instruction": "Install this fork’s Android ARM64 APK, open it and choose your own supported Mystical Ninja Starring Goemon ROM through its file picker. The app verifies and copies the ROM into app-scoped storage; no manual folder placement or legacy storage permission is needed. Then choose Start. Upstream requires Android 9+ and Vulkan; a physical controller is useful but current releases also have touch controls."
+          },
+          {
+            "title": "Keep your data when changing versions",
+            "instruction": "Saves and settings share the app-scoped profile. Before starting a game, Settings > Saves can import a checked compatible save and keeps the previous file alongside as .pre-import.bak. That is an upstream import safeguard, not a complete backup or compatibility promise for arbitrary emulator saves. Preserve app data using the upstream Android methods before uninstalling or clearing storage. For an affected Adreno launch crash, the guide offers disabling Framebuffer Effects before selecting an optional custom driver. Portcove does not install drivers, update the APK or back up its profile."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/ogdanimal/Goemon64Recomp-Android/blob/v1.0.8/README.md"
       }
     },
     {
@@ -10618,8 +10830,8 @@
       "project_url": "https://github.com/Simon358/ctr-native-android",
       "issue_number": 1808,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Simon358/ctr-native-android",
+      "availability": "packages",
+      "setup_url": "https://github.com/Simon358/ctr-native-android/blob/Android-Build4/README.md",
       "artwork": {
         "game_id": 1192,
         "cover_id": 361766,
@@ -10627,6 +10839,21 @@
         "image_sha256": "857ab4be415b6baf136a594b32afa654c830446c1e565cb8e047a9bd76bb18d6",
         "game_slug": "crash-team-racing",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/Simon358/ctr-native-android/releases/tag/Android-Build4",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish setup in the upstream Android app",
+            "instruction": "Install this fork’s Android APK and open its Missing Assets screen. Follow its storage-permission handoff, choose Select File, and select your own Crash Team Racing NTSC-U raw BIN or supported BIGFILE.BIG. The app copies the chosen data to its own assets storage; restart the app after the copy. Do not use another region or the parent’s desktop executable as an Android package. The source targets a 32-bit Android memory model and requires OpenGL ES 3.0."
+          },
+          {
+            "title": "Keep your data when changing versions",
+            "instruction": "Keep your original disc data and preserve the app’s saves/data before Android app replacement or removal. The Android guide describes /data/data/com.ctrnative/files/assets for picker copies and a different external assets path for manual PC/root setup; use the picker instead of guessing between them. Release Build4 adds touch controls when no controller is detected. Full-game and device coverage remain unqualified; Portcove owns neither APK updates nor its profile backup."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/Simon358/ctr-native-android/blob/Android-Build4/README.md"
       }
     },
     {
@@ -11062,8 +11289,8 @@
       "project_url": "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED",
       "issue_number": 1907,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED",
+      "availability": "packages",
+      "setup_url": "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED/blob/1.7/README.md",
       "artwork": {
         "game_id": 2276,
         "cover_id": 172350,
@@ -11071,6 +11298,21 @@
         "image_sha256": "2a1bbeb196640888a17f5911593796fe7fe73c25fff25201c789ad6ea0cec8f6",
         "game_slug": "the-legend-of-zelda-the-wind-waker-hd",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED/releases/tag/1.7",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish setup in the upstream Android app",
+            "instruction": "Install this Enhanced fork’s Android APK on an Android 11+ ARM64 device with Vulkan 1.1. Use your own Wind Waker HD USA, European or Japanese Wii U dump: a .wud/.wux with its same-name disc .key and your own common.key in one folder, or an already decrypted Cemu .wua without keys. Choose the app’s extraction action and select that folder. It extracts and compiles on the device once; no PC recompiler is needed."
+          },
+          {
+            "title": "Keep your data when changing versions",
+            "instruction": "Allow about 2 GB of free storage and memory for the upstream setup. Use the app’s save/save-state export controls and retain a separate copy before changing the app. Save states are tied to the build that created them and are distinct from normal game saves. Game-specific extracted/compiled data stays on your device; no game content or keys are supplied by Portcove. The Android app and its optional graphics features retain upstream ownership."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED/blob/1.7/README.md"
       }
     },
     {
@@ -12499,8 +12741,8 @@
       "project_url": "https://github.com/wootbeer/jillandroid",
       "issue_number": 1834,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/wootbeer/jillandroid",
+      "availability": "packages",
+      "setup_url": "https://github.com/wootbeer/jillandroid/blob/0.1/README.md",
       "artwork": {
         "game_id": 9641,
         "cover_id": 227910,
@@ -12508,6 +12750,21 @@
         "image_sha256": "ec8df70a1a71273622ecd3a41852f1f4e90cd335c41f32a0f78a6f65c8776ded",
         "game_slug": "jill-of-the-jungle",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/wootbeer/jillandroid/releases/tag/0.1",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish setup in the upstream Android app",
+            "instruction": "Install this fork’s Android APK and choose the folder containing your own licensed Jill of the Jungle data on first launch. The guide recommends the GOG data and accepts one episode or all three. Keep the episode files together: .sha, .vcl, .mac, .dem, .ddt, jill.dma and numbered files 0–50. Copying your complete original game folder avoids a missing-file sort; no desktop executable is the Android player."
+          },
+          {
+            "title": "Keep your data when changing versions",
+            "instruction": "Keep the chosen game folder available and preserve it plus the Android app’s actual save/config data before an update or uninstall. The reviewed guide does not establish an exact save/export path or transferable-save contract. A close immediately after folder selection can indicate the wrong data version. This is an upstream beta; Portcove has no device/gameplay qualification or Android runtime backup/rollback promise."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/wootbeer/jillandroid/blob/0.1/README.md"
       }
     },
     {
@@ -12707,8 +12964,8 @@
       "project_url": "https://github.com/ZinexDa/sonic-r-android",
       "issue_number": 1888,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ZinexDa/sonic-r-android",
+      "availability": "packages",
+      "setup_url": "https://github.com/ZinexDa/sonic-r-android/blob/v1.3.1/README.md",
       "artwork": {
         "game_id": 19091,
         "cover_id": 325945,
@@ -12716,6 +12973,21 @@
         "image_sha256": "ffed3ba38e53270366c1445363e31f546d051e9374fef8ab0dcaa8e3b3ecb1c0",
         "game_slug": "sonic-r",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/ZinexDa/sonic-r-android/releases/tag/v1.3.1",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish setup in the upstream Android app",
+            "instruction": "Install this fork’s Android APK and use its guided asset installer to choose your own complete retail Sonic R PC game folder. This is the Android GLES2/SDL2 wrapper; a Windows player or another Sonic game’s files do not replace the required retail data. Choose Play through the upstream app after it accepts the folder."
+          },
+          {
+            "title": "Keep your data when changing versions",
+            "instruction": "Keep your original game files and preserve the Android app’s actual save/config data before changing or removing it. The selected guide does not establish the exact save/export location. Multiplayer is a planned feature, not a delivered cross-platform promise. The upstream custom license permits free download/build/modification and forbids sale; this route retains those terms and upstream update ownership. Portcove does not manage APK replacement or its data backup."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/ZinexDa/sonic-r-android/blob/v1.3.1/README.md"
       }
     }
   ]

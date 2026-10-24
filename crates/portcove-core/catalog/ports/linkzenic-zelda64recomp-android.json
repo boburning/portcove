@@ -7,8 +7,8 @@
     "project_url": "https://github.com/linkzenic/Zelda64Recomp-Android",
     "issue_number": 1915,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/linkzenic/Zelda64Recomp-Android",
+    "availability": "packages",
+    "setup_url": "https://github.com/linkzenic/Zelda64Recomp-Android/blob/0.6.10/README.md",
     "artwork": {
       "game_id": 1030,
       "cover_id": 172745,
@@ -16,6 +16,21 @@
       "image_sha256": "342f842607e49e0f37fc9bb70b0ac967c18c760410031e473123655d21c903d5",
       "game_slug": "the-legend-of-zelda-majora-s-mask",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/linkzenic/Zelda64Recomp-Android/releases/tag/0.6.10",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Choose the Android App APK from this fork, not its separate Android randomizer-mod ZIP, and install it on an ARM64 Android device with a working Vulkan driver. Open the app and choose your own supported Majora’s Mask ROM when asked; it contains no game assets. Grant the requested storage access for its /sdcard/Zelda64 profile."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Back up /sdcard/Zelda64, including saves, config and mods, before replacing or removing this beta app. Install mods through its own Mods menu. Native-code mods require Android ARM64 .so libraries; desktop Linux, Windows or macOS plugins cannot substitute for them. This beta APK is debug-signed, so keep data safe before a future signing change. Its profile and updates remain upstream-owned and outside Portcove runtime backup/rollback."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/linkzenic/Zelda64Recomp-Android/blob/0.6.10/README.md"
     }
   }
 }

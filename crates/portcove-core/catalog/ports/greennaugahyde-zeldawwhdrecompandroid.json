@@ -7,8 +7,8 @@
     "project_url": "https://github.com/GreenNaugahyde/ZeldaWWHDRecompAndroid",
     "issue_number": 1896,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/GreenNaugahyde/ZeldaWWHDRecompAndroid",
+    "availability": "packages",
+    "setup_url": "https://github.com/GreenNaugahyde/ZeldaWWHDRecompAndroid/blob/v0.9.5/README.md",
     "artwork": {
       "game_id": 2276,
       "cover_id": 172350,
@@ -16,6 +16,21 @@
       "image_sha256": "2a1bbeb196640888a17f5911593796fe7fe73c25fff25201c789ad6ea0cec8f6",
       "game_slug": "the-legend-of-zelda-the-wind-waker-hd",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/GreenNaugahyde/ZeldaWWHDRecompAndroid/releases/tag/v0.9.5",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "On an Android 11+ ARM64 device with Vulkan 1.1, install this fork’s stable APK and choose Extract from your disc image or .wua. Use your own Wind Waker HD USA, European or Japanese Wii U dump: .wud/.wux with its same-name disc .key and your own common.key in one folder, or an already decrypted .wua. The app extracts and compiles on the device once; it shows progress and supports continuation. No PC recompiler or desktop setup is required."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Allow roughly 2 GB of free storage and memory for the upstream setup. Keep original inputs and exported game saves/save states separately before app updates or deletion; use the app’s save import/export controls. Save-state compatibility can depend on the app build. Optional Lossless Scaling frame generation requires your own separate licensed copy; it is not included or needed for ordinary setup. The PowerVR test release is an alternative to the stable release, not a general device guarantee."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/GreenNaugahyde/ZeldaWWHDRecompAndroid/blob/v0.9.5/README.md"
     }
   }
 }

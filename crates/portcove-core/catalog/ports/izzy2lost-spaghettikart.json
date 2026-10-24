@@ -7,8 +7,8 @@
     "project_url": "https://github.com/izzy2lost/SpaghettiKart",
     "issue_number": 1889,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/izzy2lost/SpaghettiKart",
+    "availability": "packages",
+    "setup_url": "https://github.com/izzy2lost/SpaghettiKart/blob/2.0.0/README.md",
     "artwork": {
       "game_id": 2342,
       "cover_id": 289642,
@@ -16,6 +16,21 @@
       "image_sha256": "6024ad15454ac8e18d972b6d5544e85bb975cdde2f1717c3aff547e351b36ff2",
       "game_slug": "mario-kart-64",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/izzy2lost/SpaghettiKart/releases/tag/2.0.0",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Install this fork’s Android APK, open it, and choose your own Mario Kart 64 US .z64 ROM. The upstream guide identifies SHA-1 579c48e211ae952530ffc8738709f078d5dd215e. This app verifies the ROM and creates mk64.o2r on the device; no PC Spaghettify/Torch step is required."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "The Android guide puts game data under Android/data/com.izzy.kart/files. Mods go in its mods folder as supported .o2r, .zip or plain folders and load next launch; .otr is not supported. Preserve your app data, saves, generated O2R and mods before updating or removing the app. Android/upstream owns replacement and storage; Portcove backup and runtime rollback do not cover it."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/izzy2lost/SpaghettiKart/blob/2.0.0/README.md"
     }
   }
 }

@@ -148,6 +148,23 @@ An empty Core
 input requirement describes Portcove's action; it does not assert that the upstream
 game never needs original files.
 
+Follow the selected fork's actual setup route. An Android APK belongs to Android's
+package manager and upstream app; a desktop parent's archive, converter, save path
+or native plugin is not its contract. Describe the app's own original-file picker
+or on-device preparation, actual profile location/export controls and meaningful
+update limits. A signing-key change that requires reinstall needs concrete data
+preservation instructions before uninstall. Keep source/artifact version conflicts
+explicitly unresolved rather than importing another build's inputs or save promises.
+
+Reference catalogs such as [Quiver](https://github.com/tgeorgiadis/quiver-launcher)
+can expose useful asset filters, preferred executables, required files and simpler
+upstream alternatives. Join by the exact implementation and reviewed lineage, then
+verify those hints against the selected upstream source and package. An empty
+required-files list does not establish an empty persistence contract; a portable
+marker can change storage behavior and needs its own upstream evidence. Keep
+distinct games sharing a repository separate. A reference catalog's release,
+checksum, scanner or verification label is not Portcove admission or qualification.
+
 Native portable runtimes use complete immutable-file verification. Changed package
 files or undeclared additions block update, version switching and managed removal
 with the current files preserved. The player can back up and relocate additions
