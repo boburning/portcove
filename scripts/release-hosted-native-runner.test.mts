@@ -105,19 +105,20 @@ registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(entry)}&&rout
 const api=await import(${JSON.stringify(entry)});
 for(const name of ['valid','detached','timeout']){
  const home=path.join(root,name);await mkdir(home,{mode:0o700});process.env.HOME=home;directory=path.join(home,'.portcove-native-123-1-'+'a'.repeat(40));await mkdir(directory,{mode:0o700});stopped=false;registrations=0;releases=0;
- const childSource=name==='timeout'?'setInterval(()=>{},1000);':name==='detached'?'import {spawn} from "node:child_process";import {writeFileSync} from "node:fs";const child=spawn(process.execPath,["-e","setInterval(()=>{},1000)"],{detached:true,stdio:"ignore"});writeFileSync(new URL("./orphan-"+process.argv[2]+".pid",import.meta.url),String(child.pid));child.unref();console.log("inert child completed");':'console.log("inert fixed child completed");';
+ const childSource=name==='timeout'?'setInterval(()=>{},1000);':name==='detached'?'import {spawn} from "node:child_process";import {writeFileSync,existsSync} from "node:fs";const child=spawn(process.execPath,[new URL("./fixed-detached.mjs",import.meta.url).pathname,new URL("./orphan-grand-"+process.argv[2]+".pid",import.meta.url).pathname],{detached:true,stdio:"ignore"});writeFileSync(new URL("./orphan-"+process.argv[2]+".pid",import.meta.url),String(child.pid));child.unref();while(!existsSync(new URL("./orphan-grand-"+process.argv[2]+".pid",import.meta.url)))await new Promise(resolve=>setTimeout(resolve,10));console.log("inert child completed");':'console.log("inert fixed child completed");';
+ await writeFile(path.join(directory,'fixed-detached.mjs'),'import {spawn} from "node:child_process";import {writeFileSync} from "node:fs";const grand=spawn(process.execPath,["-e","setInterval(()=>{},1000)"],{detached:true,stdio:"ignore"});writeFileSync(process.argv[2],String(grand.pid));grand.unref();setInterval(()=>{},1000);',{mode:0o600});
  await writeFile(path.join(directory,'fixed-bootstrap.mjs'),childSource,{mode:0o600});deadline=performance.now()+(name==='timeout'?2000:15000);
  let done=false;const outcome=api.superviseFixedHostedLinuxNativeStages().then(value=>({value}),error=>({error})).finally(()=>{done=true});
  if(name!=='timeout'){
    const ready=path.join(directory,'pre-sign-supervision-settlement.json');for(let i=0;i<4000&&!existsSync(ready)&&!done;i++)await delay(2);
-   assert.ok(existsSync(ready));await api.signalFixedHostedLinuxPostStart();
+   assert.ok(existsSync(ready));const preRow=JSON.parse(await readFile(ready,'utf8'));assert.equal(preRow.exit_code,0,JSON.stringify({name,preRow,stderr:(await readFile(path.join(directory,'pre-sign-worker.stderr.bin'),'utf8')).slice(0,8192)}));await api.signalFixedHostedLinuxPostStart();
  }
  const observed=await outcome,final=JSON.parse(await readFile(path.join(directory,'native-supervision-settlement.json'),'utf8'));
  if(name==='timeout'){assert.ok(observed.error);assert.equal(final.recovery_required,true);assert.equal(final.post_sign_complete,false)}else {assert.ok(!observed.error,observed.error?.stack);assert.equal(final.post_sign_complete,true)}
  for(const operation of name==='timeout'?['pre-sign']:['pre-sign','post-sign']){
    const cleanup=JSON.parse(await readFile(path.join(directory,operation+'-tree-cleanup.json'),'utf8'));assert.equal(cleanup.outcome,'quiescent');
    const row=JSON.parse(await readFile(path.join(directory,operation+'-supervision-settlement.json'),'utf8'));assert.equal(row.tree_quiescent_observed,true);
-   if(name==='detached'){const pid=Number(await readFile(path.join(directory,'orphan-'+operation+'.pid'),'utf8'));assert.equal(readProcessIdentity(pid),null,'detached descendant survived adopting reaper cleanup')}
+   if(name==='detached'){const pid=Number(await readFile(path.join(directory,'orphan-'+operation+'.pid'),'utf8'));assert.equal(readProcessIdentity(pid),null,'detached descendant survived adopting reaper cleanup');const grandPid=Number(await readFile(path.join(directory,'orphan-grand-'+operation+'.pid'),'utf8'));assert.equal(readProcessIdentity(grandPid),null,'detached grandchild survived adopting reaper cleanup')}
  }
  assert.equal(registrations,name==='timeout'?1:2);assert.equal(releases,registrations);
 }

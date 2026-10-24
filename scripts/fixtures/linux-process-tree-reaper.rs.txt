@@ -2,7 +2,7 @@
 use std::env;
 use std::ffi::c_void;
 use std::fs::{self, OpenOptions};
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, ExitCode, Stdio};
@@ -30,6 +30,7 @@ unsafe extern "C" {
     fn kill(pid: i32, signal: i32) -> i32;
     fn waitpid(pid: i32, status: *mut i32, options: i32) -> i32;
     fn poll(fds: *mut PollFd, count: usize, timeout: i32) -> i32;
+    fn signal(signal: i32, handler: usize) -> usize;
 }
 
 fn last_error() -> io::Error {
@@ -47,7 +48,9 @@ fn atomic_file(path: &Path, contents: &str) -> io::Result<()> {
 }
 
 fn stat(pid: i32) -> io::Result<Vec<String>> {
-    let value = fs::read_to_string(format!("/proc/{pid}/stat"))?;
+    let mut value = String::new();
+    fs::File::open(format!("/proc/{pid}/stat"))?.take(8_193).read_to_string(&mut value)?;
+    if value.len() > 8_192 { return Err(io::Error::other("process stat exceeds bound")); }
     let closing = value.rfind(')').ok_or_else(|| io::Error::other("invalid process stat"))?;
     let fields: Vec<_> = value[closing + 2..].split_whitespace().map(str::to_owned).collect();
     if fields.len() < 20 {
@@ -182,6 +185,35 @@ fn drain_and_prove_absence(group: i32) -> io::Result<()> {
             true
         } else { false };
         if no_children && absent { return Ok(()); }
+        // A payload can leave its original group (setsid/setpgid). Subreaper
+        // adoption brings those descendants here when their parent exits.
+        // This process is single-threaded and does not reap between this
+        // snapshot, parent validation and kill: even an exiting direct child's
+        // PID remains pinned by its unreaped status. Never signal a discovered
+        // process that is not our own direct child.
+        let own_pid = std::process::id().to_string();
+        let mut children = String::new();
+        fs::File::open(format!("/proc/self/task/{own_pid}/children"))?
+            .take(65_537).read_to_string(&mut children)?;
+        if children.len() > 65_536 {
+            return Err(io::Error::other("owned child inventory exceeds cleanup bound"));
+        }
+        for child in children.split_whitespace() {
+            if Instant::now() >= deadline {
+                return Err(io::Error::other("owned child closure exceeded cleanup deadline"));
+            }
+            let pid = child.parse::<i32>().map_err(|_| io::Error::other("invalid owned child PID"))?;
+            if pid <= 1 || child == own_pid || stat(pid)?[1] != own_pid {
+                return Err(io::Error::other("owned child parent identity mismatch"));
+            }
+            if Instant::now() >= deadline {
+                return Err(io::Error::other("owned child closure exceeded cleanup deadline"));
+            }
+            if unsafe { kill(pid, 9) } < 0 {
+                let error = last_error();
+                if error.raw_os_error() != Some(3) { return Err(error); }
+            }
+        }
         if Instant::now() >= deadline {
             return Err(io::Error::other("owned children or anchored group remain at cleanup deadline"));
         }
@@ -193,6 +225,9 @@ fn run(args: &[String], group: &mut Option<i32>) -> io::Result<()> {
     // Move the adopter outside the payload group while retaining a common session.
     if unsafe { setpgid(0, 0) } < 0 { return Err(last_error()); }
     if unsafe { prctl(36, 1usize, 0usize, 0usize, 0usize) } < 0 { return Err(last_error()); }
+    // Explicitly clear inherited SIG_IGN/SA_NOCLDWAIT before admitting any child.
+    // Cleanup relies on unreaped direct children retaining their PID identity.
+    if unsafe { signal(17, 0) } == usize::MAX { return Err(last_error()); }
     validate_control(&args[4])?;
     if pipe_lost()? { return Err(io::Error::other("wrapper lost before supervisor spawn")); }
 

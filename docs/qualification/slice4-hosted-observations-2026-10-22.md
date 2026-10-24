@@ -752,3 +752,22 @@ the original stage effects and retained observations are preserved. This is not
 an account capacity reservation. Existing spending, archive, cache, concurrency,
 retention and issue/Chameleon holds remain unchanged; production held; slice5
 excluded. Qualification and independent review belong to the owning receipt.
+
+Initial hosted qualification retained an actual detached-session failure:
+the existing reaper killed its anchored group but could not close an adopted
+child that had left that group. The prepared repair repeatedly signals only
+its own direct adopted children, after bounded kernel inventory and exact
+parent checks, without reaping between validation and signaling. It explicitly
+resets inherited automatic child reaping before spawn. Empty inventory never
+proves cleanup: the existing ECHILD and anchored-group-absence checks and original
+five-second deadline remain mandatory. The connected fixture now checks a
+detached child and grandchild; the existing adopting-envelope suite checks
+inherited ignored SIGCHLD and preservation of an unrelated sibling. Qualification
+is pending until the repaired exact source passes. No privileged service or
+host setup is added.
+
+The first ordinary CI run also retained a separate PowerShell startup timeout
+at its ten-second test-harness bound. The analyzer-acquisition contract keeps
+all eight pin/import/gate assertions and now allows thirty seconds per private
+PowerShell invocation. This is finite harness calibration, not a product or
+release deadline change; it does not relabel the original failure as passing.
