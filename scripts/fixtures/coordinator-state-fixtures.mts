@@ -22,6 +22,7 @@ import {
   coordinatorCheckpointPredicateType,
 } from "../release-coordinator-checkpoint-evidence.mts";
 import { productionControllerWorkflow } from "../production-controller-admission.mts";
+import type { CoordinatorFixturePhases } from "./coordinator-fixture-phases.mts";
 
 export async function recoveryFixture(
   t: test.TestContext,
@@ -257,8 +258,12 @@ export function gitObject(kind: string, bytes: Buffer) {
   return createHash("sha1").update(`${kind} ${bytes.length}\0`).update(bytes).digest("hex");
 }
 
-export async function remoteFixture(t: test.TestContext, now?: string) {
-  const local = await fixture(t);
+export async function remoteFixture(
+  t: test.TestContext,
+  now?: string,
+  phases?: CoordinatorFixturePhases,
+) {
+  const local = await fixture(t, false, phases);
   if (now !== undefined) local.input.now = now;
   const saved = await checkpointReleaseOpportunity(
     local.repository,
@@ -469,9 +474,18 @@ export async function remoteFixture(t: test.TestContext, now?: string) {
   };
 }
 
-export async function fixture(t: test.TestContext, signed = false) {
-  const repository = await mkdtemp(path.join(os.tmpdir(), "portcove-coordinator-state-"));
-  t.after(() => rm(repository, { recursive: true, force: true }));
+export async function fixture(
+  t: test.TestContext,
+  signed = false,
+  phases?: CoordinatorFixturePhases,
+) {
+  const measure: CoordinatorFixturePhases["measure"] = phases
+    ? (phase, operation) => phases.measure(phase, operation)
+    : (_phase, operation) => operation();
+  const repository = await measure("directory", () =>
+    mkdtemp(path.join(os.tmpdir(), "portcove-coordinator-state-")),
+  );
+  t.after(() => measure("cleanup", () => rm(repository, { recursive: true, force: true })));
   const git = (...args: string[]) =>
     execFileSync("git", ["-C", repository, ...args], {
       encoding: "utf8",
@@ -482,41 +496,42 @@ export async function fixture(t: test.TestContext, signed = false) {
         GIT_COMMITTER_DATE: "2026-09-14T12:00:00Z",
       },
     }).trim();
-  git("init", "-q");
-  git("config", "user.name", "Coordinator fixture");
-  git("config", "user.email", "fixture@portcove.invalid");
-  git("config", "core.autocrlf", "false");
-  for (const [name, bytes] of Object.entries({
-    "Cargo.toml":
-      '[workspace]\nmembers = ["crates/example"]\n[workspace.package]\nversion = "0.1.0-alpha.2"\n',
-    "crates/example/Cargo.toml": '[package]\nname = "example"\nversion.workspace = true\n',
-    "Cargo.lock": 'version = 4\n\n[[package]]\nname = "example"\nversion = "0.1.0-alpha.2"\n',
-    "apps/desktop/package.json": '{\n  "version": "0.1.0-alpha.2"\n}\n',
-    "apps/desktop/src-tauri/tauri.conf.json": '{\n  "version": "0.1.0-alpha.2"\n}\n',
-  })) {
-    await mkdir(path.dirname(path.join(repository, name)), { recursive: true });
-    await writeFile(path.join(repository, name), bytes);
-  }
-  git("add", ".");
-  git("commit", "-qm", "independent source fixture");
-  if (signed) {
-    const original = execFileSync("git", ["-C", repository, "cat-file", "commit", "HEAD"], {
-      encoding: "utf8",
-      windowsHide: true,
-    });
-    const boundary = original.indexOf("\n\n");
-    // Deliberately non-authentic fixture signature: this tests raw Git byte
-    // reproduction, never a publisher signature or production authority.
-    const signedBytes = `${original.slice(0, boundary)}\ngpgsig -----BEGIN PGP SIGNATURE-----\n fixture-only\n -----END PGP SIGNATURE-----${original.slice(boundary)}`;
-    const signedOid = execFileSync(
-      "git",
-      ["-C", repository, "hash-object", "-w", "-t", "commit", "--stdin"],
-      { input: signedBytes, encoding: "utf8", windowsHide: true },
-    ).trim();
-    git("update-ref", "HEAD", signedOid);
-  }
-  const source = git("rev-parse", "HEAD");
-  const tree = git("rev-parse", "HEAD^{tree}");
+  const { source, tree } = await measure("source", async () => {
+    git("init", "-q");
+    git("config", "user.name", "Coordinator fixture");
+    git("config", "user.email", "fixture@portcove.invalid");
+    git("config", "core.autocrlf", "false");
+    for (const [name, bytes] of Object.entries({
+      "Cargo.toml":
+        '[workspace]\nmembers = ["crates/example"]\n[workspace.package]\nversion = "0.1.0-alpha.2"\n',
+      "crates/example/Cargo.toml": '[package]\nname = "example"\nversion.workspace = true\n',
+      "Cargo.lock": 'version = 4\n\n[[package]]\nname = "example"\nversion = "0.1.0-alpha.2"\n',
+      "apps/desktop/package.json": '{\n  "version": "0.1.0-alpha.2"\n}\n',
+      "apps/desktop/src-tauri/tauri.conf.json": '{\n  "version": "0.1.0-alpha.2"\n}\n',
+    })) {
+      await mkdir(path.dirname(path.join(repository, name)), { recursive: true });
+      await writeFile(path.join(repository, name), bytes);
+    }
+    git("add", ".");
+    git("commit", "-qm", "independent source fixture");
+    if (signed) {
+      const original = execFileSync("git", ["-C", repository, "cat-file", "commit", "HEAD"], {
+        encoding: "utf8",
+        windowsHide: true,
+      });
+      const boundary = original.indexOf("\n\n");
+      // Deliberately non-authentic fixture signature: this tests raw Git byte
+      // reproduction, never a publisher signature or production authority.
+      const signedBytes = `${original.slice(0, boundary)}\ngpgsig -----BEGIN PGP SIGNATURE-----\n fixture-only\n -----END PGP SIGNATURE-----${original.slice(boundary)}`;
+      const signedOid = execFileSync(
+        "git",
+        ["-C", repository, "hash-object", "-w", "-t", "commit", "--stdin"],
+        { input: signedBytes, encoding: "utf8", windowsHide: true },
+      ).trim();
+      git("update-ref", "HEAD", signedOid);
+    }
+    return { source: git("rev-parse", "HEAD"), tree: git("rev-parse", "HEAD^{tree}") };
+  });
   const classification = {
     source_commit: source,
     reviewed_commit: source,
@@ -558,11 +573,11 @@ export async function fixture(t: test.TestContext, signed = false) {
     },
     active_candidate: null as Record<string, unknown> | null,
   };
-  const initial = await checkpointReleaseOpportunity(repository, null, input);
-  const prepared = await prepareReleaseVersion(
-    repository,
-    classification,
-    input.publication.published_versions,
+  const initial = await measure("checkpoint", () =>
+    checkpointReleaseOpportunity(repository, null, input),
+  );
+  const prepared = await measure("version", () =>
+    prepareReleaseVersion(repository, classification, input.publication.published_versions),
   );
   input.publication.reserved_versions = [prepared.version];
   input.active_candidate = {
@@ -615,8 +630,12 @@ export function checkpointEvidence(f: Awaited<ReturnType<typeof remoteFixture>>,
   return { subject, bundle };
 }
 
-export async function remoteCapacityFixture(t: test.TestContext, modern = false) {
-  const f = await remoteFixture(t);
+export async function remoteCapacityFixture(
+  t: test.TestContext,
+  modern = false,
+  phases?: CoordinatorFixturePhases,
+) {
+  const f = await remoteFixture(t, undefined, phases);
   await publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, { api: f.api });
   const capacity = { ...capacityFixture(), schema_version: modern ? 2 : 1 };
   const input = {

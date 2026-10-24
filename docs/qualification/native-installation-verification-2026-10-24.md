@@ -49,6 +49,14 @@ survive all four tabs; completed downloads retain their Continue setup route.
 This is focused rendered-browser evidence for the self-service action. It does
 not extend the separate native observations below to that route.
 
+Main subsequently delivered [#2513](https://github.com/boburning/portcove/pull/2513),
+which controls the initial pending lookup in the same fixture. Reconciliation
+preserves that case and every original assertion, and runs the same journey with
+the recommendation already loaded as well. The combined download/detail-layout
+selection passed 28 tests across both requested files, with no skips. The product
+repair is unchanged. All five contexts passed for pre-reconciliation source
+`c8bbc39a`; the final merged source receives its own exact-head qualification.
+
 ## Native observations
 
 Host: Windows 11 Home, x64, build 26300 (`10.0.26300`), loaded WebView

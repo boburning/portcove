@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdtemp, writeFile, rm } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import filesystem from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
@@ -16,7 +20,10 @@ import {
   requireControllerApplicationJobPublicationAuthorities,
   requireControllerCatalogJobAuthorities,
   requireControllerJobSourceConfiguration,
+  requireControllerJobCredentialRoute,
 } from "./release-authority-configuration.mts";
+import { writeControllerJobCredentialRoute } from "./release-controller-job-credential-route.mts";
+import { isRecord } from "./runtime-values.mts";
 import {
   inspectControllerExecutionPurpose,
   inspectControllerPurposePhase,
@@ -232,6 +239,10 @@ void test("actual application fixed-job getters retain full input and refuse cro
     assert.deepEqual((await requireControllerApplicationJobAuthorities(phase)).source, view.source);
     await assert.rejects(requireControllerCatalogJobAuthorities(phase), /catalog job source/);
     const admitted = await requireControllerJobSourceConfiguration(phase);
+    const credentials = await requireControllerJobCredentialRoute(phase);
+    assert.equal(credentials.route.credential_transport, "fixed-job");
+    assert.deepEqual(credentials.route.source, view.source);
+    credentials.recheck();
     process.env.PORTCOVE_CONTROLLER_REVISION = "b".repeat(40);
     assert.throws(admitted.recheck, /environment changed/);
     process.env.PORTCOVE_CONTROLLER_REVISION = runtime.PORTCOVE_CONTROLLER_REVISION;
@@ -242,4 +253,124 @@ void test("actual application fixed-job getters retain full input and refuse cro
   // No catalog configuration, workflow/OIDC read or token is required to refuse.
   for (const phase of ["admission", "payload", "release-publication", "tuf-releases"])
     await assert.rejects(requireControllerCatalogJobAuthorities(phase), /phase differs/);
+});
+
+void test("actual credential-route CLI selects full selected/legacy source and emits nothing for malformed, journal-only or wrong-role input", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "controller-credential-route-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const actualWorkflow = await readFile(
+    new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+  );
+  const selected = oracle.cases.find((row) => row.name === "selected-app")!;
+  const legacy = oracle.cases.find((row) => row.name === "legacy-app1")!;
+  const journal = "journal" in selected.configuration ? selected.configuration.journal : undefined;
+  const cases = [
+    {
+      name: "selected",
+      configuration: selected.configuration,
+      policy: selected.policy,
+      phase: "coordinator",
+      expected: "fixed-job",
+    },
+    {
+      name: "legacy",
+      configuration: legacy.configuration,
+      policy: legacy.policy,
+      phase: "coordinator",
+      expected: "legacy-app",
+    },
+    {
+      name: "journal-only",
+      configuration: journal,
+      policy: selected.policy,
+      phase: "coordinator",
+      expected: null,
+    },
+    {
+      name: "malformed-selected",
+      configuration: { ...selected.configuration, kind: "wrong" },
+      policy: selected.policy,
+      phase: "coordinator",
+      expected: null,
+    },
+    {
+      name: "wrong-phase",
+      configuration: selected.configuration,
+      policy: selected.policy,
+      phase: "payload",
+      expected: null,
+    },
+  ];
+  for (const value of cases) {
+    const output = path.join(directory, value.name);
+    await writeFile(output, "");
+    const result = spawnSync(
+      process.execPath,
+      [
+        fileURLToPath(new URL("./release-controller-job-credential-route.mts", import.meta.url)),
+        value.phase,
+      ],
+      {
+        encoding: "utf8",
+        timeout: 15000,
+        env: {
+          ...process.env,
+          ...oracle.environment,
+          GITHUB_JOB: "coordinator",
+          GITHUB_OUTPUT: output,
+          PORTCOVE_EXECUTION_PURPOSE: "application",
+          PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(value.configuration),
+          PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify({
+            ...value.policy,
+            workflow_sha256: createHash("sha256").update(actualWorkflow).digest("hex"),
+          }),
+        },
+      },
+    );
+    if (value.expected) {
+      assert.equal(result.status, 0, result.stderr);
+      const emitted: unknown = JSON.parse(result.stdout);
+      assert.ok(isRecord(emitted));
+      assert.equal(emitted.credential_transport, value.expected);
+      assert.equal(await readFile(output, "utf8"), `credential_transport=${value.expected}\n`);
+    } else {
+      assert.notEqual(result.status, 0, value.name);
+      assert.equal(await readFile(output, "utf8"), "", value.name);
+    }
+  }
+});
+void test("credential routing retains an appended partial output but refuses environment drift before step success", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "controller-credential-partial-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const before = { ...process.env };
+  t.after(() => {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+    for (const key of Object.keys(process.env)) if (!(key in before)) delete process.env[key];
+    Object.assign(process.env, before);
+  });
+  const row = oracle.cases.find((row) => row.name === "selected-app")!;
+  const bytes = await readFile(
+    new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+  );
+  const output = path.join(directory, "output");
+  Object.assign(process.env, {
+    ...oracle.environment,
+    GITHUB_JOB: "coordinator",
+    GITHUB_OUTPUT: output,
+    PORTCOVE_EXECUTION_PURPOSE: "application",
+    PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(row.configuration),
+    PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify({
+      ...row.policy,
+      workflow_sha256: createHash("sha256").update(bytes).digest("hex"),
+    }),
+  });
+  const original = filesystem.appendFile;
+  t.mock.method(filesystem, "appendFile", async (...args: Parameters<typeof original>) => {
+    await original(...args);
+    process.env.GITHUB_RUN_ATTEMPT = "2";
+  });
+  syncBuiltinESMExports();
+  await assert.rejects(writeControllerJobCredentialRoute("coordinator"), /environment changed/);
+  assert.equal(await readFile(output, "utf8"), "credential_transport=fixed-job\n");
 });

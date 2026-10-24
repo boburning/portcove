@@ -359,6 +359,7 @@ export const pythonContractTests = [
   "scripts/release-semantic-source.test.mts",
 ];
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ["scripts/node-case-observations.mts", ["scripts/test-duration-reporter.test.mts"]],
   ...["scripts/python-test-results.py", "scripts/python-test-results.mts"].map(
     (file): [string, readonly string[]] => [file, pythonContractTests],
   ),
@@ -1401,6 +1402,10 @@ for (const file of [
     ...catalogGeneratorContractTests,
   ]);
 }
+
+explicitNodeTests.set("scripts/fixtures/coordinator-fixture-phases.mts", [
+  "scripts/release-coordinator-state.test.mts",
+]);
 
 export const coordinatorStateContractTests = [
   "scripts/release-coordinator-state.test.mts",

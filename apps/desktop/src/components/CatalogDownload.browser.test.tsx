@@ -430,47 +430,70 @@ it("shows Core's refusal and does not turn observed assets into download permiss
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
 });
 
-it("keeps the listing download selection through all four production detail tabs", async () => {
-  await root.rerender(
-    <ListingDetailPanel
-      entry={entry}
-      status={status}
-      generation={9}
-      perform={perform}
-      onChanged={changed}
-      close={vi.fn()}
-    />,
-  );
-  await expect
-    .element(page.getByRole("button", { name: "Review download", exact: true }))
-    .toBeEnabled();
-  await page.getByRole("tab", { name: "Overview", exact: true }).click();
-  await click("Set up game");
-  await expect.element(page.getByRole("region", { name: "Set up and launch" })).toHaveFocus();
-  await vi.waitFor(() =>
+it.each(["loading", "loaded"] as const)(
+  "keeps %s listing downloads through all four production detail tabs",
+  async (phase) => {
+    const initial = deferred<CatalogDownloadCandidates>();
+    vi.mocked(desktopApi.catalogDownloadCandidates).mockReturnValueOnce(initial.promise);
+    await root.rerender(
+      <ListingDetailPanel
+        entry={entry}
+        status={status}
+        generation={9}
+        perform={perform}
+        onChanged={changed}
+        close={vi.fn()}
+      />,
+    );
+    await vi.waitFor(() => expect(desktopApi.catalogDownloadCandidates).toHaveBeenCalledTimes(1));
+    await expect
+      .element(page.getByRole("button", { name: "Checking upstream downloads…", exact: true }))
+      .toBeDisabled();
+    if (phase === "loaded") await act(async () => initial.resolve(candidates));
+    const phaseControl = page.getByRole("button", {
+      name: phase === "loaded" ? "Review download" : "Checking upstream downloads…",
+      exact: true,
+    });
+    await vi.waitFor(() =>
+      expect(phaseControl.element().matches(":disabled")).toBe(phase === "loading"),
+    );
+    if (phase === "loaded") await page.getByRole("tab", { name: "Overview", exact: true }).click();
+    await click("Set up game");
+    await expect
+      .element(page.getByRole("region", { name: "Set up and launch", exact: true }))
+      .toHaveFocus();
+    if (phase === "loading") await act(async () => initial.resolve(candidates));
+    await vi.waitFor(() =>
+      expect(desktopApi.catalogDownloadCandidates).toHaveBeenCalledExactlyOnceWith(
+        entry.id,
+        9,
+        undefined,
+        "stable",
+      ),
+    );
+    await click("Change download folder…");
+    await page.getByRole("tab", { name: "Saved data", exact: true }).click();
+    await expect
+      .element(page.getByRole("button", { name: "Back up data", exact: true }))
+      .not.toBeInTheDocument();
+    await page.getByRole("tab", { name: "Versions", exact: true }).click();
+    await expect
+      .element(page.getByRole("button", { name: "Check for updates", exact: true }))
+      .not.toBeInTheDocument();
+    await page.getByRole("tab", { name: "Overview", exact: true }).click();
+    await expect.element(page.getByText(listing.summary, { exact: true })).toBeVisible();
+    await page.getByRole("tab", { name: "Files", exact: true }).click();
+    await click("Review download");
     expect(desktopApi.catalogDownloadCandidates).toHaveBeenCalledExactlyOnceWith(
       entry.id,
       9,
       undefined,
       "stable",
-    ),
-  );
-  await click("Change download folder…");
-  await page.getByRole("tab", { name: "Saved data", exact: true }).click();
-  await expect
-    .element(page.getByRole("button", { name: "Back up data", exact: true }))
-    .not.toBeInTheDocument();
-  await page.getByRole("tab", { name: "Versions", exact: true }).click();
-  await expect
-    .element(page.getByRole("button", { name: "Check for updates", exact: true }))
-    .not.toBeInTheDocument();
-  await page.getByRole("tab", { name: "Overview", exact: true }).click();
-  await expect.element(page.getByText(listing.summary, { exact: true })).toBeVisible();
-  await page.getByRole("tab", { name: "Files", exact: true }).click();
-  await click("Review download");
-  expect(desktopApi.previewCatalogDownload).toHaveBeenCalledExactlyOnceWith(selection, 9);
-  expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
-});
+    );
+    expect(desktopApi.previewCatalogDownload).toHaveBeenCalledExactlyOnceWith(selection, 9);
+    expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+  },
+);
 
 it("reveals pending setup through the header without restarting the download", async () => {
   await root.rerender(
