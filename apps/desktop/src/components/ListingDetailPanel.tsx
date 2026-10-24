@@ -100,11 +100,7 @@ export function ListingDetailPanel({
                   reveal(
                     "files",
                     "detail-self-service-setup",
-                    registered
-                      ? undefined
-                      : entry.pendingSetup
-                        ? "[data-self-service-continue]"
-                        : "[data-detail-download] button",
+                    !registered && entry.pendingSetup ? "[data-self-service-continue]" : undefined,
                   )
                 }
               >

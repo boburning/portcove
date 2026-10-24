@@ -15,12 +15,13 @@ Windows source-build observations.
 | The shared native click helper waited for an offscreen Activity tab to become visible before scrolling it. Its recorded y position was -295. | Scroll the actual target before visibility polling; preserve enabled-state, center-point hit testing and the existing WebDriver click. Hidden, disabled and occluded targets receive no click.              |
 | Library overflow navigation reached the Versions heading, but the verifier checked the obsolete inner heading.                               | Observe the authoritative `detail-section-versions` H2 and actual focus. Reject disconnected, hidden, inert, disabled, unrelated and legacy targets. The observer never changes focus.                      |
 | Staged-update layout capture looked for old Dark/Light buttons after successfully downloading the update.                                    | Explicitly open Appearance and select the current radio within Color theme. Verify the resolved theme before collecting geometry. Both obsolete-selector controls fail before the repair.                   |
+| After automatic recommendation loading, the listing's Set up game action clicked the enabled refresh control and repeated the lookup.        | Reveal and focus the existing setup region without invoking refresh. Keep the loaded package/location through tab navigation and retain Continue setup for a saved download.                                |
 
 The focus sample is exclusively written to
 `overflow-update-navigation-focus.json` at the existing wait boundary. A capture
 failure cannot replace the original wait failure; capture failure alone fails the
-scenario. No application, consent, execution, timing or update-ownership behavior
-changed.
+scenario. The native harness repairs preserve application consent, execution,
+timing and update-ownership behavior.
 
 Fast controls use the actual shared click helper through the existing WebDriver
 executor seam and the actual serialized DOM focus observer. The pre-repair click
@@ -35,6 +36,18 @@ It failed in both catalog and Windows-helper jobs with an unexpected `export`.
 The failure reproduced through the actual Node entry point; the slice now stops
 before the next top-level export, preserving all placement rejection controls.
 The PR retains that failed run separately from final exact-head qualification.
+
+The next hosted run at `4a49e313` passed catalog, dependency review, Rust and Rust
+quality, but its rendered frontend test exposed a timing-dependent extra lookup:
+the listing's primary action still activated the old check button after automatic
+loading. A deterministic control waits for the recommendation, opens Overview,
+then invokes Set up game and checks actual setup-region focus and exactly one
+lookup. It failed before the product repair. The repaired production component
+passed all 27 tests in the two requested/executed download and detail-layout
+browser suites, with no skips. The recommendation, folder choice and review
+survive all four tabs; completed downloads retain their Continue setup route.
+This is focused rendered-browser evidence for the self-service action. It does
+not extend the separate native observations below to that route.
 
 ## Native observations
 

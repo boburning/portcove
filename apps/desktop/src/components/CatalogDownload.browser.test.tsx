@@ -441,7 +441,12 @@ it("keeps the listing download selection through all four production detail tabs
       close={vi.fn()}
     />,
   );
+  await expect
+    .element(page.getByRole("button", { name: "Review download", exact: true }))
+    .toBeEnabled();
+  await page.getByRole("tab", { name: "Overview", exact: true }).click();
   await click("Set up game");
+  await expect.element(page.getByRole("region", { name: "Set up and launch" })).toHaveFocus();
   await vi.waitFor(() =>
     expect(desktopApi.catalogDownloadCandidates).toHaveBeenCalledExactlyOnceWith(
       entry.id,
