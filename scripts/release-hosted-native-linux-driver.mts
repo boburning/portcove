@@ -635,7 +635,10 @@ async function runPreparedCapture(prepared: Prepared, origin: { wall: number; mo
 async function cli() {
   const origin = { wall: Date.now(), monotonic: performance.now() };
   const [flag, filename, expected, ...rest] = process.argv.slice(2);
-  assert.ok(flag === "--driver" && filename && expected && !rest.length);
+  assert.ok(
+    flag === "--driver" && filename && expected && !rest.length,
+    "fixed hosted Linux driver arguments required",
+  );
   const bytes = await readBoundedPublicBuildInputFile(
     path.dirname(filename),
     path.basename(filename),

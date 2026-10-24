@@ -22,6 +22,10 @@ import {
 import { runResourceCommand } from "./resource-command.mts";
 import { runRustTests } from "./run-rust-tests.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  requireHostedNativeRuntime,
+  hostedNativeSupportDependencies,
+} from "./release-hosted-native-runtime.mts";
 
 const root = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const guest = "/home/portcove-native/portcove-native";
@@ -32,6 +36,7 @@ type ActualRequest = Awaited<ReturnType<typeof requireActualHostedNativeLinuxReq
 type Parent = Awaited<ReturnType<typeof requireActualHostedNativeParentSource>>;
 type Capture = {
   request: object;
+  runtime: object | undefined;
   snapshot: string;
   files: Map<string, { bytes: number; sha256: string }>;
   resource_status: number;
@@ -276,7 +281,7 @@ async function tool(filename: string, owners: readonly number[], active: () => v
 
 /** Serialization helper is intentionally not exported. Its inputs come only
  * from the same-process original request and observed fixed host/tool paths. */
-async function prepare(actual: ActualRequest, parent: Parent) {
+async function prepare(actual: ActualRequest, parent: Parent, controllerRoot = root) {
   assert.ok(parent.configuration.purpose === "application");
   const request = actual.prepared.request;
   assert.equal(request.stage, "payload-signing");
@@ -412,7 +417,7 @@ async function prepare(actual: ActualRequest, parent: Parent) {
     qualification_uid: String(uid),
     qualification_gid: String(gid),
     capture_directory: actual.directory,
-    controller_root: root,
+    controller_root: controllerRoot,
     invocation_id: invocation,
     deadline_utc: lifetime.deadline_utc,
     entry_pins: {
@@ -457,7 +462,10 @@ async function prepare(actual: ActualRequest, parent: Parent) {
   };
 }
 
-export async function captureActualHostedNativeLinuxInvocation(requestReceipt: object) {
+export async function captureActualHostedNativeLinuxInvocation(
+  requestReceipt: object,
+  runtimeReceipt?: object,
+) {
   assert.ok(
     !attempted.has(requestReceipt),
     "one original Linux capture; explicit recovery required",
@@ -465,6 +473,11 @@ export async function captureActualHostedNativeLinuxInvocation(requestReceipt: o
   attempted.add(requestReceipt);
   let actual = await requireActualHostedNativeLinuxRequest(requestReceipt);
   const parent = await requireActualHostedNativeParentSource(actual.parent_source);
+  const runtime =
+    runtimeReceipt === undefined
+      ? undefined
+      : await requireHostedNativeRuntime(runtimeReceipt, actual.parent_source);
+  const controllerRoot = runtime?.root ?? root;
   assert.ok(parent.configuration.purpose === "application");
   assert.equal(process.platform, "linux");
   assert.equal(process.arch, "x64");
@@ -481,7 +494,7 @@ export async function captureActualHostedNativeLinuxInvocation(requestReceipt: o
   };
   let phase = "fixed-tools-and-source";
   try {
-    const prepared = await prepare(actual, parent);
+    const prepared = await prepare(actual, parent, controllerRoot);
     await put("native-request.json", prepared.outer);
     await put("native-plan.json", prepared.plan);
     await put("hosted-linux-driver-plan.json", prepared.driver);
@@ -517,24 +530,34 @@ export async function captureActualHostedNativeLinuxInvocation(requestReceipt: o
         "analysis",
         process.execPath,
         [
-          path.join(root, "scripts/release-hosted-native-linux-driver.mts"),
+          path.join(controllerRoot, "scripts/release-hosted-native-linux-driver.mts"),
           "--driver",
           path.join(actual.directory, "hosted-linux-driver-plan.json"),
           hash(prepared.driver),
         ],
         {
-          cwd: root,
+          cwd: controllerRoot,
           environment: {
             PATH: "/usr/bin:/bin",
             LANG: "C.UTF-8",
             HOME: actual.directory,
             TMPDIR: actual.directory,
+            ...(runtime ? { GITHUB_ACTIONS: "true", RUNNER_TEMP: actual.directory } : {}),
           },
           exclusive: [`native-linux:${actual.host.projection.account.qualification}`],
           queueDeadline: parent.deadline - 210000,
-          supervise: (args, options) =>
-            runRustTests(args, {
+          supervise: async (args, options) => {
+            const support =
+              runtimeReceipt === undefined
+                ? {}
+                : await hostedNativeSupportDependencies(
+                    runtimeReceipt,
+                    actual.parent_source,
+                    actual.directory,
+                  );
+            return runRustTests(args, {
               ...options,
+              ...support,
               tempRoot: actual.directory,
               signalTarget: signal,
               acquireLock: async (metadata, admission) => {
@@ -542,6 +565,8 @@ export async function captureActualHostedNativeLinuxInvocation(requestReceipt: o
                 const lease = await options.acquireLock(metadata, admission);
                 try {
                   await requireActualHostedNativeLinuxRequest(requestReceipt);
+                  if (runtimeReceipt !== undefined)
+                    await requireHostedNativeRuntime(runtimeReceipt, actual.parent_source);
                   parent.recheck();
                   timer = setTimeout(
                     () => signal.emit("SIGTERM"),
@@ -553,13 +578,16 @@ export async function captureActualHostedNativeLinuxInvocation(requestReceipt: o
                   throw error;
                 }
               },
-            }),
+            });
+          },
         },
       );
     } finally {
       clearTimeout(timer);
     }
     phase = "original-capture-readback";
+    if (runtimeReceipt !== undefined)
+      await requireHostedNativeRuntime(runtimeReceipt, actual.parent_source);
     actual = await requireActualHostedNativeLinuxRequest(requestReceipt);
     const summaryBytes = await readBoundedPublicBuildInputFile(
       actual.directory,
@@ -627,6 +655,7 @@ export async function captureActualHostedNativeLinuxInvocation(requestReceipt: o
     });
     captures.set(receipt, {
       request: requestReceipt,
+      runtime: runtimeReceipt,
       snapshot: JSON.stringify(receipt),
       files,
       resource_status: status,
@@ -660,6 +689,8 @@ export async function requireActualHostedNativeLinuxCapture(receipt: object) {
   try {
     const actual = await requireActualHostedNativeLinuxRequest(retained.request);
     const parent = await requireActualHostedNativeParentSource(actual.parent_source);
+    if (retained.runtime !== undefined)
+      await requireHostedNativeRuntime(retained.runtime, actual.parent_source);
     for (const [name, identity] of retained.files)
       assert.equal(
         await hashRetainedNativeCaptureFile(

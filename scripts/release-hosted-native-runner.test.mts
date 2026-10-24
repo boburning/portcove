@@ -5,6 +5,202 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
+import { createHash } from "node:crypto";
+import {
+  chmodSync,
+  copyFileSync,
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import {
+  inspectNativeRuntimeSupport,
+  nativeRuntimeSupport,
+} from "./release-native-runtime-support.mts";
+import {
+  inspectNativeRuntimeCustody,
+  recheckNativeRuntimeCustody,
+} from "./release-native-runtime-custody.mts";
+
+void test("prepared support accepts only the fixed Linux product and exact source/output identities", () => {
+  const source = Buffer.from("fixed source"),
+    binary = Buffer.alloc(64);
+  binary.set([0x7f, 0x45, 0x4c, 0x46, 2, 1]);
+  binary.writeUInt16LE(62, 18);
+  const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+  const metadata = {
+    schema_version: 1,
+    product: String(nativeRuntimeSupport.product),
+    platform: "linux-x86_64",
+    compiler: {
+      verbose_version: "build-time compiler",
+      sysroot: "/build-only",
+      commands: [
+        { command: "rustc", resolved: "/build-only/rustc", bytes: 1, sha256: "a".repeat(64) },
+      ],
+      environment: [],
+    },
+    input_fingerprint: "b".repeat(64),
+    rustc_arguments: [...nativeRuntimeSupport.arguments],
+    source: { bytes: source.length, sha256: hash(source) },
+    output: { bytes: binary.length, sha256: hash(binary), mode: 0o700 },
+  };
+  assert.equal(inspectNativeRuntimeSupport(metadata, source, binary).output.sha256, hash(binary));
+  for (const mutate of [
+    (m: typeof metadata) => {
+      m.product = "selected-other-product";
+    },
+    (m: typeof metadata) => {
+      m.platform = "windows-x86_64";
+    },
+    (m: typeof metadata) => {
+      m.rustc_arguments.push("--cfg=other");
+    },
+    (m: typeof metadata) => {
+      m.source.sha256 = "c".repeat(64);
+    },
+    (m: typeof metadata) => {
+      m.output.sha256 = "c".repeat(64);
+    },
+    (m: typeof metadata) => {
+      m.output.mode = 0o777;
+    },
+    (m: typeof metadata) => {
+      Object.assign(m.compiler.commands[0]!, { resolved: null });
+    },
+    (m: typeof metadata) => {
+      Object.assign(m, { runtime_compiler: "/usr/bin/rustc" });
+    },
+  ]) {
+    const changed = structuredClone(metadata);
+    mutate(changed);
+    assert.throws(() => inspectNativeRuntimeSupport(changed, source, binary));
+  }
+  assert.throws(() => inspectNativeRuntimeSupport(metadata, Buffer.from("changed source"), binary));
+  const otherArchitecture = Buffer.from(binary);
+  otherArchitecture.writeUInt16LE(183, 18);
+  const changed = structuredClone(metadata);
+  changed.output.sha256 = hash(otherArchitecture);
+  assert.throws(() => inspectNativeRuntimeSupport(changed, source, otherArchitecture));
+});
+
+void test(
+  "Linux executing custody refuses writable/link/replaced inputs and retains ancestry",
+  { skip: process.platform !== "linux" || process.getuid?.() === 0 },
+  (t) => {
+    // /tmp is intentionally refused: its writable ancestry cannot protect code.
+    const root = mkdtempSync(path.join(os.homedir(), ".portcove-runtime-custody-"));
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    chmodSync(root, 0o700);
+    const directory = path.join(root, "tools");
+    mkdirSync(directory, { mode: 0o700 });
+    const file = path.join(directory, "driver");
+    writeFileSync(file, "inert exact bytes", { mode: 0o600 });
+    const original = inspectNativeRuntimeCustody([file]);
+    recheckNativeRuntimeCustody([file], original);
+    const brokerUid = process.getuid!();
+    const linuxProcess = process as NodeJS.Process & { getuid: () => number };
+    const identityView = t.mock.method(linuxProcess, "getuid", () => brokerUid + 1);
+    assert.throws(() => inspectNativeRuntimeCustody([file]), /foreign-owned/);
+    identityView.mock.restore();
+    chmodSync(directory, 0o777);
+    assert.throws(() => inspectNativeRuntimeCustody([file]), /custody/);
+    chmodSync(directory, 0o700);
+    chmodSync(file, 0o666);
+    assert.throws(() => inspectNativeRuntimeCustody([file]), /custody/);
+    chmodSync(file, 0o600);
+    const linked = path.join(directory, "hard-link");
+    linkSync(file, linked);
+    assert.throws(() => inspectNativeRuntimeCustody([file]), /single-link/);
+    rmSync(linked);
+    const symbolic = path.join(directory, "symbolic");
+    symlinkSync(file, symbolic);
+    assert.throws(() => inspectNativeRuntimeCustody([symbolic]), /linked/);
+    rmSync(symbolic);
+    // Replacing exact bytes still changes the original retained file identity.
+    renameSync(file, file + ".retained");
+    writeFileSync(file, "inert exact bytes", { mode: 0o600 });
+    assert.throws(() => recheckNativeRuntimeCustody([file], original), /custody/);
+    const temp = mkdtempSync(path.join(os.tmpdir(), "portcove-runtime-unprotected-"));
+    t.after(() => rmSync(temp, { recursive: true, force: true }));
+    const exposed = path.join(temp, "driver");
+    writeFileSync(exposed, "inert", { mode: 0o600 });
+    assert.throws(() => inspectNativeRuntimeCustody([exposed]), /custody/);
+  },
+);
+
+void test(
+  "Linux runtime uses original controlled providers, exact inputs and prepared support without compiler fallback",
+  { skip: process.platform !== "linux" || process.getuid?.() === 0 },
+  (t) => {
+    const root = mkdtempSync(path.join(os.homedir(), ".portcove-runtime-binding-"));
+    chmodSync(root, 0o700);
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    // Hosted setup-node caches can have shared-writable ancestry. The actual
+    // fixed launcher uses its verified private Node copy; match that custody.
+    const fixedNode = path.join(root, "node");
+    copyFileSync(process.execPath, fixedNode);
+    chmodSync(fixedNode, 0o700);
+    const entry = new URL("./release-hosted-native-runtime.mts", import.meta.url).href;
+    const code = String.raw`
+import assert from 'node:assert/strict';import {registerHooks} from 'node:module';
+import {mkdirSync,writeFileSync,readFileSync,chmodSync,mkdtempSync} from 'node:fs';
+import {createHash} from 'node:crypto';import path from 'node:path';import {performance} from 'node:perf_hooks';
+import {controllerToolPaths} from ${JSON.stringify(new URL("./release-controller-tools.mts", import.meta.url).href)};
+import {controllerNodeVersion} from ${JSON.stringify(new URL("./controller-node-runtime.mts", import.meta.url).href)};
+import {nativeRuntimeSupport as fixed} from ${JSON.stringify(new URL("./release-native-runtime-support.mts", import.meta.url).href)};
+import {rustSupportInputIdentity} from ${JSON.stringify(new URL("./rust-support-cache.mts", import.meta.url).href)};
+const root=process.argv[1],hash=b=>createHash('sha256').update(b).digest('hex'),toolReceipts=new WeakMap(),parents=new WeakMap();
+globalThis.runtimeFixture={tools:async r=>{assert.ok(toolReceipts.has(r),'original tools');return toolReceipts.get(r)},parent:async r=>{assert.ok(parents.has(r),'original parent');return parents.get(r)}};
+registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(entry)}){if(s==='./release-controller-tool-admission.mts')return {url:'controlled:tools',shortCircuit:true};if(s==='./release-hosted-native-parent.mts')return {url:'controlled:parent',shortCircuit:true}}return next(s,c)},load(u,c,next){if(u==='controlled:tools')return {format:'module',source:'export const verifiedControllerToolPaths=globalThis.runtimeFixture.tools;',shortCircuit:true};if(u==='controlled:parent')return {format:'module',source:'export const requireActualHostedNativeParentSource=globalThis.runtimeFixture.parent;',shortCircuit:true};return next(u,c)}});
+const api=await import(${JSON.stringify(entry)}),source=Buffer.from('inert fixed source'),binary=Buffer.alloc(64);
+binary.set([127,69,76,70,2,1]);binary.writeUInt16LE(62,18);
+const compiler={verbose_version:'build-only',sysroot:'/unavailable-build',commands:[{command:'rustc',resolved:null}],environment:[]};
+function fixture(name){
+ const directory=path.join(root,name);mkdirSync(directory,{mode:0o700});const tools=path.join(directory,'tools');mkdirSync(tools,{mode:0o700});
+ const sourceFile=path.join(tools,fixed.source);mkdirSync(path.dirname(sourceFile),{recursive:true,mode:0o700});writeFileSync(sourceFile,source,{mode:0o600});
+ const fingerprint=rustSupportInputIdentity({product:fixed.product,source:sourceFile,compiler,rustcArgs:fixed.arguments,platform:'linux',architecture:'x64'}).fingerprint;
+ const metadata=Buffer.from(JSON.stringify({schema_version:1,product:fixed.product,platform:'linux-x86_64',compiler,input_fingerprint:fingerprint,rustc_arguments:fixed.arguments,source:{bytes:source.length,sha256:hash(source)},output:{bytes:binary.length,sha256:hash(binary),mode:0o700}}));
+ const files=[];for(const name of controllerToolPaths){const filename=path.join(tools,name);mkdirSync(path.dirname(filename),{recursive:true,mode:0o700});const bytes=name===fixed.source?source:name===fixed.binary?binary:name===fixed.metadata?metadata:name==='bin/node'?readFileSync(process.execPath):Buffer.from('inert '+name);if(name!==fixed.source)writeFileSync(filename,bytes,{flag:'wx',mode:name.startsWith('bin/')?0o700:0o600});files.push({path:name,bytes:bytes.length,sha256:hash(bytes)})}
+ const identity={controller_revision:'a'.repeat(40),source_tree:'b'.repeat(40),controller_ref:'refs/tags/fixed-fixture',run_id:'99',run_attempt:1};
+ writeFileSync(path.join(tools,'manifest.json'),JSON.stringify({schema_version:2,source_commit:identity.controller_revision,source_tree:identity.source_tree,platform:'linux-x86_64',node_version:controllerNodeVersion,bundler:'vite-plus@1.3.0',tauri_cli_version:'2.12.2',files}),{mode:0o600});
+ const tool={},parent={};toolReceipts.set(tool,{root:tools,node:path.join(tools,'bin/node'),identity});parents.set(parent,{producer:{...identity},stage:'payload-signing',platform_label:'linux-x86_64',deadline:performance.now()+60000,recheck(){assert.ok(performance.now()<this.deadline)}});
+ return {directory,tools,tool,parent,entry:path.join(tools,'scripts/release-hosted-native-runner.bundle.mjs')};
+}
+let f=fixture('valid');const runtime=await api.prepareHostedNativeRuntime(f.tool,f.parent,f.entry);
+await assert.rejects(api.requireHostedNativeRuntime({...runtime},f.parent),/original/);
+await assert.rejects(api.requireHostedNativeRuntime(runtime,{}),/original/);
+const deps=await api.hostedNativeSupportDependencies(runtime,f.parent,f.directory);
+assert.deepEqual(deps.rustSupportCompilerIdentity(),compiler);
+const outdir=mkdtempSync(path.join(f.directory,'portcove-host-tool-fixture-'));chmodSync(outdir,0o700);
+const output=path.join(outdir,'portcove-linux-process-tree-reaper');
+const options={root:f.tools+path.sep,product:fixed.product,source:fixed.source,compiler,rustcArgs:fixed.arguments,platform:'linux',architecture:'x64',output,environment:{PATH:'/unavailable'},runSync(){throw Error('runtime compiler must never be called')}};
+assert.equal(deps.prepareSupportArtifact(options).outcome,'hit');assert.deepEqual(readFileSync(output),binary);
+await assert.rejects(api.prepareHostedNativeRuntime(f.tool,f.parent,f.entry),/recovery/);
+const target=path.join(f.tools,'scripts/rust-test-tree-supervisor.mts'),saved=readFileSync(target);writeFileSync(target,'changed');
+await assert.rejects(api.requireHostedNativeRuntime(runtime,f.parent));writeFileSync(target,saved);
+await assert.rejects(api.requireHostedNativeRuntime(runtime,f.parent),/original/);assert.throws(()=>deps.rustSupportCompilerIdentity(),/expired/);
+for(const kind of ['writable-root','writable-file','wrong-source','wrong-run','copied-tool','copied-parent']){
+ f=fixture(kind);if(kind==='writable-root')chmodSync(f.tools,0o777);if(kind==='writable-file')chmodSync(f.entry,0o666);
+ if(kind==='wrong-source')toolReceipts.get(f.tool).identity.controller_revision='c'.repeat(40);
+ if(kind==='wrong-run')toolReceipts.get(f.tool).identity.run_id='100';
+ await assert.rejects(api.prepareHostedNativeRuntime(kind==='copied-tool'?{...f.tool}:f.tool,kind==='copied-parent'?{...f.parent}:f.parent,f.entry));
+}
+console.log('controlled original-runtime and fixed support refusals passed; no provider or native acceptance');
+`;
+    const result = spawnSync(fixedNode, ["--input-type=module", "--eval", code, root], {
+      encoding: "utf8",
+      timeout: 20000,
+      maxBuffer: 65536,
+    });
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /fixed support refusals passed/u);
+  },
+);
 
 void test("original process survives upload rendezvous, binds ACK and refuses replay or ambiguity", (t) => {
   const root = disposableDirectory(t, path.join(os.tmpdir(), "native-runner-"));

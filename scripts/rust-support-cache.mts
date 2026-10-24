@@ -244,6 +244,12 @@ function manifestFor({
   return { identity, fingerprint: sha256(JSON.stringify(identity)) };
 }
 
+/** The existing support-product identity, without cache lookup or compilation.
+ * Exported for source-bound distribution of a fixed prepared support product. */
+export function rustSupportInputIdentity(definition: RustSupportDefinition) {
+  return manifestFor(definition);
+}
+
 function readValidatedEntry(directory: string, expectedFingerprint: string): CacheEntry {
   let directoryPresent = false;
   try {

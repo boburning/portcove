@@ -14,6 +14,8 @@ import {
   prepareActualHostedLinuxPreSignJob,
   readBackActualHostedLinuxPreSignUpload,
 } from "./release-hosted-native-job.mts";
+import { receiveControllerTools } from "./release-controller-tool-admission.mts";
+import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const exact = (raw: unknown, keys: string): raw is Record<string, unknown> =>
@@ -133,7 +135,11 @@ export async function acknowledgeHostedNativeUpload(
 
 /** The original private receipt stays in this process across the Actions upload
  * and its readback. A new process or copied routing data cannot resume it. */
-export async function runActualHostedLinuxNativeJob(root: string, originalDeadline: number) {
+export async function runActualHostedLinuxNativeJob(
+  root: string,
+  originalDeadline: number,
+  runtimeInput?: { tools: object; executing_entry: string },
+) {
   await ownedRoot(root);
   assert.ok(Number.isFinite(originalDeadline) && originalDeadline > performance.now());
   // Claim the attempt before any producer can create effects. Existing state
@@ -145,7 +151,7 @@ export async function runActualHostedLinuxNativeJob(root: string, originalDeadli
   });
   let phase = "preparation";
   try {
-    const upload = await prepareActualHostedLinuxPreSignJob(root, originalDeadline);
+    const upload = await prepareActualHostedLinuxPreSignJob(root, originalDeadline, runtimeInput);
     phase = "upload-request";
     // Anchor before any awaited readiness read. The private proof's captured
     // deadline can be earlier; neither a read nor a new Actions step renews it.
@@ -231,6 +237,28 @@ export async function runActualHostedLinuxNativeJob(root: string, originalDeadli
   }
 }
 
+/** The fixed bundle re-verifies its own source-bound tools in this process.
+ * A private receipt from the bootstrap's separately bundled module is not used. */
+export async function runConfiguredHostedLinuxNativeJob(
+  raw: unknown,
+  root: string,
+  deadline: number,
+  executingEntry: string,
+) {
+  const input: unknown = structuredClone(raw);
+  assert.ok(exact(input, "tools") && exact(input.tools, "artifact,bundle"));
+  assert.ok(isRecord(input.tools.artifact) && isRecord(input.tools.bundle));
+  assert.ok(Number.isFinite(deadline) && performance.now() < deadline);
+  const tools = await receiveControllerTools(
+    root,
+    input.tools.artifact as unknown as ControllerToolArtifactExpected,
+    input.tools.bundle as unknown as { artifact_id: number; sha256: string },
+    { deadline },
+  );
+  assert.ok(performance.now() < deadline);
+  return runActualHostedLinuxNativeJob(root, deadline, { tools, executing_entry: executingEntry });
+}
+
 /** Fixed caller entry. The bootstrap must supply its original cross-process
  * monotonic deadline; the CLI neither creates nor renews a job budget. Actual
  * producer admission independently verifies the fixed source/job identity. */
@@ -249,9 +277,17 @@ async function main() {
     await mkdir(root, { mode: 0o700 });
     active(deadline);
     const origin = performance.now();
-    const result = await runActualHostedLinuxNativeJob(
+    const configuration: unknown = JSON.parse(
+      (
+        await readControllerToolFile(path.join(temporary, "portcove-native-tool-input.json"), 8192)
+      ).toString("utf8"),
+    );
+    active(deadline);
+    const result = await runConfiguredHostedLinuxNativeJob(
+      configuration,
       root,
       origin + Number(deadline - process.hrtime.bigint()) / 1e6,
+      fileURLToPath(import.meta.url),
     );
     active(deadline);
     return result;
