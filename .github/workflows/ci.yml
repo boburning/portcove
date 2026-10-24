@@ -519,6 +519,14 @@ jobs:
             .vitest/attachments/**/*.json
             apps/desktop/.vitest/attachments/**/*.json
             outputs/slice5-cards/**/*.png
+            outputs/detail-composition/**/*.png
+            outputs/observation-clarity/**/*.png
+            outputs/uiux-game-titles/**/*.png
+            outputs/detail-tabs/**/*.png
+            outputs/uiux-remainder/**/*.png
+            outputs/ui-refinement/**/*.png
+            outputs/uiux-task-isolation/**/*.png
+            work/installation-rendered/**/*.png
           include-hidden-files: true
           retention-days: 7
           if-no-files-found: warn
@@ -1223,6 +1231,14 @@ jobs:
             .vitest/attachments/**/*.json
             apps/desktop/.vitest/attachments/**/*.json
             outputs/slice5-cards/**/*.png
+            outputs/detail-composition/**/*.png
+            outputs/observation-clarity/**/*.png
+            outputs/uiux-game-titles/**/*.png
+            outputs/detail-tabs/**/*.png
+            outputs/uiux-remainder/**/*.png
+            outputs/ui-refinement/**/*.png
+            outputs/uiux-task-isolation/**/*.png
+            work/installation-rendered/**/*.png
           include-hidden-files: true
           retention-days: 7
           if-no-files-found: warn
@@ -1268,7 +1284,7 @@ jobs:
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           package_json_file: package.json
-      - run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts
+      - run: pnpm install --frozen-lockfile --ignore-scripts
       - uses: ./.github/actions/setup-rust
       - name: Exercise clean prose setup and execution
         run: node scripts/check-ci-prose.integration.mts
@@ -1407,6 +1423,17 @@ jobs:
             work/bt/**/screenshots/**/*.png
             .vitest/attachments/failure-screenshots/**/*.png
             apps/desktop/.vitest/attachments/failure-screenshots/**/*.png
+            .vitest/attachments/**/*.json
+            apps/desktop/.vitest/attachments/**/*.json
+            outputs/slice5-cards/**/*.png
+            outputs/detail-composition/**/*.png
+            outputs/observation-clarity/**/*.png
+            outputs/uiux-game-titles/**/*.png
+            outputs/detail-tabs/**/*.png
+            outputs/uiux-remainder/**/*.png
+            outputs/ui-refinement/**/*.png
+            outputs/uiux-task-isolation/**/*.png
+            work/installation-rendered/**/*.png
           include-hidden-files: true
           retention-days: 7
           if-no-files-found: warn
