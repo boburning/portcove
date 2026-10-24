@@ -192,6 +192,7 @@ export function SelfServiceSetup({
             Launch details
           </h2>
           <UserSelectedRuntimeControl
+            libraryRoot={libraryRoot}
             port={entry}
             status={status}
             listingStatus={entry.listingStatus}

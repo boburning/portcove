@@ -320,6 +320,7 @@ function DownloadChoices({
                       (candidate) => assetKey(candidate) === value,
                     )?.release_id;
                     if (packageRelease) setReleaseChoice(packageRelease);
+                    remember({ package: value, release: packageRelease ?? null, extract: true });
                     setExtract(true);
                   }}
                   description="Packages belong to the selected release. Check its notes for setup requirements."

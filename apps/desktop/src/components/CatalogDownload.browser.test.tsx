@@ -168,6 +168,7 @@ beforeEach(async () => {
       preview_sha256: "current-review",
     }),
   );
+  vi.spyOn(desktopApi, "registerUserSelectedRuntime").mockResolvedValue(null);
   vi.spyOn(desktopApi, "openPendingSetupFolder").mockResolvedValue(undefined);
   vi.spyOn(desktopApi, "forgetPendingSetup").mockResolvedValue(undefined);
   root = await render(
@@ -924,4 +925,148 @@ it("restores deliberate download inputs after remount and isolates another libra
   );
   expect(document.body.textContent).not.toContain("E:/Personal games");
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+});
+
+it("persists an explicit package before any other option is changed", async () => {
+  const libraryRoot = "E:/immediate-package-choice";
+  for (const key of Object.keys(localStorage))
+    if (key.includes("immediate-package-choice")) localStorage.removeItem(key);
+  const alternative = { ...artifact, asset_id: 8, name: "alternative.zip" };
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue({
+    ...candidates,
+    candidates: [artifact, alternative],
+    packages: [
+      ...candidates.packages,
+      { asset_id: 8, suitability: "suitable", reason: "Alternative" },
+    ],
+  });
+  await root.rerender(
+    <CatalogDownloadControl
+      entry={entry}
+      libraryRoot={libraryRoot}
+      generation={9}
+      busy={false}
+      perform={perform}
+    />,
+  );
+  await click("Check upstream downloads");
+  await click("Change download options");
+  await page.getByRole("combobox", { name: /^Package/ }).click();
+  await page.getByRole("option", { name: /alternative.zip/ }).click();
+  await root.rerender(
+    <CatalogDownloadControl
+      autoCheck
+      entry={entry}
+      libraryRoot={libraryRoot}
+      generation={10}
+      busy={false}
+      perform={perform}
+    />,
+  );
+  await expect.element(page.getByText("alternative.zip · 2.0 KiB", { exact: true })).toBeVisible();
+  await click("Review download");
+  expect(desktopApi.previewCatalogDownload).toHaveBeenLastCalledWith(
+    { ...selection, asset_id: 8 },
+    10,
+  );
+  expect(pickInstallFolder).not.toHaveBeenCalled();
+});
+
+it("invalidates an automatic launch target when refreshed discovery becomes ambiguous", async () => {
+  const first = {
+    executable: `${saved.path}/game.exe`,
+    working_directory: saved.path,
+    supporting_program: false,
+    reason: "Native game",
+  };
+  const second = { ...first, executable: `${saved.path}/other-game.exe` };
+  vi.mocked(desktopApi.discoverSetupLaunchTargets)
+    .mockResolvedValueOnce({
+      port_id: entry.id,
+      pending_id: saved.id,
+      complete: true,
+      entries_checked: 1,
+      candidates: [first],
+      recommended_executable: first.executable,
+      explanation: "One game",
+    })
+    .mockResolvedValue({
+      port_id: entry.id,
+      pending_id: saved.id,
+      complete: true,
+      entries_checked: 2,
+      candidates: [first, second],
+      recommended_executable: null,
+      explanation: "Choose between two games",
+    });
+  await root.rerender(
+    <SelfServiceSetup
+      entry={{ ...entry, pendingSetup: saved }}
+      status={status}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+    />,
+  );
+  await expect
+    .element(page.getByRole("button", { name: "Finish adding game", exact: true }))
+    .toBeEnabled();
+  await click("Refresh launch suggestions");
+  await expect
+    .element(page.getByRole("button", { name: "Finish adding game", exact: true }))
+    .not.toBeInTheDocument();
+  await page.getByRole("combobox", { name: /^Launch target/ }).click();
+  await expect
+    .element(page.getByRole("option", { name: "Choose a native application…", exact: true }))
+    .toBeVisible();
+  expect(desktopApi.registerUserSelectedRuntime).not.toHaveBeenCalled();
+});
+
+it("retains a manually selected setup target and literal arguments across remount", async () => {
+  const libraryRoot = "E:/retained-setup-choice";
+  for (const key of Object.keys(localStorage))
+    if (key.includes("retained-setup-choice")) localStorage.removeItem(key);
+  const executable = "C:/Upstream installed/game.exe";
+  vi.mocked(pickHostToolExecutable).mockResolvedValue(executable);
+  await root.rerender(
+    <SelfServiceSetup
+      libraryRoot={libraryRoot}
+      entry={{ ...entry, pendingSetup: saved }}
+      status={status}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+    />,
+  );
+  await click("Choose game executable…");
+  await click("Change launch details");
+  await page
+    .getByRole("textbox", { name: "Working directory", exact: true })
+    .fill("C:/Upstream data");
+  await page.getByText("Advanced launch options", { exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "Launch arguments", exact: true })
+    .fill("--data\nC:/Original files");
+  await root.rerender(
+    <SelfServiceSetup
+      libraryRoot={libraryRoot}
+      entry={{ ...entry, pendingSetup: saved }}
+      status={status}
+      generation={10}
+      perform={perform}
+      onChanged={changed}
+    />,
+  );
+  await expect
+    .element(page.getByRole("button", { name: "Finish adding game", exact: true }))
+    .toBeEnabled();
+  expect(desktopApi.previewUserSelectedRuntime).toHaveBeenLastCalledWith(
+    entry.id,
+    executable,
+    "C:/Upstream data",
+    ["--data", "C:/Original files"],
+    10,
+  );
+  expect(pickHostToolExecutable).toHaveBeenCalledOnce();
+  expect(document.body.textContent).toContain(executable);
 });

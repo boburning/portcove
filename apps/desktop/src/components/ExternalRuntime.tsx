@@ -4,6 +4,11 @@ import { gameIdentityLabel } from "../port-identity";
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import {
+  readSetupChoice,
+  writeSetupChoice,
+  type SetupChoice,
+} from "../features/browsing/setup-choice";
+import {
   catalogSetupPresentation,
   removalReviewPresentation,
 } from "../features/port-actions/port-action-presentation";
@@ -49,6 +54,7 @@ type ExternalRuntimeControlProps = {
   generation: number;
   busy: boolean;
   onChanged?: (() => void) | undefined;
+  libraryRoot?: string | undefined;
 };
 
 export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
@@ -255,6 +261,7 @@ export function UserSelectedRuntimeControl(props: UserSelectedRuntimeProps) {
         props.status?.external_runtime,
         props.initialDirectory,
         props.port.pendingSetup?.id,
+        props.libraryRoot,
       ])}
       {...props}
     />
@@ -269,21 +276,25 @@ function UserSelectedRuntimeEditor({
   onChanged,
   listingStatus,
   initialDirectory,
+  libraryRoot,
 }: UserSelectedRuntimeProps) {
   const workingDirectoryId = useId();
   const launchDetailsId = useId();
   const registered = status?.external_runtime;
   const finishingDownload = port.pendingSetup?.state === "downloaded";
+  const [restored] = useState(() => readSetupChoice(libraryRoot, port.id, port.pendingSetup?.id));
+  const [choiceWarning, setChoiceWarning] = useState(restored.warning);
   const [executable, setExecutable] = useState(
-    finishingDownload ? "" : (registered?.executable ?? ""),
+    restored.choice?.executable ?? (finishingDownload ? "" : (registered?.executable ?? "")),
   );
   const [workingDirectory, setWorkingDirectory] = useState(
-    finishingDownload ? (initialDirectory ?? "") : (registered?.path ?? initialDirectory ?? ""),
+    restored.choice?.workingDirectory ??
+      (finishingDownload ? (initialDirectory ?? "") : (registered?.path ?? initialDirectory ?? "")),
   );
   const [argumentLines, setArgumentLines] = useState(
-    registered?.user_selected?.arguments.join("\n") ?? "",
+    restored.choice?.argumentLines ?? registered?.user_selected?.arguments.join("\n") ?? "",
   );
-  const [argumentsEdited, setArgumentsEdited] = useState(false);
+  const [argumentsEdited, setArgumentsEdited] = useState(restored.choice?.argumentsEdited ?? false);
   const savedArguments = registered?.user_selected?.arguments ?? [];
   const preserveStructuredArguments =
     !argumentsEdited && savedArguments.some((argument) => !argument || /[\r\n]/u.test(argument));
@@ -293,15 +304,25 @@ function UserSelectedRuntimeEditor({
   const [removing, setRemoving] = useState(false);
   const [pickerError, setPickerError] = useState<unknown>();
   const [suggestions, setSuggestions] = useState<import("../types").SetupLaunchTargets>();
-  const [scanning, setScanning] = useState(
-    Boolean(port.pendingSetup?.state === "downloaded" && !registered),
-  );
+  const [scanning, setScanning] = useState(Boolean(port.pendingSetup?.state === "downloaded"));
   const discoveryRequests = useRef(new LatestRequestGeneration());
-  const targetEdited = useRef(false);
+  const targetEdited = useRef(restored.choice?.targetEdited ?? false);
   const discoveryInFlight = useRef<Promise<void> | undefined>(undefined);
   const pendingId = port.pendingSetup?.id;
   const pendingState = port.pendingSetup?.state;
   const hasRegistered = Boolean(registered && !finishingDownload);
+  const rememberSetup = (change: Partial<SetupChoice>) => {
+    setChoiceWarning(
+      writeSetupChoice(libraryRoot, port.id, pendingId, {
+        executable,
+        workingDirectory,
+        argumentLines,
+        argumentsEdited,
+        targetEdited: targetEdited.current,
+        ...change,
+      }),
+    );
+  };
   const loadTargets = useCallback(() => {
     if (!pendingId || hasRegistered || pendingState !== "downloaded") return Promise.resolve();
     if (discoveryInFlight.current) return discoveryInFlight.current;
@@ -318,13 +339,19 @@ function UserSelectedRuntimeEditor({
         const recommended = next.candidates.find(
           (candidate) => candidate.executable === next.recommended_executable,
         );
-        if (recommended && !targetEdited.current) {
-          setExecutable(recommended.executable);
-          setWorkingDirectory(recommended.working_directory);
+        if (!targetEdited.current) {
+          setExecutable(recommended?.executable ?? "");
+          setWorkingDirectory(recommended?.working_directory ?? initialDirectory ?? "");
         }
       })
       .catch((failure: unknown) => {
-        if (discoveryRequests.current.isCurrent(request)) setPickerError(failure);
+        if (discoveryRequests.current.isCurrent(request)) {
+          setPickerError(failure);
+          if (!targetEdited.current) {
+            setExecutable("");
+            setWorkingDirectory(initialDirectory ?? "");
+          }
+        }
       })
       .finally(() => {
         if (discoveryInFlight.current === task) discoveryInFlight.current = undefined;
@@ -332,7 +359,7 @@ function UserSelectedRuntimeEditor({
       });
     discoveryInFlight.current = task;
     return task;
-  }, [generation, hasRegistered, pendingId, pendingState, port.id]);
+  }, [generation, hasRegistered, initialDirectory, pendingId, pendingState, port.id]);
   const refreshTargets = () => {
     setScanning(true);
     setPickerError(undefined);
@@ -379,8 +406,10 @@ function UserSelectedRuntimeEditor({
     try {
       const path = await pickHostToolExecutable("game", executable || workingDirectory);
       if (pickerRequests.current.isCurrent(request) && typeof path === "string") {
+        const directory = path.slice(0, Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")));
         setExecutable(path);
-        setWorkingDirectory(path.slice(0, Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"))));
+        setWorkingDirectory(directory);
+        rememberSetup({ executable: path, workingDirectory: directory });
       }
     } catch (value) {
       if (pickerRequests.current.isCurrent(request)) setPickerError(value);
@@ -392,8 +421,10 @@ function UserSelectedRuntimeEditor({
     setPickerError(undefined);
     try {
       const path = await pickInstallFolder(workingDirectory);
-      if (pickerRequests.current.isCurrent(request) && typeof path === "string")
+      if (pickerRequests.current.isCurrent(request) && typeof path === "string") {
         setWorkingDirectory(path);
+        rememberSetup({ workingDirectory: path });
+      }
     } catch (value) {
       if (pickerRequests.current.isCurrent(request)) setPickerError(value);
     }
@@ -401,6 +432,11 @@ function UserSelectedRuntimeEditor({
   return (
     <section className="grid gap-3" aria-label="Your existing installation">
       <ActionReviewFailure error={pickerError} />
+      {choiceWarning && (
+        <p role="status" className="text-sm">
+          {choiceWarning}
+        </p>
+      )}
       {registered && !editing ? (
         <>
           <p>
@@ -481,6 +517,10 @@ function UserSelectedRuntimeEditor({
                           targetEdited.current = true;
                           setExecutable(value);
                           if (candidate) setWorkingDirectory(candidate.working_directory);
+                          rememberSetup({
+                            executable: value,
+                            workingDirectory: candidate?.working_directory ?? workingDirectory,
+                          });
                         }}
                       />
                     )}
@@ -532,6 +572,7 @@ function UserSelectedRuntimeEditor({
                   onValueChange={(value) => {
                     targetEdited.current = true;
                     setWorkingDirectory(value);
+                    rememberSetup({ workingDirectory: value });
                   }}
                 />
               </label>
@@ -567,6 +608,7 @@ function UserSelectedRuntimeEditor({
                       onClick={() => {
                         setArgumentLines("");
                         setArgumentsEdited(true);
+                        rememberSetup({ argumentLines: "", argumentsEdited: true });
                       }}
                     >
                       Replace saved arguments…
@@ -584,6 +626,10 @@ function UserSelectedRuntimeEditor({
                         onChange={(event) => {
                           setArgumentLines(event.target.value);
                           setArgumentsEdited(true);
+                          rememberSetup({
+                            argumentLines: event.target.value,
+                            argumentsEdited: true,
+                          });
                         }}
                         rows={3}
                       />
@@ -611,7 +657,7 @@ function UserSelectedRuntimeEditor({
             <SelectedRuntimeDialog
               key={JSON.stringify([executable, workingDirectory, argumentLines, argumentsEdited])}
               inline
-              busy={busy}
+              busy={busy || scanning}
               port={port}
               generation={generation}
               selected={{

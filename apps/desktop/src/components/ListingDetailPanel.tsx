@@ -99,17 +99,7 @@ export function ListingDetailPanel({
                 data-focusable
                 variant="primary"
                 size="lg"
-                onClick={() =>
-                  reveal(
-                    "files",
-                    "detail-self-service-setup",
-                    registered
-                      ? undefined
-                      : entry.pendingSetup
-                        ? "[data-self-service-continue]"
-                        : "[data-detail-download] button",
-                  )
-                }
+                onClick={() => reveal("files", "detail-self-service-setup")}
               >
                 {registered
                   ? "Review launch details"
@@ -126,7 +116,7 @@ export function ListingDetailPanel({
                     {registered
                       ? launch.reason
                       : entry.pendingSetup
-                        ? "Complete the upstream setup, then choose the executable."
+                        ? "Confirm the game or launcher in Files to finish setup."
                         : "Review available downloads and setup instructions."}{" "}
                     <Button variant="link" onClick={() => reveal("files")}>
                       Open Files

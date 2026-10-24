@@ -52,7 +52,7 @@ pub(crate) async fn register_user_selected_runtime(
         .into());
     }
     let description = format!(
-        "Run the executable you selected at {} with working directory {} and arguments {}? Portcove has not authenticated these bytes as an official package. You or the upstream launcher manage setup and updates. Portcove will launch it and can remove this registration; it will not replace, back up, restore, roll back or delete the external files.",
+        "Save launch details for the executable you selected at {} with working directory {} and arguments {}? This adds the game without starting it; choose Play separately to launch. Portcove has not authenticated these bytes as an official package. You or the upstream launcher manage setup and updates. Portcove can remove this registration; it will not replace, back up, restore, roll back or delete the external files.",
         review.executable.display(),
         review.path.display(),
         serde_json::to_string(&arguments).map_err(PortcoveError::from)?
@@ -144,7 +144,7 @@ pub(crate) async fn relink_user_selected_runtime(
         &app,
         "Change launch details",
         format!(
-            "Run {} with working directory {} and arguments {}? The old and new game files stay where they are. You or the upstream launcher remain responsible for setup and updates.",
+            "Save {} as the launch target with working directory {} and arguments {}? This changes the saved launch details without starting the game; choose Play separately to launch. The old and new game files stay where they are. Portcove has not authenticated these bytes as an official package. You or the upstream launcher remain responsible for setup and updates.",
             review.proposed.executable.display(),
             review.proposed.path.display(),
             serde_json::to_string(&arguments).map_err(PortcoveError::from)?,
