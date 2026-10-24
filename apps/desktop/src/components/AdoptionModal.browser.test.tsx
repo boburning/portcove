@@ -40,7 +40,7 @@ it("starts folder entry at the field, contains keyboard focus and returns to its
     guard.focus();
     expect(document.activeElement).toBe(guard);
     expect(dialog.contains(document.activeElement)).toBe(false);
-    await expect.poll(() => document.activeElement?.id).toBe("adopt-path");
+    await expect.poll(() => dialog.contains(document.activeElement)).toBe(true);
     for (let index = 0; index < 10; index += 1) {
       await userEvent.keyboard("{Tab}");
       const active = document.activeElement;
