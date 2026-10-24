@@ -139,6 +139,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
     "scripts/python-test-results.test.mts",
     "scripts/release-catalog-review-request.test.mts",
     "scripts/release-control-inputs.test.mts",
+    "scripts/release-hosted-native-history.test.mts",
     "scripts/release-hosted-native-linux-capture.test.mts",
     "scripts/release-hosted-native-linux-report.test.mts",
     "scripts/release-hosted-native-proof-producer.test.mts",

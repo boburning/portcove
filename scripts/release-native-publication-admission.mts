@@ -220,8 +220,9 @@ export function deriveNativePublicationJourneys(input: NativePublicationJourneyI
 }
 
 /** Selected current producers may follow either the previously admitted Check
- * lineage or its exact durable hosted successor. Old proof is verified through
- * the historical receiver, never the current native admission constructor. */
+ * lineage or its exact durable hosted successor. Foreign-run proof retains
+ * completed-history verification; exact same-run proof uses signed stage custody
+ * without pretending that the original continuity job has finished. */
 export async function deriveHostedNativePublicationJourneys(
   raw: NativePublicationJourneyInput,
   parent: string,
@@ -262,9 +263,9 @@ export async function deriveHostedNativePublicationJourneys(
   if (!records.length) return prepared.journeys;
   if (records.length !== 2 || prepared.journeys.length !== 2)
     throw new Error("historical native lineage cannot mix Check and hosted authorities");
-  const { collectHistoricalHostedNativePredecessors } =
+  const { collectConfiguredHostedNativePredecessors } =
     await import("./release-hosted-native-history.mts");
-  const historical = await collectHistoricalHostedNativePredecessors(
+  const historical = await collectConfiguredHostedNativePredecessors(
     parent,
     records,
     { schema_version: 1, namespace: input.namespace },
