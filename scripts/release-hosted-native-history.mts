@@ -22,7 +22,10 @@ import {
   collectHostedNativeReleaseQualification,
   verifiedHostedNativeReleaseQualification,
 } from "./release-hosted-native-acceptance.mts";
-import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
+import {
+  requireControllerApplicationJobPublicationAuthorities,
+  inspectSelectedPublicationAuthorityConfiguration,
+} from "./release-authority-configuration.mts";
 import { readProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
 import { createHash } from "node:crypto";
 import {
@@ -62,7 +65,7 @@ export function selectHostedNativePredecessorScope(
     const ids = record.evidence_ids.filter(
       (id: unknown) => typeof id === "string" && id.startsWith("native-job:"),
     );
-    const id = ids[0];
+    const id: unknown = ids[0];
     const match =
       typeof id === "string"
         ? /^native-job:([1-9][0-9]{0,15}):([1-9][0-9]{0,6}):([1-9][0-9]{0,15}):([1-9][0-9]{0,15}):([a-f0-9]{64})$/u.exec(
@@ -81,12 +84,15 @@ export function selectHostedNativePredecessorScope(
 
 async function currentHostedPredecessorSource() {
   const view = await requireControllerApplicationJobPublicationAuthorities("release-publication");
-  if (view.configuration.schema_version !== 4 || view.configuration.purpose !== "application")
+  if (view.configuration.schema_version !== 4)
     throw new Error("selected current native predecessor source required");
+  const configuration = inspectSelectedPublicationAuthorityConfiguration(view.configuration);
+  if (configuration.purpose !== "application")
+    throw new Error("current native predecessor application configuration required");
   const workflow = await readProductionControllerWorkflowBytes();
   return {
     source: view.source,
-    configuration: view.configuration,
+    configuration,
     workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
   };
 }

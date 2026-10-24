@@ -106,6 +106,10 @@ void test("current-run predecessor receiver retains signed checkpoint/native ass
   writeFileSync(input, JSON.stringify(fixture()));
   const entry = new URL("./release-hosted-native-history.mts", import.meta.url).href;
   const contract = new URL("./release-hosted-native-proof-contract.mts", import.meta.url).href;
+  const configurationContract = new URL(
+    "./release-authority-configuration-contract.mts",
+    import.meta.url,
+  ).href;
   const code = String.raw`
 import assert from 'node:assert/strict';
 import {registerHooks} from 'node:module';
@@ -114,12 +118,13 @@ import path from 'node:path';
 import {performance} from 'node:perf_hooks';
 const fixture=JSON.parse(readFileSync(process.argv[1],'utf8')), root=process.argv[2];
 const {inspectHostedNativeProofFiles}=await import(${JSON.stringify(contract)});
+const {inspectSelectedPublicationAuthorityConfiguration}=await import(${JSON.stringify(configurationContract)});
 let state,reads,sourceReads,currentReads,historicalReads,checkpointChecks;
 const receipts=new WeakMap();
 const readSource=async()=>{
  sourceReads++;
  const view=structuredClone(state.view);
- if(state.fault==='changed-source'&&sourceReads>1)view.source.actor_id='9999';
+ if((state.fault==='changed-source'&&sourceReads>1)||(state.fault==='final-source-drift'&&sourceReads>=4))view.source.actor_id='9999';
  return view;
 };
 const collect=kind=>async(dir,config,expected,files,deadline)=>{
@@ -134,6 +139,7 @@ const collect=kind=>async(dir,config,expected,files,deadline)=>{
  receipts.set(receipt,{...prepared.report});return receipt;
 };
 globalThis.fixture={
+ inspectConfiguration:inspectSelectedPublicationAuthorityConfiguration,
  source:readSource,workflow:async()=>Buffer.from(state.workflow),
  environment:()=>({PATH:process.env.PATH,SystemRoot:process.env.SystemRoot}),
  hydrate:async(repo,pin)=>{reads++;assert.equal(pin,state.pin.checkpoint);return {checkpoint:pin,requests:1}},
@@ -149,14 +155,14 @@ const routes={
  './release-coordinator-checkpoint-evidence.mts':{readCoordinatorCheckpointEvidence:'evidence'},
  './release-coordinator-checkpoint-authentication.mts':{authenticateCoordinatorCheckpointEvidence:'authenticate',requireAuthenticatedCheckpointEvidence:'requireCheckpoint'},
  './release-hosted-native-acceptance.mts':{collectHostedNativeReleaseQualification:'collectCurrent',verifiedHostedNativeReleaseQualification:'readCurrent',collectHistoricalHostedNativeQualification:'collectHistorical',verifiedHistoricalHostedNativeQualification:'readHistorical'},
- './release-authority-configuration.mts':{requireControllerApplicationJobPublicationAuthorities:'source'},
+ './release-authority-configuration.mts':{requireControllerApplicationJobPublicationAuthorities:'source',inspectSelectedPublicationAuthorityConfiguration:'inspectConfiguration'},
  './production-controller-admission.mts':{readProductionControllerWorkflowBytes:'workflow'},
  './release-readonly-child-environment.mts':{readOnlyReleaseChildEnvironment:'environment'},
 };
 registerHooks({resolve(spec,ctx,next){if(ctx.parentURL===${JSON.stringify(entry)}&&routes[spec])return {url:'inert-history:'+spec,shortCircuit:true};return next(spec,ctx)},load(url,ctx,next){if(url.startsWith('inert-history:'))return {format:'module',source:Object.entries(routes[url.slice(14)]).map(([name,key])=>'export const '+name+'=globalThis.fixture.'+key+';').join('\n'),shortCircuit:true};return next(url,ctx)}});
 const api=await import(${JSON.stringify(entry)});
 const provider={request(){throw Error('unexpected transport')},graphql(){throw Error('unexpected GraphQL')}};
-for(const fault of ['valid','source','configuration','grant','workflow','package','checkpoint-pin','checkpoint-signature','native-proof','changed-source','configured-history','configured-live-history','history','live-history']){
+for(const fault of ['valid','caller-mutation','source','configuration','grant','workflow','package','checkpoint-pin','checkpoint-signature','native-proof','changed-source','final-source-drift','configured-history','configured-live-history','history','live-history']){
  state=structuredClone(fixture);state.fault=fault;reads=sourceReads=currentReads=historicalReads=checkpointChecks=0;
  if(fault==='source')state.view.source.actor_id='9999';
  if(fault==='configuration')state.view.configuration.journal.apps.semantic.app_id++;
@@ -168,11 +174,14 @@ for(const fault of ['valid','source','configuration','grant','workflow','package
  const directory=path.join(root,fault);mkdirSync(directory);
  const collect=fault==='history'||fault==='live-history'?api.collectHistoricalHostedNativePredecessors:api.collectConfiguredHostedNativePredecessors;
  const operation=()=>collect(directory,state.records,{schema_version:1,namespace:state.custody.configuration.journal.namespace},performance.now()+60000,provider);
- if(['valid','history','configured-history'].includes(fault)){
-   const result=await operation();
-   assert.equal(result.kind,fault==='valid'?'verified-current-run-native-predecessors':'verified-hosted-native-predecessors');
+ if(['valid','caller-mutation','history','configured-history'].includes(fault)){
+   const pending=operation();
+   if(fault==='caller-mutation')state.records[0].artifact.sha256='e'.repeat(64);
+   const result=await pending;
+   const current=fault==='valid'||fault==='caller-mutation';
+   assert.equal(result.kind,current?'verified-current-run-native-predecessors':'verified-hosted-native-predecessors');
    assert.equal(result.journey_completion,'not-established');assert.equal(result.predecessors.length,2);assert.equal(result.authority,'none');
-   assert.equal(checkpointChecks,1);assert.equal(fault==='valid'?currentReads:historicalReads,2);
+   assert.equal(checkpointChecks,1);assert.equal(current?currentReads:historicalReads,2);
  }else{
    await assert.rejects(operation());
    if(fault==='checkpoint-signature')assert.equal(currentReads,0);
