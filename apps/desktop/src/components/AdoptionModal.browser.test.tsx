@@ -34,9 +34,22 @@ it("starts folder entry at the field, contains keyboard focus and returns to its
     await opener.click();
     await expect.poll(() => document.activeElement?.id).toBe("adopt-path");
     const dialog = document.querySelector('[data-slot="dialog-content"]')!;
+    // Base UI wraps through an owned sibling guard on the next animation frame.
+    const guard = dialog.nextElementSibling as HTMLElement;
+    expect(guard.matches("[data-base-ui-focus-guard]")).toBe(true);
+    guard.focus();
+    expect(document.activeElement).toBe(guard);
+    expect(dialog.contains(document.activeElement)).toBe(false);
+    await expect.poll(() => document.activeElement?.id).toBe("adopt-path");
     for (let index = 0; index < 10; index += 1) {
       await userEvent.keyboard("{Tab}");
-      expect(dialog.contains(document.activeElement)).toBe(true);
+      const active = document.activeElement;
+      const ownedGuard =
+        active instanceof HTMLElement &&
+        active.matches("[data-base-ui-focus-guard]") &&
+        [dialog.previousElementSibling, dialog.nextElementSibling].includes(active);
+      expect(dialog.contains(active) || ownedGuard).toBe(true);
+      await expect.poll(() => dialog.contains(document.activeElement)).toBe(true);
     }
     await userEvent.keyboard("{Escape}");
     await expect.poll(() => document.querySelector('[data-slot="dialog-content"]')).toBeNull();
