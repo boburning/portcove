@@ -7,8 +7,8 @@
     "project_url": "https://github.com/Endprodukt/cannonball-dx",
     "issue_number": 1132,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Endprodukt/cannonball-dx",
+    "availability": "packages",
+    "setup_url": "https://github.com/Endprodukt/cannonball-dx/blob/1.04/README.md",
     "artwork": {
       "game_id": 2051,
       "cover_id": 125104,
@@ -16,6 +16,24 @@
       "image_sha256": "b73e8678bba802ebed6776d5130fa0e5330cd413880507fa7f7c0115bc42ff1e",
       "game_slug": "outrun",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/Endprodukt/cannonball-dx/releases/tag/1.04",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep a permitted CannonBall DX copy",
+          "instruction": "For an existing permitted Windows 10/11 64-bit copy, choose cannonball-dx.exe with its containing game folder as the working directory. Supply your own supported OutRun Revision B data in roms, using either the supported loose files or a compatible merged ZIP; upstream checks entries by CRC and size. Keep res and the supplied runtime libraries together. Review the included noncommercial and third-party terms."
+        },
+        {
+          "title": "Keep updates and data with the working copy",
+          "instruction": "You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready. Save launch details in Portcove, then choose Play separately. Registration does not adopt the files or grant managed Backup, Rollback or removal of the external folder."
+        }
+      ],
+      "warnings": [
+        "Fresh download is unavailable because the reviewed CannonBallDX_1.04.zip includes an OutRun ROM archive whose redistribution permission has not been established. Use an existing permitted copy. Reconsider acquisition when upstream offers an asset-free player package or an attributable permission basis for the included game data."
+      ],
+      "help_url": "https://github.com/Endprodukt/cannonball-dx/blob/1.04/README.md"
+    },
+    "download_block_reason": "Fresh download is unavailable because the reviewed CannonBallDX_1.04.zip includes an OutRun ROM archive whose redistribution permission has not been established. Use an existing permitted copy. Reconsider acquisition when upstream offers an asset-free player package or an attributable permission basis for the included game data."
   }
 }

@@ -215,6 +215,23 @@ it("accepts Core's recommended package and location together without a folder de
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
 });
 
+it("reviews a recommended upstream installer as a download without executing or extracting it", async () => {
+  const installer = { ...artifact, name: "game-windows-x64-setup.exe", can_extract: false };
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue({
+    ...candidates,
+    candidates: [installer],
+  });
+  await click("Check upstream downloads");
+  await expect.element(page.getByRole("region", { name: "Recommended download" })).toBeVisible();
+  await click("Review download");
+  expect(desktopApi.previewCatalogDownload).toHaveBeenCalledExactlyOnceWith(
+    { ...selection, extract_archive: false },
+    9,
+  );
+  expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+  expect(desktopApi.registerUserSelectedRuntime).not.toHaveBeenCalled();
+});
+
 it("keeps a recommendation beyond eight packages and an explicitly selected alternative visible", async () => {
   const others = Array.from({ length: 9 }, (_, index) => ({
     ...artifact,
@@ -985,6 +1002,61 @@ it("restores deliberate download inputs after remount and isolates another libra
     ),
   );
   expect(document.body.textContent).not.toContain("E:/Personal games");
+  expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+});
+
+it("starts with the reviewed preview channel and retains an explicit stable choice", async () => {
+  const recommended = {
+    ...entry,
+    listing: { ...listing, recommended_download_channel: "beta" as const },
+  };
+  const libraryRoot = "E:/recommended-preview-choice";
+  for (const key of Object.keys(localStorage))
+    if (key.includes("recommended-preview-choice")) localStorage.removeItem(key);
+  await root.rerender(
+    <CatalogDownloadControl
+      autoCheck
+      entry={recommended}
+      libraryRoot={libraryRoot}
+      generation={11}
+      busy={false}
+      perform={perform}
+    />,
+  );
+  await expect.element(page.getByText("game.zip · 2.0 KiB", { exact: true })).toBeVisible();
+  expect(desktopApi.catalogDownloadCandidates).toHaveBeenLastCalledWith(
+    listing.id,
+    11,
+    undefined,
+    "beta",
+  );
+  await click("Change download options");
+  await page.getByRole("combobox", { name: /^Release channel/ }).click();
+  await page.getByRole("option", { name: "Stable", exact: true }).click();
+  await expect.element(page.getByText("game.zip · 2.0 KiB", { exact: true })).toBeVisible();
+  expect(desktopApi.catalogDownloadCandidates).toHaveBeenLastCalledWith(
+    listing.id,
+    11,
+    undefined,
+    "stable",
+  );
+  await root.rerender(
+    <CatalogDownloadControl
+      autoCheck
+      entry={recommended}
+      libraryRoot={libraryRoot}
+      generation={12}
+      busy={false}
+      perform={perform}
+    />,
+  );
+  await expect.element(page.getByText("game.zip · 2.0 KiB", { exact: true })).toBeVisible();
+  expect(desktopApi.catalogDownloadCandidates).toHaveBeenLastCalledWith(
+    listing.id,
+    12,
+    undefined,
+    "stable",
+  );
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
 });
 

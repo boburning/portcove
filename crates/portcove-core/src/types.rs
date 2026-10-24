@@ -717,6 +717,13 @@ pub struct PortListing {
     /// no execution, management or permission over an existing copy.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub download_block_reason: Option<String>,
+    /// Advisory literal filename hints for an upstream-owned download. They do
+    /// not authenticate a package or grant installation/execution ownership.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub download_asset_hints: BTreeMap<Platform, Vec<String>>,
+    /// Initial self-service release choice only; never the installed update policy.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recommended_download_channel: Option<ReleaseChannel>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub release_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

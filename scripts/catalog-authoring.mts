@@ -21,6 +21,8 @@ export interface AuthoredListing extends NamedRecord {
   platforms?: string[];
   availability?: "unknown" | "packages" | "source-only" | "unavailable";
   download_block_reason?: string;
+  download_asset_hints?: Record<string, string[]>;
+  recommended_download_channel?: "stable" | "beta";
   original_game_title?: string;
   variant_label?: string;
   issue_number?: number;
@@ -60,6 +62,8 @@ const listingFields = new Set([
   "platforms",
   "availability",
   "download_block_reason",
+  "download_asset_hints",
+  "recommended_download_channel",
   "issue_number",
   "release_url",
   "setup_url",
@@ -131,6 +135,29 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     !boundedText(listing.download_block_reason, 4096)
   )
     throw new Error("Listing download restriction requires bounded nonempty text.");
+  if (listing.download_asset_hints !== undefined) {
+    if (
+      !isRecord(listing.download_asset_hints) ||
+      Object.entries(listing.download_asset_hints).some(
+        ([platform, hints]) =>
+          !["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"].includes(platform) ||
+          !Array.isArray(hints) ||
+          hints.length < 1 ||
+          hints.length > 8 ||
+          hints.some((hint) => !boundedText(hint, 160)) ||
+          new Set(hints.map((hint) => String(hint).toLowerCase())).size !== hints.length,
+      )
+    )
+      throw new Error(
+        "Listing download asset hints require bounded unique literal platform hints.",
+      );
+  }
+  if (
+    listing.recommended_download_channel !== undefined &&
+    listing.recommended_download_channel !== "stable" &&
+    listing.recommended_download_channel !== "beta"
+  )
+    throw new Error("Listing recommended download channel must be stable or beta.");
   if (
     listing.platforms !== undefined &&
     (!Array.isArray(listing.platforms) ||

@@ -64,6 +64,36 @@ export function portablePreparationFeedback(
     ? record.integration.platforms.filter((value): value is string => typeof value === "string")
     : [];
   return {
+    ...packageHintFeedback(hints, platforms, facts),
+    persistence: Array.isArray(record.integration.persistent_paths)
+      ? record.integration.persistent_paths
+      : [],
+    data_review:
+      "Review runtime writes as well as saves: original inputs, generated content, mods, logs and fallback locations. An empty contract needs evidence that ordinary data lives outside the runtime; disclose external backup limits. Self-replacement and version-dependent regeneration need another supported route.",
+    scope:
+      "Authoring observations only; Core retains package selection, trust and mutation authority.",
+  };
+}
+
+export function downloadPreparationFeedback(
+  record: AuthoredPort,
+  facts: Pick<Awaited<ReturnType<typeof collectPortFacts>>, "assets" | "assets_complete">,
+) {
+  const hints = record.listing.download_asset_hints;
+  if (!hints || !Object.keys(hints).length) return undefined;
+  return {
+    ...packageHintFeedback(hints, Object.keys(hints), facts),
+    scope:
+      "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified.",
+  };
+}
+
+function packageHintFeedback(
+  hints: Record<string, unknown>,
+  platforms: readonly string[],
+  facts: Pick<Awaited<ReturnType<typeof collectPortFacts>>, "assets" | "assets_complete">,
+) {
+  return {
     assets_complete: facts.assets_complete,
     platforms: platforms.map((platform) => {
       const values = hints[platform];
@@ -91,13 +121,6 @@ export function portablePreparationFeedback(
             : "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition.",
       };
     }),
-    persistence: Array.isArray(record.integration.persistent_paths)
-      ? record.integration.persistent_paths
-      : [],
-    data_review:
-      "Review runtime writes as well as saves: original inputs, generated content, mods, logs and fallback locations. An empty contract needs evidence that ordinary data lives outside the runtime; disclose external backup limits. Self-replacement and version-dependent regeneration need another supported route.",
-    scope:
-      "Authoring observations only; Core retains package selection, trust and mutation authority.",
   };
 }
 function openCheckpoint(directory: string) {
@@ -453,6 +476,7 @@ export async function preparePort(options: PrepareOptions) {
       route: record.integration ? "existing-integration" : (options.route ?? "listing"),
       lineage: assessUpstreamLineage(record),
       portable_preparation: portablePreparationFeedback(record, facts),
+      download_preparation: downloadPreparationFeedback(record, facts),
       ...prepared,
       files: { ...prepared.files, upstream: immutableJson(root, "upstream", facts) },
       preparation_costs: preparationCosts(started),

@@ -436,7 +436,7 @@ describe("desktop components", () => {
       />,
     );
     expect(unavailable).toContain("Existing installation unavailable");
-    expect(unavailable).toContain("remove only this registration");
+    expect(unavailable).toContain("Edit launch details");
     expect(unavailable).not.toContain("Choose Verify installation");
   });
 

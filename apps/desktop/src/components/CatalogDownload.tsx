@@ -69,7 +69,10 @@ function DownloadChoices({
     restored.choice?.release ?? undefined,
   );
   const [packageChoice, setPackageChoice] = useState(restored.choice?.package ?? "");
-  const [channel, setChannel] = useState(restored.choice?.channel ?? "stable");
+  const [channel, setChannel] = useState(
+    restored.choice?.channel ??
+      (entry.listing?.recommended_download_channel === "beta" ? "beta" : "stable"),
+  );
   const [showOther, setShowOther] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [destination, setDestination] = useState(restored.choice?.destination ?? "");

@@ -131,6 +131,11 @@ the existing GitHub provider and archive checks. A download publishes into a new
 user-owned child folder outside the Library and managed outputs; it never runs
 an installer. Shared release/package suitability and bounded native executable
 discovery supply suggestions; explicit registration and launch revalidate them.
+On Windows x64, bounded PE inspection includes x86 Win32 players through the OS's
+WOW64 support, while DLLs and foreign processors remain excluded. A complete
+search recommends only one target matching reviewed executable hints or the
+listing's game identity; other executable files remain selectable. Discovery
+does not execute a suggested game or converter.
 The final artifact-policy check and
 handoff commit share the policy-admission transaction. Recorded publication
 intent and receipts support restart recovery without adopting or deleting an
@@ -155,7 +160,10 @@ boundary in [DEFINITION-DELIVERY.md](DEFINITION-DELIVERY.md), not a second feed.
 `service/package_selection.rs` separates release choice from native asset ranking.
 The provider selects a channel or explicit release, inventories that release's
 assets within its existing bounds, and reports coverage independently of older
-history. Recommendations are suitability observations, never artifact admission
+history. Optional listing download hints can select a reviewed upstream-owned
+player or setup package; operational release hints take precedence. This keeps
+package facts in authoring while Core owns ranking and exact download review.
+Recommendations are suitability observations, never artifact admission
 or execution permission. `service/setup_discovery.rs` inspects native headers and
 processor information with entry, depth and candidate bounds; helpers and setup
 programs are deprioritized. It never executes a discovered file, traverses links,

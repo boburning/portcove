@@ -6148,6 +6148,37 @@
             "$ref": "#/$defs/ListingAvailability",
             "default": "unknown"
           },
+          "download_asset_hints": {
+            "additionalProperties": false,
+            "description": "Advisory literal filename hints for an upstream-owned download. They do\nnot authenticate a package or grant installation/execution ownership.",
+            "properties": {
+              "linux-x86-64": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "macos-aarch64": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "macos-x86-64": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "windows-x86-64": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "type": "object"
+          },
           "download_block_reason": {
             "description": "A reviewed restriction on fresh self-service downloads only. It grants\nno execution, management or permission over an existing copy.",
             "type": [
@@ -6196,6 +6227,17 @@
           "project_url": {
             "type": "string"
           },
+          "recommended_download_channel": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReleaseChannel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Initial self-service release choice only; never the installed update policy."
+          },
           "release_url": {
             "type": [
               "string",
@@ -6227,6 +6269,14 @@
           "availability"
         ],
         "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -19252,6 +19302,37 @@
             "$ref": "#/$defs/ListingAvailability",
             "default": "unknown"
           },
+          "download_asset_hints": {
+            "additionalProperties": false,
+            "description": "Advisory literal filename hints for an upstream-owned download. They do\nnot authenticate a package or grant installation/execution ownership.",
+            "properties": {
+              "linux-x86-64": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "macos-aarch64": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "macos-x86-64": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "windows-x86-64": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "type": "object"
+          },
           "download_block_reason": {
             "description": "A reviewed restriction on fresh self-service downloads only. It grants\nno execution, management or permission over an existing copy.",
             "type": [
@@ -19300,6 +19381,17 @@
           "project_url": {
             "type": "string"
           },
+          "recommended_download_channel": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReleaseChannel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Initial self-service release choice only; never the installed update policy."
+          },
           "release_url": {
             "type": [
               "string",
@@ -19331,6 +19423,14 @@
           "availability"
         ],
         "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",

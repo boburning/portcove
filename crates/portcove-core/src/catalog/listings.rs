@@ -2,6 +2,7 @@
 //! original validator and are never synthesized from an incomplete listing.
 use super::*;
 use crate::{CatalogListingDocument, ListingAvailability, PortListing};
+use std::collections::BTreeMap;
 
 const EMBEDDED_LISTINGS: &str = include_str!("../../catalog/listings.json");
 const MAX_LISTING_BYTES: usize = 8 * 1024 * 1024;
@@ -20,6 +21,8 @@ impl From<&PortDefinition> for PortListing {
             platforms: port.platforms.clone(),
             availability: ListingAvailability::Unknown,
             download_block_reason: None,
+            download_asset_hints: BTreeMap::new(),
+            recommended_download_channel: None,
             release_url: None,
             setup_url: presentation
                 .and_then(|value| value.manual_setup.as_ref())
@@ -142,6 +145,21 @@ impl PortListing {
                     "listing links must be public HTTPS URLs",
                 ));
             }
+        }
+        for hints in self.download_asset_hints.values() {
+            let mut unique = HashSet::new();
+            if !(1..=8).contains(&hints.len())
+                || hints
+                    .iter()
+                    .any(|hint| !valid_text(hint, 160) || !unique.insert(hint.to_ascii_lowercase()))
+            {
+                return Err(PortcoveError::usage("invalid listing download asset hints"));
+            }
+        }
+        if self.recommended_download_channel == Some(ReleaseChannel::Rolling) {
+            return Err(PortcoveError::usage(
+                "listing download recommendations require stable or beta",
+            ));
         }
         let mut platforms = HashSet::new();
         if self
@@ -266,12 +284,16 @@ impl Catalog {
                 let issue_number = listing.issue_number;
                 let availability = listing.availability;
                 let download_block_reason = listing.download_block_reason.clone();
+                let download_asset_hints = listing.download_asset_hints.clone();
+                let recommended_download_channel = listing.recommended_download_channel;
                 let release_url = listing.release_url.clone();
                 let setup_url = listing.setup_url.clone().or(projected.setup_url.clone());
                 *listing = PortListing {
                     issue_number,
                     availability,
                     download_block_reason,
+                    download_asset_hints,
+                    recommended_download_channel,
                     release_url,
                     setup_url,
                     ..projected
@@ -336,6 +358,63 @@ mod tests {
                 .get("adapter")
                 .is_none()
         );
+    }
+
+    #[test]
+    fn advisory_download_hints_are_bounded_and_do_not_create_a_managed_port() {
+        let mut hinted = listing();
+        hinted["download_asset_hints"] = json!({"windows-x86-64":["-Windows_Installer.exe"]});
+        hinted["recommended_download_channel"] = json!("beta");
+        let document = CatalogListingDocument::from_json(
+            &json!({"format_version":1,"listings":[hinted.clone()]}).to_string(),
+        )
+        .unwrap();
+        let catalog = Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#)
+            .unwrap()
+            .with_listing_document(document)
+            .unwrap();
+        assert!(catalog.port("source-only-project").is_err());
+        assert_eq!(
+            catalog
+                .listing("source-only-project")
+                .unwrap()
+                .recommended_download_channel,
+            Some(ReleaseChannel::Beta)
+        );
+        assert_eq!(
+            catalog
+                .listing("source-only-project")
+                .unwrap()
+                .download_asset_hints[&crate::Platform::WindowsX86_64],
+            ["-Windows_Installer.exe"]
+        );
+        for invalid_channel in ["rolling", "nightly"] {
+            let mut invalid = hinted.clone();
+            invalid["recommended_download_channel"] = json!(invalid_channel);
+            assert!(
+                CatalogListingDocument::from_json(
+                    &json!({"format_version":1,"listings":[invalid]}).to_string()
+                )
+                .is_err()
+            );
+        }
+        for invalid in [
+            json!({"other-os":["game.zip"]}),
+            json!({"windows-x86-64":[]}),
+            json!({"windows-x86-64":["game", "GAME"]}),
+            json!({"windows-x86-64":[" bad "]}),
+            json!({"windows-x86-64":["bad\nname"]}),
+            json!({"windows-x86-64":["x".repeat(161)]}),
+            json!({"windows-x86-64":vec!["a";9]}),
+        ] {
+            hinted["download_asset_hints"] = invalid;
+            assert!(
+                CatalogListingDocument::from_json(
+                    &json!({"format_version":1,"listings":[hinted.clone()]}).to_string()
+                )
+                .is_err()
+            );
+        }
     }
 
     #[test]

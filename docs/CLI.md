@@ -313,6 +313,13 @@ download options, preview and application. The existing `allowed: false` and
 preview. Existing registrations, pending setup, Play and registration removal
 retain their separate contracts. This additive output field keeps API schema 80
 and operation-event schema 3; neither number grants permission or a new command.
+Optional per-platform `download_asset_hints` remain advisory within either listing
+format. Core consumes them for self-service package ranking when an operational
+release does not supply hints. They do not override unavailable acquisition,
+authenticate a package, run setup or add a managed operation.
+For `setup candidates`, an omitted `--channel` uses Core's authored
+`recommended_download_channel`, or stable when absent; an explicit channel wins.
+This initial download recommendation never changes an installation's update policy.
 Every `--json` result uses this envelope shape (the example is API 78; inspect
 the selected runtime's actual version before decoding):
 

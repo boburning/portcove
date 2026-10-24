@@ -33,6 +33,10 @@
       ],
       "help_url": "https://github.com/Erick194/DoomRPG-RE/blob/v.0.2.2/README.md"
     },
-    "release_url": "https://github.com/Erick194/DoomRPG-RE/releases/tag/v.0.2.2"
+    "release_url": "https://github.com/Erick194/DoomRPG-RE/releases/tag/v.0.2.2",
+    "download_asset_hints": {
+      "windows-x86-64": ["DoomRPG_Port.", ".zip"]
+    },
+    "original_game_title": "Doom RPG"
   }
 }

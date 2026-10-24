@@ -2780,7 +2780,7 @@ function detailState({
     return {
       title: "Existing installation unavailable",
       description:
-        "Check the selected executable and working directory. Complete any upstream setup, or remove only this registration and choose the launch details again. Your external files stay in place.",
+        "Check the selected executable and working directory. Complete any upstream setup, or use Edit launch details to choose the working copy. Your external files stay in place.",
       tone: "setup",
       icon: AlertTriangle,
     };

@@ -92,6 +92,32 @@ permission to acquire, register or execute an existing copy and does not rewrite
 its retained contract. Keep useful existing permitted-copy instructions and
 upstream links. Remove a restriction only after reviewing the changed fact.
 
+For an upstream-owned route, optional listing `download_asset_hints` maps a host
+platform to one through eight bounded, case-insensitive literal filename fragments.
+Optional `recommended_download_channel` selects `stable` or `beta` for the initial
+download lookup, for example when the reviewed player is published as a preview.
+A player's explicit saved channel or release takes precedence. This recommendation
+does not change an installed channel, version pin or update policy.
+Core uses all fragments together to recommend the reviewed player package or
+upstream installer. Prefer stable discriminators instead of a version string;
+retain a choice when incompatible variants are equally plausible. Operational
+release hints take precedence. `prepare-port` reports complete/partial selected
+asset coverage and competing literal matches as `download_preparation` feedback.
+This is advisory selection, compatible with descriptive listing format 1: it
+grants no authenticity, invocation or managed operation. Core still binds current
+release/asset IDs, destination and extraction in the download preview. A reviewed
+player ZIP named `debug` needs an explicit whole-filename hint; generic project
+or platform fragments do not override its exclusion. Symbols, source,
+checksum files, foreign platforms and processor mismatches remain excluded from
+recommendations. Explain the actual upstream setup and its update/data owner in
+the authored guide; downloading an installer never runs it.
+An explicitly hinted Win32 player can be recommended on a Windows x64 host;
+[Windows supplies WOW64 for x86 applications](https://learn.microsoft.com/en-us/windows/win32/winprog64/running-32-bit-applications).
+This does not establish game-specific dependencies, gameplay, or other processor
+compatibility. Supply the accurate `original_game_title` where the listing name
+also contains the engine/project name so bounded launch suggestions can identify
+the game among unrelated converters; equally plausible targets still require a choice.
+
 Persistent paths are relative to the executable's directory, or the install root
 when `launch_from_install_root` is declared. Declare only compatible original
 inputs, generated data, saves, settings and supported mods that should reach

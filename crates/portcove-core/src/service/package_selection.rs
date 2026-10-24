@@ -44,6 +44,13 @@ pub(crate) fn assess_package_name(
         .split(|c: char| !c.is_ascii_alphanumeric())
         .collect::<Vec<_>>();
     let has = |values: &[&str]| values.iter().any(|v| tokens.contains(v));
+    let hinted = !hints.is_empty()
+        && hints
+            .iter()
+            .all(|hint| name.contains(&hint.to_ascii_lowercase()));
+    // Generic managed/platform hints must not turn a debug build into the
+    // recommended release. A reviewed debug player needs its whole filename.
+    let reviewed_debug_player = hinted && hints.iter().any(|hint| hint.eq_ignore_ascii_case(&name));
     let finish = |suitability, reason, score| (suitability, reason, score);
     let archive = [".zip", ".7z", ".tar.gz", ".tar.xz", ".tgz", ".rar"]
         .iter()
@@ -56,24 +63,24 @@ pub(crate) fn assess_package_name(
         "symbols",
         "pdb",
         "dsym",
-        "debug",
-    ]) || [
-        ".sha256",
-        ".sha512",
-        ".sha1",
-        ".md5",
-        ".sig",
-        ".asc",
-        ".minisig",
-        ".json",
-        ".yml",
-        ".yaml",
-        ".blockmap",
-        ".zsync",
-        ".txt",
-    ]
-    .iter()
-    .any(|ext| name.ends_with(ext))
+    ]) || (!reviewed_debug_player && has(&["debug"]))
+        || [
+            ".sha256",
+            ".sha512",
+            ".sha1",
+            ".md5",
+            ".sig",
+            ".asc",
+            ".minisig",
+            ".json",
+            ".yml",
+            ".yaml",
+            ".blockmap",
+            ".zsync",
+            ".txt",
+        ]
+        .iter()
+        .any(|ext| name.ends_with(ext))
         || (archive && has(&["source", "sources", "src", "notices"]))
     {
         return finish(
@@ -115,7 +122,19 @@ pub(crate) fn assess_package_name(
         || (has(&["x86"]) && !intel);
     let universal = has(&["universal", "universal2"]) || (arm && intel);
     let wants_arm = platform == Platform::MacosAarch64;
-    if legacy && !universal {
+    let reviewed_windows_x86 = hinted
+        && platform == Platform::WindowsX86_64
+        && windows
+        && hints.iter().any(|hint| {
+            let hint = hint.to_ascii_lowercase();
+            hint.split(|c: char| !c.is_ascii_alphanumeric())
+                .any(|token| ["i386", "i686", "win32", "x32", "32bit", "x86"].contains(&token))
+                || hint.contains("32-bit")
+                || hint.contains("32_bit")
+        })
+        && has(&["i386", "i686", "win32", "x32", "32bit", "x86"])
+        && !has(&["arm", "armv6", "armv7", "armv8", "arm64", "aarch64"]);
+    if legacy && !universal && !reviewed_windows_x86 {
         return finish(
             "emulation",
             "This build targets a different or older processor. Compatibility has not been established; prefer a native build or consult upstream.",
@@ -133,10 +152,6 @@ pub(crate) fn assess_package_name(
             None,
         );
     }
-    let hinted = !hints.is_empty()
-        && hints
-            .iter()
-            .all(|hint| name.contains(&hint.to_ascii_lowercase()));
     let supported_form = can_extract
         || [
             ".exe",
@@ -262,9 +277,145 @@ mod tests {
             None
         );
     }
+
+    #[test]
+    fn reviewed_win32_player_can_be_recommended_on_windows_without_accepting_foreign_processors() {
+        let assets = [
+            asset(1, "game-Win32-Release.zip"),
+            asset(2, "game-windows-arm.zip"),
+            asset(3, "game-linux-i686.zip"),
+        ];
+        assert_eq!(
+            recommend_packages(&assets, Platform::WindowsX86_64, &[], true).1,
+            None
+        );
+        let (assessments, recommended) = recommend_packages(
+            &assets,
+            Platform::WindowsX86_64,
+            &["Win32-Release.zip".into()],
+            true,
+        );
+        assert_eq!(recommended, Some(1));
+        assert_eq!(assessments[1].suitability, "emulation");
+        assert_eq!(assessments[2].suitability, "incompatible");
+        assert_eq!(
+            recommend_packages(
+                &assets,
+                Platform::WindowsX86_64,
+                &["game".into(), ".zip".into()],
+                false
+            )
+            .1,
+            None
+        );
+        assert_eq!(
+            recommend_packages(&assets, Platform::LinuxX86_64, &["i686.zip".into()], true).1,
+            None
+        );
+    }
+
+    #[test]
+    fn reviewed_handoff_can_recommend_an_installer_without_running_it_or_hiding_archives() {
+        let assets = [
+            asset(1, "game-windows-x64.zip"),
+            asset(2, "game-windows-x64-setup.exe"),
+        ];
+        let (options, recommendation) = recommend_packages(
+            &assets,
+            Platform::WindowsX86_64,
+            &["-windows-x64-setup.exe".into()],
+            true,
+        );
+        assert_eq!(recommendation, Some(2));
+        assert!(
+            options
+                .iter()
+                .all(|option| option.suitability == "suitable")
+        );
+        assert_eq!(
+            recommend_packages(
+                &assets,
+                Platform::WindowsX86_64,
+                &["-setup.exe".into()],
+                false
+            )
+            .1,
+            None
+        );
+    }
+
+    #[test]
+    fn reviewed_debug_player_does_not_make_symbols_source_or_foreign_builds_recommendable() {
+        let player = asset(1, "win64-debug.zip");
+        assert_eq!(
+            recommend_packages(
+                std::slice::from_ref(&player),
+                Platform::WindowsX86_64,
+                &[],
+                true
+            )
+            .1,
+            None
+        );
+        for generic_hints in [vec!["win64".into(), ".zip".into()], vec!["debug".into()]] {
+            assert_eq!(
+                recommend_packages(
+                    std::slice::from_ref(&player),
+                    Platform::WindowsX86_64,
+                    &generic_hints,
+                    true
+                )
+                .1,
+                None
+            );
+        }
+        assert_eq!(
+            recommend_packages(
+                &[player],
+                Platform::WindowsX86_64,
+                &["win64-debug.zip".into()],
+                true
+            )
+            .1,
+            Some(1)
+        );
+        for name in [
+            "win64-debug-symbols.zip",
+            "win64-debug-source.zip",
+            "win64-debug.zip.sha256",
+            "linux-x64-debug.zip",
+            "windows-arm64-debug.zip",
+        ] {
+            assert_eq!(
+                recommend_packages(
+                    &[asset(1, name)],
+                    Platform::WindowsX86_64,
+                    &[name.into()],
+                    true
+                )
+                .1,
+                None,
+                "{name}"
+            );
+        }
+        assert_eq!(
+            recommend_packages(
+                &[
+                    asset(1, "game-lan-windows-x64-debug.zip"),
+                    asset(2, "game-steam-windows-x64-debug.zip")
+                ],
+                Platform::WindowsX86_64,
+                &["windows-x64-debug.zip".into()],
+                true
+            )
+            .1,
+            None
+        );
+    }
     #[test]
     fn ambiguous_variants_unknown_platform_and_emulation_require_choice() {
         for name in [
+            "game-windows-win32.zip",
             "game-windows-32bit.zip",
             "game-windows-32-bit.zip",
             "game-windows-x32.zip",

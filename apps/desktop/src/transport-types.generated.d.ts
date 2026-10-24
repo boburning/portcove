@@ -1806,6 +1806,16 @@ export interface PortListing {
    */
   availability: "unknown" | "packages" | "source-only" | "unavailable";
   /**
+   * Advisory literal filename hints for an upstream-owned download. They do
+   * not authenticate a package or grant installation/execution ownership.
+   */
+  download_asset_hints?: {
+    "linux-x86-64"?: string[];
+    "macos-aarch64"?: string[];
+    "macos-x86-64"?: string[];
+    "windows-x86-64"?: string[];
+  };
+  /**
    * A reviewed restriction on fresh self-service downloads only. It grants
    * no execution, management or permission over an existing copy.
    */
@@ -1820,6 +1830,10 @@ export interface PortListing {
    */
   platforms: Platform[];
   project_url: string;
+  /**
+   * Initial self-service release choice only; never the installed update policy.
+   */
+  recommended_download_channel?: ReleaseChannel | null;
   release_url?: string | null;
   setup_url?: string | null;
   summary: string;

@@ -16,7 +16,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { collectPortFacts, githubRepository } from "./port-upstream-facts.mts";
-import { preparePort, prepareArtworkBatch, portablePreparationFeedback } from "./prepare-port.mts";
+import {
+  preparePort,
+  prepareArtworkBatch,
+  portablePreparationFeedback,
+  downloadPreparationFeedback,
+} from "./prepare-port.mts";
 import { readCatalogSource } from "./catalog-authoring.mts";
 import { createIgdbInspector } from "./inspect-igdb-artwork.mts";
 import type { ListingReceipt } from "./catalog-authoring-inspector.mts";
@@ -77,6 +82,30 @@ const catalogRoot = join(
   "portcove-core",
   "catalog",
 );
+
+void test("upstream setup hints expose incomplete and competing matches without granting a route", () => {
+  const record: AuthoredPort = {
+    format_version: 1,
+    listing: {
+      id: "installer",
+      name: "Installer",
+      summary: "Upstream setup",
+      project_url: "https://github.com/example/game",
+      download_asset_hints: { "windows-x86-64": ["-windows-setup.exe"] },
+    },
+  };
+  const asset = { id: 1, name: "game-windows-setup.exe", digest: null };
+  const partial = downloadPreparationFeedback(record, { assets_complete: false, assets: [asset] })!;
+  assert.match(partial.platforms[0]!.next, /incomplete/);
+  const ambiguous = downloadPreparationFeedback(record, {
+    assets_complete: true,
+    assets: [asset, { ...asset, id: 2, name: "other-windows-setup.exe" }],
+  })!;
+  assert.match(ambiguous.platforms[0]!.next, /exactly one/);
+  assert.equal(ambiguous.platforms[0]!.hint_matches[0]!.published_sha256, false);
+  assert.match(ambiguous.scope, /no package authentication/);
+  assert.equal(record.integration, undefined);
+});
 const project = "https://github.com/example/fixture";
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), "port-prepare-"));
