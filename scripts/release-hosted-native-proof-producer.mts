@@ -338,6 +338,8 @@ export async function requireActualHostedLinuxNativeProof(receipt: object) {
     assert.ok(performance.now() < retained.deadline);
     const producer = retained.prepared.producer;
     return {
+      deadline: retained.deadline,
+      producer: Object.freeze({ ...producer }),
       directory: retained.directory,
       artifact_name: hostedNativeArtifactName({
         controller_revision: producer.controller_revision,
