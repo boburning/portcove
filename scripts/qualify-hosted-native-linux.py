@@ -244,9 +244,9 @@ try:
  try: pwd.getpwnam('portcove-native')
  except KeyError: pass
  else: raise RuntimeError('preexisting qualification account refuses setup')
- for name,digest in wanted.items():
+ for name,expected_digest in wanted.items():
   p=src/name; info=p.lstat(); assert stat.S_ISREG(info.st_mode) and info.st_nlink==1 and info.st_size<=1048576
-  assert hashlib.sha256(p.read_bytes()).hexdigest()==digest
+  assert hashlib.sha256(p.read_bytes()).hexdigest()==expected_digest
  result['stage']='useradd'
  run(['/usr/sbin/useradd','--no-log-init','--no-create-home','--user-group','--shell','/usr/sbin/nologin','portcove-native'],30)
  user=pwd.getpwnam('portcove-native'); assert user.pw_uid>0 and user.pw_gid>0 and user.pw_shell=='/usr/sbin/nologin' and user.pw_dir=='/home/portcove-native'
@@ -257,8 +257,8 @@ try:
  os.chown(user.pw_dir,user.pw_uid,user.pw_gid)
  result['stage']='source-install'
  target.mkdir(mode=0o755)
- for name,digest in wanted.items():
-  data=(src/name).read_bytes(); assert hashlib.sha256(data).hexdigest()==digest
+ for name,expected_digest in wanted.items():
+  data=(src/name).read_bytes(); assert hashlib.sha256(data).hexdigest()==expected_digest
   p=target/name
   with p.open('xb') as f: f.write(data)
   p.chmod(0o444)

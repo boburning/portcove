@@ -27,6 +27,37 @@ class HostedReadiness(unittest.TestCase):
         exec(compile(ast.Module(body=nodes, type_ignores=[]), "actual-root-profile-functions", "exec"), scope)
         return scope
 
+    def test_actual_source_validation_and_install_preserve_profile_hash_function(self):
+        outer = next(node for node in ast.parse(readiness.ROOT_SETUP).body if isinstance(node, ast.Try))
+        loops = [node for node in outer.body if isinstance(node, ast.For)]
+        self.assertEqual(len(loops), 2)
+        for altered in (False, True):
+            with self.subTest(altered=altered), tempfile.TemporaryDirectory() as temporary:
+                source, target = Path(temporary) / "source", Path(temporary) / "target"
+                source.mkdir()
+                target.mkdir()
+                payload = b"controlled fixed diagnostic source"
+                wanted = {"first.py": hashlib.sha256(payload).hexdigest(),
+                          "second.py": hashlib.sha256(payload).hexdigest()}
+                for name in wanted:
+                    (source / name).write_bytes(payload + (b"changed" if altered else b""))
+                scope = {"src": source, "target": target, "wanted": wanted,
+                         "hashlib": hashlib, "json": json, "stat": stat, "re": re}
+                self.root_functions({"digest", "profile_summary"}, scope)
+                code = compile(ast.Module(body=loops, type_ignores=[]), "actual-root-source-handoff", "exec")
+                if altered:
+                    with self.assertRaises(AssertionError):
+                        exec(code, scope)
+                    self.assertEqual(list(target.iterdir()), [])
+                else:
+                    exec(code, scope)
+                    self.assertTrue(callable(scope["digest"]))
+                    self.assertEqual(scope["digest"](payload), wanted["first.py"])
+                    self.assertEqual(scope["profile_summary"]({"labels": ["bwrap (enforce)"]})["labels"],
+                                     ["bwrap (enforce)"])
+                    for name in wanted:
+                        self.assertEqual((target / name).read_bytes(), payload)
+
     def test_attachment_collision_guard_refuses_unknown_and_overlapping_patterns(self):
         scope = self.root_functions({"attachment_clear"}, {"re": re, "fnmatch": fnmatch})
         for value in ("/usr/bin/other", "/{,usr/}sbin/tcpdump", "unprivileged_userns", "/opt/application/**"):
