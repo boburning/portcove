@@ -3273,8 +3273,6 @@ pub(crate) fn walk_files(root: &Path) -> Result<Vec<PathBuf>> {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write as _;
-
     use super::*;
     use crate::Catalog;
 
@@ -3607,7 +3605,7 @@ mod tests {
         let destination = temporary.path().join("runtime/source.iso");
         std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
         std::fs::write(&source, b"disc bytes").unwrap();
-        let checks = std::cell::Cell::new(0_u32);
+        let observed_complete = std::cell::Cell::new(false);
 
         let error = prepare_runtime_source(
             &source,
@@ -3615,11 +3613,11 @@ mod tests {
             RuntimeSourceMaterialization::Ps2Iso,
             &BTreeMap::new(),
             &|| {
-                checks.set(checks.get() + 1);
-                if checks.get() == 3 {
+                if std::fs::read(&destination).is_ok_and(|bytes| bytes == b"disc bytes") {
+                    observed_complete.set(true);
                     Err(PortcoveError::new(
                         crate::ErrorCode::Cancelled,
-                        "test cancellation",
+                        "cancel after observing completed conversion",
                     ))
                 } else {
                     Ok(())
@@ -3629,7 +3627,10 @@ mod tests {
         .unwrap_err();
 
         assert_eq!(error.code, crate::ErrorCode::Cancelled);
-        assert_eq!(std::fs::read(destination).unwrap(), b"disc bytes");
+        assert!(observed_complete.get());
+        assert_eq!(std::fs::read(&destination).unwrap(), b"disc bytes");
+        assert_eq!(std::fs::read(&source).unwrap(), b"disc bytes");
+        assert!(!runtime_source_marker_path(&destination).unwrap().exists());
     }
 
     #[test]
@@ -4386,17 +4387,37 @@ mod tests {
         let destination = temporary
             .path()
             .join("library/runtime-sources/lighthouse/portcove-launch-source.z64");
+        let restored_after_materialization = std::cell::Cell::new(false);
 
         let error = prepare_transient_n64_launch_source(&source, &admitted, &destination, &|| {
-            std::fs::write(&source, &admitted_storage)?;
+            if !restored_after_materialization.get()
+                && std::fs::read_dir(destination.parent().unwrap())?.any(|entry| {
+                    let path = entry.unwrap().path();
+                    path != destination
+                        && std::fs::read(path).is_ok_and(|bytes| bytes == replacement_rom)
+                })
+            {
+                // Restore the original container only after the different ROM
+                // has reached private output. Final admission must verify those
+                // materialized bytes, even when the source matches again.
+                std::fs::write(&source, &admitted_storage)?;
+                restored_after_materialization.set(true);
+            }
             Ok(())
         })
         .unwrap_err();
 
         assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(restored_after_materialization.get());
         assert!(error.message.contains("admitted identity"));
         assert_eq!(std::fs::read(&source).unwrap(), admitted_storage);
         assert!(!destination.exists());
+        assert_eq!(
+            std::fs::read_dir(destination.parent().unwrap())
+                .unwrap()
+                .count(),
+            0
+        );
     }
 
     #[test]
