@@ -99,7 +99,7 @@ async fn unchanged_closed_policy_rules_resolve_successors_with_exact_provider_bi
 }
 
 #[tokio::test]
-async fn unchanged_native_definitions_follow_versioned_packages_after_cache_expiry_and_on_fresh_install()
+async fn unchanged_managed_definitions_follow_versioned_packages_after_cache_expiry_and_on_fresh_install()
  {
     let catalog = crate::Catalog::embedded().unwrap();
     for (id, old_tag, old_name, new_tag, new_name) in [
@@ -123,6 +123,50 @@ async fn unchanged_native_definitions_follow_versioned_packages_after_cache_expi
             "DKC1Recomp-v0.0.16-Windows-x64.zip",
             "v0.0.17",
             "DKC1Recomp-v0.0.17-Windows-x64.zip",
+        ),
+        // Controlled successors exercise stable rules; they do not assert that
+        // F-Zero1.8.4, DKC3.0.0.7 or Bomberman.0.1.2 have been published.
+        (
+            "f-zero-snes-recomp",
+            "v1.8.3",
+            "FZeroSNESRecomp-1.8.3-windows-x64.zip",
+            "v1.8.4",
+            "FZeroSNESRecomp-1.8.4-windows-x64.zip",
+        ),
+        (
+            "dkc3-recomp",
+            "v0.0.6",
+            "DKC3Recomp-v0.0.6-windows-x64.zip",
+            "v0.0.7",
+            "DKC3Recomp-v0.0.7-windows-x64.zip",
+        ),
+        (
+            "super-mario-world-recomp",
+            "v0.12.0",
+            "SuperMarioWorldRecomp-windows-x64-v0.12.0.zip",
+            "v0.15.1",
+            "SuperMarioWorldRecomp-windows-x64-v0.15.1.zip",
+        ),
+        (
+            "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+            "v0.6.1",
+            "ZeldaALttPSNESRecomp-windows-x64-v0.6.1.zip",
+            "v0.6.5",
+            "ZeldaALttPSNESRecomp-windows-x64-v0.6.5.zip",
+        ),
+        (
+            "sonic-the-hedgehog-2-recomp",
+            "v0.8.3",
+            "SonicTheHedgehog2Recomp-windows-x64-v0.8.3.zip",
+            "v0.9.0",
+            "SonicTheHedgehog2Recomp-windows-x64-v0.9.0.zip",
+        ),
+        (
+            "super-bomberman-recomp",
+            "v0.1.1",
+            "BombermanRecomp-windows-x64-v0.1.1.zip",
+            "v0.1.2",
+            "BombermanRecomp-windows-x64-v0.1.2.zip",
         ),
     ] {
         let port = catalog.port(id).unwrap();
@@ -217,50 +261,61 @@ fn variant_port() -> PortDefinition {
 #[tokio::test]
 async fn successor_resolution_refuses_lost_variant_ambiguity_wrong_architecture_and_missing_integrity()
  {
-    let port = variant_port();
-    let old = release(
-        "v1.0.0",
-        vec![asset("Game-hd-v1.0.0-windows-x64.zip", Some('a'))],
-    );
-    for (name, candidates, expected) in [
-        (
-            "missing selected variant",
-            vec![asset("Game-standard-v2.0.0-windows-x64.zip", Some('b'))],
-            crate::ErrorCode::NotFound,
-        ),
-        (
-            "competing selected variants",
-            vec![
-                asset("Game-hd-one-v2.0.0-windows-x64.zip", Some('b')),
-                asset("Game-hd-two-v2.0.0-windows-x64.zip", Some('c')),
-            ],
-            crate::ErrorCode::Conflict,
-        ),
-        (
-            "wrong architecture",
-            vec![asset("Game-hd-v2.0.0-windows-arm64.zip", Some('b'))],
-            crate::ErrorCode::NotFound,
-        ),
-        (
-            "missing independent digest",
-            vec![asset("Game-hd-v2.0.0-windows-x64.zip", None)],
-            crate::ErrorCode::Verification,
-        ),
+    for adapter in [
+        AdapterKind::NativePortable,
+        AdapterKind::StagedSourcePortable,
     ] {
-        let (api_root, _, server) = serve_http(vec![
-            metadata(),
-            releases(&[release("v2.0.0", candidates), old.clone()]),
-        ]);
-        let failure = GithubReleaseProvider::with_api_root(api_root)
-            .unwrap()
-            .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
-            .await
-            .unwrap_err();
-        server.join().unwrap();
-        assert_eq!(
-            failure.code, expected,
-            "{name}; never silently fall back to N"
+        let mut port = variant_port();
+        port.adapter = adapter;
+        let old = release(
+            "v1.0.0",
+            vec![asset("Game-hd-v1.0.0-windows-x64.zip", Some('a'))],
         );
+        for (name, candidates, expected) in [
+            (
+                "missing selected variant",
+                vec![asset("Game-standard-v2.0.0-windows-x64.zip", Some('b'))],
+                crate::ErrorCode::NotFound,
+            ),
+            (
+                "competing selected variants",
+                vec![
+                    asset("Game-hd-one-v2.0.0-windows-x64.zip", Some('b')),
+                    asset("Game-hd-two-v2.0.0-windows-x64.zip", Some('c')),
+                ],
+                crate::ErrorCode::Conflict,
+            ),
+            (
+                "wrong architecture",
+                vec![asset("Game-hd-v2.0.0-windows-arm64.zip", Some('b'))],
+                crate::ErrorCode::NotFound,
+            ),
+            (
+                "source archive only",
+                vec![asset("Game-hd-source-v2.0.0-windows-x64.zip", Some('b'))],
+                crate::ErrorCode::NotFound,
+            ),
+            (
+                "missing independent digest",
+                vec![asset("Game-hd-v2.0.0-windows-x64.zip", None)],
+                crate::ErrorCode::Verification,
+            ),
+        ] {
+            let (api_root, _, server) = serve_http(vec![
+                metadata(),
+                releases(&[release("v2.0.0", candidates), old.clone()]),
+            ]);
+            let failure = GithubReleaseProvider::with_api_root(api_root)
+                .unwrap()
+                .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+                .await
+                .unwrap_err();
+            server.join().unwrap();
+            assert_eq!(
+                failure.code, expected,
+                "{adapter:?}: {name}; never silently fall back to N"
+            );
+        }
     }
 }
 

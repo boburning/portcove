@@ -1508,16 +1508,19 @@ fn choose_asset<'a>(
             {
                 return None;
             }
-            if port.adapter == AdapterKind::NativePortable
-                && ![".zip", ".tar.gz", ".tgz"]
-                    .iter()
-                    .any(|extension| name.ends_with(extension))
-            {
+            let can_extract = [".zip", ".tar.gz", ".tgz"]
+                .iter()
+                .any(|extension| name.ends_with(extension));
+            if port.adapter == AdapterKind::NativePortable && !can_extract {
                 return None;
             }
-            if port.adapter == AdapterKind::NativePortable {
-                // Managed replacement and the download recommendation share native
-                // suitability. Metadata hints cannot override a known mismatch.
+            if matches!(
+                port.adapter,
+                AdapterKind::NativePortable | AdapterKind::StagedSourcePortable
+            ) {
+                // Reusable portable rules and the download recommendation share
+                // native suitability. A selected variant cannot become optional
+                // when a successor publishes only another package class.
                 if !hints
                     .iter()
                     .all(|hint| name.contains(&hint.to_ascii_lowercase()))
@@ -1525,7 +1528,10 @@ fn choose_asset<'a>(
                     return None;
                 }
                 let (_, _, score) = crate::service::package_selection::assess_package_name(
-                    &name, true, platform, &hints,
+                    &name,
+                    can_extract,
+                    platform,
+                    &hints,
                 );
                 return score.map(|score| (score as i32, asset));
             }
