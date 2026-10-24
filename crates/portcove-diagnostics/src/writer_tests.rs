@@ -979,13 +979,28 @@ fn symlink_leaf_and_ancestor_are_rejected_without_writing_their_targets() {
     assert!(!foreign_directory.join(WRITER_LOCK_NAME).exists());
 }
 
-#[cfg(unix)]
+// Linux accepts arbitrary non-NUL filename bytes. Default macOS filesystems
+// reject this fixture before the writer starts; every host exercises Unicode
+// parent preservation in the adjacent test instead.
+#[cfg(target_os = "linux")]
 #[test]
 fn rotation_preserves_non_unicode_parent_paths() {
     use std::os::unix::ffi::OsStringExt;
     let temporary = TemporaryDirectory::new();
     let directory = temporary.0.join(OsString::from_vec(b"logs-\xff".to_vec()));
     fs::create_dir(&directory).unwrap();
+    assert_rotation_preserves_parent(directory);
+}
+
+#[test]
+fn rotation_preserves_unicode_parent_paths() {
+    let temporary = TemporaryDirectory::new();
+    let directory = temporary.0.join("logs-雪-é");
+    fs::create_dir(&directory).unwrap();
+    assert_rotation_preserves_parent(directory);
+}
+
+fn assert_rotation_preserves_parent(directory: PathBuf) {
     let path = directory.join(LOG_FILE_NAME);
     let limits = Limits {
         max_record_bytes: 8,
