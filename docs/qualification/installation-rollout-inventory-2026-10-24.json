@@ -4,9 +4,9 @@
   "owner": "https://github.com/boburning/portcove/issues/2510",
   "status": "IN_PROGRESS; no all-port implementation or delivery completion claim",
   "pickup_source_commit": "cea107d84e80bdd67bd44d4c7c68e0b76d083e4e",
-  "candidate_source_commit": "9e9403c64a9e940624ed6e327b9f213f7db174fe",
+  "candidate_source_commit": "1354a9884d1a82d5d4516f5fd54eafdbf000f521",
   "inventory_cutoff": "2026-10-24T03:40:15.396Z",
-  "generated_at": "2026-10-24T17:45:50.166Z",
+  "generated_at": "2026-10-24T20:26:51.978Z",
   "sources": {
     "collector": "scripts/roadmap-inventory.mts collectRoadmapInventory",
     "repository_issues": 918,
@@ -38,15 +38,15 @@
     "dispositions": {
       "retain-existing-route": 115,
       "improve-upstream-setup": 90,
-      "unresolved-fit": 218,
+      "unresolved-fit": 215,
       "add-managed-portable": 38,
       "upstream-source-setup-with-nonowning-existing-player": 14,
       "improve-upstream-Android-setup": 15,
       "upstream-setup-with-no-published-github-player-package": 1,
+      "improve-nonowning-route": 6,
       "retain-managed-acquisition-permission-limit": 5,
       "unresolved-package-permission-basis": 2,
       "unresolved-component-permission-basis": 1,
-      "improve-nonowning-route": 3,
       "improve-upstream-Apple-setup-and-retain-bundle-ownership": 2,
       "improve-upstream-download-recommendation": 5,
       "improve-upstream-owned-classic-player-handoff": 2,
@@ -60,15 +60,15 @@
     "final_affected_inventory_reconciliation": "outstanding",
     "release_maintenance": {
       "operational_rules_inventoried": 153,
-      "completed_changes": 12,
-      "remaining_direct_manifest_fit_decisions": 21,
+      "implemented_candidate_changes": 27,
+      "remaining_direct_manifest_fit_decisions": 6,
       "provider_counts": {
-        "github": 121,
+        "github": 136,
         "gitlab": 2,
-        "direct-manifest": 21,
+        "direct-manifest": 6,
         "user-prepared": 9
       },
-      "scope": "Completed changes are per-port evidence, not an all-inventory update or qualification claim."
+      "scope": "Source candidate has27 maintenance changes. PSX representative complete progression and repaired catalog assertions passed. Six Direct-manifest fit decisions and215 original fit decisions remain unresolved. Candidate is unmerged; no all-inventory implementation, qualification or delivery claim."
     }
   },
   "boundaries": [
@@ -796,6 +796,45 @@
         "reviewed_relationship": null,
         "candidates": [],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "alexbeav-ace-combat-3-electrosphere-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "psx-maintenance-route-preparations.json",
+        "source_revision": "1c0c156fca1dd8ea8978efe3c66b5f3667760efa",
+        "change": "Replace a changing direct artifact snapshot with stable official GitHub prefix/platform/archive rules while preserving richer owned-disc/BIOS runtime generation, launch, data, platform, identity and historical qualification contracts. Core stages activation, preserves complete mod package versions beside successor defaults, holds conflicting common versions and protects unlaunched canonical data through retained identities. Upstream mod selection/save compatibility remains separate.",
+        "validation_scope": "Production-provider selection progression covers all21 declared platform routes with cache expiry and fresh clients, using controlled v999.123.456 successors. Three obsolete Direct snapshot assertions were repaired and passed. Representative first-party HTTP/download/owned-disc/BIOS/preparation/staging/activation plus fresh N+1 installation passes with unchanged definition and registered inputs; current pre-first-Play saves/settings/mod state and old/new package versions preserved, changed/unknown originals refused. Broader PSX/data-review checks passed in37/37 feedback. Final parent rerun passed40.626s with exact finiteWindows90s budget after retained30.108s cutoff. This proves shared behavior with inert fixtures, not upstream compilation, real-disc decoding, gameplay, save compatibility or installed Desktop acceptance.",
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp",
+        "asset_hints": {
+          "windows-x86-64": ["Ace-Combat-3-Electrosphere-Japan-Recomp-", "-windows-x64.zip"],
+          "linux-x86-64": ["Ace-Combat-3-Electrosphere-Japan-Recomp-", "-linux-x64.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged",
+        "observed_assets": [
+          {
+            "platform": "windows-x86-64",
+            "release": "v0.3.6",
+            "asset_id": 544443851,
+            "name": "Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-windows-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp/releases/download/v0.3.6/Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-windows-x64.zip",
+            "size": 30152495,
+            "independently_expected_sha256": "602843385f5d1e74560e39f7f4741ab8bcd1380711316e1cac80cf69f6a127d9",
+            "observation_cutoff": "2026-10-24T16:54:53.517Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          },
+          {
+            "platform": "linux-x86-64",
+            "release": "v0.3.6",
+            "asset_id": 544443633,
+            "name": "Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-linux-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp/releases/download/v0.3.6/Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-linux-x64.zip",
+            "size": 28046377,
+            "independently_expected_sha256": "b9e7f4493b80b528e91f9c2382da1fd9e2b9bfeb267935082c312b3ee1c33009",
+            "observation_cutoff": "2026-10-24T16:54:53.517Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          }
+        ]
       }
     },
     {
@@ -875,6 +914,45 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "alexbeav-alien-resurrection-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "psx-maintenance-route-preparations.json",
+        "source_revision": "38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c",
+        "change": "Replace a changing direct artifact snapshot with stable official GitHub prefix/platform/archive rules while preserving richer owned-disc/BIOS runtime generation, launch, data, platform, identity and historical qualification contracts. Core stages activation, preserves complete mod package versions beside successor defaults, holds conflicting common versions and protects unlaunched canonical data through retained identities. Upstream mod selection/save compatibility remains separate.",
+        "validation_scope": "Production-provider selection progression covers all21 declared platform routes with cache expiry and fresh clients, using controlled v999.123.456 successors. Three obsolete Direct snapshot assertions were repaired and passed. Representative first-party HTTP/download/owned-disc/BIOS/preparation/staging/activation plus fresh N+1 installation passes with unchanged definition and registered inputs; current pre-first-Play saves/settings/mod state and old/new package versions preserved, changed/unknown originals refused. Broader PSX/data-review checks passed in37/37 feedback. Final parent rerun passed40.626s with exact finiteWindows90s budget after retained30.108s cutoff. This proves shared behavior with inert fixtures, not upstream compilation, real-disc decoding, gameplay, save compatibility or installed Desktop acceptance.",
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/alien-resurrection-recomp",
+        "asset_hints": {
+          "windows-x86-64": ["alien-resurrection-recomp-", "-windows-x64.zip"],
+          "linux-x86-64": ["alien-resurrection-recomp-", "-linux-x64.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged",
+        "observed_assets": [
+          {
+            "platform": "windows-x86-64",
+            "release": "v0.1.4",
+            "asset_id": 605929045,
+            "name": "alien-resurrection-recomp-0.1.4-windows-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/alien-resurrection-recomp-0.1.4-windows-x64.zip",
+            "size": 29907400,
+            "independently_expected_sha256": "2eb2ba6aa955684145271393f635e43854deab116a629de69443a7d310e994d5",
+            "observation_cutoff": "2026-10-24T16:54:55.931Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          },
+          {
+            "platform": "linux-x86-64",
+            "release": "v0.1.4",
+            "asset_id": 605929047,
+            "name": "alien-resurrection-recomp-0.1.4-linux-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/alien-resurrection-recomp-0.1.4-linux-x64.zip",
+            "size": 27800828,
+            "independently_expected_sha256": "f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995",
+            "observation_cutoff": "2026-10-24T16:54:55.931Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          }
+        ]
       }
     },
     {
@@ -1028,6 +1106,33 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "alexbeav-alundra-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "psx-maintenance-route-preparations.json",
+        "source_revision": "afb9151fd48ae90ca5979dcd4ad53ee1c0f16329",
+        "change": "Replace a changing direct artifact snapshot with stable official GitHub prefix/platform/archive rules while preserving richer owned-disc/BIOS runtime generation, launch, data, platform, identity and historical qualification contracts. Core stages activation, preserves complete mod package versions beside successor defaults, holds conflicting common versions and protects unlaunched canonical data through retained identities. Upstream mod selection/save compatibility remains separate.",
+        "validation_scope": "Production-provider selection progression covers all21 declared platform routes with cache expiry and fresh clients, using controlled v999.123.456 successors. Three obsolete Direct snapshot assertions were repaired and passed. Representative first-party HTTP/download/owned-disc/BIOS/preparation/staging/activation plus fresh N+1 installation passes with unchanged definition and registered inputs; current pre-first-Play saves/settings/mod state and old/new package versions preserved, changed/unknown originals refused. Broader PSX/data-review checks passed in37/37 feedback. Final parent rerun passed40.626s with exact finiteWindows90s budget after retained30.108s cutoff. This proves shared behavior with inert fixtures, not upstream compilation, real-disc decoding, gameplay, save compatibility or installed Desktop acceptance.",
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/alundra-recomp",
+        "asset_hints": {
+          "windows-x86-64": ["Alundra-Recomp-", "-windows-x64.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged",
+        "observed_assets": [
+          {
+            "platform": "windows-x86-64",
+            "release": "v0.3.6",
+            "asset_id": 544444294,
+            "name": "Alundra-Recomp-0.3.6-windows-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-windows-x64.zip",
+            "size": 30152761,
+            "independently_expected_sha256": "bb6883acd83b54d24857fa045192567e5716ca5476521b79e1887303a75a9a9f",
+            "observation_cutoff": "2026-10-24T16:54:58.431Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          }
+        ]
       }
     },
     {
@@ -1092,6 +1197,33 @@
         "reviewed_relationship": null,
         "candidates": [],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "alexbeav-ape-escape-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "psx-maintenance-route-preparations.json",
+        "source_revision": "53687196c5d93f3a77f89893e0a3f56b9d726a0e",
+        "change": "Replace a changing direct artifact snapshot with stable official GitHub prefix/platform/archive rules while preserving richer owned-disc/BIOS runtime generation, launch, data, platform, identity and historical qualification contracts. Core stages activation, preserves complete mod package versions beside successor defaults, holds conflicting common versions and protects unlaunched canonical data through retained identities. Upstream mod selection/save compatibility remains separate.",
+        "validation_scope": "Production-provider selection progression covers all21 declared platform routes with cache expiry and fresh clients, using controlled v999.123.456 successors. Three obsolete Direct snapshot assertions were repaired and passed. Representative first-party HTTP/download/owned-disc/BIOS/preparation/staging/activation plus fresh N+1 installation passes with unchanged definition and registered inputs; current pre-first-Play saves/settings/mod state and old/new package versions preserved, changed/unknown originals refused. Broader PSX/data-review checks passed in37/37 feedback. Final parent rerun passed40.626s with exact finiteWindows90s budget after retained30.108s cutoff. This proves shared behavior with inert fixtures, not upstream compilation, real-disc decoding, gameplay, save compatibility or installed Desktop acceptance.",
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/ape-escape-recomp",
+        "asset_hints": {
+          "windows-x86-64": ["Ape-Escape-Recomp-", "-windows-x64.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged",
+        "observed_assets": [
+          {
+            "platform": "windows-x86-64",
+            "release": "v0.3.6",
+            "asset_id": 544444303,
+            "name": "Ape-Escape-Recomp-0.3.6-windows-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-windows-x64.zip",
+            "size": 30155637,
+            "independently_expected_sha256": "0a35530fb096cc0992476775f8365f1a2980f75196e220ff895316fbd520bb93",
+            "observation_cutoff": "2026-10-24T16:55:01.189Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          }
+        ]
       }
     },
     {
@@ -1368,6 +1500,33 @@
         "reviewed_relationship": null,
         "candidates": [],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "alexbeav-armored-core-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "psx-maintenance-route-preparations.json",
+        "source_revision": "80060c45a009ed8963e83fbb742eb3ef956cc9fc",
+        "change": "Replace a changing direct artifact snapshot with stable official GitHub prefix/platform/archive rules while preserving richer owned-disc/BIOS runtime generation, launch, data, platform, identity and historical qualification contracts. Core stages activation, preserves complete mod package versions beside successor defaults, holds conflicting common versions and protects unlaunched canonical data through retained identities. Upstream mod selection/save compatibility remains separate.",
+        "validation_scope": "Production-provider selection progression covers all21 declared platform routes with cache expiry and fresh clients, using controlled v999.123.456 successors. Three obsolete Direct snapshot assertions were repaired and passed. Representative first-party HTTP/download/owned-disc/BIOS/preparation/staging/activation plus fresh N+1 installation passes with unchanged definition and registered inputs; current pre-first-Play saves/settings/mod state and old/new package versions preserved, changed/unknown originals refused. Broader PSX/data-review checks passed in37/37 feedback. Final parent rerun passed40.626s with exact finiteWindows90s budget after retained30.108s cutoff. This proves shared behavior with inert fixtures, not upstream compilation, real-disc decoding, gameplay, save compatibility or installed Desktop acceptance.",
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/armored-core-recomp",
+        "asset_hints": {
+          "windows-x86-64": ["Armored-Core-Recomp-", "-windows-x64.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged",
+        "observed_assets": [
+          {
+            "platform": "windows-x86-64",
+            "release": "v0.3.6",
+            "asset_id": 544444321,
+            "name": "Armored-Core-Recomp-0.3.6-windows-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-windows-x64.zip",
+            "size": 30152526,
+            "independently_expected_sha256": "43575a4795e5af42c3f545c245a073224d4e1a4643eaa59b3b2dba79c46e231e",
+            "observation_cutoff": "2026-10-24T16:55:03.694Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          }
+        ]
       }
     },
     {
@@ -1499,6 +1658,33 @@
         "reviewed_relationship": null,
         "candidates": [],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "alexbeav-blood-omen-legacy-of-kain-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "psx-maintenance-route-preparations.json",
+        "source_revision": "b289b9c2d7163968aa679dcc0cb40b2ccf7bb053",
+        "change": "Replace a changing direct artifact snapshot with stable official GitHub prefix/platform/archive rules while preserving richer owned-disc/BIOS runtime generation, launch, data, platform, identity and historical qualification contracts. Core stages activation, preserves complete mod package versions beside successor defaults, holds conflicting common versions and protects unlaunched canonical data through retained identities. Upstream mod selection/save compatibility remains separate.",
+        "validation_scope": "Production-provider selection progression covers all21 declared platform routes with cache expiry and fresh clients, using controlled v999.123.456 successors. Three obsolete Direct snapshot assertions were repaired and passed. Representative first-party HTTP/download/owned-disc/BIOS/preparation/staging/activation plus fresh N+1 installation passes with unchanged definition and registered inputs; current pre-first-Play saves/settings/mod state and old/new package versions preserved, changed/unknown originals refused. Broader PSX/data-review checks passed in37/37 feedback. Final parent rerun passed40.626s with exact finiteWindows90s budget after retained30.108s cutoff. This proves shared behavior with inert fixtures, not upstream compilation, real-disc decoding, gameplay, save compatibility or installed Desktop acceptance.",
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp",
+        "asset_hints": {
+          "windows-x86-64": ["Blood-Omen-Legacy-of-Kain-Recomp-", "-windows-x64.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged",
+        "observed_assets": [
+          {
+            "platform": "windows-x86-64",
+            "release": "v0.3.6",
+            "asset_id": 544444399,
+            "name": "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+            "size": 30156064,
+            "independently_expected_sha256": "8a829e5913943b45cf086416e15a4a614ad8ce5b8ca407bfb70736a4c68b1759",
+            "observation_cutoff": "2026-10-24T16:55:06.510Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          }
+        ]
       }
     },
     {
@@ -1634,6 +1820,45 @@
         "reviewed_relationship": null,
         "candidates": [],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "alexbeav-brave-fencer-musashi-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "psx-maintenance-route-preparations.json",
+        "source_revision": "54ddfe971dfd79134f2593b00dbd9b78ae51536b",
+        "change": "Replace a changing direct artifact snapshot with stable official GitHub prefix/platform/archive rules while preserving richer owned-disc/BIOS runtime generation, launch, data, platform, identity and historical qualification contracts. Core stages activation, preserves complete mod package versions beside successor defaults, holds conflicting common versions and protects unlaunched canonical data through retained identities. Upstream mod selection/save compatibility remains separate.",
+        "validation_scope": "Production-provider selection progression covers all21 declared platform routes with cache expiry and fresh clients, using controlled v999.123.456 successors. Three obsolete Direct snapshot assertions were repaired and passed. Representative first-party HTTP/download/owned-disc/BIOS/preparation/staging/activation plus fresh N+1 installation passes with unchanged definition and registered inputs; current pre-first-Play saves/settings/mod state and old/new package versions preserved, changed/unknown originals refused. Broader PSX/data-review checks passed in37/37 feedback. Final parent rerun passed40.626s with exact finiteWindows90s budget after retained30.108s cutoff. This proves shared behavior with inert fixtures, not upstream compilation, real-disc decoding, gameplay, save compatibility or installed Desktop acceptance.",
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/brave-fencer-musashi-recomp",
+        "asset_hints": {
+          "windows-x86-64": ["brave-fencer-musashi-recomp-", "-windows-x64.zip"],
+          "linux-x86-64": ["brave-fencer-musashi-recomp-", "-linux-x64.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged",
+        "observed_assets": [
+          {
+            "platform": "windows-x86-64",
+            "release": "v0.1.3",
+            "asset_id": 600784962,
+            "name": "brave-fencer-musashi-recomp-0.1.3-windows-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/releases/download/v0.1.3/brave-fencer-musashi-recomp-0.1.3-windows-x64.zip",
+            "size": 29900215,
+            "independently_expected_sha256": "9c65de1c5b539495f9ec2909ff786ac5b655aba05045d74e4801943a8c3158f5",
+            "observation_cutoff": "2026-10-24T16:55:09.307Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          },
+          {
+            "platform": "linux-x86-64",
+            "release": "v0.1.3",
+            "asset_id": 600784963,
+            "name": "brave-fencer-musashi-recomp-0.1.3-linux-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/releases/download/v0.1.3/brave-fencer-musashi-recomp-0.1.3-linux-x64.zip",
+            "size": 27794465,
+            "independently_expected_sha256": "d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e",
+            "observation_cutoff": "2026-10-24T16:55:09.307Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          }
+        ]
       }
     },
     {
@@ -2256,6 +2481,45 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "alexbeav-diablo-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "psx-maintenance-route-preparations.json",
+        "source_revision": "1e71257166f6a2c0e087f7a36e0e3bde984132d4",
+        "change": "Replace a changing direct artifact snapshot with stable official GitHub prefix/platform/archive rules while preserving richer owned-disc/BIOS runtime generation, launch, data, platform, identity and historical qualification contracts. Core stages activation, preserves complete mod package versions beside successor defaults, holds conflicting common versions and protects unlaunched canonical data through retained identities. Upstream mod selection/save compatibility remains separate.",
+        "validation_scope": "Production-provider selection progression covers all21 declared platform routes with cache expiry and fresh clients, using controlled v999.123.456 successors. Three obsolete Direct snapshot assertions were repaired and passed. Representative first-party HTTP/download/owned-disc/BIOS/preparation/staging/activation plus fresh N+1 installation passes with unchanged definition and registered inputs; current pre-first-Play saves/settings/mod state and old/new package versions preserved, changed/unknown originals refused. Broader PSX/data-review checks passed in37/37 feedback. Final parent rerun passed40.626s with exact finiteWindows90s budget after retained30.108s cutoff. This proves shared behavior with inert fixtures, not upstream compilation, real-disc decoding, gameplay, save compatibility or installed Desktop acceptance.",
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/diablo-recomp",
+        "asset_hints": {
+          "windows-x86-64": ["diablo-recomp-", "-windows-x64.zip"],
+          "linux-x86-64": ["diablo-recomp-", "-linux-x64.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged",
+        "observed_assets": [
+          {
+            "platform": "windows-x86-64",
+            "release": "v0.1.4",
+            "asset_id": 605927357,
+            "name": "diablo-recomp-0.1.4-windows-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/diablo-recomp-0.1.4-windows-x64.zip",
+            "size": 29909581,
+            "independently_expected_sha256": "962088ec8a614305221e4f67879702b1c0ca57268392982b431ab8d17b6c4722",
+            "observation_cutoff": "2026-10-24T16:55:12.391Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          },
+          {
+            "platform": "linux-x86-64",
+            "release": "v0.1.4",
+            "asset_id": 605927354,
+            "name": "diablo-recomp-0.1.4-linux-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/diablo-recomp-0.1.4-linux-x64.zip",
+            "size": 27803391,
+            "independently_expected_sha256": "0579d28ce0f1d8bcb5aca3b1a68b8fe43ea866aa141202b2bc80d0d17f1943e1",
+            "observation_cutoff": "2026-10-24T16:55:12.391Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          }
+        ]
       }
     },
     {
@@ -2454,6 +2718,33 @@
         "reviewed_relationship": null,
         "candidates": [],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "alexbeav-digimon-world-2003-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "psx-maintenance-route-preparations.json",
+        "source_revision": "cebada963263459d292da7e3dee07b0fbc9f01e9",
+        "change": "Replace a changing direct artifact snapshot with stable official GitHub prefix/platform/archive rules while preserving richer owned-disc/BIOS runtime generation, launch, data, platform, identity and historical qualification contracts. Core stages activation, preserves complete mod package versions beside successor defaults, holds conflicting common versions and protects unlaunched canonical data through retained identities. Upstream mod selection/save compatibility remains separate.",
+        "validation_scope": "Production-provider selection progression covers all21 declared platform routes with cache expiry and fresh clients, using controlled v999.123.456 successors. Three obsolete Direct snapshot assertions were repaired and passed. Representative first-party HTTP/download/owned-disc/BIOS/preparation/staging/activation plus fresh N+1 installation passes with unchanged definition and registered inputs; current pre-first-Play saves/settings/mod state and old/new package versions preserved, changed/unknown originals refused. Broader PSX/data-review checks passed in37/37 feedback. Final parent rerun passed40.626s with exact finiteWindows90s budget after retained30.108s cutoff. This proves shared behavior with inert fixtures, not upstream compilation, real-disc decoding, gameplay, save compatibility or installed Desktop acceptance.",
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/digimon-world-2003-recomp",
+        "asset_hints": {
+          "windows-x86-64": ["Digimon-World-2003-Recomp-", "-windows-x64.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged",
+        "observed_assets": [
+          {
+            "platform": "windows-x86-64",
+            "release": "v0.3.6",
+            "asset_id": 544445450,
+            "name": "Digimon-World-2003-Recomp-0.3.6-windows-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/releases/download/v0.3.6/Digimon-World-2003-Recomp-0.3.6-windows-x64.zip",
+            "size": 30152631,
+            "independently_expected_sha256": "71f0fe285fe0d6cd34d61e3b286bbdda55eecd551487b8ee33648301a99c249b",
+            "observation_cutoff": "2026-10-24T16:55:15.350Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          }
+        ]
       }
     },
     {
@@ -2533,6 +2824,45 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "alexbeav-dino-crisis-2-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "psx-maintenance-route-preparations.json",
+        "source_revision": "38514024f3a7cea54ff05ae3afdad0929920cb5a",
+        "change": "Replace a changing direct artifact snapshot with stable official GitHub prefix/platform/archive rules while preserving richer owned-disc/BIOS runtime generation, launch, data, platform, identity and historical qualification contracts. Core stages activation, preserves complete mod package versions beside successor defaults, holds conflicting common versions and protects unlaunched canonical data through retained identities. Upstream mod selection/save compatibility remains separate.",
+        "validation_scope": "Production-provider selection progression covers all21 declared platform routes with cache expiry and fresh clients, using controlled v999.123.456 successors. Three obsolete Direct snapshot assertions were repaired and passed. Representative first-party HTTP/download/owned-disc/BIOS/preparation/staging/activation plus fresh N+1 installation passes with unchanged definition and registered inputs; current pre-first-Play saves/settings/mod state and old/new package versions preserved, changed/unknown originals refused. Broader PSX/data-review checks passed in37/37 feedback. Final parent rerun passed40.626s with exact finiteWindows90s budget after retained30.108s cutoff. This proves shared behavior with inert fixtures, not upstream compilation, real-disc decoding, gameplay, save compatibility or installed Desktop acceptance.",
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/dino-crisis-2-recomp",
+        "asset_hints": {
+          "windows-x86-64": ["dino-crisis-2-", "-windows-x64.zip"],
+          "linux-x86-64": ["dino-crisis-2-", "-linux-x64.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged",
+        "observed_assets": [
+          {
+            "platform": "windows-x86-64",
+            "release": "v0.1.1",
+            "asset_id": 600758315,
+            "name": "dino-crisis-2-0.1.1-windows-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/releases/download/v0.1.1/dino-crisis-2-0.1.1-windows-x64.zip",
+            "size": 26205977,
+            "independently_expected_sha256": "ce9d77b3d35254ba31b7cd1c3deef58adacde211fc399842e57fff9b78b56283",
+            "observation_cutoff": "2026-10-24T16:55:18.598Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          },
+          {
+            "platform": "linux-x86-64",
+            "release": "v0.1.1",
+            "asset_id": 600758318,
+            "name": "dino-crisis-2-0.1.1-linux-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/releases/download/v0.1.1/dino-crisis-2-0.1.1-linux-x64.zip",
+            "size": 24179506,
+            "independently_expected_sha256": "f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125",
+            "observation_cutoff": "2026-10-24T16:55:18.598Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          }
+        ]
       }
     },
     {
@@ -2612,6 +2942,45 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "alexbeav-dino-crisis-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "psx-maintenance-route-preparations.json",
+        "source_revision": "7fd9deaa0ef7f8b689b1092821c19ac6a0de87db",
+        "change": "Replace a changing direct artifact snapshot with stable official GitHub prefix/platform/archive rules while preserving richer owned-disc/BIOS runtime generation, launch, data, platform, identity and historical qualification contracts. Core stages activation, preserves complete mod package versions beside successor defaults, holds conflicting common versions and protects unlaunched canonical data through retained identities. Upstream mod selection/save compatibility remains separate.",
+        "validation_scope": "Production-provider selection progression covers all21 declared platform routes with cache expiry and fresh clients, using controlled v999.123.456 successors. Three obsolete Direct snapshot assertions were repaired and passed. Representative first-party HTTP/download/owned-disc/BIOS/preparation/staging/activation plus fresh N+1 installation passes with unchanged definition and registered inputs; current pre-first-Play saves/settings/mod state and old/new package versions preserved, changed/unknown originals refused. Broader PSX/data-review checks passed in37/37 feedback. Final parent rerun passed40.626s with exact finiteWindows90s budget after retained30.108s cutoff. This proves shared behavior with inert fixtures, not upstream compilation, real-disc decoding, gameplay, save compatibility or installed Desktop acceptance.",
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/dino-crisis-recomp",
+        "asset_hints": {
+          "windows-x86-64": ["dino-crisis-", "-windows-x64.zip"],
+          "linux-x86-64": ["dino-crisis-", "-linux-x64.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged",
+        "observed_assets": [
+          {
+            "platform": "windows-x86-64",
+            "release": "v0.1.1",
+            "asset_id": 600756803,
+            "name": "dino-crisis-0.1.1-windows-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/releases/download/v0.1.1/dino-crisis-0.1.1-windows-x64.zip",
+            "size": 26206145,
+            "independently_expected_sha256": "8ef30ffe192343ef4e3c00de993b1ddf99deb106f65bf35f1689fccd4f7996a7",
+            "observation_cutoff": "2026-10-24T16:55:21.473Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          },
+          {
+            "platform": "linux-x86-64",
+            "release": "v0.1.1",
+            "asset_id": 600756802,
+            "name": "dino-crisis-0.1.1-linux-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/releases/download/v0.1.1/dino-crisis-0.1.1-linux-x64.zip",
+            "size": 24179470,
+            "independently_expected_sha256": "d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1",
+            "observation_cutoff": "2026-10-24T16:55:21.473Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          }
+        ]
       }
     },
     {
@@ -2743,6 +3112,33 @@
         "reviewed_relationship": null,
         "candidates": [],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "alexbeav-driver-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "psx-maintenance-route-preparations.json",
+        "source_revision": "8dd843a427386d8d44aeaab4aca783774df95cd8",
+        "change": "Replace a changing direct artifact snapshot with stable official GitHub prefix/platform/archive rules while preserving richer owned-disc/BIOS runtime generation, launch, data, platform, identity and historical qualification contracts. Core stages activation, preserves complete mod package versions beside successor defaults, holds conflicting common versions and protects unlaunched canonical data through retained identities. Upstream mod selection/save compatibility remains separate.",
+        "validation_scope": "Production-provider selection progression covers all21 declared platform routes with cache expiry and fresh clients, using controlled v999.123.456 successors. Three obsolete Direct snapshot assertions were repaired and passed. Representative first-party HTTP/download/owned-disc/BIOS/preparation/staging/activation plus fresh N+1 installation passes with unchanged definition and registered inputs; current pre-first-Play saves/settings/mod state and old/new package versions preserved, changed/unknown originals refused. Broader PSX/data-review checks passed in37/37 feedback. Final parent rerun passed40.626s with exact finiteWindows90s budget after retained30.108s cutoff. This proves shared behavior with inert fixtures, not upstream compilation, real-disc decoding, gameplay, save compatibility or installed Desktop acceptance.",
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/driver-recomp",
+        "asset_hints": {
+          "windows-x86-64": ["Driver-Recomp-", "-windows-x64.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged",
+        "observed_assets": [
+          {
+            "platform": "windows-x86-64",
+            "release": "v0.3.6",
+            "asset_id": 544445443,
+            "name": "Driver-Recomp-0.3.6-windows-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/driver-recomp/releases/download/v0.3.6/Driver-Recomp-0.3.6-windows-x64.zip",
+            "size": 30154093,
+            "independently_expected_sha256": "57d50b4065b1b680cb660029bb14db3f53d911516342e58fc16f59386aeba2ab",
+            "observation_cutoff": "2026-10-24T16:55:23.881Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          }
+        ]
       }
     },
     {
@@ -2807,6 +3203,33 @@
         "reviewed_relationship": null,
         "candidates": [],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "alexbeav-duke-nukem-land-of-the-babes-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "psx-maintenance-route-preparations.json",
+        "source_revision": "bc7f7e4e15f024bf821d58b4216673b3dd47036b",
+        "change": "Replace a changing direct artifact snapshot with stable official GitHub prefix/platform/archive rules while preserving richer owned-disc/BIOS runtime generation, launch, data, platform, identity and historical qualification contracts. Core stages activation, preserves complete mod package versions beside successor defaults, holds conflicting common versions and protects unlaunched canonical data through retained identities. Upstream mod selection/save compatibility remains separate.",
+        "validation_scope": "Production-provider selection progression covers all21 declared platform routes with cache expiry and fresh clients, using controlled v999.123.456 successors. Three obsolete Direct snapshot assertions were repaired and passed. Representative first-party HTTP/download/owned-disc/BIOS/preparation/staging/activation plus fresh N+1 installation passes with unchanged definition and registered inputs; current pre-first-Play saves/settings/mod state and old/new package versions preserved, changed/unknown originals refused. Broader PSX/data-review checks passed in37/37 feedback. Final parent rerun passed40.626s with exact finiteWindows90s budget after retained30.108s cutoff. This proves shared behavior with inert fixtures, not upstream compilation, real-disc decoding, gameplay, save compatibility or installed Desktop acceptance.",
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp",
+        "asset_hints": {
+          "windows-x86-64": ["Duke-Nukem-Land-of-the-Babes-Recomp-", "-windows-x64.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged",
+        "observed_assets": [
+          {
+            "platform": "windows-x86-64",
+            "release": "v0.3.6",
+            "asset_id": 544445831,
+            "name": "Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-windows-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/releases/download/v0.3.6/Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-windows-x64.zip",
+            "size": 30154371,
+            "independently_expected_sha256": "33a2bf033dd610b8f6d8afab2373b609b536a1253f15b78138fc6d37a2831c5b",
+            "observation_cutoff": "2026-10-24T16:55:26.226Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          }
+        ]
       }
     },
     {
@@ -2871,6 +3294,33 @@
         "reviewed_relationship": null,
         "candidates": [],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "alexbeav-duke-nukem-time-to-kill-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "psx-maintenance-route-preparations.json",
+        "source_revision": "62f7313c39e96a1146967df3beecae06a81df18b",
+        "change": "Replace a changing direct artifact snapshot with stable official GitHub prefix/platform/archive rules while preserving richer owned-disc/BIOS runtime generation, launch, data, platform, identity and historical qualification contracts. Core stages activation, preserves complete mod package versions beside successor defaults, holds conflicting common versions and protects unlaunched canonical data through retained identities. Upstream mod selection/save compatibility remains separate.",
+        "validation_scope": "Production-provider selection progression covers all21 declared platform routes with cache expiry and fresh clients, using controlled v999.123.456 successors. Three obsolete Direct snapshot assertions were repaired and passed. Representative first-party HTTP/download/owned-disc/BIOS/preparation/staging/activation plus fresh N+1 installation passes with unchanged definition and registered inputs; current pre-first-Play saves/settings/mod state and old/new package versions preserved, changed/unknown originals refused. Broader PSX/data-review checks passed in37/37 feedback. Final parent rerun passed40.626s with exact finiteWindows90s budget after retained30.108s cutoff. This proves shared behavior with inert fixtures, not upstream compilation, real-disc decoding, gameplay, save compatibility or installed Desktop acceptance.",
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp",
+        "asset_hints": {
+          "windows-x86-64": ["Duke-Nukem-Time-to-Kill-Recomp-", "-windows-x64.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged",
+        "observed_assets": [
+          {
+            "platform": "windows-x86-64",
+            "release": "v0.3.6",
+            "asset_id": 544445845,
+            "name": "Duke-Nukem-Time-to-Kill-Recomp-0.3.6-windows-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/releases/download/v0.3.6/Duke-Nukem-Time-to-Kill-Recomp-0.3.6-windows-x64.zip",
+            "size": 30158026,
+            "independently_expected_sha256": "6ac51ddf4db437fd10ec8ec1de73b66e34904b9b30bbcaf813266dba2997c662",
+            "observation_cutoff": "2026-10-24T16:55:28.519Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          }
+        ]
       }
     },
     {
@@ -2935,6 +3385,33 @@
         "reviewed_relationship": null,
         "candidates": [],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "alexbeav-fade-to-black-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "psx-maintenance-route-preparations.json",
+        "source_revision": "25df871d2185eb45ec0e9253b96a2667e2feca6b",
+        "change": "Replace a changing direct artifact snapshot with stable official GitHub prefix/platform/archive rules while preserving richer owned-disc/BIOS runtime generation, launch, data, platform, identity and historical qualification contracts. Core stages activation, preserves complete mod package versions beside successor defaults, holds conflicting common versions and protects unlaunched canonical data through retained identities. Upstream mod selection/save compatibility remains separate.",
+        "validation_scope": "Production-provider selection progression covers all21 declared platform routes with cache expiry and fresh clients, using controlled v999.123.456 successors. Three obsolete Direct snapshot assertions were repaired and passed. Representative first-party HTTP/download/owned-disc/BIOS/preparation/staging/activation plus fresh N+1 installation passes with unchanged definition and registered inputs; current pre-first-Play saves/settings/mod state and old/new package versions preserved, changed/unknown originals refused. Broader PSX/data-review checks passed in37/37 feedback. Final parent rerun passed40.626s with exact finiteWindows90s budget after retained30.108s cutoff. This proves shared behavior with inert fixtures, not upstream compilation, real-disc decoding, gameplay, save compatibility or installed Desktop acceptance.",
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/fade-to-black-recomp",
+        "asset_hints": {
+          "windows-x86-64": ["Fade-to-Black-Recomp-", "-windows-x64.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged",
+        "observed_assets": [
+          {
+            "platform": "windows-x86-64",
+            "release": "v0.3.6",
+            "asset_id": 544445910,
+            "name": "Fade-to-Black-Recomp-0.3.6-windows-x64.zip",
+            "url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-windows-x64.zip",
+            "size": 30151839,
+            "independently_expected_sha256": "5daffc439d2fd33ce0da54e29f297cbf79e54ebecd277539446e2d6781860eb3",
+            "observation_cutoff": "2026-10-24T16:55:31.625Z",
+            "scope": "Selected-release provider asset metadata exactly matched the prior accepted direct artifact. No new package download, extraction, helper execution or gameplay observation in this conversion batch."
+          }
+        ]
       }
     },
     {
@@ -8953,41 +9430,62 @@
         "body_sha256_at_cutoff": "4fb6d1458f563b6c5d8bcd8495a20942efa6b25d83f6f8864f5686b6b4f92c3b"
       },
       "duplicates": [],
-      "platform_scope": [],
+      "platform_scope": ["windows-x86-64"],
       "pickup_route": "listing-only",
-      "selected_route": "existing discovery/non-owning route; managed fit under review",
-      "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement promise",
+      "selected_route": "Reviewed upstream setup and non-owning existing player registration",
+      "disposition": "improve-nonowning-route",
+      "update_owner": "player/upstream; no managed Update, Backup or Rollback authority",
       "setup_data": {
-        "instructions": null,
+        "instructions": [
+          {
+            "title": "Prepare the Windows player",
+            "instruction": "Extract the official Windows x64 ZIP into a separate folder. The reviewed v0.2b package uses the .NET 10 runtime and OpenAL; follow upstream prerequisite instructions if either is missing. Choose medievil.exe in that folder when saving launch details. Registration does not start the game."
+          },
+          {
+            "title": "Choose your original disc in the game",
+            "instruction": "Choose Play when ready, then use MediEvil’s disc picker to select your own supported North American MediEvil CUE/BIN or CHD. The game validates the disc; Portcove does not supply original game files or run preparation tools during discovery."
+          },
+          {
+            "title": "Let the game provide updates",
+            "instruction": "MediEvilRecomp has an in-game updater that replaces its own runtime. Keep that upstream-owned route and a separate copy of your working folder before updating. Keep settings.json, interface layout, memory-card files and custom mods with that copy, and preserve the original disc separately. Portcove leaves the external files untouched and does not provide managed Update, Backup or Rollback."
+          }
+        ],
         "source_profiles": [],
         "declared_paths": [],
         "declared_patterns": [],
-        "details_record": "crates/portcove-core/catalog/ports/blacklabelhq-medievilrecomp.json"
+        "details_record": "crates/portcove-core/catalog/ports/blacklabelhq-medievilrecomp.json",
+        "reviewed_boundary": "Extract the official Windows x64 ZIP into a separate folder. The reviewed v0.2b package uses the .NET 10 runtime and OpenAL; follow upstream prerequisite instructions if either is missing. Choose medievil.exe in that folder when saving launch details. Registration does not start the game. Choose Play when ready, then use MediEvil’s disc picker to select your own supported North American MediEvil CUE/BIN or CHD. The game validates the disc; Portcove does not supply original game files or run preparation tools during discovery. MediEvilRecomp has an in-game updater that replaces its own runtime. Keep that upstream-owned route and a separate copy of your working folder before updating. Keep settings.json, interface layout, memory-card files and custom mods with that copy, and preserve the original disc separately. Portcove leaves the external files untouched and does not provide managed Update, Backup or Rollback.",
+        "persistence_evidence": null
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/BlackLabelHQ/MediEvilRecomp",
         "observed_repository": "BlackLabelHQ/MediEvilRecomp",
         "repository_node_id": "R_kgDOT55wOQ",
-        "guide_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/v0.2b/README.md",
+        "guide_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/README.md",
         "guide_ref": "v0.2b",
         "guide_blob_sha": "bce2f2636b7ada53b9cfdb980d46873d0dfa9eb7",
         "observation": "2026-10-24T03:38:35.692Z",
-        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately"
+        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
+        "assessment_file": "native-group8-assessments.json",
+        "source_revision": "b9e46db34db40d6e5c8e19b538e4d517299a4012",
+        "reviewed_sources": null,
+        "authored_setup_url": "https://github.com/BlackLabelHQ/MediEvilRecomp"
       },
       "selected_artifact": null,
-      "reason": "Fit decision remains unfinished; Unknown is not unsupported.",
+      "reason": "The reviewed player owns runtime replacement through its enabled in-game updater. Retain non-owning registration rather than competing with self-replacement.",
       "validation_scope": {
-        "scope": "Primary-source retrieval and inventory join only; route-fit validation unfinished."
+        "scope": "Complete selected release assets, pinned source/workflow/setup/data review and bounded selected Windows archive/PE inspection. No executable/helper/original-input execution. Other offered platform package execution remains unobserved."
       },
-      "delivery_status": "unfinished assessment/implementation",
-      "affected_operation": "managed installation/update and supported setup route selection",
-      "next_action": "Establish the exact executable, supported setup/data boundary and runtime replacement owner from https://github.com/BlackLabelHQ/MediEvilRecomp/blob/v0.2b/README.md; inspect observed MediEvilRecomp-v0.2b-linux-x64.tar.gz, MediEvilRecomp-v0.2b-macos-arm64.zip, MediEvilRecomp-v0.2b-macos-x64.zip. Then implement every fitting existing-capability change or retain a specifically evidenced limitation. No new product deferral is assigned.",
+      "delivery_status": "specific non-owning guide implemented; unmerged; stronger canonical acceptance remains separate",
+      "affected_operation": null,
+      "next_action": null,
       "acquisition_restriction": null,
-      "assessed_platform_scope": null,
+      "assessed_platform_scope": ["windows-x86-64"],
       "download_recommendation": {
         "channel": "stable",
-        "asset_hints": {}
+        "asset_hints": {
+          "windows-x86-64": ["MediEvilRecomp-", "-windows-x64.zip"]
+        }
       },
       "reference_catalog": {
         "source": "Quiver",
@@ -9007,7 +9505,23 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
-      }
+      },
+      "reviewed_artifacts": [
+        {
+          "evidence_file": "packages/blacklabelhq-medievilrecomp-group8.json",
+          "name": "MediEvilRecomp-v0.2b-windows-x64.zip",
+          "url": "https://github.com/BlackLabelHQ/MediEvilRecomp/releases/download/v0.2b/MediEvilRecomp-v0.2b-windows-x64.zip",
+          "independently_expected": "sha256:167b2fc2cdcd42cc134726f76df43250930e2f494483bc3a60e0e16431e52967",
+          "observed_sha256": "167b2fc2cdcd42cc134726f76df43250930e2f494483bc3a60e0e16431e52967",
+          "scope": "Read-only bounded Windows ZIP/PE inspection; a self-computed digest alone is not independent authentication."
+        }
+      ],
+      "selected_route_release": null,
+      "reconsideration_condition": "A reviewed compatible runtime replacement contract that does not compete with upstream self-replacement.",
+      "reviewed_additional_sources": null,
+      "documentation_reconciliation": null,
+      "reviewed_platform_limits": "Only Windows x64 package bytes/layout were inspected; other upstream platform packages remain separate operations without inferred native/gameplay qualification.",
+      "reviewed_rights_boundary": null
     },
     {
       "id": "blizz127-brave-fencer-musashi-decomp-port",
@@ -9376,41 +9890,62 @@
         "body_sha256_at_cutoff": "602a1ef78c858994a046034bad090569fd63ac1353d4562f16acc62209af531c"
       },
       "duplicates": [],
-      "platform_scope": [],
+      "platform_scope": ["windows-x86-64"],
       "pickup_route": "listing-only",
-      "selected_route": "existing discovery/non-owning route; managed fit under review",
-      "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement promise",
+      "selected_route": "Reviewed upstream setup and non-owning existing player registration",
+      "disposition": "improve-nonowning-route",
+      "update_owner": "player/upstream; no managed Update, Backup or Rollback authority",
       "setup_data": {
-        "instructions": null,
+        "instructions": [
+          {
+            "title": "Prepare the Windows player",
+            "instruction": "Extract the official Windows x86_64 ZIP into a separate folder and choose PsyDoom.exe there when finishing setup. This upstream release has no independent publisher checksum, so the download remains unverified. The game is not started when you save launch details. Linux AppImages and the macOS application are separate upstream routes with their own platform instructions."
+          },
+          {
+            "title": "Select your PlayStation game disc",
+            "instruction": "Choose Play, then use PsyDoom’s launcher to select the CUE file for your own supported PlayStation Doom or Final Doom disc, keeping all referenced BIN files with it. Portcove does not supply the disc or run an installer for this portable ZIP."
+          },
+          {
+            "title": "Keep the profile when updating",
+            "instruction": "You or upstream own updates. Extract a new release separately and keep your working copy until it runs. PsyDoom normally stores saves, configuration and launcher preferences in its per-user data folder; configuration files beside the player can override their normal location. Back up the profile and any local configuration you actually use separately. Portcove registration does not manage or back up those files, and runtime rollback does not establish save compatibility."
+          }
+        ],
         "source_profiles": [],
         "declared_paths": [],
         "declared_patterns": [],
-        "details_record": "crates/portcove-core/catalog/ports/bodbdearg-psydoom.json"
+        "details_record": "crates/portcove-core/catalog/ports/bodbdearg-psydoom.json",
+        "reviewed_boundary": "Extract the official Windows x86_64 ZIP into a separate folder and choose PsyDoom.exe there when finishing setup. This upstream release has no independent publisher checksum, so the download remains unverified. The game is not started when you save launch details. Linux AppImages and the macOS application are separate upstream routes with their own platform instructions. Choose Play, then use PsyDoom’s launcher to select the CUE file for your own supported PlayStation Doom or Final Doom disc, keeping all referenced BIN files with it. Portcove does not supply the disc or run an installer for this portable ZIP. You or upstream own updates. Extract a new release separately and keep your working copy until it runs. PsyDoom normally stores saves, configuration and launcher preferences in its per-user data folder; configuration files beside the player can override their normal location. Back up the profile and any local configuration you actually use separately. Portcove registration does not manage or back up those files, and runtime rollback does not establish save compatibility.",
+        "persistence_evidence": null
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/BodbDearg/PsyDoom",
         "observed_repository": "BodbDearg/PsyDoom",
         "repository_node_id": "MDEwOlJlcG9zaXRvcnkyMTI1MDU1MDc=",
-        "guide_url": "https://github.com/BodbDearg/PsyDoom/blob/releases/1.1.1/README.md",
+        "guide_url": "https://github.com/BodbDearg/PsyDoom/blob/2c50690b6e0ae26cbb83ad9039d24748f76275f8/README.md",
         "guide_ref": "releases/1.1.1",
         "guide_blob_sha": "f042ecbb1bab3b6c3e08758ac6fa170f5be5d47d",
         "observation": "2026-10-24T03:38:38.315Z",
-        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately"
+        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
+        "assessment_file": "native-group8-assessments.json",
+        "source_revision": "2c50690b6e0ae26cbb83ad9039d24748f76275f8",
+        "reviewed_sources": null,
+        "authored_setup_url": "https://github.com/BodbDearg/PsyDoom"
       },
       "selected_artifact": null,
-      "reason": "Fit decision remains unfinished; Unknown is not unsupported.",
+      "reason": "The reviewed release publishes no independent artifact digest or checksum. Offer explicitly unverified self-service download and external registration; do not authenticate the package using a hash computed from that same download. Managed adoption can be reconsidered when independent expected identity is available.",
       "validation_scope": {
-        "scope": "Primary-source retrieval and inventory join only; route-fit validation unfinished."
+        "scope": "Complete selected release assets, pinned source/workflow/setup/data review and bounded selected Windows archive/PE inspection. No executable/helper/original-input execution. Other offered platform package execution remains unobserved."
       },
-      "delivery_status": "unfinished assessment/implementation",
-      "affected_operation": "managed installation/update and supported setup route selection",
-      "next_action": "Establish the exact executable, supported setup/data boundary and runtime replacement owner from https://github.com/BodbDearg/PsyDoom/blob/releases/1.1.1/README.md; inspect observed PsyDoom_1.1.1_Linux_AArch64.AppImage, PsyDoom_1.1.1_Linux_ArmHF.AppImage, PsyDoom_1.1.1_Linux_x86_64.AppImage. Then implement every fitting existing-capability change or retain a specifically evidenced limitation. No new product deferral is assigned.",
+      "delivery_status": "specific non-owning guide implemented; unmerged; stronger canonical acceptance remains separate",
+      "affected_operation": null,
+      "next_action": null,
       "acquisition_restriction": null,
-      "assessed_platform_scope": null,
+      "assessed_platform_scope": ["windows-x86-64"],
       "download_recommendation": {
         "channel": "stable",
-        "asset_hints": {}
+        "asset_hints": {
+          "windows-x86-64": ["PsyDoom_", "_Windows_x86_64.zip"]
+        }
       },
       "reference_catalog": {
         "source": "Quiver",
@@ -9430,7 +9965,23 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
-      }
+      },
+      "reviewed_artifacts": [
+        {
+          "evidence_file": "packages/bodbdearg-psydoom-group8.json",
+          "name": "PsyDoom_1.1.1_Windows_x86_64.zip",
+          "url": "https://github.com/BodbDearg/PsyDoom/releases/download/releases/1.1.1/PsyDoom_1.1.1_Windows_x86_64.zip",
+          "independently_expected": null,
+          "observed_sha256": "06145417179b16e0b10634a4ebafacd0fa2e93ec29f034090a6b0b51999bb35a",
+          "scope": "Read-only bounded Windows ZIP/PE inspection; a self-computed digest alone is not independent authentication."
+        }
+      ],
+      "selected_route_release": null,
+      "reconsideration_condition": "Independently expected official artifact identity plus unchanged reviewed launch/data/update behavior.",
+      "reviewed_additional_sources": null,
+      "documentation_reconciliation": null,
+      "reviewed_platform_limits": "Only Windows x64 package bytes/layout were inspected; other upstream platform packages remain separate operations without inferred native/gameplay qualification.",
+      "reviewed_rights_boundary": null
     },
     {
       "id": "body-harvest-recompiled",
@@ -14242,36 +14793,55 @@
       "duplicates": [],
       "platform_scope": [],
       "pickup_route": "listing-only",
-      "selected_route": "existing discovery/non-owning route; managed fit under review",
-      "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement promise",
+      "selected_route": "Reviewed upstream setup and non-owning existing player registration",
+      "disposition": "improve-nonowning-route",
+      "update_owner": "player/upstream; no managed Update, Backup or Rollback authority",
       "setup_data": {
-        "instructions": null,
+        "instructions": [
+          {
+            "title": "Use the upstream setup for your platform",
+            "instruction": "The reviewed Windows release is a 32-bit Windows ZIP. Extract the Release package into a separate folder, then follow the linked official installation instructions. For the upstream launcher route, place OpenDriver2’s Launcher in that folder, install its Java prerequisite, and deliberately run its Setup wizard. Linux has separate SDL2/OpenAL and Java requirements and its own conversion script. Portcove does not run these tools automatically."
+          },
+          {
+            "title": "Provide both of your Driver 2 discs",
+            "instruction": "The upstream setup needs both original Driver 2 discs from a supported English PAL or NTSC edition. Its wizard selects CD1 and CD2 and prepares the game data. The documented manual alternative uses install/Driver2CD1.bin, install/Driver2CD2.bin, the config.ini cdfs setting and the platform conversion script. Complete that specific upstream process before choosing REDRIVER2.exe or the Linux player in Portcove."
+          },
+          {
+            "title": "Register the prepared player and keep your copy",
+            "instruction": "Save the prepared game executable with its game folder as the working directory, then choose Play separately. You or upstream provide runtime updates and own the converted data, local configuration and saves. Prepare replacements in another folder and keep the current tree and both disc images recoverable. Portcove leaves external files untouched and does not promise managed Update, Backup or Rollback."
+          }
+        ],
         "source_profiles": [],
         "declared_paths": [],
         "declared_patterns": [],
-        "details_record": "crates/portcove-core/catalog/ports/driver-2-redriver2.json"
+        "details_record": "crates/portcove-core/catalog/ports/driver-2-redriver2.json",
+        "reviewed_boundary": "The reviewed Windows release is a 32-bit Windows ZIP. Extract the Release package into a separate folder, then follow the linked official installation instructions. For the upstream launcher route, place OpenDriver2’s Launcher in that folder, install its Java prerequisite, and deliberately run its Setup wizard. Linux has separate SDL2/OpenAL and Java requirements and its own conversion script. Portcove does not run these tools automatically. The upstream setup needs both original Driver 2 discs from a supported English PAL or NTSC edition. Its wizard selects CD1 and CD2 and prepares the game data. The documented manual alternative uses install/Driver2CD1.bin, install/Driver2CD2.bin, the config.ini cdfs setting and the platform conversion script. Complete that specific upstream process before choosing REDRIVER2.exe or the Linux player in Portcove. Save the prepared game executable with its game folder as the working directory, then choose Play separately. You or upstream provide runtime updates and own the converted data, local configuration and saves. Prepare replacements in another folder and keep the current tree and both disc images recoverable. Portcove leaves external files untouched and does not promise managed Update, Backup or Rollback.",
+        "persistence_evidence": null
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/OpenDriver2/REDRIVER2",
         "observed_repository": "OpenDriver2/REDRIVER2",
         "repository_node_id": "MDEwOlJlcG9zaXRvcnkzMDk2MTUwNjM=",
-        "guide_url": "https://github.com/OpenDriver2/REDRIVER2/blob/7.4-rc2/README.md",
+        "guide_url": "https://github.com/OpenDriver2/REDRIVER2/blob/acca6b139302dd72c1fbff52556f3493aafda2dd/README.md",
         "guide_ref": "7.4-rc2",
         "guide_blob_sha": "2349b5e860efd6694259140babdeff4394d57cb9",
         "observation": "2026-10-24T03:38:59.805Z",
-        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately"
+        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
+        "assessment_file": "native-group8-assessments.json",
+        "source_revision": "acca6b139302dd72c1fbff52556f3493aafda2dd",
+        "reviewed_sources": null,
+        "authored_setup_url": "https://github.com/OpenDriver2/REDRIVER2/wiki/Installation-instructions"
       },
       "selected_artifact": null,
-      "reason": "Fit decision remains unfinished; Unknown is not unsupported.",
+      "reason": "The reviewed Windows release is Win32 and needs explicit upstream two-disc extraction/conversion with its launcher or Java scripts. Preserve this useful limited external route without claiming a native Windows x64 managed runtime or unsupported preparation semantics.",
       "validation_scope": {
-        "scope": "Primary-source retrieval and inventory join only; route-fit validation unfinished."
+        "scope": "Complete selected release assets, pinned source/workflow/setup/data review and bounded selected Windows archive/PE inspection. No executable/helper/original-input execution. Other offered platform package execution remains unobserved."
       },
-      "delivery_status": "unfinished assessment/implementation",
-      "affected_operation": "managed installation/update and supported setup route selection",
-      "next_action": "Establish the exact executable, supported setup/data boundary and runtime replacement owner from https://github.com/OpenDriver2/REDRIVER2/blob/7.4-rc2/README.md; inspect observed io.github.opendriver2.Redriver2.flatpak, REDRIVER2_Linux_Release.tar.gz, REDRIVER2_Linux_Release_dev.tar.gz. Then implement every fitting existing-capability change or retain a specifically evidenced limitation. No new product deferral is assigned.",
+      "delivery_status": "specific non-owning guide implemented; unmerged; stronger canonical acceptance remains separate",
+      "affected_operation": null,
+      "next_action": null,
       "acquisition_restriction": null,
-      "assessed_platform_scope": null,
+      "assessed_platform_scope": [],
       "download_recommendation": {
         "channel": "stable",
         "asset_hints": {}
@@ -14294,7 +14864,23 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
-      }
+      },
+      "reviewed_artifacts": [
+        {
+          "evidence_file": "packages/driver-2-redriver2-group8.json",
+          "name": "REDRIVER2_Win32_Release.zip",
+          "url": "https://github.com/OpenDriver2/REDRIVER2/releases/download/7.4-rc2/REDRIVER2_Win32_Release.zip",
+          "independently_expected": null,
+          "observed_sha256": "92c20bf6194af715a84c058783fa3095ed09d3aeeb4c41485b11c984d14d276c",
+          "scope": "Read-only bounded Windows ZIP/PE inspection; a self-computed digest alone is not independent authentication."
+        }
+      ],
+      "selected_route_release": null,
+      "reconsideration_condition": "A supported native package/preparation contract for the required scope; #317 retains its Core-owned Java/private preparation acceptance.",
+      "reviewed_additional_sources": null,
+      "documentation_reconciliation": null,
+      "reviewed_platform_limits": "Inspected Windows player is Win32; the guide preserves that useful limited route and separate Linux upstream setup, without inventing native Windows x64 managed support.",
+      "reviewed_rights_boundary": null
     },
     {
       "id": "drizztdourden08-relic-of-the-past",
@@ -39052,7 +39638,7 @@
       }
     }
   ],
-  "candidate_authored_records_sha256": "fbf35ac455c522dfc1d0c3bf1654fde434494cf02e2a8159f5d18f4be97d2dd9",
+  "candidate_authored_records_sha256": "bffb21c784714a110c8482aac2bf05a942ab913e65fc028be6e4a08e630691b3",
   "reference_sources": [
     {
       "name": "Quiver",
@@ -39075,5 +39661,49 @@
       "receipt_sha256": "b983f48634d2df881ef79007b7e6288f1047f10388fb0ed269623c3cc779ce4e",
       "scope": "Supplementary reference for frozen524 identities; does not enlarge the workset, grant authority or replace upstream qualification."
     }
-  ]
+  ],
+  "shared_behavior_evidence": {
+    "source_commit": "1354a9884d1a82d5d4516f5fd54eafdbf000f521",
+    "restore_review": "Read-only runtime/canonical binding before collection, one-consent first restore, current data safety copy, stale prepared-copy cancellation, credential omission and filesystem-case consequences.",
+    "runs": [
+      {
+        "file": "psx-complete-progression-feedback-2.log",
+        "result": "3 catalog assertions passed; full fixture failed unknown digest scope, later repaired"
+      },
+      {
+        "file": "psx-restore-progression-feedback-1.log",
+        "result": "37/37 passed; first-party full progression plus preservation/data-review/restore checks"
+      },
+      {
+        "file": "restore-review-feedback-2.log",
+        "result": "98/100 passed; stale Shipwright oracle failed and PSX exact fixture timed out; both repaired"
+      },
+      {
+        "file": "restore-review-feedback-3.log",
+        "result": "compile-time String/PathBuf mismatch; repaired"
+      },
+      {
+        "file": "restore-review-feedback-4.log",
+        "result": "98/100 passed including all new restore cases and Shipwright; two pre-existing complete lifecycle/interruption fixtures hit30s caps"
+      },
+      {
+        "file": "restore-calibration-progression-feedback-1.log",
+        "result": "both timeout fixtures passed24.566s/14.535s under exactWindows60s limits; full progression parent hit30.108s cap"
+      },
+      {
+        "file": "psx-complete-progression-feedback-3.log",
+        "result": "complete progression passed40.626s under exactWindows90s limit; all original assertions and zero retries preserved",
+        "nextest_run": "1c82600b-ccf9-4784-a0c9-80240d1d6df5"
+      },
+      {
+        "file": "restore-calibration-workflow-feedback-3.log",
+        "result": "82/82 workflow contracts passed before final PSX parent calibration"
+      },
+      {
+        "file": "psx-progression-calibration-workflow-feedback-1.log",
+        "result": "changed strict timeout/output inventory contract passed1/1 after final parent calibration"
+      }
+    ],
+    "limits": "Focused feedback across retained attempts. No claim of a single all-green100-case run, final-head CI, native game execution, real-save compatibility or protected acceptance. Original failures retained; only invalidated checks repeated."
+  }
 }
