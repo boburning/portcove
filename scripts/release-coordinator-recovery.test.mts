@@ -25,6 +25,70 @@ import { requestTrustedSemanticReview } from "./release-coordinator-driver.mts";
 import { fileURLToPath } from "node:url";
 
 import { recoveryFixture, gitObject } from "./fixtures/coordinator-state-fixtures.mts";
+import {
+  bindReadOnlyReleaseChildren,
+  withReadOnlyReleaseChildren,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
+import type { ExecFileSyncOptions } from "node:child_process";
+
+void test(
+  "retained reader callback confines actual recovery Git children after its original async scope ends",
+  { timeout: 60000 },
+  async (t) => {
+    const f = await recoveryFixture(t);
+    const prior = { ...process.env };
+    t.after(() => {
+      for (const key of Object.keys(process.env)) if (!(key in prior)) delete process.env[key];
+      Object.assign(process.env, prior);
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+    });
+    process.env.GH_TOKEN = "inert-original-reader";
+    process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN = "inert-parent-oidc";
+    process.env.PORTCOVE_SEMANTIC_APP_KEY = "inert-excluded-key";
+    let capturedHome: string | undefined;
+    const recover = await withReadOnlyReleaseChildren(f.parent, async () => {
+      capturedHome = readOnlyReleaseChildEnvironment()?.HOME;
+      return bindReadOnlyReleaseChildren(() =>
+        recoverRemoteCoordinator(
+          f.parent,
+          { schema_version: 1, namespace: "portcove-fixture" },
+          { transport: f.transport },
+        ),
+      );
+    });
+    assert.equal(readOnlyReleaseChildEnvironment(), undefined);
+    assert.throws(
+      () => bindReadOnlyReleaseChildren(() => undefined),
+      /existing private reader scope/,
+    );
+    const original = childProcess.execFileSync;
+    let gitCalls = 0;
+    t.mock.method(
+      childProcess,
+      "execFileSync",
+      (command: string, args: readonly string[], options: ExecFileSyncOptions) => {
+        // The simulated provider reads its own source fixture with Git. Observe
+        // recovery's actual output repository children, not that test backend.
+        const fixtureBackend = args[0] === "-C" && args[1] === f.repository;
+        if (command === "git" && !fixtureBackend) {
+          gitCalls++;
+          assert.equal(options.env?.HOME, capturedHome);
+          assert.equal(options.env?.GH_TOKEN, "inert-original-reader");
+          assert.equal(options.env?.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
+          assert.equal(options.env?.PORTCOVE_SEMANTIC_APP_KEY, undefined);
+        }
+        return original(command, args, options);
+      },
+    );
+    syncBuiltinESMExports();
+    const recovered = await recover();
+    assert.equal(recovered.checkpoint, f.saved.checkpoint);
+    assert.ok(gitCalls > 0, "real recovery/import must run actual local Git children");
+    assert.equal(readOnlyReleaseChildEnvironment(), undefined);
+  },
+);
 
 void test(
   "historical checkpoint closure validates exactly one parent and original application commits without importing refs",

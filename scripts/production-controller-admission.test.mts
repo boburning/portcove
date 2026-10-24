@@ -64,6 +64,9 @@ import {
   jwk,
   expected as nativeIdentityExpected,
 } from "./fixtures/assembler-identity-fixture.mts";
+import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
+import type { PreparedReleaseAdmissionFacts } from "./acquire-release-admission.mts";
+import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 
 const source = Buffer.from("independently selected workflow fixture\n");
 const policy = {
@@ -217,6 +220,115 @@ void test("hosted native parent default path retains original source and issuer 
   }
   for (const imported of [{ ...receipt }, JSON.parse(JSON.stringify(receipt)) as object])
     await assert.rejects(requireActualHostedNativeParentSource(imported), /original active/);
+  // Default source/issuer binding above; collector and journal are controlled
+  // here to exercise custody and refusals, not actual provider acquisition.
+  const assembly = await trustedAssemblyFixture(t, "initial-beta-win-linux");
+  const file = assembly.request.files.find(
+    (entry) => entry.platform_label === "linux-x86_64" && entry.filename.endsWith(".AppImage"),
+  );
+  assert.ok(file);
+  const packageBytes = assembly.contents.get(`linux-x86_64/${file.filename}`);
+  assert.ok(packageBytes);
+  const checkpoint = "f".repeat(40);
+  let currentCheckpoint = checkpoint;
+  let collectorCalls = 0;
+  let outcome = "selected";
+  const syntheticFacts = {
+    checkpoint,
+    assembly: assembly.request,
+    archives: ["windows-x86_64", "linux-x86_64"].map((platform, index) => ({
+      platform,
+      artifact_id: 100 + index,
+      bytes: 123,
+      sha256: "d".repeat(64),
+    })),
+  } as unknown as PreparedReleaseAdmissionFacts;
+  const originalCollector = await import("./acquire-release-admission.mts");
+  t.mock.module("./acquire-release-admission.mts", {
+    namedExports: {
+      ...originalCollector,
+      acquireReleaseAdmission: async (
+        _root: string,
+        _configuration: unknown,
+        options: NonNullable<Parameters<typeof originalCollector.acquireReleaseAdmission>[2]>,
+      ) => {
+        collectorCalls++;
+        if (outcome === "prior-hold")
+          throw new CoordinatorRemoteError("hold", { phase: "repository-and-reservation" });
+        assert.equal(options.controlPhase, "payload");
+        assert.ok(options.retainDesktopPackage && options.establishNative);
+        await options.retainDesktopPackage(
+          file,
+          outcome === "bad-bytes" ? Buffer.from("changed") : packageBytes,
+        );
+        const native = await options.establishNative(syntheticFacts);
+        assert.deepEqual(native, []);
+        if (outcome === "unexpected-success") return {};
+        if (outcome === "changed-checkpoint") currentCheckpoint = "e".repeat(40);
+        throw new CoordinatorRemoteError("no native acceptance", {
+          phase: "actual-stage-native-qualification",
+        });
+      },
+    },
+  });
+  const originalRecovery = await import("./release-coordinator-recovery.mts");
+  t.mock.module("./release-coordinator-recovery.mts", {
+    namedExports: {
+      ...originalRecovery,
+      recoverRemoteCoordinator: async () => ({
+        checkpoint: currentCheckpoint,
+        input: {
+          active_candidate: { phase: "building", version: assembly.request.version },
+          controller: {
+            capacity_attempt: { schema_version: 2, operation: null, prior_operations: [] },
+          },
+        },
+      }),
+    },
+  });
+  const hostedCandidate = await import("./release-hosted-native-candidate.mts");
+  await assert.rejects(hostedCandidate.acquireActualHostedNativeCandidate({}), /original active/);
+  assert.equal(collectorCalls, 0);
+  const selected = await hostedCandidate.acquireActualHostedNativeCandidate(receipt);
+  const selectedValue = await hostedCandidate.requireActualHostedNativeCandidate(selected);
+  assert.equal(selectedValue.candidate.package.sha256, file.sha256);
+  assert.equal(selectedValue.checkpoint, checkpoint);
+  assert.equal(selectedValue.native_acceptance, "not-established");
+  assert.equal(
+    createHash("sha256")
+      .update(await readFile(selectedValue.package_path))
+      .digest("hex"),
+    file.sha256,
+  );
+  await assert.rejects(hostedCandidate.acquireActualHostedNativeCandidate(receipt), /one original/);
+  await assert.rejects(
+    hostedCandidate.requireActualHostedNativeCandidate({ ...selected }),
+    /original active/,
+  );
+  currentCheckpoint = "e".repeat(40);
+  await assert.rejects(
+    hostedCandidate.requireActualHostedNativeCandidate(selected),
+    /reservation changed/,
+  );
+  currentCheckpoint = checkpoint;
+  await assert.rejects(
+    hostedCandidate.requireActualHostedNativeCandidate(selected),
+    /original active/,
+  );
+  for (outcome of ["prior-hold", "bad-bytes", "unexpected-success", "changed-checkpoint"]) {
+    const attempt = await createActualHostedNativeParentSource(
+      parent,
+      "linux-x86_64",
+      "payload-signing",
+      performance.now() + 10000,
+    );
+    await assert.rejects(hostedCandidate.acquireActualHostedNativeCandidate(attempt), /retain/);
+    await assert.rejects(
+      hostedCandidate.acquireActualHostedNativeCandidate(attempt),
+      /one original/,
+    );
+    currentCheckpoint = checkpoint;
+  }
   const originalBytes = await readFile(path.join(actual.directory, "identity.json"));
   await writeFile(path.join(actual.directory, "identity.json"), "{}");
   await assert.rejects(requireActualHostedNativeParentSource(receipt), /retained evidence changed/);

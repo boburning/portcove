@@ -65,6 +65,7 @@ const parents = new WeakMap<
     platform: "windows-x86_64" | "linux-x86_64";
     stage: "payload-signing" | "release-publication";
     files: ReadonlyMap<string, Buffer>;
+    deadline: number;
     active: () => void;
     stopped: boolean;
   }
@@ -218,6 +219,7 @@ export async function createActualHostedNativeParentSource(
       platform,
       stage,
       files,
+      deadline,
       active: live,
       stopped: false,
     });
@@ -259,6 +261,17 @@ export async function requireActualHostedNativeParentSource(receipt: object) {
       producer: structuredClone(retained.producer),
       platform_label: retained.platform,
       stage: retained.stage,
+      deadline: retained.deadline,
+      recheck: () => {
+        if (retained.stopped)
+          throw new Error("original active hosted native parent source required");
+        try {
+          retained.active();
+        } catch (error) {
+          retained.stopped = true;
+          throw error;
+        }
+      },
       authority: "none" as const,
       scope: "original source and issuer identity only" as const,
       candidate_isolation: "unproven" as const,
