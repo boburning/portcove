@@ -14,6 +14,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createCiMetrics } from "./ci-metrics.mts";
 import { errorMessage, isRecord } from "./runtime-values.mts";
+import { nextestOutcomeSelection, runNextestWithOutcomes } from "./nextest-outcomes.mts";
 import {
   readRustTestImpactMap,
   runnableWorkspaceImpactTests,
@@ -340,6 +341,15 @@ function listTests(args: string[], allowSkipped = true) {
   );
 }
 
+export function windowsPartitionOutcomeSelection(inventory: unknown, tests: readonly string[]) {
+  assertSameIdentities(
+    runnableWindowsRustTests(inventory, { allowSkipped: true }),
+    tests,
+    "Transferred partition",
+  );
+  return nextestOutcomeSelection(inventory, new Set(tests));
+}
+
 export function buildWindowsRustArchive() {
   const { plan, identity } = currentContext();
   const metrics = createCiMetrics();
@@ -519,10 +529,14 @@ export function runWindowsRustPartition(partitionId: number) {
     { flag: "wx" },
   );
   const args = [...metadata, "--profile", nextestProfile, "--config-file", config];
-  assertSameIdentities(listTests(args), partition.tests, "Transferred partition");
-  metrics.measure("selected-rust-tests", () =>
-    execute("cargo-nextest", ["nextest", "run", ...args], false),
+  const inventory: unknown = JSON.parse(
+    execute("cargo-nextest", ["nextest", "list", ...args, "--message-format", "json"]),
   );
+  const selection = windowsPartitionOutcomeSelection(inventory, partition.tests);
+  const result = metrics.measure("selected-rust-tests", () => ({
+    status: runNextestWithOutcomes(args, selection),
+  }));
+  if (result.status !== 0) throw new Error(`Nextest partition failed with status ${result.status}`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

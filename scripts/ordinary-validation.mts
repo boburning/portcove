@@ -284,6 +284,7 @@ const containmentContractTests = [
 const containmentInputs = new Set([
   "scripts/rust-test-impact.mts",
   "scripts/windows-rust-tests.mts",
+  "scripts/nextest-outcomes.mts",
   "scripts/desktop-linux-x11.mts",
   "scripts/resource-paths.mts",
   "scripts/native-build.mts",
@@ -1192,6 +1193,20 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ]),
   ["scripts/rust-test-impact.mts", ["scripts/rust-test-impact.test.mts"]],
   [
+    "scripts/nextest-outcomes.mts",
+    [
+      "scripts/nextest-outcomes.test.mts",
+      "scripts/rust-test-impact.test.mts",
+      "scripts/ci-workflow.test.mts",
+    ],
+  ],
+  ...["passed.jsonl", "failing.jsonl", "ignored.jsonl", "inventory.json", "provenance.json"].map(
+    (file): [string, string[]] => [
+      `scripts/fixtures/nextest-outcomes/${file}`,
+      ["scripts/nextest-outcomes.test.mts"],
+    ],
+  ),
+  [
     "scripts/desktop-linux-x11.mts",
     [
       "scripts/desktop-linux-native-session.test.mts",
@@ -1861,6 +1876,7 @@ function classifyOnePath(
     file === "deny.toml" ||
     file === ".config/rust-test-timing-hints.json" ||
     file === "scripts/windows-rust-tests.mts" ||
+    file === "scripts/nextest-outcomes.mts" ||
     (file === ".config/nextest.toml" && !options.nextestUnchanged)
   ) {
     selection.workspaceRust = true;

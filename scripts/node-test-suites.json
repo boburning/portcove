@@ -923,6 +923,13 @@
       ]
     },
     {
+      "file": "scripts/nextest-outcomes.test.mts",
+      "memberships": [
+        ["catalog-full-2", 6351],
+        ["repository-tools-2", 2351]
+      ]
+    },
+    {
       "file": "scripts/node-test-inventory.test.mts",
       "memberships": [
         ["windows-storage-3", 500],

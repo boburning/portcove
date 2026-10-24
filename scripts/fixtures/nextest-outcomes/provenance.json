@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "kind": "captured native protocol fixture",
+  "runner": "cargo-nextest 0.9.100 (7e6129fe2 2025-07-07)",
+  "format": "libtest-json-plus 0.1",
+  "toolchain_selection": "RUSTUP_TOOLCHAIN=1.99.1",
+  "scope": "Standalone Rust protocol cases; not Portcove runtime acceptance",
+  "inventory_projection": "Retain test-count and rust-suites; omit Cargo build paths and execution directory fields",
+  "fixture_source": "Three ordinary Rust test definitions: passed, failing and explicitly ignored",
+  "raw_inventory_sha256": "6c5335bf45a12b9d0374eeb6dd85bf903728a3b689e84df888cfa2b080f62f9e"
+}

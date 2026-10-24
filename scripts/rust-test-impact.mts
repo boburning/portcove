@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateValidationPlan, readValidationPlanInput } from "./validation-plan.mts";
 import { createCiMetrics } from "./ci-metrics.mts";
+import { nextestOutcomeSelection, runNextestWithOutcomes } from "./nextest-outcomes.mts";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 export const rustTestImpactPath = path.join(projectRoot, ".config", "rust-test-impact.json");
@@ -356,6 +357,7 @@ export function runRustImpactUnion(
     dependencies.metrics ?? createCiMetrics(),
     16 * 1024 * 1024,
     (argumentsForList, verify) => {
+      let outcomeInventory: unknown;
       const inventory = (filter: string) => {
         const result = run(
           "cargo-nextest",
@@ -371,7 +373,10 @@ export function runRustImpactUnion(
         if (result.status !== 0)
           throw new Error(`Nextest impact inventory failed: ${String(result.stderr)}`);
         verify();
-        return runnableImpactTests(JSON.parse(String(result.stdout)), packageName);
+        const parsed: unknown = JSON.parse(String(result.stdout));
+        const tests = runnableImpactTests(parsed, packageName);
+        outcomeInventory = parsed;
+        return tests;
       };
       const expected = new Set<string>();
       for (const group of groups) {
@@ -388,13 +393,19 @@ export function runRustImpactUnion(
         );
       report(`[rust-impact] union: ${union.size} distinct runnable tests`);
       verify();
-      const result = run(
-        "cargo-nextest",
-        ["nextest", "run", "--locked", "-p", packageName, "-E", filter],
-        { cwd: projectRoot, stdio: "inherit", windowsHide: true },
+      return runNextestWithOutcomes(
+        ["--locked", "-p", packageName, "-E", filter],
+        nextestOutcomeSelection(
+          outcomeInventory,
+          new Set(
+            [...union].map((identity) => {
+              const [binary, name] = JSON.parse(identity) as [string, string];
+              return JSON.stringify([packageName, binary, name]);
+            }),
+          ),
+        ),
+        { spawnSync: run, report },
       );
-      if (result.error) throw result.error;
-      return result.status ?? 1;
     },
     dependencies.inventoryTempRoot,
   );
@@ -628,6 +639,7 @@ export function runWorkspaceRustImpact(
   let initialInventory = true;
   const scope = ["--locked", "--workspace", "--all-targets"];
   const execute = (argumentsForList: () => string[], verify: () => void) => {
+    let outcomeInventory: unknown;
     const list = (filter: string) => {
       const result = metrics.measure(
         initialInventory ? "workspace-build-and-initial-inventory" : "filter-inventory",
@@ -643,9 +655,12 @@ export function runWorkspaceRustImpact(
       if (result.status !== 0)
         throw new Error(`Nextest workspace inventory failed: ${String(result.stderr)}`);
       verify();
-      return runnableWorkspaceImpactTests(JSON.parse(String(result.stdout)), {
+      const parsed: unknown = JSON.parse(String(result.stdout));
+      const tests = runnableWorkspaceImpactTests(parsed, {
         allowSkipped: filter !== "all()",
       });
+      outcomeInventory = parsed;
+      return tests;
     };
     const complete = list("all()");
     if (!complete.size) throw new Error("The complete workspace has no runnable tests");
@@ -680,15 +695,17 @@ export function runWorkspaceRustImpact(
       groups: groups.map((group) => group.id),
     });
     verify();
-    const result = metrics.measure("selected-rust-tests", () =>
-      run("cargo-nextest", ["nextest", "run", ...scope, "-E", filter], {
-        cwd: projectRoot,
-        stdio: "inherit",
-        windowsHide: true,
-      }),
-    );
-    if (result.error) throw result.error;
-    if (result.status !== 0) return result.status ?? 1;
+    const result = metrics.measure("selected-rust-tests", () => ({
+      status: runNextestWithOutcomes(
+        [...scope, "-E", filter],
+        nextestOutcomeSelection(outcomeInventory, union),
+        {
+          spawnSync: run,
+          report,
+        },
+      ),
+    }));
+    if (result.status !== 0) return result.status;
     // This stays inside the caller's heavyweight reservation. Cargo reuses the
     // workspace build; compare live Rust serialization with committed snapshots.
     const contract = metrics.measure("live-transport-contracts", () =>

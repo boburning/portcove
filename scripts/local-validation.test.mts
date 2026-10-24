@@ -76,6 +76,55 @@ void test("required Node execution and diagnostic edits retain their affected ca
   }
 });
 
+void test("selected nextest outcome edits retain native execution and every outcome consumer", () => {
+  const helper = "scripts/nextest-outcomes.mts";
+  for (const change of [
+    { status: "M", path: helper },
+    { status: "A", path: helper },
+    { status: "D", path: helper },
+    { status: "R100", previousPath: helper, path: "docs/renamed.md" },
+    { status: "R100", previousPath: "docs/renamed.md", path: helper },
+  ]) {
+    const selection = classifyChanges([change], { fileExists: allFilesExist });
+    assert.equal(selection.workspaceRustTests, true);
+    for (const consumer of [
+      "scripts/nextest-outcomes.test.mts",
+      "scripts/rust-test-impact.test.mts",
+      "scripts/ci-workflow.test.mts",
+    ])
+      assert.ok(selection.nodeTests.has(consumer), consumer);
+    const hosted = buildValidationPlan({
+      changes: [
+        {
+          status: change.status,
+          oldPath: change.previousPath ?? change.path,
+          newPath: change.path,
+          oldMode: change.status === "A" ? "000000" : "100644",
+          newMode: change.status === "D" ? "000000" : "100644",
+        },
+      ],
+      eventName: "pull_request",
+      checkout: "a".repeat(40),
+      head: "a".repeat(40),
+      base: "b".repeat(40),
+      mergeBase: "b".repeat(40),
+    });
+    assert.ok(hosted.groups.includes("rust"));
+  }
+  for (const name of [
+    "passed.jsonl",
+    "failing.jsonl",
+    "ignored.jsonl",
+    "inventory.json",
+    "provenance.json",
+  ])
+    assert.ok(
+      classifyChanges([{ status: "M", path: `scripts/fixtures/nextest-outcomes/${name}` }], {
+        fileExists: allFilesExist,
+      }).nodeTests.has("scripts/nextest-outcomes.test.mts"),
+    );
+});
+
 void test("disposable fixture helper changes retain every cleanup consumer across lifecycle and rename edits", async () => {
   const { baselineRequiresDesktopDependencies, baselineFrontendPlan } =
     await import("./ci-baseline.mts");

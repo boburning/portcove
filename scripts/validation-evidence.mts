@@ -192,6 +192,7 @@ export function domainsForPath(input: string) {
     file === "scripts/test-duration-reporter.mts" ||
     file === "scripts/required-node-test-reporter.mts" ||
     file === "scripts/node-case-observations.mts" ||
+    file === "scripts/nextest-outcomes.mts" ||
     file === ".config/rust-test-impact.json" ||
     file === ".github/quality-tools.json" ||
     file === ".config/tool-bootstrap.json" ||

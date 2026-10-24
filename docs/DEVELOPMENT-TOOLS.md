@@ -811,6 +811,22 @@ The guard drains original output before checking its extra requirement, preserve
 primary native failures, and bounds inventory storage to 512 files and 16384 case
 instances. Invoke required platform families through their owning platform route.
 
+Selected Rust impact unions, the ordinary workspace runner and hosted Windows
+partitions join nextest's `libtest-json-plus` 0.1 terminal outcomes to their
+independent selected package/binary/test identities. Human stderr and original
+JSON remain visible. `Rust test case observation:` records retain outcome,
+duration and bounded failure details; `Rust test execution inventory:` records
+separate the selected listing, selected identities, executed cases, ignored
+classifications and missing results. Complete workspace discovery remains with
+the selecting caller. Ignored declarations have no measured case duration or
+available declaration text; start records and cumulative suite chunks do not
+count as executions. A successful native exit with missing, duplicate,
+contradictory or malformed results fails the join. An original failing status
+or process error remains primary. Native JSON is bounded to32MiB and selections
+to16,384 cases. Existing profiles, worker limits, deadlines, reservations and
+zero retries remain unchanged. Generic manual nextest commands retain their
+separate native reporting; these selected-caller records do not claim that route.
+
 The always-selected Node contract quartet retains decision and environment-isolation
 assertions. Its real child-timeout and subprocess-metrics fixtures run separately
 in `ci-baseline-execution.test.mts`: relevant baseline/metrics/runtime changes,
