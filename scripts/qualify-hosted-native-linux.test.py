@@ -66,6 +66,52 @@ class HostedReadiness(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(AssertionError):
                 scope["attachment_clear"](value)
 
+    def test_actual_collision_refusal_keeps_bounded_identity_without_clearing_unknown(self):
+        entry = PurePosixPath("/sys/kernel/security/apparmor/policy/profiles/controlled.7")
+        for attachment, condition in (("<unknown>", "observed"), ("", "missing-name"),
+                                      ("/usr/bin/bwrap", "expired"), ("@{variable}", "long-name")):
+            reads = []
+            def bounded(filename, maximum, condition=condition, attachment=attachment, reads=reads):
+                reads.append(str(filename))
+                name = PurePosixPath(filename).name
+                if name == "profiles":
+                    return b"controlled (enforce)\n"
+                if name == "attach":
+                    return attachment.encode()
+                if name == "name" and condition == "missing-name":
+                    raise FileNotFoundError("controlled missing metadata")
+                return ({"name": "x" * 4096 if condition == "long-name" else "controlled",
+                         "mode": "enforce", "sha256": "a" * 64}[name]).encode()
+            clock = Mock(side_effect=[10, 21, 21, 21]) if condition == "expired" else Mock(return_value=10)
+            scope = {"bounded": bounded, "time": SimpleNamespace(monotonic=clock),
+                     "deadline": 20, "result": {}, "os": SimpleNamespace(uname=lambda: SimpleNamespace(release="controlled")),
+                     "hashlib": hashlib, "json": json, "re": re, "fnmatch": fnmatch}
+            # Only the directory constructor is virtual; diagnostic child paths
+            # retain real Linux path semantics and never reach an OS provider.
+            class RootDirectory:
+                def iterdir(self):
+                    return [entry]
+                def __truediv__(self, name):
+                    return entry.parent / name
+            scope["Path"] = lambda value: RootDirectory() if str(value).endswith("/profiles") else PurePosixPath(value)
+            self.root_functions({"profile_state", "profile_refusal", "attachment_clear", "digest"}, scope)
+            with self.subTest(attachment=attachment, condition=condition), self.assertRaises(AssertionError):
+                scope["profile_state"](True)
+            record = scope["result"]["profile_refusal"]
+            self.assertEqual(record["entry"]["text"], "controlled.7")
+            self.assertEqual(record["attachment"]["text"], attachment)
+            self.assertLess(len(json.dumps(record).encode()), 16384)
+            if condition == "expired":
+                self.assertEqual(record["name"], {"error": "AssertionError"})
+                self.assertEqual(len(reads), 2)
+            elif condition == "missing-name":
+                self.assertEqual(record["name"], {"error": "FileNotFoundError"})
+                self.assertEqual(record["mode"]["text"], "enforce")
+            elif condition == "long-name":
+                self.assertTrue(record["name"]["truncated"])
+                self.assertEqual(record["name"]["utf8_bytes"], 4096)
+                self.assertEqual(len(record["name"]["text"]), 256)
+
     def test_actual_profile_setup_is_add_only_and_keeps_ambiguous_load_intent(self):
         pin = "11d39094f044f0cda0febb3ad517b830301da6b2ce929664af09ee9e4dd264f9"
         source = b"x" * 1936  # Controlled provider bytes; no real policy or root operation.

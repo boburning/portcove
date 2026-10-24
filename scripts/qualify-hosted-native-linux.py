@@ -167,6 +167,21 @@ def attachment_clear(pattern):
  for value in patterns:
   assert not any(char in value for char in ('[',']','\\','@','}')), 'unsupported kernel attachment'
   assert not fnmatch.fnmatchcase('/usr/bin/bwrap',value), 'existing bwrap attachment'
+def profile_refusal(entry,value,attachments,labels):
+ # Public kernel metadata only. Preserve the original refusal even when its
+ # optional diagnostic reads fail or the original deadline has elapsed.
+ def summary(text):
+  return {'text':text[:256],'utf8_bytes':len(text.encode()),'sha256':digest(text.encode()),'truncated':len(text)>256}
+ record={'entry':summary(entry.name),'attachment':summary(value),'kernel_release':os.uname().release[:256],
+         'attachments_sha256':digest(json.dumps(attachments,sort_keys=True).encode()),
+         'labels_sha256':digest(json.dumps(labels,sort_keys=True).encode())}
+ result['profile_refusal']=record
+ for field in ('name','mode','sha256'):
+  try:
+   assert time.monotonic()<deadline, 'original deadline expired'
+   record[field]=summary(bounded(entry/field,4096).decode().strip())
+  except Exception as error: record[field]={'error':type(error).__name__}
+
 def profile_state(check_collision=False):
  labels=bounded('/sys/kernel/security/apparmor/profiles',131072).decode().splitlines()
  assert len(labels)<=4096
@@ -178,7 +193,12 @@ def profile_state(check_collision=False):
   total+=len(entry.name.encode())+len(attachments[entry.name].encode()); assert total<=131072
  if check_collision:
   assert not any(re.search(r'(^|//|&)(bwrap|unpriv_bwrap)(?= |$|//|&)',line) for line in labels), 'existing profile label'
-  for value in attachments.values(): attachment_clear(value)
+  for name,value in attachments.items():
+   try: attachment_clear(value)
+   except AssertionError:
+    try: profile_refusal(Path('/sys/kernel/security/apparmor/policy/profiles')/name,value,attachments,labels)
+    except Exception as error: result['profile_refusal']={'observation_error':type(error).__name__}
+    raise
  return {'labels':labels,'attachments':attachments}
 def profile_summary(state):
  return {'sha256':digest(json.dumps(state,sort_keys=True).encode()),'labels':sorted(line for line in state['labels'] if re.search(r'(^|//|&)(bwrap|unpriv_bwrap)(?= |$|//|&)',line))}
