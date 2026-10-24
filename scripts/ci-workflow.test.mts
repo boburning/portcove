@@ -2962,6 +2962,8 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   ];
   const replacementDownloadFilter =
     "package(portcove-core) & test(/^service::catalog_download::tests::replacement_download_keeps_current_registration_until_reviewed_relink$/)";
+  const namedSaveRestoreFilter =
+    "package(portcove-core) & test(/^service::runtime_tests::named_save_restore_updates_every_version_and_preserves_import_policy$/)";
   const publicationFilters = [
     {
       filter:
@@ -2984,6 +2986,7 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
       ...windowsLifecycleFilters.map((filter) => ({ platform: "x86_64-pc-windows-msvc", filter })),
       ...publicationFilters,
       { platform: "x86_64-pc-windows-msvc", filter: replacementDownloadFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: namedSaveRestoreFilter },
     ]
       .map(outputIdentity)
       .sort(),
@@ -3020,15 +3023,17 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     for (const field of ["retries", "threads-required", "priority"])
       assert.equal(override[field], undefined);
   }
-  const replacementDownload = overrideFor(replacementDownloadFilter, "x86_64-pc-windows-msvc");
-  assert.equal(replacementDownload["success-output"], "immediate");
-  assert.deepEqual(replacementDownload["slow-timeout"], {
-    period: "5s",
-    "terminate-after": 18,
-    "grace-period": "0s",
-  });
-  for (const field of ["retries", "threads-required", "priority"])
-    assert.equal(replacementDownload[field], undefined);
+  for (const filter of [replacementDownloadFilter, namedSaveRestoreFilter]) {
+    const override = overrideFor(filter, "x86_64-pc-windows-msvc");
+    assert.equal(override["success-output"], "immediate");
+    assert.deepEqual(override["slow-timeout"], {
+      period: "5s",
+      "terminate-after": 18,
+      "grace-period": "0s",
+    });
+    for (const field of ["retries", "threads-required", "priority"])
+      assert.equal(override[field], undefined);
+  }
   for (const value of [profile, ...overrides]) {
     assert.ok(value.retries === undefined || value.retries === 0);
     assert.equal(value["on-timeout"], undefined);

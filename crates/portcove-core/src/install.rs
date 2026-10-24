@@ -835,6 +835,11 @@ impl Installer {
             )?;
         }
         let port = catalog.port(&request.port_id)?;
+        if request.activate && port.adapter == AdapterKind::PsxRecompManaged {
+            return Err(PortcoveError::unsupported(
+                "Managed PS1 installation requires player-data preflight before activation. Install inactive, then activate through Core; the previous installation is preserved.",
+            ));
+        }
         if crate::managed_runtime_policy::requires_provider_resolution(port) {
             request.qualification.acquisition.as_ref().ok_or_else(|| {
                 PortcoveError::verification("dynamic runtime policy requires an exact provider resolution before acquisition")
@@ -1439,6 +1444,18 @@ impl Installer {
     ) -> Result<VerificationReport> {
         let manifest = verified_manifest(install)?;
         let strict_staged = full_immutable_integrity(&manifest, install, staged_fallback)?;
+        let psx_metadata = manifest
+            .retained_contract
+            .as_ref()
+            .map(|contract| -> Result<bool> {
+                Ok(contract
+                    .catalog(&install.port_id)?
+                    .port(&install.port_id)?
+                    .adapter
+                    == AdapterKind::PsxRecompManaged)
+            })
+            .transpose()?
+            .unwrap_or(false);
         let staged_candidates = if strict_staged {
             Some(staged_install_files(&install.path)?)
         } else {
@@ -1477,6 +1494,7 @@ impl Installer {
             let relative = manifest_relative(&install.path, &candidate)?;
             if relative == ".portcove-manifest.json"
                 || relative == ".portcove-launched"
+                || (psx_metadata && crate::service::psx_data_metadata_name(&relative))
                 || generated_metadata.contains(&relative)
                 || manifest
                     .mutable_file_patterns
@@ -2582,6 +2600,18 @@ fn manifest_files(
 
     let mut files = Vec::new();
     let file_patterns = qualification.file_patterns(root, selected)?;
+    let psx_metadata = qualification
+        .retained_contract
+        .as_ref()
+        .map(|contract| -> Result<bool> {
+            Ok(contract
+                .catalog(contract.port_id())?
+                .port(contract.port_id())?
+                .adapter
+                == AdapterKind::PsxRecompManaged)
+        })
+        .transpose()?
+        .unwrap_or(false);
     for path in walk_files(root)? {
         let relative = manifest_relative(root, &path)?;
         let matched_file = file_patterns
@@ -2606,6 +2636,7 @@ fn manifest_files(
         }
         if path.file_name().and_then(|value| value.to_str()) == Some(".portcove-manifest.json")
             || path.file_name().and_then(|value| value.to_str()) == Some(".portcove-launched")
+            || (psx_metadata && crate::service::psx_data_metadata_name(&relative))
             || mutable_roots
                 .iter()
                 .any(|mutable| path == *mutable || path.starts_with(mutable))

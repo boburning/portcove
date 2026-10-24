@@ -767,6 +767,69 @@ mod tests {
         );
     }
     #[tokio::test]
+    async fn first_portable_play_preparation_preserves_edits_before_any_child_runs() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let service = build_service(library.clone(), provider);
+        let install = service
+            .install("portable-fixture", None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        fs::create_dir_all(library.user_dir("portable-fixture")).unwrap();
+        fs::write(
+            library.user_dir("portable-fixture").join("settings.ini"),
+            b"original settings",
+        )
+        .unwrap();
+        service
+            .restore_user_data_to(
+                service.catalog.port("portable-fixture").unwrap(),
+                &install.path,
+            )
+            .unwrap();
+        fs::write(
+            install.path.join("settings.ini"),
+            b"deliberate prelaunch settings",
+        )
+        .unwrap();
+        fs::create_dir_all(install.path.join("saves")).unwrap();
+        fs::write(
+            install.path.join("saves/before-play.sav"),
+            b"prelaunch data",
+        )
+        .unwrap();
+        let spec = service
+            .prepare_launch_for_install(
+                service.catalog.port("portable-fixture").unwrap(),
+                &install,
+                None,
+                None,
+            )
+            .unwrap();
+        assert_eq!(spec.executable, install.path.join("game.exe"));
+        assert_eq!(
+            fs::read(library.user_dir("portable-fixture").join("settings.ini")).unwrap(),
+            b"deliberate prelaunch settings"
+        );
+        assert_eq!(
+            fs::read(install.path.join("settings.ini")).unwrap(),
+            b"deliberate prelaunch settings"
+        );
+        assert_eq!(
+            fs::read(
+                library
+                    .user_dir("portable-fixture")
+                    .join("saves/before-play.sav")
+            )
+            .unwrap(),
+            b"prelaunch data"
+        );
+        assert!(!install.path.join(LAUNCH_MARKER).exists());
+    }
+
+    #[tokio::test]
     async fn portable_update_rebuild_staging_and_rollback_preserve_declared_data() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();

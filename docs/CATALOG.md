@@ -237,6 +237,46 @@ Separate safe selection of an artifact from qualification of that artifact and
 permission to install it. Keep pinned and user-managed limits explicit; a
 successful metadata check does not establish gameplay or authorize publication.
 
+## Managed PS1 package and player-data restoration
+
+`psx-recomp-managed` keeps its owned-disc/BIOS preparation and runtime generation.
+Official release discovery may replace changing direct manifests when the same
+reviewed package, executable and preparation rules apply. Native archives do not
+replace this richer integration. Platform commitments remain independently scoped.
+
+The upstream framework stages bundled mod packages into the same
+`mods/packages/<id>/<version>` tree used for player imports. For a retained
+contract declaring `mods`, Core preserves complete destination-only packages and
+adds complete absent versions through private, same-filesystem staging and atomic
+no-replace publication. An existing ID/version must have an identical complete
+tree; differing, missing or additional members, case/type conflicts and links hold
+the operation with exact paths. Preserve conflicting copies separately and resolve
+the reported conflict before retrying. Core does not identify which package was
+player-created, authenticate a modified mod, insert arbitrary unknown runtime
+files, rebase upstream selections or promise mod/save compatibility. Ordinary
+declared state retains its existing restore/deletion semantics. Runtime rollback
+carries current data, including selected mod versions; it does not rewind saves.
+
+PS1 installs publish inactive and run player-data preflight before activation.
+Older interrupted install journals use the same order; an already committed
+active version remains authoritative. Explicit backup restoration also preflights
+retained mod trees before publishing canonical data, including recovery replay.
+Failed copies preserve original sources and pre-existing destination packages;
+complete additions may already be present. Retrying recomputes from those copies.
+Interrupted private staging is retained in the existing owned staging namespace;
+this does not promise automatic reuse or cleanup of orphaned private copies.
+
+Before first Play, a historical runtime without proof of completed Core data
+restoration uses additive collection: canonical-only files stay, and differing
+common files hold for preservation review. A successful full restore records
+`.portcove-psx-data-restored.json` at the installation root, bound to the registered
+install and manifest. This lets subsequent collection preserve deliberate saves,
+settings and mod selections made before first Play. It is not a launch receipt or
+game-file/edition validation. Missing or stale proof never authorizes destructive
+collection; malformed or future proof holds rather than being overwritten. Only
+the exact PS1 metadata path and its defined atomic-write temporary names are
+excluded from package integrity checks. No undeclared `mods` path is adopted.
+
 ## Managed ReGaiden shared preferences
 
 The reviewed v0.4.1 Windows package uses the constrained

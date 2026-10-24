@@ -151,7 +151,12 @@ impl PortcoveService {
         } = self.observe_managed_launch_inputs(port, active, source_override, operation)?;
         let port = catalog.port(&active.port_id)?;
         let checkpoint = || operation.map_or(Ok(()), OperationCoordinator::checkpoint);
-        if active.path.join(LAUNCH_MARKER).is_file() {
+        if active.path.join(LAUNCH_MARKER).is_file()
+            || matches!(
+                port.adapter,
+                crate::AdapterKind::NativePortable | crate::AdapterKind::PsxRecompManaged
+            )
+        {
             self.collect_user_data_from(port, &active.path)?;
             checkpoint()?;
         }

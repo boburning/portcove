@@ -128,6 +128,38 @@ fn inspect(value: &Value) -> Result<DefinitionEntryInspection> {
 }
 
 #[test]
+fn psx_package_preserving_activation_requires_new_admission_floor_but_retains_v1() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog
+        .ports()
+        .iter()
+        .find(|port| port.adapter == crate::AdapterKind::PsxRecompManaged)
+        .unwrap();
+    let mut entry = entry_for_port(port);
+    assert!(
+        inspect(&entry)
+            .unwrap_err()
+            .message
+            .contains("capability version 2")
+    );
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    let retained = index(&bytes, &port.id)
+        .inspect_retained_entry("official", &port.id, &bytes)
+        .unwrap();
+    assert!(retained.capabilities().compatible);
+    assert_eq!(
+        serde_json::to_value(retained.port()).unwrap(),
+        entry["port"]
+    );
+    entry["required_capabilities"][0]["minimum_version"] = json!(2);
+    entry["required_capabilities"][0]["maximum_version"] = json!(2);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    entry["required_capabilities"][0]["minimum_version"] = json!(3);
+    entry["required_capabilities"][0]["maximum_version"] = json!(3);
+    assert!(!inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
 fn exact_bytes_and_existing_port_projection_survive_inspection() {
     let value = catalog_fixture();
     let stable_id = value["stable_id"].as_str().unwrap();
@@ -240,7 +272,9 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if port
+        let version = if port.adapter == crate::AdapterKind::PsxRecompManaged {
+            2
+        } else if port
             .release
             .user_prepared
             .values()

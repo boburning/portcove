@@ -7,6 +7,16 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# The focused local Windows run retained a 32.310s harness cutoff while this
+# two-install named-save fixture was preparing its runtime. Keep both real
+# installs, every data/import assertion, cleanup, two workers and zero retries;
+# allow finite lifecycle headroom without changing product or child deadlines.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::runtime_tests::named_save_restore_updates_every_version_and_preserves_import_policy$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
 # The portable lifecycle fixtures perform several durable installs, activations
 # and recovery reopens. The retained local Windows run hit 30.042s and 30.085s
 # harness cutoffs while another full case completed at 28.979s. Keep every

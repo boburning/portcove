@@ -380,3 +380,301 @@ async fn cached_package_selection_cannot_cross_adapter_package_contracts() {
         "native archive restrictions must be evaluated again"
     );
 }
+
+// Actual reviewed package names paired with controlled version-only successors.
+// v999.123.456 is fixture data, not an observed upstream release or game test.
+#[tokio::test]
+async fn unchanged_psx_rules_follow_successors_for_every_converted_platform_scope() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, platform, old_tag, old_name, new_name) in [
+        (
+            "alexbeav-ace-combat-3-electrosphere-recomp",
+            Platform::WindowsX86_64,
+            "v0.3.6",
+            "Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-windows-x64.zip",
+            "Ace-Combat-3-Electrosphere-Japan-Recomp-999.123.456-windows-x64.zip",
+        ),
+        (
+            "alexbeav-ace-combat-3-electrosphere-recomp",
+            Platform::LinuxX86_64,
+            "v0.3.6",
+            "Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-linux-x64.zip",
+            "Ace-Combat-3-Electrosphere-Japan-Recomp-999.123.456-linux-x64.zip",
+        ),
+        (
+            "alexbeav-alien-resurrection-recomp",
+            Platform::WindowsX86_64,
+            "v0.1.4",
+            "alien-resurrection-recomp-0.1.4-windows-x64.zip",
+            "alien-resurrection-recomp-999.123.456-windows-x64.zip",
+        ),
+        (
+            "alexbeav-alien-resurrection-recomp",
+            Platform::LinuxX86_64,
+            "v0.1.4",
+            "alien-resurrection-recomp-0.1.4-linux-x64.zip",
+            "alien-resurrection-recomp-999.123.456-linux-x64.zip",
+        ),
+        (
+            "alexbeav-alundra-recomp",
+            Platform::WindowsX86_64,
+            "v0.3.6",
+            "Alundra-Recomp-0.3.6-windows-x64.zip",
+            "Alundra-Recomp-999.123.456-windows-x64.zip",
+        ),
+        (
+            "alexbeav-ape-escape-recomp",
+            Platform::WindowsX86_64,
+            "v0.3.6",
+            "Ape-Escape-Recomp-0.3.6-windows-x64.zip",
+            "Ape-Escape-Recomp-999.123.456-windows-x64.zip",
+        ),
+        (
+            "alexbeav-armored-core-recomp",
+            Platform::WindowsX86_64,
+            "v0.3.6",
+            "Armored-Core-Recomp-0.3.6-windows-x64.zip",
+            "Armored-Core-Recomp-999.123.456-windows-x64.zip",
+        ),
+        (
+            "alexbeav-blood-omen-legacy-of-kain-recomp",
+            Platform::WindowsX86_64,
+            "v0.3.6",
+            "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+            "Blood-Omen-Legacy-of-Kain-Recomp-999.123.456-windows-x64.zip",
+        ),
+        (
+            "alexbeav-brave-fencer-musashi-recomp",
+            Platform::WindowsX86_64,
+            "v0.1.3",
+            "brave-fencer-musashi-recomp-0.1.3-windows-x64.zip",
+            "brave-fencer-musashi-recomp-999.123.456-windows-x64.zip",
+        ),
+        (
+            "alexbeav-brave-fencer-musashi-recomp",
+            Platform::LinuxX86_64,
+            "v0.1.3",
+            "brave-fencer-musashi-recomp-0.1.3-linux-x64.zip",
+            "brave-fencer-musashi-recomp-999.123.456-linux-x64.zip",
+        ),
+        (
+            "alexbeav-diablo-recomp",
+            Platform::WindowsX86_64,
+            "v0.1.4",
+            "diablo-recomp-0.1.4-windows-x64.zip",
+            "diablo-recomp-999.123.456-windows-x64.zip",
+        ),
+        (
+            "alexbeav-diablo-recomp",
+            Platform::LinuxX86_64,
+            "v0.1.4",
+            "diablo-recomp-0.1.4-linux-x64.zip",
+            "diablo-recomp-999.123.456-linux-x64.zip",
+        ),
+        (
+            "alexbeav-digimon-world-2003-recomp",
+            Platform::WindowsX86_64,
+            "v0.3.6",
+            "Digimon-World-2003-Recomp-0.3.6-windows-x64.zip",
+            "Digimon-World-2003-Recomp-999.123.456-windows-x64.zip",
+        ),
+        (
+            "alexbeav-dino-crisis-2-recomp",
+            Platform::WindowsX86_64,
+            "v0.1.1",
+            "dino-crisis-2-0.1.1-windows-x64.zip",
+            "dino-crisis-2-999.123.456-windows-x64.zip",
+        ),
+        (
+            "alexbeav-dino-crisis-2-recomp",
+            Platform::LinuxX86_64,
+            "v0.1.1",
+            "dino-crisis-2-0.1.1-linux-x64.zip",
+            "dino-crisis-2-999.123.456-linux-x64.zip",
+        ),
+        (
+            "alexbeav-dino-crisis-recomp",
+            Platform::WindowsX86_64,
+            "v0.1.1",
+            "dino-crisis-0.1.1-windows-x64.zip",
+            "dino-crisis-999.123.456-windows-x64.zip",
+        ),
+        (
+            "alexbeav-dino-crisis-recomp",
+            Platform::LinuxX86_64,
+            "v0.1.1",
+            "dino-crisis-0.1.1-linux-x64.zip",
+            "dino-crisis-999.123.456-linux-x64.zip",
+        ),
+        (
+            "alexbeav-driver-recomp",
+            Platform::WindowsX86_64,
+            "v0.3.6",
+            "Driver-Recomp-0.3.6-windows-x64.zip",
+            "Driver-Recomp-999.123.456-windows-x64.zip",
+        ),
+        (
+            "alexbeav-duke-nukem-land-of-the-babes-recomp",
+            Platform::WindowsX86_64,
+            "v0.3.6",
+            "Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-windows-x64.zip",
+            "Duke-Nukem-Land-of-the-Babes-Recomp-999.123.456-windows-x64.zip",
+        ),
+        (
+            "alexbeav-duke-nukem-time-to-kill-recomp",
+            Platform::WindowsX86_64,
+            "v0.3.6",
+            "Duke-Nukem-Time-to-Kill-Recomp-0.3.6-windows-x64.zip",
+            "Duke-Nukem-Time-to-Kill-Recomp-999.123.456-windows-x64.zip",
+        ),
+        (
+            "alexbeav-fade-to-black-recomp",
+            Platform::WindowsX86_64,
+            "v0.3.6",
+            "Fade-to-Black-Recomp-0.3.6-windows-x64.zip",
+            "Fade-to-Black-Recomp-999.123.456-windows-x64.zip",
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        assert_eq!(port.adapter, AdapterKind::PsxRecompManaged);
+        assert_eq!(port.release.provider, crate::ReleaseSource::Github);
+        let old = release(old_tag, vec![asset(old_name, Some('a'))]);
+        let new = release(
+            "v999.123.456",
+            vec![
+                asset(new_name, Some('b')),
+                asset(&new_name.replace("-x64.", "-arm64."), Some('c')),
+                asset(&format!("{new_name}.sha256"), None),
+            ],
+        );
+        let current = [new, old.clone()];
+        let (root, requests, server) = serve_http(vec![
+            metadata(),
+            releases(&[old]),
+            metadata(),
+            metadata(),
+            releases(&current),
+            metadata(),
+            releases(&current),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(root.clone()).unwrap();
+        let initial = provider
+            .resolve_scoped(port, ReleaseChannel::Stable, platform, None)
+            .await
+            .unwrap();
+        initial
+            .require_selection(port, platform, ReleaseChannel::Stable)
+            .unwrap();
+        assert_eq!(initial.release.asset.name, old_name, "{id}: {platform:?}");
+        let cached = provider
+            .resolve_scoped(port, ReleaseChannel::Stable, platform, None)
+            .await
+            .unwrap();
+        assert_eq!(cached.release.asset, initial.release.asset);
+        for entry in provider.cache.write().await.values_mut() {
+            entry.stored_at -= RELEASE_CACHE_TTL + Duration::from_secs(1);
+        }
+        let successor = provider
+            .resolve_scoped(port, ReleaseChannel::Stable, platform, None)
+            .await
+            .unwrap();
+        successor
+            .require_selection(port, platform, ReleaseChannel::Stable)
+            .unwrap();
+        assert_eq!(successor.release.version, "999.123.456");
+        assert_eq!(successor.release.asset.name, new_name, "{id}: {platform:?}");
+        assert_eq!(successor.release.asset.sha256, "b".repeat(64));
+        let fresh = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve_scoped(port, ReleaseChannel::Stable, platform, None)
+            .await
+            .unwrap();
+        fresh
+            .require_selection(port, platform, ReleaseChannel::Stable)
+            .unwrap();
+        assert_eq!(
+            fresh.release.asset, successor.release.asset,
+            "Fresh installation after N+1: {id}: {platform:?}"
+        );
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 7);
+    }
+}
+
+#[tokio::test]
+async fn psx_package_rules_refuse_variant_fallback_but_keep_owned_input_preparation_kits() {
+    let mut port = crate::Catalog::embedded()
+        .unwrap()
+        .port("revelations-persona-recompiled")
+        .unwrap()
+        .clone();
+    port.release.repository = "example/game".into();
+    port.release.asset_hints.insert(
+        Platform::WindowsX86_64,
+        vec!["Game-hd-".into(), "-windows-x64-owned-input.zip".into()],
+    );
+    for (names, code) in [
+        (
+            vec!["Game-standard-v2-windows-x64-owned-input.zip"],
+            crate::ErrorCode::NotFound,
+        ),
+        (
+            vec!["Game-hd-v2-windows-x64.zip"],
+            crate::ErrorCode::NotFound,
+        ),
+        (
+            vec!["Game-hd-v2-windows-arm64-owned-input.zip"],
+            crate::ErrorCode::NotFound,
+        ),
+        (
+            vec![
+                "Game-hd-one-v2-windows-x64-owned-input.zip",
+                "Game-hd-two-v2-windows-x64-owned-input.zip",
+            ],
+            crate::ErrorCode::Conflict,
+        ),
+    ] {
+        let (root, _, server) = serve_http(vec![
+            metadata(),
+            releases(&[release(
+                "v2",
+                names
+                    .into_iter()
+                    .map(|name| asset(name, Some('b')))
+                    .collect(),
+            )]),
+        ]);
+        let error = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert_eq!(error.code, code);
+    }
+    // A preparation kit can legitimately contain source. PSX keeps its own
+    // package contract rather than inheriting the native-player-only assessor.
+    let name = "Game-hd-source-v2-windows-x64-owned-input.zip";
+    let (root, _, server) = serve_http(vec![
+        metadata(),
+        releases(&[release("v2", vec![asset(name, Some('b'))])]),
+    ]);
+    let result = GithubReleaseProvider::with_api_root(root)
+        .unwrap()
+        .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+        .await
+        .unwrap();
+    server.join().unwrap();
+    assert_eq!(result.asset.name, name);
+    let (root, _, server) = serve_http(vec![
+        metadata(),
+        releases(&[release("v2", vec![asset(name, None)])]),
+    ]);
+    let error = GithubReleaseProvider::with_api_root(root)
+        .unwrap()
+        .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+        .await
+        .unwrap_err();
+    server.join().unwrap();
+    assert_eq!(error.code, crate::ErrorCode::Verification);
+}

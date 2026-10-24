@@ -209,6 +209,36 @@ pub(crate) fn recover_published_install(
                 ));
             }
         } else {
+            let already_active = service
+                .library
+                .status(&operation.port_id, install.channel)?
+                .active
+                .is_some_and(|active| active.id == install.id);
+            if operation.activate && !already_active {
+                let installer = Installer::new(service.library.clone())?;
+                match installer.retained_catalog(&install)? {
+                    Some(catalog)
+                        if catalog.port(&install.port_id)?.adapter
+                            == crate::AdapterKind::PsxRecompManaged =>
+                    {
+                        // Retain the old intent, but never replay its former
+                        // activate-before-restore ordering. A failed preflight
+                        // leaves the previous active and this staged copy intact.
+                        service.library.register_install(&install, false)?;
+                        service.prepare_recovered_psx_activation(&install)?;
+                    }
+                    None if service
+                        .catalog()
+                        .port(&install.port_id)
+                        .is_ok_and(|port| port.adapter == crate::AdapterKind::PsxRecompManaged) =>
+                    {
+                        return Err(PortcoveError::verification(
+                            "Interrupted PS1 activation has no retained player-data contract. Preserve both runtime copies and the journal; recover the missing contract before retrying.",
+                        ));
+                    }
+                    _ => {}
+                }
+            }
             service
                 .library
                 .register_install(&install, operation.activate)?;
@@ -401,6 +431,9 @@ pub(crate) fn recover_restore(
     let user_root = restore.user_root.clone();
     let previous = restore.previous_data.clone();
     if restore.phase == RestorePhase::ReadyToPublish {
+        if staged.exists() {
+            service.require_psx_restore_preflight(&operation.port_id, &staged)?;
+        }
         if restore.replaces_existing_data {
             match (staged.exists(), user_root.exists(), previous.exists()) {
                 (true, true, false) => {

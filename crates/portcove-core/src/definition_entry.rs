@@ -154,6 +154,16 @@ impl DefinitionContentIndex {
             return Err(crate::cartridge_build::retired_creation());
         }
         let adapter = serde_json::to_value(port.adapter)?;
+        if !retained
+            && port.adapter == crate::AdapterKind::PsxRecompManaged
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "psx-recomp-managed" && requirement.minimum_version >= 2
+            })
+        {
+            return Err(PortcoveError::verification(
+                "new managed PS1 entries require package-preserving activation capability version 2",
+            ));
+        }
         if port
             .release
             .user_prepared

@@ -146,7 +146,9 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = target(contract);
         let port = self.port;
         let port_id = &port.id;
-        let capability_version = if port
+        let capability_version = if port.adapter == crate::AdapterKind::PsxRecompManaged {
+            2
+        } else if port
             .release
             .user_prepared
             .values()

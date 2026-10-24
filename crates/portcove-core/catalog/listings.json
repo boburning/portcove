@@ -5983,8 +5983,10 @@
       "summary": "Explore MediEvil / MediEvilRecomp (BlackLabelHQ) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/BlackLabelHQ/MediEvilRecomp",
       "issue_number": 1844,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/BlackLabelHQ/MediEvilRecomp",
       "artwork": {
         "game_id": 4000,
@@ -5993,6 +5995,32 @@
         "image_sha256": "a592d900ce17c971b523af9b3996c552dcee9a1b4bcf723c6bbaa71e534cebc8",
         "game_slug": "medievil",
         "match_kind": "underlying-game"
+      },
+      "original_game_title": "MediEvil",
+      "release_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "MediEvilRecomp-",
+          "-windows-x64.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the Windows player",
+            "instruction": "Extract the official Windows x64 ZIP into a separate folder. The reviewed v0.2b package uses the .NET 10 runtime and OpenAL; follow upstream prerequisite instructions if either is missing. Choose medievil.exe in that folder when saving launch details. Registration does not start the game."
+          },
+          {
+            "title": "Choose your original disc in the game",
+            "instruction": "Choose Play when ready, then use MediEvil’s disc picker to select your own supported North American MediEvil CUE/BIN or CHD. The game validates the disc; Portcove does not supply original game files or run preparation tools during discovery."
+          },
+          {
+            "title": "Let the game provide updates",
+            "instruction": "MediEvilRecomp has an in-game updater that replaces its own runtime. Keep that upstream-owned route and a separate copy of your working folder before updating. Keep settings.json, interface layout, memory-card files and custom mods with that copy, and preserve the original disc separately. Portcove leaves the external files untouched and does not provide managed Update, Backup or Rollback."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/BlackLabelHQ/MediEvilRecomp"
       }
     },
     {
@@ -6073,9 +6101,37 @@
       "summary": "Explore Doom / PsyDoom (BodbDearg) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/BodbDearg/PsyDoom",
       "issue_number": 1873,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/BodbDearg/PsyDoom"
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/BodbDearg/PsyDoom",
+      "original_game_title": "Doom and Final Doom (PlayStation)",
+      "release_url": "https://github.com/BodbDearg/PsyDoom/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "PsyDoom_",
+          "_Windows_x86_64.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the Windows player",
+            "instruction": "Extract the official Windows x86_64 ZIP into a separate folder and choose PsyDoom.exe there when finishing setup. This upstream release has no independent publisher checksum, so the download remains unverified. The game is not started when you save launch details. Linux AppImages and the macOS application are separate upstream routes with their own platform instructions."
+          },
+          {
+            "title": "Select your PlayStation game disc",
+            "instruction": "Choose Play, then use PsyDoom’s launcher to select the CUE file for your own supported PlayStation Doom or Final Doom disc, keeping all referenced BIN files with it. Portcove does not supply the disc or run an installer for this portable ZIP."
+          },
+          {
+            "title": "Keep the profile when updating",
+            "instruction": "You or upstream own updates. Extract a new release separately and keep your working copy until it runs. PsyDoom normally stores saves, configuration and launcher preferences in its per-user data folder; configuration files beside the player can override their normal location. Back up the profile and any local configuration you actually use separately. Portcove registration does not manage or back up those files, and runtime rollback does not establish save compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/BodbDearg/PsyDoom"
+      }
     },
     {
       "id": "body-harvest-recompiled",
@@ -7387,8 +7443,8 @@
       "project_url": "https://github.com/OpenDriver2/REDRIVER2",
       "issue_number": 317,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/OpenDriver2/REDRIVER2",
+      "availability": "packages",
+      "setup_url": "https://github.com/OpenDriver2/REDRIVER2/wiki/Installation-instructions",
       "artwork": {
         "game_id": 6391,
         "cover_id": 364339,
@@ -7396,6 +7452,26 @@
         "image_sha256": "188dd97ae742e78c8c47e7a2e0c7921a5b7047a83245f307fb4b3a0b19eea00e",
         "game_slug": "driver-2-back-on-the-streets",
         "match_kind": "underlying-game"
+      },
+      "original_game_title": "Driver 2",
+      "release_url": "https://github.com/OpenDriver2/REDRIVER2/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the upstream setup for your platform",
+            "instruction": "The reviewed Windows release is a 32-bit Windows ZIP. Extract the Release package into a separate folder, then follow the linked official installation instructions. For the upstream launcher route, place OpenDriver2’s Launcher in that folder, install its Java prerequisite, and deliberately run its Setup wizard. Linux has separate SDL2/OpenAL and Java requirements and its own conversion script. Portcove does not run these tools automatically."
+          },
+          {
+            "title": "Provide both of your Driver 2 discs",
+            "instruction": "The upstream setup needs both original Driver 2 discs from a supported English PAL or NTSC edition. Its wizard selects CD1 and CD2 and prepares the game data. The documented manual alternative uses install/Driver2CD1.bin, install/Driver2CD2.bin, the config.ini cdfs setting and the platform conversion script. Complete that specific upstream process before choosing REDRIVER2.exe or the Linux player in Portcove."
+          },
+          {
+            "title": "Register the prepared player and keep your copy",
+            "instruction": "Save the prepared game executable with its game folder as the working directory, then choose Play separately. You or upstream provide runtime updates and own the converted data, local configuration and saves. Prepare replacements in another folder and keep the current tree and both disc images recoverable. Portcove leaves external files untouched and does not promise managed Update, Backup or Rollback."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/OpenDriver2/REDRIVER2/wiki/Installation-instructions"
       }
     },
     {

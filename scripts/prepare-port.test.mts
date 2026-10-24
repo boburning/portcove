@@ -763,6 +763,9 @@ void test("preparation resolves related downloads from stable ID and canonical i
   for (const route of [
     "id",
     "issue",
+    "release-feed",
+    "release-feed-trailing-slash",
+    "tag-named-releases",
     "managed",
     "managed-no-listing-release",
     "managed-gitlab",
@@ -777,6 +780,12 @@ void test("preparation resolves related downloads from stable ID and canonical i
       )!;
       delete record.listing.artwork;
       record.listing.release_url = "https://github.com/example/helper/releases/tag/unselected";
+      if (route === "release-feed")
+        record.listing.release_url = "https://github.com/example/helper/releases";
+      if (route === "release-feed-trailing-slash")
+        record.listing.release_url = "https://github.com/example/helper/releases/";
+      if (route === "tag-named-releases")
+        record.listing.release_url = "https://github.com/example/helper/releases/tag/releases";
       if (route === "managed-no-listing-release") delete record.listing.release_url;
       if (record.integration)
         record.integration.release = {
@@ -848,11 +857,14 @@ void test("preparation resolves related downloads from stable ID and canonical i
       const proposal = changedRecord
         ? (JSON.parse(readFileSync(changedRecord.path, "utf8")) as AuthoredPort)
         : record;
-      assert.equal(Boolean(changedRecord), !route.startsWith("managed"));
+      assert.equal(
+        Boolean(changedRecord),
+        !route.startsWith("managed") && !route.startsWith("release-feed"),
+      );
       assert.equal(proposal.listing.project_url, record.listing.project_url);
       assert.equal(
         proposal.listing.release_url,
-        route.startsWith("managed")
+        route.startsWith("managed") || route.startsWith("release-feed")
           ? record.listing.release_url
           : `https://github.com/${releaseRepository}/releases/tag/chosen`,
       );

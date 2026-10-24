@@ -35,6 +35,10 @@ impl EngineTemplateCapability {
             contract_version: 3,
         });
         supported.push(Self {
+            template: AdapterKind::PsxRecompManaged,
+            contract_version: 2,
+        });
+        supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 2,
         });
@@ -299,6 +303,33 @@ mod tests {
             .map(|entry| (entry.template, entry.contract_version))
             .collect();
         assert_eq!(pairs.len(), EngineTemplateCapability::current().len());
+    }
+
+    #[test]
+    fn psx_preservation_v2_is_advertised_without_retiring_historical_v1() {
+        for (minimum, maximum, compatible, selected) in [
+            (1, 1, true, 1),
+            (2, 2, true, 2),
+            (1, 2, true, 2),
+            (3, 3, false, 2),
+        ] {
+            let report =
+                check_definition_capabilities(&request("psx-recomp-managed", minimum, maximum))
+                    .unwrap();
+            assert_eq!(report.compatible, compatible);
+            assert_eq!(report.checks[0].installed_version, Some(selected));
+        }
+        let old: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::PsxRecompManaged || entry.contract_version == 1
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("psx-recomp-managed", 2, 2), &old)
+                .unwrap()
+                .compatible
+        );
     }
 
     #[test]

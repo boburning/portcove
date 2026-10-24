@@ -6,8 +6,31 @@
     "summary": "Explore Doom / PsyDoom (BodbDearg) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/BodbDearg/PsyDoom",
     "issue_number": 1873,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/BodbDearg/PsyDoom"
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/BodbDearg/PsyDoom",
+    "original_game_title": "Doom and Final Doom (PlayStation)",
+    "release_url": "https://github.com/BodbDearg/PsyDoom/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["PsyDoom_", "_Windows_x86_64.zip"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the Windows player",
+          "instruction": "Extract the official Windows x86_64 ZIP into a separate folder and choose PsyDoom.exe there when finishing setup. This upstream release has no independent publisher checksum, so the download remains unverified. The game is not started when you save launch details. Linux AppImages and the macOS application are separate upstream routes with their own platform instructions."
+        },
+        {
+          "title": "Select your PlayStation game disc",
+          "instruction": "Choose Play, then use PsyDoom’s launcher to select the CUE file for your own supported PlayStation Doom or Final Doom disc, keeping all referenced BIN files with it. Portcove does not supply the disc or run an installer for this portable ZIP."
+        },
+        {
+          "title": "Keep the profile when updating",
+          "instruction": "You or upstream own updates. Extract a new release separately and keep your working copy until it runs. PsyDoom normally stores saves, configuration and launcher preferences in its per-user data folder; configuration files beside the player can override their normal location. Back up the profile and any local configuration you actually use separately. Portcove registration does not manage or back up those files, and runtime rollback does not establish save compatibility."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/BodbDearg/PsyDoom"
+    }
   }
 }

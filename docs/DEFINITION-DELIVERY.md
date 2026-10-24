@@ -10,7 +10,7 @@ upstreams, and #246 owns the protected publication and unchanged-client proof.
 ## Implemented engine capability negotiation
 
 Core advertises each installed `AdapterKind` template with contract version 1.
-The public inventory additionally advertises N64 portable versions 2 and 3 and
+The public inventory additionally advertises managed PS1 version 2, N64 portable versions 2 and 3 and
 staged-source portable versions 2–5, 8, 10–12 and 15–21. Staged-source creation
 versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
@@ -22,6 +22,16 @@ including the retired CVLoD recipe associated with the still-advertised N64
 portable version 3 and staged-source version 11 path capability. Advertising those
 versions does not restore CVLoD source creation or authorize compilers or scripts.
 Shared path capabilities remain available to their other consumers.
+
+Managed PS1 version 2 stages a replacement before activation and preserves complete
+declared `mods/packages/<id>/<version>` packages beside successor defaults. New
+indexed PS1 entries require minimum version 2. Retained version-1 entries stay
+readable and receive the current conservative restoration safety checks; their
+definitions are not rewritten. This admission floor does not fence older programs
+reading unscoped legacy manifests. A bounded, install/manifest-bound Core receipt
+records completed data restoration before first Play; it establishes no launch,
+game-file, mod, publisher or gameplay qualification. See the
+[PS1 data boundary](CATALOG.md#managed-ps1-package-and-player-data-restoration).
 
 The N64 portable template also advertises version 2, which implements the
 catalog-declared fresh Windows D3D12 default. Inventory identities are unique

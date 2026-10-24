@@ -1087,6 +1087,7 @@ impl PortcoveService {
             let mut stats = BackupStats::default();
             copy_backup_tree(&source_data, &staged_data, &source_data, &mut stats)?;
             verify_backup_stats(&restored_backup, stats)?;
+            self.preflight_psx_mod_restores(port_id, &staged_data)?;
 
             let safety_backup = if user_root.exists() {
                 match self.create_backup_locked(port_id) {
@@ -1102,6 +1103,7 @@ impl PortcoveService {
             restore.advance(RestorePhase::ReadyToPublish, &mut lifecycle, &store)?;
             self.faults.check(LifecycleFaultPoint::RestorePrepared)?;
             restore = self.validate_restore_operation(&lifecycle)?;
+            self.preflight_psx_mod_restores(port_id, &staged_data)?;
             if restore.replaces_existing_data {
                 fs::rename(&user_root, &previous_data)?;
             }
