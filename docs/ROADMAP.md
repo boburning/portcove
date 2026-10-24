@@ -46,6 +46,52 @@ classification conflicts. Parentage, related links, display labels and queue
 predecessors never manufacture blockers. Closed-child counts are child
 completion, not effort estimates or proof of integrated delivery.
 
+## Player benefits and product direction
+
+Portcove should earn preference by reducing the work between finding a port and
+playing it, then preserving a useful setup as the port changes. Compare these
+outcomes with an exact contemporary Quiver release; feature names, catalog counts
+and internal architecture alone do not establish an advantage.
+
+- **Reach first play with fewer repeated decisions.** Consume completed
+  [connected-folder discovery #244](https://github.com/boburning/portcove/issues/244)
+  and [broad catalog/self-service setup #2404](https://github.com/boburning/portcove/issues/2404).
+  [Unified installation #2494](https://github.com/boburning/portcove/issues/2494)
+  recommends the best supported package, destination and preparation route,
+  reuses recognized originals where applicable, and offers meaningful alternatives
+  in context. Players should not need to select a backend management category.
+- **Keep a working setup through change.** #2494 extends the existing managed
+  lifecycle to eligible portable runtimes while preserving deeper integrations.
+  Upstream setup can prepare a game whose runtime Portcove later updates;
+  external registrations retain their external replacement owner.
+  Declared player data, staged activation, retained versions and honest recovery
+  limits remain part of the experience. [Real-save restoration #48](https://github.com/boburning/portcove/issues/48)
+  proves its representative backup/restore contracts through actual game loading;
+  [actionable recovery #2225](https://github.com/boburning/portcove/issues/2225)
+  explains the next supported step.
+- **Remember useful choices.** [Reconciliation and intent #965](https://github.com/boburning/portcove/issues/965)
+  builds on connected folders so later file, catalog and prerequisite changes
+  do not require repeated selection. Remembering a choice is separate from
+  [opt-in standing setup #966](https://github.com/boburning/portcove/issues/966).
+- **Make the breadth usable and deliver the benefit.** Useful catalog availability
+  does not wait for deep integration or optional gameplay qualification.
+  [Compatible definition delivery #246](https://github.com/boburning/portcove/issues/246),
+  [public application updates #52](https://github.com/boburning/portcove/issues/52)
+  and their existing protected delivery owners bring accepted work to players.
+  [Packaged Desktop journeys #47](https://github.com/boburning/portcove/issues/47)
+  establish the claimed experience on actual packages.
+
+The bounded [comparison protocol #1042](https://github.com/boburning/portcove/issues/1042)
+records task completion, active effort, manual file operations, outside instructions,
+preservation and recovery, with exact builds and unknowns. It does not create an
+all-port qualification campaign or delay product delivery. Voluntary observations
+remain [#255](https://github.com/boburning/portcove/issues/255).
+
+[Reviewed library adoption #249](https://github.com/boburning/portcove/issues/249),
+Steam convenience and recoverable profiles extend this direction through their
+existing owners and release commitments. These benefits do not change the platform or release commitments
+below. Priority, Horizon, status and queue order remain solely in the Project.
+
 ## Initial Public beta
 
 The initial supported-platform promise is **Windows and ordinary Linux x86-64**,
@@ -427,8 +473,9 @@ integration, cold/warm/failure/interruption evidence and unchanged native comman
   [standing setup #966](https://github.com/boburning/portcove/issues/966) follow
   independently closable #244.
 - [First-family profiles #250](https://github.com/boburning/portcove/issues/250)
-  and [retained builds #1456](https://github.com/boburning/portcove/issues/1456)
-  are Planned 1.0 after initial beta. Later loaders/sharing and
+  are Planned 1.0 after initial beta and consume the completed
+  [retained-build foundation #1456](https://github.com/boburning/portcove/issues/1456).
+  Later loaders/sharing and
   [GameBanana **and** Thunderstore #262](https://github.com/boburning/portcove/issues/262)
   do not block that first local-package outcome.
 - [Historical releases #40](https://github.com/boburning/portcove/issues/40),
