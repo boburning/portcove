@@ -1063,7 +1063,7 @@ function RequirementsGroup({
           <Icon className="text-[var(--color-interactive-text)]" glyph={ChevronDown} />
         </summary>
         <div className={`requirements-body grid gap-4 ${disclosureBodyStyle}`}>
-          {authoredSetup && <AuthoredPreparationGuidance port={port} />}
+          {authoredSetup && <AuthoredPreparationGuidance port={port} ownership="managed" />}
           {(!authoredSetup || Boolean(port.presentation?.source_requirements.length)) && (
             <RequirementsSummary port={port} />
           )}

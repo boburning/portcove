@@ -67,8 +67,18 @@ export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
   );
 }
 
-export function AuthoredPreparationGuidance({ port }: { port: CatalogEntry }) {
+export function AuthoredPreparationGuidance({
+  port,
+  ownership = "external",
+}: {
+  port: CatalogEntry;
+  ownership?: "managed" | "external";
+}) {
   const guide = port.presentation?.manual_setup;
+  // A portable definition also offers external registration. Its managed-data
+  // instructions cannot grant ownership of that external copy.
+  const externalPortable = port.adapter === "native-portable" && ownership === "external";
+  const steps = externalPortable ? guide?.steps.slice(0, 1) : guide?.steps;
   return (
     <>
       {guide ? (
@@ -87,7 +97,7 @@ export function AuthoredPreparationGuidance({ port }: { port: CatalogEntry }) {
             </aside>
           )}
           <ol className="grid min-w-0 list-decimal gap-4 pl-5 wrap-anywhere marker:font-semibold">
-            {guide.steps.map((step, index) => (
+            {steps?.map((step, index) => (
               <li key={`${index}:${step.title}`} className="pl-1">
                 <h4 className="font-semibold">{step.title}</h4>
                 <p>{step.instruction}</p>
@@ -97,7 +107,7 @@ export function AuthoredPreparationGuidance({ port }: { port: CatalogEntry }) {
           {guide.help_url && (
             <ExternalLink href={guide.help_url}>Detailed preparation guide</ExternalLink>
           )}
-          {port.presentation?.manual_preparation && (
+          {port.presentation?.manual_preparation && !externalPortable && (
             <details className="text-xs">
               <summary data-focusable className="cursor-pointer font-medium">
                 Compatibility and technical notes
@@ -106,6 +116,8 @@ export function AuthoredPreparationGuidance({ port }: { port: CatalogEntry }) {
             </details>
           )}
         </>
+      ) : externalPortable && port.project_url ? (
+        <ExternalLink href={port.project_url}>Upstream setup instructions</ExternalLink>
       ) : port.presentation?.manual_preparation ? (
         <p>{port.presentation.manual_preparation}</p>
       ) : null}

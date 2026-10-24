@@ -6,7 +6,8 @@ import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { pickInstallFolder, pickHostToolExecutable } from "../file-picker";
 import { failureReport, portDefinition, portStatus } from "../test-fixtures";
-import type { ExternalRuntimeRecord, PortListingStatus } from "../types";
+import type { ExternalRuntimeRecord, PortDefinition, PortListingStatus } from "../types";
+import catalog from "../../../../crates/portcove-core/catalog/catalog.json";
 import { ExternalRuntimeControl, UserSelectedRuntimeControl } from "./ExternalRuntime";
 import { catalogEntries } from "../features/browsing/catalog-entry";
 import { ActionReviewFailure } from "./ActionReviewFailure";
@@ -659,6 +660,65 @@ it("shows authored steps and essential warnings while preserving detailed notes 
   expect(open).toHaveBeenCalledExactlyOnceWith("https://example.com/guide");
   expect(register).not.toHaveBeenCalled();
   expect(pickInstallFolder).not.toHaveBeenCalled();
+});
+
+it("keeps managed-copy promises out of the portable external-registration guide", async () => {
+  const guided: PortDefinition = {
+    ...port,
+    adapter: "native-portable",
+    presentation: {
+      ...port.presentation,
+      manual_preparation: "Portcove replaces and backs up the managed copy.",
+      manual_setup: {
+        steps: [
+          {
+            title: "Choose original files",
+            instruction: "The game asks for your original files on first Play.",
+          },
+          {
+            title: "Managed data",
+            instruction: "Portcove carries declared managed data into updates.",
+          },
+        ],
+        warnings: [],
+        help_url: "https://example.com/setup",
+      },
+    },
+  };
+  const register = vi.spyOn(desktopApi, "registerUserSelectedRuntime");
+  await root.rerender(
+    <UserSelectedRuntimeControl port={guided} status={portStatus()} generation={9} busy={false} />,
+  );
+  expect(host.textContent).toContain("The game asks for your original files on first Play.");
+  expect(host.textContent).toContain("You or upstream provide runtime updates.");
+  expect(host.textContent).not.toContain("Portcove replaces and backs up");
+  expect(host.textContent).not.toContain("Portcove carries declared managed data");
+  expect(register).not.toHaveBeenCalled();
+});
+
+it.each([
+  [
+    "colin-mcrae-rally-2-opencmr2",
+    "The supported original files can stay in their existing folder.",
+  ],
+  [
+    "alistert-openjazz",
+    "For external registration, use Change launch details to add game-data as a launch argument",
+  ],
+])("keeps the authored %s external setup handoff actionable", async (id, instruction) => {
+  const authored = catalog.ports.find((candidate) => candidate.id === id) as PortDefinition;
+  expect(authored).toBeDefined();
+  await root.rerender(
+    <UserSelectedRuntimeControl
+      port={authored}
+      status={portStatus()}
+      generation={9}
+      busy={false}
+    />,
+  );
+  expect(document.body.textContent).toContain(instruction);
+  expect(document.body.textContent).not.toContain("is carried between compatible versions");
+  expect(document.body.textContent).not.toContain("Portcove retains");
 });
 
 it("reviews an exact player-owned folder before registering it", async () => {

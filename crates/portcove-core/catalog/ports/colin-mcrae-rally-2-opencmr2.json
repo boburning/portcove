@@ -21,7 +21,7 @@
       "steps": [
         {
           "title": "Supply your original game files on first launch",
-          "instruction": "Select your installed original Colin McRae Rally 2.0 game folder when OpenCMR2 asks on first launch. The supported original files can stay outside the managed runtime. An optional Data folder beside the executable is carried between compatible versions."
+          "instruction": "Select your installed original Colin McRae Rally 2.0 game folder when OpenCMR2 asks on first launch. The supported original files can stay in their existing folder."
         },
         {
           "title": "Keep your progress and choose when to update",
