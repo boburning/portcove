@@ -667,6 +667,7 @@ function classifyPath(file: string): PathOwnership {
         file.startsWith("apps/desktop/src/") ||
         [
           "scripts/browser-traces.ts",
+          "scripts/frontend-case-observations.ts",
           "scripts/viteplus-cli.mts",
           "scripts/frontend-tests.ts",
           "scripts/run-ui-tests.mts",
@@ -882,6 +883,7 @@ function classifyAuditPath(file: string): PathOwnership {
     file.startsWith("apps/desktop/src/") ||
       [
         "scripts/browser-traces.ts",
+        "scripts/frontend-case-observations.ts",
         "scripts/viteplus-cli.mts",
         "scripts/frontend-tests.ts",
         "scripts/run-ui-tests.mts",
