@@ -13,6 +13,7 @@ import {
   type HealthOptions,
 } from "./check-catalog-repositories.mts";
 import { healthCatalogPortHash } from "./upstream-health-inputs.mts";
+import { classifyHealthConditions, conditionEvidence, observedSpan } from "./upstream-health-triage.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { withCheckpointLock } from "./observe-configured-upstream.mts";
@@ -554,15 +555,9 @@ function cell(value: string | number | boolean | null | undefined): string {
 
 export function renderHealthMonitorSummary(report: MonitorReport): string {
   const { collection, inventory, batch } = report;
-  const routine = report.known_conditions.filter(
-    (incident) =>
-      incident.accounted_for &&
-      !incident.changed_in_this_run &&
-      String(incident.classification).startsWith("provider-reported-"),
-  );
-  const incidents = report.known_conditions.filter((incident) => !routine.includes(incident));
-  const changed = incidents.filter((incident) => incident.changed_in_this_run);
-  const continuing = incidents.filter((incident) => !incident.changed_in_this_run);
+  const triage = classifyHealthConditions(report.known_conditions);
+  const { routine, ordered: incidents, changed, continuing } = triage;
+
   const lines = [
     "## Upstream health observation",
     "",
@@ -574,6 +569,13 @@ export function renderHealthMonitorSummary(report: MonitorReport): string {
     "",
     `Requests: ${collection.consumed.requests}/${collection.request_plan.conservative_requests} planned; hard ceiling ${collection.request_plan.hard_ceiling}. Observation records: ${collection.request_plan.observation_records}/${collection.request_plan.observation_ceiling}. ${report.previous_checkpoint}.`,
   ];
+  if (incidents.length)
+    lines.push(
+      "",
+      `Exception visibility: ${triage.stale} stale, ${triage.partial} with partial collection, and ${triage.retained} not observed in this run among ${incidents.length} displayed conditions (categories overlap).`,
+      "First/last clocks and occurrence counts reflect separate observations, not continuous downtime, trusted bytes, or an authorization to change an installation hold.",
+    );
+
   if (routine.length)
     lines.push(
       "",
@@ -582,20 +584,28 @@ export function renderHealthMonitorSummary(report: MonitorReport): string {
   if (incidents.length) {
     lines.push(
       "",
-      "| Port / location | Condition | Incident | Observation | Next action |",
+      "| Port / observed source | Failed rule / assessment | Recurrence | Evidence state | Recovery or follow-up |",
       "| --- | --- | --- | --- | --- |",
     );
-    for (const incident of [...changed, ...continuing].slice(0, 20)) {
-      lines.push(
-        `| ${cell(incident.port_id)} / ${cell(incident.location)} | ${cell(incident.rule)} (${cell(incident.http_status)}); ${incident.accounted_for ? "acknowledged" : "actionable"} | ${incident.changed_in_this_run ? "New or changed" : "Continuing"}; first ${cell(incident.first_seen)} | ${incident.observed_this_run ? "This run" : "Retained history"}; ${cell(incident.freshness)} | ${cell(incident.resume_condition)} |`,
-      );
+    for (const incident of incidents.slice(0, 20)) {
+      const scope = `${cell(incident.port_id)} / ${cell(incident.provider)}:${cell(incident.location)}${incident.release_ref === null ? "" : ` @${cell(incident.release_ref)}`}`;
+      const assessment = `${cell(incident.rule)} (HTTP ${cell(incident.http_status)}); ${cell(incident.classification)}; ${incident.accounted_for ? "accounted metadata" : "unaccounted"}`;
+      const recurrence = `first ${cell(incident.first_seen)}; ${cell(incident.occurrences)} observation(s); ${cell(observedSpan(incident))} observed span`;
+      const evidence = `${incident.changed_in_this_run ? "New/changed" : "Continuing"}; ${cell(conditionEvidence(incident))}; last ${cell(incident.observed_at)}`;
+      const next = `${cell(incident.resume_condition)}${incident.retry_at ? `; retry after ${cell(incident.retry_at)}` : ""}`;
+      lines.push(`| ${scope} | ${assessment} | ${recurrence} | ${evidence} | ${next} |`);
     }
     if (incidents.length > 20)
       lines.push(
         "",
         `${incidents.length - 20} additional conditions are retained in the JSON report.`,
       );
+    lines.push(
+      "",
+      "Platforms/variants, usable fallbacks, accepted bytes and operational holds are unassessed by this location-only monitor. Follow Core policy and accepted artifact evidence before taking action.",
+    );
   }
+
   if (batch.oversized_port_ids.length)
     lines.push(
       "",
