@@ -431,6 +431,8 @@ it("shows Core's refusal and does not turn observed assets into download permiss
 });
 
 it("keeps the listing download selection through all four production detail tabs", async () => {
+  const initial = deferred<CatalogDownloadCandidates>();
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockReturnValueOnce(initial.promise);
   await root.rerender(
     <ListingDetailPanel
       entry={entry}
@@ -441,7 +443,15 @@ it("keeps the listing download selection through all four production detail tabs
       close={vi.fn()}
     />,
   );
+  await vi.waitFor(() => expect(desktopApi.catalogDownloadCandidates).toHaveBeenCalledTimes(1));
+  await expect
+    .element(page.getByRole("button", { name: "Checking upstream downloads…", exact: true }))
+    .toBeDisabled();
   await click("Set up game");
+  await expect
+    .element(page.getByRole("region", { name: "Set up and launch", exact: true }))
+    .toHaveFocus();
+  await act(async () => initial.resolve(candidates));
   await vi.waitFor(() =>
     expect(desktopApi.catalogDownloadCandidates).toHaveBeenCalledExactlyOnceWith(
       entry.id,
@@ -463,6 +473,12 @@ it("keeps the listing download selection through all four production detail tabs
   await expect.element(page.getByText(listing.summary, { exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "Files", exact: true }).click();
   await click("Review download");
+  expect(desktopApi.catalogDownloadCandidates).toHaveBeenCalledExactlyOnceWith(
+    entry.id,
+    9,
+    undefined,
+    "stable",
+  );
   expect(desktopApi.previewCatalogDownload).toHaveBeenCalledExactlyOnceWith(selection, 9);
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
 });
