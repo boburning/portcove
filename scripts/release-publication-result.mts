@@ -249,11 +249,20 @@ export async function prepareOwnedPublicationResult(
       facts_sha256: context.manifest.facts_sha256,
       binding: context.manifest.binding,
     },
-    native: native.map((report) => ({
-      platform: report.platform_label,
-      id: report.check.id,
-      sha256: report.check.report_sha256,
-    })),
+    native: native.map((report) =>
+      report.hosted_job
+        ? {
+            platform: report.platform_label,
+            transport: "fixed-hosted-job",
+            hosted_job: report.hosted_job,
+            report_sha256: report.hosted_job.report_sha256,
+          }
+        : {
+            platform: report.platform_label,
+            id: report.check.id,
+            sha256: report.check.report_sha256,
+          },
+    ),
     producer_sbom_sha256: sbom.sha256,
     candidate: Object.fromEntries(
       [

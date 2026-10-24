@@ -22,6 +22,7 @@ import {
 import { inspectMetadataSigningBinding } from "./release-metadata-signing-contract.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
+import { inspectHostedNativeTransportIdentities } from "./release-hosted-native-proof-contract.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
@@ -217,8 +218,12 @@ export function inspectSigningContextArchive(raw: Buffer) {
   else {
     exact(
       manifest.binding,
-      "aggregate_sha256,native_checks,pending_obligations,records_sha256,run_attempt,run_id,sbom_sha256,signatures_sha256,source_commit,source_tree,version",
+      isRecord(manifest.binding) && Object.hasOwn(manifest.binding, "native_proofs")
+        ? "aggregate_sha256,native_proofs,pending_obligations,records_sha256,run_attempt,run_id,sbom_sha256,signatures_sha256,source_commit,source_tree,version"
+        : "aggregate_sha256,native_checks,pending_obligations,records_sha256,run_attempt,run_id,sbom_sha256,signatures_sha256,source_commit,source_tree,version",
     );
+    if (Object.hasOwn(manifest.binding, "native_proofs"))
+      inspectHostedNativeTransportIdentities(manifest.binding.native_proofs);
     for (const name of ["aggregate_sha256", "records_sha256", "sbom_sha256", "signatures_sha256"])
       sha(manifest.binding[name]);
   }

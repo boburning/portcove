@@ -314,7 +314,7 @@ export async function requireNativeReleaseQualificationPair(
   const reports = [];
   for (const receipt of captured) reports.push(await verifiedNativeReleaseQualification(receipt));
   await inspectNativeQualificationAssociation(
-    reports.map(({ check: _check, evidence_ids: _ids, ...base }) => base),
+    reports.map(({ check: _check, hosted_job: _hosted, evidence_ids: _ids, ...base }) => base),
     assembly,
     archives,
     stage,

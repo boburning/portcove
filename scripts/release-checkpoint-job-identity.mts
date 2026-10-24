@@ -11,6 +11,8 @@ import {
 } from "./assembler-job-identity.mts";
 import type { CapacityExecutorRole } from "./assembler-job-identity.mts";
 import { isRecord } from "./runtime-values.mts";
+import { spawnSync } from "node:child_process";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 
 const repository = "boburning/portcove";
 const repositoryId = 1354613114;
@@ -130,7 +132,13 @@ function verifyHistoricalFixedJob<
     new GitHubApiClient((args, body) =>
       createGitHubRunner({
         cwd: transport.cwd,
-        ...(transport.spawn ? { spawn: transport.spawn } : {}),
+        spawn:
+          transport.spawn ??
+          ((command, args, settings) =>
+            spawnSync(command, args, {
+              ...settings,
+              env: readOnlyReleaseChildEnvironment() ?? process.env,
+            })),
         maxBuffer: 2 * 1024 * 1024,
         timeoutMs: remaining(),
       })([...args, "--hostname", "github.com"], body),

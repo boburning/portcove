@@ -10,6 +10,8 @@ import { performance } from "node:perf_hooks";
 import childProcess from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
+import { hostedNativeProofFixture } from "./fixtures/hosted-native-proof-fixture.mts";
+import { inspectHostedNativeProofFiles } from "./release-hosted-native-proof-contract.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { verifyControllerArtifactStatement } from "./github-controller-attestation.mts";
@@ -373,6 +375,45 @@ void test("bounded context ZIP has exactly two fixed members and complete packed
     createAuditZip([["context.json", Buffer.from("{}")]]),
   ])
     assert.throws(() => inspectSigningContextArchive(archive));
+});
+void test("selected native proof identities survive the existing context archive without legacy Check substitution", () => {
+  const f = fixture();
+  const native_proofs = (["linux-x86_64", "windows-x86_64"] as const).map((platform) => {
+    const native = hostedNativeProofFixture(platform),
+      proof = inspectHostedNativeProofFiles(native.files, native.authorities, native.producer);
+    return {
+      platform,
+      transport: "fixed-hosted-job",
+      report_sha256: proof.report_sha256,
+      hosted_job: {
+        ...native.producer,
+        subject_sha256: proof.subject_sha256,
+        report_sha256: proof.report_sha256,
+        bundle_sha256: "b".repeat(64),
+      },
+    };
+  });
+  const binding = {
+    ...Object.fromEntries(
+      Object.entries(f.manifest.binding).filter(([key]) => key !== "native_checks"),
+    ),
+    native_proofs,
+  };
+  const archive = (replacement: unknown) =>
+    f.archiveFor(Buffer.from(JSON.stringify({ ...f.manifest, binding: replacement })));
+  const inspected = inspectSigningContextArchive(archive(binding));
+  assert.deepEqual(inspected.manifest.binding, binding);
+  assert.equal(Object.hasOwn(inspected.manifest.binding, "native_checks"), false);
+  for (const changed of [
+    { ...binding, native_checks: [{ id: 1 }, { id: 2 }] },
+    { ...binding, native_proofs: [native_proofs[0], native_proofs[0]] },
+    { ...binding, native_proofs: [{ ...native_proofs[0], check_id: 1 }, native_proofs[1]] },
+    {
+      ...binding,
+      native_proofs: [{ ...native_proofs[0], report_sha256: "e".repeat(64) }, native_proofs[1]],
+    },
+  ])
+    assert.throws(() => inspectSigningContextArchive(archive(changed)));
 });
 void test("coordinator metadata context reuses complete bounded custody and fixed attestation without release/native claims", async (t) => {
   const parent = await mkdtemp(path.join(os.tmpdir(), "metadata-context-transport-"));
