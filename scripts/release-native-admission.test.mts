@@ -2,6 +2,11 @@ import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { nativeQualificationFixture } from "./fixtures/native-qualification-fixture.mts";
+import { selectedPublicationAuthoritiesFixture } from "./fixtures/checkpoint-proof-fixture.mts";
+import {
+  deriveHostedNativePayloadOpportunities,
+  collectConfiguredHostedNativePayloadPair,
+} from "./release-hosted-native-admission.mts";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
 import {
   inspectNativeQualificationAssociation,
@@ -34,6 +39,93 @@ import os from "node:os";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { requireRetainedActualTufPublication } from "./release-tuf-publication.mts";
+
+void test("selected hosted opportunities derive exact real package/source/archive identities without appointing a Native App or host", async (t) => {
+  const f = await trustedAssemblyFixture(t, "initial-beta-win-linux");
+  const configuration = selectedPublicationAuthoritiesFixture("application");
+  const archives = [
+    { platform: "windows-x86_64", artifact_id: 901 },
+    { platform: "linux-x86_64", artifact_id: 902 },
+  ];
+  const opportunities = await deriveHostedNativePayloadOpportunities(
+    configuration,
+    f.request,
+    archives,
+  );
+  assert.equal(opportunities.length, 2);
+  for (const opportunity of opportunities) {
+    assert.equal(opportunity.stage, "payload-signing");
+    assert.equal(opportunity.candidate.source_commit, f.request.source_commit);
+    assert.equal(opportunity.candidate.source_tree, f.request.source_tree);
+    assert.equal(
+      opportunity.candidate.artifact_id,
+      archives.find((entry) => entry.platform === opportunity.platform_label)?.artifact_id,
+    );
+    assert.equal(opportunity.journey, null);
+    assert.equal(Object.hasOwn(opportunity, "native_app_id"), false);
+    assert.equal(Object.hasOwn(opportunity, "producer"), false);
+    assert.equal(Object.hasOwn(opportunity, "host"), false);
+  }
+  await assert.rejects(
+    deriveHostedNativePayloadOpportunities(configuration, f.request, [archives[0], archives[0]]),
+    /archive/,
+  );
+  await assert.rejects(
+    deriveHostedNativePayloadOpportunities(configuration, f.request, [
+      archives[0],
+      { ...archives[1], artifact_id: 901 },
+    ]),
+    /duplicated/,
+  );
+  await assert.rejects(
+    deriveHostedNativePayloadOpportunities(
+      selectedPublicationAuthoritiesFixture("catalog-publication"),
+      f.request,
+      archives,
+    ),
+    /application/,
+  );
+});
+
+void test("configured selected native entry refuses imported authority fields and non-byte proof transfers before source or provider access", async () => {
+  const locator = {
+    platform_label: "windows-x86_64",
+    run_id: "1",
+    run_attempt: 1,
+    job_id: 1,
+    check_run_id: "1",
+  };
+  const files = {
+    subject: Buffer.from("{}"),
+    report: Buffer.from("{}"),
+    capture: Buffer.from("{}"),
+    bundle: Buffer.from("{}"),
+  };
+  await assert.rejects(
+    collectConfiguredHostedNativePayloadPair(
+      process.cwd(),
+      [
+        { locator: { ...locator, grant_sha256: "a".repeat(64) }, files },
+        { locator: { ...locator, platform_label: "linux-x86_64" }, files },
+      ],
+      {},
+      [],
+    ),
+    /cannot appoint/,
+  );
+  await assert.rejects(
+    collectConfiguredHostedNativePayloadPair(
+      process.cwd(),
+      [
+        { locator, files: { ...files, report: "imported" } },
+        { locator: { ...locator, platform_label: "linux-x86_64" }, files },
+      ],
+      {},
+      [],
+    ),
+    /file exceeds/,
+  );
+});
 
 void test("publication configuration pins only distinct immutable public data and setup identities", () => {
   const file = (path: string) => ({ path, bytes: 123, sha256: "a".repeat(64) });

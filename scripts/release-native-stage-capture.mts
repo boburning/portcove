@@ -1,6 +1,9 @@
 /** Integrity-only native request/capture contracts. No execution, issuer access,
  * acceptance receipt or imported report authority is created by this module. */
-import { inspectReleaseAuthorityConfiguration } from "./release-authority-configuration.mts";
+import {
+  inspectReleaseAuthorityConfiguration,
+  inspectSelectedPublicationAuthorityConfiguration,
+} from "./release-authority-configuration.mts";
 import {
   inspectNativeQualificationCandidate,
   inspectNativeQualificationJourney,
@@ -9,6 +12,7 @@ import {
   nativePrepublicationPending,
   nativePrepublicationScenarios,
   nativeInitialPackageScenarios,
+  inspectNativeQualificationAccount,
 } from "./release-native-qualification-contract.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -83,6 +87,59 @@ function stream(raw: unknown, id: string, name: string) {
 }
 
 export function prepareNativeStageRequest(raw: unknown, rawAuthorities: unknown) {
+  const authorities = inspectReleaseAuthorityConfiguration(structuredClone(rawAuthorities));
+  return prepareFixedNativeStageRequest(
+    raw,
+    authorities,
+    (platform) => authorities.native[platform],
+    authorities.schema_version === 2,
+  );
+}
+
+/** Inert selected-profile request. The hosted parent must independently observe
+ * the machine and separate candidate account; supplied JSON never proves either. */
+export function prepareHostedNativeStageRequest(
+  raw: unknown,
+  rawAuthorities: unknown,
+  observedHost: unknown,
+) {
+  const authorities = inspectSelectedPublicationAuthorityConfiguration(rawAuthorities);
+  if (authorities.purpose !== "application")
+    throw new Error("hosted native application authority required");
+  exact(observedHost, "account,machine_id_sha256,qualification_profile");
+  if (observedHost.qualification_profile !== "fixed-hosted-native-v1")
+    throw new Error("fixed hosted native qualification profile required");
+  const host = {
+    machine_id_sha256: sha(observedHost.machine_id_sha256),
+    qualification_profile: "fixed-hosted-native-v1",
+    account: inspectNativeQualificationAccount(observedHost.account),
+  };
+  return prepareFixedNativeStageRequest(
+    raw,
+    authorities,
+    (platform) => {
+      const windows = platform === "windows-x86_64";
+      if (host.account.kind !== (windows ? "windows-sid" : "linux-uid"))
+        throw new Error("hosted native account platform differs");
+      const selected = authorities.hosted_native[platform];
+      return {
+        producer: selected.producer,
+        host: { ...host, minimum_platform: selected.minimum_platform, engine: selected.engine },
+        compatibility: selected.compatibility,
+      };
+    },
+    true,
+  );
+}
+
+function prepareFixedNativeStageRequest(
+  raw: unknown,
+  authorities: unknown,
+  select: (
+    platform: "windows-x86_64" | "linux-x86_64",
+  ) => ReturnType<typeof inspectReleaseAuthorityConfiguration>["native"]["windows-x86_64"],
+  prepublication: boolean,
+) {
   exact(
     raw,
     "candidate,invocation_id,journey,platform_label,schema_version,setup_descriptor_sha256,stage",
@@ -93,15 +150,20 @@ export function prepareNativeStageRequest(raw: unknown, rawAuthorities: unknown)
     (raw.platform_label !== "windows-x86_64" && raw.platform_label !== "linux-x86_64")
   )
     throw new Error("native request stage/platform differs");
-  const authorities = inspectReleaseAuthorityConfiguration(structuredClone(rawAuthorities));
   const candidate = inspectNativeQualificationCandidate(structuredClone(raw.candidate));
-  const temporal = raw.stage === "release-publication" && authorities.schema_version === 2;
+  const temporal = raw.stage === "release-publication" && prepublication;
   const journey = inspectNativeQualificationJourney(raw.journey, raw.stage, candidate, temporal);
-  const fixed = authorities.native[raw.platform_label];
+  const fixed = select(raw.platform_label);
+  const namespace =
+    isRecord(authorities) && authorities.schema_version === 4 && isRecord(authorities.journal)
+      ? authorities.journal.namespace
+      : isRecord(authorities)
+        ? authorities.namespace
+        : undefined;
   const request = {
     schema_version: 1 as const,
     repository_id: 1354613114 as const,
-    namespace: authorities.namespace,
+    namespace: text(namespace),
     stage: raw.stage,
     platform_label: raw.platform_label,
     invocation_id: sha(raw.invocation_id),
@@ -142,8 +204,27 @@ export function serializeNativeStageCapture(
   rawAuthorities: unknown,
   raw: unknown,
 ) {
-  const prepared = prepareNativeStageRequest(rawRequest, rawAuthorities),
-    request = prepared.request;
+  return serializePreparedNativeStageCapture(
+    prepareNativeStageRequest(rawRequest, rawAuthorities),
+    raw,
+  );
+}
+
+/** Same capture checks for the selected observed-host request; integrity only. */
+export function serializeHostedNativeStageCapture(
+  rawRequest: unknown,
+  rawAuthorities: unknown,
+  observedHost: unknown,
+  raw: unknown,
+) {
+  return serializePreparedNativeStageCapture(
+    prepareHostedNativeStageRequest(rawRequest, rawAuthorities, observedHost),
+    raw,
+  );
+}
+
+function serializePreparedNativeStageCapture(prepared: NativeStageRequest, raw: unknown) {
+  const request = prepared.request;
   exact(
     raw,
     "completed_at,failure,group,harness,outcome,request_sha256,roots,scenarios,schema_version,started_at",

@@ -181,6 +181,7 @@ export function inspectCandidateStageEvidence(raw: unknown, candidate: Record<st
         if (
           ![
             "native-check",
+            "native-job",
             "compiler-check",
             "semantic-check",
             "classification-commit",

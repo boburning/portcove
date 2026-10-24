@@ -617,6 +617,13 @@ const hostedNativeProfiles = Object.freeze({
   },
 } satisfies Record<string, JobIdentityProfile & { audience: string }>);
 
+/** Fixed named native parent profile only; no execution or native authority. */
+export function hostedNativeJobProfile(platform: "windows-x86_64" | "linux-x86_64") {
+  if (!Object.hasOwn(hostedNativeProfiles, platform))
+    throw new Error("fixed hosted native platform required");
+  return Object.freeze({ ...hostedNativeProfiles[platform] });
+}
+
 /** Authenticate the fixed parent job, never candidate-authored native results.
  * This is neither a local Task/account capability nor production admission.
  * The hosted parent must separately establish candidate OS isolation, source
@@ -627,9 +634,7 @@ export async function verifyHostedNativeJobIdentity(
   rawExpected: unknown,
   options: IdentityOptions = {},
 ) {
-  if (!Object.hasOwn(hostedNativeProfiles, platform))
-    throw new Error("fixed hosted native platform required");
-  const profile = hostedNativeProfiles[platform];
+  const profile = hostedNativeJobProfile(platform);
   const expected = inspectAssemblerIdentityExpectation(rawExpected);
   if (
     expected.audience !== profile.audience ||
