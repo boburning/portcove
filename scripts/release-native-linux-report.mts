@@ -2,7 +2,7 @@
  * direct-parent, issuer, native acceptance or publication authority here. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { writeFile, readFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
@@ -19,6 +19,13 @@ import {
   inspectHostedNativeLinuxHost,
 } from "./release-native-wsl-host.mts";
 import { requireActualWslNativeCapture } from "./release-native-wsl-capture.mts";
+import { requireActualHostedNativeLinuxCapture } from "./release-hosted-native-linux-capture.mts";
+import { requireActualHostedNativeParentSource } from "./release-hosted-native-parent.mts";
+import {
+  requireActualHostedNativeCandidate,
+  readActualHostedNativeSourceDeclarations,
+} from "./release-hosted-native-candidate.mts";
+import { serializeHostedNativeStageCapture } from "./release-native-stage-capture.mts";
 import { readActualNativeSourceDeclarations } from "./release-native-candidate.mts";
 import { serializeNativeStageCapture } from "./release-native-stage-capture.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
@@ -535,17 +542,79 @@ const actualReports = new WeakMap<
   object,
   {
     capture: object;
+    backend: "wsl" | "hosted";
+    stopped: boolean;
     files: readonly { name: string; sha256: string; bytes: number }[];
     report_sha256: string;
   }
 >();
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+/** Private adapters normalize evidence fields, never provenance. Each uses its
+ * own original capture/candidate maps and fixed source reader. */
+async function reportBackend(captured: object, kind: "wsl" | "hosted") {
+  if (kind === "wsl") {
+    const actual = await requireActualWslNativeCapture(captured);
+    return {
+      selected: actual.selected,
+      prepared: actual.selected.request,
+      directory: actual.capture_directory,
+      summary: actual.summary,
+      resource_status: actual.resource_status,
+      retained_capture: actual.retained_capture,
+      capture_wire_sha256: actual.capture_wire_sha256,
+      host_filename: "guest-host-before.stdout.bin",
+      serialize: (request: unknown, observation: unknown) =>
+        serializeNativeStageCapture(request, actual.parent.authority_configuration, observation),
+      readSource: () => readActualNativeSourceDeclarations(actual.source_selection),
+      recheck: async () => {
+        await requireActualWslNativeCapture(captured);
+      },
+    };
+  }
+  const actual = await requireActualHostedNativeLinuxCapture(captured);
+  const parent = await requireActualHostedNativeParentSource(actual.actual.parent_source);
+  const candidate = await requireActualHostedNativeCandidate(actual.actual.candidate_receipt);
+  assert.equal(
+    actual.prepared.request.stage,
+    "payload-signing",
+    "hosted post-sign capture remains held",
+  );
+  return {
+    selected: { version: candidate.version, predecessor: null, payload_cryptography: null },
+    prepared: actual.prepared,
+    directory: actual.directory,
+    summary: actual.summary,
+    resource_status: actual.resource_status,
+    retained_capture: actual.retained_capture,
+    capture_wire_sha256: actual.capture_wire_sha256,
+    host_filename: "host-before.stdout.bin",
+    serialize: (request: unknown, observation: unknown) =>
+      serializeHostedNativeStageCapture(
+        request,
+        parent.configuration,
+        actual.actual.host.projection,
+        observation,
+      ),
+    readSource: () => readActualHostedNativeSourceDeclarations(actual.actual.candidate_receipt),
+    recheck: async () => {
+      await requireActualHostedNativeLinuxCapture(captured);
+      parent.recheck();
+    },
+  };
+}
+
 /** Only the actual fixed parent/capture map can reach this constructor. The
  * pure reconstruction above and imported receipts cannot enter its map. */
 export async function prepareActualLinuxNativeStageReport(captured: object) {
-  const actual = await requireActualWslNativeCapture(captured),
+  return prepareLinuxReport(captured, "wsl");
+}
+export async function prepareActualHostedLinuxNativeStageReport(captured: object) {
+  return prepareLinuxReport(captured, "hosted");
+}
+async function prepareLinuxReport(captured: object, backend: "wsl" | "hosted") {
+  const actual = await reportBackend(captured, backend),
     selected = actual.selected,
-    prepared = selected.request,
+    prepared = actual.prepared,
     request = prepared.request,
     summary = object(actual.summary);
   const publication = request.stage === "release-publication";
@@ -554,7 +623,7 @@ export async function prepareActualLinuxNativeStageReport(captured: object) {
   assert.equal(summary.failure, null);
   assert.ok(actual.retained_capture, "complete original guest capture required");
   const retained = actual.retained_capture,
-    directory = actual.capture_directory,
+    directory = actual.directory,
     files: { name: string; sha256: string; bytes: number }[] = [];
   const keep = async (name: string, bytes: Uint8Array) => {
     await writeFile(path.join(directory, name), bytes, { flag: "wx", mode: 0o600 });
@@ -631,7 +700,7 @@ export async function prepareActualLinuxNativeStageReport(captured: object) {
   }
   const guestHostBytes = await readBoundedPublicBuildInputFile(
       directory,
-      "guest-host-before.stdout.bin",
+      actual.host_filename,
       65536,
     ),
     host: unknown = JSON.parse(guestHostBytes.toString("utf8"));
@@ -731,7 +800,7 @@ export async function prepareActualLinuxNativeStageReport(captured: object) {
     const original = `outer-${name}.log`,
       entry = retained.entries.find((value) => value.path === original);
     assert.ok(entry && entry.bytes <= 4 * 1024 * 1024);
-    const bytes = await readFile(path.join(retained.directory, original));
+    const bytes = await readNativeCapturedStream(retained.directory, original);
     assert.equal(bytes.byteLength, entry.bytes);
     assert.equal(sha(bytes), entry.sha256);
     const filename = `harness.${name}.bin`;
@@ -745,7 +814,7 @@ export async function prepareActualLinuxNativeStageReport(captured: object) {
     materialization_sha256: sha(materializationBytes),
     host_sha256: sha(guestHostBytes),
   });
-  const stageCapture = serializeNativeStageCapture(
+  const stageCapture = actual.serialize(
     {
       schema_version: 1,
       stage: request.stage,
@@ -755,7 +824,6 @@ export async function prepareActualLinuxNativeStageReport(captured: object) {
       invocation_id: request.invocation_id,
       setup_descriptor_sha256: request.setup_descriptor_sha256,
     },
-    actual.parent.authority_configuration,
     {
       schema_version: 1,
       request_sha256: prepared.request_sha256,
@@ -780,7 +848,8 @@ export async function prepareActualLinuxNativeStageReport(captured: object) {
       failure: null,
     },
   );
-  const source = await readActualNativeSourceDeclarations(actual.source_selection);
+  const source = await actual.readSource();
+  await actual.recheck();
   const input = {
     started_at: outer.started_at,
     version: selected.version,
@@ -796,48 +865,81 @@ export async function prepareActualLinuxNativeStageReport(captured: object) {
     evidence_sha256,
     ...(publicationDetails ? { publication: publicationDetails } : {}),
   };
-  const result = publication
-    ? reconstructNativeLinuxPostSignReport(prepared, input, source.declaration)
-    : reconstructNativeLinuxPreSignReport(prepared, input, source.declaration);
+  const result =
+    backend === "hosted"
+      ? reconstructHostedNativeLinuxPreSignReport(prepared, input, source.declaration)
+      : publication
+        ? reconstructNativeLinuxPostSignReport(prepared, input, source.declaration)
+        : reconstructNativeLinuxPreSignReport(prepared, input, source.declaration);
   await keep("native-linux-stage-evidence.json", Buffer.from(JSON.stringify(input)));
   await keep("capture.json", Buffer.from(stageCapture.bytes));
   await keep("native-report.json", Buffer.from(JSON.stringify(result.report)));
-  await requireActualWslNativeCapture(captured);
-  const receipt = Object.freeze({ kind: "actual-direct-linux-native-report", authority: "none" });
+  if (backend === "hosted") await actual.readSource();
+  await actual.recheck();
+  const receipt = Object.freeze({
+    kind:
+      backend === "wsl" ? "actual-direct-linux-native-report" : "actual-hosted-linux-native-report",
+    authority: "none",
+  });
   actualReports.set(receipt, {
     capture: captured,
+    backend,
+    stopped: false,
     files: Object.freeze(files),
     report_sha256: digest(result.report),
   });
   return receipt;
 }
 export function isActualLinuxNativeStageReport(receipt: object) {
-  return actualReports.has(receipt);
+  return actualReports.get(receipt)?.backend === "wsl";
+}
+export function isActualHostedLinuxNativeStageReport(receipt: object) {
+  const retained = actualReports.get(receipt);
+  return retained?.backend === "hosted" && !retained.stopped;
+}
+async function readReport(receipt: object, backend: "wsl" | "hosted") {
+  const retained = actualReports.get(receipt);
+  if (!retained || retained.backend !== backend || retained.stopped)
+    throw new Error("original matching Linux native capture/report required");
+  try {
+    const actual = await reportBackend(retained.capture, backend);
+    await actual.readSource();
+    await actual.recheck();
+    for (const file of retained.files) {
+      const bytes = /\.(?:stdout|stderr)\.bin$/u.test(file.name)
+        ? await readNativeCapturedStream(actual.directory, file.name)
+        : await readBoundedPublicBuildInputFile(
+            actual.directory,
+            file.name,
+            Math.max(1, file.bytes),
+          );
+      assert.equal(bytes.byteLength, file.bytes);
+      assert.equal(sha(bytes), file.sha256, "actual Linux report input changed");
+    }
+    const report = inspectNativeReleaseQualification(
+      JSON.parse(
+        (
+          await readBoundedPublicBuildInputFile(actual.directory, "native-report.json", 65536)
+        ).toString("utf8"),
+      ),
+    );
+    assert.equal(digest(report), retained.report_sha256);
+    if (backend === "hosted") await actual.readSource();
+    await actual.recheck();
+    return { retained, report };
+  } catch (error) {
+    if (backend === "hosted") retained.stopped = true;
+    throw error;
+  }
 }
 export async function requireActualLinuxNativeStageReport(receipt: object) {
-  const retained = actualReports.get(receipt);
-  if (!retained) throw new Error("actual direct Linux native capture/report required");
+  const { retained, report } = await readReport(receipt, "wsl");
   const actual = await requireActualWslNativeCapture(retained.capture);
-  await readActualNativeSourceDeclarations(actual.source_selection);
-  for (const file of retained.files) {
-    const bytes = /\.(?:stdout|stderr)\.bin$/u.test(file.name)
-      ? await readNativeCapturedStream(actual.capture_directory, file.name)
-      : await readBoundedPublicBuildInputFile(
-          actual.capture_directory,
-          file.name,
-          Math.max(1, file.bytes),
-        );
-    assert.equal(bytes.byteLength, file.bytes);
-    assert.equal(sha(bytes), file.sha256, "actual Linux report input changed");
-  }
-  const report = inspectNativeReleaseQualification(
-    JSON.parse(
-      (
-        await readBoundedPublicBuildInputFile(actual.capture_directory, "native-report.json", 65536)
-      ).toString("utf8"),
-    ),
-  );
-  assert.equal(digest(report), retained.report_sha256);
+  return { ...actual, report, report_sha256: retained.report_sha256, authority: "none" as const };
+}
+export async function requireActualHostedLinuxNativeStageReport(receipt: object) {
+  const { retained, report } = await readReport(receipt, "hosted");
+  const actual = await requireActualHostedNativeLinuxCapture(retained.capture);
   return { ...actual, report, report_sha256: retained.report_sha256, authority: "none" as const };
 }
 export async function retainActualFailedLinuxNativeStage(captured: object, failure: string) {

@@ -1659,6 +1659,20 @@
       ]
     },
     {
+      "file": "scripts/release-hosted-native-linux-report.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15142],
+        ["release-check", 13442]
+      ]
+    },
+    {
+      "file": "scripts/release-native-source-provider.test.mts",
+      "memberships": [
+        ["catalog-full-2", 14002],
+        ["release-check", 12002]
+      ]
+    },
+    {
       "file": "scripts/release-hosted-native-linux-capture.test.mts",
       "memberships": [
         ["catalog-full-2", 15140],

@@ -67,7 +67,10 @@ export async function hashNativeCapturedFile(
 }
 
 export async function readNativeCapturedStream(root: string, name: string) {
-  assert.match(name, /^[a-z][a-z0-9-]{0,63}\.(?:stdout|stderr)\.bin$/u);
+  assert.match(
+    name,
+    /^(?:[a-z][a-z0-9-]{0,63}\.(?:stdout|stderr)\.bin|outer-(?:stdout|stderr)\.log)$/u,
+  );
   const filename = await assertOwnedUnlinkedPath(
     root,
     path.join(root, name),

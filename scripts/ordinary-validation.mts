@@ -771,6 +771,27 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ["scripts/release-native-source-contract.test.mts"],
   ],
   [
+    "scripts/release-native-source-provider.mts",
+    [
+      "scripts/release-native-source-provider.test.mts",
+      "scripts/release-native-source-contract.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-native-linux-report.mts",
+    [
+      "scripts/release-hosted-native-linux-report.test.mts",
+      "scripts/release-native-pre-sign-report.test.mts",
+    ],
+  ],
+  [
+    "scripts/fixtures/native-linux-report-fixture.mts",
+    [
+      "scripts/release-hosted-native-linux-report.test.mts",
+      "scripts/release-native-pre-sign-report.test.mts",
+    ],
+  ],
+  [
     "scripts/release-native-pre-sign-report.mts",
     ["scripts/release-native-pre-sign-report.test.mts"],
   ],
@@ -1490,6 +1511,8 @@ const releaseContractTests = Object.freeze([
   "scripts/native-qualification-linux-transfer.test.mts",
   "scripts/release-native-wsl-capture.test.mts",
   "scripts/release-hosted-native-linux-capture.test.mts",
+  "scripts/release-hosted-native-linux-report.test.mts",
+  "scripts/release-native-source-provider.test.mts",
   "scripts/release-native-candidate.test.mts",
   "scripts/release-native-public-pair.test.mts",
   "scripts/release-native-public-attempt-contract.test.mts",

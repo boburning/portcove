@@ -41,6 +41,20 @@ const plan = (
   });
 const redigest = <Plan extends object>(p: Plan) => ({ ...p, digest: digestValidationPlan(p) });
 
+void test("hosted report source, its actual companion and shared fixtures retain release security ownership", () => {
+  for (const file of [
+    "scripts/release-native-source-provider.mts",
+    "scripts/release-native-source-provider.test.mts",
+    "scripts/release-hosted-native-linux-report.test.mts",
+    "scripts/fixtures/native-linux-report-fixture.mts",
+  ]) {
+    const ownership = validationOwnershipForPath(file);
+    assert.equal(ownership.qualificationRequired, true);
+    assert.ok(ownership.areas.includes("release-security"));
+    assert.deepEqual(ownership.platforms, qualificationPlatforms);
+  }
+});
+
 void test("native source declaration ownership follows additions, deletions and both rename sides", () => {
   for (const source of nativeCompatibilitySourcePaths) {
     for (const input of [
