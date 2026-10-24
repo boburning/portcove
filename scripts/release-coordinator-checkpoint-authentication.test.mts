@@ -15,6 +15,7 @@ import {
 import {
   verifyHistoricalCheckpointJob,
   verifyHistoricalHostedNativeJob,
+  verifyHostedNativePhaseJob,
 } from "./release-checkpoint-job-identity.mts";
 import { hostedNativeJobProfile } from "./assembler-job-identity.mts";
 import {
@@ -41,6 +42,61 @@ function historical(f: ReturnType<typeof checkpointProofFixture>) {
   return { ...f.producer, job_id: Number(f.producer.job_id) };
 }
 const witnessed = Date.parse("2026-10-23T12:00:30.123Z");
+
+for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
+  for (const state of ["live", "success", "failure", "contradictory", "future"] as const) {
+    void test(`${platform} signed-stage custody is separate from terminal native history: ${state}`, () => {
+      const f = checkpointProofFixture();
+      Object.assign(f.job, {
+        name: hostedNativeJobProfile(platform).job,
+        status: state === "success" || state === "failure" ? "completed" : "in_progress",
+        conclusion:
+          state === "failure"
+            ? "failure"
+            : state === "success" || state === "contradictory"
+              ? "success"
+              : null,
+        completed_at: state === "success" || state === "failure" ? "2026-10-23T12:01:00Z" : null,
+      });
+      const observe = () =>
+        verifyHostedNativePhaseJob(
+          platform,
+          historical(f),
+          state === "future" ? Date.now() + 60000 : witnessed,
+          {
+            cwd: process.cwd(),
+            deadline: performance.now() + 60000,
+            api: f.api,
+          },
+        );
+      if (["failure", "contradictory", "future"].includes(state)) {
+        assert.throws(observe, /native phase|timestamp/);
+        return;
+      }
+      const first = observe();
+      const second = observe();
+      assert.deepEqual(first.witnessed_interval, {
+        start: Date.parse(f.job.started_at),
+        end: witnessed,
+      });
+      assert.deepEqual(first.witnessed_interval, second.witnessed_interval);
+      assert.equal(first.custody_scope, "signed-stage-witness");
+      assert.equal(first.journey_completion, "not-established");
+      assert.equal(first.native_acceptance, "not-established");
+      assert.equal(first.authority, "none");
+      if (state === "live")
+        assert.throws(
+          () =>
+            verifyHistoricalHostedNativeJob(platform, historical(f), witnessed, {
+              cwd: process.cwd(),
+              deadline: performance.now() + 60000,
+              api: f.api,
+            }),
+          /must complete successfully/,
+        );
+    });
+  }
+}
 
 for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
   for (const attemptState of ["in_progress", "completed-success", "completed-failure"] as const) {

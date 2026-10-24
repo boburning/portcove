@@ -59,7 +59,7 @@ export function verifyHistoricalCheckpointJob(
     rawExpected,
     witnessedAt,
     transport,
-    false,
+    "checkpoint",
   );
 }
 
@@ -77,12 +77,38 @@ export function verifyHistoricalHostedNativeJob(
     rawExpected,
     witnessedAt,
     transport,
-    true,
+    "completed-native",
   );
   return {
     ...observed,
     platform_label: platform,
     native_acceptance: "not-established" as const,
+  };
+}
+
+/** Provider custody for an already signed, settled native STAGE in its original
+ * live job. The caller must separately authenticate the report and teardown.
+ * This neither completes the job nor establishes the full same-client journey. */
+export function verifyHostedNativePhaseJob(
+  platform: "windows-x86_64" | "linux-x86_64",
+  rawExpected: HistoricalCheckpointJob,
+  witnessedAt: number,
+  transport: { cwd: string; deadline: number; spawn?: Spawn; api?: GitHubRestReader },
+) {
+  const { role: _role, ...observed } = verifyHistoricalFixedJob(
+    hostedNativeJobProfile(platform),
+    platform,
+    rawExpected,
+    witnessedAt,
+    transport,
+    "settled-native-phase",
+  );
+  return {
+    ...observed,
+    platform_label: platform,
+    native_acceptance: "not-established" as const,
+    journey_completion: "not-established" as const,
+    custody_scope: "signed-stage-witness" as const,
   };
 }
 
@@ -96,7 +122,7 @@ function verifyHistoricalFixedJob<
   rawExpected: HistoricalCheckpointJob,
   witnessedAt: number,
   transport: { cwd: string; deadline: number; spawn?: Spawn; api?: GitHubRestReader },
-  native: boolean,
+  purpose: "checkpoint" | "completed-native" | "settled-native-phase",
 ) {
   const expected = inspectAssemblerIdentityExpectation({
     audience: "audience" in profile ? profile.audience : "portcove-capacity-executor",
@@ -244,8 +270,20 @@ function verifyHistoricalFixedJob<
   if (new Set(jobs.map((job) => job.id)).size !== jobs.length)
     throw new Error("historical checkpoint attempt has duplicate jobs");
   const inspectJob = (raw: unknown) => {
-    if (native && (!isRecord(raw) || raw.status !== "completed" || raw.conclusion !== "success"))
+    if (
+      purpose === "completed-native" &&
+      (!isRecord(raw) || raw.status !== "completed" || raw.conclusion !== "success")
+    )
       throw new Error("historical native job must complete successfully");
+    if (
+      purpose === "settled-native-phase" &&
+      (!isRecord(raw) ||
+        !(
+          (raw.status === "in_progress" && raw.conclusion === null && raw.completed_at === null) ||
+          (raw.status === "completed" && raw.conclusion === "success")
+        ))
+    )
+      throw new Error("native phase requires an original live or successful completed job");
     if (
       !isRecord(raw) ||
       raw.id !== rawExpected.job_id ||
@@ -284,7 +322,13 @@ function verifyHistoricalFixedJob<
     return {
       started_at: String(raw.started_at),
       completed_at: raw.status === "completed" ? String(raw.completed_at) : null,
-      witnessed_interval: { start: began, end: finished },
+      // A live job's wall clock moves between reads. Phase custody ends at the
+      // authenticated signing witness, after checking it against actual provider
+      // time above; this is not a claim that the job has completed.
+      witnessed_interval: {
+        start: began,
+        end: purpose === "settled-native-phase" ? witnessedAt : finished,
+      },
     };
   };
   const matches = jobs.filter(

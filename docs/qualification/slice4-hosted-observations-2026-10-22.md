@@ -2,6 +2,12 @@
 
 Owner: #534. These are scoped implementation and provider observations under the approved simpler setup. Production remains held; no owner-host command is requested.
 
+## Settled native stage versus terminal history (October24)
+
+The current native stage receiver authenticates its exact signed report, original source/package/configuration, direct capture and completed teardown while the original fixed hosted job can remain alive. Provider custody permits only an in-progress job with null conclusion/completion, or a successfully completed job. Its stable evidence window ends at the latest authenticated signing witness, checked against actual provider time; it never substitutes the moving wall clock for job completion. Repeated consumption rechecks original bytes, deadlines and provider identity, permits live-to-success only, and permanently stops the original receipt after observed failure, drift or expiry. The receipt explicitly leaves terminal journey completion unestablished. Injected or serialized receipts cannot acquire private admission or archival custody.
+
+Historical predecessor verification and its separate private receipt namespace still require a completed successful native job. Consequently, a still-live continuity job's earlier stage cannot yet satisfy the historical predecessor handoff. This repair removes the current-stage pre-sign completion dependency only; it does not finish one-machine V0/V1/withdrawal/V2 composition. The four existing stage selectors, fixed role/environment boundaries, isolated protection observer and whole-graph resource fit remain to be reconciled before any production invocation. No workflow, permission, job count, timeout, archive/cache/retention setting or execution grant changes. Existing two-version hosted observations remain scoped prerequisites; actual Windows minimum-host acceptance remains pending. Availability/headroom remain Unknown with no capacity reservation. #254 stays Done; #315/#534/#246 remain pending, Chameleon protected acceptance unset, production held and slice5 excluded.
+
 ## Prepared hosted Linux runtime closure (October24)
 
 Baseline: merged[#2603](https://github.com/boburning/portcove/pull/2603), commit650e0fed998040aea2b8ef206bae21438276e14d, treebdaec28e5434ed9069d35eeaeea158b0f12d5004. Existing original upload custody, saved authenticated inert semantic fixture and independently installed guest source evidence retain their scopes. The runtime change adds no authentication transfer, App/key provisioning, production job, signing or publication.
