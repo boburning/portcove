@@ -9,31 +9,13 @@ import { inspectHostedNativeCustodyBundle } from "./release-hosted-native-proof-
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
+import { inspectNativeCheckpointLocator } from "./release-native-custody-locator.mts";
+export {
+  inspectNativeCheckpointLocator,
+  nativeCheckpointEvidenceId,
+} from "./release-native-custody-locator.mts";
 
 type Checkpoint = Awaited<ReturnType<typeof exportCoordinatorCheckpoint>>;
-
-/** Immutable locator only. A signed aggregate/TUF record must bind this value;
- * parsing it never authenticates a journal, native report or current admission. */
-export function inspectNativeCheckpointLocator(raw: unknown) {
-  if (
-    !isRecord(raw) ||
-    Object.keys(raw).sort().join(",") !== "checkpoint,native_bundle_bytes,native_bundle_sha256" ||
-    typeof raw.checkpoint !== "string" ||
-    !/^[a-f0-9]{40}$/u.test(raw.checkpoint) ||
-    typeof raw.native_bundle_sha256 !== "string" ||
-    !/^[a-f0-9]{64}$/u.test(raw.native_bundle_sha256) ||
-    typeof raw.native_bundle_bytes !== "number" ||
-    !Number.isSafeInteger(raw.native_bundle_bytes) ||
-    raw.native_bundle_bytes < 1 ||
-    raw.native_bundle_bytes > 1048576
-  )
-    throw new Error("exact native checkpoint custody locator required");
-  return {
-    checkpoint: raw.checkpoint,
-    native_bundle_sha256: raw.native_bundle_sha256,
-    native_bundle_bytes: raw.native_bundle_bytes,
-  };
-}
 
 /** Project the exact original building carrier named by a settled aggregate's
  * before_checkpoint. The owning caller authenticates that operation and head;
@@ -90,11 +72,6 @@ export function nativeCheckpointLocatorFromBuilding(
     native_bundle_sha256: match[1],
     native_bundle_bytes: Number(match[2]),
   });
-}
-
-export function nativeCheckpointEvidenceId(raw: unknown) {
-  const value = inspectNativeCheckpointLocator(raw);
-  return `native-checkpoint:${value.checkpoint}:${value.native_bundle_sha256}:${value.native_bundle_bytes}`;
 }
 
 /** Only the newly appended phase attempt can request a native carrier. Older

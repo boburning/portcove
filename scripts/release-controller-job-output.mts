@@ -14,7 +14,7 @@ import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { inspectAggregateOriginalUpload } from "./release-aggregate-locator.mts";
-import { inspectNativeCheckpointLocator } from "./release-native-checkpoint-custody.mts";
+import { inspectNativeCheckpointLocator } from "./release-native-custody-locator.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 function record(value: unknown) {

@@ -1,6 +1,6 @@
 import { isRecord } from "./runtime-values.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
-import { inspectNativeCheckpointLocator } from "./release-native-checkpoint-custody.mts";
+import { inspectNativeCheckpointLocator } from "./release-native-custody-locator.mts";
 const sha256 = /^[a-f0-9]{64}$/u;
 
 /** Immutable original producer locators, authenticated independently by each

@@ -1,5 +1,5 @@
 import { inspectAggregateOriginalUpload } from "./release-aggregate-contract.mts";
-import { inspectNativeCheckpointLocator } from "./release-native-checkpoint-custody.mts";
+import { inspectNativeCheckpointLocator } from "./release-native-custody-locator.mts";
 import { verifyControllerArtifactStatement } from "./github-controller-attestation.mts";
 import { orderedJsonValue as canonical } from "./json-values.mts";
 import { createHash } from "node:crypto";
