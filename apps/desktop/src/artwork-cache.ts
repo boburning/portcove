@@ -16,6 +16,13 @@ export interface ArtworkDisplay {
 const empty: ArtworkDisplay = { loading: false };
 const maximumEntries = 32;
 const maximumPngBytes = 1024 * 1024;
+const maximumRemoteRequests = 2;
+
+interface QueuedThumbnail {
+  state: ArtworkState;
+  stillInterested: () => boolean;
+  fetch: () => Promise<void>;
+}
 
 function decodedBytes(encoded: string) {
   const padding = encoded.endsWith("==") ? 2 : Number(encoded.endsWith("="));
@@ -50,6 +57,8 @@ export class ArtworkCache {
   private listeners = new Map<string, Set<() => void>>();
   private pending = new Map<string, Promise<void>>();
   private tail: Promise<unknown> = Promise.resolve();
+  private remoteQueued = new Map<string, QueuedThumbnail>();
+  private remoteActive = new Set<string>();
 
   constructor(
     readonly generation: number,
@@ -78,8 +87,10 @@ export class ArtworkCache {
 
   private trim() {
     const inactive = [...this.entries.keys()].filter((key) => !this.listeners.has(key));
-    for (const key of inactive.slice(0, Math.max(0, inactive.length - maximumEntries)))
+    for (const key of inactive.slice(0, Math.max(0, inactive.length - maximumEntries))) {
       this.entries.delete(key);
+      this.remoteQueued.delete(key);
+    }
   }
 
   private publish(portId: string, slot: ArtworkSlot, value: ArtworkDisplay) {
@@ -96,7 +107,40 @@ export class ArtworkCache {
     return next;
   }
 
-  private async display(portId: string, slot: ArtworkSlot, state: ArtworkState) {
+  private drainRemote() {
+    for (const [key, request] of this.remoteQueued) {
+      if (this.remoteActive.size >= maximumRemoteRequests) break;
+      if (this.remoteActive.has(key)) continue;
+      this.remoteQueued.delete(key);
+      if (this.entries.get(key)?.state !== request.state) continue;
+      if (!request.stillInterested() && !this.listeners.has(key)) {
+        // Do not retain a loading entry whose request was discarded: a later
+        // visit must be able to load it again without an explicit refresh.
+        this.entries.delete(key);
+        continue;
+      }
+      this.remoteActive.add(key);
+      void request.fetch().finally(() => {
+        this.remoteActive.delete(key);
+        this.drainRemote();
+      });
+    }
+  }
+
+  private refreshQueuedInterest(key: string, stillInterested: () => boolean) {
+    const queued = this.remoteQueued.get(key);
+    if (queued) queued.stillInterested = stillInterested;
+    this.drainRemote();
+  }
+
+  private async display(
+    portId: string,
+    slot: ArtworkSlot,
+    state: ArtworkState,
+    stillInterested: () => boolean,
+  ) {
+    const key = this.key(portId, slot);
+    this.remoteQueued.delete(key);
     const previous = this.read(portId, slot);
     const sourceId =
       state.resolved_source.kind === "local_import"
@@ -169,7 +213,10 @@ export class ArtworkCache {
       }
     };
     if (state.resolved_source.kind === "igdb_cover") {
-      void fetchThumbnail();
+      // Keep remote work separate from the local-choice tail. Only current
+      // viewport requests reach IPC; newer state replaces an undispatched one.
+      this.remoteQueued.set(key, { state, stillInterested, fetch: fetchThumbnail });
+      this.drainRemote();
       return;
     }
     await fetchThumbnail();
@@ -185,10 +232,14 @@ export class ArtworkCache {
     const pending = this.pending.get(key);
     if (pending)
       return pending.then(() => {
-        if (!this.entries.has(key) && stillInterested())
+        this.refreshQueuedInterest(key, stillInterested);
+        if (!this.entries.has(key) && (stillInterested() || this.listeners.has(key)))
           return this.load(portId, slot, refresh, stillInterested);
       });
-    if (!refresh && this.entries.has(key)) return Promise.resolve();
+    if (!refresh && this.entries.has(key)) {
+      this.refreshQueuedInterest(key, stillInterested);
+      return Promise.resolve();
+    }
     const result = this.enqueue(async () => {
       if (!stillInterested() && !this.listeners.has(key)) return;
       this.publish(portId, slot, {
@@ -198,8 +249,12 @@ export class ArtworkCache {
       });
       try {
         const state = await desktopApi.artwork(portId, slot, this.generation);
-        if (stillInterested() || this.listeners.has(key)) await this.display(portId, slot, state);
-        else this.entries.delete(key);
+        if (stillInterested() || this.listeners.has(key))
+          await this.display(portId, slot, state, stillInterested);
+        else {
+          this.entries.delete(key);
+          this.remoteQueued.delete(key);
+        }
       } catch (error) {
         const previous = this.read(portId, slot);
         this.publish(portId, slot, {
@@ -248,7 +303,7 @@ export class ArtworkCache {
         path === null
           ? await desktopApi.resetArtwork(portId, slot, revision, this.generation)
           : await desktopApi.importArtwork(portId, slot, path, revision, this.generation);
-      await this.display(portId, slot, state);
+      await this.display(portId, slot, state, stillCurrent);
       return state;
     });
   }

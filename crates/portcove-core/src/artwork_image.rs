@@ -18,6 +18,8 @@ pub(crate) const MAX_ORIGINAL_BYTES: u64 = 16 * 1024 * 1024;
 pub(crate) const MAX_DECODED_BYTES: u64 = 32 * 1024 * 1024;
 pub(crate) const MAX_PIXELS: u64 = 8 * 1024 * 1024;
 pub(crate) const MAX_THUMBNAIL_BYTES: u64 = 1024 * 1024;
+pub(crate) const THUMBNAIL_WIDTH: u32 = 384;
+pub(crate) const THUMBNAIL_HEIGHT: u32 = 576;
 
 pub(crate) struct DecodedArtwork {
     pub format: crate::ArtworkImageFormat,
@@ -62,7 +64,9 @@ pub(crate) fn decode(bytes: &[u8]) -> Result<DecodedArtwork> {
         }
     };
     let (width, height) = (image.width(), image.height());
-    let thumbnail = image.thumbnail(384, 576).to_rgba8();
+    let thumbnail = image
+        .thumbnail(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT)
+        .to_rgba8();
     let mut encoded = Cursor::new(Vec::new());
     DynamicImage::ImageRgba8(thumbnail)
         .write_to(&mut encoded, ImageFormat::Png)
