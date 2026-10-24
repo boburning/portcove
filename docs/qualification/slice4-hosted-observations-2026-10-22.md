@@ -491,3 +491,43 @@ The source retains the exact candidate, checkpoint, operation, original producer
 Focused controlled verification ran both the existing source/parent suite and hosted job suite:26 PASS, zero skips. The new timestamp cases include current/history/recovered success, exact-source mismatch, unresolved-current-plus-historical-success refusal, missing/duplicate history, journal drift, hydration expiry, final-write expiry and tamper-then-restore refusal. The first recovered fixture omitted the schema's mandatory recovery checkpoint and remains a failed fixture run. Independent review found the missing local-Git deadline propagation; a controlled100ms inherited-budget case failed before the wrapper and passes with it, alongside an expired-budget refusal. These are controlled parent/provider/hydration observations, not actual provider, Git mutation, signed-context, native or production acceptance.
 
 The installed post-sign chain remains intact. This source receipt alone cannot enter its installed-parent map or claim its Tough/payload checks. The hosted signed-context/five-role/Tough/package/predecessor/shipping-verifier acquisition and complete capture path remain to be connected through genuine hosted admission. Their existing pure inspector and detached crypto-fixture tests do not supply a positive connected orchestration oracle. No workflow, role, credential, timeout, spending/resource ceiling or execution grant changes. Production held; capacity availability/headroom Unknown and no capacity reservation; #254 Done; #315/#534/#246 and Chameleon protected acceptance pending; slice5 excluded. No owner action requested.
+
+## Hosted signed-input custody continuation (October 24)
+
+The prepared hosted post-sign adapter consumes the original timestamp source,
+verified tool receipt and original Linux runtime receipt. It joins the complete
+reserved opportunity and compiler tuple to independently pinned public anchors,
+the default authenticated signing-context receiver and all five default role
+receivers. It does not import an installed-parent descriptor or fabricate an
+actual publication receipt.
+
+The fixed credential-free keyless entry executes only from the retained runtime
+root. Original parent/tool/runtime custody is checked before execution, after
+resource queue admission, after settlement and on later reads. Both prepared
+support callbacks are supplied; this path has no compiler/cache fallback. The
+five-minute phase starts before the first await and intersects the original
+parent deadline. Source, context, roles, complete artifact inventory, staged
+inputs, assembly report, repository, plan/result and final receipt are retained
+and rechecked. Refusal or observed drift permanently stops that attempt, even
+if bytes are restored; recovery remains explicit.
+
+The independent source review clears this preparation. The controlled receiver
+and supervisor tests establish their stated seams only. Windows cannot establish
+the Linux custody/process assertions. The hosted tool-build fixture now exercises
+the actual prepared reaper, bundled supervisor and packed keyless utility against
+an independently produced disposable crypto baseline; its source/run/attempt and
+result belong in the delivery receipt. No fixture establishes a real producer,
+protected execution, installed application behavior or same-client acceptance.
+
+This adds one tool entry but no production workflow job, permission, resource
+ceiling or execution grant. Context preflight deliberately repeats the bounded
+context download rather than injecting transport into the actual receiver.
+Compressed inputs are bounded to 290 MiB total (two context reads at 128 MiB,
+one 4 MiB context proof and five pairs of 2 MiB role/4 MiB proof archives).
+The additional preflight is at most 128 MiB of reads, not a capacity reservation.
+The plan/result/receipt bounds are 64 KiB/1 MiB/2 MiB, in addition to the existing
+bounded context, role and repository staging. Final whole-job resource fit and
+runnable source/graph/digest reconciliation remain pending under the existing
+99/100 job-minute and seven-day retention limits. Availability/headroom remain
+Unknown. Package/journey/capture integration and real native/public acceptance
+remain pending. No new owner action is requested for this preparation.

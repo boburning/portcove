@@ -23,9 +23,25 @@ import {
 import { inspectLinuxSupervisor } from "./run-rust-tests.mts";
 import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
 
+/** Bound JSON escape expansion as well as process output; preserve full-byte identity. */
+function boundedFixtureOutput(value: string) {
+  const bytes = Buffer.from(value);
+  return {
+    bytes: bytes.length,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    prefix: value.slice(0, 1024),
+    prefix_limit_code_units: 1024,
+    truncated: value.length > 1024,
+  };
+}
+
 /** Real fixed reaper -> bundled supervisor -> fixed driver, plus orphan closure.
  * Credential-free ordinary fixture only; neither case grants native acceptance. */
-async function qualifyNativeChildren(tools: string, directory: string) {
+export async function qualifyNativeChildren(
+  tools: string,
+  directory: string,
+  keyless?: { args: string[]; timeout: number },
+) {
   const node = path.join(tools, "bin/node");
   const metadata = inspectNativeRuntimeSupport(
     JSON.parse(
@@ -39,15 +55,16 @@ async function qualifyNativeChildren(tools: string, directory: string) {
       nativeRuntimeSupport.maximumBinaryBytes,
     ),
   );
-  for (const kind of ["driver-refusal", "orphan-closure"]) {
+  for (const kind of keyless ? ["packed-keyless"] : ["driver-refusal", "orphan-closure"]) {
     const attempt = path.join(directory, kind);
     await mkdir(attempt, { mode: 0o700 });
     const gate = path.join(attempt, "gate"),
       status = path.join(attempt, "status.json"),
       receipt = path.join(attempt, "receipt.json"),
       registration = path.join(attempt, "registration.json");
-    const args =
-      kind === "driver-refusal"
+    const args = keyless
+      ? keyless.args
+      : kind === "driver-refusal"
         ? [path.join(tools, "scripts/release-hosted-native-linux-driver.mts")]
         : [
             "--input-type=module",
@@ -108,14 +125,14 @@ async function qualifyNativeChildren(tools: string, directory: string) {
               code: null,
               error: new Error("fixed reaper settlement unknown; retain attempt"),
             }),
-          14000,
+          (keyless?.timeout ?? 8000) + 6000,
         );
       }),
     ]);
     const timeout = setTimeout(() => {
       expired = true;
       child.stdin.end();
-    }, 8000);
+    }, keyless?.timeout ?? 8000);
     try {
       const until = performance.now() + 5000;
       let registered = false;
@@ -148,7 +165,7 @@ async function qualifyNativeChildren(tools: string, directory: string) {
       if (kind === "driver-refusal") {
         assert.match(stderr, /fixed hosted Linux driver arguments required/u);
         assert.doesNotMatch(stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/u);
-      } else {
+      } else if (kind === "orphan-closure") {
         const pid = Number(
           (await readControllerToolFile(path.join(attempt, "orphan-pid"), 32)).toString("utf8"),
         );
@@ -188,8 +205,10 @@ async function qualifyNativeChildren(tools: string, directory: string) {
   }
   return {
     support_sha256: metadata.output.sha256,
-    chain: "prepared-reaper/bundled-supervisor/fixed-driver-refusal",
-    orphan_closure: "quiescent",
+    chain: keyless
+      ? "prepared-reaper/bundled-supervisor/packed-keyless"
+      : "prepared-reaper/bundled-supervisor/fixed-driver-refusal",
+    orphan_closure: keyless ? "not-exercised" : "quiescent",
     native_acceptance: "not-established",
   };
 }
@@ -413,10 +432,23 @@ async function main() {
         PORTCOVE_CONNECTED_RELEASE_TOOL_SHA256: rustFile.sha256,
         PORTCOVE_CONNECTED_RELEASE_ADDON: addon,
         PORTCOVE_CONNECTED_RELEASE_ADDON_SHA256: addonFile.sha256,
+        PORTCOVE_CONNECTED_KEYLESS_ENTRY: path.join(
+          built.tools,
+          "scripts/release-native-keyless-assembly.bundle.mjs",
+        ),
       },
       encoding: "utf8",
       timeout: 125000,
       maxBuffer: 128 * 1024,
+    });
+    await record("connected-release.json", {
+      status: connected.status,
+      error: connected.error?.message.slice(0, 1024) ?? null,
+      stdout: boundedFixtureOutput(connected.stdout),
+      stderr: boundedFixtureOutput(connected.stderr),
+      scope: "disposable byte/crypto and prepared process chain only",
+      authority: "none",
+      native_acceptance: "not-established",
     });
     if (connected.error || connected.status !== 0) {
       process.stderr.write(connected.stderr);

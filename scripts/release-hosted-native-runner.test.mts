@@ -184,10 +184,12 @@ await assert.rejects(api.prepareHostedNativeRuntime(f.tool,f.parent,f.entry),/re
 const target=path.join(f.tools,'scripts/rust-test-tree-supervisor.mts'),saved=readFileSync(target);writeFileSync(target,'changed');
 await assert.rejects(api.requireHostedNativeRuntime(runtime,f.parent));writeFileSync(target,saved);
 await assert.rejects(api.requireHostedNativeRuntime(runtime,f.parent),/original/);assert.throws(()=>deps.rustSupportCompilerIdentity(),/expired/);
-for(const kind of ['writable-root','writable-file','wrong-source','wrong-run','copied-tool','copied-parent']){
+const post=fixture('post-sign');parents.get(post.parent).stage='release-publication';const postRuntime=await api.prepareHostedNativeRuntime(post.tool,post.parent,post.entry);assert.equal((await api.requireHostedNativeRuntime(postRuntime,post.parent)).root,post.tools);
+for(const kind of ['writable-root','writable-file','wrong-source','wrong-run','copied-tool','copied-parent','wrong-stage']){
  f=fixture(kind);if(kind==='writable-root')chmodSync(f.tools,0o777);if(kind==='writable-file')chmodSync(f.entry,0o666);
  if(kind==='wrong-source')toolReceipts.get(f.tool).identity.controller_revision='c'.repeat(40);
  if(kind==='wrong-run')toolReceipts.get(f.tool).identity.run_id='100';
+ if(kind==='wrong-stage')parents.get(f.parent).stage='foreign';
  await assert.rejects(api.prepareHostedNativeRuntime(kind==='copied-tool'?{...f.tool}:f.tool,kind==='copied-parent'?{...f.parent}:f.parent,f.entry));
 }
 console.log('controlled original-runtime and fixed support refusals passed; no provider or native acceptance');

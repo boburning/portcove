@@ -62,7 +62,10 @@ async function sameParentTools(toolsReceipt: object, parentReceipt: object) {
   assert.equal(tools.identity.run_id, parent.producer.run_id);
   assert.equal(tools.identity.run_attempt, parent.producer.run_attempt);
   assert.equal(parent.platform_label, "linux-x86_64");
-  assert.equal(parent.stage, "payload-signing");
+  assert.ok(
+    parent.stage === "payload-signing" || parent.stage === "release-publication",
+    "authenticated native stage required",
+  );
   parent.recheck();
   return { parent, tools };
 }
