@@ -49,6 +49,82 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 
 const allFilesExist = () => true;
 
+void test("disposable fixture helper changes retain every cleanup consumer across lifecycle and rename edits", async () => {
+  const { baselineRequiresDesktopDependencies, baselineFrontendPlan } =
+    await import("./ci-baseline.mts");
+  const helper = "scripts/fixtures/disposable-directory.mts";
+  const desktop = "apps/desktop/scripts/desktop-listener-lifetime.test.mts";
+  const consumers = [
+    "apps/desktop/scripts/desktop-listener-lifetime.test.mts",
+    "scripts/catalog-proposal-costs.test.mts",
+    "scripts/node-test-inventory.test.mts",
+    "scripts/precommit-check.test.mts",
+    "scripts/python-test-results.test.mts",
+    "scripts/release-catalog-review-request.test.mts",
+    "scripts/release-control-inputs.test.mts",
+    "scripts/release-hosted-native-linux-capture.test.mts",
+    "scripts/release-native-pre-sign-report.test.mts",
+    "scripts/release-native-wsl-capture.test.mts",
+    "scripts/release-run-evidence.test.mts",
+    "scripts/test-duration-reporter.test.mts",
+  ];
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const importers = ["scripts", "apps/desktop/scripts"].flatMap((directory) =>
+    readdirSync(path.join(root, directory))
+      .filter((file) => file.endsWith(".test.mts"))
+      .map((file) => `${directory}/${file}`)
+      .filter((file) =>
+        /\bfrom\s+["'][^"']*fixtures\/disposable-directory\.mts["']/u.test(
+          readFileSync(path.join(root, file), "utf8"),
+        ),
+      ),
+  );
+  assert.deepEqual(importers.sort(), [...consumers].sort());
+  for (const change of [
+    { status: "M", path: helper },
+    { status: "A", path: helper },
+    { status: "D", path: helper },
+    { status: "R100", previousPath: helper, path: "docs/renamed.md" },
+    { status: "R100", previousPath: "docs/renamed.md", path: helper },
+  ]) {
+    const selection = classifyChanges([change], { fileExists: allFilesExist });
+    for (const consumer of consumers.filter((file) => file !== desktop))
+      assert.ok(selection.nodeTests.has(consumer), `${JSON.stringify(change)}: ${consumer}`);
+    assert.ok(!selection.nodeTests.has(desktop));
+    assert.ok(selection.uiRelatedFiles.has(desktop));
+    const commands = buildPlan(selection);
+    assert.ok(
+      commands
+        .find((entry) => entry.id === "ui-related-tests")
+        ?.args.includes(path.resolve(root, desktop)),
+    );
+    assert.ok(!commands.find((entry) => entry.id === "node-tests")?.args.includes(desktop));
+    const plan = buildValidationPlan({
+      changes: [
+        {
+          ...change,
+          status: change.status.charAt(0),
+          oldMode: change.status === "A" ? "000000" : "100644",
+          newMode: change.status === "D" ? "000000" : "100644",
+        },
+      ],
+      eventName: "pull_request",
+      checkout: "a".repeat(40),
+      head: "a".repeat(40),
+      base: "b".repeat(40),
+      mergeBase: "b".repeat(40),
+    });
+    assert.ok(plan.groups.includes("frontend"));
+    assert.ok(baselineRequiresDesktopDependencies(plan));
+    assert.ok(
+      baselineFrontendPlan(plan)
+        .find((entry) => entry.id === "ui-related-tests")
+        ?.args.includes(path.resolve(root, desktop)),
+    );
+    assert.ok(!selection.unknown.has(helper));
+  }
+});
+
 void test("local Node contract plans enable the same fixed module mock capability", () => {
   const { plan } = planFor(["scripts/release-coordinator-signing-custody.test.mts"]);
   const node = plan.find((entry) => entry.id === "node-tests");
