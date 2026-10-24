@@ -125,7 +125,7 @@ void test("serialized install refresh rejection, explicit retry and restoration 
 });
 
 const placement: unknown = runInNewContext(
-  `${segment("function assertStagedActionPlacement(", "export async function installScenarios(")} assertStagedActionPlacement`,
+  `${segment("function assertStagedActionPlacement(", "\nexport ")} assertStagedActionPlacement`,
   { assert },
   { timeout: 1000 },
 );

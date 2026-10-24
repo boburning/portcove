@@ -14,9 +14,93 @@ import { fileURLToPath } from "node:url";
 import { createInstallFixture } from "./desktop-install-fixture.mts";
 import { fixtureObject as object } from "./desktop-scenario-state.mts";
 import { Session, WebDriver, WebElement } from "selenium-webdriver";
+import { runInNewContext } from "node:vm";
 import type { GameFileScanSnapshot } from "../src/transport-types.generated.d.ts";
-import { selectGameFilesSettings } from "./desktop-review-controls.mts";
+import { clickVisible, selectGameFilesSettings } from "./desktop-review-controls.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
+
+function offscreenReviewControl(mode: "normal" | "hidden" | "disabled" | "occluded") {
+  const state = { scrolled: false, clicks: 0, visibilityChecks: 0, enabledChecks: 0, hits: 0 };
+  const control = {
+    outerHTML: '<button role="tab">Tasks &amp; history</button>',
+    parentElement: null,
+    closest: () => null,
+    getAnimations: () => [],
+    focus: () => {},
+    scrollIntoView: () => {
+      if (mode !== "hidden") state.scrolled = true;
+    },
+    getBoundingClientRect: () => ({
+      x: 96,
+      y: state.scrolled ? 20 : -295,
+      width: 130,
+      height: 40,
+    }),
+    contains: (hit: unknown) => hit === control,
+  };
+  const document = {
+    activeElement: control,
+    elementFromPoint: () => {
+      state.hits++;
+      return state.scrolled && mode !== "occluded" ? control : null;
+    },
+  };
+  const browser = new WebDriver(new Session(`offscreen-review-${mode}`, {}), {
+    execute: async (command) => {
+      switch (command.getName()) {
+        case "executeScript": {
+          const parameters: unknown = command.getParameters();
+          assert.ok(isRecord(parameters) && typeof parameters.script === "string");
+          assert.ok(Array.isArray(parameters.args) && parameters.args.length === 1);
+          // Execute the helper's actual serialized callbacks against the recorded
+          // offscreen shape; do not replace scrolling/hit testing with a stub true.
+          const result: unknown = runInNewContext(
+            `(function(){${parameters.script}}).apply(null, args)`,
+            { args: [control], document, window: { innerWidth: 960, innerHeight: 640 } },
+          );
+          return result;
+        }
+        case "isElementDisplayed":
+          state.visibilityChecks++;
+          if (mode !== "hidden")
+            assert.ok(
+              state.scrolled,
+              "scroll the offscreen target before native visibility polling",
+            );
+          return mode !== "hidden";
+        case "isElementEnabled":
+          state.enabledChecks++;
+          return mode !== "disabled";
+        case "clickElement":
+          state.clicks++;
+          return;
+        default:
+          assert.fail(`Unexpected review interaction command: ${command.getName()}`);
+      }
+    },
+  });
+  return { browser, element: new WebElement(browser, "review-tab"), state };
+}
+
+it("scrolls an offscreen native review target before asking the driver for visibility", async () => {
+  const { browser, element, state } = offscreenReviewControl("normal");
+  await clickVisible(browser, element);
+  assert.equal(state.clicks, 1);
+  assert.ok(state.visibilityChecks > 0 && state.enabledChecks > 0 && state.hits > 0);
+});
+
+for (const mode of ["hidden", "disabled", "occluded"] as const)
+  it(`scrolling a ${mode} native review control never grants click permission`, async () => {
+    const { browser, element, state } = offscreenReviewControl(mode);
+    const refusal = {
+      hidden: /Waiting until element is visible/,
+      disabled: /Waiting until element is enabled/,
+      occluded: /The reviewed control must receive the pointer before clicking/,
+    }[mode];
+    await assert.rejects(clickVisible(browser, element), refusal);
+    assert.equal(state.clicks, 0);
+    if (mode !== "hidden") assert.ok(state.scrolled);
+  }, 10_000);
 
 it("selects the Game files category and waits for its mounted panel to become visible", async () => {
   let selected = false;
