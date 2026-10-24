@@ -4,6 +4,17 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { isRecord } from "./runtime-values.mts";
 import type { CompilerIdentity } from "./rust-support-cache.mts";
+import type { RustRunDependencies } from "./run-rust-tests.mts";
+import {
+  closeSync,
+  fsyncSync,
+  lstatSync,
+  openSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from "node:fs";
+import path from "node:path";
 
 export const nativeRuntimeSupport = Object.freeze({
   product: "linux-process-tree-reaper",
@@ -105,5 +116,98 @@ export function inspectNativeRuntimeSupport(raw: unknown, source: Buffer, binary
     input_fingerprint: raw.input_fingerprint,
     output: { bytes: binary.length, sha256: hash(binary), mode: 0o700 },
     source: { bytes: source.length, sha256: hash(source) },
+  };
+}
+
+/** Fixed support materialization, not provenance. Callers establish original
+ * source/artifact custody and supply its live recheck. Never compiles or queries
+ * a shared cache; only the exact prepared reaper may cross this dependency seam. */
+export function preparedNativeSupportDependencies(
+  input: {
+    caller_root: string;
+    output_parent: string;
+    source_file: string;
+    source: Buffer;
+    binary: Buffer;
+    metadata: ReturnType<typeof inspectNativeRuntimeSupport>;
+  },
+  recheck: () => void,
+  refuse: () => void,
+): Pick<RustRunDependencies, "rustSupportCompilerIdentity" | "prepareSupportArtifact"> {
+  assert.ok(
+    input.source.length > 0 &&
+      input.source.length <= 65536 &&
+      input.binary.length >= 64 &&
+      input.binary.length <= nativeRuntimeSupport.maximumBinaryBytes,
+  );
+  const source = Buffer.from(input.source),
+    binary = Buffer.from(input.binary);
+  const metadata = structuredClone(input.metadata);
+  let stopped = false;
+  const active = () => {
+    assert.ok(!stopped, "prepared native support stopped");
+    try {
+      recheck();
+    } catch (error) {
+      stopped = true;
+      refuse();
+      throw error;
+    }
+  };
+  active();
+  assert.equal(hash(source), metadata.source.sha256);
+  assert.equal(source.length, metadata.source.bytes);
+  assert.equal(hash(binary), metadata.output.sha256);
+  assert.equal(binary.length, metadata.output.bytes);
+  assert.equal(realpathSync(input.output_parent), input.output_parent);
+  return {
+    rustSupportCompilerIdentity: () => {
+      active();
+      return structuredClone(metadata.compiler);
+    },
+    prepareSupportArtifact: (options) => {
+      try {
+        active();
+        assert.equal(options.root, input.caller_root);
+        assert.equal(options.product, nativeRuntimeSupport.product);
+        assert.equal(options.source, nativeRuntimeSupport.source);
+        assert.deepEqual(options.rustcArgs, nativeRuntimeSupport.arguments);
+        assert.deepEqual(options.compiler, metadata.compiler);
+        assert.equal(options.platform, "linux");
+        assert.equal(options.architecture, "x64");
+        const directory = path.dirname(options.output);
+        assert.equal(path.dirname(directory), input.output_parent);
+        assert.match(path.basename(directory), /^portcove-host-tool-fixture-[A-Za-z0-9]{6}$/u);
+        assert.equal(path.basename(options.output), "portcove-linux-process-tree-reaper");
+        assert.equal(realpathSync(directory), directory);
+        const owner = lstatSync(directory);
+        assert.ok(
+          owner.isDirectory() &&
+            !owner.isSymbolicLink() &&
+            owner.uid === process.getuid?.() &&
+            (owner.mode & 0o077) === 0,
+        );
+        const current = readFileSync(input.source_file);
+        assert.equal(current.length, metadata.source.bytes);
+        assert.equal(hash(current), metadata.source.sha256);
+        const fd = openSync(options.output, "wx", 0o700);
+        try {
+          writeFileSync(fd, binary);
+          fsyncSync(fd);
+        } finally {
+          closeSync(fd);
+        }
+        const copied = lstatSync(options.output);
+        assert.ok(copied.isFile() && copied.nlink === 1 && copied.uid === process.getuid?.());
+        assert.equal(copied.mode & 0o777, metadata.output.mode);
+        assert.equal(hash(readFileSync(options.output)), metadata.output.sha256);
+        active();
+        return { outcome: "hit", fingerprint: metadata.input_fingerprint, elapsed_ms: 0 };
+      } catch (error) {
+        stopped = true;
+        refuse();
+        throw error;
+      }
+    },
   };
 }

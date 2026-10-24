@@ -151,7 +151,7 @@ export function Sidebar({
             <span className="nav-label min-w-0 flex-1">{item.label}</span>
             {item.view === "library" && (
               <b
-                className="rounded-pc-md bg-pc-surface-muted px-2 py-0.5 text-xs text-pc-muted-foreground"
+                className="rounded-pc-md bg-pc-surface-muted px-2 py-0.5 text-xs text-pc-foreground"
                 aria-label={`${installedCount} in library`}
               >
                 {installedCount}
