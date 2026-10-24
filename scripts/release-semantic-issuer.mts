@@ -10,6 +10,7 @@ import {
 } from "./release-semantic-runtime.mts";
 import type { runSemanticRuntime } from "./release-semantic-runtime.mts";
 import type { SemanticIssuer } from "./release-semantic-broker.mts";
+import { inspectSemanticIssuerConfiguration } from "./release-semantic-broker.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -115,15 +116,10 @@ async function authenticateSemanticIssuerRequest(
   raw: SemanticIssuerCustody,
 ) {
   const config = structuredClone(raw);
+  const issuer = inspectSemanticIssuerConfiguration(config.issuer);
   if (
     Object.keys(config).sort().join(",") !==
       "http_modules_sha256,issuer,node_sha256,private_key,public_key_sha256" ||
-    Object.keys(config.issuer).sort().join(",") !== "app_id,installation_id,writer_app_id" ||
-    ![config.issuer.app_id, config.issuer.installation_id, config.issuer.writer_app_id].every(
-      (id) => Number.isSafeInteger(id) && id > 0,
-    ) ||
-    config.issuer.app_id === config.issuer.writer_app_id ||
-    config.issuer.app_id === 15368 ||
     Object.keys(config.http_modules_sha256).sort().join(",") !==
       "release-canonical.mts,release-semantic-issuer-http.mts,runtime-values.mts" ||
     ![
@@ -150,7 +146,7 @@ async function authenticateSemanticIssuerRequest(
   try {
     jwt = prepareSemanticAppJwt(
       bytes,
-      config.issuer.app_id,
+      issuer.app_id,
       config.public_key_sha256,
       Math.floor(Date.now() / 1000),
     );
@@ -161,8 +157,8 @@ async function authenticateSemanticIssuerRequest(
   const started = Date.now();
   let requests = 0;
   const configuration = {
-    app_id: config.issuer.app_id,
-    installation_id: config.issuer.installation_id,
+    app_id: issuer.app_id,
+    installation_id: issuer.installation_id,
     head: checkBody.head_sha,
     check_body_sha256: capacityDigest(checkBody),
   };
@@ -205,7 +201,7 @@ async function authenticateSemanticIssuerRequest(
   const app = client("app", jwt);
   const response = app.request(
     "POST",
-    `app/installations/${config.issuer.installation_id}/access_tokens`,
+    `app/installations/${issuer.installation_id}/access_tokens`,
     { repository_ids: [1354613114], permissions: { checks: "write", metadata: "read" } },
   );
   const token = inspectSemanticInstallationToken(response.status, response.body, Date.now());
