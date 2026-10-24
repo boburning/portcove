@@ -1,6 +1,8 @@
 """Inert failure/recovery contracts; no account, sudo, unit or namespace runs."""
 
 import importlib.util
+import json
+import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -12,6 +14,27 @@ spec.loader.exec_module(readiness)
 
 
 class HostedReadiness(unittest.TestCase):
+    def test_empty_checkout_creates_work_parent_but_retained_attempt_is_never_reused(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.assertFalse((root / "work").exists())
+            directory = readiness.begin_attempt(root, {"GITHUB_SHA": "a" * 40}, {"fixed": "b" * 64}, "c" * 40)
+            original = (directory / "intent.json").read_bytes()
+            self.assertEqual(json.loads(original)["GITHUB_SHA"], "a" * 40)
+            self.assertFalse(json.loads(original)["automatic_retry"])
+            with self.assertRaises(FileExistsError):
+                readiness.begin_attempt(root, {"GITHUB_SHA": "d" * 40}, {}, "e" * 40)
+            self.assertEqual((directory / "intent.json").read_bytes(), original)
+
+    def test_existing_work_parent_is_preserved_without_reusing_an_attempt(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "work").mkdir()
+            unrelated = root / "work/unrelated-evidence.json"
+            unrelated.write_bytes(b"retain unrelated evidence")
+            readiness.begin_attempt(root, {}, {}, "c" * 40)
+            self.assertEqual(unrelated.read_bytes(), b"retain unrelated evidence")
+
     def setUp(self):
         self.group = SimpleNamespace(empty=Mock(return_value=True), last_observation="observed-unpopulated")
         self.supervisor = {

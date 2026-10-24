@@ -38,6 +38,17 @@ def retain(filename, value):
         output.write(encode(value))
 
 
+def begin_attempt(root, context, pins, tree):
+    directory = root / "work/hosted-linux-runtime-evidence"
+    # A normal clean checkout has no ignored work directory. Create only that
+    # parent; the attempt itself remains exclusive and cannot be reused.
+    directory.parent.mkdir(mode=0o700, exist_ok=True)
+    directory.mkdir(mode=0o700)
+    retain(directory / "intent.json", {**context, "tree": tree, "pins": pins,
+           "scope": "one credential-free primitive diagnostic", "production": "held", "automatic_retry": False})
+    return directory
+
+
 def command(arguments, timeout=15, environment=None):
     reply = subprocess.run(
         arguments, env=environment or ENV, stdin=subprocess.DEVNULL,
@@ -267,12 +278,9 @@ def prepare():
          "exact clean diagnostic source required")
     need('ID=ubuntu' in Path("/etc/os-release").read_text()
          and 'VERSION_ID="24.04"' in Path("/etc/os-release").read_text(), "actual Ubuntu24.04 required")
-    directory = root / "work/hosted-linux-runtime-evidence"
-    directory.mkdir(mode=0o700)
     pins = {name: file_hash(root / "scripts" / name) for name in
             ("qualify-hosted-native-linux.py", "native-qualification-linux-supervisor.py")}
-    retain(directory / "intent.json", {**context, "tree": git("rev-parse", "HEAD^{tree}"), "pins": pins,
-           "scope": "one credential-free primitive diagnostic", "production": "held", "automatic_retry": False})
+    directory = begin_attempt(root, context, pins, git("rev-parse", "HEAD^{tree}"))
     result = {"stage": "tool-observation", "failure": None, "setup": None, "probe": None}
     try:
         for tool in ("/usr/bin/bwrap", "/usr/bin/systemd-run", "/usr/bin/systemctl", "/usr/bin/sudo"):
