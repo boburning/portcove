@@ -9,6 +9,8 @@ import { createHash } from "node:crypto";
 import {
   reconstructNativeLinuxPreSignReport,
   reconstructNativeLinuxPostSignReport,
+  reconstructHostedNativeLinuxPreSignReport,
+  reconstructHostedNativeLinuxPostSignReport,
   prepareActualLinuxNativeStageReport,
   requireActualLinuxNativeStageReport,
 } from "./release-native-linux-report.mts";
@@ -36,7 +38,11 @@ import {
   nativeCompatibilitySourcePaths,
   inspectNativeCompatibilitySources,
 } from "./release-native-source-contract.mts";
-import { prepareNativeStageRequest } from "./release-native-stage-capture.mts";
+import {
+  prepareNativeStageRequest,
+  prepareHostedNativeStageRequest,
+} from "./release-native-stage-capture.mts";
+import { selectedPublicationAuthoritiesFixture } from "./fixtures/checkpoint-proof-fixture.mts";
 import {
   reconstructNativePreSignReport,
   reconstructNativePostSignReport,
@@ -540,10 +546,116 @@ async function linuxPostFixture(initial: boolean) {
   return { ...f, prepared, input };
 }
 
+void test("hosted Linux reconstruction uses the observed distro floor and keeps legacy accounts and capture authority separate", async () => {
+  for (const stage of ["pre", "initial", "ordinary"] as const) {
+    const f = stage === "pre" ? await linuxFixture() : await linuxPostFixture(stage === "initial");
+    const authorities = selectedPublicationAuthoritiesFixture("application");
+    assert.ok("hosted_native" in authorities);
+    const producer = f.prepared.request.expected.producer;
+    authorities.hosted_native["linux-x86_64"].producer = {
+      source_commit: producer.source_commit,
+      source_tree: producer.source_tree,
+      harness: { ...producer.harness },
+    };
+    authorities.hosted_native["linux-x86_64"].compatibility = {
+      required_capabilities: [],
+      cli_protocol: f.base.source.cli_protocol,
+      catalog_formats: [...f.base.source.catalog_formats],
+      library: f.base.source.library,
+      minimum_os_version: "24.04",
+    };
+    const host = {
+      machine_id_sha256: f.input.host.machine_id_sha256,
+      qualification_profile: "fixed-hosted-native-v1",
+      account: { kind: "linux-uid", broker: "1000", qualification: "1002" },
+    };
+    const prepared = prepareHostedNativeStageRequest(
+      {
+        schema_version: 1,
+        stage: f.prepared.request.stage,
+        platform_label: "linux-x86_64",
+        candidate: f.prepared.request.candidate,
+        journey: f.prepared.request.journey,
+        invocation_id: f.prepared.request.invocation_id,
+        setup_descriptor_sha256: authorities.journal.setup_plan_sha256,
+      },
+      authorities,
+      host,
+    );
+    const input = structuredClone(f.input);
+    input.outer.stage_request_sha256 = prepared.request_sha256;
+    input.driver.stage_request_sha256 = prepared.request_sha256;
+    input.capture.request_sha256 = prepared.request_sha256;
+    const reconstruct =
+      stage === "pre"
+        ? reconstructHostedNativeLinuxPreSignReport
+        : reconstructHostedNativeLinuxPostSignReport;
+    const legacy =
+      stage === "pre" ? reconstructNativeLinuxPreSignReport : reconstructNativeLinuxPostSignReport;
+    const result = reconstruct(prepared, input, f.base.source);
+    assert.equal(result.report.host.os_version, "6.8.0");
+    assert.equal(result.report.compatibility.minimum_os_version, "24.04");
+    assert.equal(
+      result.report.host.execution_context,
+      "native-ubuntu-24.04-hosted-isolated-account",
+    );
+    assert.equal(result.report.host.account.kind, "linux-uid");
+    assert.equal(result.authority, "none");
+    assert.throws(() => legacy(prepared, input, f.base.source));
+    assert.throws(() => reconstruct(f.prepared, f.input, f.base.source));
+    await assert.rejects(prepareActualLinuxNativeStageReport(result));
+    await assert.rejects(requireActualLinuxNativeStageReport(result));
+    const raised = structuredClone(prepared);
+    raised.request.expected.compatibility.minimum_os_version = "26.04";
+    assert.throws(() => reconstruct(raised, input, f.base.source), /distribution is below/);
+    const wrongProfile = structuredClone(prepared);
+    wrongProfile.request.expected.host.qualification_profile = "fixed-local-native-v1";
+    assert.throws(() => reconstruct(wrongProfile, input, f.base.source));
+    for (const mutate of [
+      (value: typeof input) => {
+        value.host.os_release = 'ID=ubuntu\nVERSION_ID="22.04"\n';
+      },
+      (value: typeof input) => {
+        value.host.machine_id_sha256 = "0".repeat(64);
+      },
+      (value: typeof input) => {
+        value.host.qualification_uid = 1001;
+      },
+      (value: typeof input) => {
+        value.host.kernel_release = "24.04.0";
+      },
+      (value: typeof input) => {
+        value.runtime.runtime.kernel_release = "6.9.0";
+      },
+      (value: typeof input) => {
+        value.runtime.browser.version = "2.50.0";
+      },
+      (value: typeof input) => {
+        value.outer.cgroup_empty = false;
+      },
+      (value: typeof input) => {
+        value.capture.roots[0]!.teardown.job_empty = false;
+      },
+    ]) {
+      const changed = structuredClone(input);
+      mutate(changed);
+      assert.throws(() => reconstruct(prepared, changed, f.base.source));
+    }
+  }
+});
+
 void test("inert Linux report2 reconstructs initial or real distinct predecessor package lifecycle without public-updater credit", async () => {
   for (const initial of [true, false]) {
     const f = await linuxPostFixture(initial);
     const result = reconstructNativeLinuxPostSignReport(f.prepared, f.input, f.base.source);
+    // Captured from unmodified production reconstruction at073ac7b9, before
+    // adding the separate hosted route; never regenerated from that new route.
+    assert.equal(
+      createHash("sha256").update(JSON.stringify(result)).digest("hex"),
+      initial
+        ? "9dfc40fc5da5e3598d54045adf4e8bbfccd9002a397d3357599086acdf593e49"
+        : "78a70162c527c514eb2cb7a0a90ecbbad5e158cb09abadb5f010410bc9b474e1",
+    );
     assert.equal(result.report.schema_version, 2);
     assert.equal(result.report.runtime.started_at, "2026-10-20T12:00:00.500Z");
     assert.ok("pending_obligations" in result.report);
@@ -598,6 +710,10 @@ void test("inert Linux report2 reconstructs initial or real distinct predecessor
 void test("inert Linux reconstruction binds actual-shaped source/host/process/namespace proofs without importing capture authority", async () => {
   const { base, prepared, input, start } = await linuxFixture();
   const result = reconstructNativeLinuxPreSignReport(prepared, input, base.source);
+  assert.equal(
+    createHash("sha256").update(JSON.stringify(result)).digest("hex"),
+    "b656e626c15e9890829b5a5c42c164205c2de035f7aa8c28f938f65b9b0e5484",
+  );
   assert.equal(result.authority, "none");
   assert.equal(result.report.host.loaded_engine.version, "2.52.6");
   assert.equal(result.report.runtime.root_creation.kind, "linux-starttime-ticks");

@@ -1632,7 +1632,7 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
 
 /** Existing journal timing selects the native stage. An unresolved timestamp
  * intent selects post-sign readback/refusal, never a fallback pre-sign rerun. */
-export function inspectNativeCurrentStage(raw: unknown) {
+function inspectNativeStage(raw: unknown, phases: readonly string[]) {
   if (
     !isRecord(raw) ||
     !isRecord(raw.active_candidate) ||
@@ -1642,10 +1642,7 @@ export function inspectNativeCurrentStage(raw: unknown) {
     throw new Error("native stage requires actual candidate/coordinator state");
   const candidate = raw.active_candidate,
     capacity = raw.controller.capacity_attempt;
-  if (
-    !["building", "publishing"].includes(String(candidate.phase)) ||
-    capacity.schema_version !== 2
-  )
+  if (!phases.includes(String(candidate.phase)) || capacity.schema_version !== 2)
     throw new Error("native stage candidate is not eligible for either fixed capture stage");
   const destination = `github-actions:boburning/portcove:${String(candidate.version)}:tuf-timestamp-envelope`;
   const operation = inspectCapacityOperation(capacity.operation);
@@ -1676,6 +1673,17 @@ export function inspectNativeCurrentStage(raw: unknown) {
     ? ("release-publication" as const)
     : ("payload-signing" as const);
 }
+export function inspectNativeCurrentStage(raw: unknown) {
+  return inspectNativeStage(raw, ["building", "publishing"]);
+}
+
+/** Preparatory proof precedes building; unresolved timestamp effects still hold. */
+export function inspectHostedNativePreparationStage(raw: unknown) {
+  if (inspectNativeStage(raw, ["qualifying", "building"]) !== "payload-signing")
+    throw new Error("hosted native preparation cannot repeat after timestamp effects");
+  return "payload-signing" as const;
+}
+
 export async function acquireActualNativeStageCandidate(parentReceipt: object) {
   const parent = await requireActualNativeParent(parentReceipt);
   const directory = await mkdtemp(

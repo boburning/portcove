@@ -6,13 +6,13 @@ import { chmod, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import {
-  acquireReleaseAdmission,
+  acquireHostedNativePreparation,
   type PreparedReleaseAdmissionFacts,
 } from "./acquire-release-admission.mts";
 import { requireActualHostedNativeParentSource } from "./release-hosted-native-parent.mts";
 import {
   inspectSelectedNativeCandidate,
-  inspectNativeCurrentStage,
+  inspectHostedNativePreparationStage,
   inspectNativeSourceCommand,
 } from "./release-native-candidate.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
@@ -118,7 +118,7 @@ export async function acquireActualHostedNativeCandidate(parentReceipt: object) 
         return current;
       });
       const before = await recover();
-      if (inspectNativeCurrentStage(before.input) !== "payload-signing")
+      if (inspectHostedNativePreparationStage(before.input) !== "payload-signing")
         throw new Error("original reservation is not at the native pre-sign stage");
       phase = "immutable-acquisition";
       let retained: {
@@ -127,7 +127,8 @@ export async function acquireActualHostedNativeCandidate(parentReceipt: object) 
       } | null = null;
       let selected: Selected | null = null;
       try {
-        await acquireReleaseAdmission(
+        await acquireHostedNativePreparation(
+          parentReceipt,
           directory,
           {
             schema_version: 2,
@@ -138,27 +139,25 @@ export async function acquireActualHostedNativeCandidate(parentReceipt: object) 
             api,
             download,
             recover,
-            controlPhase: "payload",
             retainDesktopPackage: async (identity, bytes) => {
               await requireActualHostedNativeParentSource(parentReceipt);
               if (identity.platform_label !== parent.platform_label) return;
               if (retained) throw new Error("hosted native package repeats");
               retained = { identity: structuredClone(identity), bytes };
             },
-            establishNative: async (facts) => {
-              await requireActualHostedNativeParentSource(parentReceipt);
-              if (!retained || facts.checkpoint !== before.checkpoint)
-                throw new Error("hosted native package or frozen reservation differs");
-              const identity = await inspectSelectedNativeCandidate(
-                facts,
-                parent.platform_label,
-                retained,
-              );
-              selected = { facts, identity, bytes: retained.bytes };
-              // Deliberate refusal at the existing pair gate. These acquired facts
-              // do not contain native acceptance and cannot become admission.
-              return [];
-            },
+          },
+          async (facts) => {
+            await requireActualHostedNativeParentSource(parentReceipt);
+            if (!retained || facts.checkpoint !== before.checkpoint)
+              throw new Error("hosted native package or frozen reservation differs");
+            const identity = await inspectSelectedNativeCandidate(
+              facts,
+              parent.platform_label,
+              retained,
+            );
+            selected = { facts, identity, bytes: retained.bytes };
+            // Deliberate refusal at the existing pair gate. These acquired facts
+            // do not contain native acceptance and cannot become admission.
           },
         );
         throw new Error("hosted native acquisition unexpectedly passed admission");
@@ -176,7 +175,7 @@ export async function acquireActualHostedNativeCandidate(parentReceipt: object) 
       if (
         current.checkpoint !== before.checkpoint ||
         selection.facts.checkpoint !== current.checkpoint ||
-        inspectNativeCurrentStage(current.input) !== "payload-signing"
+        inspectHostedNativePreparationStage(current.input) !== "payload-signing"
       )
         throw new Error("hosted native reservation changed during acquisition");
       phase = "candidate-retention";
@@ -255,16 +254,23 @@ export async function requireActualHostedNativeCandidate(receipt: object) {
     const current = await retained.recover();
     if (
       current.checkpoint !== retained.selection.facts.checkpoint ||
-      inspectNativeCurrentStage(current.input) !== "payload-signing"
+      inspectHostedNativePreparationStage(current.input) !== "payload-signing"
     )
       throw new Error("hosted native candidate reservation changed");
     await requireActualHostedNativeParentSource(retained.parent);
+    if (!isRecord(current.input) || !isRecord(current.input.active_candidate))
+      throw new Error("hosted native candidate recovery state absent");
     return Object.freeze({
+      parent_source: retained.parent,
       directory: retained.directory,
       package_path: path.join(retained.directory, "package.bin"),
       candidate: structuredClone(retained.selection.identity.candidate),
       facts: structuredClone(retained.selection.facts),
       checkpoint: current.checkpoint,
+      recovery: {
+        transient_retries: current.input.active_candidate.transient_retries,
+        substantive_repairs: current.input.active_candidate.substantive_repairs,
+      },
       platform_label: parent.platform_label,
       stage: parent.stage,
       authority: "none" as const,
