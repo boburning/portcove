@@ -213,6 +213,40 @@ export function githubRateLimitMessage(
   return `${prefix}: ${remaining} points remain; reset at ${reset}`;
 }
 
+function graphqlResponseError(response: IncludedResponse, operation: string) {
+  const errors = isRecord(response.body) ? response.body.errors : undefined;
+  if (!Array.isArray(errors) || !errors.length) return null;
+  const rateLimit = rateLimitFromResponse(response);
+  const limited =
+    rateLimit.remaining === 0 ||
+    response.status === 429 ||
+    response.headers.has("retry-after") ||
+    errors.some(
+      (entry: unknown) =>
+        isRecord(entry) &&
+        (entry.type === "RATE_LIMITED" ||
+          (isRecord(entry.extensions) && entry.extensions.code === "RATE_LIMITED")),
+    );
+  const message = errors
+    .map((error: unknown) =>
+      isRecord(error) && typeof error.message === "string" ? error.message : "unknown error",
+    )
+    .join("; ");
+  return new GitHubApiError(
+    limited ? "rate_limited" : "graphql_error",
+    `${message}${rateLimit.remaining !== null ? ` (${githubRateLimitMessage(rateLimit)})` : ""}`,
+    {
+      operation,
+      status: response.status ?? null,
+      rateLimit,
+      retryAfter: response.headers.get("retry-after") ?? null,
+      requestId: response.headers.get("x-github-request-id") ?? null,
+      responseDate: response.headers.get("date") ?? null,
+      responseBytes: response.bodyBytes ?? null,
+    },
+  );
+}
+
 export function createGitHubRunner({
   cwd = process.cwd(),
   command = "gh",
@@ -301,6 +335,13 @@ export function createGitHubRunner({
         args[args.indexOf("--method") + 1] === "GET"
       )
         return result.stdout;
+      // gh also exits nonzero for GraphQL errors in a complete HTTP 200
+      // response. Preserve the typed provider failure before the CLI exit can
+      // disguise it as a transport error; partial mutation data is still refused.
+      if (response && args[0] === "api" && args[1] === "graphql") {
+        const error = graphqlResponseError(response, operation);
+        if (error) throw error;
+      }
       throw new GitHubApiError(
         "command_failed",
         result.stderr.trim() || `${operation} failed with exit ${result.status}`,
@@ -440,33 +481,8 @@ export class GitHubApiClient {
       throw responseError(error, operation);
     }
     const rateLimit = rateLimitFromResponse(response);
-    const errors = isRecord(response.body) ? response.body.errors : undefined;
-    if (Array.isArray(errors) && errors.length) {
-      const limited =
-        rateLimit.remaining === 0 ||
-        response.status === 429 ||
-        response.headers.has("retry-after") ||
-        errors.some(
-          (entry: unknown) =>
-            isRecord(entry) &&
-            (entry.type === "RATE_LIMITED" ||
-              (isRecord(entry.extensions) && entry.extensions.code === "RATE_LIMITED")),
-        );
-      const message = errors
-        .map((error: unknown) =>
-          isRecord(error) && typeof error.message === "string" ? error.message : "unknown error",
-        )
-        .join("; ");
-      const error = new GitHubApiError(
-        limited ? "rate_limited" : "graphql_error",
-        `${message}${rateLimit.remaining !== null ? ` (${githubRateLimitMessage(rateLimit)})` : ""}`,
-        {
-          operation,
-          status: response.status ?? null,
-          rateLimit,
-          retryAfter: response.headers.get("retry-after") ?? null,
-        },
-      );
+    const error = graphqlResponseError(response, operation);
+    if (error) {
       this.observe(operation, started, response, error, query);
       throw error;
     }
