@@ -155,6 +155,17 @@ impl DefinitionContentIndex {
         }
         let adapter = serde_json::to_value(port.adapter)?;
         if !retained
+            && crate::persistence::standalone_staged_archive(&port)
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 22
+            })
+        {
+            return Err(PortcoveError::verification(
+                "ready staged archives require prelaunch data preservation capability version 22",
+            ));
+        }
+        if !retained
             && port.adapter == crate::AdapterKind::PsxRecompManaged
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "psx-recomp-managed" && requirement.minimum_version >= 2

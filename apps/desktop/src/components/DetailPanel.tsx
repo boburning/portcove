@@ -1042,8 +1042,8 @@ function RequirementsGroup({
     if (needsAttention && disclosure.current) disclosure.current.open = true;
   }, [needsAttention]);
   const authoredSetup =
-    port.adapter === "native-portable" &&
-    Boolean(port.presentation?.manual_setup || port.presentation?.manual_preparation);
+    Boolean(port.presentation?.manual_setup || port.presentation?.manual_preparation) &&
+    (port.adapter === "native-portable" || (!port.source_profile && !port.bios_source_profile));
   if (!port.source_profile && !port.bios_source_profile && !managedPreparation && !authoredSetup)
     return null;
   return (
@@ -1469,7 +1469,7 @@ function SavesAndSettingsSummary({
           : port.presentation?.saves_and_settings === "portcove-managed"
             ? "Managed by Portcove for backup and restore"
             : port.presentation?.saves_and_settings === "external-user-owned"
-              ? "Stored with your external runtime; Portcove does not back up or remove it"
+              ? "External saves and settings are outside Portcove backups; declared local data may still be covered"
               : "Unavailable in this catalog"}
       </span>
       <section aria-label="Saved-data coverage">
@@ -2052,14 +2052,12 @@ function PrimaryActions({
       <InstallAction
         gameName={gameIdentityLabel(sources.port)}
         setupNote={
-          sources.port.adapter === "native-portable"
-            ? sources.port.presentation?.manual_setup?.steps[0]?.instruction
-            : undefined
+          sources.port.presentation?.manual_setup?.steps[0]?.instruction ??
+          (!sources.port.source_profile && !sources.port.bios_source_profile
+            ? (sources.port.presentation?.manual_preparation ?? undefined)
+            : undefined)
         }
-        externalData={
-          sources.port.adapter === "native-portable" &&
-          sources.port.presentation?.saves_and_settings === "external-user-owned"
-        }
+        externalData={sources.port.presentation?.saves_and_settings === "external-user-owned"}
         cancellations={installCancellations}
         ready={launchReady}
         sourceReady={sourceReady}
@@ -2339,14 +2337,14 @@ export function InstallAction({
               Portcove manages these runtime files and their updates. Automatic updates follow your
               selected update policy. See the game instructions for setup and save locations.
             </DialogDescription>
-            {setupNote && (
+            {(setupNote || externalData) && (
               <section className="mb-4 grid min-w-0 gap-2 wrap-anywhere" aria-label="Game setup">
                 <h3 className="font-semibold">Game setup</h3>
-                <p>{setupNote}</p>
+                {setupNote && <p>{setupNote}</p>}
                 {externalData && (
                   <p>
-                    The game normally keeps saves and settings outside Portcove backups. See Files
-                    for the locations and supported exceptions.
+                    Some game data stays outside Portcove backups. See Files for the locations and
+                    supported exceptions.
                   </p>
                 )}
               </section>

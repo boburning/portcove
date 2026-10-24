@@ -2931,9 +2931,7 @@ impl PortcoveService {
             port,
             DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
         )?;
-        if port.adapter == AdapterKind::NativePortable
-            && let Some(active) = &status.active
-        {
+        if let Some(active) = &status.active {
             self.require_portable_runtime_unchanged(active)?;
         }
         if let Some(active) = &status.active {
@@ -3023,7 +3021,7 @@ impl PortcoveService {
         let staged_activation = matches!(
             port.adapter,
             AdapterKind::NativePortable | AdapterKind::PsxRecompManaged
-        );
+        ) || crate::persistence::standalone_staged_archive(port);
         let installed = Installer::with_faults(self.library.clone(), self.faults.clone())?
             .install(
                 InstallRequest {
@@ -5363,23 +5361,18 @@ impl PortcoveService {
         };
         if !active.path.join(LAUNCH_MARKER).is_file() {
             // Preserve the historical unlaunched path for deeper integrations.
-            // Only verified retained portable/PS1 contracts collect before launch;
+            // Only verified retained ready-archive/PS1 contracts collect before launch;
             // today's catalog cannot silently grant that ownership to a legacy row.
             let retained = self
                 .managed_install_root(port_id, &active.path)
                 .and_then(|_| Installer::new(self.library.clone())?.retained_catalog(&active));
-            let requires_retained_data = self.catalog.port(port_id).is_ok_and(|port| {
-                matches!(
-                    port.adapter,
-                    AdapterKind::NativePortable | AdapterKind::PsxRecompManaged
-                )
-            });
+            let requires_retained_data = self
+                .catalog
+                .port(port_id)
+                .is_ok_and(crate::persistence::collect_before_first_launch);
             match retained {
                 Ok(Some(catalog)) => {
-                    if !matches!(
-                        catalog.port(port_id)?.adapter,
-                        AdapterKind::NativePortable | AdapterKind::PsxRecompManaged
-                    ) {
+                    if !crate::persistence::collect_before_first_launch(catalog.port(port_id)?) {
                         return Ok(None);
                     }
                 }
@@ -5392,10 +5385,7 @@ impl PortcoveService {
                 _ => return Ok(None),
             }
         }
-        let port = self.installed_mutability_port(&active)?;
-        if port.adapter == AdapterKind::NativePortable {
-            self.require_portable_runtime_unchanged(&active)?;
-        }
+        self.require_portable_runtime_unchanged(&active)?;
         Ok(Some(active))
     }
 
@@ -5715,7 +5705,7 @@ impl PortcoveService {
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, install_root)?;
         self.require_psx_data_receipt_readable(port, install_root)?;
-        if port.adapter == AdapterKind::PsxRecompManaged
+        if crate::persistence::requires_restore_receipt(port)
             && !install_root.join(LAUNCH_MARKER).is_file()
             && let Some(copied) = self.collect_uninitialized_psx_data(
                 port,

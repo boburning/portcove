@@ -11,7 +11,7 @@ upstreams, and #246 owns the protected publication and unchanged-client proof.
 
 Core advertises each installed `AdapterKind` template with contract version 1.
 The public inventory additionally advertises managed PS1 version 2, N64 portable versions 2 and 3 and
-staged-source portable versions 2–5, 8, 10–12 and 15–21. Staged-source creation
+staged-source portable versions 2–5, 8, 10–12 and 15–22. Staged-source creation
 versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
 
@@ -32,6 +32,18 @@ reading unscoped legacy manifests. A bounded, install/manifest-bound Core receip
 records completed data restoration before first Play; it establishes no launch,
 game-file, mod, publisher or gameplay qualification. See the
 [PS1 data boundary](CATALOG.md#managed-ps1-package-and-player-data-restoration).
+
+Staged-source version 22 covers ready managed archives without a source, build,
+setup-helper, initialization or shared-account contract. New indexed entries of
+that shape must require version 22. They stage and restore declared data before
+activation, collect edits made before first Play, and retain current data during
+runtime rollback. Raw activation refuses; interrupted activation repeats retained
+contract compatibility and data preflight. The same bounded data-restoration
+receipt is reused, including its historical metadata filename. A retained copy
+without proof of initial restoration uses additive collection and refuses
+differing canonical/runtime data. Other staged-source contracts and older
+retained readers keep their existing interpretation; advertising version 22
+does not grant acquisition, publisher or external-data ownership.
 
 The N64 portable template also advertises version 2, which implements the
 catalog-declared fresh Windows D3D12 default. Inventory identities are unique

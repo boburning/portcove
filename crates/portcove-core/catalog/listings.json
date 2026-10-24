@@ -2605,9 +2605,8 @@
       "summary": "Explore MechCommander 2 / mc2 (alariq) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/alariq/mc2",
       "issue_number": 1843,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/alariq/mc2",
+      "availability": "packages",
+      "setup_url": "https://github.com/alariq/mc2/blob/c428dfe02b609f0864933e715ca22ed07427a545/README.md",
       "artwork": {
         "game_id": 19194,
         "cover_id": 162632,
@@ -2615,7 +2614,36 @@
         "image_sha256": "15382dda32aab4766cda493eaa9080dd4b155ae663289e59da0b8c8e994beac8",
         "game_slug": "mechcommander-2",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "MechCommander 2",
+      "release_url": "https://github.com/alariq/mc2/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "mc2-win64-",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/alariq/mc2/blob/c428dfe02b609f0864933e715ca22ed07427a545/README.md",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Use the complete Windows player",
+            "instruction": "The official Windows x64 ZIP includes mc2.exe, its libraries and game data. Keep the complete package together. For an existing copy, select mc2.exe in the extracted mc2-win64 folder and use that folder as the working directory. Save launch details, then choose Play separately. The selected release has no Linux player archive; upstream provides separate Linux source/data build instructions. Follow all included notices: project code and components have their own licenses, and Microsoft’s Art Assets grant limits their use and distribution to noncommercial purposes."
+          },
+          {
+            "title": "Back up the external saves",
+            "instruction": "Normal saves use .mechcommander2/savegame under your Windows user-profile folder. Linux uses that path under XDG_CONFIG_HOME when set, otherwise HOME. Close the game and back up that external user-data folder separately. Keep options.cfg, options.cfg.old, orgprefs.cfg, data/multiplayer and any custom data locations with the copy you use. External profiles and custom paths are outside Portcove backups."
+          },
+          {
+            "title": "Keep an existing copy recoverable",
+            "instruction": "For a copy you registered yourself, you or upstream provide updates. Extract a new official player separately and keep the working copy. Follow upstream guidance for settings and custom content; copying old generated texture or geometry caches over a new package can replace its new files. Registration leaves every external file untouched."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "alexbeav-alone-in-the-dark-the-new-nightmare-recomp",
@@ -5868,9 +5896,12 @@
       "summary": "Explore Banjo-Kazooie: Nuts & Bolts / reNut and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/masterspike52/reNut",
       "issue_number": 161,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/masterspike52/reNut",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/masterspike52/reNut/blob/99cb2f4e4ba7fe147d3ed967baaacbe252319dd8/README.md",
       "artwork": {
         "game_id": 3008,
         "cover_id": 113272,
@@ -5878,7 +5909,30 @@
         "image_sha256": "d9fdbcaf84c07704610236e52a03420bcafec11c295730d03999a01377bf21e1",
         "game_slug": "banjo-kazooie-nuts-bolts",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Banjo-Kazooie: Nuts & Bolts",
+      "release_url": "https://github.com/masterspike52/reNut/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare a permitted copy with upstream setup",
+            "instruction": "For existing permitted copies of reNut and its setup tools, point NutStaller’s install folder at your player and use 3. Pick ISO + extract with your own USA Banjo-Kazooie: Nuts & Bolts Xbox 360 ISO. This prepares game data and renut.cfg without downloading another runtime. Keep the current game folder backed up before approving any replacement. The optional Add title update action accepts your own update; match it to your runtime’s release instructions. Beta9 advertises TU3 and DLC support. Get latest reNut and Do everything acquire a new runtime and require separate acquisition permission. Portcove never runs these tools during discovery."
+          },
+          {
+            "title": "Register the prepared player",
+            "instruction": "On Windows choose the prepared renut.exe and its containing folder; on Linux choose the prepared renut.AppImage with its matching folder. Save launch details, then choose Play separately. Keep NutStaller for upstream updates, controls, Workshop and save tools. The Linux player and extraction helper have separate system requirements in upstream instructions; the reviewed launcher documents glibc 2.38 for the player and 2.34 for its extraction helper. If setting up the player manually, its first-run path wizard asks for your existing game and user-data folders."
+          },
+          {
+            "title": "Keep original files, saves and settings recoverable",
+            "instruction": "You or upstream provide runtime updates. Close the game before using NutStaller to back up or to update to another release you have permission to acquire. Its normal user-data folder is Documents/renut on Windows and XDG_DATA_HOME/renut (normally ~/.local/share/renut) on Linux. Keep renut.cfg and renut.toml too: next to the Windows player, or in the Linux user-data folder. Retain your original ISO, prepared game folder, custom user-data paths, mods, and NutStaller configuration separately. Portcove external registration leaves these files untouched and supplies no managed Update, Backup or Rollback."
+          }
+        ],
+        "warnings": [
+          "Portcove downloads are paused because attributable distribution terms for reNut’s separately authored runtime and branding are not established by the reviewed release or project tree. Third-party notices do not settle those terms. Use only a copy you are permitted to use. Reconsider when upstream provides compatible terms for the project and packaged resources."
+        ],
+        "help_url": "https://github.com/masterspike52/reNut/blob/99cb2f4e4ba7fe147d3ed967baaacbe252319dd8/README.md"
+      },
+      "download_block_reason": "Portcove downloads are paused because attributable distribution terms for reNut’s separately authored runtime and branding are not established by the reviewed release or project tree. Third-party notices do not settle those terms. Use only a copy you are permitted to use. Reconsider when upstream provides compatible terms for the project and packaged resources."
     },
     {
       "id": "banjo-tooie-recompiled-some-scurvy-dog",
@@ -6176,10 +6230,34 @@
       "project_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled",
       "original_game_title": "Super Smash Bros. Brawl",
       "issue_number": 2434,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "release_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled/releases",
-      "setup_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled"
+      "setup_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled/blob/5b3b78d5f429f6bbef86a417e96cfcd5c283307f/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep a permitted prepared player",
+            "instruction": "For an existing permitted copy of the reviewed Windows package, keep Brawl Recompiled.exe, engine and Disc together and choose Brawl Recompiled.exe with its folder as the working directory. The Linux package has its own Brawl Recompiled launcher, 64-bit Linux and Vulkan requirements. Save launch details without starting the player; choose Play separately."
+          },
+          {
+            "title": "Use the launcher for your own disc",
+            "instruction": "On the launcher’s Play page choose your own USA RSBE01 revision 1 Brawl ISO, CISO or WBFS. It extracts Disc/DATA (about 7 GB) and checks the disc identity. No original disc is supplied by Portcove. The prebuilt runtime needs no compiler."
+          },
+          {
+            "title": "Keep the complete player-data tree",
+            "instruction": "You or upstream provide updates for this external copy. Back up engine/UserData, including settings, NAND saves, SD/mod content and generated card images; retain Disc and your original image separately. Custom disc/NAND paths need their own backup. Use a new permitted version separately and preserve the current working copy. Portcove does not adopt external files or promise managed Update, Backup or Rollback."
+          }
+        ],
+        "warnings": [
+          "Portcove downloads are paused while permission for this package’s game-derived launcher art and title-font resources remains unresolved. Upstream identifies these bundled resources as taken from the game; the packaged GPL and library notices do not establish their separate grant. Keep an existing permitted copy. Reconsider when upstream provides compatible resource grants or a package that obtains them from your own disc."
+        ],
+        "help_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled/blob/5b3b78d5f429f6bbef86a417e96cfcd5c283307f/README.md"
+      },
+      "download_block_reason": "Portcove downloads are paused while permission for this package’s game-derived launcher art and title-font resources remains unresolved. Upstream identifies these bundled resources as taken from the game; the packaged GPL and library notices do not establish their separate grant. Keep an existing permitted copy. Reconsider when upstream provides compatible resource grants or a package that obtains them from your own disc."
     },
     {
       "id": "brawmario-infinite-mario-64-ever",
@@ -6212,10 +6290,41 @@
       "project_url": "https://github.com/timftw21/burnout2-recompilation",
       "original_game_title": "Burnout 2: Point of Impact",
       "issue_number": 2447,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
       "release_url": "https://github.com/timftw21/burnout2-recompilation/releases",
-      "setup_url": "https://github.com/timftw21/burnout2-recompilation"
+      "setup_url": "https://github.com/timftw21/burnout2-recompilation/blob/a999a85e2f6c8eaec0bd40e5b521f31c11e65dd3/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare a player with upstream setup",
+            "instruction": "The official Installation.zip is a source and setup kit, not a ready-made player. On Windows, install the upstream LLVM 22.1-or-newer, Visual Studio 2026 C++/Windows SDK, CMake 4.2-or-newer, Git and Ninja prerequisites, extract the kit into a separate retained source folder, then deliberately run Build.cmd and select your own US Xbox XISO (.iso or .xiso). A full-disc dump needs upstream conversion first. The builder acquires dependencies and builds the player. Portcove does not run it during discovery."
+          },
+          {
+            "title": "Register the completed player",
+            "instruction": "When the upstream build succeeds, use Open game folder and choose b2.exe with that folder as its working directory in Portcove. Save the launch details, then choose Play separately. For Linux use upstream Install.desktop; macOS uses Install.command and its Xcode/macOS prerequisites. These experimental native platforms have separate dependency/build instructions; Windows package inspection does not qualify them. Keep source, build and data folders together, and rerun upstream setup after moving them."
+          },
+          {
+            "title": "Back up and rebuild when updating",
+            "instruction": "You or upstream own the runtime, generated game files and updates. Before updating, close the game and builder and back up data/user, data/local/settings.cfg and any data/local/custom-music beside the player. Extract updated source over the retained source folder while keeping build and data, then deliberately rerun the platform setup with your own XISO. Keep the old working copy and originals recoverable. Portcove external registration leaves files untouched and supplies no managed Update, Backup or Rollback."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/timftw21/burnout2-recompilation/blob/a999a85e2f6c8eaec0bd40e5b521f31c11e65dd3/README.md"
+      },
+      "artwork": {
+        "game_id": 3840,
+        "cover_id": 126527,
+        "image_id": "co2pmn",
+        "image_sha256": "74976a1b89848f15359717c555c095d5a35564b92636404faf8cb1c1cf4475b1",
+        "game_slug": "burnout-2-point-of-impact",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "burnout-3-takedawn-xbox",
@@ -6911,9 +7020,11 @@
       "summary": "Explore Dante's Inferno / hells-gate-recomp and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/florinp93/hells-gate-recomp",
       "issue_number": 367,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/florinp93/hells-gate-recomp",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/florinp93/hells-gate-recomp/blob/1c455387570b9d1daad87688707c8d6ba118f750/README.md",
       "artwork": {
         "game_id": 6958,
         "cover_id": 104554,
@@ -6921,7 +7032,30 @@
         "image_sha256": "ca61d103dab3eef24365a724385500de2dbba9fd054bd004bf2a6e0724870ff3",
         "game_slug": "dante-s-inferno",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Dante's Inferno",
+      "release_url": "https://github.com/florinp93/hells-gate-recomp/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish upstream setup in a permitted copy",
+            "instruction": "Use your existing permitted Windows copy with its own upstream instructions. The installed edition uses the upstream installer; the portable ZIP has no installer and includes DantesInfernoLauncher.exe, the native player and an original-disc importer. Choose DantesInfernoLauncher.exe with its folder as the working directory when registering it. Save launch details first, then choose Play separately."
+          },
+          {
+            "title": "Import your own original through the launcher",
+            "instruction": "In the portable launcher, choose Play and deliberately accept its ISO import prompt, then select your own supported Xbox 360 Dante’s Inferno ISO. The launcher runs its bundled extract-xiso into the selected game-data directory. Portcove never invokes that tool during discovery. Keep the ISO and game data recoverable. The package’s bundled title-update patch and imported originals share game; do not overwrite a new package’s patch by copying an old whole game folder without upstream guidance."
+          },
+          {
+            "title": "Keep upstream updates and your data together",
+            "instruction": "The installed edition can offer and launch its own update installer. The portable launcher opens the upstream release page and asks for a manual portable update; it does not silently self-replace. Close the game, keep the old copy, and back up userdata, dantes_inferno.toml, dlc and your imported original data before following the matching upstream route. The reviewed portable.txt keeps normal saves/cache in userdata; custom game-data/profile locations need a separate backup. Portcove leaves the external files untouched and supplies no managed Update, Backup or Rollback."
+          }
+        ],
+        "warnings": [
+          "Portcove downloads are paused while the selected package’s bundled game/default.xexp title-update patch has no established separate acquisition permission. Keep an existing permitted copy. Reconsider when upstream establishes the patch’s compatible distribution basis or supplies a package that imports it from your own game."
+        ],
+        "help_url": "https://github.com/florinp93/hells-gate-recomp/blob/1c455387570b9d1daad87688707c8d6ba118f750/README.md"
+      },
+      "download_block_reason": "Portcove downloads are paused while the selected package’s bundled game/default.xexp title-update patch has no established separate acquisition permission. Keep an existing permitted copy. Reconsider when upstream establishes the patch’s compatible distribution basis or supplies a package that imports it from your own game."
     },
     {
       "id": "dark-rift-kilnan-recomp",

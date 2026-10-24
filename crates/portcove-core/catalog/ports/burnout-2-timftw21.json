@@ -7,9 +7,35 @@
     "project_url": "https://github.com/timftw21/burnout2-recompilation",
     "original_game_title": "Burnout 2: Point of Impact",
     "issue_number": 2447,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
     "release_url": "https://github.com/timftw21/burnout2-recompilation/releases",
-    "setup_url": "https://github.com/timftw21/burnout2-recompilation"
+    "setup_url": "https://github.com/timftw21/burnout2-recompilation/blob/a999a85e2f6c8eaec0bd40e5b521f31c11e65dd3/README.md",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare a player with upstream setup",
+          "instruction": "The official Installation.zip is a source and setup kit, not a ready-made player. On Windows, install the upstream LLVM 22.1-or-newer, Visual Studio 2026 C++/Windows SDK, CMake 4.2-or-newer, Git and Ninja prerequisites, extract the kit into a separate retained source folder, then deliberately run Build.cmd and select your own US Xbox XISO (.iso or .xiso). A full-disc dump needs upstream conversion first. The builder acquires dependencies and builds the player. Portcove does not run it during discovery."
+        },
+        {
+          "title": "Register the completed player",
+          "instruction": "When the upstream build succeeds, use Open game folder and choose b2.exe with that folder as its working directory in Portcove. Save the launch details, then choose Play separately. For Linux use upstream Install.desktop; macOS uses Install.command and its Xcode/macOS prerequisites. These experimental native platforms have separate dependency/build instructions; Windows package inspection does not qualify them. Keep source, build and data folders together, and rerun upstream setup after moving them."
+        },
+        {
+          "title": "Back up and rebuild when updating",
+          "instruction": "You or upstream own the runtime, generated game files and updates. Before updating, close the game and builder and back up data/user, data/local/settings.cfg and any data/local/custom-music beside the player. Extract updated source over the retained source folder while keeping build and data, then deliberately rerun the platform setup with your own XISO. Keep the old working copy and originals recoverable. Portcove external registration leaves files untouched and supplies no managed Update, Backup or Rollback."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/timftw21/burnout2-recompilation/blob/a999a85e2f6c8eaec0bd40e5b521f31c11e65dd3/README.md"
+    },
+    "artwork": {
+      "game_id": 3840,
+      "cover_id": 126527,
+      "image_id": "co2pmn",
+      "image_sha256": "74976a1b89848f15359717c555c095d5a35564b92636404faf8cb1c1cf4475b1",
+      "game_slug": "burnout-2-point-of-impact",
+      "match_kind": "underlying-game"
+    }
   }
 }

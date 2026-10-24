@@ -121,6 +121,28 @@ or platform fragments do not override its exclusion. Symbols, source,
 checksum files, foreign platforms and processor mismatches remain excluded from
 recommendations. Explain the actual upstream setup and its update/data owner in
 the authored guide; downloading an installer never runs it.
+
+A ready native archive with reviewed disposable runtime writes may instead fit
+the existing `staged-source-portable` adapter; it does not require a source
+profile or build step. Establish its actual executable-relative working directory,
+declare player data separately from disposable caches and diagnostics, and keep
+new package defaults version-owned. MC2 is an example: local settings/custom
+multiplayer data persist, while generated texture/geometry caches stay with each
+version. This is not permission to exempt arbitrary data folders or executable
+outputs. Review interrupted temporary writes and packaged script callers too.
+External user-profile saves remain outside backup ownership. Use
+`external-user-owned` saved-data presentation when normal saves are external,
+and explain any separately managed local settings in the authored instructions.
+The shared installation review surfaces that limit for every managed adapter;
+external registration must retain its ownership-neutral guide.
+Ready staged archives require capability version 22 for independent definition
+delivery. Core stages their installation before restoring declared data and
+activating. Data added before first Play participates in backup, update and
+rollback. A retained runtime without proof of completed Core data restoration
+uses conservative additive collection: canonical-only data survives and differing
+copies require a deliberate resolution. Existing source/build integrations keep
+their preparation and collection contracts.
+
 An explicitly hinted Win32 player can be recommended on a Windows x64 host;
 [Windows supplies WOW64 for x86 applications](https://learn.microsoft.com/en-us/windows/win32/winprog64/running-32-bit-applications).
 This does not establish game-specific dependencies, gameplay, or other processor

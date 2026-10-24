@@ -87,9 +87,10 @@ export function AuthoredPreparationGuidance({
   ownership?: "managed" | "external";
 }) {
   const guide = port.presentation?.manual_setup;
-  // A portable definition also offers external registration. Its managed-data
+  // A managed definition also offers external registration. Its managed-data
   // instructions cannot grant ownership of that external copy.
-  const externalPortable = port.adapter === "native-portable" && ownership === "external";
+  const externalManaged =
+    ownership === "external" && Boolean(port.adapter) && port.release?.provider !== "user-prepared";
   return (
     <>
       {guide ? (
@@ -118,7 +119,7 @@ export function AuthoredPreparationGuidance({
           {guide.help_url && (
             <ExternalLink href={guide.help_url}>Detailed preparation guide</ExternalLink>
           )}
-          {port.presentation?.manual_preparation && !externalPortable && (
+          {port.presentation?.manual_preparation && !externalManaged && (
             <details className="text-xs">
               <summary data-focusable className="cursor-pointer font-medium">
                 Compatibility and technical notes
@@ -127,7 +128,7 @@ export function AuthoredPreparationGuidance({
             </details>
           )}
         </>
-      ) : externalPortable ? (
+      ) : externalManaged ? (
         port.project_url ? (
           <ExternalLink href={port.project_url}>Upstream setup instructions</ExternalLink>
         ) : null

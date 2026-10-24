@@ -670,39 +670,48 @@ it("shows authored steps and essential warnings while preserving detailed notes 
   expect(pickInstallFolder).not.toHaveBeenCalled();
 });
 
-it("keeps managed-copy promises out of the portable external-registration guide", async () => {
-  const guided: PortDefinition = {
-    ...port,
-    adapter: "native-portable",
-    presentation: {
-      ...port.presentation,
-      manual_preparation: "Portcove replaces and backs up the managed copy.",
-      manual_setup: {
-        steps: [
-          {
-            title: "Choose original files",
-            instruction: "The game asks for your original files on first Play.",
-          },
-          {
-            title: "Choose controls",
-            instruction: "Use the game’s menus to choose your controls.",
-          },
-        ],
-        warnings: [],
-        help_url: "https://example.com/setup",
+it.each(["native-portable", "staged-source-portable"] as const)(
+  "keeps managed-copy promises out of the %s external-registration guide",
+  async (adapter) => {
+    const guided: PortDefinition = {
+      ...port,
+      adapter,
+      release: { ...port.release, provider: "github" },
+      presentation: {
+        ...port.presentation,
+        manual_preparation: "Portcove replaces and backs up the managed copy.",
+        manual_setup: {
+          steps: [
+            {
+              title: "Choose original files",
+              instruction: "The game asks for your original files on first Play.",
+            },
+            {
+              title: "Choose controls",
+              instruction: "Use the game’s menus to choose your controls.",
+            },
+          ],
+          warnings: [],
+          help_url: "https://example.com/setup",
+        },
       },
-    },
-  };
-  const register = vi.spyOn(desktopApi, "registerUserSelectedRuntime");
-  await root.rerender(
-    <UserSelectedRuntimeControl port={guided} status={portStatus()} generation={9} busy={false} />,
-  );
-  expect(host.textContent).toContain("The game asks for your original files on first Play.");
-  expect(host.textContent).toContain("You or upstream provide runtime updates.");
-  expect(host.textContent).not.toContain("Portcove replaces and backs up");
-  expect(host.textContent).toContain("Use the game’s menus to choose your controls.");
-  expect(register).not.toHaveBeenCalled();
-});
+    };
+    const register = vi.spyOn(desktopApi, "registerUserSelectedRuntime");
+    await root.rerender(
+      <UserSelectedRuntimeControl
+        port={guided}
+        status={portStatus()}
+        generation={9}
+        busy={false}
+      />,
+    );
+    expect(host.textContent).toContain("The game asks for your original files on first Play.");
+    expect(host.textContent).toContain("You or upstream provide runtime updates.");
+    expect(host.textContent).not.toContain("Portcove replaces and backs up");
+    expect(host.textContent).toContain("Use the game’s menus to choose your controls.");
+    expect(register).not.toHaveBeenCalled();
+  },
+);
 
 it.each(["colin-mcrae-rally-2-opencmr2", "alistert-openjazz", "citrongames-dora64"])(
   "keeps retained %s setup truthful after the definition and listing disappear",

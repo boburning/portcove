@@ -21212,6 +21212,105 @@
       }
     },
     {
+      "id": "alariq-mc2",
+      "name": "MechCommander 2 / mc2 (alariq)",
+      "summary": "Explore MechCommander 2 / mc2 (alariq) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/alariq/mc2",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "release": {
+        "repository": "alariq/mc2",
+        "asset_hints": {
+          "windows-x86-64": [
+            "mc2-win64-",
+            ".zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "mc2.exe"
+        ]
+      },
+      "persistent_paths": [
+        "options.cfg",
+        "options.cfg.old",
+        "orgprefs.cfg",
+        "data/multiplayer"
+      ],
+      "runtime_mutable_paths": [
+        "data/textures",
+        "data/tgl",
+        "dump",
+        "sniff.dat",
+        "wfchunk.dbg",
+        "whchunk.dbg",
+        "mvchunk.dbg",
+        "stchunk.dbg",
+        "movemap1.dbg",
+        "mm.dbg",
+        "longpath.dbg",
+        "AF3456AF.788",
+        "filetraffic.log",
+        "abl.log",
+        "walkdump.log",
+        "heap.dump.log",
+        "endless.log",
+        "wf.log",
+        "gesture.log",
+        "net.log",
+        "combat.log",
+        "bug.log",
+        "lrmove.log",
+        "tmp.fit"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "heapdump.",
+          "suffix": ".log"
+        }
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "The official Windows x64 package includes its game data and needs no original-file import or build. Portcove manages compatible runtime replacements and preserves local options.cfg, options.cfg.old, orgprefs.cfg and custom multiplayer data. Saves are external: back up your Windows user-profile folder/.mechcommander2/savegame separately; Portcove backups and runtime rollback do not include those saves. Generated texture and geometry caches, shader dumps and diagnostic files stay with each runtime version and are not carried into its replacement. Custom script output or custom data locations need separate preservation; unknown additions can block replacement until preserved. Runtime rollback carries current declared settings/custom data and does not rewind saves or guarantee older software can read newer data.",
+        "original_game_title": "MechCommander 2",
+        "manual_setup": {
+          "help_url": "https://github.com/alariq/mc2/blob/c428dfe02b609f0864933e715ca22ed07427a545/README.md",
+          "warnings": [],
+          "steps": [
+            {
+              "title": "Use the complete Windows player",
+              "instruction": "The official Windows x64 ZIP includes mc2.exe, its libraries and game data. Keep the complete package together. For an existing copy, select mc2.exe in the extracted mc2-win64 folder and use that folder as the working directory. Save launch details, then choose Play separately. The selected release has no Linux player archive; upstream provides separate Linux source/data build instructions. Follow all included notices: project code and components have their own licenses, and Microsoft’s Art Assets grant limits their use and distribution to noncommercial purposes."
+            },
+            {
+              "title": "Back up the external saves",
+              "instruction": "Normal saves use .mechcommander2/savegame under your Windows user-profile folder. Linux uses that path under XDG_CONFIG_HOME when set, otherwise HOME. Close the game and back up that external user-data folder separately. Keep options.cfg, options.cfg.old, orgprefs.cfg, data/multiplayer and any custom data locations with the copy you use. External profiles and custom paths are outside Portcove backups."
+            },
+            {
+              "title": "Keep an existing copy recoverable",
+              "instruction": "For a copy you registered yourself, you or upstream provide updates. Extract a new official player separately and keep the working copy. Follow upstream guidance for settings and custom content; copying old generated texture or geometry caches over a new package can replace its new files. Registration leaves every external file untouched."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 19194,
+          "cover_id": 162632,
+          "image_id": "co3hhk",
+          "image_sha256": "15382dda32aab4766cda493eaa9080dd4b155ae663289e59da0b8c8e994beac8",
+          "game_slug": "mechcommander-2",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "alexbeav-medievil-ii-recomp",
       "name": "MediEvil II / Alexbeav PSXRecomp",
       "summary": "Explore MediEvil II / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",

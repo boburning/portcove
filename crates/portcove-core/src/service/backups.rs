@@ -433,7 +433,7 @@ impl PortcoveService {
         let port = &contract.port;
         let root = self.persistence_root(port, &active.path)?;
         let launched = active.path.join(super::LAUNCH_MARKER).is_file();
-        let psx_initialized = if port.adapter == crate::AdapterKind::PsxRecompManaged {
+        let data_initialized = if crate::persistence::requires_restore_receipt(port) {
             super::psx_mod_data::initialized(&active)?
         } else {
             false
@@ -450,7 +450,7 @@ impl PortcoveService {
             }
         }
         let additive =
-            port.adapter == crate::AdapterKind::PsxRecompManaged && !launched && !psx_initialized;
+            crate::persistence::requires_restore_receipt(port) && !launched && !data_initialized;
         let replaced = if contract.writes_directly || additive {
             Vec::new()
         } else {
@@ -493,7 +493,7 @@ impl PortcoveService {
                 &root,
                 contract.writes_directly,
                 launched,
-                psx_initialized,
+                data_initialized,
                 entries,
             ))?),
             files_after_collection,

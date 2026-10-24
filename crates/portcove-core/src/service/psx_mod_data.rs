@@ -3,6 +3,9 @@
 //! This does not classify package origin, authenticate mods, or interpret/rebase
 //! upstream state. The retained adapter owns the declared `mods` tree; upstream
 //! still decides whether a selected package is compatible with a runtime.
+//! The bounded data-restoration receipt and conservative uninitialized-tree
+//! collection also serve ready staged archives. Its historical metadata filename
+//! stays readable; it grants neither executable nor mod authenticity.
 use super::*;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -579,7 +582,7 @@ impl PortcoveService {
         port: &PortDefinition,
         install_root: &Path,
     ) -> Result<Option<InstallRecord>> {
-        if port.adapter != AdapterKind::PsxRecompManaged {
+        if !crate::persistence::requires_restore_receipt(port) {
             return Ok(None);
         }
         let root = self.managed_install_root(&port.id, install_root)?;
@@ -596,7 +599,7 @@ impl PortcoveService {
             }
         }
         Err(PortcoveError::verification(
-            "PS1 data restore needs its registered installation identity",
+            "Player-data restore needs its registered installation identity",
         ))
     }
 
@@ -715,6 +718,13 @@ impl PortcoveService {
     pub(crate) fn prepare_recovered_psx_activation(&self, install: &InstallRecord) -> Result<()> {
         let port = self.installed_port(install)?;
         let qualification = self.installed_mutability_qualification(install)?;
+        if let Some(active) = self
+            .library
+            .status(&install.port_id, install.channel)?
+            .active
+        {
+            self.require_portable_transition(&active, &port)?;
+        }
         self.collect_active_user_data_if_launched(&install.port_id)?;
         self.restore_user_data_to(&port, &install.path)?;
         Installer::new(self.library.clone())?.verify_critical(install, &qualification)?;

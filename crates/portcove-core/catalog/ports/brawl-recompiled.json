@@ -7,9 +7,30 @@
     "project_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled",
     "original_game_title": "Super Smash Bros. Brawl",
     "issue_number": 2434,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
     "release_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled/releases",
-    "setup_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled"
+    "setup_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled/blob/5b3b78d5f429f6bbef86a417e96cfcd5c283307f/README.md",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep a permitted prepared player",
+          "instruction": "For an existing permitted copy of the reviewed Windows package, keep Brawl Recompiled.exe, engine and Disc together and choose Brawl Recompiled.exe with its folder as the working directory. The Linux package has its own Brawl Recompiled launcher, 64-bit Linux and Vulkan requirements. Save launch details without starting the player; choose Play separately."
+        },
+        {
+          "title": "Use the launcher for your own disc",
+          "instruction": "On the launcher’s Play page choose your own USA RSBE01 revision 1 Brawl ISO, CISO or WBFS. It extracts Disc/DATA (about 7 GB) and checks the disc identity. No original disc is supplied by Portcove. The prebuilt runtime needs no compiler."
+        },
+        {
+          "title": "Keep the complete player-data tree",
+          "instruction": "You or upstream provide updates for this external copy. Back up engine/UserData, including settings, NAND saves, SD/mod content and generated card images; retain Disc and your original image separately. Custom disc/NAND paths need their own backup. Use a new permitted version separately and preserve the current working copy. Portcove does not adopt external files or promise managed Update, Backup or Rollback."
+        }
+      ],
+      "warnings": [
+        "Portcove downloads are paused while permission for this package’s game-derived launcher art and title-font resources remains unresolved. Upstream identifies these bundled resources as taken from the game; the packaged GPL and library notices do not establish their separate grant. Keep an existing permitted copy. Reconsider when upstream provides compatible resource grants or a package that obtains them from your own disc."
+      ],
+      "help_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled/blob/5b3b78d5f429f6bbef86a417e96cfcd5c283307f/README.md"
+    },
+    "download_block_reason": "Portcove downloads are paused while permission for this package’s game-derived launcher art and title-font resources remains unresolved. Upstream identifies these bundled resources as taken from the game; the packaged GPL and library notices do not establish their separate grant. Keep an existing permitted copy. Reconsider when upstream provides compatible resource grants or a package that obtains them from your own disc."
   }
 }

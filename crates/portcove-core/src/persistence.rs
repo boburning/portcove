@@ -6,6 +6,36 @@ use crate::{PersistentFilePattern, PortDefinition, PortcoveError, Result};
 const MAX_DIRECTORY_ENTRIES: usize = 4096;
 const MAX_MATCHING_FILES: usize = 1024;
 
+/// A ready managed archive with no Core-owned source or preparation workflow.
+/// Decide from the retained definition before collecting data from an install.
+pub(crate) fn standalone_staged_archive(port: &PortDefinition) -> bool {
+    port.adapter == crate::AdapterKind::StagedSourcePortable
+        && port.release.provider != crate::ReleaseSource::UserPrepared
+        && port.release.user_prepared.is_empty()
+        && port.release.managed_build.is_empty()
+        && port.bundled_runtime.is_empty()
+        && port.source_profile.is_none()
+        && port.bios_source_profile.is_none()
+        && port.runtime_source_filename.is_none()
+        && port.runtime_source_materialization.is_none()
+        && port.runtime_source_set.is_empty()
+        && port.setup_executable_hints.is_empty()
+        && port.setup_arguments.is_empty()
+        && port.setup_output_paths.is_empty()
+        && port.setup_marker.is_none()
+        && port.managed_initialization.is_none()
+        && port.managed_shared_preferences.is_none()
+        && port.runtime_data_policy.is_none()
+}
+
+pub(crate) fn collect_before_first_launch(port: &PortDefinition) -> bool {
+    port.adapter == crate::AdapterKind::NativePortable || requires_restore_receipt(port)
+}
+
+pub(crate) fn requires_restore_receipt(port: &PortDefinition) -> bool {
+    port.adapter == crate::AdapterKind::PsxRecompManaged || standalone_staged_archive(port)
+}
+
 impl PersistentFilePattern {
     pub(crate) fn validate(&self) -> Result<()> {
         if self.prefix.is_empty()

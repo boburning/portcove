@@ -218,8 +218,9 @@ pub(crate) fn recover_published_install(
                 let installer = Installer::new(service.library.clone())?;
                 match installer.retained_catalog(&install)? {
                     Some(catalog)
-                        if catalog.port(&install.port_id)?.adapter
-                            == crate::AdapterKind::PsxRecompManaged =>
+                        if crate::persistence::requires_restore_receipt(
+                            catalog.port(&install.port_id)?,
+                        ) =>
                     {
                         // Retain the old intent, but never replay its former
                         // activate-before-restore ordering. A failed preflight
@@ -230,10 +231,10 @@ pub(crate) fn recover_published_install(
                     None if service
                         .catalog()
                         .port(&install.port_id)
-                        .is_ok_and(|port| port.adapter == crate::AdapterKind::PsxRecompManaged) =>
+                        .is_ok_and(crate::persistence::requires_restore_receipt) =>
                     {
                         return Err(PortcoveError::verification(
-                            "Interrupted PS1 activation has no retained player-data contract. Preserve both runtime copies and the journal; recover the missing contract before retrying.",
+                            "Interrupted activation has no retained player-data contract. Preserve both runtime copies and the journal; recover the missing contract before retrying.",
                         ));
                     }
                     _ => {}

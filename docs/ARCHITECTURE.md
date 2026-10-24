@@ -179,6 +179,17 @@ can happen in the upstream game's first launch when its output follows that
 contract; this does not certify gameplay. External setup reminders/registrations
 retain their non-owning interpretation. See [portable authoring](CATALOG.md#managed-native-portable-packages).
 
+Ready `staged-source-portable` archives with no original-file, build, setup-helper,
+initialization or shared-account preparation use the same stage-before-activation
+and retained-coordinate guard. Core collects declared edits made before first Play;
+disposable runtime outputs stay with their version. The existing bounded
+install/manifest-bound data-restoration receipt distinguishes an initialized copy
+from historical unproven data. Without that receipt, collection is additive and
+conflicting copies remain recoverable. Raw Installer activation refuses, and
+interrupted publication checks retained contracts and data before changing the
+active pointer. New independent definitions of this shape require staged-source
+capability 22; deeper integrations keep their existing preparation contracts.
+
 ## Source import journal interpretation
 
 Source import admits publication through the existing atomic cancellation boundary

@@ -89,6 +89,8 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
         .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
     {
         20
+    } else if crate::persistence::standalone_staged_archive(&typed) {
+        22
     } else if crate::managed_runtime_policy::requires_provider_resolution(&typed) {
         21
     } else if typed.managed_initialization

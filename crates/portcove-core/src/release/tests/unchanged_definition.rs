@@ -103,6 +103,14 @@ async fn unchanged_managed_definitions_follow_versioned_packages_after_cache_exp
  {
     let catalog = crate::Catalog::embedded().unwrap();
     for (id, old_tag, old_name, new_tag, new_name) in [
+        // MC2 has one observed native player release; v0.1.4 is synthetic.
+        (
+            "alariq-mc2",
+            "v0.1.3",
+            "mc2-win64-v0.1.3.zip",
+            "v0.1.4",
+            "mc2-win64-v0.1.4.zip",
+        ),
         (
             "battletanx-global-assault-pc-port",
             "v0.2.4",
@@ -178,12 +186,14 @@ async fn unchanged_managed_definitions_follow_versioned_packages_after_cache_exp
                 asset(
                     &new_name
                         .replace("windows", "linux")
-                        .replace("Windows", "Linux"),
+                        .replace("Windows", "Linux")
+                        .replace("win64", "linux64"),
                     Some('c'),
                 ),
                 asset(
                     &new_name
                         .replace("x64", "arm64")
+                        .replace("win64", "win-arm64")
                         .replace(".windows.zip", ".windows-arm64.zip"),
                     Some('d'),
                 ),

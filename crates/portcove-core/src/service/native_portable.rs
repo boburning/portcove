@@ -12,11 +12,15 @@ impl PortcoveService {
         let retained = self.installed_port(from)?;
         if retained.adapter != AdapterKind::NativePortable
             && to.adapter != AdapterKind::NativePortable
+            && !crate::persistence::standalone_staged_archive(&retained)
+            && !crate::persistence::standalone_staged_archive(to)
         {
             return Ok(());
         }
         let platform = Platform::current()?;
         if retained.adapter != to.adapter
+            || crate::persistence::standalone_staged_archive(&retained)
+                != crate::persistence::standalone_staged_archive(to)
             || retained.persistent_paths != to.persistent_paths
             || retained.persistent_file_patterns != to.persistent_file_patterns
             || retained.runtime_subdirectory != to.runtime_subdirectory
@@ -35,7 +39,9 @@ impl PortcoveService {
 
     pub(super) fn require_portable_runtime_unchanged(&self, install: &InstallRecord) -> Result<()> {
         let port = self.installed_port(install)?;
-        if port.adapter != AdapterKind::NativePortable {
+        if port.adapter != AdapterKind::NativePortable
+            && !crate::persistence::standalone_staged_archive(&port)
+        {
             return Ok(());
         }
         let qualification = self.installed_mutability_qualification(install)?;
@@ -147,15 +153,38 @@ mod tests {
             }
         }
         fn release(&self, version: &str, revision: u8) -> ResolvedRelease {
+            self.release_in_folder(version, revision, "", "game.exe")
+        }
+        fn release_in_folder(
+            &self,
+            version: &str,
+            revision: u8,
+            folder: &str,
+            program_name: &str,
+        ) -> ResolvedRelease {
             let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
-            zip.start_file("game.exe", zip::write::SimpleFileOptions::default())
-                .unwrap();
+            zip.start_file(
+                format!("{folder}{program_name}"),
+                zip::write::SimpleFileOptions::default(),
+            )
+            .unwrap();
             let mut program = vec![revision; 128];
             program[..2].copy_from_slice(b"MZ");
             zip.write_all(&program).unwrap();
-            zip.start_file("package.txt", zip::write::SimpleFileOptions::default())
-                .unwrap();
+            zip.start_file(
+                format!("{folder}package.txt"),
+                zip::write::SimpleFileOptions::default(),
+            )
+            .unwrap();
             zip.write_all(&[revision]).unwrap();
+            if !folder.is_empty() {
+                zip.start_file(
+                    format!("{folder}data/textures/100.txm"),
+                    zip::write::SimpleFileOptions::default(),
+                )
+                .unwrap();
+                zip.write_all(&[revision]).unwrap();
+            }
             let bytes = zip.finish().unwrap().into_inner();
             let sha256 = hex::encode(Sha256::digest(&bytes));
             *self.bytes.lock().unwrap() = bytes.clone();
@@ -185,6 +214,295 @@ mod tests {
         let mut service = PortcoveService::with_provider(library, provider).unwrap();
         service.catalog = catalog();
         service
+    }
+
+    #[tokio::test]
+    async fn ready_staged_archive_preserves_preplay_data_and_successor_cache_defaults() {
+        const ID: &str = "alariq-mc2";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
+            "v0.1.3",
+            1,
+            "mc2-win64-v0.1.3/",
+            "mc2.exe",
+        ))));
+        let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        let port = service.catalog.port(ID).unwrap();
+        assert!(crate::persistence::standalone_staged_archive(port));
+        let first = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let root = first.path.join("mc2-win64-v0.1.3");
+        assert!(psx_mod_data::initialized(&first).unwrap());
+        fs::write(root.join("options.cfg"), b"before first Play").unwrap();
+        fs::create_dir_all(root.join("data/multiplayer")).unwrap();
+        fs::write(root.join("data/multiplayer/custom.var"), b"custom variant").unwrap();
+        fs::write(
+            root.join("data/textures/100.txm"),
+            b"old generated texture cache",
+        )
+        .unwrap();
+        fs::write(
+            root.join("tmp.fit"),
+            b"interrupted disposable variant decode",
+        )
+        .unwrap();
+        assert!(!first.path.join(LAUNCH_MARKER).exists());
+        let backup = service.create_backup(ID).unwrap();
+        assert_eq!(
+            fs::read(backup.path.join("data/options.cfg")).unwrap(),
+            b"before first Play"
+        );
+        assert!(!backup.path.join("data/data/textures").exists());
+        fs::write(root.join("options.cfg"), b"updated after backup").unwrap();
+        *provider.0.lock().unwrap() =
+            server.release_in_folder("v0.1.4", 2, "mc2-win64-v0.1.4/", "mc2.exe");
+        let staged = service.update(ID, None, None, false, |_| {}).await.unwrap();
+        assert!(staged.staged);
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+        let second = service.activate_staged(ID).unwrap();
+        let second_root = second.path.join("mc2-win64-v0.1.4");
+        assert_eq!(
+            fs::read(second_root.join("options.cfg")).unwrap(),
+            b"updated after backup"
+        );
+        assert_eq!(
+            fs::read(second_root.join("data/multiplayer/custom.var")).unwrap(),
+            b"custom variant"
+        );
+        assert_eq!(
+            fs::read(second_root.join("data/textures/100.txm")).unwrap(),
+            [2]
+        );
+        assert!(!second_root.join("tmp.fit").exists());
+        fs::write(
+            second_root.join("options.cfg"),
+            b"deliberate successor choice",
+        )
+        .unwrap();
+        let spec = service
+            .prepare_launch_for_install(port, &second, None, None)
+            .unwrap();
+        assert_eq!(spec.working_directory, second_root);
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("options.cfg")).unwrap(),
+            b"deliberate successor choice"
+        );
+        // Preparation returns a specification; no fixture executable is run.
+        assert!(!second.path.join(LAUNCH_MARKER).exists());
+        let restored = service.rollback(ID).unwrap();
+        assert_eq!(restored.id, first.id);
+        assert_eq!(
+            fs::read(root.join("options.cfg")).unwrap(),
+            b"deliberate successor choice"
+        );
+        assert_eq!(
+            fs::read(root.join("data/textures/100.txm")).unwrap(),
+            b"old generated texture cache"
+        );
+        fs::write(root.join("unknown-player-file"), b"preserve separately").unwrap();
+        assert!(
+            service
+                .preview_removal(ID)
+                .unwrap_err()
+                .message
+                .contains("unrecognized files")
+        );
+        assert!(service.update(ID, None, None, true, |_| {}).await.is_err());
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+        assert_eq!(
+            fs::read(root.join("unknown-player-file")).unwrap(),
+            b"preserve separately"
+        );
+    }
+
+    #[tokio::test]
+    async fn ready_staged_archive_without_restore_proof_preserves_canonical_and_conflicting_data() {
+        const ID: &str = "alariq-mc2";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
+            "v0.1.3",
+            1,
+            "mc2-win64-v0.1.3/",
+            "mc2.exe",
+        ))));
+        let service = PortcoveService::with_provider(library.clone(), provider).unwrap();
+        let first = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let root = first.path.join("mc2-win64-v0.1.3");
+        fs::remove_file(first.path.join(PSX_DATA_RECEIPT)).unwrap();
+        let user = library.user_dir(ID);
+        fs::create_dir_all(&user).unwrap();
+        fs::write(user.join("options.cfg"), b"canonical choices").unwrap();
+        fs::write(user.join("orgprefs.cfg"), b"canonical only").unwrap();
+        fs::write(root.join("options.cfg"), b"unproven runtime choices").unwrap();
+        assert!(
+            service
+                .collect_active_user_data_if_launched(ID)
+                .unwrap_err()
+                .message
+                .contains("unlaunched runtime data differs")
+        );
+        assert_eq!(
+            fs::read(user.join("options.cfg")).unwrap(),
+            b"canonical choices"
+        );
+        assert_eq!(
+            fs::read(root.join("options.cfg")).unwrap(),
+            b"unproven runtime choices"
+        );
+        // Preserve the conflicting copy separately, then permit additive collection.
+        fs::rename(
+            root.join("options.cfg"),
+            temporary.path().join("preserved-options.cfg"),
+        )
+        .unwrap();
+        service.collect_active_user_data_if_launched(ID).unwrap();
+        assert_eq!(
+            fs::read(user.join("orgprefs.cfg")).unwrap(),
+            b"canonical only"
+        );
+        assert!(!psx_mod_data::initialized(&first).unwrap());
+    }
+
+    #[tokio::test]
+    async fn ready_staged_archive_raw_activation_refuses_before_acquisition() {
+        const ID: &str = "alariq-mc2";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let error = Installer::new(library.clone())
+            .unwrap()
+            .install(
+                InstallRequest {
+                    port_id: ID.into(),
+                    release: ResolvedRelease {
+                        version: "v0.1.3".into(),
+                        channel: ReleaseChannel::Stable,
+                        published_at: None,
+                        asset: crate::ReleaseAsset {
+                            name: "mc2-win64-v0.1.3.zip".into(),
+                            url: format!("http://{}/fixture.zip", listener.local_addr().unwrap()),
+                            size: 42,
+                            sha256: "ab".repeat(32),
+                        },
+                    },
+                    output_root: library.versions_dir().join(ID),
+                    activate: true,
+                    managed: None,
+                    qualification: InstallQualification::from_catalog(
+                        &catalog,
+                        ID,
+                        Platform::WindowsX86_64,
+                    )
+                    .unwrap(),
+                },
+                &OperationCoordinator::new("ready-archive-raw", None),
+                |_| {},
+            )
+            .await
+            .unwrap_err();
+        assert!(error.message.contains("preflight before activation"));
+        assert_eq!(
+            listener.accept().unwrap_err().kind(),
+            std::io::ErrorKind::WouldBlock
+        );
+        assert!(OperationStore::new(library).all().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn ready_staged_archive_recovery_refuses_changed_data_coordinates_before_collection() {
+        const ID: &str = "alariq-mc2";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
+            "v0.1.3",
+            1,
+            "mc2-win64-v0.1.3/",
+            "mc2.exe",
+        ))));
+        let service = PortcoveService::with_provider(library.clone(), provider).unwrap();
+        let first = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let user = library.user_dir(ID);
+        fs::create_dir_all(&user).unwrap();
+        fs::write(user.join("options.cfg"), b"reviewed canonical").unwrap();
+        fs::write(
+            first.path.join("mc2-win64-v0.1.3/options.cfg"),
+            b"uncollected current settings",
+        )
+        .unwrap();
+        let mut document = service.catalog.authoritative_document().clone();
+        document
+            .ports
+            .iter_mut()
+            .find(|p| p.id == ID)
+            .unwrap()
+            .persistent_paths = vec!["different.cfg".into()];
+        let changed = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let new = Installer::new(library.clone())
+            .unwrap()
+            .install(
+                InstallRequest {
+                    port_id: ID.into(),
+                    release: server.release_in_folder("v0.1.4", 2, "mc2-win64-v0.1.4/", "mc2.exe"),
+                    output_root: library.versions_dir().join(ID),
+                    activate: false,
+                    managed: None,
+                    qualification: InstallQualification::from_catalog(
+                        &changed,
+                        ID,
+                        Platform::WindowsX86_64,
+                    )
+                    .unwrap(),
+                },
+                &OperationCoordinator::new("changed-coordinate-stage", None),
+                |_| {},
+            )
+            .await
+            .unwrap();
+        let id = Uuid::new_v4().to_string();
+        let mut journal = crate::operation::LifecycleOperation::new(
+            &id,
+            crate::operation::LifecycleOperationKind::Install,
+            ID,
+        );
+        journal.install = Some(new.clone());
+        journal.activate = true;
+        journal.phase = crate::operation::LifecyclePhase::PayloadPublished;
+        journal.paths.staging = Some(library.staging_dir().join(&id));
+        journal.paths.final_path = Some(new.path.clone());
+        fs::create_dir_all(journal.paths.staging.as_ref().unwrap()).unwrap();
+        let store = OperationStore::new(library.clone());
+        store.put(&mut journal).unwrap();
+        let error =
+            crate::recovery::recover_published_install(&service, &store, &mut journal).unwrap_err();
+        assert!(
+            error
+                .message
+                .contains("changes how this installation stores"),
+            "{error}"
+        );
+        assert_eq!(
+            fs::read(user.join("options.cfg")).unwrap(),
+            b"reviewed canonical"
+        );
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+        assert!(first.path.is_dir() && new.path.is_dir());
+        assert!(store.get(&journal.id).unwrap().is_some());
+        assert!(!new.path.join(PSX_DATA_RECEIPT).exists());
     }
 
     fn register_external_copy(service: &PortcoveService, root: &Path) -> ExternalRuntimeRecord {

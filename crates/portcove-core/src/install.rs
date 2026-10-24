@@ -836,9 +836,9 @@ impl Installer {
             )?;
         }
         let port = catalog.port(&request.port_id)?;
-        if request.activate && port.adapter == AdapterKind::PsxRecompManaged {
+        if request.activate && crate::persistence::requires_restore_receipt(port) {
             return Err(PortcoveError::unsupported(
-                "Managed PS1 installation requires player-data preflight before activation. Install inactive, then activate through Core; the previous installation is preserved.",
+                "Managed installation requires player-data preflight before activation. Install inactive, then activate through Core; the previous installation is preserved.",
             ));
         }
         if crate::managed_runtime_policy::requires_provider_resolution(port) {
@@ -1465,11 +1465,9 @@ impl Installer {
             .retained_contract
             .as_ref()
             .map(|contract| -> Result<bool> {
-                Ok(contract
-                    .catalog(&install.port_id)?
-                    .port(&install.port_id)?
-                    .adapter
-                    == AdapterKind::PsxRecompManaged)
+                Ok(crate::persistence::requires_restore_receipt(
+                    contract.catalog(&install.port_id)?.port(&install.port_id)?,
+                ))
             })
             .transpose()?
             .unwrap_or(false);
@@ -2621,11 +2619,11 @@ fn manifest_files(
         .retained_contract
         .as_ref()
         .map(|contract| -> Result<bool> {
-            Ok(contract
-                .catalog(contract.port_id())?
-                .port(contract.port_id())?
-                .adapter
-                == AdapterKind::PsxRecompManaged)
+            Ok(crate::persistence::requires_restore_receipt(
+                contract
+                    .catalog(contract.port_id())?
+                    .port(contract.port_id())?,
+            ))
         })
         .transpose()?
         .unwrap_or(false);

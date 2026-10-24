@@ -134,7 +134,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     assert!(pairs.contains(&("n64-recomp-portable", 2)));
     assert!(pairs.contains(&("n64-recomp-portable", 3)));
     assert!(pairs.contains(&("psx-recomp-managed", 2)));
-    let staged_versions = [2, 3, 4, 5, 8, 10, 11, 12, 15, 16, 17, 18, 19, 20, 21];
+    let staged_versions = [2, 3, 4, 5, 8, 10, 11, 12, 15, 16, 17, 18, 19, 20, 21, 22];
     for version in staged_versions {
         assert!(pairs.contains(&("staged-source-portable", version)));
     }
@@ -178,12 +178,13 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         (19, true, 19),
         (20, true, 20),
         (21, true, 21),
-        (22, false, 21),
-        (6, false, 21),
-        (7, false, 21),
-        (9, false, 21),
-        (13, false, 21),
-        (14, false, 21),
+        (22, true, 22),
+        (23, false, 22),
+        (6, false, 22),
+        (7, false, 22),
+        (9, false, 22),
+        (13, false, 22),
+        (14, false, 22),
     ] {
         std::fs::write(&requirements, serde_json::to_vec(&json!({
             "capability_contract_schema": 1,
