@@ -20,34 +20,20 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Finish the game’s setup",
-          "instruction": "On first Play, use Load ROM to choose your own supported Beetle Adventure Racing USA ROM. The launcher validates and imports it. This upstream alpha is offered through Preview; its Linux build is known to crash during boot and is not offered by this declaration."
+          "title": "Keep an existing permitted copy",
+          "instruction": "If you already have a permitted, prepared copy, choose its beetle-adventure-racing-recomp.exe game executable and supplied working folder in the existing-installation review. Use your own supported USA Beetle Adventure Racing ROM in Load ROM. The reviewed release is an alpha; upstream reports a Linux boot crash. Existing Windows game data normally stays under LocalAppData/beetle-adventure-racing-recomp. Saving those launch details does not run it; launch separately when ready."
+        },
+        {
+          "title": "Keep updates and data with upstream",
+          "instruction": "Retain the working folder and original game files. Follow the selected upstream version’s update instructions using a separate replacement folder. Portcove does not replace, back up or roll back this external runtime or its user-profile data."
         }
       ],
-      "warnings": [],
+      "warnings": [
+        "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
+      ],
       "help_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/v0.4.2-alpha/README.md"
-    }
-  },
-  "integration": {
-    "support_tier": "beta",
-    "channels": ["beta"],
-    "platforms": ["windows-x86-64"],
-    "adapter": "native-portable",
-    "release": {
-      "repository": "danielgomesvieira2000/beetle-adventure-racing-recomp",
-      "asset_hints": {
-        "windows-x86-64": ["beetle-adventure-racing-recomp-", "-windows-x64.zip"]
-      }
     },
-    "executable_hints": {
-      "windows-x86-64": ["beetle-adventure-racing-recomp.exe"]
-    },
-    "persistent_paths": ["bar_ui_trace.log"],
-    "presentation": {
-      "installation_method": "portable-package",
-      "source_requirements": [],
-      "saves_and_settings": "external-user-owned",
-      "manual_preparation": "On first Play, use Load ROM to choose your own supported Beetle Adventure Racing USA ROM. The launcher validates and imports it. This upstream alpha is offered through Preview; its Linux build is known to crash during boot and is not offered by this declaration. Default imported ROM, settings, saves, cheats, bindings, HUD choices and hang reports live in LocalAppData/beetle-adventure-racing-recomp, outside Portcove backups. Only the executable-folder bar_ui_trace.log diagnostic is declared. Keep portable.txt absent and use an external registration for portable/custom storage or a current-folder fallback. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations."
-    }
+    "platforms": [],
+    "download_block_reason": "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
   }
 }

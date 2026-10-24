@@ -20,36 +20,20 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Start with your original game",
-          "instruction": "On first Play, choose your own US Conker’s Bad Fur Day ROM in big-endian .z64 format. The launcher extracts what it needs from that ROM; the published player does not require compiling the game."
+          "title": "Keep an existing permitted copy",
+          "instruction": "If you already have a permitted, prepared copy, choose its ConkerRecompiled.exe game executable and supplied working folder in the existing-installation review. Use your own supported USA Conker ROM in the game’s picker. Keep its existing conker_data and user-profile saves/settings together with the upstream migration instructions. Saving those launch details does not run it; launch separately when ready."
+        },
+        {
+          "title": "Keep updates and data with upstream",
+          "instruction": "Retain the working folder and original game files. Follow the selected upstream version’s update instructions using a separate replacement folder. Portcove does not replace, back up or roll back this external runtime or its user-profile data."
         }
       ],
-      "warnings": [],
+      "warnings": [
+        "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
+      ],
       "help_url": "https://github.com/sciaschi/CBFD-Recompiled/blob/V0.1.6/README.md"
-    }
-  },
-  "integration": {
-    "support_tier": "beta",
-    "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64"],
-    "adapter": "native-portable",
-    "release": {
-      "repository": "sciaschi/CBFD-Recompiled",
-      "asset_hints": {
-        "windows-x86-64": ["conkerrecompiled-", "-windows.zip"],
-        "linux-x86-64": ["conkerrecompiled-", "-linux.tar.gz"]
-      }
     },
-    "executable_hints": {
-      "windows-x86-64": ["ConkerRecomp.exe"],
-      "linux-x86-64": ["ConkerRecomp"]
-    },
-    "persistent_paths": ["crash.log", "rt64_fb_log.txt", "conker_data"],
-    "presentation": {
-      "installation_method": "portable-package",
-      "source_requirements": [],
-      "saves_and_settings": "external-user-owned",
-      "manual_preparation": "On first Play, choose your own US Conker’s Bad Fur Day ROM in big-endian .z64 format. The launcher extracts what it needs from that ROM; the published player does not require compiling the game. The default imported ROM, EEPROM saves, save states, achievements, settings and mods live in LocalAppData/ConkerRecompiled, outside Portcove backups. Declared crash.log and rt64_fb_log.txt diagnostics beside the executable, and the conker_data legacy/headless directory, are retained if present. Use an external copy for portable.txt mode, headless flags or customized storage. Save states remain build-sensitive. Existing external installations retain their files and runtime owner. Gameplay and packaged Desktop acceptance remain separate observations. Linux normally keeps the imported ROM/settings/saves in ~/.config/ConkerRecompiled, outside Portcove backups. Install upstream’s SDL2, FreeType and D-Bus runtime dependencies. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run."
-    }
+    "platforms": [],
+    "download_block_reason": "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
   }
 }

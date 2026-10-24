@@ -303,6 +303,16 @@ source mismatch. Observable schema changes require explicit versioning and
 legacy/unknown-value handling; this planning contract adds no command or field.
 
 The CLI API schema version is independent of the Portcove release version.
+
+The catalog listing document has its own format version. Readers accept format 1
+descriptive directories and format 2 directories with optional
+`download_block_reason`. A restriction requires format 2; unknown formats and
+invalid reasons are refused. Core uses the restriction for fresh self-service
+download options, preview and application. The existing `allowed: false` and
+`reason` response drives clients; a client cannot bypass it by retaining an older
+preview. Existing registrations, pending setup, Play and registration removal
+retain their separate contracts. This additive output field keeps API schema 80
+and operation-event schema 3; neither number grants permission or a new command.
 Every `--json` result uses this envelope shape (the example is API 78; inspect
 the selected runtime's actual version before decoding):
 

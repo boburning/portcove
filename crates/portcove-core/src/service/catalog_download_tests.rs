@@ -52,6 +52,169 @@ fn archive() -> Vec<u8> {
     writer.finish().unwrap().into_inner()
 }
 
+fn restrict_download(service: &mut PortcoveService, reason: &str) {
+    let mut document = service.catalog.listing_document().clone();
+    document.format_version = 2;
+    document.listings[0].download_block_reason = Some(reason.into());
+    service.catalog = service
+        .catalog
+        .clone()
+        .with_listing_document(document)
+        .unwrap();
+}
+
+#[test]
+fn retained_restricted_registration_survives_removal_from_the_current_directory() {
+    let (_temporary, mut service, request) = fixture();
+    restrict_download(
+        &mut service,
+        "Fresh acquisition needs upstream permission review.",
+    );
+    let working = request.destination_parent.join("existing-permitted-copy");
+    fs::create_dir(&working).unwrap();
+    let executable = crate::test_fixture::build_probe(&working);
+    let preview = service
+        .preview_user_selected_runtime(&request.port_id, &executable, &working, &[])
+        .unwrap();
+    let authorization = service
+        .authorize_user_selected_runtime(
+            &request.port_id,
+            &executable,
+            &working,
+            &[],
+            &preview.preview_sha256,
+        )
+        .unwrap();
+    let registered = service
+        .register_user_selected_runtime(
+            &request.port_id,
+            &executable,
+            &working,
+            &[],
+            &authorization.token,
+        )
+        .unwrap();
+    service.catalog = Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#).unwrap();
+    let projected = service
+        .catalog_with_registered_listings(
+            service.catalog.clone(),
+            &service.library.connection().unwrap(),
+        )
+        .unwrap();
+    assert_eq!(projected.listing_document().format_version, 2);
+    assert!(
+        projected
+            .listing(&request.port_id)
+            .unwrap()
+            .download_block_reason
+            .is_some()
+    );
+    assert_eq!(
+        service.listing_statuses().unwrap()[0]
+            .status
+            .external_runtime
+            .as_ref()
+            .unwrap()
+            .id,
+        registered.id
+    );
+    assert!(executable.exists());
+}
+
+#[test]
+fn retained_restricted_pending_setup_survives_a_legacy_current_directory() {
+    let (_temporary, mut service, request) = fixture();
+    restrict_download(
+        &mut service,
+        "Fresh acquisition needs upstream permission review.",
+    );
+    // A retained row can outlive the current catalog that described it. This
+    // constructs that accepted row, rather than bypassing the acquisition API.
+    let (pending, _stage, _) = intent(&service, &request);
+    service.catalog = Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#).unwrap();
+    let projected = service
+        .catalog_with_registered_listings(
+            service.catalog.clone(),
+            &service.library.connection().unwrap(),
+        )
+        .unwrap();
+    assert_eq!(projected.listing_document().format_version, 2);
+    assert_eq!(
+        projected
+            .listing(&request.port_id)
+            .unwrap()
+            .download_block_reason,
+        pending.listing.download_block_reason
+    );
+    assert_eq!(service.listing_statuses().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn authored_download_restriction_blocks_options_preview_and_mutation_before_network() {
+    let (_temporary, mut service, request) = fixture();
+    let upstream = GithubFixture::new(archive(), None, None);
+    let reason = "This release needs an attributable upstream component permission.";
+    restrict_download(&mut service, reason);
+    let options = service
+        .catalog_download_candidates(&request.port_id)
+        .await
+        .unwrap();
+    assert!(!options.allowed);
+    assert_eq!(options.reason.as_deref(), Some(reason));
+    assert!(options.candidates.is_empty());
+    assert!(options.coverage.is_none());
+    let error = service
+        .catalog_download_preview_with_provider(&request, &upstream.provider)
+        .await
+        .unwrap_err();
+    assert_eq!(error.message, reason);
+    let error = service
+        .download_catalog_package_with_provider(
+            &request,
+            &"a".repeat(64),
+            |_| {},
+            &upstream.provider,
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(error.message, reason);
+    assert_eq!(upstream.requests.load(Ordering::SeqCst), 0);
+    assert_eq!(
+        fs::read_dir(&request.destination_parent).unwrap().count(),
+        0
+    );
+    assert!(service.pending_setups().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn newly_restricted_listing_invalidates_an_earlier_download_review_without_publication() {
+    let (_temporary, mut service, request) = fixture();
+    let upstream = GithubFixture::new(archive(), None, None);
+    let preview = service
+        .catalog_download_preview_with_provider(&request, &upstream.provider)
+        .await
+        .unwrap();
+    let before = upstream.requests.load(Ordering::SeqCst);
+    restrict_download(
+        &mut service,
+        "Recheck the changed upstream permission before downloading.",
+    );
+    assert!(
+        service
+            .download_catalog_package_with_provider(
+                &request,
+                &preview.preview_sha256,
+                |_| {},
+                &upstream.provider
+            )
+            .await
+            .is_err()
+    );
+    assert_eq!(upstream.requests.load(Ordering::SeqCst), before);
+    assert!(!preview.destination_path.exists());
+    assert!(service.pending_setups().unwrap().is_empty());
+}
+
 struct GithubFixture {
     provider: GithubReleaseProvider,
     assets: Arc<Mutex<Vec<Value>>>,

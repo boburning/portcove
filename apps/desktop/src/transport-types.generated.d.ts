@@ -1788,8 +1788,8 @@ export interface CatalogDownloadRequest {
   release_id: number;
 }
 /**
- * Independently versioned inert directory projection. The operational catalog
- * keeps its existing schema and strict PortDefinition interpretation.
+ * Independently versioned directory projection. Format 2 can restrict fresh
+ * self-service downloads; neither format grants managed operations.
  */
 export interface CatalogListingDocument {
   format_version: number;
@@ -1805,6 +1805,11 @@ export interface PortListing {
    * A dated discovery fact, not a managed support or artifact admission decision.
    */
   availability: "unknown" | "packages" | "source-only" | "unavailable";
+  /**
+   * A reviewed restriction on fresh self-service downloads only. It grants
+   * no execution, management or permission over an existing copy.
+   */
+  download_block_reason?: string | null;
   id: string;
   issue_number?: number | null;
   manual_setup?: ManualSetupGuide | null;

@@ -317,6 +317,9 @@ impl PortcoveService {
     }
 
     fn require_download_available(&self, port_id: &str) -> Result<()> {
+        if let Some(reason) = &self.catalog.listing(port_id)?.download_block_reason {
+            return Err(PortcoveError::unsupported(reason.clone()));
+        }
         self.require_no_pending_setup(port_id)?;
         let state = self.library.status(port_id, ReleaseChannel::Stable)?;
         if state

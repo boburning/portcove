@@ -19,6 +19,7 @@ impl From<&PortDefinition> for PortListing {
             issue_number: None,
             platforms: port.platforms.clone(),
             availability: ListingAvailability::Unknown,
+            download_block_reason: None,
             release_url: None,
             setup_url: presentation
                 .and_then(|value| value.manual_setup.as_ref())
@@ -51,11 +52,21 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if self.format_version != 1 {
+        if !matches!(self.format_version, 1 | 2) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
             )));
+        }
+        if self.format_version == 1
+            && self
+                .listings
+                .iter()
+                .any(|listing| listing.download_block_reason.is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "listing download restrictions require format 2",
+            ));
         }
         if self.listings.len() > 10_000 {
             return Err(PortcoveError::usage(
@@ -117,6 +128,13 @@ impl PortListing {
             if !valid_text(value, 512) {
                 return Err(PortcoveError::usage("invalid listing display identity"));
             }
+        }
+        if self
+            .download_block_reason
+            .as_ref()
+            .is_some_and(|reason| !valid_text(reason, 4096))
+        {
+            return Err(PortcoveError::usage("invalid listing download restriction"));
         }
         for url in [&self.release_url, &self.setup_url].into_iter().flatten() {
             if !valid_url(url) {
@@ -202,8 +220,19 @@ impl Catalog {
     /// a directory must not retroactively reject those accepted contracts.
     pub(crate) fn with_projected_listing_document(
         mut self,
-        document: CatalogListingDocument,
+        mut document: CatalogListingDocument,
     ) -> Result<Self> {
+        // Projection can combine validated format-2 delivery/retained entries
+        // with a format-1 directory. Preserve their semantics without accepting
+        // a raw format-1 document that falsely advertises those fields.
+        if document.format_version == 1
+            && document
+                .listings
+                .iter()
+                .any(|listing| listing.download_block_reason.is_some())
+        {
+            document.format_version = 2;
+        }
         document.validate_identity_set()?;
         for port in self.ports() {
             if !document
@@ -236,11 +265,13 @@ impl Catalog {
                 // accepted display fields, including artwork, as before.
                 let issue_number = listing.issue_number;
                 let availability = listing.availability;
+                let download_block_reason = listing.download_block_reason.clone();
                 let release_url = listing.release_url.clone();
                 let setup_url = listing.setup_url.clone().or(projected.setup_url.clone());
                 *listing = PortListing {
                     issue_number,
                     availability,
+                    download_block_reason,
                     release_url,
                     setup_url,
                     ..projected
@@ -258,6 +289,9 @@ impl Catalog {
         listing.validate()?;
         let mut catalog =
             Self::from_json(r#"{"schema_version":1,"source_profiles":[],"ports":[]}"#)?;
+        if listing.download_block_reason.is_some() {
+            Arc::make_mut(&mut catalog.listings).format_version = 2;
+        }
         Arc::make_mut(&mut catalog.listings).listings.push(listing);
         catalog.user_selected_listing = true;
         Ok(catalog)
@@ -330,13 +364,60 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":2,"listings":[]}),
+            json!({"format_version":3,"listings":[]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
         ] {
             assert!(CatalogListingDocument::from_json(&document.to_string()).is_err());
         }
+    }
+
+    #[test]
+    fn download_restrictions_require_their_format_and_never_grant_an_operation() {
+        let mut restricted = listing();
+        restricted["download_block_reason"] = json!("Upstream component permission needs review.");
+        assert!(
+            CatalogListingDocument::from_json(
+                &json!({"format_version":1,"listings":[restricted.clone()]}).to_string()
+            )
+            .is_err()
+        );
+        let document = CatalogListingDocument::from_json(
+            &json!({"format_version":2,"listings":[restricted.clone()]}).to_string(),
+        )
+        .unwrap();
+        let retained = Catalog::for_user_selected_listing(document.listings[0].clone()).unwrap();
+        assert_eq!(retained.listing_document().format_version, 2);
+        assert!(retained.port("source-only-project").is_err());
+        CatalogListingDocument::from_json(
+            &serde_json::to_string(retained.listing_document()).unwrap(),
+        )
+        .unwrap();
+        for reason in [
+            json!(""),
+            json!(" trailing "),
+            json!("line\nbreak"),
+            json!("x".repeat(4097)),
+            json!({"allowed":true}),
+        ] {
+            restricted["download_block_reason"] = reason;
+            assert!(
+                CatalogListingDocument::from_json(
+                    &json!({"format_version":2,"listings":[restricted.clone()]}).to_string()
+                )
+                .is_err()
+            );
+        }
+        assert!(
+            CatalogListingDocument::from_json(
+                &json!({"format_version":2,"listings":[listing()]}).to_string()
+            )
+            .unwrap()
+            .listings[0]
+                .download_block_reason
+                .is_none()
+        );
     }
 
     #[test]

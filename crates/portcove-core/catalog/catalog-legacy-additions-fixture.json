@@ -95,15 +95,11 @@
     "dkc2-recomp",
     "fragglet-sdl-sopwith",
     "corsixth-corsixth",
-    "body-harvest-recompiled",
-    "dahsidiabdallah-conkerbfdreloaded",
     "colin-mcrae-rally-2-opencmr2",
     "djultra64-blocksphere",
     "gearhead-garage-opengg",
     "opentyrian-opentyrian",
     "knuckles-chaotix-recompiled",
-    "cbfd-recompiled-sciaschi",
-    "cdlewis-snowboardkids-recomp",
     "craigshaw-fzerorecomp",
     "alistert-openjazz",
     "jgrennison-openttd-patches",
@@ -114,7 +110,6 @@
     "gladiator-openglad",
     "interkarma-daggerfall-unity",
     "starlancer-openreliant",
-    "danielgomesvieira2000-beetle-adventure-racing-recomp",
     "citrongames-dora64",
     "rocket-robot-on-wheels-rocket-r",
     "thatguymcd-glover-r",
@@ -128,6 +123,9 @@
     "rise-of-the-triad-barrett-lunarmeadow",
     "sonic-cd-2011-rsdkv3",
     "sonic-the-hedgehog-2013-mobile-edition-rsdkv4-decompilation",
-    "sonic-the-hedgehog-2-2013-mobile-edition-rsdkv4-decompilation"
+    "sonic-the-hedgehog-2-2013-mobile-edition-rsdkv4-decompilation",
+    "battletanx-global-assault-pc-port",
+    "brawmario-infinite-mario-64-ever",
+    "dkc1-recomp"
   ]
 }

@@ -27,6 +27,41 @@ pub(crate) struct ListingDeliveryDocument {
     pub directory: CatalogListingDocument,
 }
 
+#[cfg(test)]
+mod projection_tests {
+    use super::*;
+
+    #[test]
+    fn restricted_delivery_promotes_a_legacy_directory_without_granting_managed_authority() {
+        let document = ListingDeliveryDocument::parse(
+            &serde_json::to_vec(&serde_json::json!({
+                "listing_delivery_schema":1,"revision":1,"withdrawn_ids":[],
+                "directory":{"format_version":2,"listings":[{
+                    "id":"restricted-delivery","name":"Restricted delivery",
+                    "summary":"A project with an exact acquisition prerequisite.",
+                    "project_url":"https://example.invalid/project",
+                    "download_block_reason":"Resolve the upstream component permission."
+                }]}
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let legacy = Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#).unwrap();
+        assert_eq!(legacy.listing_document().format_version, 1);
+        let projected = document.project(legacy).unwrap();
+        assert_eq!(projected.listing_document().format_version, 2);
+        assert_eq!(
+            projected
+                .listing("restricted-delivery")
+                .unwrap()
+                .download_block_reason
+                .as_deref(),
+            Some("Resolve the upstream component permission.")
+        );
+        assert!(projected.port("restricted-delivery").is_err());
+    }
+}
+
 impl ListingDeliveryDocument {
     pub(crate) fn parse(bytes: &[u8]) -> Result<Self> {
         if bytes.len() > MAX_BYTES {

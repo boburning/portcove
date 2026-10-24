@@ -21327,187 +21327,102 @@
       }
     },
     {
-      "id": "body-harvest-recompiled",
-      "name": "Body Harvest: Recompiled",
-      "summary": "Explore Body Harvest: Recompiled and follow the upstream project for requirements, downloads and setup.",
-      "project_url": "https://github.com/mcsoderh/BodyHarvestRecomp",
+      "id": "battletanx-global-assault-pc-port",
+      "name": "BattleTanx: Global Assault PC Port",
+      "summary": "Explore BattleTanx: Global Assault PC Port and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
+        "windows-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
-        "repository": "mcsoderh/BodyHarvestRecomp",
+        "repository": "TheGh0stShip/BattleTanx-Global-Assault-PC-Port",
         "asset_hints": {
           "windows-x86-64": [
-            "bodyharvestrecompiled-",
-            "-windows.zip"
-          ],
-          "linux-x86-64": [
-            "bodyharvestrecompiled-",
-            "-linux-x64.tar.gz"
+            "BattleTanxGA-0.2.5-windows-x64-portable.zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
-          "BodyHarvestRecompiled.exe"
-        ],
-        "linux-x86-64": [
-          "BodyHarvestRecompiled"
-        ]
-      },
-      "persistent_paths": [],
-      "presentation": {
-        "installation_method": "portable-package",
-        "source_requirements": [],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Choose your North American Body Harvest ROM in Load ROM on first launch; .z64, .n64 and .v64 are accepted by upstream. The game checks and remembers its own copy. The ROM copy, saves, settings and supported mods use the upstream LocalAppData/BodyHarvestRecompiled folder. They remain outside Portcove backups. Keep the default upstream storage mode; use an external registration if you want portable.txt or customized runtime files. Existing external installations keep their files and update ownership. Play has not been tested through Portcove. Linux normally uses ~/.config/BodyHarvestRecompiled. Its SDL2, GTK3 and FreeType system dependencies remain upstream prerequisites. Play has not been tested through Portcove on Linux.",
-        "manual_setup": {
-          "steps": [
-            {
-              "title": "Supply your original game files on first launch",
-              "instruction": "Choose your North American Body Harvest ROM in Load ROM on first launch; .z64, .n64 and .v64 are accepted by upstream. The game checks and remembers its own copy."
-            }
-          ],
-          "warnings": [],
-          "help_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/v1.0.0/README.md"
-        },
-        "artwork": {
-          "game_id": 3426,
-          "cover_id": 258206,
-          "image_id": "co5j8e",
-          "image_sha256": "c14ab273e1271bb4fdee7feebc3bc6e9a34e7835e9fc42754f547fbbd853324a",
-          "game_slug": "body-harvest",
-          "match_kind": "underlying-game"
-        }
-      }
-    },
-    {
-      "id": "cbfd-recompiled-sciaschi",
-      "name": "Conker's Bad Fur Day: Recompiled (sciaschi)",
-      "summary": "Explore Conker's Bad Fur Day: Recompiled (sciaschi) and follow the upstream project for requirements, downloads and setup.",
-      "project_url": "https://github.com/sciaschi/CBFD-Recompiled",
-      "support_tier": "beta",
-      "channels": [
-        "stable"
-      ],
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
-      "adapter": "native-portable",
-      "release": {
-        "repository": "sciaschi/CBFD-Recompiled",
-        "asset_hints": {
-          "windows-x86-64": [
-            "conkerrecompiled-",
-            "-windows.zip"
-          ],
-          "linux-x86-64": [
-            "conkerrecompiled-",
-            "-linux.tar.gz"
-          ]
-        }
-      },
-      "executable_hints": {
-        "windows-x86-64": [
-          "ConkerRecomp.exe"
-        ],
-        "linux-x86-64": [
-          "ConkerRecomp"
+          "BattleTanxGA.exe"
         ]
       },
       "persistent_paths": [
-        "crash.log",
-        "rt64_fb_log.txt",
-        "conker_data"
+        "userdata"
       ],
       "presentation": {
         "installation_method": "portable-package",
         "source_requirements": [],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On first Play, choose your own US Conker’s Bad Fur Day ROM in big-endian .z64 format. The launcher extracts what it needs from that ROM; the published player does not require compiling the game. The default imported ROM, EEPROM saves, save states, achievements, settings and mods live in LocalAppData/ConkerRecompiled, outside Portcove backups. Declared crash.log and rt64_fb_log.txt diagnostics beside the executable, and the conker_data legacy/headless directory, are retained if present. Use an external copy for portable.txt mode, headless flags or customized storage. Save states remain build-sensitive. Existing external installations retain their files and runtime owner. Gameplay and packaged Desktop acceptance remain separate observations. Linux normally keeps the imported ROM/settings/saves in ~/.config/ConkerRecompiled, outside Portcove backups. Install upstream’s SDL2, FreeType and D-Bus runtime dependencies. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Choose Play, then select your own BattleTanx: Global Assault USA Rev 0 big-endian .z64 dump when the game asks. This portable player validates and remembers that file without copying it. No build tool or installer is needed. The official portable package includes portable.txt and keeps settings, Controller Pak data, logs and texture packs in userdata beside the player. That directory is declared for compatible updates and backups. Your selected original ROM stays in its own location and is outside Portcove backup. A deliberate BTGA_DATA_DIR override also remains outside that backup. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed.",
         "manual_setup": {
           "steps": [
             {
-              "title": "Start with your original game",
-              "instruction": "On first Play, choose your own US Conker’s Bad Fur Day ROM in big-endian .z64 format. The launcher extracts what it needs from that ROM; the published player does not require compiling the game."
+              "title": "Select your original in the game",
+              "instruction": "Choose Play, then select your own BattleTanx: Global Assault USA Rev 0 big-endian .z64 dump when the game asks. This portable player validates and remembers that file without copying it. No build tool or installer is needed."
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/sciaschi/CBFD-Recompiled/blob/V0.1.6/README.md"
+          "help_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/blob/v0.2.5/README.md"
         },
         "artwork": {
-          "game_id": 1286,
-          "cover_id": 86478,
-          "image_id": "co1uq6",
-          "image_sha256": "b069fddecc98b4807eca1682d4c3858eff1cbce95901329777305ee1338ccab7",
-          "game_slug": "conker-s-bad-fur-day",
+          "game_id": 47685,
+          "cover_id": 110864,
+          "image_id": "co2djk",
+          "image_sha256": "85a5c7bae259b9b6cb96c8b9e0caba168097c78c36470025995208cc1c645900",
+          "game_slug": "battletanx-global-assault",
           "match_kind": "underlying-game"
         }
       }
     },
     {
-      "id": "cdlewis-snowboardkids-recomp",
-      "name": "Snowboard Kids / Snowboard Kids: Recompiled (cdlewis)",
-      "summary": "Explore Snowboard Kids / Snowboard Kids: Recompiled (cdlewis) and follow the upstream project for requirements, downloads and setup.",
-      "project_url": "https://github.com/cdlewis/snowboardkids-recomp",
+      "id": "brawmario-infinite-mario-64-ever",
+      "name": "Super Mario 64 [Infinite Mario 64 Ever] / Infinite Mario 64 Ever (Brawmario)",
+      "summary": "Explore Super Mario 64 [Infinite Mario 64 Ever] / Infinite Mario 64 Ever (Brawmario) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/Brawmario/infinite-mario-64-ever",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
+        "windows-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
-        "repository": "cdlewis/snowboardkids-recomp",
+        "repository": "Brawmario/infinite-mario-64-ever",
         "asset_hints": {
           "windows-x86-64": [
-            "snowboardkidsrecompiled-windows.zip"
-          ],
-          "linux-x86-64": [
-            "snowboardkidsrecompiled-linux-x64.tar.gz"
+            "infinite-mario-64-ever.v0.1.5.windows.zip"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
-          "SnowboardKidsRecompiled.exe"
-        ],
-        "linux-x86-64": [
-          "SnowboardKidsRecompiled"
+          "Infinite Mario 64.exe"
         ]
       },
-      "persistent_paths": [],
+      "persistent_paths": [
+        "project.godot"
+      ],
       "presentation": {
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On first Play, select your own North American Snowboard Kids ROM in the main menu. The game verifies and imports it, converting supported byte orders. No separate extraction or game build is required. Windows requires the upstream Visual C++ runtime. The default imported ROM, settings, saves and mods live in LocalAppData/SnowboardKidsRecompiled, outside Portcove backups. The runtime package has no declared in-folder player data. Keep the default storage mode; register an external copy for portable.txt mode or custom storage. Existing external installations retain their files and runtime owner. Gameplay and packaged Desktop acceptance remain separate observations. Linux normally uses ~/.config/SnowboardKidsRecompiled for imported ROM/settings/saves, outside Portcove backups. The selected binary requires system SDL2, GTK3, FreeType and X11 libraries. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
+        "manual_preparation": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows archive already contains the Godot player and its required companions. The game writes saves and backup saves through Godot user storage, normally AppData/Godot/app_userdata/Infinite Mario 64 on Windows. This is outside the package and outside Portcove backup. The transparency option can write project.godot beside the player; that exact configuration file is declared for compatible replacement and backup. The user-profile saves remain outside it. Keep a separate copy of that user folder; a customized data location can use external registration. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed.",
         "manual_setup": {
           "steps": [
             {
-              "title": "Start with your original game",
-              "instruction": "On first Play, select your own North American Snowboard Kids ROM in the main menu. The game verifies and imports it, converting supported byte orders. No separate extraction or game build is required. Windows requires the upstream Visual C++ runtime."
+              "title": "Select your original in the game",
+              "instruction": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows archive already contains the Godot player and its required companions."
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/cdlewis/snowboardkids-recomp/blob/v1.0.6/README.md"
-        },
-        "artwork": {
-          "game_id": 3342,
-          "cover_id": 104128,
-          "image_id": "co28cg",
-          "image_sha256": "e6de2524e0b09d327d373cfd986e9f4c77cd451f56dcff7c09b68a0a8a5b49bb",
-          "game_slug": "snowboard-kids",
-          "match_kind": "underlying-game"
+          "help_url": "https://github.com/Brawmario/infinite-mario-64-ever/blob/v0.1.5/README.md"
         }
       }
     },
@@ -21773,124 +21688,6 @@
       }
     },
     {
-      "id": "dahsidiabdallah-conkerbfdreloaded",
-      "name": "Conker's Bad Fur Day / ConkerBFDReloaded (DahSidiAbdallah)",
-      "summary": "Explore Conker's Bad Fur Day / ConkerBFDReloaded (DahSidiAbdallah) and follow the upstream project for requirements, downloads and setup.",
-      "project_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded",
-      "support_tier": "beta",
-      "channels": [
-        "stable"
-      ],
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
-      "adapter": "native-portable",
-      "release": {
-        "repository": "DahSidiAbdallah/ConkerBFDReloaded",
-        "asset_hints": {
-          "windows-x86-64": [
-            "conkerbfdreloaded-",
-            "-windows.zip"
-          ],
-          "linux-x86-64": [
-            "conkerbfdreloaded-",
-            "-linux.tar.gz"
-          ]
-        }
-      },
-      "executable_hints": {
-        "windows-x86-64": [
-          "ConkerBFDReloaded.exe"
-        ],
-        "linux-x86-64": [
-          "ConkerBFDReloaded"
-        ]
-      },
-      "persistent_paths": [
-        "crash.log"
-      ],
-      "presentation": {
-        "installation_method": "portable-package",
-        "source_requirements": [],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Choose your own US Conker’s Bad Fur Day ROM in the upstream launcher on first launch. The game checks and remembers its copy. Install compatible mods and texture packs through its Mods menu. The ROM copy, saves, settings, save states and installed mods use upstream LocalAppData/ConkerBFDReloaded storage, outside Portcove backups. The declared in-folder crash.log is retained across replacement. Use an external registration for customized package files or a different storage mode. Existing external installations keep their files and update ownership. Play has not been tested through Portcove. Linux normally uses ~/.config/ConkerBFDReloaded. Its SDL2, GTK3 and FreeType system dependencies remain upstream prerequisites. Play has not been tested through Portcove on Linux.",
-        "manual_setup": {
-          "steps": [
-            {
-              "title": "Supply your original game files on first launch",
-              "instruction": "Choose your own US Conker’s Bad Fur Day ROM in the upstream launcher on first launch. The game checks and remembers its copy. Install compatible mods and texture packs through its Mods menu."
-            }
-          ],
-          "warnings": [],
-          "help_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/v1.4.6/README.md"
-        },
-        "artwork": {
-          "game_id": 1286,
-          "cover_id": 86478,
-          "image_id": "co1uq6",
-          "image_sha256": "b069fddecc98b4807eca1682d4c3858eff1cbce95901329777305ee1338ccab7",
-          "game_slug": "conker-s-bad-fur-day",
-          "match_kind": "underlying-game"
-        }
-      }
-    },
-    {
-      "id": "danielgomesvieira2000-beetle-adventure-racing-recomp",
-      "name": "Beetle Adventure Racing! / Beetle Adventure Racing! Recomp (danielgomesvieira2000)",
-      "summary": "Explore Beetle Adventure Racing! / Beetle Adventure Racing! Recomp (danielgomesvieira2000) and follow the upstream project for requirements, downloads and setup.",
-      "project_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp",
-      "support_tier": "beta",
-      "channels": [
-        "beta"
-      ],
-      "platforms": [
-        "windows-x86-64"
-      ],
-      "adapter": "native-portable",
-      "release": {
-        "repository": "danielgomesvieira2000/beetle-adventure-racing-recomp",
-        "asset_hints": {
-          "windows-x86-64": [
-            "beetle-adventure-racing-recomp-",
-            "-windows-x64.zip"
-          ]
-        }
-      },
-      "executable_hints": {
-        "windows-x86-64": [
-          "beetle-adventure-racing-recomp.exe"
-        ]
-      },
-      "persistent_paths": [
-        "bar_ui_trace.log"
-      ],
-      "presentation": {
-        "installation_method": "portable-package",
-        "source_requirements": [],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On first Play, use Load ROM to choose your own supported Beetle Adventure Racing USA ROM. The launcher validates and imports it. This upstream alpha is offered through Preview; its Linux build is known to crash during boot and is not offered by this declaration. Default imported ROM, settings, saves, cheats, bindings, HUD choices and hang reports live in LocalAppData/beetle-adventure-racing-recomp, outside Portcove backups. Only the executable-folder bar_ui_trace.log diagnostic is declared. Keep portable.txt absent and use an external registration for portable/custom storage or a current-folder fallback. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
-        "manual_setup": {
-          "steps": [
-            {
-              "title": "Finish the game’s setup",
-              "instruction": "On first Play, use Load ROM to choose your own supported Beetle Adventure Racing USA ROM. The launcher validates and imports it. This upstream alpha is offered through Preview; its Linux build is known to crash during boot and is not offered by this declaration."
-            }
-          ],
-          "warnings": [],
-          "help_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/v0.4.2-alpha/README.md"
-        },
-        "artwork": {
-          "game_id": 2715,
-          "cover_id": 104718,
-          "image_id": "co28su",
-          "image_sha256": "cbcd2bd8f4371735cee53a83c72e5f694c09dd899c1d35ac08126389f63200e1",
-          "game_slug": "beetle-adventure-racing",
-          "match_kind": "underlying-game"
-        }
-      }
-    },
-    {
       "id": "dethrace-labs-dethrace",
       "name": "Carmageddon / Dethrace (dethrace-labs)",
       "summary": "Explore Carmageddon / Dethrace (dethrace-labs) and follow the upstream project for requirements, downloads and setup.",
@@ -22015,6 +21812,58 @@
           "image_id": "co3bag",
           "image_sha256": "1f36e0dc2de5ac31e008efd006545df8aa7c6d626f6ebf3a48b72c6b23250e6e",
           "game_slug": "tetrisphere",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "dkc1-recomp",
+      "name": "DKC1Recomp",
+      "summary": "Explore DKC1Recomp and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/elliotttate/DKC1Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "elliotttate/DKC1Recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "DKC1Recomp-v0.0.17-Windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "DKC1Recomp.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Choose Play, then select your own Donkey Kong Country USA v1.0 dump in the game’s picker. The published Windows player includes its optional Dixie companion and requires no compiler or separate installer. Follow the game’s own options for choosing that companion or an optional music pack. The Windows player selects and remembers the original path, then switches its writable working directory to AppData/Flat2VR/DKC1Recomp. Most settings, saves and ordinary generated data stay there. The Dixie preference is stored separately in the Windows registry under HKCU/Software/DKC1Recomp/Mods. Both stores are outside Portcove backup; no in-folder persistence is declared for this default. Optional music packs and custom DKC1_USER_DIR locations are separately owned. Keep that user folder and your originals recoverable. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed. The upstream framework permits noncommercial personal use under its included PolyForm Noncommercial 1.0.0 terms; review and follow those terms. Commercial use and rights to original game or optional mod content are not granted by this route.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Select your original in the game",
+              "instruction": "Choose Play, then select your own Donkey Kong Country USA v1.0 dump in the game’s picker. The published Windows player includes its optional Dixie companion and requires no compiler or separate installer. Follow the game’s own options for choosing that companion or an optional music pack. Follow the included upstream license terms, including its framework’s noncommercial-use limit."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/elliotttate/DKC1Recomp/blob/v0.0.17/README.md"
+        },
+        "artwork": {
+          "game_id": 1090,
+          "cover_id": 327551,
+          "image_id": "co70qn",
+          "image_sha256": "a348e97c032a181e95a9c4d1fb3cc43667fda92e39c994c6d3b24b2dce91cd6e",
+          "game_slug": "donkey-kong-country",
           "match_kind": "underlying-game"
         }
       }

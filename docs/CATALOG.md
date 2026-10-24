@@ -80,6 +80,18 @@ files and equally plausible variants. The existing channel and artifact-integrit
 rules remain in force. A missing digest can allow an explicitly unverified
 non-owning download, but cannot authenticate a managed installation.
 
+Review the actual linked or vendored components and their attributable grants,
+including packaged fonts. A parent's license, a published archive or resemblance
+to another project does not settle a separately authored component's permission.
+Retain a named acquisition condition at its exact operation scope. When fresh
+self-service acquisition is held, the authored listing can set
+`download_block_reason` to a bounded practical explanation and reconsideration
+condition. The generator emits listing format 2; Core refuses download options,
+preview and mutation before contacting the provider. This restriction grants no
+permission to acquire, register or execute an existing copy and does not rewrite
+its retained contract. Keep useful existing permitted-copy instructions and
+upstream links. Remove a restriction only after reviewing the changed fact.
+
 Persistent paths are relative to the executable's directory, or the install root
 when `launch_from_install_root` is declared. Declare only compatible original
 inputs, generated data, saves, settings and supported mods that should reach
@@ -1328,7 +1340,10 @@ Review the executable headers and launch folder, then the runtime's actual write
 and update behavior. Include compatible original inputs, generated data, mods,
 settings and relevant logs in the declared preservation contract. An empty
 contract is useful when evidence establishes external storage; describe that
-location and its backup limits. A self-updater or a setup kit that regenerates
+location and its backup limits, and classify the main saves/settings as
+`external-user-owned`. Inspect emitted writes beyond the save folder, including
+first-run failure instructions, preference exports, registry settings and mod
+state. A self-updater or a setup kit that regenerates
 version-dependent runtime code needs the appropriate existing integration or
 non-owning handoff. Keep the player's installed contract unchanged when adding a
 new route.

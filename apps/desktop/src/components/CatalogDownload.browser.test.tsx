@@ -181,6 +181,30 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
+it("shows Core's acquisition restriction without offering a download mutation", async () => {
+  const reason =
+    "Download is unavailable until upstream establishes permission for the linked frontend.";
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue({
+    ...candidates,
+    allowed: false,
+    reason,
+    candidates: [],
+    recommended_asset_id: null,
+    packages: [],
+  });
+  await click("Check upstream downloads");
+  await expect.element(page.getByText(reason, { exact: true })).toBeVisible();
+  await expect.element(page.getByRole("link", { name: "View upstream releases" })).toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Review download", exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: "Change download options", exact: true }))
+    .not.toBeInTheDocument();
+  expect(desktopApi.previewCatalogDownload).not.toHaveBeenCalled();
+  expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+});
+
 it("accepts Core's recommended package and location together without a folder decision", async () => {
   await click("Check upstream downloads");
   expect(document.querySelector('[role="combobox"]')).toBeNull();

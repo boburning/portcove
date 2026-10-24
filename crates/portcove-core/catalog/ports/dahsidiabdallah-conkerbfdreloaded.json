@@ -20,36 +20,20 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Supply your original game files on first launch",
-          "instruction": "Choose your own US Conker’s Bad Fur Day ROM in the upstream launcher on first launch. The game checks and remembers its copy. Install compatible mods and texture packs through its Mods menu."
+          "title": "Keep an existing permitted copy",
+          "instruction": "If you already have a permitted, prepared copy, choose its ConkerBFDReloaded.exe game executable and supplied working folder in the existing-installation review. Use your own supported USA Conker ROM in the game’s picker. Keep its user-profile data, saves and settings; do not replace this implementation with another Conker project’s files. Saving those launch details does not run it; launch separately when ready."
+        },
+        {
+          "title": "Keep updates and data with upstream",
+          "instruction": "Retain the working folder and original game files. Follow the selected upstream version’s update instructions using a separate replacement folder. Portcove does not replace, back up or roll back this external runtime or its user-profile data."
         }
       ],
-      "warnings": [],
+      "warnings": [
+        "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
+      ],
       "help_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/v1.4.6/README.md"
-    }
-  },
-  "integration": {
-    "support_tier": "beta",
-    "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64"],
-    "adapter": "native-portable",
-    "release": {
-      "repository": "DahSidiAbdallah/ConkerBFDReloaded",
-      "asset_hints": {
-        "windows-x86-64": ["conkerbfdreloaded-", "-windows.zip"],
-        "linux-x86-64": ["conkerbfdreloaded-", "-linux.tar.gz"]
-      }
     },
-    "executable_hints": {
-      "windows-x86-64": ["ConkerBFDReloaded.exe"],
-      "linux-x86-64": ["ConkerBFDReloaded"]
-    },
-    "persistent_paths": ["crash.log"],
-    "presentation": {
-      "installation_method": "portable-package",
-      "source_requirements": [],
-      "saves_and_settings": "external-user-owned",
-      "manual_preparation": "Choose your own US Conker’s Bad Fur Day ROM in the upstream launcher on first launch. The game checks and remembers its copy. Install compatible mods and texture packs through its Mods menu. The ROM copy, saves, settings, save states and installed mods use upstream LocalAppData/ConkerBFDReloaded storage, outside Portcove backups. The declared in-folder crash.log is retained across replacement. Use an external registration for customized package files or a different storage mode. Existing external installations keep their files and update ownership. Play has not been tested through Portcove. Linux normally uses ~/.config/ConkerBFDReloaded. Its SDL2, GTK3 and FreeType system dependencies remain upstream prerequisites. Play has not been tested through Portcove on Linux."
-    }
+    "platforms": [],
+    "download_block_reason": "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
   }
 }

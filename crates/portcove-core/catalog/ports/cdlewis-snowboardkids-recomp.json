@@ -20,36 +20,20 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Start with your original game",
-          "instruction": "On first Play, select your own North American Snowboard Kids ROM in the main menu. The game verifies and imports it, converting supported byte orders. No separate extraction or game build is required. Windows requires the upstream Visual C++ runtime."
+          "title": "Keep an existing permitted copy",
+          "instruction": "If you already have a permitted, prepared Snowboard Kids copy, choose its SnowboardKidsRecompiled.exe game executable and supplied working folder in the existing-installation review. Use your own supported North American ROM in the game’s picker. Saving launch details does not run it; launch separately when ready."
+        },
+        {
+          "title": "Keep updates and data with upstream",
+          "instruction": "Keep the working copy, original ROM and LocalAppData/SnowboardKidsRecompiled data recoverable. Prepare updates separately through upstream. Portcove does not replace, back up or roll back this external runtime or its user-profile saves and settings."
         }
       ],
-      "warnings": [],
+      "warnings": [
+        "Portcove downloads are paused until permission for the linked frontend fork is established. Keep using a permitted existing copy; reconsider when upstream provides an attributable compatible grant or replacement."
+      ],
       "help_url": "https://github.com/cdlewis/snowboardkids-recomp/blob/v1.0.6/README.md"
-    }
-  },
-  "integration": {
-    "support_tier": "beta",
-    "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64"],
-    "adapter": "native-portable",
-    "release": {
-      "repository": "cdlewis/snowboardkids-recomp",
-      "asset_hints": {
-        "windows-x86-64": ["snowboardkidsrecompiled-windows.zip"],
-        "linux-x86-64": ["snowboardkidsrecompiled-linux-x64.tar.gz"]
-      }
     },
-    "executable_hints": {
-      "windows-x86-64": ["SnowboardKidsRecompiled.exe"],
-      "linux-x86-64": ["SnowboardKidsRecompiled"]
-    },
-    "persistent_paths": [],
-    "presentation": {
-      "installation_method": "portable-package",
-      "source_requirements": [],
-      "saves_and_settings": "external-user-owned",
-      "manual_preparation": "On first Play, select your own North American Snowboard Kids ROM in the main menu. The game verifies and imports it, converting supported byte orders. No separate extraction or game build is required. Windows requires the upstream Visual C++ runtime. The default imported ROM, settings, saves and mods live in LocalAppData/SnowboardKidsRecompiled, outside Portcove backups. The runtime package has no declared in-folder player data. Keep the default storage mode; register an external copy for portable.txt mode or custom storage. Existing external installations retain their files and runtime owner. Gameplay and packaged Desktop acceptance remain separate observations. Linux normally uses ~/.config/SnowboardKidsRecompiled for imported ROM/settings/saves, outside Portcove backups. The selected binary requires system SDL2, GTK3, FreeType and X11 libraries. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run."
-    }
+    "platforms": [],
+    "download_block_reason": "Portcove downloads are paused until permission for the linked frontend fork is established. Keep using a permitted existing copy; reconsider when upstream provides an attributable compatible grant or replacement."
   }
 }

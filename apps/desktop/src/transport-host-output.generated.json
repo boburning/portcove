@@ -3742,6 +3742,13 @@
             "$ref": "#/$defs/ListingAvailability",
             "default": "unknown"
           },
+          "download_block_reason": {
+            "description": "A reviewed restriction on fresh self-service downloads only. It grants\nno execution, management or permission over an existing copy.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -8110,7 +8117,7 @@
       },
       "CatalogListingDocument": {
         "additionalProperties": false,
-        "description": "Independently versioned inert directory projection. The operational catalog\nkeeps its existing schema and strict PortDefinition interpretation.",
+        "description": "Independently versioned directory projection. Format 2 can restrict fresh\nself-service downloads; neither format grants managed operations.",
         "properties": {
           "format_version": {
             "format": "uint32",
@@ -9760,6 +9767,13 @@
           "availability": {
             "$ref": "#/$defs/ListingAvailability",
             "default": "unknown"
+          },
+          "download_block_reason": {
+            "description": "A reviewed restriction on fresh self-service downloads only. It grants\nno execution, management or permission over an existing copy.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "type": "string"

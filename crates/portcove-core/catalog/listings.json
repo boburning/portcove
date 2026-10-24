@@ -1,5 +1,5 @@
 {
-  "format_version": 1,
+  "format_version": 2,
   "listings": [
     {
       "id": "shipwright",
@@ -5759,7 +5759,7 @@
       "issue_number": 828,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/alexbatalov/arcanum-ce",
+      "setup_url": "https://github.com/alexbatalov/arcanum-ce/blob/main/README.md",
       "artwork": {
         "game_id": 255,
         "cover_id": 101605,
@@ -5767,6 +5767,20 @@
         "image_sha256": "5cc28e6a2310bad18bcfc73e511408f174d13a0a1a4ac8d769649bfe162cb7b0",
         "game_slug": "arcanum-of-steamworks-and-magick-obscura",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up a separate Arcanum copy",
+            "instruction": "Upstream describes a drop-in Community Edition runtime, but its GitHub release history currently has no published package. Keep an existing permitted build, or follow upstream’s source-build instructions. Use a separate copy of your own GOG/Steam Arcanum installation with the required DAT files and modules. On Windows, arcanum-ce.exe belongs in that game folder; choose it with that folder as the working directory. Linux uses the corresponding native arcanum-ce build. Portcove does not run innoextract or a game installer during discovery."
+          },
+          {
+            "title": "Keep updates and data with your working copy",
+            "instruction": "Keep your original files and a separate working installation. You or upstream own runtime replacement, generated data, saves and settings; prepare updates in a separate folder and retain the current copy until ready. Portcove’s existing-installation review saves your selected launch details without running a helper. It does not back up, roll back or delete this external runtime."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbatalov/arcanum-ce/blob/main/README.md"
       }
     },
     {
@@ -5829,9 +5843,8 @@
       "summary": "Explore BattleTanx: Global Assault PC Port and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port",
       "issue_number": 2003,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port",
+      "availability": "packages",
+      "setup_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/blob/v0.2.5/README.md",
       "artwork": {
         "game_id": 47685,
         "cover_id": 110864,
@@ -5839,7 +5852,21 @@
         "image_sha256": "85a5c7bae259b9b6cb96c8b9e0caba168097c78c36470025995208cc1c645900",
         "game_slug": "battletanx-global-assault",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/releases/tag/v0.2.5",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Select your original in the game",
+            "instruction": "Choose Play, then select your own BattleTanx: Global Assault USA Rev 0 big-endian .z64 dump when the game asks. This portable player validates and remembers that file without copying it. No build tool or installer is needed."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/blob/v0.2.5/README.md"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "bighead-0-ladxhd-updated",
@@ -5979,17 +6006,21 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Supply your original game files on first launch",
-            "instruction": "Choose your North American Body Harvest ROM in Load ROM on first launch; .z64, .n64 and .v64 are accepted by upstream. The game checks and remembers its own copy."
+            "title": "Keep an existing permitted copy",
+            "instruction": "If you already have a permitted, prepared copy, choose its BodyHarvestRecompiled.exe game executable and supplied working folder in the existing-installation review. Use your own supported North American Body Harvest ROM in Load ROM. The default game data is under LocalAppData/BodyHarvestRecompiled on Windows, or ~/.config/BodyHarvestRecompiled on Linux. Saving those launch details does not run it; launch separately when ready."
+          },
+          {
+            "title": "Keep updates and data with upstream",
+            "instruction": "Retain the working folder and original game files. Follow the selected upstream version’s update instructions using a separate replacement folder. Portcove does not replace, back up or roll back this external runtime or its user-profile data."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
+        ],
         "help_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/v1.0.0/README.md"
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ]
+      "platforms": [],
+      "download_block_reason": "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
     },
     {
       "id": "brawl-recompiled",
@@ -6009,9 +6040,22 @@
       "summary": "Explore Super Mario 64 [Infinite Mario 64 Ever] / Infinite Mario 64 Ever (Brawmario) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/Brawmario/infinite-mario-64-ever",
       "issue_number": 1830,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Brawmario/infinite-mario-64-ever"
+      "availability": "packages",
+      "setup_url": "https://github.com/Brawmario/infinite-mario-64-ever/blob/v0.1.5/README.md",
+      "release_url": "https://github.com/Brawmario/infinite-mario-64-ever/releases/tag/v0.1.5",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Select your original in the game",
+            "instruction": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows archive already contains the Godot player and its required companions."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/Brawmario/infinite-mario-64-ever/blob/v0.1.5/README.md"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "burnout-2-timftw21",
@@ -6171,17 +6215,21 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Start with your original game",
-            "instruction": "On first Play, choose your own US Conker’s Bad Fur Day ROM in big-endian .z64 format. The launcher extracts what it needs from that ROM; the published player does not require compiling the game."
+            "title": "Keep an existing permitted copy",
+            "instruction": "If you already have a permitted, prepared copy, choose its ConkerRecompiled.exe game executable and supplied working folder in the existing-installation review. Use your own supported USA Conker ROM in the game’s picker. Keep its existing conker_data and user-profile saves/settings together with the upstream migration instructions. Saving those launch details does not run it; launch separately when ready."
+          },
+          {
+            "title": "Keep updates and data with upstream",
+            "instruction": "Retain the working folder and original game files. Follow the selected upstream version’s update instructions using a separate replacement folder. Portcove does not replace, back up or roll back this external runtime or its user-profile data."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
+        ],
         "help_url": "https://github.com/sciaschi/CBFD-Recompiled/blob/V0.1.6/README.md"
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ]
+      "platforms": [],
+      "download_block_reason": "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
     },
     {
       "id": "cdlewis-snowboardkids-recomp",
@@ -6203,17 +6251,21 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Start with your original game",
-            "instruction": "On first Play, select your own North American Snowboard Kids ROM in the main menu. The game verifies and imports it, converting supported byte orders. No separate extraction or game build is required. Windows requires the upstream Visual C++ runtime."
+            "title": "Keep an existing permitted copy",
+            "instruction": "If you already have a permitted, prepared Snowboard Kids copy, choose its SnowboardKidsRecompiled.exe game executable and supplied working folder in the existing-installation review. Use your own supported North American ROM in the game’s picker. Saving launch details does not run it; launch separately when ready."
+          },
+          {
+            "title": "Keep updates and data with upstream",
+            "instruction": "Keep the working copy, original ROM and LocalAppData/SnowboardKidsRecompiled data recoverable. Prepare updates separately through upstream. Portcove does not replace, back up or roll back this external runtime or its user-profile saves and settings."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Portcove downloads are paused until permission for the linked frontend fork is established. Keep using a permitted existing copy; reconsider when upstream provides an attributable compatible grant or replacement."
+        ],
         "help_url": "https://github.com/cdlewis/snowboardkids-recomp/blob/v1.0.6/README.md"
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ]
+      "platforms": [],
+      "download_block_reason": "Portcove downloads are paused until permission for the linked frontend fork is established. Keep using a permitted existing copy; reconsider when upstream provides an attributable compatible grant or replacement."
     },
     {
       "id": "chameleon-twist-recompiled",
@@ -6558,17 +6610,21 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Supply your original game files on first launch",
-            "instruction": "Choose your own US Conker’s Bad Fur Day ROM in the upstream launcher on first launch. The game checks and remembers its copy. Install compatible mods and texture packs through its Mods menu."
+            "title": "Keep an existing permitted copy",
+            "instruction": "If you already have a permitted, prepared copy, choose its ConkerBFDReloaded.exe game executable and supplied working folder in the existing-installation review. Use your own supported USA Conker ROM in the game’s picker. Keep its user-profile data, saves and settings; do not replace this implementation with another Conker project’s files. Saving those launch details does not run it; launch separately when ready."
+          },
+          {
+            "title": "Keep updates and data with upstream",
+            "instruction": "Retain the working folder and original game files. Follow the selected upstream version’s update instructions using a separate replacement folder. Portcove does not replace, back up or roll back this external runtime or its user-profile data."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
+        ],
         "help_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/v1.4.6/README.md"
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ]
+      "platforms": [],
+      "download_block_reason": "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
     },
     {
       "id": "danielgomesvieira2000-beetle-adventure-racing-recomp",
@@ -6590,16 +6646,21 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Finish the game’s setup",
-            "instruction": "On first Play, use Load ROM to choose your own supported Beetle Adventure Racing USA ROM. The launcher validates and imports it. This upstream alpha is offered through Preview; its Linux build is known to crash during boot and is not offered by this declaration."
+            "title": "Keep an existing permitted copy",
+            "instruction": "If you already have a permitted, prepared copy, choose its beetle-adventure-racing-recomp.exe game executable and supplied working folder in the existing-installation review. Use your own supported USA Beetle Adventure Racing ROM in Load ROM. The reviewed release is an alpha; upstream reports a Linux boot crash. Existing Windows game data normally stays under LocalAppData/beetle-adventure-racing-recomp. Saving those launch details does not run it; launch separately when ready."
+          },
+          {
+            "title": "Keep updates and data with upstream",
+            "instruction": "Retain the working folder and original game files. Follow the selected upstream version’s update instructions using a separate replacement folder. Portcove does not replace, back up or roll back this external runtime or its user-profile data."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
+        ],
         "help_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/v0.4.2-alpha/README.md"
       },
-      "platforms": [
-        "windows-x86-64"
-      ]
+      "platforms": [],
+      "download_block_reason": "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
     },
     {
       "id": "dante-s-inferno-hells-gate-recomp",
@@ -6883,9 +6944,8 @@
       "summary": "Explore DKC1Recomp and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/elliotttate/DKC1Recomp",
       "issue_number": 721,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/elliotttate/DKC1Recomp",
+      "availability": "packages",
+      "setup_url": "https://github.com/elliotttate/DKC1Recomp/blob/v0.0.17/README.md",
       "artwork": {
         "game_id": 1090,
         "cover_id": 327551,
@@ -6893,7 +6953,21 @@
         "image_sha256": "a348e97c032a181e95a9c4d1fb3cc43667fda92e39c994c6d3b24b2dce91cd6e",
         "game_slug": "donkey-kong-country",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/elliotttate/DKC1Recomp/releases/tag/v0.0.17",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Select your original in the game",
+            "instruction": "Choose Play, then select your own Donkey Kong Country USA v1.0 dump in the game’s picker. The published Windows player includes its optional Dixie companion and requires no compiler or separate installer. Follow the game’s own options for choosing that companion or an optional music pack. Follow the included upstream license terms, including its framework’s noncommercial-use limit."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/elliotttate/DKC1Recomp/blob/v0.0.17/README.md"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "dkfans-keeperfx",
@@ -6920,7 +6994,7 @@
       "project_url": "https://github.com/Erick194/DoomIIRPG-RE",
       "issue_number": 370,
       "platforms": [],
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/Erick194/DoomIIRPG-RE",
       "artwork": {
         "game_id": 101031,
@@ -6929,7 +7003,24 @@
         "image_sha256": "cba5f5ca6ebf630c36205d21c20d2d58c4def25c69503ab268ecfb83abdfc107",
         "game_slug": "doom-ii-rpg",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your own Doom II RPG iOS package",
+            "instruction": "The Windows player reads your own permitted iOS package named Doom 2 RPG.ipa from the same working folder as DoomIIRPG.exe. A J2ME JAR or BREW package is not the same input. Upstream also requires OpenAL on Windows; use the official OpenAL instructions linked in its package README if it is missing. This route does not obtain, decrypt or convert the original game for you."
+          },
+          {
+            "title": "Register the prepared game",
+            "instruction": "Choose DoomIIRPG.exe with its containing game folder as the working directory. Keep the supplied runtime libraries together. Save the launch details, then choose Play separately. You or upstream manage updates and the external working folder, including original data, saves and settings. Prepare another version separately and keep the current copy; Portcove does not back up, roll back or remove these external files."
+          }
+        ],
+        "warnings": [
+          "The inspected release does not publish an independently expected archive hash. A download is an explicitly unverified upstream copy; it does not become a managed or authenticated runtime."
+        ],
+        "help_url": "https://github.com/Erick194/DoomIIRPG-RE/blob/v.0.1/README.md"
+      },
+      "release_url": "https://github.com/Erick194/DoomIIRPG-RE/releases/tag/v.0.1"
     },
     {
       "id": "doom-rpg-doomrpg-re",
@@ -6938,7 +7029,7 @@
       "project_url": "https://github.com/Erick194/DoomRPG-RE",
       "issue_number": 369,
       "platforms": [],
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/Erick194/DoomRPG-RE",
       "artwork": {
         "game_id": 101029,
@@ -6947,7 +7038,24 @@
         "image_sha256": "cc08e314298f0cb0e877d0f6483b3d4b830feace20b3b36258c2300b82c068d2",
         "game_slug": "doom-rpg",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare Doom RPG data with upstream",
+            "instruction": "The Windows player needs your permitted DoomRPG.zip beside DoomRPG.exe in the DoomRPG folder. Upstream includes a separate BarToZip converter; it is a preparation tool, not the game. Follow upstream’s instructions for your own compatible original data. Portcove does not run that converter, obtain original files or infer that J2ME and BREW editions are interchangeable. If you already have a working prepared copy, keep using it."
+          },
+          {
+            "title": "Register the prepared game",
+            "instruction": "Choose DoomRPG.exe with its containing game folder as the working directory. Keep the supplied runtime libraries together. Save the launch details, then choose Play separately. You or upstream manage updates and the external working folder, including original data, saves and settings. Prepare another version separately and keep the current copy; Portcove does not back up, roll back or remove these external files."
+          }
+        ],
+        "warnings": [
+          "The inspected release does not publish an independently expected archive hash. A download is an explicitly unverified upstream copy; it does not become a managed or authenticated runtime."
+        ],
+        "help_url": "https://github.com/Erick194/DoomRPG-RE/blob/v.0.2.2/README.md"
+      },
+      "release_url": "https://github.com/Erick194/DoomRPG-RE/releases/tag/v.0.2.2"
     },
     {
       "id": "doukutsu-rs-doukutsu-rs",
@@ -9307,7 +9415,7 @@
       "issue_number": 743,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/GTTeancum/OpenGTPS1",
+      "setup_url": "https://github.com/GTTeancum/OpenGTPS1/blob/main/README.md",
       "artwork": {
         "game_id": 1597,
         "cover_id": 93687,
@@ -9315,7 +9423,24 @@
         "image_sha256": "a6f251729a583e075d008435e77d8c7aa52b966890e45e2aa8ebb20dd3a2f6c0",
         "game_slug": "gran-turismo-2",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep an existing permitted prepared copy",
+            "instruction": "Upstream has not granted a license for its original OpenGTPS1 code; this guide does not establish permission to build, acquire or register another copy. If you already have a permitted prepared Windows x64 copy, its GranTurismo2PC.exe uses your own exact US GT2 Simulation revision 2 (SCUS-94488) and Arcade (SCUS-94455) raw Mode 2/2352 images, checked by upstream’s native setup. Choose that prepared game executable and its writable folder, and launch separately. Optional GT1 content merging is excluded from this handoff pending its separate acceptance; do not infer that it is qualified here."
+          },
+          {
+            "title": "Keep updates and data with your working copy",
+            "instruction": "Keep your original files and a separate working installation. You or upstream own runtime replacement, generated data, saves and settings; prepare updates in a separate folder and retain the current copy until ready. Portcove’s existing-installation review saves your selected launch details without running a helper. It does not back up, roll back or delete this external runtime."
+          }
+        ],
+        "warnings": [
+          "Fresh Portcove acquisition is paused because upstream has not granted a license for its original OpenGTPS1 code. Keep using an existing permitted prepared copy. Reconsider when an attributable compatible permission basis is established; publication of an archive alone is insufficient."
+        ],
+        "help_url": "https://github.com/GTTeancum/OpenGTPS1/blob/main/README.md"
+      },
+      "download_block_reason": "Fresh Portcove acquisition is paused because upstream has not granted a license for its original OpenGTPS1 code. Keep using an existing permitted prepared copy. Reconsider when an attributable compatible permission basis is established; publication of an archive alone is insufficient."
     },
     {
       "id": "openjkdf2-jedi-knight-dark-forces-ii",
@@ -11676,7 +11801,7 @@
       "issue_number": 1795,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/Vidanox/BanjoTooieRecompiled",
+      "setup_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/v1.0.0-build.7/README.md",
       "artwork": {
         "game_id": 3418,
         "cover_id": 295556,
@@ -11684,7 +11809,24 @@
         "image_sha256": "26b3761c34557f7325f55f859547c55b8f46525354ab10f946cb57169919e28b",
         "game_slug": "banjo-tooie",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep an existing permitted copy",
+            "instruction": "If you already have a permitted, prepared copy, choose its BanjoTooieRecompiled.exe game executable and supplied working folder in the existing-installation review. Use your own supported USA Banjo-Tooie big-endian .z64 in Select ROM. The runtime needs the supplied assets folder in its working directory. Default Windows data stays under LocalAppData/BanjoTooieRecompiled. Saving those launch details does not run it; launch separately when ready."
+          },
+          {
+            "title": "Keep updates and data with upstream",
+            "instruction": "Retain the working folder and original game files. Follow the selected upstream version’s update instructions using a separate replacement folder. Portcove does not replace, back up or roll back this external runtime or its user-profile data."
+          }
+        ],
+        "warnings": [
+          "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
+        ],
+        "help_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/v1.0.0-build.7/README.md"
+      },
+      "download_block_reason": "Portcove downloads are paused while upstream component permissions remain unresolved. Keep using a permitted existing copy; reconsider when upstream provides compatible grants or replaces the affected components."
     },
     {
       "id": "virtual-hydlide-saturn-pc",
@@ -11858,7 +12000,21 @@
       "issue_number": 172,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp"
+      "setup_url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/master/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the European Special Edition through upstream",
+            "instruction": "The source guide describes a standalone PSXRecomp Generate & Build workflow. Use your own European WipEout 3 Special Edition SCES-02845 complete 14-track CUE/BIN set, matching game.toml; the README’s USA wording does not identify this edition. Follow the selected upstream source guide and choose only its resulting native game runtime, with the prepared working folder and any required arguments. Do not select the code generator as the game. Both this repository and the separate release-badge destination currently have empty GitHub release histories, so no player archive or automatic repository substitution is established here."
+          },
+          {
+            "title": "Keep updates and data with your working copy",
+            "instruction": "Keep your original files and a separate working installation. You or upstream own runtime replacement, generated data, saves and settings; prepare updates in a separate folder and retain the current copy until ready. Portcove’s existing-installation review saves your selected launch details without running a helper. It does not back up, roll back or delete this external runtime."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/master/README.md"
+      }
     },
     {
       "id": "wipeout-phantom-edition",
@@ -11903,7 +12059,7 @@
       "project_url": "https://github.com/Erick194/WolfensteinRPG-RE",
       "issue_number": 371,
       "platforms": [],
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/Erick194/WolfensteinRPG-RE",
       "artwork": {
         "game_id": 67744,
@@ -11912,7 +12068,24 @@
         "image_sha256": "31cefd47414a8bafd8da34018c6d5af038ce19cd9b1c898324e9b9276dd4b331",
         "game_slug": "wolfenstein-rpg",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your own Wolfenstein RPG iOS package",
+            "instruction": "The Windows player reads your own permitted iOS package named Wolfenstein RPG.ipa from the same working folder as WolfensteinRPG.exe. A J2ME JAR or BREW package is not the same input. Upstream also requires OpenAL on Windows; use the official OpenAL instructions linked in its package README if it is missing. This route does not obtain, decrypt or convert the original game for you."
+          },
+          {
+            "title": "Register the prepared game",
+            "instruction": "Choose WolfensteinRPG.exe with its containing game folder as the working directory. Keep the supplied runtime libraries together. Save the launch details, then choose Play separately. You or upstream manage updates and the external working folder, including original data, saves and settings. Prepare another version separately and keep the current copy; Portcove does not back up, roll back or remove these external files."
+          }
+        ],
+        "warnings": [
+          "The inspected release does not publish an independently expected archive hash. A download is an explicitly unverified upstream copy; it does not become a managed or authenticated runtime."
+        ],
+        "help_url": "https://github.com/Erick194/WolfensteinRPG-RE/blob/WolfensteinRPG-v.0.1/README.md"
+      },
+      "release_url": "https://github.com/Erick194/WolfensteinRPG-RE/releases/tag/WolfensteinRPG-v.0.1"
     },
     {
       "id": "woody-woodpecker-woodyre",

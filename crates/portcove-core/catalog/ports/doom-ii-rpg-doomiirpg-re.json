@@ -7,7 +7,7 @@
     "project_url": "https://github.com/Erick194/DoomIIRPG-RE",
     "issue_number": 370,
     "platforms": [],
-    "availability": "unknown",
+    "availability": "packages",
     "setup_url": "https://github.com/Erick194/DoomIIRPG-RE",
     "artwork": {
       "game_id": 101031,
@@ -16,6 +16,23 @@
       "image_sha256": "cba5f5ca6ebf630c36205d21c20d2d58c4def25c69503ab268ecfb83abdfc107",
       "game_slug": "doom-ii-rpg",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use your own Doom II RPG iOS package",
+          "instruction": "The Windows player reads your own permitted iOS package named Doom 2 RPG.ipa from the same working folder as DoomIIRPG.exe. A J2ME JAR or BREW package is not the same input. Upstream also requires OpenAL on Windows; use the official OpenAL instructions linked in its package README if it is missing. This route does not obtain, decrypt or convert the original game for you."
+        },
+        {
+          "title": "Register the prepared game",
+          "instruction": "Choose DoomIIRPG.exe with its containing game folder as the working directory. Keep the supplied runtime libraries together. Save the launch details, then choose Play separately. You or upstream manage updates and the external working folder, including original data, saves and settings. Prepare another version separately and keep the current copy; Portcove does not back up, roll back or remove these external files."
+        }
+      ],
+      "warnings": [
+        "The inspected release does not publish an independently expected archive hash. A download is an explicitly unverified upstream copy; it does not become a managed or authenticated runtime."
+      ],
+      "help_url": "https://github.com/Erick194/DoomIIRPG-RE/blob/v.0.1/README.md"
+    },
+    "release_url": "https://github.com/Erick194/DoomIIRPG-RE/releases/tag/v.0.1"
   }
 }

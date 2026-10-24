@@ -8,6 +8,20 @@
     "issue_number": 172,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp"
+    "setup_url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/master/README.md",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the European Special Edition through upstream",
+          "instruction": "The source guide describes a standalone PSXRecomp Generate & Build workflow. Use your own European WipEout 3 Special Edition SCES-02845 complete 14-track CUE/BIN set, matching game.toml; the README’s USA wording does not identify this edition. Follow the selected upstream source guide and choose only its resulting native game runtime, with the prepared working folder and any required arguments. Do not select the code generator as the game. Both this repository and the separate release-badge destination currently have empty GitHub release histories, so no player archive or automatic repository substitution is established here."
+        },
+        {
+          "title": "Keep updates and data with your working copy",
+          "instruction": "Keep your original files and a separate working installation. You or upstream own runtime replacement, generated data, saves and settings; prepare updates in a separate folder and retain the current copy until ready. Portcove’s existing-installation review saves your selected launch details without running a helper. It does not back up, roll back or delete this external runtime."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/master/README.md"
+    }
   }
 }

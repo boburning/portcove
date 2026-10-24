@@ -20,6 +20,7 @@ export interface AuthoredListing extends NamedRecord {
   project_url: string;
   platforms?: string[];
   availability?: "unknown" | "packages" | "source-only" | "unavailable";
+  download_block_reason?: string;
   original_game_title?: string;
   variant_label?: string;
   issue_number?: number;
@@ -58,6 +59,7 @@ const listingFields = new Set([
   ...listingPresentationFields,
   "platforms",
   "availability",
+  "download_block_reason",
   "issue_number",
   "release_url",
   "setup_url",
@@ -124,6 +126,11 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       !["unknown", "packages", "source-only", "unavailable"].includes(listing.availability))
   )
     throw new Error("Unknown listing availability.");
+  if (
+    listing.download_block_reason !== undefined &&
+    !boundedText(listing.download_block_reason, 4096)
+  )
+    throw new Error("Listing download restriction requires bounded nonempty text.");
   if (
     listing.platforms !== undefined &&
     (!Array.isArray(listing.platforms) ||
@@ -229,7 +236,10 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
     platforms: structuredClone(record.integration?.platforms ?? record.listing.platforms ?? []),
     availability: record.listing.availability ?? "unknown",
   }));
-  return { records, catalog, directory: { format_version: 1 as const, listings } };
+  const format_version = listings.some((listing) => listing.download_block_reason !== undefined)
+    ? 2
+    : 1;
+  return { records, catalog, directory: { format_version, listings } };
 }
 
 function readRegularJson(file: string, maximum: number) {

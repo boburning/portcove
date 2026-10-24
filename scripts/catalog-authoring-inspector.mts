@@ -13,7 +13,7 @@ export interface ProposalReceipt extends Record<string, unknown> {
   validator_artifact_sha256: string;
 }
 export interface ListingReceipt extends Record<string, unknown> {
-  format_version: 1;
+  format_version: 1 | 2;
   input_sha256: string;
   input_bytes: number;
   listings: unknown[];
@@ -108,13 +108,13 @@ export function coreProposalInspector(cli: string, root: string) {
     const input: unknown = JSON.parse(bytes.toString("utf8"));
     if (
       !isRecord(report) ||
-      report.format_version !== 1 ||
+      (report.format_version !== 1 && report.format_version !== 2) ||
       !Array.isArray(report.listings) ||
       !isDeepStrictEqual(report, input)
     )
       throw new Error("Core listing response differs from the exact generated input.");
     return {
-      format_version: 1,
+      format_version: report.format_version,
       input_sha256: sha256,
       input_bytes: bytes.length,
       listings: report.listings,
