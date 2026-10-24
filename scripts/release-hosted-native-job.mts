@@ -82,6 +82,7 @@ export async function prepareActualHostedLinuxPreSignJob(
   return {
     receipt,
     ready_file: path.join(original.directory, "native-upload-ready.json"),
+    deadline: original.deadline,
     authority: "none" as const,
   };
 }
