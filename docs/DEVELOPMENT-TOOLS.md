@@ -796,6 +796,21 @@ The case context reports invalid/omitted counts and retained bytes. Limits are
 4096 records, 16 KiB per record and 4 MiB total; file summaries remain separate.
 Diagnostic collection failures retain the original runner output and exit status.
 
+Registered root Node suites and hosted/local root contract callers use
+`required-node-test-reporter.mts` to check execution separately from diagnostics.
+It retains requested literal files and name/skip filters, reconciles actual case
+instances with native file summaries, and rejects a family with no executed
+cases, including a skipped-only family invoked outside its execution route.
+Individual intentional skips remain visible alongside runnable cases. File and
+worker wrappers and suites cannot stand in for executed cases.
+
+The execution packet's `complete` field concerns this file/count reconciliation;
+case identity details remain in the separately bounded case observations. Complete
+pre-execution discovery and dynamic case selection remain explicitly unavailable.
+The guard drains original output before checking its extra requirement, preserves
+primary native failures, and bounds inventory storage to 512 files and 16384 case
+instances. Invoke required platform families through their owning platform route.
+
 The always-selected Node contract quartet retains decision and environment-isolation
 assertions. Its real child-timeout and subprocess-metrics fixtures run separately
 in `ci-baseline-execution.test.mts`: relevant baseline/metrics/runtime changes,

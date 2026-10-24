@@ -258,6 +258,7 @@ export const hostedLocalCheckAuthorityPaths = Object.freeze([
   "scripts/rust-test-tree-supervisor.mts",
   "scripts/quality-tools.mts",
   "scripts/test-duration-reporter.mts",
+  "scripts/required-node-test-reporter.mts",
   "scripts/bootstrap-quality-tools.sh",
   "scripts/install-linux-desktop-prerequisites.sh",
   "crates/portcove-core/src/testdata/host_tool_probe.rs.txt",
