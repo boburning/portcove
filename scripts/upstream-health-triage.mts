@@ -7,8 +7,8 @@ export interface HealthTriageCondition {
   release_ref: string | null;
   rule: string | null;
   http_status?: number | null;
-  classification?: string | null;
-  accounted_for?: boolean;
+  classification?: string | null | undefined;
+  accounted_for?: boolean | undefined;
   changed_in_this_run: boolean;
   observed_this_run: boolean;
   freshness: "fresh" | "stale";
