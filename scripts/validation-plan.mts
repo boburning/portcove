@@ -351,6 +351,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-controller-configuration.mts",
   "scripts/release-controller-job.mts",
   "scripts/release-controller-job-bootstrap.mts",
+  "scripts/release-controller-job-credential-route.mts",
   "scripts/release-controller-job-output.mts",
   "scripts/release-aggregate-locator.mts",
   "scripts/release-coordinator-namespace.mts",

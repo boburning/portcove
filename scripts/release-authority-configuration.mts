@@ -104,6 +104,29 @@ export async function requireControllerJobSourceConfiguration(rawPhase: unknown)
   const { binding, recheck } = await readControllerJobSourceConfiguration(rawPhase);
   return { binding, recheck };
 }
+/** Credential routing data only, from one captured original full job source.
+ * The workflow still confines each credential to its fixed operation. */
+export async function requireControllerJobCredentialRoute(rawPhase: unknown) {
+  const phase = inspectReleaseControlPhase(rawPhase);
+  const captured = await readControllerJobSourceConfiguration(phase);
+  const view = requireControllerJobAuthorityConfiguration(
+    captured.configuration,
+    captured.source,
+    phase,
+    captured.binding.purpose,
+  );
+  captured.recheck();
+  return {
+    route: Object.freeze({
+      phase,
+      purpose: view.purpose,
+      credential_transport:
+        view.configuration.schema_version === 4 ? ("fixed-job" as const) : ("legacy-app" as const),
+      source: view.source,
+    }),
+    recheck: captured.recheck,
+  };
+}
 async function readControllerJobAuthorityConfiguration(
   phase: unknown,
   expectedPurpose?: "application" | "catalog-publication",

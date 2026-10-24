@@ -4,14 +4,16 @@ import path from "node:path";
 
 const environments = new AsyncLocalStorage<Readonly<NodeJS.ProcessEnv>>();
 
-/** Credential exposure control only. The fixed parent keeps its separately
- * authorized journal transport; ordinary GH/Git children get no such token,
- * signing/App key, OIDC runner bearer, host config or runtime injection env. */
+/** Fixed trusted GH/Git read calls receive the captured job token, which may
+ * have provider write permissions. Read-only describes code confinement, not
+ * permission attenuation. Dedicated journal/App/signing secrets, OIDC bearer,
+ * host config and runtime injection are stripped. Candidate/Core children must
+ * instead use the credential-free payload signing environment. */
 export async function withReadOnlyReleaseChildren<T>(directory: string, work: () => Promise<T>) {
   if (!path.isAbsolute(directory)) throw new Error("private read-only CLI home required");
   const token = process.env.GH_TOKEN;
   if (!token || token.length > 16384 || /[\r\n\0]/u.test(token))
-    throw new Error("explicit ordinary read-only job token required");
+    throw new Error("explicit fixed-job reader transport token required");
   const home = await mkdtemp(path.join(directory, "readonly-cli-"));
   const environment: NodeJS.ProcessEnv = {};
   for (const key of [
