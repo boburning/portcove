@@ -7,6 +7,7 @@ import { parse } from "yaml";
 import { slice4CapacityResources } from "./release-capacity.mts";
 
 type Step = {
+  if?: string;
   run?: string;
   uses?: string;
   with?: Record<string, string>;
@@ -28,6 +29,39 @@ type Workflow = {
   jobs: Record<string, Job>;
 };
 const root = new URL("../", import.meta.url);
+void test("selected D1 workflow uses source-bound observer outputs and skips legacy writer credentials", async () => {
+  const workflow = parse(
+    await readFile(new URL(".github/workflows/application-update-production.yml", root), "utf8"),
+  ) as Workflow;
+  const writer = workflow.jobs.classification_writer!;
+  assert.equal(writer.permissions?.contents, "write");
+  for (const step of writer.steps.filter(
+    (step) =>
+      step.uses?.startsWith("actions/create-github-app-token") ||
+      step.env?.PORTCOVE_OBSERVED_INSTALLATION_ID,
+  ))
+    assert.match(step.if ?? "", /classification_transport == 'legacy-app'/);
+  const selected = writer.steps.find((step) =>
+    step.if?.includes("classification_transport == 'fixed-job'"),
+  );
+  assert.ok(selected);
+  assert.ok(selected.run?.includes("persist-production-request"));
+  assert.equal(selected.env?.PORTCOVE_CONTROL_APP_TOKEN, undefined);
+  assert.equal(selected.env?.GH_TOKEN, "${{ github.token }}");
+  let observerCalls = 0;
+  for (const job of Object.values(workflow.jobs))
+    for (const step of job.steps) {
+      if (step.uses === "./.github/actions/release-control-observer") {
+        observerCalls++;
+        assert.equal(step.with?.app_id, "${{ needs.admission.outputs.protection_app_id }}");
+        assert.equal(
+          step.with?.installation_id,
+          "${{ needs.admission.outputs.protection_installation_id }}",
+        );
+      }
+    }
+  assert.equal(observerCalls, 14);
+});
 void test("installed workflows remain inert without configuration and preserve exactly reviewed proposal bytes", async () => {
   for (const [actual, proposal] of [
     [
@@ -467,7 +501,10 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       const step = job.steps[index]!;
       if (step.uses?.startsWith("actions/create-github-app-token@")) {
         const appId = step.with?.["app-id"] ?? "";
-        if (appId.includes("publication_purpose")) {
+        if (appId === "${{ needs.admission.outputs.protection_app_id }}") {
+          assert.equal(name, "classification_protection_observation");
+          assert.equal(step.with?.["permission-administration"], "write");
+        } else if (appId.includes("publication_purpose")) {
           assert.match(
             appId,
             /needs\.admission\.outputs\.publication_purpose == 'catalog-publication' && fromJSON\(vars\.PORTCOVE_CATALOG_AUTHORITIES\)\.apps\.([a-z_]+)\.app_id \|\| fromJSON\(vars\.PORTCOVE_RELEASE_AUTHORITIES\)\.apps\.\1\.app_id/u,
@@ -486,9 +523,15 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
           installation?.env?.PORTCOVE_OBSERVED_INSTALLATION_ID,
           `\${{ steps.${String((step as Step & { id: string }).id)}.outputs.installation-id }}`,
         );
-        assert.ok(
-          installation?.env?.PORTCOVE_EXPECTED_INSTALLATION_ID?.endsWith(".installation_id }}"),
-        );
+        if (appId === "${{ needs.admission.outputs.protection_app_id }}")
+          assert.equal(
+            installation?.env?.PORTCOVE_EXPECTED_INSTALLATION_ID,
+            "${{ needs.admission.outputs.protection_installation_id }}",
+          );
+        else
+          assert.ok(
+            installation?.env?.PORTCOVE_EXPECTED_INSTALLATION_ID?.endsWith(".installation_id }}"),
+          );
       }
     }
     for (const step of job.steps) {
@@ -509,7 +552,7 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       if (step.env?.PORTCOVE_COORDINATOR_JOURNAL_TOKEN)
         assert.equal(step.uses, "./.github/actions/release-controller-job");
     }
-    if (job.permissions?.contents === "write") assert.equal(name, "release_publication");
+    if (job.permissions?.contents === "write") assert.equal(name, "classification_writer");
     if (job.permissions?.pages === "write") assert.equal(name, "site_publication");
   }
   assert.ok(requiredJob("attest").needs!.includes("independent_admission"));
@@ -658,7 +701,7 @@ void test("actual observer installation guard refuses drift before invoking its 
   for (const step of guards) assert.equal(step.run?.split("\n")[0], guard);
   const direct = Object.values(workflow.jobs)
     .flatMap((job) => job.steps)
-    .filter((step) => step.env?.PORTCOVE_OBSERVED_INSTALLATION_ID);
+    .filter((step) => step.env?.PORTCOVE_OBSERVED_INSTALLATION_ID && step.run?.startsWith("[["));
   assert.ok(direct.length >= 10);
   for (const step of direct) assert.equal(step.run, guard);
   const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "/bin/bash";

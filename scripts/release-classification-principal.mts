@@ -3,7 +3,11 @@ import {
   productionControllerWorkflow,
 } from "./production-controller-admission.mts";
 import { requireVerifiedClassificationPrincipalIdentity } from "./assembler-job-identity.mts";
-import { inspectBoundSelectedPublicationAuthorities } from "./release-authority-configuration.mts";
+import { requireVerifiedProtectionObserverIdentity } from "./assembler-job-identity.mts";
+import {
+  inspectBoundSelectedPublicationAuthorities,
+  requireProtectionObserverSourceConfiguration,
+} from "./release-authority-configuration-contract.mts";
 import { inspectFixedClassificationProducer } from "./release-classification-contract.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import type { ReleaseControlPhase } from "./release-control-phases.mts";
@@ -128,4 +132,40 @@ export function requireProductionFixedClassificationWriter(value: unknown, now =
   if (saved.identity.evidence_scope !== "github.com")
     throw new Error("actual provider fixed classification writer required");
   return saved;
+}
+
+/** Same original source/job machinery, no new principal or transport authority.
+ * The fixed mint Action's installation output is bound to the appointed role. */
+export function requireProductionProtectionObserver(
+  raw: unknown,
+  source: unknown,
+  identity: unknown,
+  phase: "classification" | ReleaseControlPhase,
+  purpose: "application" | "catalog-publication",
+  targetAppId: string | undefined,
+  observedInstallationId: string | undefined,
+  now = Date.now(),
+) {
+  const roles = requireProtectionObserverSourceConfiguration(raw, source, phase, purpose);
+  requireAdmittedProductionSource(
+    source,
+    phase === "classification"
+      ? "classification_protection_observation"
+      : releaseControlPhaseProfile(phase).observer_job,
+    purpose,
+  );
+  requireVerifiedProtectionObserverIdentity(identity, phase, now);
+  if (
+    identity.evidence_scope !== "github.com" ||
+    identity.workflow !== source.workflow ||
+    identity.workflow_revision !== source.revision ||
+    identity.execution_ref !== source.execution_ref ||
+    identity.actor_id !== source.actor_id ||
+    identity.run_id !== source.run_id ||
+    identity.run_attempt !== source.run_attempt ||
+    targetAppId !== String(roles.protection_app_id) ||
+    observedInstallationId !== String(roles.protection_installation_id)
+  )
+    throw new Error("actual appointed protection observer source/job/installation binding differs");
+  return { ...roles, evidence_scope: identity.evidence_scope, authority: "none" as const };
 }

@@ -28,6 +28,8 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
       run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE"
     - id: observer0
       if: ${{ steps.ready0.outcome == 'success' }}
@@ -43,6 +45,7 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer0.outputs.token }}
         PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
         PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer0.outputs.installation-id }}
@@ -66,6 +69,8 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
       run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 1
     - id: observer1
       if: ${{ steps.ready1.outcome == 'success' }}
@@ -81,6 +86,7 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer1.outputs.token }}
         PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
         PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer1.outputs.installation-id }}
@@ -104,6 +110,8 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
       run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 2
     - id: observer2
       if: ${{ steps.ready2.outcome == 'success' }}
@@ -119,6 +127,7 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer2.outputs.token }}
         PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
         PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer2.outputs.installation-id }}
@@ -142,6 +151,8 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
       run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 3
     - id: observer3
       if: ${{ steps.ready3.outcome == 'success' }}
@@ -157,6 +168,7 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer3.outputs.token }}
         PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
         PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer3.outputs.installation-id }}
@@ -180,6 +192,8 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
       run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 4
     - id: observer4
       if: ${{ steps.ready4.outcome == 'success' }}
@@ -195,6 +209,7 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer4.outputs.token }}
         PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
         PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer4.outputs.installation-id }}
@@ -218,6 +233,8 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
       run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 5
     - id: observer5
       if: ${{ steps.ready5.outcome == 'success' }}
@@ -233,6 +250,7 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer5.outputs.token }}
         PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
         PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer5.outputs.installation-id }}
@@ -256,6 +274,8 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
       run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 6
     - id: observer6
       if: ${{ steps.ready6.outcome == 'success' }}
@@ -271,6 +291,7 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer6.outputs.token }}
         PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
         PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer6.outputs.installation-id }}
@@ -294,6 +315,8 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
       run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 7
     - id: observer7
       if: ${{ steps.ready7.outcome == 'success' }}
@@ -309,6 +332,7 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer7.outputs.token }}
         PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
         PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer7.outputs.installation-id }}
@@ -332,6 +356,8 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
       run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 8
     - id: observer8
       if: ${{ steps.ready8.outcome == 'success' }}
@@ -347,6 +373,7 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer8.outputs.token }}
         PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
         PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer8.outputs.installation-id }}
@@ -370,6 +397,8 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
       run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 9
     - id: observer9
       if: ${{ steps.ready9.outcome == 'success' }}
@@ -385,6 +414,7 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer9.outputs.token }}
         PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
         PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer9.outputs.installation-id }}
@@ -408,6 +438,8 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
       run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 10
     - id: observer10
       if: ${{ steps.ready10.outcome == 'success' }}
@@ -423,6 +455,7 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer10.outputs.token }}
         PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
         PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer10.outputs.installation-id }}
@@ -446,6 +479,8 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
       run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 11
     - id: observer11
       if: ${{ steps.ready11.outcome == 'success' }}
@@ -461,6 +496,7 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer11.outputs.token }}
         PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
         PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer11.outputs.installation-id }}
@@ -484,6 +520,8 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
       run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 12
     - id: observer12
       if: ${{ steps.ready12.outcome == 'success' }}
@@ -499,6 +537,7 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer12.outputs.token }}
         PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
         PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer12.outputs.installation-id }}
@@ -522,6 +561,8 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
       run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 13
     - id: observer13
       if: ${{ steps.ready13.outcome == 'success' }}
@@ -537,6 +578,7 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer13.outputs.token }}
         PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
         PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer13.outputs.installation-id }}
@@ -560,6 +602,8 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
       run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 14
     - id: observer14
       if: ${{ steps.ready14.outcome == 'success' }}
@@ -575,6 +619,7 @@ runs:
       shell: bash
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ inputs.app_id }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer14.outputs.token }}
         PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
         PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer14.outputs.installation-id }}

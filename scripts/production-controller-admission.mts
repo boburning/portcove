@@ -1,12 +1,7 @@
 import { createHash } from "node:crypto";
-import { open, appendFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
-import { errorMessage, isRecord } from "./runtime-values.mts";
-import {
-  releaseControlPhaseProfile,
-  inspectControllerExecutionPurpose,
-} from "./release-control-phases.mts";
+import { open } from "node:fs/promises";
+import { isRecord } from "./runtime-values.mts";
+import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 
 export const productionControllerWorkflow = ".github/workflows/application-update-production.yml";
 const repository = "boburning/portcove";
@@ -340,28 +335,4 @@ async function readFixedControllerWorkflowBytes(workflow: string) {
   } finally {
     await handle.close();
   }
-}
-
-async function main() {
-  if (process.argv.length !== 2) refuse("no candidate or policy path arguments are accepted");
-  const purpose = inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE);
-  const admitted = (
-    purpose === "catalog-publication" ? admitProductionCatalogController : admitProductionController
-  )(
-    purpose === "catalog-publication"
-      ? process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION
-      : process.env.PORTCOVE_CONTROLLER_ADMISSION,
-    process.env,
-    await readProductionControllerWorkflowBytes(),
-  );
-  if (process.env.GITHUB_OUTPUT)
-    await appendFile(process.env.GITHUB_OUTPUT, `publication_purpose=${purpose}\n`);
-  console.log(JSON.stringify(admitted));
-}
-
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main().catch((error) => {
-    console.error(errorMessage(error));
-    process.exitCode = 1;
-  });
 }

@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, mkdir, copyFile, writeFile, rm, readFile } from "node:fs/promises";
+import { mkdtemp, mkdir, copyFile, writeFile, rm, readFile, readdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { parse } from "yaml";
 import {
@@ -754,7 +755,7 @@ void test("configured held workflow enforces bootstrap identities before checkou
   assert.match(workflow, /contents: read/u);
   assert.match(workflow, /cancel-in-progress: false/u);
   assert.equal(bootstrap["timeout-minutes"], 1);
-  assert.match(workflow, /run: node scripts\/production-controller-admission\.mts/u);
+  assert.match(workflow, /run: node scripts\/production-controller-admission-cli\.mts/u);
   assert.equal(bootstrap.environment, undefined);
   assert.ok(!JSON.stringify(bootstrap).includes("secrets."));
   assert.equal(parsed.env.PORTCOVE_EXECUTION_PURPOSE, "${{ inputs.publication_purpose }}");
@@ -778,12 +779,23 @@ void test("CLI runs with only fixed source files and no installed dependencies",
   await mkdir(path.join(root, ".github/workflows"), { recursive: true });
   for (const file of [
     "production-controller-admission.mts",
+    "production-controller-admission-cli.mts",
     "runtime-values.mts",
     "release-control-phases.mts",
+    "release-authority-configuration.mts",
+    "release-authority-configuration-contract.mts",
+    "release-canonical.mts",
+    "release-catalog-publication-contract.mts",
+    "release-metadata-contract.mts",
+    "controller-node-runtime.mts",
+    "release-coordinator-deadline.mts",
+    "release-coordinator-namespace.mts",
+    "linux-beta-risk-706-profile.mts",
+    "release-native-qualification-contract.mts",
   ])
     await copyFile(new URL(file, import.meta.url), path.join(root, "scripts", file));
   await writeFile(path.join(root, ".github/workflows/application-update-production.yml"), source);
-  const command = path.join(root, "scripts/production-controller-admission.mts");
+  const command = path.join(root, "scripts/production-controller-admission-cli.mts");
   const invoke = (extra: string[], delta: NodeJS.ProcessEnv) =>
     execFileSync(process.execPath, [command, ...extra], {
       cwd: root,
@@ -808,6 +820,161 @@ void test("CLI runs with only fixed source files and no installed dependencies",
     Buffer.alloc(65537),
   );
   assert.throws(() => invoke([], {}), /source byte identity/u);
+});
+
+void test("full selected admission derives both purpose observer roles without installed dependencies or a legacy fallback", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "selected-input-roles-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const bytes = await readFile(
+    new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+  );
+  const entry = new URL("./production-controller-admission-cli.mts", import.meta.url);
+  const loader =
+    "data:text/javascript," +
+    encodeURIComponent(
+      `import {registerHooks,isBuiltin} from 'node:module';registerHooks({resolve(spec,context,next){if(!isBuiltin(spec)&&!spec.startsWith('.')&&!spec.startsWith('file:')&&!spec.startsWith('data:'))throw Error('external dependency refused: '+spec);return next(spec,context);}});`,
+    );
+  for (const purpose of ["application", "catalog-publication"] as const) {
+    const config = selectedPublicationAuthoritiesFixture(purpose);
+    const bounded = {
+      ...policy,
+      schema_version: 2,
+      mode:
+        purpose === "application" ? "bounded-application-release" : "bounded-catalog-publication",
+      workflow_sha256: createHash("sha256").update(bytes).digest("hex"),
+      authority_configuration_sha256: releaseCanonicalDigest(config),
+      grant_sha256: "e".repeat(64),
+    };
+    let ordinal = 0;
+    const invoke = async (raw: unknown) => {
+      const output = path.join(directory, `${purpose}-${ordinal++}`);
+      await writeFile(output, "", { flag: "wx" });
+      let failure: unknown;
+      try {
+        execFileSync(process.execPath, ["--import", loader, fileURLToPath(entry)], {
+          env: {
+            ...process.env,
+            ...environment,
+            GITHUB_OUTPUT: output,
+            PORTCOVE_EXECUTION_PURPOSE: purpose,
+            PORTCOVE_CONTROLLER_ADMISSION:
+              purpose === "application" ? JSON.stringify(bounded) : undefined,
+            PORTCOVE_CATALOG_CONTROLLER_ADMISSION:
+              purpose === "catalog-publication" ? JSON.stringify(bounded) : undefined,
+            PORTCOVE_RELEASE_AUTHORITIES:
+              purpose === "application" ? JSON.stringify(raw) : undefined,
+            PORTCOVE_CATALOG_AUTHORITIES:
+              purpose === "catalog-publication" ? JSON.stringify(raw) : undefined,
+          },
+          timeout: 15000,
+          windowsHide: true,
+          stdio: "pipe",
+        });
+      } catch (error) {
+        failure = error;
+      }
+      return { failure, text: await readFile(output, "utf8") };
+    };
+    const result = await invoke(config);
+    assert.equal(result.failure, undefined, String(result.failure));
+    assert.match(result.text, /classification_transport=fixed-job\n/);
+    assert.match(result.text, /protection_app_id=202\n/);
+    assert.match(result.text, /protection_installation_id=1002\n/);
+    for (const bad of [
+      { ...config, schema_version: 3 },
+      config.journal,
+      {
+        ...config,
+        journal: {
+          ...config.journal,
+          apps: {
+            ...config.journal.apps,
+            protection_observer: { app_id: 0, installation_id: 1002 },
+          },
+        },
+        apps: { protection_observer: { app_id: 202, installation_id: 1002 } },
+      },
+    ]) {
+      const refused = await invoke(bad);
+      assert.ok(refused.failure);
+      assert.equal(refused.text, "");
+    }
+  }
+});
+
+void test("actual readiness CLI binds appointed targets before its private directory or handshake, with controlled handshake only", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "selected-observer-ready-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const bytes = await readFile(
+    new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+  );
+  const entry = new URL("./release-control-ready.mts", import.meta.url);
+  const handshake = new URL("./release-control-handshake.mts", import.meta.url).href;
+  const loader =
+    "data:text/javascript," +
+    encodeURIComponent(
+      `import {registerHooks,isBuiltin} from 'node:module'; const stub='data:text/javascript,'+encodeURIComponent('export {inspectControlRound} from '+${JSON.stringify(JSON.stringify(handshake))}+';import {writeFile} from "node:fs/promises";export async function waitForControlArtifact(root,role,value){if(role!=="ready")throw Error("wrong role");await writeFile(root+"/controlled-handshake.json",JSON.stringify(value),{flag:"wx"});}');registerHooks({resolve(spec,context,next){if(context.parentURL===${JSON.stringify(entry.href)}&&spec==='./release-control-handshake.mts')return {url:stub,shortCircuit:true};if(!isBuiltin(spec)&&!spec.startsWith('.')&&!spec.startsWith('file:')&&!spec.startsWith('data:'))throw Error('external dependency refused: '+spec);return next(spec,context);}});`,
+    );
+  for (const purpose of ["application", "catalog-publication"] as const) {
+    const config = selectedPublicationAuthoritiesFixture(purpose);
+    const bounded = {
+      ...policy,
+      schema_version: 2,
+      mode:
+        purpose === "application" ? "bounded-application-release" : "bounded-catalog-publication",
+      workflow_sha256: createHash("sha256").update(bytes).digest("hex"),
+      authority_configuration_sha256: releaseCanonicalDigest(config),
+      grant_sha256: "e".repeat(64),
+    };
+    for (const valid of [true, false]) {
+      const parent = path.join(directory, `${purpose}-${valid}`);
+      await mkdir(parent);
+      let failure: unknown;
+      try {
+        execFileSync(process.execPath, ["--import", loader, fileURLToPath(entry), "coordinator"], {
+          env: {
+            ...process.env,
+            ...environment,
+            GITHUB_JOB: "coordinator_protection_observation",
+            RUNNER_TEMP: parent,
+            GH_TOKEN: "inert-not-an-authority",
+            PORTCOVE_EXECUTION_PURPOSE: purpose,
+            PORTCOVE_CONTROLLER_ADMISSION:
+              purpose === "application" ? JSON.stringify(bounded) : undefined,
+            PORTCOVE_CATALOG_CONTROLLER_ADMISSION:
+              purpose === "catalog-publication" ? JSON.stringify(bounded) : undefined,
+            PORTCOVE_RELEASE_AUTHORITIES:
+              purpose === "application" ? JSON.stringify(config) : undefined,
+            PORTCOVE_CATALOG_AUTHORITIES:
+              purpose === "catalog-publication" ? JSON.stringify(config) : undefined,
+            PORTCOVE_EXPECTED_PROTECTION_APP_ID: valid ? "202" : "999",
+            PORTCOVE_EXPECTED_INSTALLATION_ID: "1002",
+          },
+          timeout: 15000,
+          windowsHide: true,
+          stdio: "pipe",
+        });
+      } catch (error) {
+        failure = error;
+      }
+      if (valid) {
+        assert.equal(failure, undefined, String(failure));
+        const observed: unknown = JSON.parse(
+          await readFile(
+            path.join(parent, "release-control-ready-coordinator/controlled-handshake.json"),
+            "utf8",
+          ),
+        );
+        assert.ok(isRecord(observed));
+        assert.equal(observed.phase, "coordinator");
+        assert.equal(observed.controller_revision, policy.revision);
+      } else {
+        assert.ok(failure instanceof Error);
+        assert.match(String(failure), /fixed reader readiness refused/);
+        assert.deepEqual(await readdir(parent), []);
+      }
+    }
+  }
 });
 
 void test("reviewed inputs source admission pins its own fixed workflow and rejects production cross-use", () => {

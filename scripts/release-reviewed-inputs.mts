@@ -6,6 +6,8 @@ import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import {
   admitReviewedInputsController,
   admitProductionCatalogProtectionObserver,
+  admitProductionProtectionObserver,
+  admitProductionClassificationObserver,
   readProductionControllerWorkflowBytes,
 } from "./production-controller-admission.mts";
 import {
@@ -35,6 +37,7 @@ import {
 
 import {
   coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
   withCoordinatorDeadline,
 } from "./release-coordinator-deadline.mts";
 import { currentClassificationJobDeadline } from "./release-signing-job-budget.mts";
@@ -43,13 +46,49 @@ import {
   requireProductionClassificationObserverAuthorities,
   requireSelectedProductionClassificationAuthorities,
 } from "./release-authority-configuration.mts";
+import { requireProtectionObserverSourceConfiguration } from "./release-authority-configuration-contract.mts";
 import {
   prepareFixedClassificationProducer,
   establishFixedClassificationPrincipal,
   requireProductionFixedClassificationWriter,
+  requireProductionProtectionObserver,
 } from "./release-classification-principal.mts";
 import { requireFixedClassificationStoragePolicy } from "./release-input-protections.mts";
 import type { inspectApplicationReviewProducerConfiguration } from "./release-control-inputs.mts";
+
+export async function retainProtectionObservationOutputs(
+  output: string | undefined,
+  retainedPath: string | undefined,
+  result: unknown,
+  operation: string,
+  receipt: { writeFile: (value: string) => Promise<unknown> },
+  requireFresh: () => void,
+  io: Pick<typeof import("node:fs/promises"), "appendFile" | "writeFile"> = {
+    appendFile,
+    writeFile,
+  },
+) {
+  const encoded = JSON.stringify(result);
+  requireFresh();
+  if (typeof encoded !== "string" || Buffer.byteLength(encoded) > 60 * 1024 || !output)
+    throw new Error("trusted observer output channel unavailable or oversized");
+  await io.appendFile(output, `observation=${encoded}\n`);
+  requireFresh();
+  if (retainedPath) {
+    await io.writeFile(retainedPath, encoded, { flag: "wx", mode: 0o600 });
+    requireFresh();
+  }
+  await receipt.writeFile(
+    JSON.stringify({
+      schema_version: 1,
+      operation,
+      status: "succeeded",
+      result,
+      authority: "none",
+    }) + "\n",
+  );
+  requireFresh();
+}
 
 async function runOperation(classification?: {
   namespace: string;
@@ -57,6 +96,7 @@ async function runOperation(classification?: {
   selected?: Awaited<ReturnType<typeof requireSelectedProductionClassificationAuthorities>>;
   environment: NodeJS.ProcessEnv;
   deadline: number;
+  observerSource?: ReturnType<typeof admitProductionClassificationObserver>;
 }) {
   const environment = classification?.environment ?? { ...process.env };
   const mode = process.argv[2];
@@ -135,13 +175,18 @@ async function runOperation(classification?: {
       : "admission",
   );
   const phaseProfile = releaseControlPhaseProfile(phase);
-  if (catalogPurpose)
-    admitProductionCatalogProtectionObserver(
-      environment.PORTCOVE_CATALOG_CONTROLLER_ADMISSION,
-      environment,
-      await readProductionControllerWorkflowBytes(),
-      phase,
-    );
+  const observerSource = productionObservation
+    ? (catalogPurpose
+        ? admitProductionCatalogProtectionObserver
+        : admitProductionProtectionObserver)(
+        catalogPurpose
+          ? environment.PORTCOVE_CATALOG_CONTROLLER_ADMISSION
+          : environment.PORTCOVE_CONTROLLER_ADMISSION,
+        environment,
+        await readProductionControllerWorkflowBytes(),
+        phase,
+      )
+    : classification?.observerSource;
   const observing = mode === "observe" || productionObservation || classificationObserver;
   const persisting =
     mode === "persist" || mode === "persist-request" || mode === "persist-production-request";
@@ -155,16 +200,53 @@ async function runOperation(classification?: {
     "wx",
     0o600,
   );
+  let requireObserver = () => {};
   try {
     await receipt.writeFile(
       JSON.stringify({ schema_version: 1, operation: mode, status: "started", authority: "none" }) +
         "\n",
     );
+    const fixedObserver =
+      productionObservation ||
+      classificationObserver ||
+      mode === "probe-production-classification-observer";
+    const observerPhase =
+      classificationObserver || mode === "probe-production-classification-observer"
+        ? "classification"
+        : phase;
+    const observerPurpose = catalogPurpose ? "catalog-publication" : "application";
+    const rawObserver = fixedObserver
+      ? catalogPurpose
+        ? environment.PORTCOVE_CATALOG_AUTHORITIES
+        : environment.PORTCOVE_RELEASE_AUTHORITIES
+      : undefined;
+    if (fixedObserver && (!rawObserver || Buffer.byteLength(rawObserver) > 32768))
+      throw new Error("complete observer source configuration unavailable");
+    const observerConfiguration: unknown = rawObserver ? JSON.parse(rawObserver) : null;
+    const observerRoles = fixedObserver
+      ? requireProtectionObserverSourceConfiguration(
+          observerConfiguration,
+          observerSource,
+          observerPhase,
+          observerPurpose,
+        )
+      : null;
+    if (
+      observerRoles &&
+      (environment.PORTCOVE_EXPECTED_PROTECTION_APP_ID !==
+        String(observerRoles.protection_app_id) ||
+        environment.PORTCOVE_EXPECTED_INSTALLATION_ID !==
+          String(observerRoles.protection_installation_id))
+    )
+      throw new Error("observer mint target differs from the source-bound configuration");
     const selectedWriter = classification?.selected !== undefined && persisting;
-    if (selectedWriter) {
+    if (selectedWriter || observerRoles?.classification_transport === "fixed-job") {
       const { assertControllerBootstrapEnvironment } =
         await import("./release-controller-job-bootstrap.mts");
-      assertControllerBootstrapEnvironment(environment);
+      assertControllerBootstrapEnvironment({
+        ...environment,
+        ...(observing ? { PORTCOVE_CONTROL_APP_TOKEN: undefined } : {}),
+      });
     }
     const appToken =
       observing || (persisting && !selectedWriter)
@@ -188,7 +270,7 @@ async function runOperation(classification?: {
               GH_TOKEN: appToken ?? jobToken ?? environment.GH_TOKEN,
               GITHUB_TOKEN: undefined,
               PORTCOVE_CONTROL_APP_TOKEN: undefined,
-              ...(selectedWriter
+              ...(selectedWriter || observing
                 ? {
                     ACTIONS_ID_TOKEN_REQUEST_TOKEN: undefined,
                     ACTIONS_ID_TOKEN_REQUEST_URL: undefined,
@@ -205,6 +287,18 @@ async function runOperation(classification?: {
         cwd: process.cwd(),
         maxBuffer: 2 * 1024 * 1024,
         timeoutMs: coordinatorCommandTimeout(15000),
+        spawn: (command, args, options) =>
+          spawnSync(command, args, {
+            ...options,
+            env: {
+              ...environment,
+              GH_TOKEN: environment.GH_TOKEN,
+              GITHUB_TOKEN: undefined,
+              PORTCOVE_CONTROL_APP_TOKEN: undefined,
+              ACTIONS_ID_TOKEN_REQUEST_TOKEN: undefined,
+              ACTIONS_ID_TOKEN_REQUEST_URL: undefined,
+            },
+          }),
       })(args, input);
     const readApi = selectedWriter
       ? appApi
@@ -212,14 +306,17 @@ async function runOperation(classification?: {
           readRunner([...args, "--hostname", "github.com"], input),
         );
     const api = {
-      request: (method: string, endpoint: string, body?: unknown) =>
-        (/\/(?:check-runs|check-suites)(?:\/|\?)/u.test(endpoint) ? readApi : appApi).request(
-          method,
-          endpoint,
-          body,
-        ),
-      graphql: (query: string, variables: Readonly<Record<string, unknown>>) =>
-        appApi.graphql(query, variables),
+      request: (method: string, endpoint: string, body?: unknown) => {
+        if (observing && method !== "GET")
+          throw new Error("isolated protection observer is GET-only");
+        return (
+          /\/(?:check-runs|check-suites)(?:\/|\?)/u.test(endpoint) ? readApi : appApi
+        ).request(method, endpoint, body);
+      },
+      graphql: (query: string, variables: Readonly<Record<string, unknown>>) => {
+        if (observing) throw new Error("isolated protection observer cannot use GraphQL");
+        return appApi.graphql(query, variables);
+      },
     };
     let observerIdentity: unknown = null;
     let writerPrincipal: ReturnType<typeof establishFixedClassificationPrincipal> | null = null;
@@ -278,7 +375,24 @@ async function runOperation(classification?: {
         },
         phase,
       );
-      if (observing) observerIdentity = identity;
+      if (observing) {
+        observerIdentity = identity;
+        if (fixedObserver) {
+          requireObserver = () => {
+            requireProductionProtectionObserver(
+              observerConfiguration,
+              observerSource,
+              identity,
+              observerPhase,
+              observerPurpose,
+              environment.PORTCOVE_EXPECTED_PROTECTION_APP_ID,
+              environment.PORTCOVE_OBSERVED_INSTALLATION_ID,
+            );
+            checkCoordinatorDeadline();
+          };
+          requireObserver();
+        }
+      }
       if (classification?.selected && persisting) {
         writerPrincipal = establishFixedClassificationPrincipal(
           classification.selected.configuration,
@@ -321,11 +435,13 @@ async function runOperation(classification?: {
         `eligible=${result.eligible === true ? "true" : "false"}\n`,
       );
     } else if (observing) {
+      requireObserver();
       result = catalogPurpose
         ? observeCatalogMaintenanceProtections(api)
         : observeReleaseInputProtections(api, {
             releasePublication: phase === "release-publication",
           });
+      requireObserver();
       if (productionObservation)
         result = prepareProductionProtectionHandoff(observerIdentity, result, phase);
       if (productionObservation) {
@@ -362,26 +478,22 @@ async function runOperation(classification?: {
         } else if (Object.hasOwn(ready.body, "round"))
           throw new Error("unexpected round on legacy observer");
       }
-      const encoded = JSON.stringify(result);
-      if (Buffer.byteLength(encoded) > 60 * 1024 || !environment.GITHUB_OUTPUT)
-        throw new Error("trusted observer output channel unavailable or oversized");
-      await appendFile(environment.GITHUB_OUTPUT, `observation=${encoded}\n`);
-      if (productionObservation) {
-        await writeFile(
-          roundIndex === undefined
+      await retainProtectionObservationOutputs(
+        environment.GITHUB_OUTPUT,
+        productionObservation
+          ? roundIndex === undefined
             ? path.join(temp, `observation-${phase}.json`)
             : path.join(
                 temp,
                 `release-control-ready-${phase}${roundSuffix}`,
                 `observation-${phase}.json`,
-              ),
-          encoded,
-          {
-            flag: "wx",
-            mode: 0o600,
-          },
-        );
-      }
+              )
+          : undefined,
+        result,
+        mode,
+        receipt,
+        requireObserver,
+      );
     } else {
       const { persistReviewedClassification, readPublicationPause, readReviewedClassification } =
         await import("./release-control-inputs.mts");
@@ -482,15 +594,16 @@ async function runOperation(classification?: {
         };
       }
     }
-    await receipt.writeFile(
-      JSON.stringify({
-        schema_version: 1,
-        operation: mode,
-        status: "succeeded",
-        result,
-        authority: "none",
-      }) + "\n",
-    );
+    if (!observing)
+      await receipt.writeFile(
+        JSON.stringify({
+          schema_version: 1,
+          operation: mode,
+          status: "succeeded",
+          result,
+          authority: "none",
+        }) + "\n",
+      );
   } catch (error) {
     if (error instanceof CoordinatorRemoteError)
       await receipt.writeFile(
@@ -508,6 +621,7 @@ async function runOperation(classification?: {
   } finally {
     await receipt.close();
   }
+  requireObserver();
 }
 async function main() {
   const mode = process.argv[2];
@@ -546,12 +660,12 @@ async function main() {
   if (!producer) throw new Error("classification producer unavailable");
   const namespace = selected?.configuration.journal.namespace ?? authorities?.namespace;
   if (!namespace) throw new Error("classification namespace unavailable");
-  const policy: unknown = JSON.parse(process.env.PORTCOVE_CONTROLLER_ADMISSION ?? "null");
+  const policy: unknown = JSON.parse(environment.PORTCOVE_CONTROLLER_ADMISSION ?? "null");
   if (!isRecord(policy)) throw new Error("ratified classification source unavailable");
   const deadline = currentClassificationJobDeadline(
     role,
     {
-      run_id: process.env.GITHUB_RUN_ID ?? "",
+      run_id: environment.GITHUB_RUN_ID ?? "",
       run_attempt: 1,
       controller_revision: String(policy.revision),
       controller_ref: String(policy.execution_ref),
@@ -559,8 +673,24 @@ async function main() {
     process.cwd(),
     performance.now() + 115000,
   );
+  const observerSource =
+    role === "observer"
+      ? (selected?.source ??
+        admitProductionClassificationObserver(
+          environment.PORTCOVE_CONTROLLER_ADMISSION,
+          environment,
+          await readProductionControllerWorkflowBytes(),
+        ))
+      : undefined;
   return withCoordinatorDeadline(deadline, () =>
-    runOperation({ namespace, producer, ...(selected ? { selected } : {}), environment, deadline }),
+    runOperation({
+      namespace,
+      producer,
+      ...(selected ? { selected } : {}),
+      environment,
+      deadline,
+      ...(observerSource ? { observerSource } : {}),
+    }),
   );
 }
 

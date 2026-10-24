@@ -75,7 +75,7 @@ jobs:
         with:
           node-version-file: .node-version
           package-manager-cache: false
-      - run: node scripts/production-controller-admission.mts
+      - run: node scripts/production-controller-admission-cli.mts
         id: admit
     if:
       ${{ vars.PORTCOVE_CONTROLLER_REVISION == github.sha && vars.PORTCOVE_CONTROLLER_REF == github.ref &&
@@ -84,6 +84,9 @@ jobs:
       '')) }}
     outputs:
       publication_purpose: ${{ steps.admit.outputs.publication_purpose }}
+      classification_transport: ${{ steps.admit.outputs.classification_transport }}
+      protection_app_id: ${{ steps.admit.outputs.protection_app_id }}
+      protection_installation_id: ${{ steps.admit.outputs.protection_installation_id }}
   tool_bootstrap:
     needs: admission
     name: Prepare trusted application controller tools
@@ -280,11 +283,14 @@ jobs:
       - *a1
       - *a2
       - id: probe
+        env:
+          PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ needs.admission.outputs.protection_app_id }}
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ needs.admission.outputs.protection_installation_id }}
         run: node scripts/release-reviewed-inputs.mts probe-production-classification-observer
       - id: observer
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
+          app-id: ${{ needs.admission.outputs.protection_app_id }}
           private-key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
           owner: boburning
           repositories: portcove
@@ -294,7 +300,7 @@ jobs:
         if: ${{ steps.probe.outputs.eligible == 'true' }}
         shell: bash
         env:
-          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ needs.admission.outputs.protection_installation_id }}
           PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer.outputs.installation-id }}
         run:
           '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
@@ -303,6 +309,9 @@ jobs:
         if: ${{ steps.probe.outputs.eligible == 'true' }}
         env:
           PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer.outputs.token }}
+          PORTCOVE_EXPECTED_PROTECTION_APP_ID: ${{ needs.admission.outputs.protection_app_id }}
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ needs.admission.outputs.protection_installation_id }}
+          PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer.outputs.installation-id }}
         run: node scripts/release-reviewed-inputs.mts observe-production-classification
     if: ${{ needs.admission.outputs.publication_purpose == 'application' }}
   classification_writer:
@@ -316,7 +325,7 @@ jobs:
     timeout-minutes: 2
     environment: production-release-classification
     permissions:
-      contents: read
+      contents: write
       actions: read
       id-token: write
       checks: read
@@ -334,11 +343,11 @@ jobs:
           repositories: portcove
           permission-contents: write
         if:
-          ${{ steps.probe.outputs.eligible == 'true' && needs.classification_protection_observation.outputs.eligible
+          ${{ needs.admission.outputs.classification_transport == 'legacy-app' && steps.probe.outputs.eligible == 'true' && needs.classification_protection_observation.outputs.eligible
           == 'true' }}
       - name: Bind actual classification installation before credential use
         if:
-          ${{ steps.probe.outputs.eligible == 'true' && needs.classification_protection_observation.outputs.eligible
+          ${{ needs.admission.outputs.classification_transport == 'legacy-app' && steps.probe.outputs.eligible == 'true' && needs.classification_protection_observation.outputs.eligible
           == 'true' }}
         shell: bash
         env:
@@ -348,10 +357,15 @@ jobs:
           '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
           "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
       - if:
-          ${{ steps.probe.outputs.eligible == 'true' && needs.classification_protection_observation.outputs.eligible
+          ${{ needs.admission.outputs.classification_transport == 'legacy-app' && steps.probe.outputs.eligible == 'true' && needs.classification_protection_observation.outputs.eligible
           == 'true' }}
         env:
           PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.writer.outputs.token }}
+          PORTCOVE_TRUSTED_PROTECTION_OBSERVATION: ${{ needs.classification_protection_observation.outputs.observation }}
+        run: node scripts/release-reviewed-inputs.mts persist-production-request
+      - if: ${{ needs.admission.outputs.classification_transport == 'fixed-job' && steps.probe.outputs.eligible == 'true' && needs.classification_protection_observation.outputs.eligible == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
           PORTCOVE_TRUSTED_PROTECTION_OBSERVATION: ${{ needs.classification_protection_observation.outputs.observation }}
         run: node scripts/release-reviewed-inputs.mts persist-production-request
     if: ${{ needs.admission.outputs.publication_purpose == 'application' }}
@@ -471,16 +485,11 @@ jobs:
           phase: coordinator
           rounds: "14"
           initial: "true"
-          app_id: ${{ needs.admission.outputs.publication_purpose == 'catalog-publication' &&
-            fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.protection_observer.app_id ||
-            fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
           private_key:
             ${{ (needs.admission.outputs.publication_purpose == 'catalog-publication' && secrets.PORTCOVE_CATALOG_PROTECTION_APP_PRIVATE_KEY) || (needs.admission.outputs.publication_purpose == 'application' && secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY)
             }}
-          installation_id:
-            ${{ needs.admission.outputs.publication_purpose == 'catalog-publication' &&
-            fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.protection_observer.installation_id ||
-            fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
   independent_admission:
     name: Authenticate release control inputs
     if:
@@ -569,9 +578,9 @@ jobs:
           phase: admission
           rounds: "14"
           initial: "true"
-          app_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
-          installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
   attest:
     needs:
       - admission
@@ -743,9 +752,9 @@ jobs:
           phase: payload
           rounds: "14"
           initial: "true"
-          app_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
-          installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
   tuf_releases:
     name: Sign authenticated Releases metadata
     if:
@@ -1013,41 +1022,41 @@ jobs:
           phase: tuf-releases
           rounds: "3"
           initial: "false"
-          app_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
-          installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
         with:
           phase: tuf-preview
           rounds: "3"
           initial: "false"
-          app_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
-          installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
         with:
           phase: tuf-stable
           rounds: "3"
           initial: "false"
-          app_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
-          installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
         with:
           phase: tuf-snapshot
           rounds: "3"
           initial: "false"
-          app_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
-          installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
         with:
           phase: tuf-timestamp
           rounds: "3"
           initial: "false"
-          app_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
-          installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
   release_publication:
     name: Publish immutable application release
     if: ${{ needs.admission.outputs.publication_purpose == 'application' && (always() &&
@@ -1138,9 +1147,9 @@ jobs:
           phase: release-publication
           rounds: "14"
           initial: "true"
-          app_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
-          installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
   site_publication:
     name: Publish authenticated application site
     if: ${{ always() && ((needs.admission.outputs.publication_purpose == 'catalog-publication' &&
@@ -1242,16 +1251,11 @@ jobs:
           phase: site-publication
           rounds: "5"
           initial: "false"
-          app_id: ${{ needs.admission.outputs.publication_purpose == 'catalog-publication' &&
-            fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.protection_observer.app_id ||
-            fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
           private_key:
             ${{ (needs.admission.outputs.publication_purpose == 'catalog-publication' && secrets.PORTCOVE_CATALOG_PROTECTION_APP_PRIVATE_KEY) || (needs.admission.outputs.publication_purpose == 'application' && secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY)
             }}
-          installation_id:
-            ${{ needs.admission.outputs.publication_purpose == 'catalog-publication' &&
-            fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.protection_observer.installation_id ||
-            fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
   catalog_definitions:
     name: Sign catalog definitions
     if: ${{ always() && needs.admission.outputs.publication_purpose == 'catalog-publication' &&
@@ -1466,33 +1470,33 @@ jobs:
           phase: catalog-definitions
           rounds: "3"
           initial: "false"
-          app_id: ${{ fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.protection_observer.app_id }}
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
           private_key: ${{ secrets.PORTCOVE_CATALOG_PROTECTION_APP_PRIVATE_KEY }}
-          installation_id: ${{ fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.protection_observer.installation_id }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
         with:
           phase: catalog-policy
           rounds: "3"
           initial: "false"
-          app_id: ${{ fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.protection_observer.app_id }}
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
           private_key: ${{ secrets.PORTCOVE_CATALOG_PROTECTION_APP_PRIVATE_KEY }}
-          installation_id: ${{ fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.protection_observer.installation_id }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
         with:
           phase: catalog-snapshot
           rounds: "3"
           initial: "false"
-          app_id: ${{ fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.protection_observer.app_id }}
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
           private_key: ${{ secrets.PORTCOVE_CATALOG_PROTECTION_APP_PRIVATE_KEY }}
-          installation_id: ${{ fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.protection_observer.installation_id }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
         with:
           phase: catalog-timestamp
           rounds: "3"
           initial: "false"
-          app_id: ${{ fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.protection_observer.app_id }}
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
           private_key: ${{ secrets.PORTCOVE_CATALOG_PROTECTION_APP_PRIVATE_KEY }}
-          installation_id: ${{ fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.protection_observer.installation_id }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
 run-name:
   Portcove ${{ inputs.publication_purpose == 'catalog-publication' && 'catalog publication' ||
   'application release' }} wake ${{ inputs.wake_run_id }}
