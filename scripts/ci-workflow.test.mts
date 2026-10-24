@@ -742,7 +742,7 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
   );
   assert.match(
     linuxFixture,
-    /if: contains\(fromJSON\(needs\.classify\.outputs\.groups_json\), 'rust'\)/u,
+    /if: contains\(fromJSON\(needs\.classify\.outputs\.groups_json\), 'rust'\) && needs\.classify\.outputs\.linux_diagnostics != 'false'/u,
   );
   assert.match(linuxFixture, /shell: bash/u); // Bash's pipefail preserves a failed test before tee.
   assert.match(
@@ -789,8 +789,11 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
   }
   assert.match(
     fastRustQuality,
-    /- name: Retain Linux runtime diagnostics acceptance evidence\n\s+if: always\(\) && contains/u,
+    /- name: Retain Linux runtime diagnostics acceptance evidence\n\s+if: always\(\) && contains\(fromJSON\(needs\.classify\.outputs\.groups_json\), 'rust'\) && needs\.classify\.outputs\.linux_diagnostics != 'false'/u,
   );
+  const outputs = workflowJob("classify").outputs;
+  assert.ok(isRecord(outputs));
+  assert.equal(outputs.linux_diagnostics, "${{ steps.plan.outputs.linux_diagnostics }}");
 });
 
 void test("Windows diagnostics serialize file workers without changing coverage or deadlines", () => {
