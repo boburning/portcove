@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { afterEach, beforeEach, expect, it } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
+import { controlledAct } from "../../test/controlled-react-act";
 import { AdoptionModal } from "../components/AdoptionModal";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Button } from "../components/ui/button";
@@ -88,6 +89,8 @@ function deferred<T>() {
 
 let changeGeneration: (generation: number) => void;
 let changeOpen: (open: boolean) => void;
+let reviewCompletion: Promise<void> | undefined;
+let adoptionCompletion: Promise<void> | undefined;
 function assertTransportConsumed() {
   expect(expected, "unconsumed Tauri transport expectations").toHaveLength(0);
   expect(transportViolations, "unexpected or malformed Tauri transport calls").toEqual([]);
@@ -140,8 +143,12 @@ function ExistingInstallReview() {
           applying={planning.applying}
           busy={busy}
           close={() => setOpen(false)}
-          review={(selectedPortId) => void planning.review(selectedPortId)}
-          adopt={() => void planning.adopt()}
+          review={(selectedPortId) => {
+            reviewCompletion = planning.review(selectedPortId);
+          }}
+          adopt={() => {
+            adoptionCompletion = planning.adopt();
+          }}
           ports={[port]}
         />
       )}
@@ -181,6 +188,8 @@ beforeEach(() => {
   calls.length = 0;
   expected.length = 0;
   transportViolations.length = 0;
+  reviewCompletion = undefined;
+  adoptionCompletion = undefined;
   Object.defineProperty(window, "__TAURI_INTERNALS__", {
     configurable: true,
     value: {
@@ -356,9 +365,11 @@ it("discards a response from an earlier library generation", async () => {
   await openReview();
   await page.getByRole("button", { name: "Review copy plan" }).click();
   flushSync(() => changeGeneration(2));
-  old.resolve(preview);
-  await old.promise;
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(reviewCompletion).toBeInstanceOf(Promise);
+  await controlledAct(async () => {
+    old.resolve(preview);
+    await reviewCompletion;
+  });
   await expect
     .element(page.getByRole("region", { name: "Existing installation copy plan" }))
     .not.toBeInTheDocument();
@@ -391,9 +402,79 @@ it("does not close a reopened review when an earlier copy finishes", async () =>
     changeGeneration(2);
   });
   flushSync(() => changeOpen(true));
-  oldCopy.resolve(null);
-  await oldCopy.promise;
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(adoptionCompletion).toBeInstanceOf(Promise);
+  await controlledAct(async () => {
+    oldCopy.resolve(null);
+    await adoptionCompletion;
+  });
+  await expect.element(page.getByRole("dialog")).toBeVisible();
+  await expect.element(page.getByRole("button", { name: "Review copy plan" })).toBeEnabled();
+  expect(calls).toHaveLength(2);
+});
+
+it("does not populate a reopened review with an earlier response in the same library generation", async () => {
+  const old = deferred<AdoptionPreview>();
+  expectTransport(
+    { command: "preview_adoption", args: { path: "D:/Existing", generation: 1, portId: null } },
+    old.promise,
+  );
+  await openReview();
+  await page.getByRole("button", { name: "Review copy plan" }).click();
+  flushSync(() => changeOpen(false));
+  flushSync(() => changeOpen(true));
+  expect(reviewCompletion).toBeInstanceOf(Promise);
+  await controlledAct(async () => {
+    old.resolve(preview);
+    await reviewCompletion;
+  });
+  await expect.element(page.getByRole("dialog")).toBeVisible();
+  await expect
+    .element(page.getByRole("region", { name: "Existing installation copy plan" }))
+    .not.toBeInTheDocument();
+  await expect.element(page.getByRole("button", { name: "Review copy plan" })).toBeEnabled();
+  expect(calls).toHaveLength(1);
+  expectTransport(
+    { command: "preview_adoption", args: { path: "D:/Existing", generation: 1, portId: null } },
+    preview,
+  );
+  await page.getByRole("button", { name: "Review copy plan" }).click();
+  await expect
+    .element(page.getByRole("region", { name: "Existing installation copy plan" }))
+    .toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: /Continue to copy confirmation/ }))
+    .toBeEnabled();
+  expect(calls).toHaveLength(2);
+});
+
+it("does not close a reopened review when an earlier copy finishes in the same library generation", async () => {
+  const oldCopy = deferred<null>();
+  expectTransport(
+    { command: "preview_adoption", args: { path: "D:/Existing", generation: 1, portId: null } },
+    preview,
+  );
+  expectTransport(
+    {
+      command: "adopt_port",
+      args: {
+        path: "D:/Existing",
+        generation: 1,
+        portId: port.id,
+        planSha256: preview.plan_sha256,
+      },
+    },
+    oldCopy.promise,
+  );
+  await openReview();
+  await page.getByRole("button", { name: "Review copy plan" }).click();
+  await page.getByRole("button", { name: /Continue to copy confirmation/ }).click();
+  flushSync(() => changeOpen(false));
+  flushSync(() => changeOpen(true));
+  expect(adoptionCompletion).toBeInstanceOf(Promise);
+  await controlledAct(async () => {
+    oldCopy.resolve(null);
+    await adoptionCompletion;
+  });
   await expect.element(page.getByRole("dialog")).toBeVisible();
   await expect.element(page.getByRole("button", { name: "Review copy plan" })).toBeEnabled();
   expect(calls).toHaveLength(2);
