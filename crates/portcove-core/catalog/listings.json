@@ -2545,8 +2545,8 @@
       "project_url": "https://github.com/sp00nznet/advancewars",
       "issue_number": 166,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/sp00nznet/advancewars",
+      "availability": "source-only",
+      "setup_url": "https://github.com/sp00nznet/advancewars/blob/main/README.md",
       "artwork": {
         "game_id": 1691,
         "cover_id": 525738,
@@ -2554,6 +2554,20 @@
         "image_sha256": "26bc49cd5c5617fb10d474c370c8890d549a1fa4657b6af300472ee30eb2fd8c",
         "game_slug": "advance-wars",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare upstream or keep an existing game build",
+            "instruction": "Follow upstream’s source-build guide with your own Advance Wars USA Rev 1 ROM. Its documented game output is build/Release/AWRE.exe. For that documented launch, set the prepared project root as the working directory and game/aw.gba as the argument in Change launch details. The compiler tools are not the game."
+          },
+          {
+            "title": "Keep your files and update through upstream",
+            "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/sp00nznet/advancewars/blob/main/README.md"
       }
     },
     {
@@ -6720,8 +6734,8 @@
       "project_url": "https://github.com/vs-sr-dev/pc-deepfear",
       "issue_number": 1578,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/vs-sr-dev/pc-deepfear",
+      "availability": "source-only",
+      "setup_url": "https://github.com/vs-sr-dev/pc-deepfear/blob/main/README.md",
       "artwork": {
         "game_id": 46057,
         "cover_id": 354153,
@@ -6729,6 +6743,20 @@
         "image_sha256": "8055f6f1ada2cd3c7e86cede012d8c098087200712db478b5290eda1e68c7883",
         "game_slug": "deep-fear",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare upstream or keep an existing game build",
+            "instruction": "Follow upstream’s saturnkit instructions with both of your own Deep Fear discs and the complete track sets. This source project prepares extracted disc/audio inputs and a native runtime using CMake/Ninja, clang and SDL3. Its current documented milestone reaches the first room; it is not a packaged full-game release. Select only a native game build you have prepared, not the Python disc tools."
+          },
+          {
+            "title": "Keep your files and update through upstream",
+            "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/vs-sr-dev/pc-deepfear/blob/main/README.md"
       }
     },
     {
@@ -7459,8 +7487,8 @@
       "project_url": "https://github.com/KIexster/god-of-war-recomp",
       "issue_number": 1671,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/KIexster/god-of-war-recomp",
+      "availability": "source-only",
+      "setup_url": "https://github.com/KIexster/god-of-war-recomp/blob/main/README.md",
       "artwork": {
         "game_id": 549,
         "cover_id": 157296,
@@ -7468,6 +7496,20 @@
         "image_sha256": "50bd98e4408b79a9c2d91b1649ed63f9cdd4adc8f1311526bb95c6abd8c9fa47",
         "game_slug": "god-of-war",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare upstream or keep an existing game build",
+            "instruction": "Use upstream’s Building and running guide with your own God of War NTSC-U SCUS-97399 files. The documented game host is ps2EntryRunner.exe. Preserve the prepared working folder and the launch arguments specified by that guide in Change launch details. Portcove does not run the PS2 recompiler or build scripts during discovery."
+          },
+          {
+            "title": "Keep your files and update through upstream",
+            "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/KIexster/god-of-war-recomp/blob/main/README.md"
       }
     },
     {
@@ -8063,8 +8105,8 @@
       "project_url": "https://github.com/Kirby64Ret/Kirby64Recomp",
       "issue_number": 1574,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Kirby64Ret/Kirby64Recomp",
+      "availability": "source-only",
+      "setup_url": "https://github.com/Kirby64Ret/Kirby64Recomp/blob/dev/README.md",
       "artwork": {
         "game_id": 2713,
         "cover_id": 88595,
@@ -8072,6 +8114,20 @@
         "image_sha256": "89a352d789e3b4c813e537af3a77f2cdd5610d50bfdd9a610001e7efb2ef73ef",
         "game_slug": "kirby-64-the-crystal-shards",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare upstream or keep an existing game build",
+            "instruction": "Upstream says this project is under construction and has no downloads yet. Follow its selected build instructions for your own Kirby 64 source files; the documented game output is Kirby64Recompiled and it expects your NK4E.z64 beside that output. Register an existing native game build only after that preparation; do not select compiler tools."
+          },
+          {
+            "title": "Keep your files and update through upstream",
+            "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/Kirby64Ret/Kirby64Recomp/blob/dev/README.md"
       }
     },
     {
@@ -8542,8 +8598,8 @@
       "project_url": "https://github.com/FluffyQuack/rexglue-MetalSlugXX",
       "issue_number": 813,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/FluffyQuack/rexglue-MetalSlugXX",
+      "availability": "source-only",
+      "setup_url": "https://github.com/FluffyQuack/rexglue-MetalSlugXX/blob/main/README.md",
       "artwork": {
         "game_id": 21760,
         "cover_id": 115480,
@@ -8551,6 +8607,20 @@
         "image_sha256": "f5f17cd0528c0c599ec41e956a95578f4601e4748c9bf9e0777b12826e168005",
         "game_slug": "metal-slug-xx",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare upstream or keep an existing game build",
+            "instruction": "Follow the title-specific Metal Slug XX build instructions with your own game files. Choose the resulting metalslugxx.exe game host, not rexglue.exe, which is the code-generation tool. Retain the prepared working directory and upstream’s required inputs/arguments. A ReXGlue SDK download by itself is not this game’s prepared runtime."
+          },
+          {
+            "title": "Keep your files and update through upstream",
+            "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/FluffyQuack/rexglue-MetalSlugXX/blob/main/README.md"
       }
     },
     {
@@ -8596,8 +8666,8 @@
       "project_url": "https://github.com/OGmidway/mksm-recomp",
       "issue_number": 1714,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/OGmidway/mksm-recomp",
+      "availability": "source-only",
+      "setup_url": "https://github.com/OGmidway/mksm-recomp/blob/main/README.md",
       "artwork": {
         "game_id": 1614,
         "cover_id": 94081,
@@ -8605,6 +8675,20 @@
         "image_sha256": "a132d9784146dac1e62f42c8bf1ae95325200ed6a30b936af160e25ba913fda5",
         "game_slug": "mortal-kombat-shaolin-monks",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare upstream or keep an existing game build",
+            "instruction": "This upstream project explicitly reports that it is not a playable release yet: first-stage graphics are badly corrupted. Its developer build uses your own NTSC-U retail SLUS-210.87 files and docs/BUILDING.md. Keep that limitation with any experimental native build you register; Portcove does not supply a ready game package or repair the engine."
+          },
+          {
+            "title": "Keep your files and update through upstream",
+            "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/OGmidway/mksm-recomp/blob/main/README.md"
       }
     },
     {
@@ -9364,8 +9448,8 @@
       "project_url": "https://github.com/yaz0r/Azel",
       "issue_number": 376,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/yaz0r/Azel",
+      "availability": "source-only",
+      "setup_url": "https://github.com/yaz0r/Azel/blob/master/README.md",
       "artwork": {
         "game_id": 1671,
         "cover_id": 526947,
@@ -9373,6 +9457,20 @@
         "image_sha256": "1b15a0a55737380943f5a927b9c4d74d2181058fa2ee7989a66952d5917f5cd9",
         "game_slug": "panzer-dragoon-saga",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare upstream or keep an existing game build",
+            "instruction": "Follow upstream’s Build instructions with Visual Studio 2022/CMake and the recursive submodules. Keep your own required Panzer Dragoon Saga files and the prepared runtime together as the guide specifies. Register only an existing native game output, preserving its upstream working directory and arguments; the source repository is not a ready player package."
+          },
+          {
+            "title": "Keep your files and update through upstream",
+            "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/yaz0r/Azel/blob/master/README.md"
       }
     },
     {
@@ -10053,8 +10151,8 @@
       "project_url": "https://github.com/maximilianoide/sin-punishment-recompiled",
       "issue_number": 167,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/maximilianoide/sin-punishment-recompiled",
+      "availability": "source-only",
+      "setup_url": "https://github.com/maximilianoide/sin-punishment-recompiled/blob/main/README.md",
       "artwork": {
         "game_id": 1467,
         "cover_id": 85687,
@@ -10062,6 +10160,20 @@
         "image_sha256": "8fecac0c2aacf3b0b0eb0ff86932d3b0f6e8ac2bf81d562d89edefadccb8bf99",
         "game_slug": "sin-and-punishment",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Understand the current development limit",
+            "instruction": "Upstream’s current milestone reaches the native title screen; gameplay/runtime completion remains in progress and no player package is published. Its public build guide also requires rom/sinpunishment_patched.z64 and a working-image patch pipeline that is not published. Your clean Japanese ROM and a clean clone alone do not establish a reproducible game build. Keep using an existing prepared development copy if you have one, preserving its files and limitations; do not select N64Recomp/RSPRecomp compiler tools as the player."
+          },
+          {
+            "title": "Keep your files and update through upstream",
+            "instruction": "Keep any existing prepared development copy in a separate folder you control. Portcove can retain a non-owning registration of that runtime after read-only executable review; launching remains a separate explicit action. You or upstream keep its updates, original files, generated data, saves and settings. Portcove does not supply a playable package, replace this runtime, or back it up or roll it back."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/maximilianoide/sin-punishment-recompiled/blob/main/README.md"
       }
     },
     {
@@ -10143,8 +10255,8 @@
       "project_url": "https://github.com/SAT-R/sa2",
       "issue_number": 381,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/SAT-R/sa2",
+      "availability": "source-only",
+      "setup_url": "https://github.com/SAT-R/sa2/blob/main/README.md",
       "artwork": {
         "game_id": 6598,
         "cover_id": 93140,
@@ -10152,6 +10264,20 @@
         "image_sha256": "7fe26a0e23b4c01f84e0384a67b55a27e212de3a9983e481ec0a1d0d6cc06748",
         "game_slug": "sonic-advance-2",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare upstream or keep an existing game build",
+            "instruction": "Use your own supported Sonic Advance 2 ROM and upstream’s SDL build instructions. The documented Windows target is make sdl_win32, producing sa2.sdl_win32.exe; Linux/macOS use make sdl and sa2.sdl. The separate make win32 OpenGL target is documented as nonfunctional. These are Sonic Advance 2 outputs, not Sonic Advance 1. Keep the prepared working folder when registering your existing native player."
+          },
+          {
+            "title": "Keep your files and update through upstream",
+            "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/SAT-R/sa2/blob/main/README.md"
       }
     },
     {
@@ -10161,8 +10287,8 @@
       "project_url": "https://github.com/SAT-R/sa2",
       "issue_number": 380,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/SAT-R/sa2",
+      "availability": "source-only",
+      "setup_url": "https://github.com/SAT-R/sa2/blob/main/README.md",
       "artwork": {
         "game_id": 6283,
         "cover_id": 86456,
@@ -10170,6 +10296,20 @@
         "image_sha256": "07abd5db157a0a2e4dff8d523ccd56a8ad581f5b38b2d79a214a2f36a7264bdc",
         "game_slug": "sonic-advance",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare upstream or keep an existing game build",
+            "instruction": "This shared repository contains Sonic Advance 1 and 2. Use the Sonic Advance 1 source/edition instructions; its listed sa1.gba output is a GBA ROM, not a native PC executable. The README’s sa2 SDL commands describe Sonic Advance 2 and do not establish this game’s native output. Only select an existing native Sonic Advance 1 player if you have separately prepared one; keep the title-specific native-build question explicit."
+          },
+          {
+            "title": "Keep your files and update through upstream",
+            "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/SAT-R/sa2/blob/main/README.md"
       }
     },
     {
@@ -10227,9 +10367,11 @@
       "summary": "Explore Sonic Mania / Sonic Mania decompilation + RSDKv5 and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation",
       "issue_number": 384,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/blob/v1.1.1/README.md",
       "artwork": {
         "game_id": 21062,
         "cover_id": 515556,
@@ -10237,6 +10379,25 @@
         "image_sha256": "5d2b03cbd07290402537b9d9eadefb95b5a1012b31d0d6f4d71e595ef4354e9e",
         "game_slug": "sonic-mania",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/releases/tag/v1.1.1",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Pair the game module with its matching engine",
+            "instruction": "The reviewed mania-windows-x64.zip contains v5/Game.dll and v5U/Game.dll, not a player executable. Follow upstream’s guide to obtain the matching RSDKv5 or RSDKv5U engine, use only the matching Game.dll variant beside that engine, and supply assets from your own supported Sonic Mania (Plus) release. The Netflix Games version is not supported. Keep this prepared folder separate from your only working copy."
+          },
+          {
+            "title": "Register the prepared player",
+            "instruction": "Choose the actual matching engine executable after upstream setup, with its prepared game folder as the working directory. Game.dll is a module, not a launch target. Read-only discovery and downloading do not run or combine modules/helpers. Upstream’s save-transfer guidance can bring over your own original PC save data; keep a separate original copy."
+          },
+          {
+            "title": "Keep runtime replacement with upstream",
+            "instruction": "Use upstream’s compatible engine/Game.dll pair and a separately prepared replacement folder when updating; keep the current folder and its saves recoverable until the replacement works. You or upstream provide runtime updates; Portcove does not back up or roll back this external copy. This download is a game module rather than a complete player, so finish pairing it through upstream before registering."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/blob/v1.1.1/README.md"
       }
     },
     {
@@ -10245,9 +10406,8 @@
       "summary": "Explore Sonic the Hedgehog 2 — 2013 mobile edition / RSDKv4 decompilation and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/RSDKModding/RSDKv4-Decompilation",
       "issue_number": 383,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/RSDKModding/RSDKv4-Decompilation",
+      "availability": "packages",
+      "setup_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/blob/1.3.3/README.md",
       "artwork": {
         "game_id": 112897,
         "cover_id": 93129,
@@ -10255,7 +10415,21 @@
         "image_sha256": "240f514f78582d7b612529d4298e4cb39c4e7a542f8c99c112cd48b1a14d2e76",
         "game_slug": "sonic-the-hedgehog-2--4",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/releases/tag/1.3.3",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Supply this game’s original assets",
+            "instruction": "Before first Play, copy the supported Data.rsdk assets from your own official Sonic the Hedgehog 2 (2013) release beside RSDKv4.exe. Follow upstream’s linked mobile/Origins extraction instructions for that game. Use this game’s assets; Sonic 1 and Sonic 2 each keep their own installation and saves. No separate compiler or installer is needed for the published x64 player."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/blob/1.3.3/README.md"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "sonic-the-hedgehog-2013-derived-sonic-1-forever",
@@ -10281,9 +10455,8 @@
       "summary": "Explore Sonic the Hedgehog — 2013 mobile edition / RSDKv4 decompilation and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/RSDKModding/RSDKv4-Decompilation",
       "issue_number": 382,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/RSDKModding/RSDKv4-Decompilation",
+      "availability": "packages",
+      "setup_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/blob/1.3.3/README.md",
       "artwork": {
         "game_id": 88912,
         "cover_id": 93117,
@@ -10291,7 +10464,21 @@
         "image_sha256": "b49adaa12478047466365aa4e5d27e2c2d262335e3f4c48fef99c6a0f540ba91",
         "game_slug": "sonic-the-hedgehog--14",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/releases/tag/1.3.3",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Supply this game’s original assets",
+            "instruction": "Before first Play, copy the supported Data.rsdk assets from your own official Sonic the Hedgehog (2013) release beside RSDKv4.exe. Follow upstream’s linked mobile/Origins extraction instructions for that game. Use this game’s assets; Sonic 1 and Sonic 2 each keep their own installation and saves. No separate compiler or installer is needed for the published x64 player."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/blob/1.3.3/README.md"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "sonic-unleashed-recompiled",
@@ -10462,8 +10649,8 @@
       "project_url": "https://github.com/MikeSemicolonD/RogueSquadron64Recomp",
       "issue_number": 1576,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/MikeSemicolonD/RogueSquadron64Recomp",
+      "availability": "source-only",
+      "setup_url": "https://github.com/MikeSemicolonD/RogueSquadron64Recomp/blob/main/README.md",
       "artwork": {
         "game_id": 163,
         "cover_id": 352556,
@@ -10471,6 +10658,20 @@
         "image_sha256": "07c0866df3261563a66c21b6081029113952bdfc9205a43745fcaee4f63d6f12",
         "game_slug": "star-wars-rogue-squadron",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare upstream or keep an existing game build",
+            "instruction": "Follow upstream’s native build guide with your own Star Wars: Rogue Squadron USA v1.0 ROM, including its required RT64/toolchain preparation. Register the resulting game player, not N64Recomp or RSPRecomp. Keep upstream’s runtime data/working folder. Steam relay is optional and has separate Steam SDK/runtime requirements; it is not required merely to register an existing local player."
+          },
+          {
+            "title": "Keep your files and update through upstream",
+            "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/MikeSemicolonD/RogueSquadron64Recomp/blob/main/README.md"
       }
     },
     {
@@ -10692,8 +10893,8 @@
       "project_url": "https://github.com/Saffsanity/AuroraStrikers",
       "issue_number": 818,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Saffsanity/AuroraStrikers",
+      "availability": "source-only",
+      "setup_url": "https://github.com/Saffsanity/AuroraStrikers/blob/main/README.md",
       "artwork": {
         "game_id": 2256,
         "cover_id": 89895,
@@ -10701,6 +10902,20 @@
         "image_sha256": "9953c59416011cdbe3074beed3a4ac8863368b7e11c1d31cf11445864279dc8b",
         "game_slug": "super-mario-strikers",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare upstream or keep an existing game build",
+            "instruction": "Build through upstream with your own Super Mario Strikers disc. Its documented player is build-pc/bin/AuroraStrikers.exe with --disc and your absolute disc path. Retain the prepared project working directory and those arguments in Change launch details. The generated executable contains game-derived code; upstream says not to redistribute that output. Portcove does not build or distribute it."
+          },
+          {
+            "title": "Keep your files and update through upstream",
+            "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/Saffsanity/AuroraStrikers/blob/main/README.md"
       }
     },
     {
@@ -10800,8 +11015,8 @@
       "project_url": "https://github.com/snesrev/sm",
       "issue_number": 340,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/snesrev/sm",
+      "availability": "source-only",
+      "setup_url": "https://github.com/snesrev/sm/blob/main/README.md",
       "artwork": {
         "game_id": 1103,
         "cover_id": 265426,
@@ -10809,6 +11024,20 @@
         "image_sha256": "6c552ed7337ed7a6a68fd8502d2885747bccd350af9cd4aa081f1f08060c5f6d",
         "game_slug": "super-metroid",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare upstream or keep an existing game build",
+            "instruction": "Follow the linked BUILDING.md for your own Super Metroid source. Upstream expects the supported sm.smc in the runtime root and uses a frame-by-frame comparison mode, writing mismatch snapshots under saves. Keep that source/runtime layout and the upstream limitations with your own native build; this is not a packaged game download."
+          },
+          {
+            "title": "Keep your files and update through upstream",
+            "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/snesrev/sm/blob/main/README.md"
       }
     },
     {
@@ -11029,8 +11258,8 @@
       "project_url": "https://github.com/sp00nznet/ww",
       "issue_number": 170,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/sp00nznet/ww",
+      "availability": "source-only",
+      "setup_url": "https://github.com/sp00nznet/ww/blob/main/README.md",
       "artwork": {
         "game_id": 1033,
         "cover_id": 171719,
@@ -11038,6 +11267,20 @@
         "image_sha256": "3cddca6230a670b7b1eb79f84ea5b57202b9341ed4e0b47067a3e1a0e0cba1a9",
         "game_slug": "the-legend-of-zelda-the-wind-waker",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Understand the current development limit",
+            "instruction": "This project currently demonstrates the Wind Waker renderer and framework, with the frame loop driven manually; it is not yet the game. Its Windows ww_launcher.exe is that development renderer. Follow upstream’s developer instructions with your own disc/main.dol only if you are preparing or retaining this experimental renderer; preserve its working directory and documented --iso arguments. Do not select gcrecomp_recompiler.exe as the runtime. A playable game route still requires upstream runtime completion."
+          },
+          {
+            "title": "Keep your files and update through upstream",
+            "instruction": "Keep any existing prepared development copy in a separate folder you control. Portcove can retain a non-owning registration of that runtime after read-only executable review; launching remains a separate explicit action. You or upstream keep its updates, original files, generated data, saves and settings. Portcove does not supply a playable package, replace this runtime, or back it up or roll it back."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/sp00nznet/ww/blob/main/README.md"
       }
     },
     {
@@ -11065,8 +11308,8 @@
       "project_url": "https://github.com/matteo-pacini/theme-hospital-enhanced",
       "issue_number": 1950,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/matteo-pacini/theme-hospital-enhanced",
+      "availability": "source-only",
+      "setup_url": "https://github.com/matteo-pacini/theme-hospital-decomp/blob/master/README.md",
       "artwork": {
         "game_id": 1624,
         "cover_id": 182013,
@@ -11074,6 +11317,16 @@
         "image_sha256": "a94b929334cfd7a64b4e8c53084db5af44a1bc3a32e5c2f952d1aadcfa4335c4",
         "game_slug": "theme-hospital",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the appropriate runtime",
+            "instruction": "This project reconstructs the DOS Theme Hospital executable. Its hospital.exe/hosp.exe outputs use DOS/4GW and are documented for DOSBox, so they are not native Windows game players to register directly. Follow upstream’s DOS build/run guide for that project. For a separately managed native Theme Hospital route, look for CorsixTH in Discover; the two projects keep their own identities."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/matteo-pacini/theme-hospital-decomp/blob/master/README.md"
       }
     },
     {
@@ -11119,8 +11372,8 @@
       "project_url": "https://github.com/NeilSeligmann/tsfp-recomp",
       "issue_number": 1713,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/NeilSeligmann/tsfp-recomp",
+      "availability": "source-only",
+      "setup_url": "https://github.com/NeilSeligmann/tsfp-recomp/blob/release/recomp/README.md",
       "artwork": {
         "game_id": 2144,
         "cover_id": 95619,
@@ -11128,6 +11381,20 @@
         "image_sha256": "c92b071b23bdc71016b19d1c7035b145c79393ba9863e58640692762c3dbf572",
         "game_slug": "timesplitters-future-perfect",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare upstream or keep an existing game build",
+            "instruction": "Follow upstream’s Linux quick start with your own original Xbox TimeSplitters: Future Perfect disc. Its XDVDFS/code-generation steps prepare original files and a locally compiled runtime; they are not an installer that discovery runs. Register only the resulting native game output with its prepared working folder and required arguments. Other platforms need their own upstream evidence."
+          },
+          {
+            "title": "Keep your files and update through upstream",
+            "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/NeilSeligmann/tsfp-recomp/blob/release/recomp/README.md"
       }
     },
     {
@@ -11426,8 +11693,8 @@
       "project_url": "https://github.com/vs-sr-dev/pc-virtualhydlide",
       "issue_number": 1579,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/vs-sr-dev/pc-virtualhydlide",
+      "availability": "source-only",
+      "setup_url": "https://github.com/vs-sr-dev/pc-virtualhydlide/blob/main/README.md",
       "artwork": {
         "game_id": 19738,
         "cover_id": 214174,
@@ -11435,6 +11702,20 @@
         "image_sha256": "91fa0aaeea066eac6755121015833ae5cbea02779cdcf4228a9a221e5c2566ae",
         "game_slug": "virtual-hydlide",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare upstream or keep an existing game build",
+            "instruction": "Follow upstream’s current saturnkit source-build instructions with your own complete Virtual Hydlide disc/track set. The current native build provides video, input and sound, with the remaining limitations described by upstream. Keep its prepared data/audio layout with any native game output you register. Portcove does not run the disc or recompiler tools."
+          },
+          {
+            "title": "Keep your files and update through upstream",
+            "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/vs-sr-dev/pc-virtualhydlide/blob/main/README.md"
       }
     },
     {
@@ -11544,8 +11825,8 @@
       "project_url": "https://github.com/ethannicholas/bluestorm-recomp",
       "issue_number": 1572,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ethannicholas/bluestorm-recomp",
+      "availability": "source-only",
+      "setup_url": "https://github.com/ethannicholas/bluestorm-recomp/blob/main/README.md",
       "artwork": {
         "game_id": 4232,
         "cover_id": 79589,
@@ -11553,6 +11834,20 @@
         "image_sha256": "35a43121de0752a802b7a511a21e0e83dda1025a1e6da8fc1d9409098bf75695",
         "game_slug": "wave-race-blue-storm",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare upstream or keep an existing game build",
+            "instruction": "Follow upstream’s build instructions with your own supported Wave Race: Blue Storm disc. Its Windows game output is waverace.exe; use the ordinary play invocation from the guide unless you deliberately prepare its optional VR mode. Keep the prepared data and working directory with the native player. The source project does not supply a complete game package for Portcove to replace."
+          },
+          {
+            "title": "Keep your files and update through upstream",
+            "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/ethannicholas/bluestorm-recomp/blob/main/README.md"
       }
     },
     {

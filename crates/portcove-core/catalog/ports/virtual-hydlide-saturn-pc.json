@@ -7,8 +7,8 @@
     "project_url": "https://github.com/vs-sr-dev/pc-virtualhydlide",
     "issue_number": 1579,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/vs-sr-dev/pc-virtualhydlide",
+    "availability": "source-only",
+    "setup_url": "https://github.com/vs-sr-dev/pc-virtualhydlide/blob/main/README.md",
     "artwork": {
       "game_id": 19738,
       "cover_id": 214174,
@@ -16,6 +16,20 @@
       "image_sha256": "91fa0aaeea066eac6755121015833ae5cbea02779cdcf4228a9a221e5c2566ae",
       "game_slug": "virtual-hydlide",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Follow upstream’s current saturnkit source-build instructions with your own complete Virtual Hydlide disc/track set. The current native build provides video, input and sound, with the remaining limitations described by upstream. Keep its prepared data/audio layout with any native game output you register. Portcove does not run the disc or recompiler tools."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/vs-sr-dev/pc-virtualhydlide/blob/main/README.md"
     }
   }
 }

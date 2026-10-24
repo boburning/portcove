@@ -7,8 +7,8 @@
     "project_url": "https://github.com/NeilSeligmann/tsfp-recomp",
     "issue_number": 1713,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/NeilSeligmann/tsfp-recomp",
+    "availability": "source-only",
+    "setup_url": "https://github.com/NeilSeligmann/tsfp-recomp/blob/release/recomp/README.md",
     "artwork": {
       "game_id": 2144,
       "cover_id": 95619,
@@ -16,6 +16,20 @@
       "image_sha256": "c92b071b23bdc71016b19d1c7035b145c79393ba9863e58640692762c3dbf572",
       "game_slug": "timesplitters-future-perfect",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Follow upstream’s Linux quick start with your own original Xbox TimeSplitters: Future Perfect disc. Its XDVDFS/code-generation steps prepare original files and a locally compiled runtime; they are not an installer that discovery runs. Register only the resulting native game output with its prepared working folder and required arguments. Other platforms need their own upstream evidence."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/NeilSeligmann/tsfp-recomp/blob/release/recomp/README.md"
     }
   }
 }
