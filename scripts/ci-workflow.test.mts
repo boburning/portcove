@@ -2632,6 +2632,24 @@ void test("frontend tools resolve through the pinned Vite+ bundle", async () => 
   assert.equal(manifest.scripts.build, "node apps/desktop/scripts/build-frontend.mts");
 });
 
+void test("full repository contracts install the complete workspace dependency closure before execution", () => {
+  const job = workflowJob("catalog_full");
+  assert.ok(Array.isArray(job.steps));
+  const steps: unknown[] = job.steps;
+  const installation = steps.findIndex(
+    (step) => isRecord(step) && typeof step.run === "string" && /^pnpm\s+install\b/u.test(step.run),
+  );
+  const execution = steps.findIndex(
+    (step) => isRecord(step) && step.name === "Verify repository and release contracts",
+  );
+  assert.ok(installation >= 0 && execution > installation);
+  const step = steps[installation];
+  assert.ok(isRecord(step) && typeof step.run === "string");
+  const args = step.run.trim().split(/\s+/u);
+  assert.deepEqual(args.slice(0, 2), ["pnpm", "install"]);
+  assert.deepEqual(new Set(args.slice(2)), new Set(["--frozen-lockfile", "--ignore-scripts"]));
+});
+
 void test("ordinary tooling contracts select the workflow contract and full CI retains its inventory", async () => {
   const { baselineContractTests } = await import("./ci-baseline.mts");
   const { buildValidationPlan } = await import("./validation-plan.mts");
