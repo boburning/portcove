@@ -15,12 +15,39 @@ import {
 import {
   inspectNativeRuntimeCustody,
   recheckNativeRuntimeCustody,
+  type NativeRuntimeCustody,
 } from "./release-native-runtime-custody.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
 import { currentNativeJobDeadline } from "./release-signing-job-budget.mts";
 import { isRecord } from "./runtime-values.mts";
 
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+type Scope = Awaited<ReturnType<typeof readActualHostedLinuxBootstrapScope>>;
+type Tools = Awaited<ReturnType<typeof verifiedControllerToolPaths>>;
+interface OriginalTools {
+  receipt: object;
+  tools: Tools;
+  files: string[];
+  custody: NativeRuntimeCustody;
+  binding: string;
+  stopped: boolean;
+}
+interface OriginalLaunch {
+  scope: Scope;
+  deadline: number;
+  files: string[];
+  custody: NativeRuntimeCustody;
+  original_node: NativeRuntimeCustody;
+  plan_file: string;
+  plan_bytes: Buffer;
+  binding_file: string;
+  binding_bytes: Buffer;
+  tools: OriginalTools | undefined;
+  claimed: boolean;
+  stopped: boolean;
+}
+const originalTools = new Map<string, OriginalTools>();
+const originalLaunches = new WeakMap<object, OriginalLaunch>();
 
 /** The ordinary hosted broker owns this private Node/temp tree. Its copied Node
  * is data until actual artifact authentication and executable custody pass; the bootstrap must still match it to
@@ -97,6 +124,14 @@ export async function prepareFixedHostedLinuxLaunch(operation: unknown) {
     await writeFile(bindingFile, bindingBytes, { flag: "wx", mode: 0o600 });
     recheckNativeRuntimeCustody([node], custody);
     active();
+    originalTools.set(root, {
+      receipt,
+      tools,
+      files,
+      custody: toolCustody,
+      binding: scope.binding,
+      stopped: false,
+    });
   }
   const custody = inspectNativeRuntimeCustody([node, bindingFile]);
   const retained: unknown = JSON.parse(
@@ -138,10 +173,10 @@ export async function prepareFixedHostedLinuxLaunch(operation: unknown) {
     operation: scope.operation,
     binding: scope.binding,
     command: node,
-    arguments: [
+    arguments: Object.freeze([
       fileURLToPath(new URL("./release-hosted-native-bootstrap.mts", import.meta.url)),
       scope.operation,
-    ],
+    ]),
     temporary: root,
     original_job_deadline_established_by: "native bootstrap provider/shared clock",
     authority: "none",
@@ -151,14 +186,81 @@ export async function prepareFixedHostedLinuxLaunch(operation: unknown) {
   // explicit recovery; this API never deletes a retained root or copied Node.
   const planBytes = Buffer.from(JSON.stringify(plan));
   assert.ok(planBytes.length <= 4096);
-  await writeFile(path.join(root, `${scope.operation}-launch.json`), planBytes, {
+  const planFile = path.join(root, `${scope.operation}-launch.json`);
+  await writeFile(planFile, planBytes, {
     flag: "wx",
     mode: 0o600,
   });
   recheckNativeRuntimeCustody([node, bindingFile], custody);
   recheckNativeRuntimeCustody([node], originalCustody);
   active();
+  const files = [node, bindingFile, planFile];
+  originalLaunches.set(plan, {
+    scope,
+    deadline,
+    files,
+    custody: inspectNativeRuntimeCustody(files),
+    original_node: originalCustody,
+    plan_file: planFile,
+    plan_bytes: planBytes,
+    binding_file: bindingFile,
+    binding_bytes: await readControllerToolFile(bindingFile, 4096),
+    tools: originalTools.get(root),
+    claimed: false,
+    stopped: false,
+  });
+  active();
   return Object.freeze(plan);
+}
+
+/** One same-process claim for the fixed executor. JSON plans and a new process
+ * have no original tool receipt. This is executable custody, never admission,
+ * coordinator ownership, a capacity reservation or native acceptance. */
+export async function claimPreparedHostedLinuxLaunch(plan: object) {
+  const state = originalLaunches.get(plan);
+  assert.ok(
+    state && !state.stopped && !state.claimed && state.tools && !state.tools.stopped,
+    "original unclaimed native launch required",
+  );
+  state.claimed = true;
+  const tools = state.tools;
+  const refuse = () => {
+    state.stopped = true;
+    tools.stopped = true;
+  };
+  const recheck = () => {
+    try {
+      assert.ok(!state.stopped && !tools.stopped, "original native launch stopped");
+      state.scope.unchanged();
+      assert.ok(performance.now() < state.deadline, "original native launch expired");
+      assert.equal(tools.binding, state.scope.binding);
+      recheckNativeRuntimeCustody(state.files, state.custody);
+      recheckNativeRuntimeCustody([state.files[0]!], state.original_node);
+      recheckNativeRuntimeCustody(tools.files, tools.custody);
+    } catch (error) {
+      refuse();
+      throw error;
+    }
+  };
+  try {
+    recheck();
+    const current = await verifiedControllerToolPaths(tools.receipt);
+    assert.equal(current.root, tools.tools.root);
+    assert.deepEqual(current.identity, state.scope.artifact);
+    assert.ok((await readControllerToolFile(state.plan_file, 4096)).equals(state.plan_bytes));
+    assert.ok((await readControllerToolFile(state.binding_file, 4096)).equals(state.binding_bytes));
+    recheck();
+    return Object.freeze({
+      scope: state.scope,
+      deadline: state.deadline,
+      tools_root: current.root,
+      recheck,
+      refuse,
+    });
+  } catch (error) {
+    refuse();
+    throw error;
+  }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
