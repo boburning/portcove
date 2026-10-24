@@ -1,0 +1,15 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "burnout-2-timftw21",
+    "name": "Burnout 2: Point of Impact / timftw21 recompilation",
+    "summary": "Explore the timftw21 Burnout 2 project and follow upstream for original-game requirements, downloads and setup.",
+    "project_url": "https://github.com/timftw21/burnout2-recompilation",
+    "original_game_title": "Burnout 2: Point of Impact",
+    "issue_number": 2447,
+    "platforms": [],
+    "availability": "unknown",
+    "release_url": "https://github.com/timftw21/burnout2-recompilation/releases",
+    "setup_url": "https://github.com/timftw21/burnout2-recompilation"
+  }
+}
