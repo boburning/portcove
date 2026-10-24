@@ -42,7 +42,9 @@ function priority(incident: HealthTriageCondition): number {
   return 4;
 }
 
-export function classifyHealthConditions<T extends HealthTriageCondition>(conditions: readonly T[]) {
+export function classifyHealthConditions<T extends HealthTriageCondition>(
+  conditions: readonly T[],
+) {
   const routine: T[] = [];
   const visible: T[] = [];
   for (const condition of conditions) {
@@ -72,7 +74,9 @@ export function classifyHealthConditions<T extends HealthTriageCondition>(condit
 // Count *observations*, not consecutive failures or uninterrupted downtime.
 // For retained/stale conditions, use the last actual observation clock, not the
 // workflow's wall clock, which could otherwise imply coverage that never ran.
-export function observedSpan(incident: Pick<HealthTriageCondition, "first_seen" | "observed_at">): string {
+export function observedSpan(
+  incident: Pick<HealthTriageCondition, "first_seen" | "observed_at">,
+): string {
   const first = Date.parse(incident.first_seen);
   const last = Date.parse(incident.observed_at);
   if (!Number.isFinite(first) || !Number.isFinite(last) || last < first) return "unknown";
