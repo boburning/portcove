@@ -1958,6 +1958,20 @@
       ]
     },
     {
+      "file": "scripts/roadmap-execution.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9610],
+        ["roadmap-check", 110]
+      ]
+    },
+    {
+      "file": "scripts/roadmap-intake.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9620],
+        ["roadmap-check", 120]
+      ]
+    },
+    {
       "file": "scripts/roadmap-inventory.test.mts",
       "memberships": [
         ["catalog-full", 700],
@@ -1972,10 +1986,45 @@
       ]
     },
     {
+      "file": "scripts/roadmap-mutations.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9650],
+        ["roadmap-check", 150]
+      ]
+    },
+    {
+      "file": "scripts/roadmap-provider-inventory.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9670],
+        ["roadmap-check", 170]
+      ]
+    },
+    {
+      "file": "scripts/roadmap-qualification.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9660],
+        ["roadmap-check", 160]
+      ]
+    },
+    {
+      "file": "scripts/roadmap-readiness.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9640],
+        ["roadmap-check", 140]
+      ]
+    },
+    {
       "file": "scripts/roadmap-scoped.test.mts",
       "memberships": [
         ["catalog-full-2", 9700],
         ["roadmap-check", 200]
+      ]
+    },
+    {
+      "file": "scripts/roadmap-views.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9630],
+        ["roadmap-check", 130]
       ]
     },
     {

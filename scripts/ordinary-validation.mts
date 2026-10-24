@@ -301,6 +301,17 @@ const selectionContractTests = [
   "scripts/select-ci-plan.test.mts",
 ];
 
+const roadmapFeatureTests = [
+  "scripts/roadmap-execution.test.mts",
+  "scripts/roadmap-intake.test.mts",
+  "scripts/roadmap-views.test.mts",
+  "scripts/roadmap-readiness.test.mts",
+  "scripts/roadmap-mutations.test.mts",
+  "scripts/roadmap-qualification.test.mts",
+  "scripts/roadmap-provider-inventory.test.mts",
+];
+const roadmapContractTests = ["scripts/roadmap.test.mts", ...roadmapFeatureTests];
+
 const upstreamHealthObservationTests = [
   "scripts/upstream-health-providers.test.mts",
   "scripts/upstream-health-planning.test.mts",
@@ -1084,7 +1095,11 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-preflight.ps1", ["scripts/repository-skills.test.mts"]],
   [
     "scripts/roadmap.mts",
-    ["scripts/repository-skills.test.mts", "scripts/discovery-intake.test.mts"],
+    [
+      ...roadmapContractTests,
+      "scripts/repository-skills.test.mts",
+      "scripts/discovery-intake.test.mts",
+    ],
   ],
   [
     "scripts/upstream-observer.mts",
@@ -1241,7 +1256,17 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/dev-doctor.test.mts",
     ],
   ],
-  [".github/roadmap.json", ["scripts/roadmap.test.mts"]],
+  [".github/roadmap.json", roadmapContractTests],
+  ["scripts/fixtures/roadmap-fixtures.mts", roadmapContractTests],
+  ["scripts/repository-issue-inventory.fixture.mts", roadmapContractTests],
+  ...[
+    "scripts/github-api.mts",
+    "scripts/repository-issue-inventory.mts",
+    "scripts/roadmap-inventory.mts",
+    "scripts/roadmap-scoped.mts",
+    "scripts/linux-beta-risk-706.mts",
+    "deny.toml",
+  ].map((file): [string, string[]] => [file, roadmapContractTests]),
   [".github/pr-conventions.json", ["scripts/pr-conventions.test.mts"]],
   [
     ".github/upstream-health-accounting.json",
@@ -1254,7 +1279,11 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   [
     ".github/linux-beta-risk-706.json",
-    ["scripts/linux-beta-risk-706.test.mts", "scripts/validation-plan.test.mts"],
+    [
+      "scripts/linux-beta-risk-706.test.mts",
+      "scripts/validation-plan.test.mts",
+      ...roadmapContractTests,
+    ],
   ],
   [
     ".github/qualification-coverage.json",
@@ -1504,6 +1533,8 @@ function frontendTask(id: string, reason: string, task: string) {
 function addNodeTest(selection: ValidationSelection, file: string) {
   const normalized = normalizePath(file);
   selection.nodeTests.add(normalized);
+  if (normalized === "scripts/roadmap.test.mts")
+    for (const companion of roadmapFeatureTests) selection.nodeTests.add(companion);
   if (normalized === "scripts/upstream-observer.test.mts")
     for (const companion of upstreamHealthObservationTests) selection.nodeTests.add(companion);
   if (normalized === "scripts/ci-baseline.test.mts")
@@ -1753,7 +1784,7 @@ function classifyOnePath(
 
   if (file.startsWith(".github/ISSUE_TEMPLATE/")) {
     selection.scopes.add("repository-config");
-    if (file.endsWith("new-port.yml")) addNodeTest(selection, "scripts/roadmap.test.mts");
+    if (file.endsWith("new-port.yml")) addNodeTest(selection, "scripts/roadmap-intake.test.mts");
     recognized = true;
   }
 
