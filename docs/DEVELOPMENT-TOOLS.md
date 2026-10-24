@@ -793,6 +793,21 @@ a measurement target, not a new timeout or permission to omit coverage. Existing
 finite CI envelopes and zero automatic test retries remain in force.
 
 Use `node scripts/ci-metrics.mts summarize DIRECTORY` for downloaded reports.
+Browser bootstrap records executable presence before provisioning, the installed
+Playwright package manifest digest/version and its exact relative Chromium
+Headless Shell executable revision from the pinned runtime registry. A changed or
+unavailable registry reports `unknown`; full Chromium is not a substitute.
+Presence does not prove a usable cache: the pinned installer
+and actual browser readiness check still run. Separate `browser-bootstrap:install`,
+`:launch` and `:close` timings retain their own outcomes, including failed phases.
+Installation timing includes cache verification and any browser/companion download;
+it is not an isolated network-transfer measurement. The ready record carries the
+launched Chromium version. Existing fast metrics and separate full/contributor
+artifacts retain these diagnostics even when a later step fails. Use matching
+source, runtime, platform and cache observations before comparing cold/warm cost;
+no browser-cache reuse or performance gate is implied. Local capture uses an
+absolute `PORTCOVE_CI_METRICS_DIR` for the existing bootstrap command.
+
 The Node contract reporter appends bounded `Node test file observation:` JSON
 records with the runner's file and entry-file identities, duration, outcome and
 separate test/suite/skip/TODO counts. Its invocation context includes runtime,
