@@ -4,9 +4,9 @@
   "owner": "https://github.com/boburning/portcove/issues/2510",
   "status": "IN_PROGRESS; no all-port implementation or delivery completion claim",
   "pickup_source_commit": "cea107d84e80bdd67bd44d4c7c68e0b76d083e4e",
-  "candidate_source_commit": "57253933a358eb80be27dc0b01f12c0cc45154d8",
+  "candidate_source_commit": "90297c7681dd2640b64a0dd9039c3cc0dd423309",
   "inventory_cutoff": "2026-10-24T03:40:15.396Z",
-  "generated_at": "2026-10-24T21:23:13.899Z",
+  "generated_at": "2026-10-24T23:30:06.646Z",
   "sources": {
     "collector": "scripts/roadmap-inventory.mts collectRoadmapInventory",
     "repository_issues": 918,
@@ -33,22 +33,23 @@
   },
   "coverage": {
     "distinct_ports": 524,
-    "operational_definitions": 154,
-    "listing_only": 370,
+    "operational_definitions": 156,
+    "listing_only": 368,
     "dispositions": {
       "retain-existing-route": 115,
-      "improve-upstream-setup": 90,
-      "unresolved-fit": 211,
+      "improve-upstream-setup": 93,
+      "unresolved-fit": 203,
       "add-managed-portable": 38,
       "upstream-source-setup-with-nonowning-existing-player": 15,
-      "add-managed-staged-source": 1,
+      "add-managed-staged-source": 3,
       "improve-upstream-Android-setup": 15,
       "upstream-setup-with-no-published-github-player-package": 1,
       "improve-nonowning-route": 6,
       "retain-managed-acquisition-permission-limit": 5,
-      "unresolved-component-permission-basis": 2,
+      "unresolved-component-permission-basis": 3,
       "unresolved-package-permission-basis": 3,
       "improve-upstream-Apple-setup-and-retain-bundle-ownership": 2,
+      "retain-existing-useful-output-hold": 2,
       "improve-upstream-download-recommendation": 5,
       "improve-upstream-owned-classic-player-handoff": 2,
       "retain-original-code-permission-limit": 3,
@@ -60,16 +61,16 @@
     "implementation_complete": false,
     "final_affected_inventory_reconciliation": "outstanding",
     "release_maintenance": {
-      "operational_rules_inventoried": 154,
+      "operational_rules_inventoried": 156,
       "implemented_candidate_changes": 27,
       "remaining_direct_manifest_fit_decisions": 6,
       "provider_counts": {
-        "github": 137,
+        "github": 139,
         "user-prepared": 9,
         "gitlab": 2,
         "direct-manifest": 6
       },
-      "scope": "27 existing-route maintenance repairs and one newly adopted dynamic Windows staged route are implemented in the unmerged source candidate. Six Direct-route decisions and211 original route-fit decisions remain unfinished; no all-port completion or delivery claim."
+      "scope": "27 existing-route maintenance repairs plus three newly adopted dynamic staged routes and38 new native-portable routes are candidate implementations. Six Direct-route decisions and203 original fit decisions remain unfinished. Component-grant conditions, manual ReRAC state, rendered flows and final reconciliation/delivery remain outstanding."
     }
   },
   "boundaries": [
@@ -11915,41 +11916,66 @@
         "body_sha256_at_cutoff": "a683d1f3d8f127bf1df060fee8ea83d5296905204327d9561e405fd1c623c12f"
       },
       "duplicates": [],
-      "platform_scope": [],
+      "platform_scope": ["windows-x86-64"],
       "pickup_route": "listing-only",
-      "selected_route": "existing discovery/non-owning route; managed fit under review",
-      "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement promise",
+      "selected_route": "source/prototype discovery and already-registered use under the retained owner-approved hold",
+      "disposition": "retain-existing-useful-output-hold",
+      "update_owner": "player/upstream; no managed Update/Backup/Rollback promise",
       "setup_data": {
-        "instructions": null,
+        "instructions": [
+          {
+            "title": "Understand the scene-only prototype",
+            "instruction": "The reviewed Windows x64 ZIP contains Conker.exe, SDL2.dll and notices. Its recovered scene does not execute the game’s recompiled logic or levels; it is not a playable Conker release. Source extraction tools are not included in this player package. The existing useful-output hold on new installation and registration remains in place."
+          },
+          {
+            "title": "Preserve an already registered copy",
+            "instruction": "Keep any already registered, permitted development copy and your own ROM under its existing contract. Upstream identifies the USA Conker’s Bad Fur Day ROM by SHA-1 4cbadd3c4e0729dec46af64ad018050eada4f47a; this fact does not establish a useful new player. The declared EEPROM location is Windows AppData/ConkerRecompiled/Saves/conker.eep. You or upstream own updates and external data. Portcove does not replace, back up or roll back that external runtime. Reconsider new setup when upstream supplies useful runnable game output or a separately evidenced useful operation."
+          }
+        ],
         "source_profiles": [],
         "declared_paths": [],
         "declared_patterns": [],
-        "details_record": "crates/portcove-core/catalog/ports/conker64-recompiled.json"
+        "details_record": "crates/portcove-core/catalog/ports/conker64-recompiled.json",
+        "reviewed_boundary": "Same exact scene-only artifact as owner-approved #123 hold; package does not contain extraction tools and new source inspection does not establish a separate useful tool operation."
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/Conker64Recomp/conker64-recompiled",
         "observed_repository": "Conker64Recomp/conker64-recompiled",
         "repository_node_id": "R_kgDOT-Cbpw",
-        "guide_url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/main/README.md",
+        "guide_url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/6e58a2a6ff5501cfa9a4380b8522d5a1119d4839/README.md",
         "guide_ref": "main",
         "guide_blob_sha": "f2422cd6858bc4c83e6ad02a7b1f2b6df3a1bd8b",
         "observation": "2026-10-24T03:38:48.640Z",
-        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately"
+        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
+        "source_revision": "6e58a2a6ff5501cfa9a4380b8522d5a1119d4839",
+        "authored_setup_url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/6e58a2a6ff5501cfa9a4380b8522d5a1119d4839/README.md",
+        "assessment_file": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\prepare-conker-held-prototype\\completion-0d0840b28e09a9abc1cf6a369f0432b0623a889cc83f7019dca84a0152a41a6b.json"
       },
-      "selected_artifact": null,
-      "reason": "Fit decision remains unfinished; Unknown is not unsupported.",
+      "selected_artifact": {
+        "release": "v0.1.0-beta",
+        "name": "Conker64-Recompiled-v0.1.0-beta.zip",
+        "url": "https://github.com/Conker64Recomp/conker64-recompiled/releases/download/v0.1.0-beta/Conker64-Recompiled-v0.1.0-beta.zip",
+        "size": 940893,
+        "independently_expected": "358522a82c9bece9c2645e29d8591ece550bc23bdc37c99473f357a76c64e724",
+        "observed_sha256": "358522a82c9bece9c2645e29d8591ece550bc23bdc37c99473f357a76c64e724",
+        "source_revision": "6e58a2a6ff5501cfa9a4380b8522d5a1119d4839",
+        "observed_at": "2026-10-24T21:13:33.882Z",
+        "scope": "Read-only official Windows archive and independently expected publisher digest; no upstream program/helper/game run."
+      },
+      "reason": "Same exact scene-only artifact as owner-approved #123 hold; package does not contain extraction tools and new source inspection does not establish a separate useful tool operation.",
       "validation_scope": {
-        "scope": "Primary-source retrieval and inventory join only; route-fit validation unfinished."
+        "scope": "Complete selected assets, digest-matched archive/PE and pinned project source, fresh canonical scope plus exact Core listing inspection; no native game/tool execution."
       },
-      "delivery_status": "unfinished assessment/implementation",
-      "affected_operation": "managed installation/update and supported setup route selection",
-      "next_action": "Establish the exact executable, supported setup/data boundary and runtime replacement owner from https://github.com/Conker64Recomp/conker64-recompiled/blob/main/README.md; no runnable package has been selected. Then implement every fitting existing-capability change or retain a specifically evidenced limitation. No new product deferral is assigned.",
-      "acquisition_restriction": null,
-      "assessed_platform_scope": null,
+      "delivery_status": "Existing hold applicability reviewed and accurate retained-use guidance implemented; unmerged",
+      "affected_operation": "fresh install/registration under existing useful-output hold",
+      "next_action": "Resume the existing canonical useful-output condition on a useful game player or separately evidenced useful operation.",
+      "acquisition_restriction": "The reviewed v0.1.0-beta package remains the scene-only prototype covered by this port’s existing useful-output hold. New installation and registration wait for a useful game runtime or a separately evidenced useful operation. Already registered permitted copies retain their existing contracts.",
+      "assessed_platform_scope": [],
       "download_recommendation": {
-        "channel": "stable",
-        "asset_hints": {}
+        "channel": "beta",
+        "asset_hints": {
+          "windows-x86-64": ["Conker64-Recompiled-", ".zip"]
+        }
       },
       "reference_catalog": {
         "source": "Quiver",
@@ -11958,7 +11984,8 @@
         "reviewed_relationship": null,
         "candidates": [],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
-      }
+      },
+      "reconsideration_condition": "Resume the existing canonical useful-output condition on a useful game player or separately evidenced useful operation."
     },
     {
       "id": "corsixth-corsixth",
@@ -12266,41 +12293,70 @@
         "body_sha256_at_cutoff": "3ce3c9e68a1e1eb22668a005e94a0650ebafa97f87cc162311824b6e73da4718"
       },
       "duplicates": [],
-      "platform_scope": [],
+      "platform_scope": ["windows-x86-64"],
       "pickup_route": "listing-only",
-      "selected_route": "existing discovery/non-owning route; managed fit under review",
-      "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement promise",
+      "selected_route": "managed ready archive with upstream first-Play setup or exact Core raw-file copy; external copies retain their owner",
+      "disposition": "add-managed-staged-source",
+      "update_owner": "Portcove for the managed Windows runtime; player/upstream for external copies",
       "setup_data": {
-        "instructions": null,
-        "source_profiles": [],
-        "declared_paths": [],
+        "instructions": [
+          {
+            "title": "Use your own USA raw disc",
+            "instruction": "For an existing official beta7.1 Windows copy, choose ctr_native.exe inside its extracted wrapper, with that executable’s folder as the working directory. Place your own NTSC-U raw MODE2/2352 disc BIN at assets/ctr-u.bin beside it; the data track must start at byte 0. A cooked 2048 ISO, another edition or a CUE file is not this route. No compiler, BIOS or extraction helper is needed for the official player archive. Windows runs its x86 player through x64 compatibility; upstream also offers a separate 32-bit Linux package with its own dependency requirements."
+          },
+          {
+            "title": "Prefer in-game memory-card saves",
+            "instruction": "Normal saves and ghosts live under memcards. F12 captures SCREENSHOT.BMP and the VRAM debug capture uses VRAM.TGA. Internal F5 quickstates under debug/states hold runtime memory and are tied to their creating build; replay reports under debug/reports can include independent recorded memory-card progress. Keep the old runtime with those files for matching-build use; do not insert them into another version."
+          },
+          {
+            "title": "Keep external ownership or preserve debug output before retrying",
+            "instruction": "You or upstream update an external copy. Keep its complete working folder and back up memcards and captures before extracting a new player separately. Keep debug output with the originating runtime for matching-build use; no cross-version state compatibility is promised. External registration preserves every file and supplies no managed Backup or Rollback."
+          }
+        ],
+        "source_profiles": ["ctr-native-ntsc-u-raw-bin"],
+        "declared_paths": ["assets/ctr-u.bin", "memcards", "SCREENSHOT.BMP", "VRAM.TGA"],
         "declared_patterns": [],
-        "details_record": "crates/portcove-core/catalog/ports/crash-team-racing-ctr-native.json"
+        "details_record": "crates/portcove-core/catalog/ports/crash-team-racing-ctr-native.json",
+        "reviewed_boundary": "Portcove copies your verified USA raw disc into the official player; no installer or compiler is required. Compatible updates preserve the verified disc copy, in-game memory-card saves, ghosts and captures. Backups include the original disc and can be large; keep them private. Prefer in-game saves: internal F5 quickstates and replay reports belong to their creating runtime. If debug output holds Play or an update after exit, preserve/move the exact shown files outside the managed folder and retain their original runtime before retrying. They are never inserted into a successor. Runtime rollback keeps current declared saves and does not guarantee older software can read them. The Windows x86 player runs on x64 Windows; OpenGL 3.3 is required."
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/CTR-tools/ctr-native",
         "observed_repository": "CTR-tools/ctr-native",
         "repository_node_id": "R_kgDOSfi4lw",
-        "guide_url": "https://github.com/CTR-tools/ctr-native/blob/master/README.md",
+        "guide_url": "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
         "guide_ref": "master",
         "guide_blob_sha": "69bfecb8dcac4b26672f0a7f4d222b22216a1501",
         "observation": "2026-10-24T03:38:50.182Z",
-        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately"
+        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
+        "source_revision": "9b574960fa8a4b897d373bab8a330ecb0626b474",
+        "authored_setup_url": "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
+        "assessment_file": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\prepare-ctr-managed-v3\\completion-3f73eabb78b595717c1f882b0c389b1d6db97d9ce0ba8791d01bda8cf16a2357.json"
       },
-      "selected_artifact": null,
-      "reason": "Fit decision remains unfinished; Unknown is not unsupported.",
+      "selected_artifact": {
+        "release": "beta-7.1",
+        "name": "ctr-native-beta-7_1-windows-x86.zip",
+        "url": "https://github.com/CTR-tools/ctr-native/releases/download/beta-7.1/ctr-native-beta-7_1-windows-x86.zip",
+        "size": 8746455,
+        "independently_expected": "af0d23c7b41925917b5eaf6fc292bd172368efc1c68918755de527a664049dad",
+        "observed_sha256": "af0d23c7b41925917b5eaf6fc292bd172368efc1c68918755de527a664049dad",
+        "source_revision": "9b574960fa8a4b897d373bab8a330ecb0626b474",
+        "observed_at": "2026-10-24T21:13:34.305Z",
+        "scope": "Read-only official Windows archive and independently expected publisher digest; no upstream program/helper/game run."
+      },
+      "reason": "Existing copy materializer handles exact own raw disc; native player is independent, normal memcards/captures compatible declared data. Internal quickstates/reports remain version-local behind precise unknown-file preservation hold, including Play. No new engine or per-release pin.",
       "validation_scope": {
-        "scope": "Primary-source retrieval and inventory join only; route-fit validation unfinished."
+        "scope": "Pinned complete native platform/docs/build source, verified Redump identity mirror, exact Windows archive digest/rawZIP/PE/notices/static strings; no retail media or game/helper execution. Production provider and inert raw-source/wrapper lifecycle tests passed; no original media or gameplay execution."
       },
-      "delivery_status": "unfinished assessment/implementation",
-      "affected_operation": "managed installation/update and supported setup route selection",
-      "next_action": "Establish the exact executable, supported setup/data boundary and runtime replacement owner from https://github.com/CTR-tools/ctr-native/blob/master/README.md; no runnable package has been selected. Then implement every fitting existing-capability change or retain a specifically evidenced limitation. No new product deferral is assigned.",
+      "delivery_status": "Managed definition plus shared ready-archive preservation implemented and independently reviewed in unmerged source; exact final-head delivery unfinished",
+      "affected_operation": null,
+      "next_action": null,
       "acquisition_restriction": null,
-      "assessed_platform_scope": null,
+      "assessed_platform_scope": ["windows-x86-64"],
       "download_recommendation": {
-        "channel": "stable",
-        "asset_hints": {}
+        "channel": "beta",
+        "asset_hints": {
+          "windows-x86-64": ["-windows-x86.zip"]
+        }
       },
       "reference_catalog": {
         "source": "Quiver",
@@ -12323,7 +12379,34 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
-      }
+      },
+      "reconsideration_condition": null,
+      "release_maintenance": {
+        "classification": "managed-compatible-release",
+        "provider": "github",
+        "repository": "CTR-tools/ctr-native",
+        "asset_hints": {
+          "windows-x86-64": ["-windows-x86.zip"]
+        },
+        "delivery_status": "Implemented unmerged candidate",
+        "observed_assets": [
+          {
+            "release": "beta-7.1",
+            "name": "ctr-native-beta-7_1-windows-x86.zip",
+            "url": "https://github.com/CTR-tools/ctr-native/releases/download/beta-7.1/ctr-native-beta-7_1-windows-x86.zip",
+            "size": 8746455,
+            "independently_expected": "af0d23c7b41925917b5eaf6fc292bd172368efc1c68918755de527a664049dad",
+            "observed_sha256": "af0d23c7b41925917b5eaf6fc292bd172368efc1c68918755de527a664049dad",
+            "source_revision": "9b574960fa8a4b897d373bab8a330ecb0626b474",
+            "observed_at": "2026-10-24T21:13:34.305Z",
+            "scope": "Read-only official Windows archive and independently expected publisher digest; no upstream program/helper/game run."
+          }
+        ],
+        "validation_scope": "Unchanged actual selectors resolve synthetic rc1→rc2/beta7.1→beta7.2 through the production provider across cache expiry and fresh client. Separate inert archive/source tests cover source copying, data, backup/rollback, debug holds and recovery; no future gameplay/save-compatibility promise."
+      },
+      "reviewed_additional_sources": [
+        "Pinned libretro Redump DAT mirrors the USA MODE2/2352 raw track:605698800bytes,SHA1 1bb785082def3fe25f6b46be06d4eaf33c5bc772; SCUS94426/CE aliases are the same bytes. The x86 Windows player is explicit; internal debug states/reports stay with their creating build and hold unknown-file verification."
+      ]
     },
     {
       "id": "cut-the-rope-dx",
@@ -13361,41 +13444,77 @@
         "body_sha256_at_cutoff": "51d1854654ed03a3dc28e0ec2e590f71577b1abef213a827d5081b7912050019"
       },
       "duplicates": [],
-      "platform_scope": [],
+      "platform_scope": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
       "pickup_route": "listing-only",
-      "selected_route": "existing discovery/non-owning route; managed fit under review",
-      "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement promise",
+      "selected_route": "upstream setup and completed-player non-owning registration",
+      "disposition": "improve-upstream-setup",
+      "update_owner": "player/upstream; no managed Update/Backup/Rollback promise",
       "setup_data": {
-        "instructions": null,
+        "instructions": [
+          {
+            "title": "Prepare the game with the upstream Builder",
+            "instruction": "The portable download is ActRaiser Recomp Builder, not a prepared player. For a Windows or macOS portable desktop bundle, extract it into a writable folder, keep its .portable marker and BuilderData together, then deliberately open the Builder’s Workshop. The generic Linux x64 tar.xz uses ./run-build.sh to open the Workshop in your browser; follow its upstream prerequisites. Choose your own supported USA ActRaiser ROM and Build game. The bundle supplies its compiler; Portcove does not run it during discovery. Use the matching package and instructions for your platform."
+          },
+          {
+            "title": "Add the completed game",
+            "instruction": "The default output is ActRaiserRecomp beside the Builder. Choose the completed game executable in that output folder in Portcove, with its folder as the working directory. Keep its DLLs, user-rom.sfc, tools, assets, settings and saves together. Save launch details, then choose Play separately. If application control blocks a builder tool, retain its error and use upstream/administrator guidance."
+          },
+          {
+            "title": "Back up and rebuild to update",
+            "instruction": "You or upstream own the generated player and updates. Close the game and back up its entire saves directory before using the new Builder’s Update existing installation to rebuild that game folder. Upstream migrates older save.srm/save.ini or actraiser.srm to Slot 1 and keeps originals under saves/legacy-layout. Use Import previous installation for older utils layouts. Moving between portable and per-user storage does not transfer data automatically. Keep the working copy recoverable. External registration leaves every file untouched; Portcove supplies no managed Update, Backup or Rollback."
+          }
+        ],
         "source_profiles": [],
         "declared_paths": [],
         "declared_patterns": [],
-        "details_record": "crates/portcove-core/catalog/ports/derrickgold-ar-recomp.json"
+        "details_record": "crates/portcove-core/catalog/ports/derrickgold-ar-recomp.json",
+        "reviewed_boundary": "Official archive is a supported original-ROM compiler/Workshop and compatible runtime updates require rebuilding generated game code. Existing shared adapters do not own this builder protocol. Preserve upstream preparation plus completed-player registration; reconsider managed creation on a supported shared preparation contract or independently replaceable official player."
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/DerrickGold/ar-recomp",
         "observed_repository": "DerrickGold/ar-recomp",
         "repository_node_id": "R_kgDOTMxHVA",
-        "guide_url": "https://github.com/DerrickGold/ar-recomp/blob/main/README.md",
+        "guide_url": "https://github.com/DerrickGold/ar-recomp/blob/93c2786af6012325cc00c414c7bff07aa22ce672/README.md",
         "guide_ref": "main",
         "guide_blob_sha": "eb10c8115435e3a4abc95a73f0b446dcf1faa422",
         "observation": "2026-10-24T03:38:53.489Z",
-        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately"
+        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
+        "source_revision": "93c2786af6012325cc00c414c7bff07aa22ce672",
+        "authored_setup_url": "https://github.com/DerrickGold/ar-recomp/blob/93c2786af6012325cc00c414c7bff07aa22ce672/README.md",
+        "assessment_file": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\prepare-native-group10-guides-v3\\derrickgold-ar-recomp\\completion-1702a10ab7f32b3e3dbe7b273bc723c17ac2644030ff254f833f7e3e2f2b764c.json"
       },
-      "selected_artifact": null,
-      "reason": "Fit decision remains unfinished; Unknown is not unsupported.",
+      "selected_artifact": {
+        "release": "v0804",
+        "name": "ActRaiserRecompBuilder-windows-x86_64-portable.zip",
+        "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-windows-x86_64-portable.zip",
+        "size": 119322656,
+        "independently_expected": "742db317d347f507c3671338f00d2d2fb22a882c5b8f630101479849f2d04b92",
+        "observed_sha256": "742db317d347f507c3671338f00d2d2fb22a882c5b8f630101479849f2d04b92",
+        "source_revision": "93c2786af6012325cc00c414c7bff07aa22ce672",
+        "observed_at": "2026-10-24T21:13:37.022Z",
+        "scope": "Read-only official Windows archive and independently expected publisher digest; no upstream program/helper/game run."
+      },
+      "reason": "Official archive is a supported original-ROM compiler/Workshop and compatible runtime updates require rebuilding generated game code. Existing shared adapters do not own this builder protocol. Preserve upstream preparation plus completed-player registration; reconsider managed creation on a supported shared preparation contract or independently replaceable official player.",
       "validation_scope": {
-        "scope": "Primary-source retrieval and inventory join only; route-fit validation unfinished."
+        "scope": "Complete selected-release assets, independently digest-matched selected Windows ZIP and bounded raw ZIP/PE/text, pinned upstream setup/update/data source. Non-Windows scope is upstream instructions; no game/helper/original execution, native gameplay or managed lifecycle claim."
       },
-      "delivery_status": "unfinished assessment/implementation",
-      "affected_operation": "managed installation/update and supported setup route selection",
-      "next_action": "Establish the exact executable, supported setup/data boundary and runtime replacement owner from https://github.com/DerrickGold/ar-recomp/blob/main/README.md; no runnable package has been selected. Then implement every fitting existing-capability change or retain a specifically evidenced limitation. No new product deferral is assigned.",
+      "delivery_status": "Reviewed upstream-owned setup/update guide implemented; unmerged; native/gameplay observations Not run",
+      "affected_operation": null,
+      "next_action": null,
       "acquisition_restriction": null,
-      "assessed_platform_scope": null,
+      "assessed_platform_scope": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
       "download_recommendation": {
-        "channel": "stable",
-        "asset_hints": {}
+        "channel": "beta",
+        "asset_hints": {
+          "windows-x86-64": ["ActRaiserRecompBuilder-windows-x86_64-portable.zip"],
+          "macos-x86-64": ["ActRaiserRecompBuilder-macos-x86_64-portable.zip"],
+          "macos-aarch64": ["ActRaiserRecompBuilder-macos-arm64-portable.zip"]
+        }
       },
       "reference_catalog": {
         "source": "Quiver",
@@ -13418,7 +13537,8 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
-      }
+      },
+      "reconsideration_condition": null
     },
     {
       "id": "dethrace-labs-dethrace",
@@ -16369,41 +16489,71 @@
         "body_sha256_at_cutoff": "57e860244b62bb72b92be2735ebaf6415a3cab8e98d92c7160a35d21d4124999"
       },
       "duplicates": [],
-      "platform_scope": [],
+      "platform_scope": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
       "pickup_route": "listing-only",
-      "selected_route": "existing discovery/non-owning route; managed fit under review",
-      "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement promise",
+      "selected_route": "permitted external-copy setup and registration; fresh acquisition held on exact component grant",
+      "disposition": "unresolved-component-permission-basis",
+      "update_owner": "player/upstream; no managed Update/Backup/Rollback promise",
       "setup_data": {
-        "instructions": null,
+        "instructions": [
+          {
+            "title": "Use a permitted copy and your matching game files",
+            "instruction": "Keep an existing permitted complete native player, including its resources and libraries. The Windows player is MikuPan.exe; register it with its folder as the working directory. Save launch details, then choose Play separately. Prepare your own IMG_HD.BIN and IMG_BD.BIN from the matching Fatal Frame disc in a separate retained data folder. Default upstream builds use NTSC-U USA; PAL/EU needs the matching EU build, and the Japanese edition is unsupported. No original files or PS2 BIOS are supplied by Portcove."
+          },
+          {
+            "title": "Choose the original-data folder on first Play",
+            "instruction": "The native player asks for the folder containing the missing game files on first deliberate Play and remembers your selection. Keep that original-data folder outside any separately managed runtime so replacing a player does not replace your originals. The package is portable and has no installer. Source builds have their own CMake/dependency instructions. Linux is a separate upstream route; macOS is an experimental Apple Silicon community build with no maintained hardware coverage, not Windows qualification."
+          },
+          {
+            "title": "Back up the actual profile before updating",
+            "instruction": "You or upstream update this external copy. Close the game, keep the working folder, and extract a new permitted player separately. Back up the SDL profile for Mikompilation/MikuPan, including mikupan.ini, memory-card saves, albums and PNG captures; on Windows this is normally under AppData/Roaming. If profile-directory creation fails, upstream uses the local MikuPan directory instead; retain that too. Preserve the original-data folder separately. External registration leaves every file untouched and provides no managed Update, Backup or Rollback. Runtime replacement does not rewind saves or establish older-version readability."
+          }
+        ],
         "source_profiles": [],
         "declared_paths": [],
         "declared_patterns": [],
-        "details_record": "crates/portcove-core/catalog/ports/fatal-frame-mikupan.json"
+        "details_record": "crates/portcove-core/catalog/ports/fatal-frame-mikupan.json",
+        "reviewed_boundary": "Technical native-portable fit established separately: first-Play external original-data picker, normal external SDL profile, declared MikuPan fallback persistence, no ordinary runtime-resource mutation in reviewed writers. Fresh managed acquisition remains blocked by the specific embedded Adobe font permission fact; useful non-owning registration and matching setup/data guide remain. No new engine or product deferral."
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/Mikompilation/MikuPan",
         "observed_repository": "Mikompilation/MikuPan",
         "repository_node_id": "R_kgDOQOoy1Q",
-        "guide_url": "https://github.com/Mikompilation/MikuPan/blob/main/README.md",
+        "guide_url": "https://github.com/Mikompilation/MikuPan/blob/ec204d75441e98d8bd43ddd95cae744eb683f00c/README.md",
         "guide_ref": "main",
         "guide_blob_sha": "ddde2c27e83e583c3d223031d26a64b810c4569f",
         "observation": "2026-10-24T03:39:04.032Z",
-        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately"
+        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
+        "source_revision": "ec204d75441e98d8bd43ddd95cae744eb683f00c",
+        "authored_setup_url": "https://github.com/Mikompilation/MikuPan/blob/ec204d75441e98d8bd43ddd95cae744eb683f00c/README.md",
+        "assessment_file": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\prepare-mikupan-guide\\completion-5e83f2d3672229f1d615c035457d7576cdcbd0c04286e6d5f6067dd64069294d.json"
       },
-      "selected_artifact": null,
-      "reason": "Fit decision remains unfinished; Unknown is not unsupported.",
+      "selected_artifact": {
+        "release": "nightly",
+        "name": "MikuPan_windows_nightly.zip",
+        "url": "https://github.com/Mikompilation/MikuPan/releases/download/nightly/MikuPan_windows_nightly.zip",
+        "size": 65094101,
+        "independently_expected": "bdc7cf6409195a30db24313f56d464aeb7337d5af5623477a3251330558773db",
+        "observed_sha256": "bdc7cf6409195a30db24313f56d464aeb7337d5af5623477a3251330558773db",
+        "source_revision": "ec204d75441e98d8bd43ddd95cae744eb683f00c",
+        "observed_at": "2026-10-24T21:13:39.027Z",
+        "scope": "Read-only official Windows archive and independently expected publisher digest; no upstream program/helper/game run."
+      },
+      "reason": "Technical native-portable fit established separately: first-Play external original-data picker, normal external SDL profile, declared MikuPan fallback persistence, no ordinary runtime-resource mutation in reviewed writers. Fresh managed acquisition remains blocked by the specific embedded Adobe font permission fact; useful non-owning registration and matching setup/data guide remain. No new engine or product deferral.",
       "validation_scope": {
-        "scope": "Primary-source retrieval and inventory join only; route-fit validation unfinished."
+        "scope": "Complete selected-release assets, digest-verified Windows ZIP and bounded raw ZIP/PE/text/font name tables; pinned default setup/config/IO/log/memory-card/screenshot/photo-export writers. No upstream program/helper/original/gameplay execution. Other platform scope is upstream instructions, not inspected native artifacts."
       },
-      "delivery_status": "unfinished assessment/implementation",
-      "affected_operation": "managed installation/update and supported setup route selection",
-      "next_action": "Establish the exact executable, supported setup/data boundary and runtime replacement owner from https://github.com/Mikompilation/MikuPan/blob/main/README.md; no runnable package has been selected. Then implement every fitting existing-capability change or retain a specifically evidenced limitation. No new product deferral is assigned.",
-      "acquisition_restriction": null,
-      "assessed_platform_scope": null,
+      "delivery_status": "Technical route fit reviewed; permitted-copy guide implemented; required fresh managed acquisition remains blocked on exact resource grant; unmerged",
+      "affected_operation": "fresh Portcove self-service acquisition; managed adoption also unfinished",
+      "next_action": "Attributable grant for the embedded Adobe font or upstream replacement/removal; then apply reviewed native-portable metadata and focused provider/lifecycle checks. Do not use empty persistence or place originals inside the managed runtime.",
+      "acquisition_restriction": "Portcove downloads are paused while the selected package’s embedded Adobe CenturyOldStyleStd-Regular font has no established attributable acquisition/distribution grant. Its name table identifies Adobe copyright and All rights reserved; the project’s AGPL does not establish that separate font’s grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable resource permission or removes/replaces that font.",
+      "assessed_platform_scope": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
       "download_recommendation": {
-        "channel": "stable",
-        "asset_hints": {}
+        "channel": "beta",
+        "asset_hints": {
+          "windows-x86-64": ["MikuPan_windows_", ".zip"],
+          "linux-x86-64": ["MikuPan_linux_", ".zip"]
+        }
       },
       "reference_catalog": {
         "source": "Quiver",
@@ -16423,7 +16573,9 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
-      }
+      },
+      "reconsideration_condition": "Attributable grant for the embedded Adobe font or upstream replacement/removal; then apply reviewed native-portable metadata and focused provider/lifecycle checks. Do not use empty persistence or place originals inside the managed runtime.",
+      "reviewed_rights_boundary": "Digest-bound CenturyOldStyle.ttf name table identifies Adobe CenturyOldStyleStd-Regular, copyright1986–2002 All rights reserved. No attributable separate grant established; AGPL is not inferred to cover it. This is not an infringement determination. Technical native-portable fit requires persistent local MikuPan fallback; normal SDL user-profile/original folder remains external."
     },
     {
       "id": "faxanadu-recomp",
@@ -17338,41 +17490,70 @@
         "body_sha256_at_cutoff": "14fca0542b53fa739f5ef47b18f4a1bc49a2380ce5eb98868a32728b29042511"
       },
       "duplicates": [],
-      "platform_scope": [],
+      "platform_scope": ["windows-x86-64"],
       "pickup_route": "listing-only",
-      "selected_route": "existing discovery/non-owning route; managed fit under review",
-      "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement promise",
+      "selected_route": "upstream setup and completed-player non-owning registration",
+      "disposition": "improve-upstream-setup",
+      "update_owner": "player/upstream; no managed Update/Backup/Rollback promise",
       "setup_data": {
-        "instructions": null,
+        "instructions": [
+          {
+            "title": "Let the upstream launcher finish setup",
+            "instruction": "Extract the complete official unstable Windows x64 ZIP into a new empty folder. On first deliberate launch of OpenTricky.exe, choose your own USA original-Xbox SSX Tricky ISO or XISO. PS2, GameCube, PAL and Japanese editions are not supported by this route. Windows 10/11 x64 and Direct3D 11 are required. The package has no installer."
+          },
+          {
+            "title": "Keep the launcher as the update owner",
+            "instruction": "Choose OpenTricky.exe with its folder as the working directory when registering it, then save launch details and choose Play separately. The launcher controls game settings, original-disc selection and consented signature-checked updates. Portcove leaves the external runtime under that owner; discovery never starts the updater. The documented Linux/Steam Deck route uses Wine/Proton with the Windows package; it is not a separate native Linux archive."
+          },
+          {
+            "title": "Preserve saves when changing versions",
+            "instruction": "Back up Documents/My Games/SSX Tricky/Saves, or the local Saves directory and portable.txt if you chose portable saves. Keep settings.ini, screenshots and bug reports separately as needed. For 0.1.2 use the launcher’s updater. From 0.1.1 upstream requires a fresh folder, choosing the disc again and fresh settings; keep the old working copy and do not copy its settings.ini over 0.1.3. New launch shortcuts use bin/SSX Tricky.exe. External registration provides no Portcove-managed Update, Backup or Rollback."
+          }
+        ],
         "source_profiles": [],
         "declared_paths": [],
         "declared_patterns": [],
-        "details_record": "crates/portcove-core/catalog/ports/gizcesi-opentricky.json"
+        "details_record": "crates/portcove-core/catalog/ports/gizcesi-opentricky.json",
+        "reviewed_boundary": "The reviewed launcher owns signed runtime replacement and version-specific setup/settings migration. Preserve its richer upstream setup/update route and non-owning registration; do not create competing Core ownership or silently replace existing contracts. Windows native only; Proton instructions remain separate."
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/GiZcesi/OpenTricky",
         "observed_repository": "GiZcesi/OpenTricky",
         "repository_node_id": "R_kgDOU7Owsw",
-        "guide_url": "https://github.com/GiZcesi/OpenTricky/blob/main/README.md",
+        "guide_url": "https://github.com/GiZcesi/OpenTricky/blob/b20f394f3fc11b684fbbe01ad70f795def4ae70b/README.md",
         "guide_ref": "main",
         "guide_blob_sha": "5edfdec3cf66535465352feed0226822f72941a2",
         "observation": "2026-10-24T03:39:06.767Z",
-        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately"
+        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
+        "source_revision": "b20f394f3fc11b684fbbe01ad70f795def4ae70b",
+        "authored_setup_url": "https://github.com/GiZcesi/OpenTricky/blob/b20f394f3fc11b684fbbe01ad70f795def4ae70b/README.md",
+        "assessment_file": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\prepare-native-group10-guides-v3\\gizcesi-opentricky\\completion-6491448e10d15ccf2039a8ced247c8df79a57ebe8a6c57c125b21a1094236829.json"
       },
-      "selected_artifact": null,
-      "reason": "Fit decision remains unfinished; Unknown is not unsupported.",
+      "selected_artifact": {
+        "release": "v0.1.3-unstable",
+        "name": "OpenTricky-0.1.3-unstable-win64.zip",
+        "url": "https://github.com/GiZcesi/OpenTricky/releases/download/v0.1.3-unstable/OpenTricky-0.1.3-unstable-win64.zip",
+        "size": 61817756,
+        "independently_expected": "410205d7036eab8baadbb758f44cfe2cbfbaa49e6147ebcd5dbc220b1faac06d",
+        "observed_sha256": "410205d7036eab8baadbb758f44cfe2cbfbaa49e6147ebcd5dbc220b1faac06d",
+        "source_revision": "b20f394f3fc11b684fbbe01ad70f795def4ae70b",
+        "observed_at": "2026-10-24T21:13:41.268Z",
+        "scope": "Read-only official Windows archive and independently expected publisher digest; no upstream program/helper/game run."
+      },
+      "reason": "The reviewed launcher owns signed runtime replacement and version-specific setup/settings migration. Preserve its richer upstream setup/update route and non-owning registration; do not create competing Core ownership or silently replace existing contracts. Windows native only; Proton instructions remain separate.",
       "validation_scope": {
-        "scope": "Primary-source retrieval and inventory join only; route-fit validation unfinished."
+        "scope": "Complete selected-release assets, independently digest-matched selected Windows ZIP and bounded raw ZIP/PE/text, pinned upstream setup/update/data source. Non-Windows scope is upstream instructions; no game/helper/original execution, native gameplay or managed lifecycle claim."
       },
-      "delivery_status": "unfinished assessment/implementation",
-      "affected_operation": "managed installation/update and supported setup route selection",
-      "next_action": "Establish the exact executable, supported setup/data boundary and runtime replacement owner from https://github.com/GiZcesi/OpenTricky/blob/main/README.md; no runnable package has been selected. Then implement every fitting existing-capability change or retain a specifically evidenced limitation. No new product deferral is assigned.",
+      "delivery_status": "Reviewed upstream-owned setup/update guide implemented; unmerged; native/gameplay observations Not run",
+      "affected_operation": null,
+      "next_action": null,
       "acquisition_restriction": null,
-      "assessed_platform_scope": null,
+      "assessed_platform_scope": ["windows-x86-64"],
       "download_recommendation": {
-        "channel": "stable",
-        "asset_hints": {}
+        "channel": "beta",
+        "asset_hints": {
+          "windows-x86-64": ["OpenTricky-", "-unstable-win64.zip"]
+        }
       },
       "reference_catalog": {
         "source": "Quiver",
@@ -17395,7 +17576,8 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
-      }
+      },
+      "reconsideration_condition": null
     },
     {
       "id": "gladiator-openglad",
@@ -18020,41 +18202,71 @@
         "body_sha256_at_cutoff": "89226ef280a433b4987f5415114b4a14f256c9921bc50bb938f00e937bd1c118"
       },
       "duplicates": [],
-      "platform_scope": [],
+      "platform_scope": ["windows-x86-64", "linux-x86-64"],
       "pickup_route": "listing-only",
-      "selected_route": "existing discovery/non-owning route; managed fit under review",
-      "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement promise",
+      "selected_route": "upstream setup and completed-player non-owning registration",
+      "disposition": "improve-upstream-setup",
+      "update_owner": "player/upstream; no managed Update/Backup/Rollback promise",
       "setup_data": {
-        "instructions": null,
+        "instructions": [
+          {
+            "title": "Prepare either game with the shared launcher",
+            "instruction": "Extract the whole official package. Choose GoldenSunLauncher.exe on Windows, or GoldenSunLauncher on Linux, then choose The Broken Seal or The Lost Age and your own matching USA/Europe GBA ROM. Keep the normal SHA-1 ROM check enabled. No GBA BIOS is required. The bundled compiler prepares game code on first launch and after updates; Linux also needs system SDL2 and OpenGL. Portcove does not run this builder during discovery."
+          },
+          {
+            "title": "Register the collection launcher",
+            "instruction": "Choose the shared launcher and its folder as the working directory in Portcove. Save launch details, then choose Play separately. Keep the complete collection together, including the per-game builders and generated output. This remains one collection identity for both games. Upstream reports public-testing bugs; successful preparation is not completed gameplay qualification."
+          },
+          {
+            "title": "Keep current data and rebuild after updates",
+            "instruction": "You or upstream own this external player. The launcher can open a newer release download; it is not a managed Portcove Update. Close both games, retain your working folder and back up ROMs, Saves, Controls, per-game settings and any imported saves before following upstream’s update instructions. A new version may rebuild generated game code from your ROM. Runtime replacement does not rewind saves or guarantee savestate compatibility. Keep original-containing data private. External registration preserves every file and supplies no managed Backup or Rollback."
+          }
+        ],
         "source_profiles": [],
         "declared_paths": [],
         "declared_patterns": [],
-        "details_record": "crates/portcove-core/catalog/ports/gsrecomp.json"
+        "details_record": "crates/portcove-core/catalog/ports/gsrecomp.json",
+        "reviewed_boundary": "The official collection launcher prepares and regenerates locally compiled game code from two original-ROM workflows. Its release check opens downloads; it does not prove a generic replaceable runtime. Existing adapters do not own this regeneration/build protocol. Retain useful upstream preparation and one non-owning collection registration; reconsider management on an existing supported preparation boundary or independent compatible runtime."
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/Shmargus/GSRecomp",
         "observed_repository": "Shmargus/GSRecomp",
         "repository_node_id": "R_kgDOUq-bPA",
-        "guide_url": "https://github.com/Shmargus/GSRecomp/blob/main/README.md",
+        "guide_url": "https://github.com/Shmargus/GSRecomp/blob/27fedb57bf1e9f016a791529e0a7e89a1fa89f2c/README.md",
         "guide_ref": "main",
         "guide_blob_sha": "a23f1f9fd26f2393c4517bb38449f0ee9678146c",
         "observation": "2026-10-24T03:39:08.785Z",
-        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately"
+        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
+        "source_revision": "27fedb57bf1e9f016a791529e0a7e89a1fa89f2c",
+        "authored_setup_url": "https://github.com/Shmargus/GSRecomp/blob/27fedb57bf1e9f016a791529e0a7e89a1fa89f2c/README.md",
+        "assessment_file": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\prepare-native-group10-guides-v3\\gsrecomp\\completion-723139e06cc4aeedaa45c316760a7380dd7d8d17c810a1b17c969b35cd166e09.json"
       },
-      "selected_artifact": null,
-      "reason": "Fit decision remains unfinished; Unknown is not unsupported.",
+      "selected_artifact": {
+        "release": "0.5.3",
+        "name": "GoldenSunRecompiled-0.5.3-windows.zip",
+        "url": "https://github.com/Shmargus/GSRecomp/releases/download/0.5.3/GoldenSunRecompiled-0.5.3-windows.zip",
+        "size": 88825526,
+        "independently_expected": "0ae2e77bcb004a30d44fa5ecbb5f9d08fc7d7def3f112ee4a6ba0610130a08c4",
+        "observed_sha256": "0ae2e77bcb004a30d44fa5ecbb5f9d08fc7d7def3f112ee4a6ba0610130a08c4",
+        "source_revision": "27fedb57bf1e9f016a791529e0a7e89a1fa89f2c",
+        "observed_at": "2026-10-24T21:13:44.203Z",
+        "scope": "Read-only official Windows archive and independently expected publisher digest; no upstream program/helper/game run."
+      },
+      "reason": "The official collection launcher prepares and regenerates locally compiled game code from two original-ROM workflows. Its release check opens downloads; it does not prove a generic replaceable runtime. Existing adapters do not own this regeneration/build protocol. Retain useful upstream preparation and one non-owning collection registration; reconsider management on an existing supported preparation boundary or independent compatible runtime.",
       "validation_scope": {
-        "scope": "Primary-source retrieval and inventory join only; route-fit validation unfinished."
+        "scope": "Complete selected-release assets, independently digest-matched selected Windows ZIP and bounded raw ZIP/PE/text, pinned upstream setup/update/data source. Non-Windows scope is upstream instructions; no game/helper/original execution, native gameplay or managed lifecycle claim."
       },
-      "delivery_status": "unfinished assessment/implementation",
-      "affected_operation": "managed installation/update and supported setup route selection",
-      "next_action": "Establish the exact executable, supported setup/data boundary and runtime replacement owner from https://github.com/Shmargus/GSRecomp/blob/main/README.md; no runnable package has been selected. Then implement every fitting existing-capability change or retain a specifically evidenced limitation. No new product deferral is assigned.",
+      "delivery_status": "Reviewed upstream-owned setup/update guide implemented; unmerged; native/gameplay observations Not run",
+      "affected_operation": null,
+      "next_action": null,
       "acquisition_restriction": null,
-      "assessed_platform_scope": null,
+      "assessed_platform_scope": ["windows-x86-64", "linux-x86-64"],
       "download_recommendation": {
-        "channel": "stable",
-        "asset_hints": {}
+        "channel": "beta",
+        "asset_hints": {
+          "windows-x86-64": ["GoldenSunRecompiled-", "-windows.zip"],
+          "linux-x86-64": ["GoldenSunRecompiled-", "-linux.zip"]
+        }
       },
       "reference_catalog": {
         "source": "Quiver",
@@ -18063,7 +18275,8 @@
         "reviewed_relationship": null,
         "candidates": [],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
-      }
+      },
+      "reconsideration_condition": null
     },
     {
       "id": "guitar-hero-warriors-of-rock-re-wor",
@@ -18654,41 +18867,98 @@
         "body_sha256_at_cutoff": "718f5e55a3b29c29180126eb434a1782cc7fb856929b91428c0c84727d9c20a5"
       },
       "duplicates": [],
-      "platform_scope": [],
+      "platform_scope": ["windows-x86-64"],
       "pickup_route": "listing-only",
-      "selected_route": "existing discovery/non-owning route; managed fit under review",
-      "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement promise",
+      "selected_route": "managed ready archive with upstream first-Play setup or exact Core raw-file copy; external copies retain their owner",
+      "disposition": "add-managed-staged-source",
+      "update_owner": "Portcove for the managed Windows runtime; player/upstream for external copies",
       "setup_data": {
-        "instructions": null,
+        "instructions": [
+          {
+            "title": "Import your own game on first Play",
+            "instruction": "The official Windows x64 ZIP is portable and has no installer. Choose InfiniteUndiscoveryRecomp.exe and keep its DLLs and notices together. On first Play, the game’s integrated wizard validates and imports your own Disc 1 from a supported XDVDFS ISO or extracted folder; Disc 2 and A/B Voucher DLC are optional. It identifies supported USA, USA-UNDUB, Europe, Japan and Asia editions from the media. Do not mix editions. Portcove does not run an extraction helper or developer compiler. Windows 10/11 x64 and Direct3D 12 are required; use Microsoft’s Visual C++ 2015–2022 x64 Redistributable if the documented runtime DLLs are missing."
+          },
+          {
+            "title": "Keep each content profile together",
+            "instruction": "The complete portable folder holds setup.json and separate USA, USA-UNDUB, EUROPE, JAPAN and ASIA profiles. Each configured profile owns its imported assets/DLC, saves and configuration. Keep cache/runtime.toml too: it contains runtime settings despite the cache folder name. Close the game before updates or copying data. Keep interrupted import/staging folders recoverable and consult upstream; do not merge different editions. Backups can include large original-game files and DLC, so keep them private. The separate IU Save Bridge companion is optional and is not run by Portcove."
+          },
+          {
+            "title": "Update an existing copy safely",
+            "instruction": "For a copy you register yourself, you or upstream provide updates. Extract a new official player into a separate folder, keep the working copy, and follow the selected release’s instructions for carrying its complete compatible content profiles and setup.json. Do not copy old runtime DLLs or shader caches over the replacement. Runtime rollback does not rewind saves or guarantee that older software can read them. The selected release-tag documentation had not tested the Disc 1 to Disc 2 transition. Later upstream documentation at 614a0a0ebd72103fce8aaa52c715d847b703a53e reports repeated successful transitions, while complete Disc 2 progression and a full playthrough remain unverified and a Vesplume Tower / Orb of Patience softlock remains under investigation. These are upstream reports; Portcove has not run the game."
+          }
+        ],
         "source_profiles": [],
-        "declared_paths": [],
+        "declared_paths": [
+          "setup.json",
+          "setup.json.tmp",
+          "USA/assets",
+          "USA/saves",
+          "USA/config.json",
+          "USA/config.json.tmp",
+          "USA/cache/runtime.toml",
+          "USA-UNDUB/assets",
+          "USA-UNDUB/saves",
+          "USA-UNDUB/config.json",
+          "USA-UNDUB/config.json.tmp",
+          "USA-UNDUB/cache/runtime.toml",
+          "EUROPE/assets",
+          "EUROPE/saves",
+          "EUROPE/config.json",
+          "EUROPE/config.json.tmp",
+          "EUROPE/cache/runtime.toml",
+          "JAPAN/assets",
+          "JAPAN/saves",
+          "JAPAN/config.json",
+          "JAPAN/config.json.tmp",
+          "JAPAN/cache/runtime.toml",
+          "ASIA/assets",
+          "ASIA/saves",
+          "ASIA/config.json",
+          "ASIA/config.json.tmp",
+          "ASIA/cache/runtime.toml"
+        ],
         "declared_patterns": [],
-        "details_record": "crates/portcove-core/catalog/ports/infinite-undiscovery-doc-haz.json"
+        "details_record": "crates/portcove-core/catalog/ports/infinite-undiscovery-doc-haz.json",
+        "reviewed_boundary": "Choose Play to import your own supported Disc 1 with the game’s setup wizard. Disc 2 and DLC are optional. Portcove updates the Windows player and preserves imported game files, saves and settings. Backups can be large and contain original-game files; keep them private. Runtime rollback keeps current saves, which older versions may not read. Requires Windows 10/11 x64, Direct3D 12 and Microsoft’s documented VC++ x64 runtime. Upstream reports incomplete full-game validation and a Vesplume Tower softlock under investigation."
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/doc-haz/infinite-undiscovery-recomp",
         "observed_repository": "doc-haz/infinite-undiscovery-recomp",
         "repository_node_id": "R_kgDOU3qWfg",
-        "guide_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/main/README.md",
+        "guide_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/ce6586c0a237541caa438122ecdd99c62982b288/README.md",
         "guide_ref": "main",
         "guide_blob_sha": "0a3eb27bd31ead60bb3570e1059d7c41be1dc750",
         "observation": "2026-10-24T03:39:10.474Z",
-        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately"
+        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
+        "source_revision": "ce6586c0a237541caa438122ecdd99c62982b288",
+        "authored_setup_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/ce6586c0a237541caa438122ecdd99c62982b288/README.md",
+        "assessment_file": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\prepare-iu-managed-v3\\completion-619d15d6321c8dd2cad0ba0d4ee25de5c5a8725aecb306f6d92afca3e7c4b477.json"
       },
-      "selected_artifact": null,
-      "reason": "Fit decision remains unfinished; Unknown is not unsupported.",
+      "selected_artifact": {
+        "release": "v1.0.0-rc1",
+        "name": "InfiniteUndiscoveryRecomp-v1.0.0-rc1.zip",
+        "url": "https://github.com/doc-haz/infinite-undiscovery-recomp/releases/download/v1.0.0-rc1/InfiniteUndiscoveryRecomp-v1.0.0-rc1.zip",
+        "size": 20275501,
+        "independently_expected": "311a243e67fd992597a0ac72e5632def4fc9311f538b9f8c974ae07b315945b2",
+        "observed_sha256": "311a243e67fd992597a0ac72e5632def4fc9311f538b9f8c974ae07b315945b2",
+        "source_revision": "ce6586c0a237541caa438122ecdd99c62982b288",
+        "observed_at": "2026-10-24T21:13:44.804Z",
+        "scope": "Read-only official Windows archive and independently expected publisher digest; no upstream program/helper/game run."
+      },
+      "reason": "Official native archive uses the upstream integrated media wizard; the existing source-less staged adapter expresses local profile persistence and disposable shader/metadata/log output. Requires the shared exact-mtime preservation repair, capability23 and retained-format6 fence; focused shared source verification has passed in the candidate.",
       "validation_scope": {
-        "scope": "Primary-source retrieval and inventory join only; route-fit validation unfinished."
+        "scope": "Complete selected release assets, digest-matched ZIP, bounded rawZIP/PE/text inspection, all pinned project C/C++ source and targeted SDK0.10.0 writers; later README614a0a0ebd72103fce8aaa52c715d847b703a53e separately reports successful disc transitions, incomplete full playthrough and the Vesplume Tower softlock. Project BSD3, bundled component notices and separately published compliance-archive metadata reviewed; relink not independently run. No upstream program/helper/game/original or native gameplay run; source identities and gameplay are validated only by their actual owner and scope."
       },
-      "delivery_status": "unfinished assessment/implementation",
-      "affected_operation": "managed installation/update and supported setup route selection",
-      "next_action": "Establish the exact executable, supported setup/data boundary and runtime replacement owner from https://github.com/doc-haz/infinite-undiscovery-recomp/blob/main/README.md; no runnable package has been selected. Then implement every fitting existing-capability change or retain a specifically evidenced limitation. No new product deferral is assigned.",
+      "delivery_status": "Managed definition plus shared ready-archive preservation implemented and independently reviewed in unmerged source; exact final-head delivery unfinished",
+      "affected_operation": null,
+      "next_action": null,
       "acquisition_restriction": null,
-      "assessed_platform_scope": null,
+      "assessed_platform_scope": ["windows-x86-64"],
       "download_recommendation": {
-        "channel": "stable",
-        "asset_hints": {}
+        "channel": "beta",
+        "asset_hints": {
+          "windows-x86-64": ["InfiniteUndiscoveryRecomp-", ".zip"]
+        }
       },
       "reference_catalog": {
         "source": "Quiver",
@@ -18711,7 +18981,34 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
-      }
+      },
+      "reconsideration_condition": null,
+      "release_maintenance": {
+        "classification": "managed-compatible-release",
+        "provider": "github",
+        "repository": "doc-haz/infinite-undiscovery-recomp",
+        "asset_hints": {
+          "windows-x86-64": ["InfiniteUndiscoveryRecomp-", ".zip"]
+        },
+        "delivery_status": "Implemented unmerged candidate",
+        "observed_assets": [
+          {
+            "release": "v1.0.0-rc1",
+            "name": "InfiniteUndiscoveryRecomp-v1.0.0-rc1.zip",
+            "url": "https://github.com/doc-haz/infinite-undiscovery-recomp/releases/download/v1.0.0-rc1/InfiniteUndiscoveryRecomp-v1.0.0-rc1.zip",
+            "size": 20275501,
+            "independently_expected": "311a243e67fd992597a0ac72e5632def4fc9311f538b9f8c974ae07b315945b2",
+            "observed_sha256": "311a243e67fd992597a0ac72e5632def4fc9311f538b9f8c974ae07b315945b2",
+            "source_revision": "ce6586c0a237541caa438122ecdd99c62982b288",
+            "observed_at": "2026-10-24T21:13:44.804Z",
+            "scope": "Read-only official Windows archive and independently expected publisher digest; no upstream program/helper/game run."
+          }
+        ],
+        "validation_scope": "Unchanged actual selectors resolve synthetic rc1→rc2/beta7.1→beta7.2 through the production provider across cache expiry and fresh client. Separate inert archive/source tests cover source copying, data, backup/rollback, debug holds and recovery; no future gameplay/save-compatibility promise."
+      },
+      "reviewed_additional_sources": [
+        "Later upstream README614a0a0ebd72103fce8aaa52c715d847b703a53e reports repeated successful Disc1→2 transitions, incomplete full playthrough/Disc2 and the known Vesplume Tower/Orb of Patience softlock. Exact modification-time preservation is required by the owned asset integrity records."
+      ]
     },
     {
       "id": "initial-d-arcade-stage-3-native-sh-4-recompilation-wip",
@@ -37898,36 +38195,49 @@
       "duplicates": [],
       "platform_scope": [],
       "pickup_route": "listing-only",
-      "selected_route": "existing discovery/non-owning route; managed fit under review",
-      "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement promise",
+      "selected_route": "source/prototype discovery and already-registered use under the retained owner-approved hold",
+      "disposition": "retain-existing-useful-output-hold",
+      "update_owner": "player/upstream; no managed Update/Backup/Rollback promise",
       "setup_data": {
-        "instructions": null,
+        "instructions": [
+          {
+            "title": "Understand the current prototype",
+            "instruction": "This upstream currently reports only two boxes of visual noise, with no published player archive. A managed download would not supply the missing playable implementation. Its README asks for your own USA Rev A Wave Race 64 Z64 dump, but BUILDING.md still contains inherited Majora’s Mask/Zelda64 commands; do not substitute that other game or treat those commands as a verified Wave Race preparation guide."
+          },
+          {
+            "title": "Preserve an already registered development copy",
+            "instruction": "Keep any already registered Wave Race development copy and its complete folder under its existing contract. You or upstream own runtime updates, original files, generated data, saves and settings; retain those files separately. Portcove does not supply a playable package or managed update, backup or rollback for this copy. New installation and registration remain on the existing useful-output hold. Reconsider them when upstream demonstrates useful runnable output and supplies a title-specific reproducible preparation or player package."
+          }
+        ],
         "source_profiles": [],
         "declared_paths": [],
         "declared_patterns": [],
-        "details_record": "crates/portcove-core/catalog/ports/wave-race-64-recompiled.json"
+        "details_record": "crates/portcove-core/catalog/ports/wave-race-64-recompiled.json",
+        "reviewed_boundary": "No release history and upstream reports renderer noise only; inherited build guide names a different game. These are observed missing upstream capabilities, not a new product deferral or optional gameplay-evidence gate."
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/chronic8000/WaveRace64Recompiled",
         "observed_repository": "chronic8000/WaveRace64Recompiled",
         "repository_node_id": "R_kgDOTBJn9w",
-        "guide_url": "https://github.com/chronic8000/WaveRace64Recompiled/blob/main/README.md",
+        "guide_url": "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md",
         "guide_ref": "main",
         "guide_blob_sha": "0686860092112e75d2a7ac1e01f48e74436a4358",
         "observation": "2026-10-24T03:40:04.470Z",
-        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately"
+        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
+        "source_revision": "63817bc71d31210a064f99010a010eb5e335b239",
+        "authored_setup_url": "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md",
+        "assessment_file": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\prepare-wave-race-guide-v2\\completion-0b6e8da9fc16c6cbe6f53258e1e3132924575f335d17e20475c617dd669adb37.json"
       },
       "selected_artifact": null,
-      "reason": "Fit decision remains unfinished; Unknown is not unsupported.",
+      "reason": "No release history and upstream reports renderer noise only; inherited build guide names a different game. These are observed missing upstream capabilities, not a new product deferral or optional gameplay-evidence gate.",
       "validation_scope": {
-        "scope": "Primary-source retrieval and inventory join only; route-fit validation unfinished."
+        "scope": "Complete release history, untruncated pinned source tree and independently blob-verified README/BUILDING/CMake; maintained exact listing inspection. No compiler, helper or original media executed."
       },
-      "delivery_status": "unfinished assessment/implementation",
-      "affected_operation": "managed installation/update and supported setup route selection",
-      "next_action": "Establish the exact executable, supported setup/data boundary and runtime replacement owner from https://github.com/chronic8000/WaveRace64Recompiled/blob/main/README.md; no runnable package has been selected. Then implement every fitting existing-capability change or retain a specifically evidenced limitation. No new product deferral is assigned.",
+      "delivery_status": "Existing hold applicability reviewed and accurate retained-use guidance implemented; unmerged",
+      "affected_operation": "fresh install/registration under existing useful-output hold",
+      "next_action": "Upstream publishes a playable native player or reproducible title-specific preparation; reassess its actual update/data boundary using existing shared adapters.",
       "acquisition_restriction": null,
-      "assessed_platform_scope": null,
+      "assessed_platform_scope": [],
       "download_recommendation": {
         "channel": "stable",
         "asset_hints": {}
@@ -37939,7 +38249,8 @@
         "reviewed_relationship": null,
         "candidates": [],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
-      }
+      },
+      "reconsideration_condition": "Upstream publishes a playable native player or reproducible title-specific preparation; reassess its actual update/data boundary using existing shared adapters."
     },
     {
       "id": "wave-race-blue-storm-recompiled",
@@ -39809,7 +40120,7 @@
       }
     }
   ],
-  "candidate_authored_records_sha256": "fcdb492d4198ab4b37f8073d71023925729fcb959cb5cdd460e1b61ee18a9c5f",
+  "candidate_authored_records_sha256": "dea6fc0d3e43401187af30485bd391a244bab2215b090592cb6c788b9711870c",
   "reference_sources": [
     {
       "name": "Quiver",
@@ -39912,6 +40223,37 @@
           "nextest_run": "dd8fe12c-0baf-4e5e-9ae3-31591a83581c"
         }
       ]
+    },
+    "ready_copy_and_metadata": {
+      "source_commit": "90297c7681dd2640b64a0dd9039c3cc0dd423309",
+      "ownership": "One exact persistent raw Copy or no Core source, with existing helper/build/BIOS/source-set/policy exclusions. New entries require capability23/retained format6; historical retained paths stay readable without rewrite and uninitialized collection is additive/conflict-preserving.",
+      "runs": [
+        {
+          "file": "group10-core-feedback-1.log",
+          "result": "Fixture compilation failed on incorrect install call signatures; repaired."
+        },
+        {
+          "file": "group10-core-feedback-2.log",
+          "result": "125/126 passed; CTR fixture wrongly expected source before explicit preparation; repaired. IU lifecycle passed43.313s."
+        },
+        {
+          "file": "group10-ready-copy-feedback-3.log",
+          "result": "66/66 passed, including provider progression, metadata/backup/rollback, exact raw-copy source and debug holds, activation/recovery, retained origins and route-change suites."
+        },
+        {
+          "file": "group10-definition-fence-feedback-4.log",
+          "result": "37/39 passed; two stale lower-floor assertions repaired to retain historical11 and enforce new23."
+        },
+        {
+          "file": "group10-definition-cli-feedback-5.log",
+          "result": "46 tests run: 46 passed (3 slow), 2234 skipped"
+        },
+        {
+          "file": "main-accessibility-feedback-4.log",
+          "result": "12/12 accessibility/Chrome browser checks passed after correcting actual Library-count contrast and settling dialog animations before unchanged axe checks."
+        }
+      ],
+      "evidence_limits": "Actual artifact/source inspection, inert fixtures, browser feedback, hosted qualification, native runtime/gameplay and final production delivery remain distinct."
     }
   }
 }
