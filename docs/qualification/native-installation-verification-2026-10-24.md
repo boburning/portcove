@@ -29,6 +29,13 @@ then passed 51 tests across three requested/executed files, 36 across two, and
 20 across two (including the rendered theme component), with no skipped files.
 Counts describe overlapping selections, not 107 unique tests.
 
+The first hosted run at `b16fca35` exposed an existing dependency-free placement
+test whose source slice accidentally included the new exported theme helper.
+It failed in both catalog and Windows-helper jobs with an unexpected `export`.
+The failure reproduced through the actual Node entry point; the slice now stops
+before the next top-level export, preserving all placement rejection controls.
+The PR retains that failed run separately from final exact-head qualification.
+
 ## Native observations
 
 Host: Windows 11 Home, x64, build 26300 (`10.0.26300`), loaded WebView
