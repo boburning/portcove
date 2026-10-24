@@ -32,6 +32,56 @@ import {
 } from "./release-signing-job-budget.mts";
 import { hostedNativeJobProfile } from "./assembler-job-identity.mts";
 
+void test(
+  "Linux private launch preparation preserves original Node identity and partial effects without spawning a worker",
+  { skip: process.platform !== "linux" || process.getuid?.() === 0 },
+  (t) => {
+    const root = disposableDirectory(t, path.join(os.homedir(), ".native-launch-preparation-"));
+    chmodSync(root, 0o700);
+    const entry = new URL("./release-hosted-native-launcher.mts", import.meta.url).href;
+    const code = String.raw`
+import assert from 'node:assert/strict';import {registerHooks} from 'node:module';
+import {mkdir,writeFile,readFile,chmod,rename,symlink,lstat,readdir} from 'node:fs/promises';
+import path from 'node:path';import {performance} from 'node:perf_hooks';
+const root=process.argv[1], identity={controller_revision:'a'.repeat(40),controller_ref:'refs/tags/fixed-fixture',run_id:'123',run_attempt:1};
+let binding='fixed',fault='',checks=0,receives=0;const token={},actualTools=await import(${JSON.stringify(new URL("./release-controller-tools.mts", import.meta.url).href)});let tools;
+globalThis.launchFixture={
+scope:async operation=>{assert.ok(['pre-sign','post-sign'].includes(operation));if(fault==='source')throw Error('source refused');return {operation,identity,binding,artifact:{expected:'fixed source'},bundle:{expected:'fixed issuer'},unchanged(){checks++;if(fault==='changed')throw Error('changed source')}}},
+clock:()=>{if(fault==='provider')throw Error('provider refused');return performance.now()+(fault==='expired'?-1:570000)},
+receive:async(root,artifact,bundle,options)=>{receives++;assert.deepEqual(artifact,{expected:'fixed source'});assert.deepEqual(bundle,{expected:'fixed issuer'});assert.ok(options.deadline>performance.now());if(fault==='foreign-tools')throw Error('foreign issuer');tools=path.join(root,'authenticated-tools');await mkdir(tools,{mode:0o700});await writeFile(path.join(tools,'verified-node'),await readFile(process.execPath),{mode:0o700});await writeFile(path.join(tools,'manifest.json'),'{}',{mode:0o600});return token},
+paths:async receipt=>{assert.equal(receipt,token);return {root:tools,node:path.join(tools,'verified-node')}},
+read:async(...args)=>{assert.notEqual(args[0],process.execPath,'a shared source-path replacement must never choose executable bytes');return actualTools.readControllerToolFile(...args)}
+};
+registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(entry)}){if(s==='./release-hosted-native-bootstrap.mts')return {url:'launch:scope',shortCircuit:true};if(s==='./release-signing-job-budget.mts')return {url:'launch:clock',shortCircuit:true};if(s==='./release-controller-tool-admission.mts')return {url:'launch:tools',shortCircuit:true};if(s==='./release-controller-tools.mts')return {url:'launch:files',shortCircuit:true}}return next(s,c)},load(u,c,next){if(u==='launch:scope')return {format:'module',source:'export const readActualHostedLinuxBootstrapScope=globalThis.launchFixture.scope;',shortCircuit:true};if(u==='launch:clock')return {format:'module',source:'export const currentNativeJobDeadline=globalThis.launchFixture.clock;',shortCircuit:true};if(u==='launch:tools')return {format:'module',source:'export const receiveControllerTools=globalThis.launchFixture.receive;export const verifiedControllerToolPaths=globalThis.launchFixture.paths;',shortCircuit:true};if(u==='launch:files')return {format:'module',source:'export const controllerToolPaths=["verified-node"];export const readControllerToolFile=globalThis.launchFixture.read;',shortCircuit:true};return next(u,c)}});
+const api=await import(${JSON.stringify(entry)});
+for(const name of ['valid','foreign-tools','missing-pre','replay','binding','replaced','bytes','writable','linked','source','provider','expired','changed','occupied']){
+ const home=path.join(root,name);await mkdir(home,{mode:0o700});process.env.HOME=home;binding='fixed';fault=name;
+ const fixedRoot=path.join(home,'.portcove-native-123-1-'+identity.controller_revision),node=path.join(fixedRoot,'bootstrap-node');
+ const pre=()=>api.prepareFixedHostedLinuxLaunch('pre-sign'),post=()=>api.prepareFixedHostedLinuxLaunch('post-sign');
+ if(name==='missing-pre'){await assert.rejects(post());assert.deepEqual(await readdir(home),[]);continue}
+ if(['source','provider','expired','changed'].includes(name)){await assert.rejects(pre());assert.deepEqual(await readdir(home),[]);continue}
+ if(name==='occupied'){await mkdir(fixedRoot,{mode:0o700});await writeFile(path.join(fixedRoot,'retained'),'original');await assert.rejects(pre(),{code:'EEXIST'});assert.equal(await readFile(path.join(fixedRoot,'retained'),'utf8'),'original');continue}
+ if(name==='foreign-tools'){await assert.rejects(pre(),/foreign issuer/);assert.deepEqual(await readdir(fixedRoot),[]);continue}
+ const plan=await pre();assert.equal(plan.command,node);assert.equal(plan.temporary,fixedRoot);assert.equal(plan.authority,'none');assert.equal(plan.native_acceptance,'not-established');assert.equal(plan.arguments[1],'pre-sign');assert.equal((await lstat(node)).mode&0o777,0o700);
+ assert.deepEqual(await readFile(node),await readFile(process.execPath));assert.deepEqual((await readdir(fixedRoot)).sort(),['authenticated-tools','bootstrap-node','launcher-binding.json','pre-sign-launch.json']);
+ if(name==='binding')binding='changed';if(name==='replaced'){await rename(node,node+'.retained');await writeFile(node,await readFile(node+'.retained'),{mode:0o700})}if(name==='bytes')await writeFile(node,'changed');if(name==='writable')await chmod(node,0o777);if(name==='linked'){await rename(node,node+'.retained');await symlink(node+'.retained',node)}
+ if(['binding','replaced','bytes','writable','linked'].includes(name)){await assert.rejects(post());assert.ok((await readFile(path.join(fixedRoot,'pre-sign-launch.json'))).length);continue}
+ if(name==='replay'){await assert.rejects(pre(),{code:'EEXIST'});continue}
+ const after=await post();assert.equal(after.command,plan.command);assert.equal(after.binding,plan.binding);assert.equal(after.arguments[1],'post-sign');await assert.rejects(post(),{code:'EEXIST'});
+}
+await assert.rejects(api.prepareFixedHostedLinuxLaunch('selected-operation'));assert.ok(checks>0&&receives>0);
+console.log('real private Node custody and retained launch refusal checks passed; no worker or provider acceptance');
+`;
+    const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
+      encoding: "utf8",
+      timeout: 20000,
+      maxBuffer: 65536,
+    });
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /real private Node custody/u);
+  },
+);
+
 void test("native clock uses the original provider job start and existing allocation, without role authority", () => {
   const now = Date.parse("2026-10-24T12:00:00Z");
   const identity = { run_id: "123", controller_revision: "a".repeat(40) };
