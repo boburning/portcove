@@ -207,6 +207,41 @@ async function temporarySession(
     session,
   };
 }
+void test("startup inventory refusal retains the original failure receipt without treating cached overlap as current", async (t) => {
+  const cached = collectRoadmapInventory(fixture(1).client);
+  const { session, state, run } = await temporarySession(t, cached);
+  const before = JSON.stringify(session.leads);
+  const failure = new Error("Project changed during inventory collection");
+  session.refresh = () => {
+    throw failure;
+  };
+  session.checkProviderCapacity = () => {};
+  assert.throws(
+    () => session.start(),
+    (error) => error === failure,
+  );
+  const receipt = await session.finish(failure);
+  assert.equal(receipt.status, "failed");
+  assert.equal(receipt.coverage, "unknown");
+  assert.match(
+    JSON.stringify(receipt.notes.at(-1)),
+    /Project changed during inventory collection/u,
+  );
+  assert.equal(receipt.leads.pending, null);
+  assert.equal(receipt.leads.canonical_overlap, "unknown");
+  assert.deepEqual(receipt.leads.next, []);
+  assert.equal(JSON.stringify(session.leads), before);
+  const serialized: unknown = JSON.parse(JSON.stringify(receipt));
+  assert.deepEqual(JSON.parse(readFileSync(path.join(run, "receipt.json"), "utf8")), serialized);
+  assert.deepEqual(
+    JSON.parse(readFileSync(path.join(state, "latest-receipt.json"), "utf8")),
+    serialized,
+  );
+  assert.partialDeepStrictEqual(
+    JSON.parse(readFileSync(path.join(state, "active-run.json"), "utf8")),
+    { status: "failed" },
+  );
+});
 void test("retained intake amendment preserves issue identity, all reserves and separate review across restart", async (t) => {
   const { session, state, run } = await temporarySession(t);
   session.inventory = collectRoadmapInventory(fixture(1).client);

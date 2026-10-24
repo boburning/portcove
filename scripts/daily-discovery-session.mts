@@ -636,12 +636,15 @@ export class DiscoverySession {
     );
   }
   leadSummary() {
-    const pending = pendingLeads(this.leads, this.knownLeadUrls());
+    // Startup can fail before the first validated inventory. Retain the saved
+    // queue without interpreting a stale cache as current canonical overlap.
+    const pending = this.inventory ? pendingLeads(this.leads, this.knownLeadUrls()) : undefined;
     return {
       searched_pages: this.leadPages,
       investigated: [...this.researchedLeads],
-      pending: pending.length,
-      next: pending.slice(0, 12),
+      canonical_overlap: this.inventory ? "observed" : "unknown",
+      pending: pending?.length ?? null,
+      next: pending?.slice(0, 12) ?? [],
       continuations: this.leads.slices,
       scope: "Bounded GitHub lead searches; not complete community discovery",
     };
