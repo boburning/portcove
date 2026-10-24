@@ -592,3 +592,39 @@ and native/public journey continuity under their exact grants and observations.
 No owner-only action is requested by this source preparation. #254 remains Done;
 #315/#534/#246 acceptance and existing Chameleon runtime holds remain pending;
 production held; slice 5 excluded.
+
+## Fixed hosted post-sign caller (October 24)
+
+The fixed Linux runner now has named post-sign entry points for the original
+prepared job, verified-tool configuration, upload request and acknowledgement.
+Its CLI exposes `run-post-sign`, `upload-request-post-sign` and
+`upload-ack-post-sign`; the existing pre-sign command names retain their scope.
+Post-sign state stays under `portcove-native-linux-post-sign`, separately from
+`portcove-native-linux-pre-sign`. Both use the existing bounded public tool input,
+and the original private receipt remains in the preparing process through provider
+readback. Neither public routing data nor the operation name grants native
+admission or execution authority.
+
+The fixed stage determines the exact artifact-name pattern, original pipeline and
+readback function. Wrong-stage readers/acknowledgements refuse. Post-sign requires
+the original verified tool/runtime input; configuration cannot select another
+stage. The original cross-process monotonic deadline, private proof deadline and
+two-minute upload limit still intersect. No-replace markers, replay refusal,
+late-settlement refusal and ambiguous-effect recovery remain unchanged.
+
+Controlled original-process tests pass for both stages, including configured-tool
+handoff, separate-process acknowledgement, wrong-stage routes, replay, unavailable
+acknowledgement, provider ambiguity and delayed reads/settlement. Actual CLI
+subprocesses verify both public routing paths without native execution. The local
+Windows suite has 11 passing tests and two Linux-only skips; the existing Linux
+tool fixture supplies its corresponding hosted qualification. Fixtures remain
+distinct from actual producer/native/public acceptance.
+
+This connects the fixed callable CLI, without adding or activating production
+workflow jobs. The Windows counterpart, held workflow/bootstrap composition,
+whole-graph resource fit and actual authority/eligible-reservation observations
+remain required. No deadline, job count, credential, permission, retention,
+spending or custody boundary is increased. Availability/headroom remain Unknown,
+with no capacity reservation. No manual owner action is needed for this delivery.
+#254 stays Done; #315/#534/#246 acceptance and existing Chameleon runtime holds
+remain pending; production held; slice 5 excluded.

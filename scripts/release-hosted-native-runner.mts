@@ -13,6 +13,8 @@ import { retainReleaseRoutingMarker } from "./release-routing-marker.mts";
 import {
   prepareActualHostedLinuxPreSignJob,
   readBackActualHostedLinuxPreSignUpload,
+  prepareActualHostedLinuxPostSignJob,
+  readBackActualHostedLinuxPostSignUpload,
 } from "./release-hosted-native-job.mts";
 import { receiveControllerTools } from "./release-controller-tool-admission.mts";
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
@@ -22,6 +24,8 @@ const exact = (raw: unknown, keys: string): raw is Record<string, unknown> =>
   isRecord(raw) && Object.keys(raw).sort().join(",") === keys;
 const requestName = "native-job-upload-request.json";
 const ackName = "native-job-upload-ack.json";
+type Stage = "payload-signing" | "release-publication";
+type RuntimeInput = { tools: object; executing_entry: string };
 async function ownedRoot(root: string) {
   assert.ok(path.isAbsolute(root) && path.normalize(root) === root);
   assert.equal(await realpath(root), root);
@@ -59,6 +63,12 @@ function inspectRequest(raw: unknown, root: string) {
 /** Actions reads this fixed request, then performs one pinned upload. Inputs
  * remain bounded fixed public files; importing this request cannot mint a proof. */
 export async function readHostedNativeUploadRequest(root: string) {
+  return readUploadRequest(root, "payload-signing");
+}
+export async function readHostedNativePostSignUploadRequest(root: string) {
+  return readUploadRequest(root, "release-publication");
+}
+async function readUploadRequest(root: string, stage: Stage) {
   await ownedRoot(root);
   const bytes = await readControllerToolFile(path.join(root, requestName), 4096);
   const request = inspectRequest(JSON.parse(bytes.toString("utf8")), root);
@@ -78,7 +88,7 @@ export async function readHostedNativeUploadRequest(root: string) {
   assert.equal(ready.compression_level, 0);
   assert.ok(
     typeof ready.name === "string" &&
-      /^hosted-native-payload-signing-linux-x86_64-[1-9][0-9]*-1$/u.test(ready.name),
+      new RegExp(`^hosted-native-${stage}-linux-x86_64-[1-9][0-9]*-1$`, "u").test(ready.name),
   );
   assert.ok(Array.isArray(ready.files) && ready.files.length === 4);
   const files: string[] = [];
@@ -117,10 +127,27 @@ export async function acknowledgeHostedNativeUpload(
   artifactId: number,
   sha256: string,
 ) {
+  return acknowledgeUpload(root, requestSha256, artifactId, sha256, "payload-signing");
+}
+export async function acknowledgeHostedNativePostSignUpload(
+  root: string,
+  requestSha256: string,
+  artifactId: number,
+  sha256: string,
+) {
+  return acknowledgeUpload(root, requestSha256, artifactId, sha256, "release-publication");
+}
+async function acknowledgeUpload(
+  root: string,
+  requestSha256: string,
+  artifactId: number,
+  sha256: string,
+  stage: Stage,
+) {
   assert.ok(/^[a-f0-9]{64}$/u.test(requestSha256));
   assert.ok(Number.isSafeInteger(artifactId) && artifactId > 0);
   assert.ok(/^[a-f0-9]{64}$/u.test(sha256));
-  const request = await readHostedNativeUploadRequest(root);
+  const request = await readUploadRequest(root, stage);
   assert.equal(request.request_sha256, requestSha256);
   await retainReleaseRoutingMarker(path.join(root, ackName), {
     schema_version: 1,
@@ -138,7 +165,23 @@ export async function acknowledgeHostedNativeUpload(
 export async function runActualHostedLinuxNativeJob(
   root: string,
   originalDeadline: number,
-  runtimeInput?: { tools: object; executing_entry: string },
+  runtimeInput?: RuntimeInput,
+) {
+  return runNativeJob(root, originalDeadline, "payload-signing", runtimeInput);
+}
+export async function runActualHostedLinuxPostSignJob(
+  root: string,
+  originalDeadline: number,
+  runtimeInput: RuntimeInput,
+) {
+  assert.ok(runtimeInput && typeof runtimeInput.executing_entry === "string");
+  return runNativeJob(root, originalDeadline, "release-publication", runtimeInput);
+}
+async function runNativeJob(
+  root: string,
+  originalDeadline: number,
+  stage: Stage,
+  runtimeInput?: RuntimeInput,
 ) {
   await ownedRoot(root);
   assert.ok(Number.isFinite(originalDeadline) && originalDeadline > performance.now());
@@ -151,7 +194,10 @@ export async function runActualHostedLinuxNativeJob(
   });
   let phase = "preparation";
   try {
-    const upload = await prepareActualHostedLinuxPreSignJob(root, originalDeadline, runtimeInput);
+    const upload =
+      stage === "payload-signing"
+        ? await prepareActualHostedLinuxPreSignJob(root, originalDeadline, runtimeInput)
+        : await prepareActualHostedLinuxPostSignJob(root, originalDeadline, runtimeInput!);
     phase = "upload-request";
     // Anchor before any awaited readiness read. The private proof's captured
     // deadline can be earlier; neither a read nor a new Actions step renews it.
@@ -174,7 +220,7 @@ export async function runActualHostedLinuxNativeJob(
     inspectRequest(request, root);
     await retainReleaseRoutingMarker(path.join(root, requestName), request);
     active(deadline);
-    const expected = await readHostedNativeUploadRequest(root);
+    const expected = await readUploadRequest(root, stage);
     phase = "upload-acknowledgement";
     let acknowledgement: unknown;
     while (acknowledgement === undefined) {
@@ -197,7 +243,11 @@ export async function runActualHostedLinuxNativeJob(
     assert.equal(acknowledgement.nonce, expected.nonce);
     assert.equal(acknowledgement.request_sha256, expected.request_sha256);
     phase = "provider-readback";
-    const result = await readBackActualHostedLinuxPreSignUpload(upload.receipt, {
+    const readBack =
+      stage === "payload-signing"
+        ? readBackActualHostedLinuxPreSignUpload
+        : readBackActualHostedLinuxPostSignUpload;
+    const result = await readBack(upload.receipt, {
       artifact_id: acknowledgement.artifact_id,
       sha256: acknowledgement.sha256,
     });
@@ -245,6 +295,23 @@ export async function runConfiguredHostedLinuxNativeJob(
   deadline: number,
   executingEntry: string,
 ) {
+  return runConfiguredJob(raw, root, deadline, executingEntry, "payload-signing");
+}
+export async function runConfiguredHostedLinuxPostSignJob(
+  raw: unknown,
+  root: string,
+  deadline: number,
+  executingEntry: string,
+) {
+  return runConfiguredJob(raw, root, deadline, executingEntry, "release-publication");
+}
+async function runConfiguredJob(
+  raw: unknown,
+  root: string,
+  deadline: number,
+  executingEntry: string,
+  stage: Stage,
+) {
   const input: unknown = structuredClone(raw);
   assert.ok(exact(input, "tools") && exact(input.tools, "artifact,bundle"));
   assert.ok(isRecord(input.tools.artifact) && isRecord(input.tools.bundle));
@@ -256,7 +323,7 @@ export async function runConfiguredHostedLinuxNativeJob(
     { deadline },
   );
   assert.ok(performance.now() < deadline);
-  return runActualHostedLinuxNativeJob(root, deadline, { tools, executing_entry: executingEntry });
+  return runNativeJob(root, deadline, stage, { tools, executing_entry: executingEntry });
 }
 
 /** Fixed caller entry. The bootstrap must supply its original cross-process
@@ -271,9 +338,26 @@ async function main() {
   active(deadline);
   const remaining = Number(deadline - process.hrtime.bigint()) / 1e6;
   assert.ok(remaining > 0 && remaining <= 1900000);
-  const root = path.join(temporary, "portcove-native-linux-pre-sign");
   const operation = process.argv[2];
-  if (operation === "run" && process.argv.length === 3) {
+  assert.ok(
+    operation &&
+      [
+        "run",
+        "upload-request",
+        "upload-ack",
+        "run-post-sign",
+        "upload-request-post-sign",
+        "upload-ack-post-sign",
+      ].includes(operation),
+    "fixed native operation required",
+  );
+  const postSign = operation.endsWith("-post-sign");
+  const selected = postSign ? operation.slice(0, -"-post-sign".length) : operation;
+  const root = path.join(
+    temporary,
+    postSign ? "portcove-native-linux-post-sign" : "portcove-native-linux-pre-sign",
+  );
+  if (selected === "run" && process.argv.length === 3) {
     await mkdir(root, { mode: 0o700 });
     active(deadline);
     const origin = performance.now();
@@ -283,7 +367,8 @@ async function main() {
       ).toString("utf8"),
     );
     active(deadline);
-    const result = await runConfiguredHostedLinuxNativeJob(
+    const run = postSign ? runConfiguredHostedLinuxPostSignJob : runConfiguredHostedLinuxNativeJob;
+    const result = await run(
       configuration,
       root,
       origin + Number(deadline - process.hrtime.bigint()) / 1e6,
@@ -292,11 +377,14 @@ async function main() {
     active(deadline);
     return result;
   }
-  if (operation === "upload-request" && process.argv.length === 3) {
+  if (selected === "upload-request" && process.argv.length === 3) {
     for (;;) {
       active(deadline);
       try {
-        const request = await readHostedNativeUploadRequest(root);
+        const request = await readUploadRequest(
+          root,
+          postSign ? "release-publication" : "payload-signing",
+        );
         active(deadline);
         return request;
       } catch (error) {
@@ -305,13 +393,14 @@ async function main() {
       }
     }
   }
-  if (operation === "upload-ack" && process.argv.length === 6) {
+  if (selected === "upload-ack" && process.argv.length === 6) {
     assert.ok(/^[1-9][0-9]*$/u.test(process.argv[4] ?? ""));
-    await acknowledgeHostedNativeUpload(
+    await acknowledgeUpload(
       root,
       process.argv[3]!,
       Number(process.argv[4]),
       process.argv[5]!,
+      postSign ? "release-publication" : "payload-signing",
     );
     active(deadline);
     return { acknowledgement_retained: true, authority: "none" };
