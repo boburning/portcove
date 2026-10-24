@@ -79,6 +79,32 @@ function attempt(c = candidate(), cp = checkpoint) {
     substantive_repairs: c.substantive_repairs,
   };
 }
+void test("hosted native recovery locator retains original run/attempt/job/check and subject without masquerading as a legacy Check", () => {
+  const c = candidate(),
+    a = attempt(c);
+  a.proof.locators = [{ kind: "native-job", id: "9988:1:501:777", sha256: "7".repeat(64) }];
+  a.evidence_sha256 = releaseCanonicalDigest(a.proof);
+  const history = [{ phase: "building", attempts: [a] }];
+  assert.deepEqual(inspectCandidateStageEvidence(history, c), history);
+  assert.throws(
+    () =>
+      inspectCandidateStageEvidence(
+        [
+          {
+            phase: "building",
+            attempts: [
+              {
+                ...a,
+                proof: { ...a.proof, locators: [{ ...a.proof.locators[0], id: "9988:1:502:777" }] },
+              },
+            ],
+          },
+        ],
+        c,
+      ),
+    /digest/,
+  );
+});
 void test("report repair retains the exact old publisher only after a consumed counter and original promoting proof", () => {
   const old = candidate(),
     current = { ...old, phase: "publishing", transient_retries: 1 };

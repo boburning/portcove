@@ -27,6 +27,7 @@ import { updaterIdentity } from "./updater-artifact-inventory.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
+import { nativeQualificationTransportBinding } from "./release-native-acceptance.mts";
 import { applyReviewedPreviewWithdrawals } from "./release-preview-withdrawals.mts";
 import { validateOpportunity } from "./release-coordinator.mts";
 import { currentApplicationSitePins } from "./release-catalog-metadata-contract.mts";
@@ -191,10 +192,9 @@ type BoundContext = {
     aggregate_sha256: string;
     signatures_sha256: string;
     records_sha256: string;
-    native_checks: { id: number; report_sha256: string }[];
     sbom_sha256: string;
     pending_obligations: readonly string[];
-  };
+  } & ReturnType<typeof nativeQualificationTransportBinding>;
 };
 const contexts = new WeakMap<object, BoundContext>();
 
@@ -465,10 +465,7 @@ export async function prepareReleaseSigningContext(
       })),
     ),
     records_sha256: digest(identities(records)),
-    native_checks: payload.native.map((entry) => ({
-      id: entry.check.id,
-      report_sha256: entry.check.report_sha256,
-    })),
+    ...nativeQualificationTransportBinding(payload.native),
     sbom_sha256: payload.sbom.sha256,
     pending_obligations: [...payload.pending_obligations],
   };

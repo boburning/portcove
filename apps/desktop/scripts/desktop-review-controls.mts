@@ -85,6 +85,15 @@ export async function clickVisible(
   try {
     await waitForEntrance(browser, element);
     await executeBrowserScript(browser, "arguments[0].focus({ preventScroll: true });", element);
+    // Native visibility can reject an offscreen control before WebDriver's
+    // eventual click has a chance to scroll it. Reveal the target first;
+    // hidden/disabled/occluded controls still fail the existing gates below.
+    await executeBrowserScript(
+      browser,
+      (element) =>
+        element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }),
+      element,
+    );
     await browser.wait(until.elementIsVisible(element), 5_000);
     await browser.wait(until.elementIsEnabled(element), 5_000);
     await browser.wait(

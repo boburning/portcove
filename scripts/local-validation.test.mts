@@ -261,6 +261,7 @@ void test("current and deleted test configurations retain full frontend coverage
     "vite.config.ts",
     "apps/desktop/vite.config.ts",
     "scripts/frontend-tests.ts",
+    "scripts/frontend-case-observations.ts",
     "apps/desktop/vitest.config.ts",
     "apps/desktop/vitest.browser.config.ts",
   ]) {

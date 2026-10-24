@@ -1801,6 +1801,7 @@ function classifyOnePath(
       "tsconfig.base.json",
       "apps/desktop/pnpm-workspace.yaml",
       "scripts/browser-traces.ts",
+      "scripts/frontend-case-observations.ts",
       "scripts/viteplus-cli.mts",
       "scripts/frontend-tests.ts",
       "scripts/run-ui-tests.mts",

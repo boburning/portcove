@@ -242,6 +242,9 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "release-preview-withdrawals.json",
   "scripts/release-preview-withdrawals.mts",
   "scripts/release-native-stage-capture.mts",
+  "scripts/release-hosted-native-proof-contract.mts",
+  "scripts/release-hosted-native-acceptance.mts",
+  "scripts/release-hosted-native-admission.mts",
   "scripts/release-native-capture-files.mts",
   "scripts/release-native-linux-report.mts",
   "scripts/release-native-scheduler.mts",
@@ -667,6 +670,7 @@ function classifyPath(file: string): PathOwnership {
         file.startsWith("apps/desktop/src/") ||
         [
           "scripts/browser-traces.ts",
+          "scripts/frontend-case-observations.ts",
           "scripts/viteplus-cli.mts",
           "scripts/frontend-tests.ts",
           "scripts/run-ui-tests.mts",
@@ -882,6 +886,7 @@ function classifyAuditPath(file: string): PathOwnership {
     file.startsWith("apps/desktop/src/") ||
       [
         "scripts/browser-traces.ts",
+        "scripts/frontend-case-observations.ts",
         "scripts/viteplus-cli.mts",
         "scripts/frontend-tests.ts",
         "scripts/run-ui-tests.mts",

@@ -19,6 +19,8 @@ import {
   inspectNativeQualificationAccount,
 } from "./release-native-qualification-contract.mts";
 import type { NativeReleaseQualification } from "./release-native-qualification-contract.mts";
+import { verifiedHostedNativeReleaseQualification } from "./release-hosted-native-acceptance.mts";
+import type { VerifiedHostedNativeQualification } from "./release-hosted-native-acceptance.mts";
 
 const repository = "repos/boburning/portcove";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -60,11 +62,47 @@ type BoundReceipt = {
 };
 const qualifications = new WeakMap<object, BoundReceipt>();
 export type VerifiedNativeReleaseQualification = Readonly<
-  NativeReleaseQualification & {
-    check: { id: number; app_id: number; report_sha256: string; url: string };
-    evidence_ids: readonly string[];
-  }
+  | VerifiedHostedNativeQualification
+  | (NativeReleaseQualification & {
+      check: { id: number; app_id: number; report_sha256: string; url: string };
+      hosted_job?: never;
+      evidence_ids: readonly string[];
+    })
 >;
+
+/** Transport identity only. This serializer never authenticates raw reports;
+ * its owning caller must obtain the private receipt through the getter. */
+export function nativeQualificationTransportIdentity(report: VerifiedNativeReleaseQualification) {
+  if (report.hosted_job)
+    return {
+      transport: "fixed-hosted-job" as const,
+      hosted_job: structuredClone(report.hosted_job),
+      report_sha256: report.hosted_job.report_sha256,
+    };
+  return { check_id: report.check.id, report_sha256: report.check.report_sha256 };
+}
+
+export function nativeQualificationTransportBinding(
+  reports: readonly VerifiedNativeReleaseQualification[],
+) {
+  if (reports.length !== 2 || new Set(reports.map((report) => report.platform_label)).size !== 2)
+    throw new Error("native binding requires the exact platform pair");
+  if (reports.every((report) => report.hosted_job))
+    return {
+      native_proofs: reports.map((report) => ({
+        platform: report.platform_label,
+        ...nativeQualificationTransportIdentity(report),
+      })),
+    };
+  if (reports.some((report) => report.hosted_job))
+    throw new Error("native binding cannot mix transport authorities");
+  return {
+    native_checks: reports.map((report) => {
+      if (!report.check) throw new Error("native legacy Check identity absent");
+      return { id: report.check.id, report_sha256: report.check.report_sha256 };
+    }),
+  };
+}
 function exact(value: unknown, keys: string): asserts value is Record<string, unknown> {
   if (!isRecord(value) || Object.keys(value).sort().join(",") !== keys)
     throw new Error("native qualification expectation schema differs");
@@ -543,6 +581,8 @@ export async function collectNativeReleaseQualification(
 export async function verifiedNativeReleaseQualification(
   receipt: object,
 ): Promise<VerifiedNativeReleaseQualification> {
+  const hosted = await verifiedHostedNativeReleaseQualification(receipt);
+  if (hosted) return hosted;
   const bound = qualifications.get(receipt);
   if (!bound)
     throw new Error("native qualification was not authenticated by this actual provider process");

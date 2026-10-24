@@ -20,7 +20,8 @@ import {
   INSTALL_FIXTURE_PORT_ID,
   INSTALL_REFRESH_FIXTURE_PORT_ID,
 } from "./desktop-install-fixture.mts";
-import { installScenarios } from "./desktop-install-test.mts";
+import { installScenarios, selectInstallTheme } from "./desktop-install-test.mts";
+import { runInNewContext } from "node:vm";
 import {
   assertCompletionCoreParity,
   retainCompletionReport,
@@ -560,6 +561,53 @@ test("held install download cannot outrun delayed conflict and cancellation chec
     await rm(output, { recursive: true, force: true });
   }
 });
+
+for (const theme of ["dark", "light"] as const)
+  test(`staged layouts select the current scoped ${theme} radio through WebDriver`, async () => {
+    const selectors: string[] = [];
+    let clicks = 0;
+    const document = { documentElement: { dataset: { theme: "system" } } };
+    const browser = new WebDriver(new Session(`staged-theme-${theme}`, {}), {
+      execute: async (command) => {
+        const parameters: unknown = command.getParameters();
+        assert.ok(isRecord(parameters));
+        switch (command.getName()) {
+          case "findElement": {
+            assert.equal(typeof parameters.value, "string");
+            const selector = String(parameters.value);
+            const expected = [
+              '//nav//button[contains(., "Settings")]',
+              'nav[aria-label="Settings categories"] button[aria-controls="settings-appearance"]',
+              `//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`,
+            ];
+            assert.equal(selector, expected[selectors.length]);
+            selectors.push(selector);
+            return { ELEMENT: `theme-control-${selectors.length}` };
+          }
+          case "clickElement":
+            clicks++;
+            if (clicks === 3) document.documentElement.dataset.theme = theme;
+            return;
+          case "executeScript": {
+            assert.equal(typeof parameters.script, "string");
+            const result: unknown = runInNewContext(
+              `(function(){${String(parameters.script)}})()`,
+              {
+                document,
+              },
+            );
+            return result;
+          }
+          default:
+            assert.fail(`Unexpected staged theme command: ${command.getName()}`);
+        }
+      },
+    });
+    await selectInstallTheme(browser, theme);
+    assert.equal(selectors.length, 3);
+    assert.equal(clicks, 3);
+    assert.equal(document.documentElement.dataset.theme, theme);
+  });
 
 test("unselected install scenarios do not require an initialized fixture", async () => {
   const registered: string[] = [];
