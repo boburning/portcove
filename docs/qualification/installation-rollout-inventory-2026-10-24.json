@@ -4,9 +4,9 @@
   "owner": "https://github.com/boburning/portcove/issues/2510",
   "status": "IN_PROGRESS; no all-port implementation or delivery completion claim",
   "pickup_source_commit": "cea107d84e80bdd67bd44d4c7c68e0b76d083e4e",
-  "candidate_source_commit": "6b68276ecdc8c452ebc568e175f17fc904de89d1",
+  "candidate_source_commit": "9e9403c64a9e940624ed6e327b9f213f7db174fe",
   "inventory_cutoff": "2026-10-24T03:40:15.396Z",
-  "generated_at": "2026-10-24T16:59:56.593Z",
+  "generated_at": "2026-10-24T17:45:50.166Z",
   "sources": {
     "collector": "scripts/roadmap-inventory.mts collectRoadmapInventory",
     "repository_issues": 918,
@@ -60,12 +60,12 @@
     "final_affected_inventory_reconciliation": "outstanding",
     "release_maintenance": {
       "operational_rules_inventoried": 153,
-      "completed_changes": 6,
-      "remaining_direct_manifest_fit_decisions": 27,
+      "completed_changes": 12,
+      "remaining_direct_manifest_fit_decisions": 21,
       "provider_counts": {
-        "github": 115,
+        "github": 121,
         "gitlab": 2,
-        "direct-manifest": 27,
+        "direct-manifest": 21,
         "user-prepared": 9
       },
       "scope": "Completed changes are per-port evidence, not an all-inventory update or qualification claim."
@@ -13390,6 +13390,20 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "dkc3-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "staged-maintenance-route-preparations.json",
+        "source_revision": "3a033f19801a2bd3abf784d4b29c4462495d19de",
+        "change": "Replaced a changing direct-release snapshot with stable official project/platform/package rules. Preserved the richer original-source materialization, executable, setup, persistence and historical qualification contracts. Known DKC3 startup failure stays bound to its reviewed build; guarded quickstate compatibility and external cache limits remain explicit.",
+        "validation_scope": "Production resolver fixtures use unchanged actual embedded definitions across N to N+1, cache expiry and a fresh provider. Full selected-release assets, official bytes/digests and pinned preparation/data sources were inspected without execution. FZero1.8.4, DKC3.0.0.7 and Bomberman.1.2 successors are synthetic fixtures; later SMW/ALttP/Sonic2 release names were actually observed.",
+        "provider": "github",
+        "repository": "elliotttate/DKC3Recomp",
+        "asset_hints": {
+          "windows-x86-64": ["DKC3Recomp-", "-windows-x64.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged"
       }
     },
     {
@@ -15508,6 +15522,20 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "f-zero-snes-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "staged-maintenance-route-preparations.json",
+        "source_revision": "1686df46d4fc7c22b5dc8fdfaa5282ca4bd78562",
+        "change": "Replaced a changing direct-release snapshot with stable official project/platform/package rules. Preserved the richer original-source materialization, executable, setup, persistence and historical qualification contracts. Known DKC3 startup failure stays bound to its reviewed build; guarded quickstate compatibility and external cache limits remain explicit.",
+        "validation_scope": "Production resolver fixtures use unchanged actual embedded definitions across N to N+1, cache expiry and a fresh provider. Full selected-release assets, official bytes/digests and pinned preparation/data sources were inspected without execution. FZero1.8.4, DKC3.0.0.7 and Bomberman.1.2 successors are synthetic fixtures; later SMW/ALttP/Sonic2 release names were actually observed.",
+        "provider": "github",
+        "repository": "mstan/FZeroSNESRecomp",
+        "asset_hints": {
+          "windows-x86-64": ["FZeroSNESRecomp-", "-windows-x64.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged"
       }
     },
     {
@@ -30878,6 +30906,20 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "sonic-the-hedgehog-2-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "staged-maintenance-route-preparations.json",
+        "source_revision": "177c8ca60abff1427e2e8a06a8ae267e61046ec5",
+        "change": "Replaced a changing direct-release snapshot with stable official project/platform/package rules. Preserved the richer original-source materialization, executable, setup, persistence and historical qualification contracts. Known DKC3 startup failure stays bound to its reviewed build; guarded quickstate compatibility and external cache limits remain explicit.",
+        "validation_scope": "Production resolver fixtures use unchanged actual embedded definitions across N to N+1, cache expiry and a fresh provider. Full selected-release assets, official bytes/digests and pinned preparation/data sources were inspected without execution. FZero1.8.4, DKC3.0.0.7 and Bomberman.1.2 successors are synthetic fixtures; later SMW/ALttP/Sonic2 release names were actually observed.",
+        "provider": "github",
+        "repository": "mstan/SonicTheHedgehog2Recomp",
+        "asset_hints": {
+          "windows-x86-64": ["SonicTheHedgehog2Recomp-windows-x64-", ".zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged"
       }
     },
     {
@@ -32944,6 +32986,20 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "super-bomberman-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "staged-maintenance-route-preparations.json",
+        "source_revision": "56106599c1fb2f612fd642ee37c0e015611fc31d",
+        "change": "Replaced a changing direct-release snapshot with stable official project/platform/package rules. Preserved the richer original-source materialization, executable, setup, persistence and historical qualification contracts. Known DKC3 startup failure stays bound to its reviewed build; guarded quickstate compatibility and external cache limits remain explicit.",
+        "validation_scope": "Production resolver fixtures use unchanged actual embedded definitions across N to N+1, cache expiry and a fresh provider. Full selected-release assets, official bytes/digests and pinned preparation/data sources were inspected without execution. FZero1.8.4, DKC3.0.0.7 and Bomberman.1.2 successors are synthetic fixtures; later SMW/ALttP/Sonic2 release names were actually observed.",
+        "provider": "github",
+        "repository": "elliotttate/BombermanRecomp",
+        "asset_hints": {
+          "windows-x86-64": ["BombermanRecomp-windows-x64-", ".zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged"
       }
     },
     {
@@ -33561,6 +33617,20 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "super-mario-world-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "staged-maintenance-route-preparations.json",
+        "source_revision": "6ecfaf99019cb03825ff361f48dd30839e075895",
+        "change": "Replaced a changing direct-release snapshot with stable official project/platform/package rules. Preserved the richer original-source materialization, executable, setup, persistence and historical qualification contracts. Known DKC3 startup failure stays bound to its reviewed build; guarded quickstate compatibility and external cache limits remain explicit.",
+        "validation_scope": "Production resolver fixtures use unchanged actual embedded definitions across N to N+1, cache expiry and a fresh provider. Full selected-release assets, official bytes/digests and pinned preparation/data sources were inspected without execution. FZero1.8.4, DKC3.0.0.7 and Bomberman.1.2 successors are synthetic fixtures; later SMW/ALttP/Sonic2 release names were actually observed.",
+        "provider": "github",
+        "repository": "mstan/SuperMarioWorldRecomp",
+        "asset_hints": {
+          "windows-x86-64": ["SuperMarioWorldRecomp-windows-x64-", ".zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged"
       }
     },
     {
@@ -34611,6 +34681,20 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "staged-maintenance-route-preparations.json",
+        "source_revision": "453598ea1187ea441c96659cf88df098c11b11d3",
+        "change": "Replaced a changing direct-release snapshot with stable official project/platform/package rules. Preserved the richer original-source materialization, executable, setup, persistence and historical qualification contracts. Known DKC3 startup failure stays bound to its reviewed build; guarded quickstate compatibility and external cache limits remain explicit.",
+        "validation_scope": "Production resolver fixtures use unchanged actual embedded definitions across N to N+1, cache expiry and a fresh provider. Full selected-release assets, official bytes/digests and pinned preparation/data sources were inspected without execution. FZero1.8.4, DKC3.0.0.7 and Bomberman.1.2 successors are synthetic fixtures; later SMW/ALttP/Sonic2 release names were actually observed.",
+        "provider": "github",
+        "repository": "mstan/ZeldaAlttPSNESRecomp",
+        "asset_hints": {
+          "windows-x86-64": ["ZeldaALttPSNESRecomp-windows-x64-", ".zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged"
       }
     },
     {
@@ -38968,7 +39052,7 @@
       }
     }
   ],
-  "candidate_authored_records_sha256": "e2813ef1b61a03d5604c852d33a946f380fdd00bd76a3cc06b91248f35e6e150",
+  "candidate_authored_records_sha256": "fbf35ac455c522dfc1d0c3bf1654fde434494cf02e2a8159f5d18f4be97d2dd9",
   "reference_sources": [
     {
       "name": "Quiver",
