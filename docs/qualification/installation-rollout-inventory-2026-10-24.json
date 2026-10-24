@@ -4,9 +4,9 @@
   "owner": "https://github.com/boburning/portcove/issues/2510",
   "status": "IN_PROGRESS; no all-port implementation or delivery completion claim",
   "pickup_source_commit": "cea107d84e80bdd67bd44d4c7c68e0b76d083e4e",
-  "candidate_source_commit": "d065785a85d774f282314ec26a252c39c43874a1",
+  "candidate_source_commit": "482f09b824526c7e4c214a3e2c483dd74b37a204",
   "inventory_cutoff": "2026-10-24T03:40:15.396Z",
-  "generated_at": "2026-10-24T11:57:34.798Z",
+  "generated_at": "2026-10-24T12:32:38.909Z",
   "sources": {
     "collector": "scripts/roadmap-inventory.mts collectRoadmapInventory",
     "repository_issues": 918,
@@ -33,13 +33,13 @@
   },
   "coverage": {
     "distinct_ports": 524,
-    "operational_definitions": 151,
-    "listing_only": 373,
+    "operational_definitions": 152,
+    "listing_only": 372,
     "dispositions": {
       "retain-existing-route": 115,
-      "improve-upstream-setup": 89,
-      "unresolved-fit": 246,
-      "add-managed-portable": 36,
+      "improve-upstream-setup": 90,
+      "unresolved-fit": 244,
+      "add-managed-portable": 37,
       "upstream-source-setup-with-nonowning-existing-player": 14,
       "upstream-setup-with-no-published-github-player-package": 1,
       "retain-managed-acquisition-permission-limit": 5,
@@ -333,7 +333,9 @@
         "native_target": "sole archive member ac6recomp.exe PE8664"
       },
       "reviewed_platform_limits": "Only Windows x64 archive admitted. Upstream requires Windows10/11, AVX2 and D3D12-capable GPU and describes experimental rendering/performance limits. No Linux/macOS, oldest-system, gameplay or real-save claim.",
-      "reviewed_rights_boundary": "Pinned project BSD3 and vendored ReXGlue/Xenia BSD3 grants; selected dependencies carry their own grants, including ImGui/ProggyTiny MIT (FONTS.md), SDL zlib, FFmpeg/libmspack LGPL and SDK component notices. Optional msgothic is read from the local Windows Fonts directory, not bundled in the one-member package. Upstream source excludes original game/DLC/title-update inputs. Source/component/package review does not independently clear retail content redistribution."
+      "reviewed_rights_boundary": "Pinned project BSD3 and vendored ReXGlue/Xenia BSD3 grants; selected dependencies carry their own grants, including ImGui/ProggyTiny MIT (FONTS.md), SDL zlib, FFmpeg/libmspack LGPL and SDK component notices. Optional msgothic is read from the local Windows Fonts directory, not bundled in the one-member package. Upstream source excludes original game/DLC/title-update inputs. Source/component/package review does not independently clear retail content redistribution.",
+      "selected_route_release": "v1.0.0-beta.2",
+      "reconsideration_condition": null
     },
     {
       "id": "ace-combat-x-skies-of-deception-ace-combat-x-recompilation",
@@ -423,7 +425,8 @@
         "observation": "2026-10-24T03:37:57.953Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "source-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "Windows",
@@ -441,7 +444,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "aerogauge-recompiled",
@@ -6845,7 +6850,8 @@
         "observation": "2026-10-24T03:38:31.622Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "publication-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "upstream-setup-with-no-published-github-player-package",
@@ -6863,7 +6869,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "aureliob-banjorecomp-android",
@@ -7158,7 +7166,9 @@
         "native_target": "BanjoTooieScurvyDogPort.exe PE8664; exact package manifest binds reviewed source and baseline build"
       },
       "reviewed_platform_limits": "Windows x64 official package only. Upstream alpha has documented rendering/aspect/shadow/animation/lost-focus limitations and no full-game completion observation. Experimental texture replacements only; code mods and ROM patches unsupported. Missing DLL uses explicit upstream Microsoft x64 runtime handoff, no helper execution.",
-      "reviewed_rights_boundary": "Packaged GPL3/project and N64ModernRuntime GPL3 plus RT64/dependencies MIT and font OFL notices reviewed. Baseline CMake excludes legacy frontend translation units. The selected devices.cpp adapter references RecompFrontend wiring; independent comparison found conventional public RT64 API/register call sequences and no substantive copied frontend implementation identified. Earlier snippet concern withdrawn; this is not proof of historical independent authorship or a verbatim permissive example. Existing distinct Banjo identities/rights cases stay separate."
+      "reviewed_rights_boundary": "Packaged GPL3/project and N64ModernRuntime GPL3 plus RT64/dependencies MIT and font OFL notices reviewed. Baseline CMake excludes legacy frontend translation units. The selected devices.cpp adapter references RecompFrontend wiring; independent comparison found conventional public RT64 API/register call sequences and no substantive copied frontend implementation identified. Earlier snippet concern withdrawn; this is not proof of historical independent authorship or a verbatim permissive example. Existing distinct Banjo identities/rights cases stay separate.",
+      "selected_route_release": "v0.1.0-alpha.4.3",
+      "reconsideration_condition": null
     },
     {
       "id": "battleship",
@@ -7782,7 +7792,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": "Attributable compatible grant/replacement for the linked RecompFrontend and any separately named package font; independently review the exact operation basis before enabling managed acquisition."
     },
     {
       "id": "bomberman-fantasy-race-recompiled",
@@ -8272,7 +8284,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": "v1.8.0",
+      "reconsideration_condition": null
     },
     {
       "id": "c7-game-openciv3",
@@ -8342,7 +8356,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": "v0.3-dutch-preview-1",
+      "reconsideration_condition": "Fresh acquisition is unavailable while permission for the package’s separately credited placeholder assets remains unresolved. The code’s MIT license does not license the Assets bundle, whose README says it is not licensed. Keep an existing permitted copy. Reconsider when the selected package has attributable compatible asset grants or omits those assets."
     },
     {
       "id": "call-of-duty-modern-warfare-2-xbox-360-recompiled",
@@ -8458,7 +8474,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": "1.04",
+      "reconsideration_condition": "Fresh download is unavailable because the reviewed CannonBallDX_1.04.zip includes an OutRun ROM archive whose redistribution permission has not been established. Use an existing permitted copy. Reconsider acquisition when upstream offers an asset-free player package or an attributable permission basis for the included game data."
     },
     {
       "id": "cannonball-outrun",
@@ -8620,7 +8638,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": "Attributable compatible grant/replacement for the linked RecompFrontend and any separately named package font; independently review the exact operation basis before enabling managed acquisition."
     },
     {
       "id": "cdlewis-snowboardkids-recomp",
@@ -8690,7 +8710,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": "Establish attributable permission for linked cdlewis/RecompFrontend fa4f0ca42ba2efaca631203ef1e0753f2be78985, or a compatible replacement. The parent GPL license does not itself establish the separate frontend grant."
     },
     {
       "id": "chameleon-twist-recompiled",
@@ -8817,7 +8839,7 @@
       "pickup_route": "listing-only",
       "selected_route": "title-specific upstream setup / permitted prepared external player",
       "disposition": "improve-upstream-Apple-setup-and-retain-bundle-ownership",
-      "update_owner": "player/upstream; no managed replacement or destructive data authority",
+      "update_owner": "player/upstream",
       "setup_data": {
         "instructions": [
           {
@@ -8850,7 +8872,8 @@
         "observation": "2026-10-24T03:38:47.549Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "apple-handoff-assessments.json",
-        "source_revision": "bff8c583266ba59f1143a7a812395ae6b59b1160"
+        "source_revision": "bff8c583266ba59f1143a7a812395ae6b59b1160",
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "Current Apple Silicon Mac route is an owner-run PadMint/Xcode build with own PAL RMCP01r0 disc and first-launch selected data. Current Android APK/self-updater is distinct; historical v0.7.13 Mac ZIP is authenticated by published SHA-256 and contains an arm64 Mach-O app bundle, signed resources and symlinks. This does not fit native-portable bundle handling. Current guide explicitly retains historical Mac releases without updates. External Application Support and Retro Rewind sibling saves remain player-owned.",
@@ -8868,7 +8891,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "citrongames-dora64",
@@ -9462,7 +9487,7 @@
       "pickup_route": "listing-only",
       "selected_route": "title-specific upstream setup / permitted prepared external player",
       "disposition": "improve-upstream-download-recommendation",
-      "update_owner": "player/upstream; no managed replacement or destructive data authority",
+      "update_owner": "player/upstream",
       "setup_data": {
         "instructions": [
           {
@@ -9491,7 +9516,8 @@
         "observation": "2026-10-24T03:38:50.717Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "download-hint-assessments.json",
-        "source_revision": "a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379"
+        "source_revision": "a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379",
+        "reviewed_sources": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/v3.15.1/README.md"
       },
       "selected_artifact": {
         "release": "v3.15.1",
@@ -9518,7 +9544,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": "v3.15.1",
+      "reconsideration_condition": null
     },
     {
       "id": "dahsidiabdallah-conkerbfdreloaded",
@@ -9588,7 +9616,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": "Attributable compatible grant/replacement for the linked RecompFrontend and any separately named package font; independently review the exact operation basis before enabling managed acquisition."
     },
     {
       "id": "danielgomesvieira2000-beetle-adventure-racing-recomp",
@@ -9658,7 +9688,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": "Attributable compatible grant/replacement for the linked RecompFrontend and any separately named package font; independently review the exact operation basis before enabling managed acquisition."
     },
     {
       "id": "dante-s-inferno-hells-gate-recomp",
@@ -10024,7 +10056,8 @@
         "observation": "2026-10-24T03:38:53.222Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "source-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "upstream source-build targets",
@@ -10042,7 +10075,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "derrickgold-ar-recomp",
@@ -10591,7 +10626,7 @@
       "pickup_route": "listing-only",
       "selected_route": "title-specific upstream setup / permitted prepared external player",
       "disposition": "improve-upstream-owned-classic-player-handoff",
-      "update_owner": "player/upstream; no managed replacement or destructive data authority",
+      "update_owner": "player/upstream",
       "setup_data": {
         "instructions": [
           {
@@ -10624,7 +10659,8 @@
         "observation": "2026-10-24T03:38:57.120Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "classic-handoff2-assessments.json",
-        "source_revision": "392c7ebdbbd6da6e9596ac769edb4353a01dca5f"
+        "source_revision": "392c7ebdbbd6da6e9596ac769edb4353a01dca5f",
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "Official selected release offers a complete 7z, outside the native-portable ZIP/tar.gz/tgz archive contract. Maintained wiki explicitly imports supported original files through the launcher, and release notes identify upstream launcher update behavior. Keep upstream runtime ownership; Windows web-installer and manual 7z routes are distinct, patches alone insufficient. Source maps saves/settings to runtime save/ and screenshots to scrshots/. No package contents, installer or runtime execution qualification is claimed.",
@@ -10644,7 +10680,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "dkr-r",
@@ -10768,7 +10806,7 @@
       "pickup_route": "listing-only",
       "selected_route": "title-specific upstream setup / permitted prepared external player",
       "disposition": "improve-upstream-download-recommendation",
-      "update_owner": "player/upstream; no managed replacement or destructive data authority",
+      "update_owner": "player/upstream",
       "setup_data": {
         "instructions": [
           {
@@ -10797,7 +10835,8 @@
         "observation": "2026-10-24T03:38:57.720Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "download-hint-assessments.json",
-        "source_revision": "a979bcf9e741dee7546194d2e87c29f361d18c72"
+        "source_revision": "a979bcf9e741dee7546194d2e87c29f361d18c72",
+        "reviewed_sources": "https://github.com/Erick194/DoomIIRPG-RE"
       },
       "selected_artifact": {
         "release": "v.0.1",
@@ -10824,7 +10863,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": "v.0.1",
+      "reconsideration_condition": null
     },
     {
       "id": "doom-rpg-doomrpg-re",
@@ -10839,7 +10880,7 @@
       "pickup_route": "listing-only",
       "selected_route": "title-specific upstream setup / permitted prepared external player",
       "disposition": "improve-upstream-download-recommendation",
-      "update_owner": "player/upstream; no managed replacement or destructive data authority",
+      "update_owner": "player/upstream",
       "setup_data": {
         "instructions": [
           {
@@ -10868,7 +10909,8 @@
         "observation": "2026-10-24T03:38:57.971Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "download-hint-assessments.json",
-        "source_revision": "fb8e9deb7b7f6e6fa2632daf4bd79133978482da"
+        "source_revision": "fb8e9deb7b7f6e6fa2632daf4bd79133978482da",
+        "reviewed_sources": "https://github.com/Erick194/DoomRPG-RE"
       },
       "selected_artifact": {
         "release": "v.0.2.2",
@@ -10895,7 +10937,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": "v.0.2.2",
+      "reconsideration_condition": null
     },
     {
       "id": "doukutsu-rs-doukutsu-rs",
@@ -10910,7 +10954,7 @@
       "pickup_route": "listing-only",
       "selected_route": "title-specific upstream setup / permitted prepared external player",
       "disposition": "improve-upstream-owned-classic-player-handoff",
-      "update_owner": "player/upstream; no managed replacement or destructive data authority",
+      "update_owner": "player/upstream",
       "setup_data": {
         "instructions": [
           {
@@ -10943,7 +10987,8 @@
         "observation": "2026-10-24T03:38:58.277Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "classic-handoff2-assessments.json",
-        "source_revision": "8d85b0f69fd5a293a32f5d632f83ce6a0759cf7c"
+        "source_revision": "8d85b0f69fd5a293a32f5d632f83ce6a0759cf7c",
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "Selected Windows x64 artifact is a bare PE executable, Linux is a standalone ELF, and both exact Mac ZIPs are signed app bundles. These forms do not fit the existing native-portable ZIP/tar runtime contract without adding raw-file/bundle semantics. Use the useful non-owning route; no new engine required. Freeware first launch extracts data from the original executable; supported CS+ data is separate. ProjectDirs local user data versus sibling user portable mode is source-grounded; original/remaster save formats are incompatible.",
@@ -10970,7 +11015,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "dr-mario-64-recomp",
@@ -12984,7 +13031,8 @@
         "observation": "2026-10-24T03:39:07.320Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "source-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "Windows x64 source target",
@@ -13002,7 +13050,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "goemon64-recomp",
@@ -13707,7 +13757,9 @@
         }
       ],
       "reviewed_platform_limits": "Upstream requirements remain claims: Windows10/11 x64; recent Linux x64 Debian13/Ubuntu24.04+, Vulkan driver (Windows offers D3D12). ELF dynamic inspection found needed libc.so.6/libm.so.6/libSDL3.so.0 and $ORIGIN RUNPATH. Other upstream Mac ARM bundles, ARM Linux and mobile packages retain platform-specific manual alternatives; their bundle/mobile handling is not granted by Windows/Linux archive inspection.",
-      "reviewed_rights_boundary": "Pinned MIT scope covers project source/scripts/docs and expressly excludes Sony IP, discs and assets. Reviewed third-party manifest/source notices identify SDL3 zlib, volk MIT, Vulkan headers MIT choice, libmpeg2 Apache2, libchdr/BSD and compatible decoder grants, miniz MIT, stb MIT choice, minicoro MIT0/Unlicense, and Arimo/Noto OFL fonts. Native packages include LICENSE and NOTICES. No retail assets are supplied or copied by this metadata change. This is scoped source/component/package review, not independent game-content redistribution clearance."
+      "reviewed_rights_boundary": "Pinned MIT scope covers project source/scripts/docs and expressly excludes Sony IP, discs and assets. Reviewed third-party manifest/source notices identify SDL3 zlib, volk MIT, Vulkan headers MIT choice, libmpeg2 Apache2, libchdr/BSD and compatible decoder grants, miniz MIT, stb MIT choice, minicoro MIT0/Unlicense, and Arimo/Noto OFL fonts. Native packages include LICENSE and NOTICES. No retail assets are supplied or copied by this metadata change. This is scoped source/component/package review, not independent game-content redistribution clearance.",
+      "selected_route_release": "v0.8.5",
+      "reconsideration_condition": null
     },
     {
       "id": "igawa6-dualsouls",
@@ -13856,17 +13908,45 @@
         "body_sha256_at_cutoff": "a8ee3e0ff4b92377fe5ddb10002ce442b402f9c789e3710d643711555df1d180"
       },
       "duplicates": [],
-      "platform_scope": [],
+      "platform_scope": ["windows-x86-64"],
       "pickup_route": "listing-only",
-      "selected_route": "existing discovery/non-owning route; managed fit under review",
-      "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement promise",
+      "selected_route": "native-portable",
+      "disposition": "add-managed-portable",
+      "update_owner": "Portcove replaces the offered runtime; no self-updater identified in reviewed source. Existing/older/customized copies remain player/upstream-owned.",
       "setup_data": {
-        "instructions": null,
+        "instructions": [
+          {
+            "title": "Add your own Descent 3 data before Play",
+            "instruction": "Before Play, open the new runtime folder and copy only the original data from your own patched Descent 3 1.4 installation: d3.hog, extra.hog, extra13.hog, and missions/d3.mn3, d3_2.mn3, d3voice1.hog, d3voice2.hog and training.mn3. Keep the old installation intact. Add merc.hog and missions/merc.mn3 only if you own Mercenary; the upstream also recognizes the Steam extra1.hog expansion layout. For multiplayer, follow the packaged README for your own netgames directory and missions/Fury.mn3 and bedlam.mn3; movies are optional. Do not copy old top-level executables or DLLs over this runtime. Then choose Play. This ZIP has no installer; Portcove does not verify a retail-edition checksum for this upstream setup route."
+          },
+          {
+            "title": "Keep a separate backup of your Saved Games profile",
+            "instruction": "Normal saves, pilots, demos, screenshots and temporary scripts use Windows Saved Games/Piccu Engine. The SDL configuration is Saved Games/Piccu Engine/PiccuEngine.registry, including when portable mode is used. Back up that external profile separately before changing runtime versions; older versions may not read newer data. Keep your original HOG files, missions, netgames and movies available separately too."
+          },
+          {
+            "title": "Keep customized copies separate",
+            "instruction": "Adding piccu_portable, custom -setdir/-tempdir arguments or failure to resolve Saved Games can place player data and generated DLL caches in the runtime folder. An early startup crash can also leave a dump beside the player. Close the game and preserve your actual player-data locations before changing a customized copy. Do not copy generated script caches into another engine version; follow upstream instructions when changing storage modes."
+          },
+          {
+            "title": "Choose this Preview deliberately",
+            "instruction": "This optional Windows Preview is the upstream SDL prototype, with fixes for pilot-control loading and input issues. Some settings do not import from older Piccu versions, and switching fullscreen/windowed can show a stray cursor. The stable v1.2.2 upstream copy remains available through the release list or an existing installation; it has separate known control issues. The player is Win32 and can run on 64-bit Windows through Windows compatibility support. Other platforms, gameplay, minimum Windows versions and populated-save restoration are not qualified here."
+          }
+        ],
         "source_profiles": [],
-        "declared_paths": [],
+        "declared_paths": [
+          "d3.hog",
+          "extra.hog",
+          "extra1.hog",
+          "extra13.hog",
+          "merc.hog",
+          "missions",
+          "netgames",
+          "movies"
+        ],
         "declared_patterns": [],
-        "details_record": "crates/portcove-core/catalog/ports/insanitybringer-piccuengine.json"
+        "details_record": "crates/portcove-core/catalog/ports/insanitybringer-piccuengine.json",
+        "reviewed_boundary": "Own patched Descent3 1.4 original HOG/mission data copied into a separate runtime before explicit Play. Copy only listed data, never blanket-import old top-level binaries. Normal pilots/saves/demos/screenshots/temp DLL extraction use external Saved Games/Piccu Engine. SDL config is external Saved Games/Piccu Engine/PiccuEngine.registry even in portable mode. Portcove backup does not cover that profile. Runtime rollback keeps current declared originals and does not rewind external data.",
+        "persistence_evidence": "docs/readme.md specifies originals/optional expansion/multiplayer/movie copies; init.cpp reads Steam extra1.hog too, uses User_directory/custom/cache for generated scripts; OsirisLoadandBind.cpp extracts to that temporary location and removes those scripts; sdldatabase.cpp fixes registry location to Saved Games. Do not declare generated cache as transferable player data."
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/InsanityBringer/PiccuEngine",
@@ -13876,7 +13956,19 @@
         "guide_ref": "v1.2.2",
         "guide_blob_sha": "6ba35c4016be6f3789c9ea783500238e6db26068",
         "observation": "2026-10-24T03:39:10.912Z",
-        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately"
+        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
+        "assessment_file": "group6-assessments.json",
+        "source_revision": "b8fb3dcfa8799baf9cdf895c7f9b5376c9d95c78",
+        "reviewed_sources": [
+          "https://github.com/InsanityBringer/PiccuEngine/releases/tag/v1.3.0-proto4",
+          "https://github.com/InsanityBringer/PiccuEngine/releases/tag/v1.2.2",
+          "https://github.com/InsanityBringer/PiccuEngine/blob/b8fb3dcfa8799baf9cdf895c7f9b5376c9d95c78/docs/readme.md",
+          "https://github.com/InsanityBringer/PiccuEngine/blob/b8fb3dcfa8799baf9cdf895c7f9b5376c9d95c78/Descent3/init.cpp",
+          "https://github.com/InsanityBringer/PiccuEngine/blob/b8fb3dcfa8799baf9cdf895c7f9b5376c9d95c78/Descent3/OsirisLoadandBind.cpp",
+          "https://github.com/InsanityBringer/PiccuEngine/blob/b8fb3dcfa8799baf9cdf895c7f9b5376c9d95c78/sdl/sdldatabase.cpp",
+          "https://github.com/InsanityBringer/PiccuEngine/blob/b8fb3dcfa8799baf9cdf895c7f9b5376c9d95c78/lib/enginebrand.h",
+          "https://github.com/InsanityBringer/PiccuEngine/blob/b8fb3dcfa8799baf9cdf895c7f9b5376c9d95c78/ddio_win/windebug.cpp"
+        ]
       },
       "selected_artifact": {
         "release": "v1.3.0-proto4",
@@ -13884,21 +13976,32 @@
         "url": "https://github.com/InsanityBringer/PiccuEngine/releases/download/v1.3.0-proto4/PiccuEngine-v1.3.0-proto4-25072025-win32.zip",
         "independently_expected": "00288bfe4dce2ce5ec86f7e85c9373000bafafc8c3e27add6e155ae2b2fe71e1",
         "observed_sha256": "00288bfe4dce2ce5ec86f7e85c9373000bafafc8c3e27add6e155ae2b2fe71e1",
-        "scope": "read-only bytes/layout research or external handoff; observed hash alone is not acceptance"
+        "scope": "reviewed native archive contract; execution scope recorded separately"
       },
-      "reason": "Fit decision remains unfinished; Unknown is not unsupported.",
+      "reason": "Offer a clearly identified managed Windows Preview with actual upstream setup, default external profile boundary and stable-copy alternative. Preserve the declared original-data paths; never preserve temporary DLL caches as runtime/player authority.",
       "validation_scope": {
-        "scope": "Primary-source retrieval and inventory join only; route-fit validation unfinished."
+        "scope": "Reviewed pinned source, independent publisher digest and bounded read-only archive/header inspection; maintained format-2 Core proposal/listing validation. Independent non-writing fit review. No executable/helper/original input/game execution; no packaged Desktop or real-save qualification."
       },
-      "delivery_status": "unfinished assessment/implementation",
-      "affected_operation": "managed installation/update and supported setup route selection",
-      "next_action": "Establish the exact executable, supported setup/data boundary and runtime replacement owner from https://github.com/InsanityBringer/PiccuEngine/blob/v1.2.2/README.md; inspect observed PiccuEngine-v1.2.2-12092024-win32.zip. Then implement every fitting existing-capability change or retain a specifically evidenced limitation. No new product deferral is assigned.",
+      "delivery_status": "implemented in local candidate; unmerged",
+      "affected_operation": null,
+      "next_action": null,
       "acquisition_restriction": null,
-      "assessed_platform_scope": null,
+      "assessed_platform_scope": ["windows-x86-64"],
       "download_recommendation": {
-        "channel": "stable",
-        "asset_hints": {}
-      }
+        "channel": "beta",
+        "asset_hints": {
+          "windows-x86-64": ["PiccuEngine-", "-win32.zip"]
+        }
+      },
+      "reviewed_artifacts": {
+        "name": "PiccuEngine-v1.3.0-proto4-25072025-win32.zip",
+        "expected_and_observed_sha256": "00288bfe4dce2ce5ec86f7e85c9373000bafafc8c3e27add6e155ae2b2fe71e1",
+        "native_target": "sole player PiccuEngine.exe PE014c; DLLs/connectors remain authenticated package companions"
+      },
+      "selected_route_release": "v1.3.0-proto4",
+      "reconsideration_condition": null,
+      "reviewed_platform_limits": "Win32 native header on Windows x64 compatibility scope only. Preview fixes pilot-control loading/input versus stable but has settings-import/fullscreen issues. Portable/custom paths and SavedGames lookup failure can put data/generated caches in runtime and trigger existing unknown-addition preservation holds; early startup dump can do the same. No automatic migration or blanket portable-save guarantee. No gameplay/minimumOS/other-platform observations.",
+      "reviewed_rights_boundary": "GPL3+ selected engine/source/package; source OpenAL LibraryGPL2 notice and ordinary bundled SDL dependency; no concrete ungranted component found. Original retail files remain separate user inputs."
     },
     {
       "id": "interkarma-daggerfall-unity",
@@ -14792,7 +14895,8 @@
         "observation": "2026-10-24T03:39:15.178Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "source-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "upstream source-build targets",
@@ -14810,7 +14914,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "kirby-letsgo-oracles-decomp",
@@ -15520,7 +15626,7 @@
       "pickup_route": "listing-only",
       "selected_route": "title-specific upstream setup / permitted prepared external player",
       "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement or destructive data authority",
+      "update_owner": "player/upstream",
       "setup_data": {
         "instructions": [
           {
@@ -15553,7 +15659,8 @@
         "observation": "2026-10-24T03:39:18.552Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "download-hint-assessments.json",
-        "source_revision": "fa7807f2db852773313c9840f44bab33a3314352"
+        "source_revision": "fa7807f2db852773313c9840f44bab33a3314352",
+        "reviewed_sources": "https://github.com/LostArtefacts/TRX/blob/trx-1.11.1/docs/trx/INSTALLING.md"
       },
       "selected_artifact": {
         "release": "trx-1.11.1",
@@ -15580,7 +15687,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": "trx-1.11.1",
+      "reconsideration_condition": null
     },
     {
       "id": "m-x-d-heretic2r",
@@ -16642,7 +16751,8 @@
         "observation": "2026-10-24T03:39:22.962Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "source-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "upstream source-build targets",
@@ -16660,7 +16770,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "metroid-prime-hunters-metroidprimehuntersrecomp",
@@ -16851,7 +16963,8 @@
         "observation": "2026-10-24T03:39:23.899Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "source-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "Windows source target",
@@ -16869,7 +16982,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "moshferatu-zombies-ate-my-neighbors-pc-port",
@@ -18692,7 +18807,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": "Attributable compatible original-code permission for the offered use; optional GT1 merging separately accepted under #743. Complete empty GitHub release history also leaves no selected player archive."
     },
     {
       "id": "openjkdf2-jedi-knight-dark-forces-ii",
@@ -18707,7 +18824,7 @@
       "pickup_route": "listing-only",
       "selected_route": "title-specific upstream setup / permitted prepared external player",
       "disposition": "improve-upstream-download-recommendation",
-      "update_owner": "player/upstream; no managed replacement or destructive data authority",
+      "update_owner": "player/upstream",
       "setup_data": {
         "instructions": [
           {
@@ -18736,7 +18853,8 @@
         "observation": "2026-10-24T03:39:33.149Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "download-hint-assessments.json",
-        "source_revision": "814b684c0d06bbfc6e1121941fc8a9e88e3aede7"
+        "source_revision": "814b684c0d06bbfc6e1121941fc8a9e88e3aede7",
+        "reviewed_sources": "https://github.com/shinyquagsire23/OpenJKDF2/blob/v0.9.9/README.md"
       },
       "selected_artifact": {
         "release": "v0.9.9",
@@ -18763,7 +18881,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": "v0.9.9",
+      "reconsideration_condition": null
     },
     {
       "id": "openloco-openloco",
@@ -18879,27 +18999,52 @@
         "body_sha256_at_cutoff": "8d8c17812b3693408223116c953b0ccfca83de214b96a4e2233abb5ce91aec55"
       },
       "duplicates": [],
-      "platform_scope": [],
+      "platform_scope": ["windows-x86-64", "linux-x86-64", "macos-aarch64", "macos-x86-64"],
       "pickup_route": "listing-only",
-      "selected_route": "existing discovery/non-owning route; managed fit under review",
-      "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement promise",
+      "selected_route": "stable Windows x64 portable ZIP recommendation and explicit choice among three different game players; upstream installer/AppImage/DMG preparation and non-owning registration retained",
+      "disposition": "improve-upstream-setup",
+      "update_owner": "OpenRA/player; no managed runtime Update/Backup/Rollback promise",
       "setup_data": {
-        "instructions": null,
+        "instructions": [
+          {
+            "title": "Choose the game you want to play",
+            "instruction": "For 64-bit Windows, use the official stable portable ZIP in a separate folder. It contains three different players: RedAlert.exe for Red Alert, TiberianDawn.exe for Tiberian Dawn, and Dune2000.exe for Dune 2000. Choose that game executable when finishing setup; OpenRA.Server and OpenRA.Utility are not the normal players. Portcove leaves this choice to you and does not run a discovered helper. Alternatively use the upstream Windows installer, the game-specific Linux AppImage, or the macOS disk image, then register the prepared player. An AppImage or disk image needs its own upstream platform instructions, not ZIP extraction."
+          },
+          {
+            "title": "Let your chosen game finish its own content setup",
+            "instruction": "Choose Play explicitly, then follow that player’s content installation screen. It can offer upstream downloads or import from your own original game media; available content differs between Red Alert, Tiberian Dawn and Dune 2000. Portcove does not run these content tools during discovery or supply original media."
+          },
+          {
+            "title": "Keep the OpenRA profile and current copy",
+            "instruction": "Updates come from OpenRA. Install a new release separately and keep your current copy usable while checking it; stable releases and playtests are different choices. Saves, settings, downloaded content, maps, replays and screenshots normally use %APPDATA%/OpenRA on Windows, ~/.config/openra on Linux, or ~/Library/Application Support/OpenRA on macOS. An existing legacy profile may be reused. A Support directory beside the engine, or an explicit support-directory setting, changes this location. Back up the profile you actually use separately; Portcove does not manage this runtime or promise Backup/Rollback for it. An older engine may not read newer saves/mods. Custom mods use their own matching engine/runtime instructions."
+          }
+        ],
         "source_profiles": [],
         "declared_paths": [],
         "declared_patterns": [],
-        "details_record": "crates/portcove-core/catalog/ports/openra-openra.json"
+        "details_record": "crates/portcove-core/catalog/ports/openra-openra.json",
+        "reviewed_boundary": "Explicit Play launches the chosen game's own content-install screen. Original media or optional upstream downloads stay under upstream consent; discovery runs nothing. Default profile AppData/OpenRA, Linux .config/openra, macOS Library/Application Support/OpenRA; existing legacy fallback and sibling Support/custom override can change actual location. Back up the actual profile separately; engine/mod/version compatibility is upstream-owned.",
+        "persistence_evidence": null
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/OpenRA/OpenRA",
         "observed_repository": "OpenRA/OpenRA",
         "repository_node_id": "MDEwOlJlcG9zaXRvcnk5NTk5MDg=",
-        "guide_url": "https://github.com/OpenRA/OpenRA/blob/release-20250330/README.md",
+        "guide_url": "https://github.com/OpenRA/OpenRA/blob/release-20250330/INSTALL.md",
         "guide_ref": "release-20250330",
         "guide_blob_sha": "a40d3d917e41e330517c8d3aba7b881708c36ebe",
         "observation": "2026-10-24T03:39:33.604Z",
-        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately"
+        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
+        "assessment_file": "group6-assessments.json",
+        "source_revision": "b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787",
+        "reviewed_sources": [
+          "https://github.com/OpenRA/OpenRA/releases/tag/release-20250330",
+          "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/README.md",
+          "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/packaging/windows/buildpackage.sh",
+          "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/packaging/macos/buildpackage.sh",
+          "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/OpenRA.Game/Platform.cs",
+          "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/OpenRA.Game/Game.cs"
+        ]
       },
       "selected_artifact": {
         "release": "playtest-20261011",
@@ -18909,19 +19054,37 @@
         "observed_sha256": "bd57c3aa3e2df1044f98d9e0cf3518ec15ea3622d5f1af071d23ba85bcb03e76",
         "scope": "read-only bytes/layout research or external handoff; observed hash alone is not acceptance"
       },
-      "reason": "Fit decision remains unfinished; Unknown is not unsupported.",
+      "reason": "Replace unknown generic handoff with stable portable recommendation, three concrete game choices, platform-specific preparation and profile/update instructions. Retain this engine identity and its three distinct games rather than silently choosing Red Alert or inventing duplicate port IDs. A managed alternative requires a reviewed player-selection contract for this multi-game package and independent expected identity for any offered release; existing one-target native-portable metadata cannot truthfully choose one for the player.",
       "validation_scope": {
-        "scope": "Primary-source retrieval and inventory join only; route-fit validation unfinished."
+        "scope": "Stable pinned packaging/platform source and complete observed stable release assets; independently hashed Preview archive/header layout confirms current three-player distinction. Maintained Core listing inspection; no installer/AppImage/DMG/game/content tool execution, other-platform/minimumOS or save qualification."
       },
-      "delivery_status": "unfinished assessment/implementation",
-      "affected_operation": "managed installation/update and supported setup route selection",
-      "next_action": "Establish the exact executable, supported setup/data boundary and runtime replacement owner from https://github.com/OpenRA/OpenRA/blob/release-20250330/README.md; inspect observed OpenRA-Dune-2000-x86_64.AppImage, OpenRA-Dune-2000-x86_64.AppImage.zsync, OpenRA-Red-Alert-x86_64.AppImage. Then implement every fitting existing-capability change or retain a specifically evidenced limitation. No new product deferral is assigned.",
+      "delivery_status": "specific non-owning guide implemented; unmerged; stronger canonical acceptance remains separate",
+      "affected_operation": null,
+      "next_action": null,
       "acquisition_restriction": null,
-      "assessed_platform_scope": null,
+      "assessed_platform_scope": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64",
+        "macos-x86-64"
+      ],
       "download_recommendation": {
         "channel": "stable",
-        "asset_hints": {}
-      }
+        "asset_hints": {
+          "windows-x86-64": ["OpenRA-", "-x64-winportable.zip"]
+        }
+      },
+      "reviewed_artifacts": {
+        "preview_name": "OpenRA-playtest-20261011-x64-winportable.zip",
+        "preview_expected_and_observed_sha256": "bd57c3aa3e2df1044f98d9e0cf3518ec15ea3622d5f1af071d23ba85bcb03e76",
+        "preview_source": "4f7930b56c75b0d2f9d86a44174b9518cbee5c5f",
+        "layout": "three game players RedAlert.exe/TiberianDawn.exe/Dune2000.exe plus server/utility; not one interchangeable game launch target",
+        "stable_expected_digest": "not independently published in observed stable release metadata; no managed artifact identity claimed"
+      },
+      "selected_route_release": "release-20250330",
+      "reconsideration_condition": "Reconsider managed replacement if the existing shared lifecycle supports explicit retained multi-player selection or upstream supplies an appropriate single-choice launcher/package, with independent expected artifact identity. Supported current upstream setup/registration is delivered without waiting for optional gameplay observations.",
+      "reviewed_platform_limits": null,
+      "reviewed_rights_boundary": null
     },
     {
       "id": "openrct2-openrct2",
@@ -19124,7 +19287,8 @@
         "observation": "2026-10-24T03:39:34.298Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "source-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "Windows source target",
@@ -19142,7 +19306,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "paper-mario-recut",
@@ -21645,7 +21811,8 @@
         "observation": "2026-10-24T03:39:43.465Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "source-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "upstream source-build targets",
@@ -21663,7 +21830,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "skate-3-recomp",
@@ -22071,7 +22240,8 @@
         "observation": "2026-10-24T03:39:44.909Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "source-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "Windows/Linux/macOS source targets",
@@ -22089,7 +22259,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "sonic-advance-sat-r-sa2-repository",
@@ -22133,7 +22305,8 @@
         "observation": "2026-10-24T03:39:44.909Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "source-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "Sonic Advance 1 source; native output requires title-specific review",
@@ -22151,7 +22324,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "sonic-cd-2011-rsdkv3",
@@ -23300,7 +23475,8 @@
         "observation": "2026-10-24T03:39:49.290Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "source-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "upstream source-build targets",
@@ -23318,7 +23494,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "star-wars-shadows-of-the-empire-n64-sote-recomp",
@@ -24091,7 +24269,8 @@
         "observation": "2026-10-24T03:39:52.858Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "source-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "Windows x64 source target",
@@ -24109,7 +24288,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "super-mario-strikers-strikers",
@@ -24262,7 +24443,7 @@
       "pickup_route": "listing-only",
       "selected_route": "title-specific upstream setup / permitted prepared external player",
       "disposition": "improve-upstream-Apple-setup-and-retain-bundle-ownership",
-      "update_owner": "player/upstream; no managed replacement or destructive data authority",
+      "update_owner": "player/upstream",
       "setup_data": {
         "instructions": [
           {
@@ -24295,7 +24476,8 @@
         "observation": "2026-10-24T03:39:53.756Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "apple-handoff-assessments.json",
-        "source_revision": "b79086fc194bb4c28efff086709ddf569bd2a206"
+        "source_revision": "b79086fc194bb4c28efff086709ddf569bd2a206",
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "Current source/README route builds a local arm64 SunPad.app through PadMint0.5.5+ or manual Xcode pipeline from own GMSE01r0 raw ISO/GCM, then upstream launcher extracts and plays. Published IPA shells lack game code and are not Mac runtimes. Unsupported app-bundle handling and owner-generated module pipeline do not fit native-portable managed replacement. All Mac user/config/generated state in Application Support/SunPad remains external. iOS signing and tvOS purgeable data stay separate.",
@@ -24313,7 +24495,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "super-mario-world-recomp",
@@ -24512,7 +24696,8 @@
         "observation": "2026-10-24T03:39:54.575Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "source-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "upstream source-build targets",
@@ -24530,7 +24715,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "svr07-recomp-wwe-smackdown-vs-raw-2007",
@@ -25168,7 +25355,8 @@
         "observation": "2026-10-24T03:39:57.508Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "source-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "Windows source target",
@@ -25186,7 +25374,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "theclub654-projectcane",
@@ -25272,7 +25462,8 @@
         "observation": "2026-10-24T03:39:57.969Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "source-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "DOS build; not a native Windows player",
@@ -25290,7 +25481,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "therunaway5-phase-distorter",
@@ -25426,7 +25619,8 @@
         "observation": "2026-10-24T03:39:58.771Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "source-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "Linux source quick start",
@@ -25444,7 +25638,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "tokyo-wars-namco22",
@@ -26309,7 +26505,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": "Attributable compatible grant/replacement for the linked RecompFrontend and any separately named package font; independently review the exact operation basis before enabling managed acquisition."
     },
     {
       "id": "virtual-hydlide-saturn-pc",
@@ -26353,7 +26551,8 @@
         "observation": "2026-10-24T03:40:02.301Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "source-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "upstream source-build targets",
@@ -26371,7 +26570,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "viva-pinata-trouble-in-paradise-retip",
@@ -26918,7 +27119,8 @@
         "observation": "2026-10-24T03:40:04.658Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "source-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "upstream source-build targets",
@@ -26936,7 +27138,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "wcw-nwo-revenge-recompiled",
@@ -27102,7 +27306,8 @@
         "observation": "2026-10-24T03:40:05.181Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "publication-handoff-assessments.json",
-        "source_revision": null
+        "source_revision": null,
+        "reviewed_sources": null
       },
       "selected_artifact": null,
       "reason": "upstream-source-handoff-with-unresolved-release-lineage",
@@ -27120,7 +27325,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": null,
+      "reconsideration_condition": null
     },
     {
       "id": "wipeout-phantom-edition",
@@ -27227,7 +27434,7 @@
       "pickup_route": "listing-only",
       "selected_route": "title-specific upstream setup / permitted prepared external player",
       "disposition": "improve-upstream-download-recommendation",
-      "update_owner": "player/upstream; no managed replacement or destructive data authority",
+      "update_owner": "player/upstream",
       "setup_data": {
         "instructions": [
           {
@@ -27256,7 +27463,8 @@
         "observation": "2026-10-24T03:40:05.728Z",
         "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
         "assessment_file": "download-hint-assessments.json",
-        "source_revision": "a17066018269ff973968002ba7dd4130fcba99db"
+        "source_revision": "a17066018269ff973968002ba7dd4130fcba99db",
+        "reviewed_sources": "https://github.com/Erick194/WolfensteinRPG-RE"
       },
       "selected_artifact": {
         "release": "WolfensteinRPG-v.0.1",
@@ -27283,7 +27491,9 @@
       },
       "reviewed_artifacts": null,
       "reviewed_platform_limits": null,
-      "reviewed_rights_boundary": null
+      "reviewed_rights_boundary": null,
+      "selected_route_release": "WolfensteinRPG-v.0.1",
+      "reconsideration_condition": null
     },
     {
       "id": "woody-woodpecker-woodyre",
@@ -28185,5 +28395,5 @@
       }
     }
   ],
-  "candidate_authored_records_sha256": "b7bca8235997a80096a9a46eb2e019f9937d351bb90c4a6b868119bb8815494f"
+  "candidate_authored_records_sha256": "0bb48a7836d7d2e0a98554eacf639e08ba35e6c0eb7c3eb66181bd4fbb2dd22d"
 }
