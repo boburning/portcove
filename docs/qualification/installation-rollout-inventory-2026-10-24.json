@@ -4,9 +4,9 @@
   "owner": "https://github.com/boburning/portcove/issues/2510",
   "status": "IN_PROGRESS; no all-port implementation or delivery completion claim",
   "pickup_source_commit": "cea107d84e80bdd67bd44d4c7c68e0b76d083e4e",
-  "candidate_source_commit": "d9dc2cb6c5322674a157cb428a0506a081afd227",
+  "candidate_source_commit": "6b68276ecdc8c452ebc568e175f17fc904de89d1",
   "inventory_cutoff": "2026-10-24T03:40:15.396Z",
-  "generated_at": "2026-10-24T14:59:29.996Z",
+  "generated_at": "2026-10-24T16:59:56.593Z",
   "sources": {
     "collector": "scripts/roadmap-inventory.mts collectRoadmapInventory",
     "repository_issues": 918,
@@ -57,7 +57,19 @@
     },
     "fit_assessment_complete": false,
     "implementation_complete": false,
-    "final_affected_inventory_reconciliation": "outstanding"
+    "final_affected_inventory_reconciliation": "outstanding",
+    "release_maintenance": {
+      "operational_rules_inventoried": 153,
+      "completed_changes": 6,
+      "remaining_direct_manifest_fit_decisions": 27,
+      "provider_counts": {
+        "github": 115,
+        "gitlab": 2,
+        "direct-manifest": 27,
+        "user-prepared": 9
+      },
+      "scope": "Completed changes are per-port evidence, not an all-inventory update or qualification claim."
+    }
   },
   "boundaries": [
     "#2499 is retained and credited; #2494 stays closed.",
@@ -8787,6 +8799,18 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "battletanx-global-assault-pc-port",
+        "category": "managed-compatible-release",
+        "evidence_file": "release-maintenance/battletanx-global-assault-pc-port.json",
+        "change": "Removed an accidental current-version filename restriction. The unchanged authored project/platform/package rules resolve versioned successors through the production provider.",
+        "validation_scope": "Production resolver fixtures use actual embedded definitions across cache expiry and a fresh client; complete selected upstream asset observations remain separate from fixture or gameplay evidence.",
+        "repository": "TheGh0stShip/BattleTanx-Global-Assault-PC-Port",
+        "asset_hints": {
+          "windows-x86-64": ["BattleTanxGA-", "-windows-x64-portable.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged"
       }
     },
     {
@@ -9924,6 +9948,18 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "brawmario-infinite-mario-64-ever",
+        "category": "managed-compatible-release",
+        "evidence_file": "release-maintenance/brawmario-infinite-mario-64-ever.json",
+        "change": "Removed an accidental current-version filename restriction. The unchanged authored project/platform/package rules resolve versioned successors through the production provider.",
+        "validation_scope": "Production resolver fixtures use actual embedded definitions across cache expiry and a fresh client; complete selected upstream asset observations remain separate from fixture or gameplay evidence.",
+        "repository": "Brawmario/infinite-mario-64-ever",
+        "asset_hints": {
+          "windows-x86-64": ["infinite-mario-64-ever.", ".windows.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged"
       }
     },
     {
@@ -13192,6 +13228,18 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "dkc1-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "release-maintenance/dkc1-recomp.json",
+        "change": "Removed an accidental current-version filename restriction. The unchanged authored project/platform/package rules resolve versioned successors through the production provider.",
+        "validation_scope": "Production resolver fixtures use actual embedded definitions across cache expiry and a fresh client; complete selected upstream asset observations remain separate from fixture or gameplay evidence.",
+        "repository": "elliotttate/DKC1Recomp",
+        "asset_hints": {
+          "windows-x86-64": ["DKC1Recomp-", "-Windows-x64.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged"
       }
     },
     {
@@ -28217,6 +28265,21 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "resident-evil-gaiden-recomp",
+        "category": "managed-compatible-release",
+        "evidence_file": "dynamic-policy-route-preparations.json",
+        "source_revision": "2b1bd51e09c8599d5436ba56f5ad17bd22550d2e",
+        "historical_qualification": "docs/qualification/regaiden-managed-windows-2026-10-20.md",
+        "change": "Replaced a changing direct-release snapshot with stable GitHub package rules while preserving the richer original/setup/data/credential/consent contract. Configured provider proof binds exact facts before acquisition; indexed definitions require staged-source21.",
+        "validation_scope": "Metadata/source continuity and maintained Core declaration inspection; historical native observations remain exact-artifact scoped. Production resolver/acquisition fixtures are separate. No new runtime or gameplay execution.",
+        "provider": "github",
+        "repository": "sergiomanzur/regaiden-recomp",
+        "asset_hints": {
+          "windows-x86-64": ["Resident_Evil_Gaiden_Recomp_", "_Windows.zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged"
       }
     },
     {
@@ -34457,6 +34520,21 @@
         "reviewed_relationship": null,
         "candidates": [],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "the-force-engine-dark-forces",
+        "category": "managed-compatible-release",
+        "evidence_file": "dynamic-policy-route-preparations.json",
+        "source_revision": "cc25205cc94c36a396f6f50295772f6ec83069a2",
+        "historical_qualification": "docs/qualification/tfe-managed-windows-2026-10-20.md",
+        "change": "Replaced a changing direct-release snapshot with stable GitHub package rules while preserving the richer original/setup/data/credential/consent contract. Configured provider proof binds exact facts before acquisition; indexed definitions require staged-source21.",
+        "validation_scope": "Metadata/source continuity and maintained Core declaration inspection; historical native observations remain exact-artifact scoped. Production resolver/acquisition fixtures are separate. No new runtime or gameplay execution.",
+        "provider": "github",
+        "repository": "TheForceEngine/TheForceEngine",
+        "asset_hints": {
+          "windows-x86-64": ["TheForceEngine-v", ".zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged"
       }
     },
     {
@@ -36884,6 +36962,21 @@
           }
         ],
         "scope": "Third-party hints only; exact upstream lineage, package, setup and data review remains authoritative. Missing or changed reference is not unsupported."
+      },
+      "release_maintenance": {
+        "id": "wave-race-64-racewave46",
+        "category": "managed-compatible-release",
+        "evidence_file": "dynamic-policy-route-preparations.json",
+        "source_revision": "5c34f3711426978107707a8f06af9c2af4ee5401",
+        "historical_qualification": "docs/qualification/racewave46-managed-windows-2026-10-20.md",
+        "change": "Replaced a changing direct-release snapshot with stable GitHub package rules while preserving the richer original/setup/data/credential/consent contract. Configured provider proof binds exact facts before acquisition; indexed definitions require staged-source21.",
+        "validation_scope": "Metadata/source continuity and maintained Core declaration inspection; historical native observations remain exact-artifact scoped. Production resolver/acquisition fixtures are separate. No new runtime or gameplay execution.",
+        "provider": "github",
+        "repository": "DomazinUS/RaceWave46",
+        "asset_hints": {
+          "windows-x86-64": ["RaceWave46-Windows-x64-", ".zip"]
+        },
+        "delivery_status": "implemented in source candidate; unmerged"
       }
     },
     {
@@ -38875,7 +38968,7 @@
       }
     }
   ],
-  "candidate_authored_records_sha256": "970e1f73a0c65c99c6ef2fe745e1a518fab647f3037e45eda48a212a85c50738",
+  "candidate_authored_records_sha256": "e2813ef1b61a03d5604c852d33a946f380fdd00bd76a3cc06b91248f35e6e150",
   "reference_sources": [
     {
       "name": "Quiver",
