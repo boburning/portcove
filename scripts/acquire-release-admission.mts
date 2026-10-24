@@ -78,6 +78,7 @@ import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-c
 import { requireControllerReleaseAuthorities } from "./release-authority-configuration.mts";
 import type { NativeQualificationStage } from "./release-native-qualification-contract.mts";
 import type { VerifiedNativeReleaseQualification } from "./release-native-acceptance.mts";
+import { nativeQualificationTransportIdentity } from "./release-native-acceptance.mts";
 
 const project = fileURLToPath(new URL("..", import.meta.url));
 const repository = "boburning/portcove";
@@ -135,11 +136,9 @@ export interface PreparedReleaseAdmissionFacts {
   contexts: unknown;
   allocations: unknown;
   compiler_evidence?: unknown;
-  native_evidence?: readonly {
-    check_id: number;
-    report_sha256: string;
+  native_evidence?: readonly (ReturnType<typeof nativeQualificationTransportIdentity> & {
     stage: NativeQualificationStage;
-  }[];
+  })[];
 }
 export interface ReleaseCompilerAdmissionPrerequisite {
   controller_tools: object;
@@ -840,8 +839,7 @@ export async function acquireReleaseAdmission(
           nativeStage,
         );
         facts.native_evidence = nativeReports.map((report) => ({
-          check_id: report.check.id,
-          report_sha256: report.check.report_sha256,
+          ...nativeQualificationTransportIdentity(report),
           stage: report.stage,
         }));
       }
@@ -1061,9 +1059,8 @@ export async function acquireReleaseAdmission(
       compiler_evidence: compilerEvidence,
       native_evidence:
         nativeReports?.map((report) => ({
-          check_id: report.check.id,
+          ...nativeQualificationTransportIdentity(report),
           stage: report.stage,
-          report_sha256: report.check.report_sha256,
           candidate: report.candidate,
           producer: report.producer,
         })) ?? null,

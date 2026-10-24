@@ -243,11 +243,19 @@ async function advanceWithinDeadline(
   await proof.recheck();
   const observed = fresh();
   const locators = [
-    ...native.map((report) => ({
-      kind: "native-check",
-      id: String(report.check.id),
-      sha256: report.check.report_sha256,
-    })),
+    ...native.map((report) =>
+      report.hosted_job
+        ? {
+            kind: "native-job",
+            id: `${report.hosted_job.run_id}:${report.hosted_job.run_attempt}:${report.hosted_job.job_id}:${report.hosted_job.check_run_id}`,
+            sha256: report.hosted_job.subject_sha256,
+          }
+        : {
+            kind: "native-check",
+            id: String(report.check.id),
+            sha256: report.check.report_sha256,
+          },
+    ),
     ...proof.facts.archives.map((archive) => ({
       kind: "artifact",
       id: String(archive.artifact_id),

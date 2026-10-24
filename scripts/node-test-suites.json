@@ -1621,6 +1621,20 @@
       ]
     },
     {
+      "file": "scripts/release-hosted-native-acceptance.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15125],
+        ["release-check", 13425]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-proof.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15150],
+        ["release-check", 13450]
+      ]
+    },
+    {
       "file": "scripts/release-native-stage-capture.test.mts",
       "memberships": [
         ["catalog-full-2", 15100],

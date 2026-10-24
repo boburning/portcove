@@ -5,11 +5,14 @@ import { createGitHubRunner, GitHubApiClient, nextLink } from "./github-api.mts"
 import type { GitHubRestReader } from "./github-api.mts";
 import {
   capacityExecutorJobProfile,
+  hostedNativeJobProfile,
   controllerOidcSubject,
   inspectAssemblerIdentityExpectation,
 } from "./assembler-job-identity.mts";
 import type { CapacityExecutorRole } from "./assembler-job-identity.mts";
 import { isRecord } from "./runtime-values.mts";
+import { spawnSync } from "node:child_process";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 
 const repository = "boburning/portcove";
 const repositoryId = 1354613114;
@@ -50,9 +53,53 @@ export function verifyHistoricalCheckpointJob(
   witnessedAt: number,
   transport: { cwd: string; deadline: number; spawn?: Spawn; api?: GitHubRestReader },
 ) {
-  const profile = capacityExecutorJobProfile(role);
+  return verifyHistoricalFixedJob(
+    capacityExecutorJobProfile(role),
+    role,
+    rawExpected,
+    witnessedAt,
+    transport,
+    false,
+  );
+}
+
+/** Historical custody of a completed fixed native parent. This authenticates
+ * neither its report/capture nor an installation, minimum OS or native result. */
+export function verifyHistoricalHostedNativeJob(
+  platform: "windows-x86_64" | "linux-x86_64",
+  rawExpected: HistoricalCheckpointJob,
+  witnessedAt: number,
+  transport: { cwd: string; deadline: number; spawn?: Spawn; api?: GitHubRestReader },
+) {
+  const { role: _role, ...observed } = verifyHistoricalFixedJob(
+    hostedNativeJobProfile(platform),
+    platform,
+    rawExpected,
+    witnessedAt,
+    transport,
+    true,
+  );
+  return {
+    ...observed,
+    platform_label: platform,
+    native_acceptance: "not-established" as const,
+  };
+}
+
+function verifyHistoricalFixedJob<
+  Role extends CapacityExecutorRole | "windows-x86_64" | "linux-x86_64",
+>(
+  profile:
+    | ReturnType<typeof capacityExecutorJobProfile>
+    | ReturnType<typeof hostedNativeJobProfile>,
+  role: Role,
+  rawExpected: HistoricalCheckpointJob,
+  witnessedAt: number,
+  transport: { cwd: string; deadline: number; spawn?: Spawn; api?: GitHubRestReader },
+  native: boolean,
+) {
   const expected = inspectAssemblerIdentityExpectation({
-    audience: "portcove-capacity-executor",
+    audience: "audience" in profile ? profile.audience : "portcove-capacity-executor",
     subject: controllerOidcSubject(rawExpected.controller_ref, profile.environment),
     controller_revision: rawExpected.controller_revision,
     controller_ref: rawExpected.controller_ref,
@@ -85,7 +132,13 @@ export function verifyHistoricalCheckpointJob(
     new GitHubApiClient((args, body) =>
       createGitHubRunner({
         cwd: transport.cwd,
-        ...(transport.spawn ? { spawn: transport.spawn } : {}),
+        spawn:
+          transport.spawn ??
+          ((command, args, settings) =>
+            spawnSync(command, args, {
+              ...settings,
+              env: readOnlyReleaseChildEnvironment() ?? process.env,
+            })),
         maxBuffer: 2 * 1024 * 1024,
         timeoutMs: remaining(),
       })([...args, "--hostname", "github.com"], body),
@@ -191,6 +244,8 @@ export function verifyHistoricalCheckpointJob(
   if (new Set(jobs.map((job) => job.id)).size !== jobs.length)
     throw new Error("historical checkpoint attempt has duplicate jobs");
   const inspectJob = (raw: unknown) => {
+    if (native && (!isRecord(raw) || raw.status !== "completed" || raw.conclusion !== "success"))
+      throw new Error("historical native job must complete successfully");
     if (
       !isRecord(raw) ||
       raw.id !== rawExpected.job_id ||

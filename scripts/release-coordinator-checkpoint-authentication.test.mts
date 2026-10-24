@@ -12,7 +12,11 @@ import {
   checkpointProofFixture,
   fixedJobJournalAuthoritiesFixture,
 } from "./fixtures/checkpoint-proof-fixture.mts";
-import { verifyHistoricalCheckpointJob } from "./release-checkpoint-job-identity.mts";
+import {
+  verifyHistoricalCheckpointJob,
+  verifyHistoricalHostedNativeJob,
+} from "./release-checkpoint-job-identity.mts";
+import { hostedNativeJobProfile } from "./assembler-job-identity.mts";
 import {
   authenticateCoordinatorCheckpointEvidence,
   requireAuthenticatedCheckpointEvidence,
@@ -21,6 +25,7 @@ import {
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { inspectCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import type { GitHubRestReader } from "./github-api.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import { createHash } from "node:crypto";
@@ -36,6 +41,97 @@ function historical(f: ReturnType<typeof checkpointProofFixture>) {
   return { ...f.producer, job_id: Number(f.producer.job_id) };
 }
 const witnessed = Date.parse("2026-10-23T12:00:30.123Z");
+
+for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
+  for (const attemptState of ["in_progress", "completed-success", "completed-failure"] as const) {
+    void test(`historical ${platform} completed-job custody remains usable in ${attemptState} attempt without native acceptance`, () => {
+      const f = checkpointProofFixture();
+      f.job.name = hostedNativeJobProfile(platform).job;
+      f.job.conclusion = "success";
+      const api: GitHubRestReader = {
+        request(method, route) {
+          const result = f.api.request(method, route);
+          return route.endsWith(`/attempts/${f.producer.run_attempt}`)
+            ? {
+                ...result,
+                body: {
+                  ...f.attempt,
+                  status: attemptState === "in_progress" ? "in_progress" : "completed",
+                  conclusion:
+                    attemptState === "completed-success"
+                      ? "success"
+                      : attemptState === "completed-failure"
+                        ? "failure"
+                        : null,
+                },
+              }
+            : result;
+        },
+      };
+      const result = verifyHistoricalHostedNativeJob(platform, historical(f), witnessed, {
+        cwd: process.cwd(),
+        deadline: performance.now() + 60000,
+        api,
+      });
+      assert.equal(result.requests, 4);
+      assert.equal(result.platform_label, platform);
+      assert.equal(result.required_environment, hostedNativeJobProfile(platform).environment);
+      assert.equal(result.native_acceptance, "not-established");
+      assert.equal(result.evidence_scope, "injected-provider");
+      assert.equal(result.authority, "none");
+      assert.equal(Object.hasOwn(result, "role"), false);
+    });
+  }
+  for (const fault of [
+    "failed-job",
+    "running-job",
+    "wrong-job",
+    "wrong-check",
+    "changed-job",
+    "changed-attempt",
+    "duplicate",
+    "incomplete",
+    "wrong-source",
+    "wrong-actor",
+  ] as const) {
+    void test(`historical ${platform} native custody refuses ${fault}`, () => {
+      const f = checkpointProofFixture();
+      f.job.name = hostedNativeJobProfile(platform).job;
+      f.job.conclusion = fault === "failed-job" ? "failure" : "success";
+      if (fault === "running-job") f.job.status = "in_progress";
+      if (fault === "wrong-job") f.job.name = "Coordinate application release";
+      if (fault === "wrong-check") f.job.check_run_url += "9";
+      if (fault === "wrong-source") f.attempt.head_sha = "9".repeat(40);
+      if (fault === "wrong-actor") f.attempt.actor.id = 99;
+      f.faults.value = fault;
+      const api: GitHubRestReader = {
+        request(method, route) {
+          const result = f.api.request(method, route);
+          return route.endsWith(`/attempts/${f.producer.run_attempt}`)
+            ? {
+                ...result,
+                body: {
+                  ...(isRecord(result.body) ? result.body : {}),
+                  status: "in_progress",
+                  conclusion: null,
+                },
+              }
+            : result;
+        },
+      };
+      assert.throws(
+        () =>
+          verifyHistoricalHostedNativeJob(platform, historical(f), witnessed, {
+            cwd: process.cwd(),
+            deadline: performance.now() + 60000,
+            api,
+          }),
+        /historical|original/,
+      );
+      assert.ok(f.calls.length <= 4);
+    });
+  }
+}
 function options(f: ReturnType<typeof checkpointProofFixture>) {
   return {
     attestation: {
