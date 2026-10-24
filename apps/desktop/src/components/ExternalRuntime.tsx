@@ -67,7 +67,7 @@ export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
   );
 }
 
-function AuthoredPreparationGuidance({ port }: { port: CatalogEntry }) {
+export function AuthoredPreparationGuidance({ port }: { port: CatalogEntry }) {
   const guide = port.presentation?.manual_setup;
   return (
     <>
@@ -86,7 +86,7 @@ function AuthoredPreparationGuidance({ port }: { port: CatalogEntry }) {
               </ul>
             </aside>
           )}
-          <ol className="grid list-decimal gap-4 pl-5 marker:font-semibold">
+          <ol className="grid min-w-0 list-decimal gap-4 pl-5 wrap-anywhere marker:font-semibold">
             {guide.steps.map((step, index) => (
               <li key={`${index}:${step.title}`} className="pl-1">
                 <h4 className="font-semibold">{step.title}</h4>

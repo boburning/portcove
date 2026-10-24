@@ -136,7 +136,7 @@ requested is accepted normally; only an authoritative cancelled rejection shows
 that outcome.
 
 An accepted observation means the response passed its scope-specific contract,
-including Files missing, Needs checking, No game files required and Unavailable
+including Files missing, Needs checking, No files to add in Portcove and Unavailable
 context. It does not mean compatible files were found. Current classifications and
 matching-evidence maps are separate from immutable metadata: Core's observation
 and expiry timestamps, the exact requested port/route/platform/channel list and

@@ -20,10 +20,6 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Install or keep your existing copy",
-          "instruction": "Choose Install for the official portable runtime maintained by Portcove. Installation options retain a non-owning route for an existing or customized copy."
-        },
-        {
           "title": "Start with the required game files",
           "instruction": "On first Play, select your own supported Knuckles’ Chaotix ROM from the setup page. The game validates and installs its own copy. Configure controls and compatible mods through upstream menus."
         },

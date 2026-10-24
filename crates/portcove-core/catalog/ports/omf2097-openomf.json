@@ -20,10 +20,6 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Install or keep your existing copy",
-          "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
-        },
-        {
           "title": "Start the game",
           "instruction": "The official archive includes the freeware One Must Fall 2097 resources and the native OpenOMF player. Choose Play after installation; no commercial source files or generation step are needed. The package also includes an ARM64 player; this route uses openomf.exe for x86-64."
         },

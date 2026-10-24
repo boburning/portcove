@@ -87,6 +87,14 @@ replacement versions. Outside data remains upstream/player-owned and outside
 Portcove backups. Describe setup and this limit in `presentation`; optional unknown
 gameplay evidence does not hide the listing or prevent a separately safe operation.
 
+Put the actual next game-setup step first in the authored manual guide: original
+files the game will request, a required manual preparation, or an explicit statement
+that the package is ready for Play. Avoid a redundant first step telling the player
+to install. Desktop uses this first step in the managed installation review and
+keeps the full guide in Files even when Core needs no source profile. An empty Core
+input requirement describes Portcove's action; it does not assert that the upstream
+game never needs original files.
+
 Native portable runtimes use complete immutable-file verification. Changed package
 files or undeclared additions block update, version switching and managed removal
 with the current files preserved. The player can back up and relocate additions

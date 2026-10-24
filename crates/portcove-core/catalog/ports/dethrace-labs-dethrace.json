@@ -20,10 +20,6 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Install or keep your existing copy",
-          "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
-        },
-        {
           "title": "Start the game",
           "instruction": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace Portcove’s executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route."
         },

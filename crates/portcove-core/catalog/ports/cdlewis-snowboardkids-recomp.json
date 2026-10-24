@@ -20,10 +20,6 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Install or keep your existing copy",
-          "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options also retain a non-owning route for an existing or customized copy."
-        },
-        {
           "title": "Start with your original game",
           "instruction": "On first Play, select your own North American Snowboard Kids ROM in the main menu. The game verifies and imports it, converting supported byte orders. No separate extraction or game build is required. Windows requires the upstream Visual C++ runtime."
         },

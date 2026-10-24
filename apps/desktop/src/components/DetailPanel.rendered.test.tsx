@@ -32,6 +32,44 @@ function currentCatalogPort(id: string): PortDefinition {
   return { ...portDefinition(), ...serialized } as unknown as PortDefinition;
 }
 
+it.each([false, true])(
+  "retains the portable game's own setup guide without Core file pickers (installed %s)",
+  (installed) => {
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={{
+          ...port,
+          adapter: "native-portable",
+          source_profile: null,
+          bios_source_profile: null,
+          presentation: {
+            installation_method: "portable-package",
+            source_requirements: [],
+            saves_and_settings: "external-user-owned",
+            manual_setup: {
+              steps: [
+                {
+                  title: "Choose your original game",
+                  instruction: "The game asks for your own original files on first Play.",
+                },
+              ],
+              warnings: [],
+            },
+          },
+        }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={{ ...portStatus(), active: installed ? installRecord() : null }}
+      />,
+    );
+    const files = detailSection(html, "files");
+    expect(files).toContain("Choose your original game");
+    expect(files).toContain("The game asks for your own original files on first Play.");
+    expect(files).not.toContain('id="source-');
+  },
+);
+
 const preparedPort: PortDefinition = {
   ...port,
   source_profile: null,

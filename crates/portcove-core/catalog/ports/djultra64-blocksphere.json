@@ -20,10 +20,6 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Install or keep your existing copy",
-          "instruction": "Choose Install for the official portable runtime maintained by Portcove. Installation options retain a non-owning route for an existing or customized copy."
-        },
-        {
           "title": "Start with the required game files",
           "instruction": "On first Play, choose your own Tetrisphere US NTPE revision 0 ROM in .z64, .v64, .n64 or ZIP form. The game validates and imports it; no separate installer or BIOS is required."
         },

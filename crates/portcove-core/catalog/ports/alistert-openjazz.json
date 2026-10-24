@@ -20,10 +20,6 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Install or keep your existing copy",
-          "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
-        },
-        {
           "title": "Start the game",
           "instruction": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside OpenJazz.exe. The maintained launch arguments select that folder; no compiler or installer is needed. Keep the original source copy."
         },

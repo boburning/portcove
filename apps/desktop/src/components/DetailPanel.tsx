@@ -13,7 +13,7 @@ import { RemovalControl, type ApplyRemoval } from "./RemovalReview";
 import { BrowsingMatchDetails } from "../features/browsing/BrowsingMatchDetails";
 import type { CatalogQueryResult } from "../features/browsing/catalog-query";
 import { SteamEntryControl } from "./SteamEntry";
-import { ExternalRuntimeControl } from "./ExternalRuntime";
+import { AuthoredPreparationGuidance, ExternalRuntimeControl } from "./ExternalRuntime";
 import {
   usesExternalRuntimeRoute,
   usesUserSelectedRuntime,
@@ -1041,7 +1041,11 @@ function RequirementsGroup({
   useEffect(() => {
     if (needsAttention && disclosure.current) disclosure.current.open = true;
   }, [needsAttention]);
-  if (!port.source_profile && !port.bios_source_profile && !managedPreparation) return null;
+  const authoredSetup =
+    port.adapter === "native-portable" &&
+    Boolean(port.presentation?.manual_setup || port.presentation?.manual_preparation);
+  if (!port.source_profile && !port.bios_source_profile && !managedPreparation && !authoredSetup)
+    return null;
   return (
     <DetailGroup title="Requirements">
       <details
@@ -1051,11 +1055,18 @@ function RequirementsGroup({
       >
         <summary data-focusable className={`requirements-summary ${disclosureSummaryStyle}`}>
           Game-file requirements and setup
-          <span className={`requirements-summary-meta ${disclosureMetaStyle}`}>File controls</span>
+          <span className={`requirements-summary-meta ${disclosureMetaStyle}`}>
+            {authoredSetup && !port.source_profile && !port.bios_source_profile
+              ? "Game instructions"
+              : "File controls"}
+          </span>
           <Icon className="text-[var(--color-interactive-text)]" glyph={ChevronDown} />
         </summary>
         <div className={`requirements-body grid gap-4 ${disclosureBodyStyle}`}>
-          <RequirementsSummary port={port} />
+          {authoredSetup && <AuthoredPreparationGuidance port={port} />}
+          {(!authoredSetup || Boolean(port.presentation?.source_requirements.length)) && (
+            <RequirementsSummary port={port} />
+          )}
           <SourceFields controls={sources} />
           <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
         </div>
@@ -2040,6 +2051,15 @@ function PrimaryActions({
     ) : (
       <InstallAction
         gameName={gameIdentityLabel(sources.port)}
+        setupNote={
+          sources.port.adapter === "native-portable"
+            ? sources.port.presentation?.manual_setup?.steps[0]?.instruction
+            : undefined
+        }
+        externalData={
+          sources.port.adapter === "native-portable" &&
+          sources.port.presentation?.saves_and_settings === "external-user-owned"
+        }
         cancellations={installCancellations}
         ready={launchReady}
         sourceReady={sourceReady}
@@ -2184,6 +2204,8 @@ function StagedActivation({
 
 export function InstallAction({
   gameName,
+  setupNote,
+  externalData,
   cancellations,
   ready,
   sourceReady,
@@ -2201,6 +2223,8 @@ export function InstallAction({
   portaled = true,
 }: {
   gameName?: string | undefined;
+  setupNote?: string | undefined;
+  externalData?: boolean | undefined;
   cancellations?: ActivityRecord[] | undefined;
   ready: boolean;
   sourceReady: boolean;
@@ -2315,6 +2339,18 @@ export function InstallAction({
               Portcove manages these runtime files and their updates. Automatic updates follow your
               selected update policy. See the game instructions for setup and save locations.
             </DialogDescription>
+            {setupNote && (
+              <section className="mb-4 grid min-w-0 gap-2 wrap-anywhere" aria-label="Game setup">
+                <h3 className="font-semibold">Game setup</h3>
+                <p>{setupNote}</p>
+                {externalData && (
+                  <p>
+                    The game normally keeps saves and settings outside Portcove backups. See Files
+                    for the locations and supported exceptions.
+                  </p>
+                )}
+              </section>
+            )}
             {action ? (
               <InstallPlanSummary plan={plan} />
             ) : (

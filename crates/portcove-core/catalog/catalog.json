@@ -21235,10 +21235,6 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Install or keep your existing copy",
-              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
-            },
-            {
               "title": "Start the game",
               "instruction": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside OpenJazz.exe. The maintained launch arguments select that folder; no compiler or installer is needed. Keep the original source copy."
             },
@@ -21304,10 +21300,6 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Install the recommended runtime",
-              "instruction": "Choose Install to let Portcove maintain the official portable runtime, or keep a customized/upstream-managed copy through Installation options."
-            },
-            {
               "title": "Supply your original game files on first launch",
               "instruction": "Choose your North American Body Harvest ROM in Load ROM on first launch; .z64, .n64 and .v64 are accepted by upstream. The game checks and remembers its own copy."
             },
@@ -21369,10 +21361,6 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Install or keep your existing copy",
-              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options also retain a non-owning route for an existing or customized copy."
-            },
-            {
               "title": "Start with your original game",
               "instruction": "On first Play, choose your own US Conker’s Bad Fur Day ROM in big-endian .z64 format. The launcher extracts what it needs from that ROM; the published player does not require compiling the game."
             },
@@ -21428,10 +21416,6 @@
         "manual_preparation": "On first Play, select your own North American Snowboard Kids ROM in the main menu. The game verifies and imports it, converting supported byte orders. No separate extraction or game build is required. Windows requires the upstream Visual C++ runtime. The default imported ROM, settings, saves and mods live in LocalAppData/SnowboardKidsRecompiled, outside Portcove backups. The runtime package has no declared in-folder player data. Keep the default storage mode; register an external copy for portable.txt mode or custom storage. Existing external installations retain their files and runtime owner. Gameplay and packaged Desktop acceptance remain separate observations.",
         "manual_setup": {
           "steps": [
-            {
-              "title": "Install or keep your existing copy",
-              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options also retain a non-owning route for an existing or customized copy."
-            },
             {
               "title": "Start with your original game",
               "instruction": "On first Play, select your own North American Snowboard Kids ROM in the main menu. The game verifies and imports it, converting supported byte orders. No separate extraction or game build is required. Windows requires the upstream Visual C++ runtime."
@@ -21501,10 +21485,6 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Install the recommended runtime",
-              "instruction": "Choose Install to let Portcove maintain the official portable runtime, or keep a customized/upstream-managed copy through Installation options."
-            },
-            {
               "title": "Supply your original game files on first launch",
               "instruction": "Select your installed original Colin McRae Rally 2.0 game folder when OpenCMR2 asks on first launch. The supported original files can stay outside the managed runtime. An optional Data folder beside the executable is carried between compatible versions."
             },
@@ -21563,10 +21543,6 @@
         "original_game_title": "Theme Hospital",
         "manual_setup": {
           "steps": [
-            {
-              "title": "Install or keep your existing copy",
-              "instruction": "Choose Install for a portable runtime maintained by Portcove. Installation options also let you keep an existing copy or use the upstream installer."
-            },
             {
               "title": "Complete upstream setup",
               "instruction": "Select the data from your copy of Theme Hospital when CorsixTH asks for the original game files."
@@ -21636,10 +21612,6 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Install or keep your existing copy",
-              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options also retain a non-owning route for an existing or customized copy."
-            },
-            {
               "title": "Start with your original game",
               "instruction": "On first Play, select your own F-Zero USA ROM and press Play in the launcher. The package includes its native runtime and does not require generating or compiling game code. The launcher remembers the selected ROM path."
             },
@@ -21707,10 +21679,6 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Install the recommended runtime",
-              "instruction": "Choose Install to let Portcove maintain the official portable runtime, or keep a customized/upstream-managed copy through Installation options."
-            },
-            {
               "title": "Supply your original game files on first launch",
               "instruction": "Choose your own US Conker’s Bad Fur Day ROM in the upstream launcher on first launch. The game checks and remembers its copy. Install compatible mods and texture packs through its Mods menu."
             },
@@ -21772,10 +21740,6 @@
         "manual_preparation": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace Portcove’s executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route. The reviewed Carmageddon data directory includes saves, options, captures and supported data changes. DATA, optional MUSIC and named diagnostics are retained for compatible runtime replacement and backup. The upstream AppData/dethrace fallback or DETHRACE_ROOT_DIR-selected data remains external and outside backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
         "manual_setup": {
           "steps": [
-            {
-              "title": "Install or keep your existing copy",
-              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
-            },
             {
               "title": "Start the game",
               "instruction": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace Portcove’s executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route."
@@ -21844,10 +21808,6 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Install or keep your existing copy",
-              "instruction": "Choose Install for the official portable runtime maintained by Portcove. Installation options retain a non-owning route for an existing or customized copy."
-            },
-            {
               "title": "Start with the required game files",
               "instruction": "On first Play, choose your own Tetrisphere US NTPE revision 0 ROM in .z64, .v64, .n64 or ZIP form. The game validates and imports it; no separate installer or BIOS is required."
             },
@@ -21909,12 +21869,8 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Install or keep your existing copy",
-              "instruction": "Choose Install for a portable runtime maintained by Portcove. Installation options also let you keep an existing copy or download an upstream package to a folder you own."
-            },
-            {
-              "title": "Complete upstream setup",
-              "instruction": "Extract the game package and follow the included instructions. This upstream package does not require a separate commercial game installation."
+              "title": "Start playing",
+              "instruction": "The official package includes the game. Choose Play after installation; no separate commercial files, extraction step or installer is required."
             },
             {
               "title": "Launch and keep up to date",
@@ -21980,10 +21936,6 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Install or keep your existing copy",
-              "instruction": "Choose Install for the official portable runtime maintained by Portcove. Installation options retain a non-owning route for an existing or customized copy."
-            },
-            {
               "title": "Start with the required game files",
               "instruction": "On first Play, use GAME FOLDER to choose your installed Gearhead Garage folder containing Data/Cars. The original folder is read-only. NEW creates a mechanic; IMPORT MECHANICS brings over your own .mek saves. Without original files, upstream offers its limited placeholder beta."
             },
@@ -22039,10 +21991,6 @@
         "manual_preparation": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target. OpenGlad normally stores companies, saves/backups, campaigns, settings, screenshots, replays and downloaded packs in LocalAppData/.openglad, outside Portcove backups. Packaged campaigns and engine assets remain version-owned. No in-folder player data is declared in this default mode. Use external registration for OPENGLAD_CONFIG_DIR overrides or a fallback current-folder profile. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
         "manual_setup": {
           "steps": [
-            {
-              "title": "Install or keep your existing copy",
-              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
-            },
             {
               "title": "Start the game",
               "instruction": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target."
@@ -22106,10 +22054,6 @@
         "original_game_title": "The Elder Scrolls II: Daggerfall",
         "manual_setup": {
           "steps": [
-            {
-              "title": "Install or keep your existing copy",
-              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
-            },
             {
               "title": "Start the game",
               "instruction": "On first Play, use Daggerfall Unity’s setup wizard to select your compatible original Daggerfall game folder. It validates the game data. The package is a native Unity player and needs no separate game compilation. Keep external originals where they are."
@@ -22183,10 +22127,6 @@
         "manual_preparation": "On first Play, choose a base graphics set when requested. Upstream supports the free OpenGFX/OpenSFX/OpenMSX sets or your own compatible original Transport Tycoon Deluxe data. JGR Patch Pack is a separate game build, not a loadable mod; its saves and multiplayer peers must be compatible with that build. The default Windows save/config/content location is Documents/OpenTTD, shared with other OpenTTD copies and outside Portcove backups. Only the named fallback configs, saves, scenarios, heightmaps, order lists, NewGRF files, screenshots and content_download folder are declared if present. Packaged baseset, ai and game resources remain immutable. Use an external registration for a mixed executable-folder custom profile or plugins; unknown additions keep their exact-path preservation guard. Portcove replaces this runtime only; it does not manage external shared saves, original game files or another OpenTTD installation. Older runtimes may not read newer saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
         "manual_setup": {
           "steps": [
-            {
-              "title": "Install or keep your existing copy",
-              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
-            },
             {
               "title": "Start the game",
               "instruction": "On first Play, choose a base graphics set when requested. Upstream supports the free OpenGFX/OpenSFX/OpenMSX sets or your own compatible original Transport Tycoon Deluxe data. JGR Patch Pack is a separate game build, not a loadable mod; its saves and multiplayer peers must be compatible with that build."
@@ -22265,10 +22205,6 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Install or keep your existing copy",
-              "instruction": "Choose Install for the official portable runtime maintained by Portcove. Installation options retain a non-owning route for an existing or customized copy."
-            },
-            {
               "title": "Start with the required game files",
               "instruction": "On first Play, select your own supported Knuckles’ Chaotix ROM from the setup page. The game validates and installs its own copy. Configure controls and compatible mods through upstream menus."
             },
@@ -22325,10 +22261,6 @@
         "manual_preparation": "The official archive includes the freeware One Must Fall 2097 resources and the native OpenOMF player. Choose Play after installation; no commercial source files or generation step are needed. The package also includes an ARM64 player; this route uses openomf.exe for x86-64. OpenOMF resolves writable settings, saves, scores, screenshots, recordings and user mods through its OpenOMF user-preference directory, normally AppData/OpenOMF on Windows. That external data remains outside Portcove backups. Package resources and bundled mods remain version-owned; no in-folder player-data paths are declared. Use an external registration for custom OPENOMF_* storage overrides. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
         "manual_setup": {
           "steps": [
-            {
-              "title": "Install or keep your existing copy",
-              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
-            },
             {
               "title": "Start the game",
               "instruction": "The official archive includes the freeware One Must Fall 2097 resources and the native OpenOMF player. Choose Play after installation; no commercial source files or generation step are needed. The package also includes an ARM64 player; this route uses openomf.exe for x86-64."
@@ -22387,10 +22319,6 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Install or keep your existing copy",
-              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
-            },
-            {
               "title": "Start the game",
               "instruction": "On first Play, OpenLoco detects your installed Chris Sawyer’s Locomotion files or asks you to select the original folder containing Data/g1.DAT. The official portable engine needs no separate build or installer."
             },
@@ -22448,10 +22376,6 @@
         "original_game_title": "RollerCoaster Tycoon 2",
         "manual_setup": {
           "steps": [
-            {
-              "title": "Install or keep your existing copy",
-              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
-            },
             {
               "title": "Start the game",
               "instruction": "On first Play, select your installed RollerCoaster Tycoon 2 files if they are not detected. Optional RollerCoaster Tycoon 1 files can be configured through upstream menus. This is the standalone portable engine; the separate upstream auto-updating launcher remains an external alternative."
@@ -22564,10 +22488,6 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Install or keep your existing copy",
-              "instruction": "Choose Install for the official portable runtime maintained by Portcove. Installation options retain a non-owning route for an existing or customized copy."
-            },
-            {
               "title": "Start with the required game files",
               "instruction": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required."
             },
@@ -22626,10 +22546,6 @@
         "manual_preparation": "Follow the linked installation guide to run openreliant.exe install StarLancer yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration. The declared StarLancer folder contains original game assets, campaign saves, starlancer.ini and openreliant.log. It is retained during compatible runtime replacement and backup. Keep another copy of the original media. A game installed elsewhere or custom launch arguments can use external registration; such external data is outside Portcove backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
         "manual_setup": {
           "steps": [
-            {
-              "title": "Install or keep your existing copy",
-              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
-            },
             {
               "title": "Start the game",
               "instruction": "Follow the linked installation guide to run openreliant.exe install StarLancer yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration."

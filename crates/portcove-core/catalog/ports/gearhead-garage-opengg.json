@@ -20,10 +20,6 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Install or keep your existing copy",
-          "instruction": "Choose Install for the official portable runtime maintained by Portcove. Installation options retain a non-owning route for an existing or customized copy."
-        },
-        {
           "title": "Start with the required game files",
           "instruction": "On first Play, use GAME FOLDER to choose your installed Gearhead Garage folder containing Data/Cars. The original folder is read-only. NEW creates a mechanic; IMPORT MECHANICS brings over your own .mek saves. Without original files, upstream offers its limited placeholder beta."
         },

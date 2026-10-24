@@ -149,7 +149,7 @@ it("checks one complete catalog once, then composes choices and counts without i
     "Compatible complete files available",
     "Files missing",
     "Needs checking",
-    "No game files required",
+    "No files to add in Portcove",
     "Unavailable context",
   ])
     expect(button(`${label} (1)`).disabled).toBe(false);

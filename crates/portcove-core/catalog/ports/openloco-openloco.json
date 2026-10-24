@@ -20,10 +20,6 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Install or keep your existing copy",
-          "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
-        },
-        {
           "title": "Start the game",
           "instruction": "On first Play, OpenLoco detects your installed Chris Sawyer’s Locomotion files or asks you to select the original folder containing Data/g1.DAT. The official portable engine needs no separate build or installer."
         },

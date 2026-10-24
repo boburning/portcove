@@ -13,12 +13,8 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Install or keep your existing copy",
-          "instruction": "Choose Install for a portable runtime maintained by Portcove. Installation options also let you keep an existing copy or download an upstream package to a folder you own."
-        },
-        {
-          "title": "Complete upstream setup",
-          "instruction": "Extract the game package and follow the included instructions. This upstream package does not require a separate commercial game installation."
+          "title": "Start playing",
+          "instruction": "The official package includes the game. Choose Play after installation; no separate commercial files, extraction step or installer is required."
         },
         {
           "title": "Launch and keep up to date",

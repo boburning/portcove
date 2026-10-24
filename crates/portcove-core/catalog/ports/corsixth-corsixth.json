@@ -13,10 +13,6 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Install or keep your existing copy",
-          "instruction": "Choose Install for a portable runtime maintained by Portcove. Installation options also let you keep an existing copy or use the upstream installer."
-        },
-        {
           "title": "Complete upstream setup",
           "instruction": "Select the data from your copy of Theme Hospital when CorsixTH asks for the original game files."
         },
@@ -44,9 +40,13 @@
     "adapter": "native-portable",
     "release": {
       "repository": "CorsixTH/CorsixTH",
-      "asset_hints": { "windows-x86-64": ["windows", "x64", ".zip"] }
+      "asset_hints": {
+        "windows-x86-64": ["windows", "x64", ".zip"]
+      }
     },
-    "executable_hints": { "windows-x86-64": ["CorsixTH.exe"] },
+    "executable_hints": {
+      "windows-x86-64": ["CorsixTH.exe"]
+    },
     "persistent_paths": [],
     "presentation": {
       "installation_method": "portable-package",

@@ -13,10 +13,6 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Install or keep your existing copy",
-          "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
-        },
-        {
           "title": "Start the game",
           "instruction": "On first Play, select your installed RollerCoaster Tycoon 2 files if they are not detected. Optional RollerCoaster Tycoon 1 files can be configured through upstream menus. This is the standalone portable engine; the separate upstream auto-updating launcher remains an external alternative."
         },

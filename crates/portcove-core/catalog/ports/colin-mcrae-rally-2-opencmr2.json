@@ -20,10 +20,6 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Install the recommended runtime",
-          "instruction": "Choose Install to let Portcove maintain the official portable runtime, or keep a customized/upstream-managed copy through Installation options."
-        },
-        {
           "title": "Supply your original game files on first launch",
           "instruction": "Select your installed original Colin McRae Rally 2.0 game folder when OpenCMR2 asks on first launch. The supported original files can stay outside the managed runtime. An optional Data folder beside the executable is carried between compatible versions."
         },

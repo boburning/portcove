@@ -20,10 +20,6 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Install or keep your existing copy",
-          "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options retain a non-owning route for an existing, upstream-managed or customized copy."
-        },
-        {
           "title": "Start the game",
           "instruction": "On first Play, choose a base graphics set when requested. Upstream supports the free OpenGFX/OpenSFX/OpenMSX sets or your own compatible original Transport Tycoon Deluxe data. JGR Patch Pack is a separate game build, not a loadable mod; its saves and multiplayer peers must be compatible with that build."
         },
