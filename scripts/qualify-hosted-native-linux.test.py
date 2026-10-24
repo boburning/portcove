@@ -2,6 +2,7 @@
 
 import ast
 import importlib.util
+import io
 import json
 import stat
 import subprocess
@@ -17,6 +18,152 @@ spec.loader.exec_module(readiness)
 
 
 class HostedReadiness(unittest.TestCase):
+    def test_actual_inert_entry_executes_only_fixed_command_after_exact_release(self):
+        invocation = "a" * 64
+        creation = {"pid": 42, "creation_ticks": "123"}
+        packet = {"invocation_id": invocation, "unit_invocation_id": "b" * 32,
+                  "pid": 42, "creation": creation, "deadline_monotonic": 20}
+        for condition in ("accepted", "wrong-retained", "wrong-generation", "changed-creation", "expired"):
+            expected = dict(packet)
+            current_packet = dict(packet)
+            generation = "b" * 32
+            current_creation = creation
+            if condition == "wrong-retained":
+                expected["pid"] = 43
+            elif condition == "wrong-generation":
+                generation = "c" * 32
+            elif condition == "changed-creation":
+                current_creation = {"pid": 42, "creation_ticks": "456"}
+            elif condition == "expired":
+                current_packet["deadline_monotonic"] = expected["deadline_monotonic"] = 9
+            supervisor = {"observe_root_creation": Mock(side_effect=[creation, current_creation]),
+                          "create_file": Mock(), "decode": json.loads,
+                          "read_regular": Mock(return_value=json.dumps(expected).encode())}
+            with self.subTest(condition=condition), \
+                    patch.dict("sys.modules", {"pwd": SimpleNamespace(getpwnam=lambda _name: SimpleNamespace(pw_uid=1002, pw_gid=1002))}), \
+                    patch.dict(readiness.os.environ, {"INVOCATION_ID": generation}, clear=True), \
+                    patch.object(readiness.os, "getuid", return_value=1002, create=True), patch.object(readiness.os, "getgid", return_value=1002, create=True), \
+                    patch.object(readiness.os, "getpid", return_value=42), patch.object(readiness.time, "monotonic", return_value=10), \
+                    patch.object(readiness, "load_supervisor", return_value=supervisor), \
+                    patch.object(readiness, "public_policy", return_value={"inert": True}), \
+                    patch.object(readiness, "wait_release", return_value=json.dumps(current_packet).encode()), \
+                    patch.object(readiness.os, "execve", create=True) as execute:
+                if condition == "accepted":
+                    readiness.inert_entry(invocation)
+                    execute.assert_called_once()
+                    executable, arguments, environment = execute.call_args.args
+                    self.assertEqual(executable, "/usr/bin/bwrap")
+                    self.assertEqual(arguments[0], executable)
+                    self.assertIn(readiness.CHILD, arguments)
+                    self.assertIn("--cap-drop", arguments)
+                    self.assertEqual(environment, readiness.ENV)
+                else:
+                    with self.assertRaises(RuntimeError):
+                        readiness.inert_entry(invocation)
+                    execute.assert_not_called()
+                supervisor["create_file"].assert_called_once()
+
+    def test_kernel_readback_is_read_only_exact_pid_time_filtered_without_retry(self):
+        probe = {"entry_pid": 42, "entry": {"pid": 42, "creation": {"pid": 42, "creation_ticks": "123"}}}
+        reply = SimpleNamespace(returncode=1, stdout=b"", stderr=b"journal unavailable")
+        with patch.object(readiness.subprocess, "run", return_value=reply) as run:
+            observed = readiness.denial_observation(probe, 100, 120)
+        self.assertEqual(observed["exit"], 1)
+        self.assertEqual(observed["messages"], [])
+        self.assertFalse(observed["automatic_retry"])
+        self.assertIn("journal unavailable", observed["stderr"])
+        arguments = run.call_args.args[0]
+        self.assertIn("--since=@100", arguments)
+        self.assertIn("--until=@120", arguments)
+        pattern = next(value.removeprefix("--grep=") for value in arguments if value.startswith("--grep="))
+        self.assertIsNotNone(readiness.re.search(pattern, 'audit: apparmor="DENIED" operation="userns_create" pid=42 comm="bwrap" requested="userns_create"'))
+        for decoy in ('ppid=42 comm="bwrap"', 'pid=420 comm="bwrap"', 'pid=42 comm="other"',
+                      'pid=42 somecomm="bwrap"'):
+            self.assertIsNone(readiness.re.search(pattern, 'audit: apparmor="DENIED" ' + decoy))
+        self.assertEqual(run.call_count, 1)
+        with patch.object(readiness.subprocess, "run") as run, self.assertRaises(RuntimeError):
+            readiness.denial_observation({**probe, "entry_pid": "42; arbitrary"}, 100, 120)
+        run.assert_not_called()
+
+    def test_partial_release_is_bounded_by_original_deadline_and_eof_is_refused(self):
+        with patch.object(readiness.time, "monotonic", side_effect=[10, 11, 12]), \
+                patch.object(readiness.select, "select", return_value=([7], [], [])) as selected, \
+                patch.object(readiness.os, "read", side_effect=[b'{"x":', b'1}\n']):
+            self.assertEqual(readiness.wait_release(7, 15), b'{"x":1}')
+            self.assertEqual([call.args[3] for call in selected.call_args_list], [5, 4])
+        for parts, reason in (([b""], "closed"), ([b"x\ny\n"], "framing"), ([b"x" * 2049], "bound")):
+            with self.subTest(reason=reason), patch.object(readiness.time, "monotonic", return_value=10), \
+                    patch.object(readiness.select, "select", return_value=([7], [], [])), \
+                    patch.object(readiness.os, "read", side_effect=parts), self.assertRaisesRegex(RuntimeError, reason):
+                readiness.wait_release(7, 15)
+        with patch.object(readiness.time, "monotonic", return_value=15), \
+                patch.object(readiness.os, "read") as read, self.assertRaisesRegex(RuntimeError, "expired"):
+            readiness.wait_release(7, 15)
+        read.assert_not_called()
+
+    def test_release_checks_exact_retained_tuple_generation_creation_and_original_clock(self):
+        expected = {"invocation_id": "a" * 64, "unit_invocation_id": "b" * 32,
+                    "pid": 42, "creation": {"pid": 42, "creation_ticks": "123"}, "deadline_monotonic": 15}
+        with patch.object(readiness.time, "monotonic", return_value=10):
+            readiness.check_release(expected, expected, "b" * 32, 42, expected["creation"], 20)
+            for field, value in (("pid", 43), ("unit_invocation_id", "c" * 32), ("creation", {}),
+                                 ("deadline_monotonic", float("nan"))):
+                changed = {**expected, field: value}
+                with self.subTest(field=field), self.assertRaises(RuntimeError):
+                    readiness.check_release(changed, expected, "b" * 32, 42, expected["creation"], 20)
+        with patch.object(readiness.time, "monotonic", return_value=15), self.assertRaisesRegex(RuntimeError, "expired"):
+            readiness.check_release(expected, expected, "b" * 32, 42, expected["creation"], 20)
+
+    def test_release_rechecks_actual_unit_and_root_generation_before_admission(self):
+        properties = {"MainPID": "42"}
+        creation = {"pid": 42, "creation_ticks": "123"}
+        supervisor = {"unit_properties": Mock(return_value=properties), "inspect_unit_properties": Mock(),
+                      "inspect_unit_identity": Mock(), "observe_root_creation": Mock(return_value=creation)}
+        group = SimpleNamespace(read=Mock(return_value="42\n"))
+        entry = {"invocation_id": "a" * 64, "pid": 42, "creation": creation}
+        with patch.object(readiness.time, "monotonic", return_value=10):
+            binding = readiness.release_binding(supervisor, "owned.service", "b" * 32, group, entry, "a" * 64, 15)
+            self.assertEqual(binding["pid"], 42)
+            supervisor["inspect_unit_identity"].assert_called_once_with(properties, "owned.service", "b" * 32)
+            supervisor["observe_root_creation"].return_value = {"pid": 42, "creation_ticks": "456"}
+            with self.assertRaisesRegex(RuntimeError, "process generation"):
+                readiness.release_binding(supervisor, "owned.service", "b" * 32, group, entry, "a" * 64, 15)
+
+    def test_fast_namespace_refusal_preserves_original_held_cleanup_and_failed_result(self):
+        invocation = "ab" * 32
+        creation = {"pid": 42, "creation_ticks": "123"}
+        active = {"ActiveState": "active", "MainPID": "42", "InvocationID": "b" * 32}
+        with tempfile.TemporaryDirectory() as temporary:
+            guest = Path(temporary)
+            def launch(*_arguments, **_keywords):
+                readiness.retain(guest / "invocations" / invocation / "capture/entry.json",
+                                 {"invocation_id": invocation, "pid": 42, "creation": creation, "policy": {}})
+                return process
+            process = SimpleNamespace(stdin=io.BytesIO(), poll=Mock(side_effect=[None, 1]), returncode=1,
+                                      communicate=Mock(return_value=(None, b"bwrap: setting up uid map: Permission denied")))
+            group = SimpleNamespace(identity=(1, 2), path=Path("/sys/fs/cgroup/owned"),
+                                    read=Mock(return_value="42\n"), empty=Mock(return_value=True),
+                                    last_observation="removed-exact-held-cgroup", close=Mock())
+            supervisor = {"unit_properties": Mock(side_effect=[{"LoadState": "not-found"}, active, active, {"settled": True}]),
+                          "inspect_unit_properties": Mock(), "inspect_unit_identity": Mock(),
+                          "HeldCgroup": Mock(return_value=group), "observe_root_creation": Mock(return_value=creation),
+                          "control_environment": Mock(return_value={}), "settled_unit": lambda value: value.get("settled", False),
+                          "systemctl": Mock(), "read_marker": lambda filename, _maximum: json.loads(filename.read_bytes())}
+            with patch.dict("sys.modules", {"pwd": SimpleNamespace(getpwnam=lambda _name: SimpleNamespace(pw_uid=1002, pw_gid=1002))}), \
+                    patch.object(readiness, "GUEST", guest), patch.object(readiness, "load_supervisor", return_value=supervisor), \
+                    patch.object(readiness.os, "getuid", return_value=1002, create=True), patch.object(readiness.os, "getgid", return_value=1002, create=True), \
+                    patch.object(readiness.os, "urandom", return_value=bytes.fromhex(invocation)), \
+                    patch.object(readiness.subprocess, "Popen", side_effect=launch), patch("builtins.print"):
+                self.assertEqual(readiness.probe(), 1)
+            result = json.loads((guest / "invocations" / invocation / "capture/probe.json").read_bytes())
+            self.assertFalse(result["passed"])
+            self.assertIn("did not report readiness", result["failure"])
+            self.assertIn("Permission denied", result["unit_stderr"])
+            self.assertTrue(result["cgroup_empty"] and result["unit_settled"])
+            group.close.assert_called_once()
+            supervisor["systemctl"].assert_not_called()
+            self.assertTrue((guest / "invocations" / invocation / "capture/release.json").exists())
+
     def root_runner(self, child):
         # Execute the actual embedded function, not a second implementation.
         # Privileged outer setup and every OS/process/clock effect are inert.

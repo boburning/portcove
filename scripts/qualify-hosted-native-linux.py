@@ -11,6 +11,7 @@ import json
 import os
 import platform
 import re
+import select
 import stat
 import subprocess
 import sys
@@ -233,20 +234,137 @@ def settle_observed(supervisor, unit, generation, group):
         supervisor["COMMAND_DEADLINE"] = previous
 
 
-def probe():
-    import pwd
+def public_policy():
+    # Fixed public kernel context, never credentials or arbitrary paths. These
+    # observations identify policy state; they do not establish denial cause.
+    result = {}
+    for name in ("/proc/self/attr/current", "/proc/self/uid_map", "/proc/self/gid_map",
+                 "/proc/sys/kernel/apparmor_restrict_unprivileged_userns",
+                 "/proc/sys/kernel/unprivileged_userns_clone", "/proc/sys/user/max_user_namespaces"):
+        try:
+            with open(name, "rb") as source:
+                data = source.read(4097)
+            need(len(data) <= 4096, "fixed public policy exceeds bound")
+            result[name] = data.decode("ascii").strip()
+        except OSError as error:
+            result[name] = {"unavailable_errno": error.errno}
+    with open("/proc/self/status", "rb") as source:
+        data = source.read(16385)
+    need(len(data) <= 16384, "fixed process status exceeds bound")
+    result["status"] = {key: value.strip() for line in data.decode("ascii").splitlines()
+                        for key, separator, value in [line.partition(":")]
+                        if separator and key in ("Uid", "Gid", "CapInh", "CapPrm", "CapEff", "CapBnd",
+                                                 "CapAmb", "NoNewPrivs", "Seccomp", "Seccomp_filters")}
+    return result
 
-    user = pwd.getpwnam(USER)
-    need(os.getuid() == user.pw_uid > 0 and os.getgid() == user.pw_gid, "separate qualification identity required")
+
+def wait_release(descriptor, deadline):
+    data = b""
+    while b"\n" not in data:
+        remaining = deadline - time.monotonic()
+        need(remaining > 0 and select.select([descriptor], [], [], remaining)[0], "inert entry release expired")
+        part = os.read(descriptor, 2049 - len(data))
+        need(part, "inert entry release closed")
+        data += part
+        need(len(data) <= 2048, "inert entry release exceeds bound")
+    need(data.endswith(b"\n") and data.count(b"\n") == 1, "inert entry release framing differs")
+    need(time.monotonic() < deadline, "original inert entry release deadline expired")
+    return data[:-1]
+
+
+def load_supervisor():
     filename = INSTALLED / "native-qualification-linux-supervisor.py"
     for source in (Path(__file__), filename):
         info = source.lstat()
         need(info.st_uid == 0 and stat.S_ISREG(info.st_mode) and info.st_mode & 0o222 == 0,
              "installed diagnostic code custody differs")
-    # Reuse the actual supervisor's resource and held-kernel-object checks.
-    source = filename.read_bytes()
     supervisor = {"__name__": "hosted_readiness_supervisor", "__file__": str(filename)}
-    exec(compile(source, str(filename), "exec"), supervisor)
+    exec(compile(filename.read_bytes(), str(filename), "exec"), supervisor)
+    return supervisor
+
+
+def release_binding(supervisor, unit, generation, group, entry, invocation, deadline):
+    properties = supervisor["unit_properties"](unit)
+    supervisor["inspect_unit_properties"](properties)
+    supervisor["inspect_unit_identity"](properties, unit, generation)
+    pid = int(properties["MainPID"])
+    need(entry["invocation_id"] == invocation and entry["pid"] == pid
+         and entry["creation"] == supervisor["observe_root_creation"](pid)
+         and str(pid) in group.read("cgroup.procs").splitlines(), "inert entry process generation differs")
+    need(time.monotonic() < deadline, "original inert entry admission deadline expired")
+    return {"invocation_id": invocation, "unit_invocation_id": generation,
+            "pid": pid, "creation": entry["creation"], "deadline_monotonic": deadline}
+
+
+def check_release(packet, expected, generation, pid, creation, deadline):
+    need(packet == expected and set(packet) == {"invocation_id", "unit_invocation_id", "pid", "creation", "deadline_monotonic"}
+         and packet["unit_invocation_id"] == generation and packet["pid"] == pid
+         and packet["creation"] == creation, "inert entry release identity differs")
+    bound = packet["deadline_monotonic"]
+    need(type(bound) in (int, float) and 0 < bound <= deadline and time.monotonic() < bound,
+         "original inert entry execution deadline expired")
+
+
+def denial_observation(probe_result, started, ended):
+    pid = probe_result.get("entry_pid")
+    need(type(pid) is int and 0 < pid <= 4294967294
+         and probe_result["entry"]["pid"] == pid
+         and probe_result["entry"]["creation"]["pid"] == pid, "kernel observation process identity unavailable")
+    need(type(started) is int and type(ended) is int and 0 < started <= ended <= started + 90,
+         "kernel observation interval differs")
+    # Read only matching AppArmor denials from this boot/time/PID window. No
+    # whole-host journal is exported, no policy is changed and no retry occurs.
+    reply = subprocess.run([
+        "/usr/bin/sudo", "-n", "--", "/usr/bin/timeout", "--kill-after=2s", "8s",
+        "/usr/bin/env", "-i", "PATH=/usr/bin:/bin", "LANG=C.UTF-8", "/usr/bin/journalctl",
+        "--dmesg", "--boot", "--no-pager", "--quiet", "--output=cat", "--lines=16",
+        "--since=@" + str(started), "--until=@" + str(ended),
+        '--grep=apparmor="DENIED".*[ \t]pid=' + str(pid) + r'(?=[ \t]|$).*[ \t]comm="bwrap"(?=[ \t]|$)',
+    ], env=ENV, stdin=subprocess.DEVNULL, capture_output=True, timeout=12, check=False)
+    need(len(reply.stdout) <= 8192 and len(reply.stderr) <= 2048, "filtered kernel evidence exceeds bound")
+    return {"scope": "matching kernel messages, not independent process-creation attestation",
+            "pid": pid, "creation": probe_result["entry"]["creation"], "started_unix": started,
+            "ended_unix": ended, "exit": reply.returncode,
+            "messages": reply.stdout.decode("utf-8", "replace").splitlines(),
+            "stderr": reply.stderr.decode("utf-8", "replace"), "automatic_retry": False}
+
+
+def inert_entry(invocation):
+    import pwd
+
+    need(re.fullmatch(r"[a-f0-9]{64}", invocation), "fixed inert invocation differs")
+    user = pwd.getpwnam(USER)
+    need(os.getuid() == user.pw_uid > 0 and os.getgid() == user.pw_gid, "inert entry identity differs")
+    deadline = time.monotonic() + 15
+    supervisor = load_supervisor()
+    attempt = GUEST / "invocations" / invocation
+    home, ready = attempt / "work/home", attempt / "capture/ready.json"
+    creation = supervisor["observe_root_creation"](os.getpid())
+    supervisor["create_file"](attempt / "capture/entry.json", encode({"invocation_id": invocation, "pid": os.getpid(),
+           "creation": creation, "policy": public_policy(), "authority": "none"}))
+    # The trusted parent holds the actual unit generation/cgroup before release.
+    # EOF, a wrong token or a late token never launches bubblewrap.
+    packet = supervisor["decode"](wait_release(0, deadline))
+    expected = supervisor["decode"](supervisor["read_regular"](attempt / "capture/release.json", 2048))
+    need(packet["invocation_id"] == invocation, "inert entry invocation differs")
+    check_release(packet, expected, os.environ.get("INVOCATION_ID"), os.getpid(),
+                  supervisor["observe_root_creation"](os.getpid()), deadline)
+    os.execve("/usr/bin/bwrap", [
+        "/usr/bin/bwrap", "--die-with-parent", "--new-session", "--unshare-user",
+        "--uid", str(user.pw_uid), "--gid", str(user.pw_gid), "--cap-drop", "ALL",
+        "--bind", "/", "/", "--size", "536870912", "--tmpfs", str(home), "--chdir", str(home),
+        "--setenv", "HOME", str(home), "--setenv", "TMPDIR", str(home), "--",
+        "/usr/bin/python3", "-I", "-S", "-B", "-c", CHILD, str(home), str(ready),
+    ], ENV)
+
+
+def probe():
+    import pwd
+
+    user = pwd.getpwnam(USER)
+    need(os.getuid() == user.pw_uid > 0 and os.getgid() == user.pw_gid, "separate qualification identity required")
+    # Reuse the actual supervisor's resource and held-kernel-object checks.
+    supervisor = load_supervisor()
     invocation = os.urandom(32).hex()
     attempt = GUEST / "invocations" / invocation
     for directory in (GUEST / "invocations", attempt, attempt / "work", attempt / "work/home", attempt / "capture"):
@@ -270,12 +388,9 @@ def probe():
             "--unit=" + unit, "--property=MemoryMax=1073741824", "--property=MemorySwapMax=0",
             "--property=TasksMax=64", "--property=KillMode=control-group", "--property=TimeoutStopSec=5s",
             "--property=RuntimeMaxSec=35s", "--property=NoNewPrivileges=yes", "--property=UMask=0077",
-            "--property=RestrictSUIDSGID=yes", "--", "/usr/bin/bwrap", "--die-with-parent", "--new-session",
-            "--unshare-user", "--uid", str(user.pw_uid), "--gid", str(user.pw_gid), "--cap-drop", "ALL",
-            "--bind", "/", "/", "--size", "536870912", "--tmpfs", str(home), "--chdir", str(home),
-            "--setenv", "HOME", str(home), "--setenv", "TMPDIR", str(home), "--",
-            "/usr/bin/python3", "-I", "-S", "-B", "-c", CHILD, str(home), str(ready),
-        ], env=control, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+            "--property=RestrictSUIDSGID=yes", "--", "/usr/bin/python3", "-I", "-S", "-B",
+            str(INSTALLED / "qualify-hosted-native-linux.py"), "--entry", invocation,
+        ], env=control, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         deadline = readiness_deadline
         while time.monotonic() < deadline and process.poll() is None:
             properties = supervisor["unit_properties"](unit)
@@ -288,7 +403,19 @@ def probe():
             time.sleep(0.05)
         need(group is not None, "actual bounded user unit never became observable")
         result.update(stage="namespace-readiness", unit_invocation_id=generation,
+                      entry_pid=int(properties["MainPID"]),
                       cgroup={"device": group.identity[0], "inode": group.identity[1], "path": str(group.path)})
+        while time.monotonic() < deadline and not (attempt / "capture/entry.json").exists() and process.poll() is None:
+            time.sleep(0.05)
+        entry = supervisor["read_marker"](attempt / "capture/entry.json", 8192)
+        result["entry"] = entry
+        binding = release_binding(supervisor, unit, generation, group, entry, invocation, deadline)
+        retain(attempt / "capture/release.json", binding)
+        need(time.monotonic() < readiness_deadline, "original inert entry admission deadline expired")
+        process.stdin.write(encode(binding) + b"\n")
+        process.stdin.flush()
+        process.stdin.close()
+        process.stdin = None
         while time.monotonic() < deadline and not ready.exists() and process.poll() is None:
             time.sleep(0.05)
         need(ready.exists(), "actual bubblewrap child did not report readiness")
@@ -310,6 +437,13 @@ def probe():
         # Recovery has its own fixed eight-second allowance within the probe's
         # outer lifetime, never the expired readiness command budget.
         supervisor["COMMAND_DEADLINE"] = None
+        if process is not None and process.stdin is not None:
+            try:
+                process.stdin.close()
+            except OSError as error:
+                result["entry_channel_close_failure"] = str(error)
+            finally:
+                process.stdin = None
         if generation is not None and group is not None:
             try:
                 result.update(settle_observed(supervisor, unit, generation, group))
@@ -328,9 +462,20 @@ def probe():
                 # RuntimeMaxSec remains the provider-independent unit backstop.
                 # A response timeout is not proof that any descendant stopped.
                 result["launcher_settlement"] = "unknown"
+        try:
+            policy = attempt / "capture/entry.json"
+            with policy.open("rb") as source:
+                data = source.read(8193)
+            need(len(data) <= 8192, "inert entry observation exceeds bound")
+            observed_entry = json.loads(data)
+            need(observed_entry == result.get("entry") and observed_entry["invocation_id"] == invocation
+                 and observed_entry["pid"] == result.get("entry_pid"), "inert entry generation differs")
+        except Exception as error:
+            result["entry_readback_failure"] = str(error)
         result["passed"] = (result["failure"] is None and result["cgroup_empty"]
                             and result["unit_settled"] and "recovery_failure" not in result
                             and "cgroup_close_failure" not in result
+                            and "entry_readback_failure" not in result
                             and result.get("launcher_settlement") != "unknown")
         retain(attempt / "capture/probe.json", result)
         print(json.dumps(result))
@@ -364,6 +509,7 @@ def prepare():
         ], timeout=75))
         require_setup_readback(result["setup"], os.getuid())
         result["stage"] = "inert-boundary-probe"
+        probe_started = int(time.time())
         reply = subprocess.run([
             "/usr/bin/sudo", "-n", "-H", "-u", USER, "--", "/usr/bin/env", "-i", "PATH=/usr/bin:/bin",
             "LANG=C.UTF-8", "HOME=/home/portcove-native", "/usr/bin/python3", "-I", "-S", "-B",
@@ -373,6 +519,11 @@ def prepare():
         result["probe_exit"] = reply.returncode
         result["probe_stderr"] = reply.stderr.decode("utf-8", "replace")
         result["probe"] = json.loads(reply.stdout)
+        if reply.returncode != 0 and result["probe"].get("entry_pid") is not None:
+            try:
+                result["kernel_denials"] = denial_observation(result["probe"], probe_started, int(time.time()) + 1)
+            except Exception as error:
+                result["kernel_denial_readback_failure"] = str(error)
         need(reply.returncode == 0 and result["probe"]["passed"], "actual hosted primitive diagnostic failed")
         result["stage"] = "bounded-primitives-observed"
     except Exception as error:
@@ -385,5 +536,8 @@ def prepare():
 
 
 if __name__ == "__main__":
-    need(sys.argv[1:] in (["--prepare"], ["--probe"]), "fixed diagnostic operation required")
-    sys.exit(probe() if sys.argv[1] == "--probe" else prepare())
+    if len(sys.argv) == 3 and sys.argv[1] == "--entry":
+        inert_entry(sys.argv[2])
+    else:
+        need(sys.argv[1:] in (["--prepare"], ["--probe"]), "fixed diagnostic operation required")
+        sys.exit(probe() if sys.argv[1] == "--probe" else prepare())
