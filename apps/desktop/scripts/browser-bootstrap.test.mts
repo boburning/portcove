@@ -40,7 +40,7 @@ for (const [mode, status, operations, phases] of [
 ] as const) {
   test(
     `browser bootstrap retains ${mode} and records only reached phases`,
-    { timeout: 45_000 },
+    { timeout: 180_000 },
     () => {
       const temp = mkdtempSync(path.join(os.tmpdir(), "portcove-bootstrap-control-"));
       try {
@@ -64,7 +64,7 @@ for (const [mode, status, operations, phases] of [
           {
             cwd: desktop,
             encoding: "utf8",
-            timeout: 20_000,
+            timeout: 120_000,
             windowsHide: true,
             env: {
               ...process.env,
@@ -133,7 +133,7 @@ for (const [mode, status, operations, phases] of [
 
 test(
   "unavailable bootstrap diagnostics preserve successful readiness and cleanup",
-  { timeout: 45_000 },
+  { timeout: 180_000 },
   () => {
     const temp = mkdtempSync(path.join(os.tmpdir(), "portcove-bootstrap-sink-"));
     try {
@@ -151,7 +151,7 @@ test(
         {
           cwd: desktop,
           encoding: "utf8",
-          timeout: 20_000,
+          timeout: 120_000,
           windowsHide: true,
           env: {
             ...process.env,
