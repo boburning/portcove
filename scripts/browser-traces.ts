@@ -34,7 +34,8 @@ export function createBrowserTraceRun(
   // pool shutdown fails. Neither is permission to remove open diagnostic files.
   const reporter: Reporter = {
     onTestCaseAnnotate(_testCase, annotation) {
-      if (annotation.type !== "capture-target") return;
+      const accessibility = annotation.type === "accessibility-audit";
+      if (!accessibility && annotation.type !== "capture-target") return;
       const attachment = annotation.attachment;
       if (attachment?.contentType !== "application/json" || attachment.body === undefined)
         throw new Error("Capture annotation requires inline JSON bytes");
@@ -55,13 +56,34 @@ export function createBrowserTraceRun(
       }
       if (body.byteLength > 16384) throw new Error("Capture annotation exceeds16KiB");
       const parsed: unknown = JSON.parse(body.toString("utf8"));
-      if (
+      if (accessibility) {
+        const audit = isRecord(parsed) ? parsed.accessibility_audit : undefined;
+        if (
+          !isRecord(audit) ||
+          audit.format_version !== 1 ||
+          typeof audit.state !== "string" ||
+          !audit.state.length ||
+          audit.state.length > 256 ||
+          audit.rule_selection !== "all default axe rules" ||
+          !Array.isArray(audit.passed_rules) ||
+          !audit.passed_rules.every((id) => typeof id === "string") ||
+          !Array.isArray(audit.inapplicable_rules) ||
+          !audit.inapplicable_rules.every((id) => typeof id === "string") ||
+          !Array.isArray(audit.violations) ||
+          !Array.isArray(audit.incomplete)
+        )
+          throw new Error("Accessibility annotation requires an explicit audit state and findings");
+      } else if (
         !isRecord(parsed) ||
         !isRecord(parsed.capture_target) ||
         !["captured", "refused"].includes(String(parsed.capture_target.outcome))
       )
         throw new Error("Capture annotation requires a capture outcome");
-      const captures = path.join(root, ".vitest/attachments/capture-target");
+      const captures = path.join(
+        root,
+        ".vitest/attachments",
+        accessibility ? "accessibility-audit" : "capture-target",
+      );
       const physicalCaptures = resolvePhysicalPath(captures);
       const captureRelative = path.relative(physicalRoot, physicalCaptures);
       if (

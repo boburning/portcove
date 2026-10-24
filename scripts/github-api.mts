@@ -292,6 +292,15 @@ export function createGitHubRunner({
       } catch {
         // The command failure remains authoritative when its response is malformed.
       }
+      // gh exits nonzero for an authorized conditional GET's valid 304. Keep its
+      // headers so the caller can validate the exact cached representation.
+      if (
+        response?.status === 304 &&
+        args.includes("--include") &&
+        args.some((argument) => argument.startsWith("If-None-Match: ")) &&
+        args[args.indexOf("--method") + 1] === "GET"
+      )
+        return result.stdout;
       throw new GitHubApiError(
         "command_failed",
         result.stderr.trim() || `${operation} failed with exit ${result.status}`,
@@ -373,9 +382,20 @@ export class GitHubApiClient {
     });
   }
 
-  request(method: string, endpoint: string, body: unknown = null) {
+  request(
+    method: string,
+    endpoint: string,
+    body: unknown = null,
+    headers: Readonly<Record<string, string>> = {},
+  ) {
     const started = Date.now();
     const operation = `${method} ${endpoint}`;
+    if (
+      Object.entries(headers).some(
+        ([name, value]) => !/^[A-Za-z0-9-]+$/u.test(name) || /[\r\n]/u.test(value),
+      )
+    )
+      throw new Error("Invalid GitHub REST request header");
     const input = body === null ? undefined : `${JSON.stringify(body)}\n`;
     let response;
     try {
@@ -387,6 +407,10 @@ export class GitHubApiClient {
             endpoint,
             "--method",
             method,
+            ...Object.entries(headers).flatMap(([name, value]) => [
+              "--header",
+              `${name}: ${value}`,
+            ]),
             ...(body === null ? [] : ["--input", "-"]),
           ],
           input,

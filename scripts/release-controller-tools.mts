@@ -20,6 +20,7 @@ export const controllerToolEntries = Object.freeze([
   "release-tuf-controller",
   "release-controller-job",
   "release-hosted-native-runner",
+  "release-native-keyless-assembly",
 ] as const);
 /** These child entry paths are part of the existing driver's/supervisor's ABI. */
 export const controllerToolChildren = Object.freeze([

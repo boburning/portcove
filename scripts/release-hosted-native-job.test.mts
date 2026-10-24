@@ -153,3 +153,82 @@ console.log('controlled hosted timestamp binding and refusal cases passed');
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   assert.match(result.stdout, /controlled hosted timestamp binding and refusal cases passed/u);
 });
+
+void test("hosted signed inputs keep default custody through the fixed keyless child and stop on late drift", (t) => {
+  const root = disposableDirectory(t, path.join(os.tmpdir(), "hosted-signed-inputs-"));
+  const entry = new URL("./release-hosted-native-postsign-inputs.mts", import.meta.url).href;
+  const canonical = new URL("./release-canonical.mts", import.meta.url).href;
+  const code = String.raw`
+import assert from 'node:assert/strict'; import {registerHooks} from 'node:module';
+import {mkdirSync,writeFileSync,readFileSync,existsSync,readdirSync} from 'node:fs';
+import * as fs from 'node:fs/promises'; import path from 'node:path';
+import {createHash} from 'node:crypto';import {performance} from 'node:perf_hooks';
+import {releaseCanonicalDigest as digest} from ${JSON.stringify(canonical)};
+const hash=b=>createHash('sha256').update(b).digest('hex');let clock=1000;
+Object.defineProperty(performance,'now',{value:()=>clock});
+process.env.GH_TOKEN='inert-reader';process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN='inert-parent-only';
+const root=process.argv[1],sourceReceipt={},toolsReceipt={},runtimeReceipt={},parentReceipt={},ctxReceipt={},roleReceipts=new Map();
+let fault='',stale=false,childDone=false,childStarted=false,sourceRoot,toolRoot,contextDir,manifest,inventory,publication;
+let contextCalls=0,roleCalls=0,reads=0;
+const anchor=Buffer.from('fixed public anchor'), pin={bytes:anchor.length,sha256:hash(anchor)};
+const candidate={prepared_commit:'c'.repeat(40),prepared_tree:'d'.repeat(40),version:'0.1.0-beta.1',release_run:{run_id:999,attempt:1},frozen_opportunity:{accumulated_changes:'reviewed'}};
+const producer={controller_revision:'a'.repeat(40),controller_ref:'refs/tags/portcove-production-controller-fixture',run_id:'12345',run_attempt:1};
+const alive=()=>{if(stale||clock>=101000)throw Error('original source stopped or expired')};
+function source(){alive();return {parent_source:parentReceipt,directory:sourceRoot,deadline:101000,checkpoint:'e'.repeat(40),candidate:structuredClone(candidate),producer:{...producer},controller:{...producer},configuration:{purpose:'application',journal:{namespace:'fixture'},publication:{public_source:{root:pin,offline_targets:pin,payload_key_registry:pin}}}}}
+function tools(){alive();return {identity:{...producer,source_tree:'f'.repeat(40),...(fault==='wrong-tool-run'?{run_id:'22222'}:{})},root:toolRoot,node:path.join(toolRoot,'node'),rust:path.join(toolRoot,'portcove-release-tools'),entries:{'release-native-keyless-assembly':path.join(toolRoot,'child.bundle.mjs')}}}
+const reset=name=>{fault=name;stale=false;clock=1000;childDone=false;childStarted=false;contextCalls=0;roleCalls=0;reads=0;roleReceipts.clear();sourceRoot=path.join(root,name||'valid');toolRoot=path.join(sourceRoot,'tools');mkdirSync(path.join(toolRoot,'bin'),{recursive:true});writeFileSync(path.join(toolRoot,'bin/portcove-release-tools'),'fixed rust');for(const name of ['node','portcove-release-tools','child.bundle.mjs'])writeFileSync(path.join(toolRoot,name),name);manifest={controller:{...producer,source_tree:'f'.repeat(40)},binding:{records_sha256:hash(Buffer.from('[]'))},facts_sha256:'1'.repeat(64),facts:{opportunity:structuredClone(candidate.frozen_opportunity),assembly:{fixed:true}}};if(name==='opportunity')manifest.facts.opportunity={foreign:true};inventory={context:{id:1,bytes:100,sha256:'2'.repeat(64)},context_bundle:{id:2,bytes:100,sha256:'3'.repeat(64)},roles:['releases','preview','stable','snapshot','timestamp'].map((role,i)=>({role,artifact:{id:3+i*2,bytes:100,sha256:'4'.repeat(64)},bundle:{id:4+i*2,bytes:100,sha256:'5'.repeat(64)}}))}}
+const fileInventory=dir=>readdirSync(dir).sort().map(name=>{const b=readFileSync(path.join(dir,name));return {path:name,bytes:b.length,sha256:hash(b)}});
+function materialize(){childStarted=true;const dirs=readdirSync(sourceRoot).filter(name=>name.startsWith('signed-inputs-'));assert.equal(dirs.length,1);const dir=path.join(sourceRoot,dirs[0]);const plan=readFileSync(path.join(dir,'native-keyless-plan.json'));const parsed=JSON.parse(plan);assert.equal(parsed.signed_roles.length,5);assert.equal(parsed.tool.path,path.join(toolRoot,'bin/portcove-release-tools'));assert.equal(parsed.context_directory,contextDir);const assembled=path.join(dir,'tuf-publication-fixture'),repository=path.join(assembled,'repository');mkdirSync(repository,{recursive:true});for(const name of ['public-inputs','signed-roles']){mkdirSync(path.join(assembled,name));writeFileSync(path.join(assembled,name,'fixture.json'),'{}')}writeFileSync(path.join(assembled,'assembly-report.json'),'{}');writeFileSync(path.join(repository,'record.json'),'retained signed record');writeFileSync(path.join(repository,'repository-manifest.json'),'{}');const files=fileInventory(repository);publication={records_sha256:manifest.binding.records_sha256,repository_sha256:digest(files.filter(f=>f.path!=='repository-manifest.json'))};if(fault==='records')publication.records_sha256='9'.repeat(64);const result={schema_version:1,plan_sha256:fault==='result-plan'?'9'.repeat(64):hash(plan),assembled:{directory:assembled,repository,files,publication,input_files:fileInventory(path.join(assembled,'public-inputs')),signed_files:fileInventory(path.join(assembled,'signed-roles')),report_sha256:hash(Buffer.from('{}'))},authority:'none',scope:'keyless utility data'};writeFileSync(path.join(dir,'native-keyless-result.json'),JSON.stringify(result));childDone=true;if(fault==='after-settle')stale=true}
+globalThis.signedFixture={
+ runtime:async(r,p)=>{assert.equal(r,runtimeReceipt);assert.equal(p,parentReceipt);alive();if(fault==='runtime')throw Error('foreign runtime');return {root:toolRoot,deadline:101000}},
+ support:async(r,p,d)=>{assert.equal(r,runtimeReceipt);assert.equal(p,parentReceipt);assert.ok(d.startsWith(sourceRoot));return {rustSupportCompilerIdentity:()=>{throw Error('controlled callback not invoked')},prepareSupportArtifact:()=>{throw Error('controlled callback not invoked')}}},
+ source:async r=>{assert.equal(r,sourceReceipt);reads++;return source()},tools:async r=>{assert.equal(r,toolsReceipt);if(fault==='tool-drift'&&childDone)stale=true;return tools()},
+ inventory:async r=>{assert.equal(r,sourceReceipt);alive();return fault==='inventory'&&childDone?{...inventory,foreign:true}:structuredClone(inventory)},
+ archive:async r=>{assert.equal(r,sourceReceipt);alive();return {inventory:structuredClone(inventory),bytes:Buffer.from('owned original archive')}},
+ inspect:()=>({files:new Map([['trusted-root.json',fault==='anchor'?Buffer.from('foreign'):anchor],['offline-targets.json',anchor],['payload.json',anchor]]),manifest:structuredClone(manifest),manifest_sha256:'6'.repeat(64)}),
+ receiveContext:async(...args)=>{assert.equal(args.length,3,'default context transport only');contextCalls++;assert.ok(args[2]<=101000);const dir=path.join(args[0],'received-context');contextDir=path.join(dir,'context');mkdirSync(contextDir,{recursive:true});writeFileSync(path.join(contextDir,'context.json'),'{}');return Object.assign(ctxReceipt,{directory:dir,evidence_scope:'github.com'})},
+ requireContext:async r=>{assert.equal(r,ctxReceipt);alive();if(fault==='context-drift'&&childDone)throw Error('retained context changed');return {directory:r.directory,context:path.join(contextDir,'context.json'),manifest:structuredClone(manifest)}},
+ receiveRole:async(...args)=>{assert.equal(args.length,4,'default role transport only');assert.equal(args[0],ctxReceipt);assert.ok(args[3]<=101000);roleCalls++;const expected=args[2],receipt={};const file=path.join(args[1],expected.role+'.json');writeFileSync(file,'{}');roleReceipts.set(receipt,{envelope:{filename:expected.role+'.json',path:file,bytes:2,sha256:hash(Buffer.from('{}'))}});return receipt},
+ requireRole:async r=>{alive();assert.ok(roleReceipts.has(r));if(fault==='role-drift'&&childDone)throw Error('retained role changed');return roleReceipts.get(r)},
+ parseConfig:x=>x,parseAssembly:async()=>({accepted:{release_profile:'initial-beta-win-linux',source_commit:fault==='compiler'?'9'.repeat(40):candidate.prepared_commit,source_tree:candidate.prepared_tree,version:candidate.version,run_id:'999',run_attempt:1},labels:['windows-x86_64','linux-x86_64']}),parsePublication:x=>x,
+ resource:async(profile,exe,args,options)=>{assert.equal(profile,'analysis');assert.equal(exe,path.join(toolRoot,'bin/node'));assert.equal(args[0],path.join(toolRoot,'scripts/release-native-keyless-assembly.bundle.mjs'));assert.equal(options.queueDeadline,101000);assert.ok(options.exclusive[0].startsWith('native-keyless:'));for(const key of ['GH_TOKEN','ACTIONS_ID_TOKEN_REQUEST_TOKEN','NODE_OPTIONS'])assert.equal(options.environment[key],undefined);if(fault==='queue-expiry')clock=101001;return options.supervise(['fixed-child'],{acquireLock:async()=>({release:async()=>{}})})},
+ supervise:async(_args,options)=>{assert.equal(typeof options.rustSupportCompilerIdentity,'function');assert.equal(typeof options.prepareSupportArtifact,'function');const lease=await options.acquireLock({},{});try{if(fault==='child-failure')return 1;materialize();return 0}finally{await lease.release()}},
+ write:async(...args)=>{await fs.writeFile(...args);if(path.basename(args[0])==='refusal.json')console.error('controlled refusal '+fault+': '+JSON.parse(args[1]).phase);if(fault==='late-write'&&path.basename(args[0])==='signed-inputs.json')stale=true}
+};
+const routes={
+ './release-hosted-native-candidate.mts':{requireActualHostedNativePostSignController:'source',readActualHostedNativePostSignInventory:'inventory',readActualHostedNativePostSignContextArchive:'archive'},
+ './release-controller-tool-admission.mts':{verifiedControllerToolPaths:'tools'},
+ './release-hosted-native-runtime.mts':{requireHostedNativeRuntime:'runtime',hostedNativeSupportDependencies:'support'},
+ './release-signing-context-artifact.mts':{inspectSigningContextArchive:'inspect',receiveSigningContextArtifact:'receiveContext',requireReceivedSigningContext:'requireContext'},
+ './release-tuf-role-artifact.mts':{receiveTufRoleArtifact:'receiveRole',requireReceivedTufRoleArtifact:'requireRole'},
+ './release-authority-configuration.mts':{inspectSelectedPublicationAuthorityConfiguration:'parseConfig'},
+ './trusted-release-assembly.mts':{inspectTrustedAssemblyInput:'parseAssembly'},
+ './release-metadata-contract.mts':{inspectTufPublicationFacts:'parsePublication'},
+ './resource-command.mts':{runResourceCommand:'resource'},'./run-rust-tests.mts':{runRustTests:'supervise'},
+ 'node:fs/promises':{writeFile:'write'},
+};
+let serial=0;
+registerHooks({resolve(s,c,next){if(c.parentURL.startsWith(${JSON.stringify(entry)})&&routes[s])return {url:'signed-fixture:'+s,shortCircuit:true};return next(s,c)},load(u,c,next){if(u.startsWith('signed-fixture:')){const name=u.slice('signed-fixture:'.length);return {format:'module',source:(name==='node:fs/promises'?"export {chmod,mkdtemp} from 'node:fs/promises';":'')+Object.entries(routes[name]).map(([name,key])=>'export const '+name+'=globalThis.signedFixture.'+key+';').join('\n'),shortCircuit:true}}return next(u,c)}});
+for(const name of ['','retained-input','retained-role','retained-report','runtime','wrong-tool-run','anchor','opportunity','compiler','queue-expiry','child-failure','after-settle','result-plan','records','context-drift','role-drift','inventory','tool-drift','late-write']){
+ reset(name);const api=await import(${JSON.stringify(entry)}+'?case='+(serial++));
+ const attempt=()=>api.acquireActualHostedNativePostSignInputs(sourceReceipt,toolsReceipt,runtimeReceipt);
+ if(name===''||name.startsWith('retained-')){
+  const receipt=await attempt();const value=await api.requireActualHostedNativePostSignInputs(receipt);assert.equal(contextCalls,1);assert.equal(roleCalls,5);assert.equal(childStarted,true);assert.equal(value.authority,'none');assert.equal(value.native_acceptance,'not-established');assert.match(value.scope,/package\/journey\/capture pending/);
+  const originalReads=reads;await assert.rejects(api.requireActualHostedNativePostSignInputs({...receipt}),/original active/);assert.equal(reads,originalReads);
+  const assembled=path.dirname(value.repository);const target=name==='retained-input'?path.join(assembled,'public-inputs/fixture.json'):name==='retained-role'?path.join(assembled,'signed-roles/fixture.json'):name==='retained-report'?path.join(assembled,'assembly-report.json'):path.join(value.repository,'record.json'),bytes=readFileSync(target);writeFileSync(target,'changed');await assert.rejects(api.requireActualHostedNativePostSignInputs(receipt),/changed/);writeFileSync(target,bytes);await assert.rejects(api.requireActualHostedNativePostSignInputs(receipt),/original active/);
+ }else{
+  await assert.rejects(attempt(),/retain/);const dirs=readdirSync(sourceRoot).filter(n=>n.startsWith('signed-inputs-'));assert.equal(dirs.length,1);const refusal=JSON.parse(readFileSync(path.join(sourceRoot,dirs[0],'refusal.json')));assert.equal(refusal.automatic_retry,false);assert.equal(refusal.recovery_required,true);
+  if(name==='anchor')assert.equal(contextCalls,0);if(name==='queue-expiry')assert.equal(childStarted,false);
+ }
+ stale=false;fault='';clock=1000;await assert.rejects(attempt(),/explicit recovery/);
+}
+console.log('controlled default-receiver and owned-keyless composition passed');
+`;
+  const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
+    encoding: "utf8",
+    timeout: 45000,
+    maxBuffer: 1024 * 1024,
+  });
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stdout, /controlled default-receiver and owned-keyless composition passed/u);
+});

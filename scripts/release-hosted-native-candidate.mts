@@ -15,6 +15,7 @@ import {
   inspectHostedNativePreparationStage,
   inspectNativeSourceCommand,
   inspectNativePostSignController,
+  inspectNativePostSignArtifactInventory,
 } from "./release-native-candidate.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
@@ -540,6 +541,51 @@ export async function requireActualHostedNativePostSignController(receipt: objec
       scope:
         "original parent/coordinator timestamp source only; signed context, package and capture pending" as const,
     });
+  } catch (error) {
+    state.stopped = true;
+    throw error;
+  }
+}
+
+/** Fixed public source reads for the original post-sign session. Numeric IDs
+ * are obtained from its own complete inventory, never accepted from a caller. */
+export async function readActualHostedNativePostSignInventory(receipt: object) {
+  const original = await requireActualHostedNativePostSignController(receipt);
+  const state = postSignSources.get(receipt)!;
+  try {
+    const response = state.source.api.request(
+      "GET",
+      `repos/boburning/portcove/actions/runs/${original.controller.run_id}/artifacts?per_page=100`,
+    );
+    state.source.remaining(1);
+    if (response.status !== 200) throw new Error("original signed artifact inventory unavailable");
+    const inventory = inspectNativePostSignArtifactInventory(response.body, original.controller);
+    await requireActualHostedNativePostSignController(receipt);
+    return inventory;
+  } catch (error) {
+    state.stopped = true;
+    throw error;
+  }
+}
+
+export async function readActualHostedNativePostSignContextArchive(receipt: object) {
+  const inventory = await readActualHostedNativePostSignInventory(receipt);
+  const state = postSignSources.get(receipt)!;
+  try {
+    const bytes = state.source.download(
+      `repos/boburning/portcove/actions/artifacts/${inventory.context.id}/zip`,
+      {
+        cwd: state.directory,
+        maxBytes: inventory.context.bytes,
+        timeoutMs: state.source.remaining(30000),
+      },
+    );
+    if (bytes.length !== inventory.context.bytes || hash(bytes) !== inventory.context.sha256)
+      throw new Error("original signed context archive changed");
+    const after = await readActualHostedNativePostSignInventory(receipt);
+    if (releaseCanonicalDigest(after) !== releaseCanonicalDigest(inventory))
+      throw new Error("original signed artifact inventory changed during context acquisition");
+    return { inventory, bytes: Buffer.from(bytes) };
   } catch (error) {
     state.stopped = true;
     throw error;

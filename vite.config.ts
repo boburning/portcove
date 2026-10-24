@@ -242,7 +242,7 @@ export default defineConfig({
       },
       "frontend:browser": {
         command:
-          "node scripts/run-viteplus.mts test --project browser --project browser-forced-colors",
+          "node scripts/run-viteplus.mts test --project browser --project browser-locale --project browser-forced-colors",
         cache: false,
       },
       "frontend:build": { command: "node apps/desktop/scripts/build-frontend.mts", cache: false },
