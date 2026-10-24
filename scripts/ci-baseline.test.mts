@@ -24,12 +24,16 @@ import {
 
 void test("hosted Node contracts enable fixed module mocks without changing budgets or selectors", () => {
   const files = ["scripts/release-coordinator-signing-custody.test.mts"];
-  const common = ["--test", "--test-timeout=60000", "--experimental-test-module-mocks"];
+  const common = [
+    "--test",
+    "--test-timeout=60000",
+    "--experimental-test-module-mocks",
+    "--test-reporter=./scripts/required-node-test-reporter.mts",
+  ];
   assert.deepEqual(baselineTestArguments(files), [...common, ...files]);
   assert.deepEqual(baselineTestArguments(files, true), [
     ...common,
     "--test-skip-pattern=pnpm uses|direct just recipes",
-    "--test-reporter=./scripts/test-duration-reporter.mts",
     ...files,
   ]);
 });

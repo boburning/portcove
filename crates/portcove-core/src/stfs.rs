@@ -34,7 +34,12 @@ struct Entry {
     size: u64,
 }
 
-pub(crate) fn extract(source: &Path, destination: &Path) -> Result<()> {
+pub(crate) fn extract_with_checkpoint(
+    source: &Path,
+    destination: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    checkpoint()?;
     if destination.exists() {
         return Err(PortcoveError::state(
             "STFS extraction destination must be a new directory",
@@ -43,8 +48,8 @@ pub(crate) fn extract(source: &Path, destination: &Path) -> Result<()> {
     let source_size = std::fs::metadata(source)?.len();
     let mut input = File::open(source)?;
     let info = parse_info(&mut input, source_size)?;
-    let entries = parse_entries(&mut input, source_size, &info)?;
-    let plans = plan_entries(&entries, source_size)?;
+    let entries = parse_entries(&mut input, source_size, &info, checkpoint)?;
+    let plans = plan_entries(&entries, source_size, checkpoint)?;
     let expanded = validate_expanded_size(&entries, source_size)?;
     let parent = destination
         .parent()
@@ -56,8 +61,10 @@ pub(crate) fn extract(source: &Path, destination: &Path) -> Result<()> {
         .with_known_cause(crate::failure::KnownFailureCause::DestinationCapacity));
     }
 
+    checkpoint()?;
     std::fs::create_dir(destination)?;
     for (entry, relative) in entries.iter().zip(plans) {
+        checkpoint()?;
         let target = destination.join(relative);
         if entry.directory {
             std::fs::create_dir_all(&target)?;
@@ -66,9 +73,9 @@ pub(crate) fn extract(source: &Path, destination: &Path) -> Result<()> {
         if let Some(parent) = target.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        extract_entry(&mut input, source_size, &info, entry, &target)?;
+        extract_entry(&mut input, source_size, &info, entry, &target, checkpoint)?;
     }
-    Ok(())
+    checkpoint()
 }
 
 /// Validate the same bounded package structure and file-block chains used by
@@ -88,13 +95,13 @@ pub(crate) fn validate_reader(
     checkpoint()?;
     let info = parse_info(input, source_size)?;
     checkpoint()?;
-    let entries = parse_entries(input, source_size, &info)?;
-    let _plans = plan_entries(&entries, source_size)?;
+    let entries = parse_entries(input, source_size, &info, checkpoint)?;
+    let _plans = plan_entries(&entries, source_size, checkpoint)?;
     validate_expanded_size(&entries, source_size)?;
     for entry in entries.iter().filter(|entry| !entry.directory) {
         read_entry_blocks(input, source_size, &info, entry, checkpoint, |_| Ok(()))?;
     }
-    Ok(())
+    checkpoint()
 }
 
 fn validate_expanded_size(entries: &[Entry], source_size: u64) -> Result<u64> {
@@ -152,11 +159,17 @@ fn parse_info(input: &mut File, source_size: u64) -> Result<Info> {
     })
 }
 
-fn parse_entries(input: &mut File, source_size: u64, info: &Info) -> Result<Vec<Entry>> {
+fn parse_entries(
+    input: &mut File,
+    source_size: u64,
+    info: &Info,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<Vec<Entry>> {
     let mut entries = Vec::new();
     let mut table_block = info.first_table_block;
     let mut seen = HashSet::new();
     for index in 0..info.table_blocks {
+        checkpoint()?;
         if table_block == END_OF_CHAIN
             || table_block >= info.total_blocks
             || !seen.insert(table_block)
@@ -207,10 +220,15 @@ fn parse_entries(input: &mut File, source_size: u64, info: &Info) -> Result<Vec<
     Ok(entries)
 }
 
-fn plan_entries(entries: &[Entry], source_size: u64) -> Result<Vec<PathBuf>> {
+fn plan_entries(
+    entries: &[Entry],
+    source_size: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<Vec<PathBuf>> {
     let mut paths = Vec::with_capacity(entries.len());
     let mut collisions = HashSet::new();
     for (index, entry) in entries.iter().enumerate() {
+        checkpoint()?;
         let mut parts = vec![entry.name.as_str()];
         let mut parent = entry.parent;
         let mut seen = HashSet::from([index]);
@@ -259,14 +277,17 @@ fn extract_entry(
     info: &Info,
     entry: &Entry,
     destination: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
+    checkpoint()?;
     let mut output = File::create(destination)?;
-    read_entry_blocks(input, source_size, info, entry, &|| Ok(()), |bytes| {
+    read_entry_blocks(input, source_size, info, entry, checkpoint, |bytes| {
         output.write_all(bytes)?;
         Ok(())
     })?;
+    checkpoint()?;
     output.sync_all()?;
-    Ok(())
+    checkpoint()
 }
 
 fn read_entry_blocks(
@@ -291,6 +312,7 @@ fn read_entry_blocks(
         let count = remaining.min(BLOCK_SIZE) as usize;
         let offset = block_offset(block, info)?;
         read_exact_at(input, source_size, offset, &mut bytes[..count])?;
+        checkpoint()?;
         consume(&bytes[..count])?;
         remaining -= count as u64;
         if remaining > 0 {
@@ -388,17 +410,121 @@ mod tests {
         package
     }
 
+    fn multi_block_fixture() -> (Vec<u8>, Vec<u8>) {
+        let payload: Vec<u8> = (0..BLOCK_SIZE as usize * 2 + 17)
+            .map(|index| (index % 251) as u8)
+            .collect();
+        let mut package = fixture();
+        package.resize(0x10000, 0);
+        package[0x395..0x399].copy_from_slice(&4_u32.to_be_bytes());
+        package[0xb02c..0xb030].copy_from_slice(&2_u32.to_be_bytes());
+        package[0xb044..0xb048].copy_from_slice(&3_u32.to_be_bytes());
+        package[0xb05c..0xb060].copy_from_slice(&END_OF_CHAIN.to_be_bytes());
+        package[0xc029] = 3;
+        package[0xc034..0xc038].copy_from_slice(&(payload.len() as u32).to_be_bytes());
+        package[0xd000..0xd000 + payload.len()].copy_from_slice(&payload);
+        (package, payload)
+    }
+
+    fn cancelled() -> PortcoveError {
+        PortcoveError::new(crate::ErrorCode::Cancelled, "fixture cancellation")
+    }
+
     #[test]
     fn extracts_a_bounded_read_only_package() {
         let temporary = tempfile::tempdir().unwrap();
         let source = temporary.path().join("source");
         std::fs::write(&source, fixture()).unwrap();
         let destination = temporary.path().join("assets");
-        extract(&source, &destination).unwrap();
+        extract_with_checkpoint(&source, &destination, &|| Ok(())).unwrap();
         assert_eq!(
             std::fs::read(destination.join("default.xex")).unwrap(),
             b"XEX2"
         );
+    }
+
+    #[test]
+    fn extracts_a_multi_block_package_with_unchanged_source() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let (package, payload) = multi_block_fixture();
+        std::fs::write(&source, &package).unwrap();
+        let destination = temporary.path().join("assets");
+
+        extract_with_checkpoint(&source, &destination, &|| Ok(())).unwrap();
+
+        assert_eq!(
+            std::fs::read(destination.join("default.xex")).unwrap(),
+            payload
+        );
+        assert_eq!(std::fs::read(&source).unwrap(), package);
+    }
+
+    #[test]
+    fn cancellation_before_extraction_creates_no_output() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let package = fixture();
+        std::fs::write(&source, &package).unwrap();
+        let destination = temporary.path().join("assets");
+
+        let error =
+            extract_with_checkpoint(&source, &destination, &|| Err(cancelled())).unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        assert!(!destination.exists());
+        assert_eq!(std::fs::read(&source).unwrap(), package);
+    }
+
+    #[test]
+    fn cancellation_after_a_copied_block_stops_before_the_remaining_payload() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let (package, payload) = multi_block_fixture();
+        std::fs::write(&source, &package).unwrap();
+        let destination = temporary.path().join("assets");
+        let output = destination.join("default.xex");
+        let checkpoint = || {
+            if std::fs::metadata(&output).is_ok_and(|metadata| metadata.len() >= BLOCK_SIZE) {
+                Err(cancelled())
+            } else {
+                Ok(())
+            }
+        };
+
+        let error = extract_with_checkpoint(&source, &destination, &checkpoint).unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        // The adapter owns this private output's cleanup. The extractor must
+        // return before copying the rest, without changing the original package.
+        assert_eq!(
+            std::fs::read(&output).unwrap(),
+            payload[..BLOCK_SIZE as usize]
+        );
+        assert_eq!(std::fs::read(&source).unwrap(), package);
+    }
+
+    #[test]
+    fn cancellation_after_the_final_payload_block_does_not_report_success() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let package = fixture();
+        std::fs::write(&source, &package).unwrap();
+        let destination = temporary.path().join("assets");
+        let output = destination.join("default.xex");
+        let checkpoint = || {
+            if std::fs::metadata(&output).is_ok_and(|metadata| metadata.len() == 4) {
+                Err(cancelled())
+            } else {
+                Ok(())
+            }
+        };
+
+        let error = extract_with_checkpoint(&source, &destination, &checkpoint).unwrap_err();
+
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        assert_eq!(std::fs::read(&output).unwrap(), b"XEX2");
+        assert_eq!(std::fs::read(&source).unwrap(), package);
     }
 
     #[test]
@@ -428,7 +554,7 @@ mod tests {
         second[0x34..0x38].copy_from_slice(&4_u32.to_be_bytes());
         std::fs::write(&source, package).unwrap();
         let destination = temporary.path().join("assets");
-        assert!(extract(&source, &destination).is_err());
+        assert!(extract_with_checkpoint(&source, &destination, &|| Ok(())).is_err());
         assert!(!destination.exists());
     }
 
@@ -441,7 +567,7 @@ mod tests {
         package[0xc034..0xc038].copy_from_slice(&4097_u32.to_be_bytes());
         std::fs::write(&source, package).unwrap();
         let destination = temporary.path().join("assets");
-        assert!(extract(&source, &destination).is_err());
+        assert!(extract_with_checkpoint(&source, &destination, &|| Ok(())).is_err());
         assert!(validate(&source, &|| Ok(())).is_err());
     }
 }

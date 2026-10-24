@@ -548,8 +548,17 @@ pub(crate) fn single_zip_source_index<R: Read + Seek>(
     archive: &mut zip::ZipArchive<R>,
     extensions: &[String],
 ) -> Result<usize> {
+    single_zip_source_index_with_checkpoint(archive, extensions, &|| Ok(()))
+}
+
+pub(crate) fn single_zip_source_index_with_checkpoint<R: Read + Seek>(
+    archive: &mut zip::ZipArchive<R>,
+    extensions: &[String],
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<usize> {
     let mut matches = Vec::new();
     for index in 0..archive.len() {
+        checkpoint()?;
         let entry = archive
             .by_index(index)
             .map_err(|error| PortcoveError::source(format!("invalid source ZIP entry: {error}")))?;
