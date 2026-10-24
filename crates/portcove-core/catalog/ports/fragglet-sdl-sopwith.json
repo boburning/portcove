@@ -15,10 +15,6 @@
         {
           "title": "Start playing",
           "instruction": "The official package includes the game. Choose Play after installation; no separate commercial files, extraction step or installer is required."
-        },
-        {
-          "title": "Launch and keep up to date",
-          "instruction": "Launch explicitly after installation. Portcove updates its managed portable runtime. If you register an existing copy instead, choose its executable and keep its current update workflow."
         }
       ],
       "warnings": ["This project has not been verified for play through Portcove."],

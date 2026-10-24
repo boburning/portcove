@@ -22,10 +22,6 @@
         {
           "title": "Start the game",
           "instruction": "On first Play, OpenLoco detects your installed Chris Sawyer’s Locomotion files or asks you to select the original folder containing Data/g1.DAT. The official portable engine needs no separate build or installer."
-        },
-        {
-          "title": "Keep your progress",
-          "instruction": "OpenLoco normally keeps settings, saves, autosaves, custom objects, landscapes, screenshots and crashes under AppData/OpenLoco, outside Portcove backups. Its original Locomotion folder stays external. The runtime’s data folder contains version-owned engine assets, not a generic player-data folder; no in-folder persistence is declared."
         }
       ],
       "warnings": [],

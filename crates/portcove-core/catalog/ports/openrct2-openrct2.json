@@ -15,10 +15,6 @@
         {
           "title": "Start the game",
           "instruction": "On first Play, select your installed RollerCoaster Tycoon 2 files if they are not detected. Optional RollerCoaster Tycoon 1 files can be configured through upstream menus. This is the standalone portable engine; the separate upstream auto-updating launcher remains an external alternative."
-        },
-        {
-          "title": "Keep your progress",
-          "instruction": "Settings, saves, custom objects, tracks, replays and downloaded content normally live in Documents/OpenRCT2, outside Portcove backups. Original installations remain external. No in-folder player data is declared for this default mode. Register an external copy for custom --user-data-path or the separate auto-updating launcher."
         }
       ],
       "warnings": [],

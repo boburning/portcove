@@ -6,8 +6,15 @@ import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { pickInstallFolder, pickHostToolExecutable } from "../file-picker";
 import { failureReport, portDefinition, portStatus } from "../test-fixtures";
-import type { ExternalRuntimeRecord, PortDefinition, PortListingStatus } from "../types";
+import type {
+  ExternalRuntimeRecord,
+  PendingSetupRecord,
+  PortDefinition,
+  PortListing,
+  PortListingStatus,
+} from "../types";
 import catalog from "../../../../crates/portcove-core/catalog/catalog.json";
+import directory from "../../../../crates/portcove-core/catalog/listings.json";
 import { ExternalRuntimeControl, UserSelectedRuntimeControl } from "./ExternalRuntime";
 import { catalogEntries } from "../features/browsing/catalog-entry";
 import { ActionReviewFailure } from "./ActionReviewFailure";
@@ -676,8 +683,8 @@ it("keeps managed-copy promises out of the portable external-registration guide"
             instruction: "The game asks for your original files on first Play.",
           },
           {
-            title: "Managed data",
-            instruction: "Portcove carries declared managed data into updates.",
+            title: "Choose controls",
+            instruction: "Use the game’s menus to choose your controls.",
           },
         ],
         warnings: [],
@@ -692,9 +699,48 @@ it("keeps managed-copy promises out of the portable external-registration guide"
   expect(host.textContent).toContain("The game asks for your original files on first Play.");
   expect(host.textContent).toContain("You or upstream provide runtime updates.");
   expect(host.textContent).not.toContain("Portcove replaces and backs up");
-  expect(host.textContent).not.toContain("Portcove carries declared managed data");
+  expect(host.textContent).toContain("Use the game’s menus to choose your controls.");
   expect(register).not.toHaveBeenCalled();
 });
+
+it.each(["colin-mcrae-rally-2-opencmr2", "alistert-openjazz", "citrongames-dora64"])(
+  "keeps retained %s setup truthful after the definition and listing disappear",
+  async (id) => {
+    const listing = directory.listings.find((candidate) => candidate.id === id) as PortListing;
+    const pending: PendingSetupRecord = {
+      id: "retained-download",
+      reason: null,
+      port_id: id,
+      listing,
+      path: "C:/Downloads/game",
+      state: "downloaded",
+      downloaded_at: "2026-10-24T00:00:00Z",
+      archive_sha256: "a".repeat(64),
+      artifact: {
+        release_id: 1,
+        asset_id: 2,
+        release_tag: "v1",
+        name: "game.zip",
+        size: 1024,
+        release_url: "https://example.com/v1",
+        download_url: "https://example.com/game.zip",
+        can_extract: true,
+        sha256: null,
+      },
+    };
+    const entry = catalogEntries(undefined, undefined, [], [pending])[0]!;
+    expect(entry.definition).toBeUndefined();
+    expect(entry.adapter).toBeUndefined();
+    await root.rerender(
+      <UserSelectedRuntimeControl port={entry} status={portStatus()} generation={9} busy={false} />,
+    );
+    expect(host.textContent).toContain(listing.manual_setup!.steps[0]!.instruction);
+    expect(host.textContent).not.toContain("Portcove retains");
+    expect(host.textContent).not.toContain("declared for compatible");
+    expect(host.textContent).not.toContain("is carried between compatible versions");
+    expect(host.textContent).toContain("You or upstream provide runtime updates.");
+  },
+);
 
 it.each([
   [

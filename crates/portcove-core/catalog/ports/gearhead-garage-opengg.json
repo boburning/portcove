@@ -22,10 +22,6 @@
         {
           "title": "Start with the required game files",
           "instruction": "On first Play, use GAME FOLDER to choose your installed Gearhead Garage folder containing Data/Cars. The original folder is read-only. NEW creates a mechanic; IMPORT MECHANICS brings over your own .mek saves. Without original files, upstream offers its limited placeholder beta."
-        },
-        {
-          "title": "Keep your progress when updating",
-          "instruction": "OpenGG normally stores saves, settings, snapshots and logs in AppData/Godot/app_userdata/OpenGG, outside Portcove backups. The package content remains version-owned; no in-folder player-data paths are declared. Keep the default storage mode; register an external copy for custom --user or --data paths. Linux normally uses ~/.local/share/godot/app_userdata/OpenGG. Keep the complete data and data_OpenGG_linuxbsd_x86_64 package directories beside OpenGG.x86_64."
         }
       ],
       "warnings": [],

@@ -22,10 +22,6 @@
         {
           "title": "Finish the game’s setup",
           "instruction": "Before first Play, copy your own supported original Japanese Doraemon: Nobita to 3tsu no Seireiseki .z64 ROM beside Dora64.exe and name that copy doraemon.n64.jp.z64. The game validates its identity before starting. This reviewed v1.0.4 release page contains the Windows package labeled 1.0.5; those upstream labels are retained."
-        },
-        {
-          "title": "Keep your progress",
-          "instruction": "The named original ROM, saves folder, input/game/touch settings and named diagnostics live beside Dora64.exe and are declared for compatible updates and backup. Keep the source original elsewhere too. A differently named ROM or custom profile can use external registration. Runtime rollback carries current declared data without rewinding saves."
         }
       ],
       "warnings": [],

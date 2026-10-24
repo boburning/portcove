@@ -22,10 +22,6 @@
         {
           "title": "Start with the required game files",
           "instruction": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required."
-        },
-        {
-          "title": "Keep your progress when updating",
-          "instruction": "OpenTyrian normally stores settings, saves and recorded demos in AppData/OpenTyrian, outside Portcove backups. If upstream falls back to the executable folder, declared opentyrian.cfg, tyrian.cfg, tyrian.sav and demorec.* recordings are retained. Runtime rollback carries declared current data and does not rewind saves. Linux normally uses $XDG_CONFIG_HOME/opentyrian or ~/.config/opentyrian. The same declared in-folder fallback files and recordings are retained."
         }
       ],
       "warnings": [],

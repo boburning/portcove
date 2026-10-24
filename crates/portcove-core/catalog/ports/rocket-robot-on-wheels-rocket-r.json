@@ -22,10 +22,6 @@
         {
           "title": "Finish the game’s setup",
           "instruction": "On first Play, choose your own supported Rocket: Robot on Wheels US ROM in the upstream launcher. It verifies the game and remembers the chosen path. Use the upstream menus for controls and compatible mods; no game compilation or separate installer is needed for the published player."
-        },
-        {
-          "title": "Keep your progress",
-          "instruction": "Default settings, saves, mod profiles, mod-specific saves, logs and crash reports live in AppData/Rocket-R, outside Portcove backups. The reviewed rocket-r-data current-folder fallback is declared if present. Bundled engine/mod resources remain version-owned. Use an external registration for a custom --config directory or developer runtime overrides."
         }
       ],
       "warnings": [],

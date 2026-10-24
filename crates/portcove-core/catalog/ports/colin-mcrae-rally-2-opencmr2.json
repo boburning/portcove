@@ -22,10 +22,6 @@
         {
           "title": "Supply your original game files on first launch",
           "instruction": "Select your installed original Colin McRae Rally 2.0 game folder when OpenCMR2 asks on first launch. The supported original files can stay in their existing folder."
-        },
-        {
-          "title": "Keep your progress and choose when to update",
-          "instruction": "OpenCMR2 normally keeps saves, settings and logs in AppData/OpenCMR2, outside Portcove backups. Declared Data and in-folder fallback opencmr2.ini/opencmr2.log are retained when present. The upstream game owns edition checks and its storage resolver; Portcove replaces the package only. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility. Linux normally uses ~/.local/share/OpenCMR2. Keep the packaged libSDL3.so.0 beside opencmr2; the game needs that companion library."
         }
       ],
       "warnings": [],

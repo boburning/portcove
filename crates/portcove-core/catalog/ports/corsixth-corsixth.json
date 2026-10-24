@@ -15,10 +15,6 @@
         {
           "title": "Complete upstream setup",
           "instruction": "Select the data from your copy of Theme Hospital when CorsixTH asks for the original game files."
-        },
-        {
-          "title": "Launch and keep up to date",
-          "instruction": "Launch explicitly after installation. Portcove updates its managed portable runtime. If you register an existing copy or upstream launcher instead, choose its executable and keep its current update workflow."
         }
       ],
       "warnings": ["This project has not been verified for play through Portcove."],

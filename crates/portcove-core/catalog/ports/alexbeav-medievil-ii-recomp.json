@@ -21,10 +21,6 @@
         {
           "title": "Choose your own USA disc",
           "instruction": "On first Play, choose your own MediEvil II USA SCUS-94564 CUE with its BIN tracks, or a supported CHD, in the native launcher. The disc remains required. This precompiled player includes OpenBIOS and needs no compiler, Python, Generate step or retail BIOS. Its first run prepares a verified resident loading cache."
-        },
-        {
-          "title": "Keep saves and settings",
-          "instruction": "Windows settings, remembered disc/BIOS paths, input bindings, saves/memory cards, diagnostics and installed mod packages are declared beside MediEvilIIRecomp.exe. Bundled mods stay version-owned; only installed/legacy user packages and their state/staging are retained. Resident decoded assets use the system user cache, outside Portcove backups. The selected external disc remains external. Use an external copy for custom BIOS preparation, cache-producing legacy mods or changed runtime files. Runtime rollback carries current declared data; it does not rewind saves or guarantee older save-state compatibility."
         }
       ],
       "warnings": [],

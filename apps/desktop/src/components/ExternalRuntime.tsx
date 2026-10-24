@@ -78,7 +78,6 @@ export function AuthoredPreparationGuidance({
   // A portable definition also offers external registration. Its managed-data
   // instructions cannot grant ownership of that external copy.
   const externalPortable = port.adapter === "native-portable" && ownership === "external";
-  const steps = externalPortable ? guide?.steps.slice(0, 1) : guide?.steps;
   return (
     <>
       {guide ? (
@@ -97,7 +96,7 @@ export function AuthoredPreparationGuidance({
             </aside>
           )}
           <ol className="grid min-w-0 list-decimal gap-4 pl-5 wrap-anywhere marker:font-semibold">
-            {steps?.map((step, index) => (
+            {guide.steps.map((step, index) => (
               <li key={`${index}:${step.title}`} className="pl-1">
                 <h4 className="font-semibold">{step.title}</h4>
                 <p>{step.instruction}</p>
@@ -116,8 +115,10 @@ export function AuthoredPreparationGuidance({
             </details>
           )}
         </>
-      ) : externalPortable && port.project_url ? (
-        <ExternalLink href={port.project_url}>Upstream setup instructions</ExternalLink>
+      ) : externalPortable ? (
+        port.project_url ? (
+          <ExternalLink href={port.project_url}>Upstream setup instructions</ExternalLink>
+        ) : null
       ) : port.presentation?.manual_preparation ? (
         <p>{port.presentation.manual_preparation}</p>
       ) : null}

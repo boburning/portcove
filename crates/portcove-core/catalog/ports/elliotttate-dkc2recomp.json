@@ -22,10 +22,6 @@
         {
           "title": "Finish the game’s setup",
           "instruction": "On first Play, select your own North American v1.0 Donkey Kong Country 2 ROM in the launcher. It remembers that external path without copying the ROM. DKC2Recomp.exe is the upstream default; the bundled DKC2RecompSDL.exe remains an alternative through external registration. Character packs and MSU-1 audio are optional upstream-guided imports."
-        },
-        {
-          "title": "Keep your progress",
-          "instruction": "The remembered ROM path, launcher/character/audio preferences, saves and save states, diagnostics and performance.log live beside the player and are declared for compatible replacement and backup. The selected external ROM, character pack and music folder remain outside backups. Pack/state compatibility follows upstream’s selected version; runtime rollback carries current saves without rewinding them."
         }
       ],
       "warnings": [],

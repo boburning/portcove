@@ -22,10 +22,6 @@
         {
           "title": "Start with the required game files",
           "instruction": "On first Play, select your own supported Knuckles’ Chaotix ROM from the setup page. The game validates and installs its own copy. Configure controls and compatible mods through upstream menus."
-        },
-        {
-          "title": "Keep your progress when updating",
-          "instruction": "The default Windows storage is AppData/ChaotixRecompiled/ChaotixRecompiled, outside Portcove backups. Saves, settings, imported ROM, mods and recordings remain there across runtime updates. The source also has a current-folder fallback; its declared data directories are preserved if present. Save states are tied to the ROM, patches and program version. Use an external registration for custom launch flags or a custom data root. Linux normally uses ~/.local/share/ChaotixRecompiled/ChaotixRecompiled. Keep the packaged SDL3 and SDL3_ttf libraries beside the executable; the game needs those companion files."
         }
       ],
       "warnings": [],

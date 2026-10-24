@@ -91,10 +91,12 @@ Put the actual next game-setup step first in the authored manual guide: original
 files the game will request, a required manual preparation, or an explicit statement
 that the package is ready for Play. Avoid a redundant first step telling the player
 to install. Desktop uses this first step in the managed installation review and
-keeps the full guide in Files even when Core needs no source profile. Its first
-step is also the external-copy handoff: keep that step truthful for both routes,
-spell out any external launch arguments, and put managed retention promises in
-later steps. An empty Core
+keeps the guide in Files even when Core needs no source profile. Listing guides
+also survive as saved-download handoffs after a definition disappears. Keep their
+steps truthful for both routes, spell out any external launch arguments, and put
+managed retention/backup/replacement details in the integration's
+`presentation.manual_preparation`, which Desktop scopes to managed ownership.
+An empty Core
 input requirement describes Portcove's action; it does not assert that the upstream
 game never needs original files.
 

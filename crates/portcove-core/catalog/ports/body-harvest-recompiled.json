@@ -22,10 +22,6 @@
         {
           "title": "Supply your original game files on first launch",
           "instruction": "Choose your North American Body Harvest ROM in Load ROM on first launch; .z64, .n64 and .v64 are accepted by upstream. The game checks and remembers its own copy."
-        },
-        {
-          "title": "Keep your progress and choose when to update",
-          "instruction": "The ROM copy, saves, settings and supported mods use the upstream LocalAppData/BodyHarvestRecompiled folder. They remain outside Portcove backups. Keep the default upstream storage mode; use an external registration if you want portable.txt or customized runtime files. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility. Linux normally uses ~/.config/BodyHarvestRecompiled. Its SDL2, GTK3 and FreeType system dependencies remain upstream prerequisites."
         }
       ],
       "warnings": [],

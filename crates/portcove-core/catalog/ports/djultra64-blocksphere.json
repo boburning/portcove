@@ -22,10 +22,6 @@
         {
           "title": "Start with the required game files",
           "instruction": "On first Play, choose your own Tetrisphere US NTPE revision 0 ROM in .z64, .v64, .n64 or ZIP form. The game validates and imports it; no separate installer or BIOS is required."
-        },
-        {
-          "title": "Keep your progress when updating",
-          "instruction": "The imported ROM, settings, progress and diagnostics live in data beside tetrisphere.exe. Portcove carries that declared folder between compatible runtime versions, including data present before first Play. Older upstream user-profile data is not silently imported: follow upstream instructions to copy it to data before launching. Runtime rollback carries current data and does not rewind saves. Linux uses the same adjacent data directory. Keep lib/ beside tetrisphere; the game needs those companion files. A compatible Vulkan driver and upstream system dependencies are required."
         }
       ],
       "warnings": [],

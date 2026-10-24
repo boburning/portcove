@@ -22,10 +22,6 @@
         {
           "title": "Finish the game’s setup",
           "instruction": "On first Play, use Load ROM to choose your own supported Beetle Adventure Racing USA ROM. The launcher validates and imports it. This upstream alpha is offered through Preview; its Linux build is known to crash during boot and is not offered by this declaration."
-        },
-        {
-          "title": "Keep your progress",
-          "instruction": "Default imported ROM, settings, saves, cheats, bindings, HUD choices and hang reports live in LocalAppData/beetle-adventure-racing-recomp, outside Portcove backups. Only the executable-folder bar_ui_trace.log diagnostic is declared. Keep portable.txt absent and use an external registration for portable/custom storage or a current-folder fallback."
         }
       ],
       "warnings": [],

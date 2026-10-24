@@ -3963,10 +3963,6 @@
           {
             "title": "Choose your own USA disc",
             "instruction": "On first Play, choose your own MediEvil II USA SCUS-94564 CUE with its BIN tracks, or a supported CHD, in the native launcher. The disc remains required. This precompiled player includes OpenBIOS and needs no compiler, Python, Generate step or retail BIOS. Its first run prepares a verified resident loading cache."
-          },
-          {
-            "title": "Keep saves and settings",
-            "instruction": "Windows settings, remembered disc/BIOS paths, input bindings, saves/memory cards, diagnostics and installed mod packages are declared beside MediEvilIIRecomp.exe. Bundled mods stay version-owned; only installed/legacy user packages and their state/staging are retained. Resident decoded assets use the system user cache, outside Portcove backups. The selected external disc remains external. Use an external copy for custom BIOS preparation, cache-producing legacy mods or changed runtime files. Runtime rollback carries current declared data; it does not rewind saves or guarantee older save-state compatibility."
           }
         ],
         "warnings": [],
@@ -5703,10 +5699,6 @@
           {
             "title": "Start the game",
             "instruction": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside OpenJazz.exe. Keep the original source copy. The managed route selects this folder automatically. For external registration, use Change launch details to add game-data as a launch argument, or follow upstream instructions for your existing game folder. No compiler or installer is needed."
-          },
-          {
-            "title": "Keep your progress",
-            "instruction": "Portcove retains game-data, openjazz.cfg, openjazz.log, the openjazz.tmp multiplayer transfer file and the reviewed scene diagnostics during compatible replacement. These are distinct from runtime files. Runtime rollback carries current declared data without rewinding progress. Custom launch paths or editions remain available through external registration."
           }
         ],
         "warnings": [],
@@ -5974,10 +5966,6 @@
           {
             "title": "Supply your original game files on first launch",
             "instruction": "Choose your North American Body Harvest ROM in Load ROM on first launch; .z64, .n64 and .v64 are accepted by upstream. The game checks and remembers its own copy."
-          },
-          {
-            "title": "Keep your progress and choose when to update",
-            "instruction": "The ROM copy, saves, settings and supported mods use the upstream LocalAppData/BodyHarvestRecompiled folder. They remain outside Portcove backups. Keep the default upstream storage mode; use an external registration if you want portable.txt or customized runtime files. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility. Linux normally uses ~/.config/BodyHarvestRecompiled. Its SDL2, GTK3 and FreeType system dependencies remain upstream prerequisites."
           }
         ],
         "warnings": [],
@@ -6170,10 +6158,6 @@
           {
             "title": "Start with your original game",
             "instruction": "On first Play, choose your own US Conker’s Bad Fur Day ROM in big-endian .z64 format. The launcher extracts what it needs from that ROM; the published player does not require compiling the game."
-          },
-          {
-            "title": "Keep your progress",
-            "instruction": "The default imported ROM, EEPROM saves, save states, achievements, settings and mods live in LocalAppData/ConkerRecompiled, outside Portcove backups. Declared crash.log and rt64_fb_log.txt diagnostics beside the executable, and the conker_data legacy/headless directory, are retained if present. Use an external copy for portable.txt mode, headless flags or customized storage. Save states remain build-sensitive."
           }
         ],
         "warnings": [],
@@ -6205,10 +6189,6 @@
           {
             "title": "Start with your original game",
             "instruction": "On first Play, select your own North American Snowboard Kids ROM in the main menu. The game verifies and imports it, converting supported byte orders. No separate extraction or game build is required. Windows requires the upstream Visual C++ runtime."
-          },
-          {
-            "title": "Keep your progress",
-            "instruction": "The default imported ROM, settings, saves and mods live in LocalAppData/SnowboardKidsRecompiled, outside Portcove backups. The runtime package has no declared in-folder player data. Keep the default storage mode; register an external copy for portable.txt mode or custom storage."
           }
         ],
         "warnings": [],
@@ -6307,10 +6287,6 @@
           {
             "title": "Finish the game’s setup",
             "instruction": "Before first Play, copy your own supported original Japanese Doraemon: Nobita to 3tsu no Seireiseki .z64 ROM beside Dora64.exe and name that copy doraemon.n64.jp.z64. The game validates its identity before starting. This reviewed v1.0.4 release page contains the Windows package labeled 1.0.5; those upstream labels are retained."
-          },
-          {
-            "title": "Keep your progress",
-            "instruction": "The named original ROM, saves folder, input/game/touch settings and named diagnostics live beside Dora64.exe and are declared for compatible updates and backup. Keep the source original elsewhere too. A differently named ROM or custom profile can use external registration. Runtime rollback carries current declared data without rewinding saves."
           }
         ],
         "warnings": [],
@@ -6342,10 +6318,6 @@
           {
             "title": "Supply your original game files on first launch",
             "instruction": "Select your installed original Colin McRae Rally 2.0 game folder when OpenCMR2 asks on first launch. The supported original files can stay in their existing folder."
-          },
-          {
-            "title": "Keep your progress and choose when to update",
-            "instruction": "OpenCMR2 normally keeps saves, settings and logs in AppData/OpenCMR2, outside Portcove backups. Declared Data and in-folder fallback opencmr2.ini/opencmr2.log are retained when present. The upstream game owns edition checks and its storage resolver; Portcove replaces the package only. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility. Linux normally uses ~/.local/share/OpenCMR2. Keep the packaged libSDL3.so.0 beside opencmr2; the game needs that companion library."
           }
         ],
         "warnings": [],
@@ -6407,10 +6379,6 @@
           {
             "title": "Complete upstream setup",
             "instruction": "Select the data from your copy of Theme Hospital when CorsixTH asks for the original game files."
-          },
-          {
-            "title": "Launch and keep up to date",
-            "instruction": "Launch explicitly after installation. Portcove updates its managed portable runtime. If you register an existing copy or upstream launcher instead, choose its executable and keep its current update workflow."
           }
         ],
         "warnings": [
@@ -6452,10 +6420,6 @@
           {
             "title": "Start with your original game",
             "instruction": "On first Play, select your own F-Zero USA ROM and press Play in the launcher. The package includes its native runtime and does not require generating or compiling game code. The launcher remembers the selected ROM path."
-          },
-          {
-            "title": "Keep your progress",
-            "instruction": "Settings, key bindings, the remembered ROM path, default saves and screenshots live beside fzero_recomp.exe and are declared for compatible updates and backup. The optional fzero_usa_reference.sfc original file is retained if supplied. A ROM selected elsewhere and a custom save folder remain external and outside backups. Runtime rollback carries current declared data; it does not rewind saves."
           }
         ],
         "warnings": [],
@@ -6577,10 +6541,6 @@
           {
             "title": "Supply your original game files on first launch",
             "instruction": "Choose your own US Conker’s Bad Fur Day ROM in the upstream launcher on first launch. The game checks and remembers its copy. Install compatible mods and texture packs through its Mods menu."
-          },
-          {
-            "title": "Keep your progress and choose when to update",
-            "instruction": "The ROM copy, saves, settings, save states and installed mods use upstream LocalAppData/ConkerBFDReloaded storage, outside Portcove backups. The declared in-folder crash.log is retained across replacement. Use an external registration for customized package files or a different storage mode. Portcove uses the selected channel and update policy. Runtime rollback carries declared current data; it does not rewind saves or guarantee older-game compatibility. Linux normally uses ~/.config/ConkerBFDReloaded. Its SDL2, GTK3 and FreeType system dependencies remain upstream prerequisites."
           }
         ],
         "warnings": [],
@@ -6613,10 +6573,6 @@
           {
             "title": "Finish the game’s setup",
             "instruction": "On first Play, use Load ROM to choose your own supported Beetle Adventure Racing USA ROM. The launcher validates and imports it. This upstream alpha is offered through Preview; its Linux build is known to crash during boot and is not offered by this declaration."
-          },
-          {
-            "title": "Keep your progress",
-            "instruction": "Default imported ROM, settings, saves, cheats, bindings, HUD choices and hang reports live in LocalAppData/beetle-adventure-racing-recomp, outside Portcove backups. Only the executable-folder bar_ui_trace.log diagnostic is declared. Keep portable.txt absent and use an external registration for portable/custom storage or a current-folder fallback."
           }
         ],
         "warnings": [],
@@ -6809,11 +6765,7 @@
         "steps": [
           {
             "title": "Start the game",
-            "instruction": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace Portcove’s executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route."
-          },
-          {
-            "title": "Keep your progress",
-            "instruction": "The reviewed Carmageddon data directory includes saves, options, captures and supported data changes. DATA, optional MUSIC and named diagnostics are retained for compatible runtime replacement and backup. The upstream AppData/dethrace fallback or DETHRACE_ROOT_DIR-selected data remains external and outside backups. Runtime rollback carries current declared data without rewinding saves."
+            "instruction": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace the player executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route."
           }
         ],
         "warnings": [],
@@ -6881,10 +6833,6 @@
           {
             "title": "Start with the required game files",
             "instruction": "On first Play, choose your own Tetrisphere US NTPE revision 0 ROM in .z64, .v64, .n64 or ZIP form. The game validates and imports it; no separate installer or BIOS is required."
-          },
-          {
-            "title": "Keep your progress when updating",
-            "instruction": "The imported ROM, settings, progress and diagnostics live in data beside tetrisphere.exe. Portcove carries that declared folder between compatible runtime versions, including data present before first Play. Older upstream user-profile data is not silently imported: follow upstream instructions to copy it to data before launching. Runtime rollback carries current data and does not rewind saves. Linux uses the same adjacent data directory. Keep lib/ beside tetrisphere; the game needs those companion files. A compatible Vulkan driver and upstream system dependencies are required."
           }
         ],
         "warnings": [],
@@ -7169,10 +7117,6 @@
           {
             "title": "Finish the game’s setup",
             "instruction": "On first Play, select your own North American v1.0 Donkey Kong Country 2 ROM in the launcher. It remembers that external path without copying the ROM. DKC2Recomp.exe is the upstream default; the bundled DKC2RecompSDL.exe remains an alternative through external registration. Character packs and MSU-1 audio are optional upstream-guided imports."
-          },
-          {
-            "title": "Keep your progress",
-            "instruction": "The remembered ROM path, launcher/character/audio preferences, saves and save states, diagnostics and performance.log live beside the player and are declared for compatible replacement and backup. The selected external ROM, character pack and music folder remain outside backups. Pack/state compatibility follows upstream’s selected version; runtime rollback carries current saves without rewinding them."
           }
         ],
         "warnings": [],
@@ -7383,10 +7327,6 @@
           {
             "title": "Start playing",
             "instruction": "The official package includes the game. Choose Play after installation; no separate commercial files, extraction step or installer is required."
-          },
-          {
-            "title": "Launch and keep up to date",
-            "instruction": "Launch explicitly after installation. Portcove updates its managed portable runtime. If you register an existing copy instead, choose its executable and keep its current update workflow."
           }
         ],
         "warnings": [
@@ -7446,10 +7386,6 @@
           {
             "title": "Start with the required game files",
             "instruction": "On first Play, use GAME FOLDER to choose your installed Gearhead Garage folder containing Data/Cars. The original folder is read-only. NEW creates a mechanic; IMPORT MECHANICS brings over your own .mek saves. Without original files, upstream offers its limited placeholder beta."
-          },
-          {
-            "title": "Keep your progress when updating",
-            "instruction": "OpenGG normally stores saves, settings, snapshots and logs in AppData/Godot/app_userdata/OpenGG, outside Portcove backups. The package content remains version-owned; no in-folder player-data paths are declared. Keep the default storage mode; register an external copy for custom --user or --data paths. Linux normally uses ~/.local/share/godot/app_userdata/OpenGG. Keep the complete data and data_OpenGG_linuxbsd_x86_64 package directories beside OpenGG.x86_64."
           }
         ],
         "warnings": [],
@@ -7500,10 +7436,6 @@
           {
             "title": "Start the game",
             "instruction": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target."
-          },
-          {
-            "title": "Keep your progress",
-            "instruction": "OpenGlad normally stores companies, saves/backups, campaigns, settings, screenshots, replays and downloaded packs in LocalAppData/.openglad, outside Portcove backups. Packaged campaigns and engine assets remain version-owned. No in-folder player data is declared in this default mode. Use external registration for OPENGLAD_CONFIG_DIR overrides or a fallback current-folder profile."
           }
         ],
         "warnings": [],
@@ -7803,10 +7735,6 @@
           {
             "title": "Start the game",
             "instruction": "On first Play, use Daggerfall Unity’s setup wizard to select your compatible original Daggerfall game folder. It validates the game data. The package is a native Unity player and needs no separate game compilation. Keep external originals where they are."
-          },
-          {
-            "title": "Keep your progress",
-            "instruction": "Normal saves, settings, logs, screenshots and mod data live in Unity’s Daggerfall Workshop/Daggerfall Unity user-data directory, outside Portcove backups. The reviewed Portable.txt mode uses PortableAppdata beside the player; that folder and the marker are declared. StreamingAssets/Mods and optional StreamingAssets/GameFiles are retained as supported user additions. Other replacements of version-owned assets require manual preservation or external registration. Mods and saves must remain compatible with the selected runtime."
           }
         ],
         "warnings": [],
@@ -7972,10 +7900,6 @@
           {
             "title": "Start the game",
             "instruction": "On first Play, choose a base graphics set when requested. Upstream supports the free OpenGFX/OpenSFX/OpenMSX sets or your own compatible original Transport Tycoon Deluxe data. JGR Patch Pack is a separate game build, not a loadable mod; its saves and multiplayer peers must be compatible with that build."
-          },
-          {
-            "title": "Keep your progress",
-            "instruction": "The default Windows save/config/content location is Documents/OpenTTD, shared with other OpenTTD copies and outside Portcove backups. Only the named fallback configs, saves, scenarios, heightmaps, order lists, NewGRF files, screenshots and content_download folder are declared if present. Packaged baseset, ai and game resources remain immutable. Use an external registration for a mixed executable-folder custom profile or plugins; unknown additions keep their exact-path preservation guard. Portcove replaces this runtime only; it does not manage external shared saves, original game files or another OpenTTD installation. Older runtimes may not read newer saves."
           }
         ],
         "warnings": [],
@@ -8197,10 +8121,6 @@
           {
             "title": "Start with the required game files",
             "instruction": "On first Play, select your own supported Knuckles’ Chaotix ROM from the setup page. The game validates and installs its own copy. Configure controls and compatible mods through upstream menus."
-          },
-          {
-            "title": "Keep your progress when updating",
-            "instruction": "The default Windows storage is AppData/ChaotixRecompiled/ChaotixRecompiled, outside Portcove backups. Saves, settings, imported ROM, mods and recordings remain there across runtime updates. The source also has a current-folder fallback; its declared data directories are preserved if present. Save states are tied to the ROM, patches and program version. Use an external registration for custom launch flags or a custom data root. Linux normally uses ~/.local/share/ChaotixRecompiled/ChaotixRecompiled. Keep the packaged SDL3 and SDL3_ttf libraries beside the executable; the game needs those companion files."
           }
         ],
         "warnings": [],
@@ -9027,10 +8947,6 @@
           {
             "title": "Finish the game’s setup",
             "instruction": "On first Play, select your own supported Pilotwings 64 ROM. Birdman64 then downloads its pinned, hash-checked upstream source and compiles a game module using its bundled compiler, showing progress and errors in its own setup window. First setup needs network access and may take time. Portcove does not run this setup during download or registration."
-          },
-          {
-            "title": "Keep your progress",
-            "instruction": "Portcove updates the shipped player and bundled compiler. Birdman64 owns first-launch setup and its external compiled-game cache: the cache key binds the player ABI/version, source commit and compiler/link flags, so a changed player builds its own compatible module. Default saves/settings/packs live in AppData/Birdman64 and the build cache in LocalAppData/Birdman64/cache, all outside Portcove backups. No in-folder player data is declared. Use an external registration for portable.txt, adjacent legacy saves or developer overrides."
           }
         ],
         "warnings": [],
@@ -9206,10 +9122,6 @@
           {
             "title": "Start the game",
             "instruction": "The official archive includes the freeware One Must Fall 2097 resources and the native OpenOMF player. Choose Play after installation; no commercial source files or generation step are needed. The package also includes an ARM64 player; this route uses openomf.exe for x86-64."
-          },
-          {
-            "title": "Keep your progress",
-            "instruction": "OpenOMF resolves writable settings, saves, scores, screenshots, recordings and user mods through its OpenOMF user-preference directory, normally AppData/OpenOMF on Windows. That external data remains outside Portcove backups. Package resources and bundled mods remain version-owned; no in-folder player-data paths are declared. Use an external registration for custom OPENOMF_* storage overrides."
           }
         ],
         "warnings": [],
@@ -9313,10 +9225,6 @@
           {
             "title": "Start the game",
             "instruction": "On first Play, OpenLoco detects your installed Chris Sawyer’s Locomotion files or asks you to select the original folder containing Data/g1.DAT. The official portable engine needs no separate build or installer."
-          },
-          {
-            "title": "Keep your progress",
-            "instruction": "OpenLoco normally keeps settings, saves, autosaves, custom objects, landscapes, screenshots and crashes under AppData/OpenLoco, outside Portcove backups. Its original Locomotion folder stays external. The runtime’s data folder contains version-owned engine assets, not a generic player-data folder; no in-folder persistence is declared."
           }
         ],
         "warnings": [],
@@ -9351,10 +9259,6 @@
           {
             "title": "Start the game",
             "instruction": "On first Play, select your installed RollerCoaster Tycoon 2 files if they are not detected. Optional RollerCoaster Tycoon 1 files can be configured through upstream menus. This is the standalone portable engine; the separate upstream auto-updating launcher remains an external alternative."
-          },
-          {
-            "title": "Keep your progress",
-            "instruction": "Settings, saves, custom objects, tracks, replays and downloaded content normally live in Documents/OpenRCT2, outside Portcove backups. Original installations remain external. No in-folder player data is declared for this default mode. Register an external copy for custom --user-data-path or the separate auto-updating launcher."
           }
         ],
         "warnings": [],
@@ -9394,10 +9298,6 @@
           {
             "title": "Start with the required game files",
             "instruction": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required."
-          },
-          {
-            "title": "Keep your progress when updating",
-            "instruction": "OpenTyrian normally stores settings, saves and recorded demos in AppData/OpenTyrian, outside Portcove backups. If upstream falls back to the executable folder, declared opentyrian.cfg, tyrian.cfg, tyrian.sav and demorec.* recordings are retained. Runtime rollback carries declared current data and does not rewind saves. Linux normally uses $XDG_CONFIG_HOME/opentyrian or ~/.config/opentyrian. The same declared in-folder fallback files and recordings are retained."
           }
         ],
         "warnings": [],
@@ -9872,10 +9772,6 @@
           {
             "title": "Finish the game’s setup",
             "instruction": "On first Play, choose your own supported Rocket: Robot on Wheels US ROM in the upstream launcher. It verifies the game and remembers the chosen path. Use the upstream menus for controls and compatible mods; no game compilation or separate installer is needed for the published player."
-          },
-          {
-            "title": "Keep your progress",
-            "instruction": "Default settings, saves, mod profiles, mod-specific saves, logs and crash reports live in AppData/Rocket-R, outside Portcove backups. The reviewed rocket-r-data current-folder fallback is declared if present. Bundled engine/mod resources remain version-owned. Use an external registration for a custom --config directory or developer runtime overrides."
           }
         ],
         "warnings": [],
@@ -10547,10 +10443,6 @@
           {
             "title": "Start the game",
             "instruction": "Follow the linked installation guide to run openreliant.exe install StarLancer yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration."
-          },
-          {
-            "title": "Keep your progress",
-            "instruction": "The declared StarLancer folder contains original game assets, campaign saves, starlancer.ini and openreliant.log. It is retained during compatible runtime replacement and backup. Keep another copy of the original media. A game installed elsewhere or custom launch arguments can use external registration; such external data is outside Portcove backups. Runtime rollback carries current declared data without rewinding saves."
           }
         ],
         "warnings": [],
@@ -11014,10 +10906,6 @@
           {
             "title": "Finish the game’s setup",
             "instruction": "On first Play, choose your own supported Glover USA ROM in the upstream launcher. Its reviewed Glover source adaptation keeps this game distinct from Rocket-R and verifies its own ROM identity. Configure controls and compatible mods through upstream menus; the published player requires no game compilation."
-          },
-          {
-            "title": "Keep your progress",
-            "instruction": "Default settings, saves, mod profiles and mod-specific saves, logs and crash reports live in AppData/Glover-R, outside Portcove backups. The reviewed glover-r-data current-folder fallback is declared if present. Bundled engine/mod resources remain version-owned. Use an external registration for custom --config or developer overrides."
           }
         ],
         "warnings": [],

@@ -22,10 +22,6 @@
         {
           "title": "Start with your original game",
           "instruction": "On first Play, select your own North American Snowboard Kids ROM in the main menu. The game verifies and imports it, converting supported byte orders. No separate extraction or game build is required. Windows requires the upstream Visual C++ runtime."
-        },
-        {
-          "title": "Keep your progress",
-          "instruction": "The default imported ROM, settings, saves and mods live in LocalAppData/SnowboardKidsRecompiled, outside Portcove backups. The runtime package has no declared in-folder player data. Keep the default storage mode; register an external copy for portable.txt mode or custom storage."
         }
       ],
       "warnings": [],

@@ -22,10 +22,6 @@
         {
           "title": "Finish the game’s setup",
           "instruction": "On first Play, select your own supported Pilotwings 64 ROM. Birdman64 then downloads its pinned, hash-checked upstream source and compiles a game module using its bundled compiler, showing progress and errors in its own setup window. First setup needs network access and may take time. Portcove does not run this setup during download or registration."
-        },
-        {
-          "title": "Keep your progress",
-          "instruction": "Portcove updates the shipped player and bundled compiler. Birdman64 owns first-launch setup and its external compiled-game cache: the cache key binds the player ABI/version, source commit and compiler/link flags, so a changed player builds its own compatible module. Default saves/settings/packs live in AppData/Birdman64 and the build cache in LocalAppData/Birdman64/cache, all outside Portcove backups. No in-folder player data is declared. Use an external registration for portable.txt, adjacent legacy saves or developer overrides."
         }
       ],
       "warnings": [],

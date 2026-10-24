@@ -22,10 +22,6 @@
         {
           "title": "Finish the game’s setup",
           "instruction": "On first Play, choose your own supported Glover USA ROM in the upstream launcher. Its reviewed Glover source adaptation keeps this game distinct from Rocket-R and verifies its own ROM identity. Configure controls and compatible mods through upstream menus; the published player requires no game compilation."
-        },
-        {
-          "title": "Keep your progress",
-          "instruction": "Default settings, saves, mod profiles and mod-specific saves, logs and crash reports live in AppData/Glover-R, outside Portcove backups. The reviewed glover-r-data current-folder fallback is declared if present. Bundled engine/mod resources remain version-owned. Use an external registration for custom --config or developer overrides."
         }
       ],
       "warnings": [],
