@@ -1089,6 +1089,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/fixtures/disposable-directory.mts",
     [
       "scripts/catalog-proposal-costs.test.mts",
+      "scripts/fixture-module-closure.test.mts",
       "scripts/node-test-inventory.test.mts",
       "scripts/precommit-check.test.mts",
       "scripts/python-test-results.test.mts",
@@ -1105,6 +1106,14 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/release-routing-marker.test.mts",
       "scripts/release-run-evidence.test.mts",
       "scripts/test-duration-reporter.test.mts",
+    ],
+  ],
+  [
+    "scripts/fixtures/module-closure.mts",
+    [
+      "scripts/fixture-module-closure.test.mts",
+      "scripts/precommit-check.test.mts",
+      "scripts/daily-discovery.test.mts",
     ],
   ],
   [

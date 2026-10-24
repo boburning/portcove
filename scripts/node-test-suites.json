@@ -664,6 +664,13 @@
       ]
     },
     {
+      "file": "scripts/fixture-module-closure.test.mts",
+      "memberships": [
+        ["frontend-full", 50],
+        ["development-tools", 5200]
+      ]
+    },
+    {
       "file": "scripts/frontend-build-compare.test.mts",
       "memberships": [
         ["catalog-full-2", 7000],

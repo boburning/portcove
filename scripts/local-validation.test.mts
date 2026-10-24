@@ -57,6 +57,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
   const consumers = [
     "apps/desktop/scripts/desktop-listener-lifetime.test.mts",
     "scripts/catalog-proposal-costs.test.mts",
+    "scripts/fixture-module-closure.test.mts",
     "scripts/node-test-inventory.test.mts",
     "scripts/precommit-check.test.mts",
     "scripts/python-test-results.test.mts",
@@ -128,6 +129,39 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
         ?.args.includes(path.resolve(root, desktop)),
     );
     assert.ok(!selection.unknown.has(helper));
+  }
+});
+
+void test("fixture module closure edits retain all independent policy and construction consumers", () => {
+  const helper = "scripts/fixtures/module-closure.mts";
+  const consumers = [
+    "scripts/daily-discovery.test.mts",
+    "scripts/fixture-module-closure.test.mts",
+    "scripts/precommit-check.test.mts",
+  ];
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const importers = readdirSync(path.join(root, "scripts"))
+    .filter((file) => file.endsWith(".test.mts"))
+    .map((file) => `scripts/${file}`)
+    .filter((file) =>
+      /(?:\bfrom\s+|\bimport\(\s*)["']\.\/fixtures\/module-closure\.mts["']/u.test(
+        readFileSync(path.join(root, file), "utf8"),
+      ),
+    );
+  assert.deepEqual(importers.sort(), consumers);
+  for (const change of [
+    { status: "M", path: helper },
+    { status: "A", path: helper },
+    { status: "D", path: helper },
+    { status: "R100", previousPath: helper, path: "docs/renamed.md" },
+    { status: "R100", previousPath: "docs/renamed.md", path: helper },
+  ]) {
+    const selection = classifyChanges([change], { fileExists: allFilesExist });
+    for (const consumer of consumers)
+      assert.ok(selection.nodeTests.has(consumer), `${JSON.stringify(change)}: ${consumer}`);
+    const command = buildPlan(selection).find((entry) => entry.id === "node-tests");
+    assert.ok(command);
+    for (const consumer of consumers) assert.ok(command.args.includes(consumer), consumer);
   }
 });
 
