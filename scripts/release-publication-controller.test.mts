@@ -5,6 +5,11 @@ import path from "node:path";
 import os from "node:os";
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
+import { stripTypeScriptTypes } from "node:module";
+import { runInNewContext } from "node:vm";
+import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { isRecord } from "./runtime-values.mts";
 import {
   runDistinctPublicationEffects,
   inspectPublicationAggregateContext,
@@ -387,4 +392,98 @@ void test("publication preserves old signed context while an actual recovery cus
       current,
     ),
   );
+});
+
+void test("fixed publication source function freezes caller locators before the controlled receiver await", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "fixed-publication-alias-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = await readFile(
+    new URL("./release-publication-controller.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("export async function runFixedPublicationConfiguration(");
+  const end = source.indexOf("/** Exact successful logical effects", start);
+  assert.ok(start >= 0 && end > start);
+  const identity = {
+    audience: "portcove-release-publication-reader-v1",
+    subject: "fixed-inert-subject",
+    controller_revision: "a".repeat(40),
+    controller_ref: "refs/tags/portcove-production-controller-fixture",
+    actor_id: "1234",
+    run_id: "12345",
+    run_attempt: 1,
+  };
+  const roles = ["releases", "preview", "stable", "snapshot", "timestamp"].map((role) => ({
+    role,
+    marker: "original",
+  }));
+  const input = {
+    identity,
+    tools: { artifact: { marker: "original-artifact" }, bundle: { marker: "original-bundle" } },
+    context: { marker: "original-context" },
+    roles,
+    configuration: { marker: "original-configuration" },
+  };
+  const reached = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const observed: unknown[] = [];
+  const entry = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end).replace("export ", "")) +
+      "\nrunFixedPublicationConfiguration",
+    {
+      structuredClone,
+      isRecord,
+      path,
+      mkdtemp,
+      inspectAssemblerIdentityExpectation,
+      withCoordinatorDeadline,
+      process: {
+        env: {
+          GITHUB_RUN_ID: identity.run_id,
+          GITHUB_RUN_ATTEMPT: "1",
+          GITHUB_SHA: identity.controller_revision,
+          GITHUB_REF: identity.controller_ref,
+          RUNNER_TEMP: root,
+        },
+      },
+      console: { log: () => {} },
+      currentPublicationJobDeadline: () => performance.now() + 10000,
+      receiveControllerTools: async (_root: string, artifact: unknown, bundle: unknown) => {
+        observed.push(structuredClone({ artifact, bundle }));
+        reached.resolve();
+        await release.promise;
+        return {};
+      },
+      receiveSigningContextArtifact: async (_root: string, context: unknown) => {
+        observed.push(context);
+        return {};
+      },
+      receiveTufRoleArtifact: async (_context: unknown, _root: string, role: unknown) => {
+        observed.push(role);
+        return {};
+      },
+      prepareActualTufPublication: async () => ({}),
+      runReleasePublicationController: async (configuration: unknown) => {
+        observed.push(configuration);
+        return { decision: "immutable-release-and-result-prepared" };
+      },
+    },
+  ) as (raw: unknown, deadline?: number) => Promise<unknown>;
+  const pending = entry(input, performance.now() + 10000);
+  await reached.promise;
+  input.context.marker = "changed-context";
+  input.configuration.marker = "changed-configuration";
+  input.tools.artifact.marker = "changed-artifact";
+  input.roles.splice(0, 5, ...roles.map((role) => ({ ...role, marker: "changed-role" })));
+  release.resolve();
+  await pending;
+  assert.deepEqual(JSON.parse(JSON.stringify(observed)), [
+    { artifact: { marker: "original-artifact" }, bundle: { marker: "original-bundle" } },
+    { marker: "original-context" },
+    ...["releases", "preview", "stable", "snapshot", "timestamp"].map((role) => ({
+      role,
+      marker: "original",
+    })),
+    { marker: "original-configuration" },
+  ]);
 });

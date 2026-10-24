@@ -5,10 +5,14 @@ import { mkdtemp, mkdir, copyFile, writeFile, rm, readFile, readdir } from "node
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import filesystem from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
 import { parse } from "yaml";
 import {
   admitProductionController,
+  admitProductionInputReader,
+  admitProductionCatalogInputReader,
   admitReviewedInputsController,
   admitReviewedInputsWriter,
   admitProductionClassificationWriter,
@@ -17,6 +21,8 @@ import {
 import { isRecord } from "./runtime-values.mts";
 import {
   inspectReleaseAuthorityConfiguration,
+  requireControllerJobSourceConfiguration,
+  requireFixedControllerJobSourceConfiguration,
   inspectCatalogAuthorityConfiguration,
   inspectFixedJobJournalAuthorities,
   inspectBoundFixedJobJournalAuthorities,
@@ -26,6 +32,8 @@ import {
   requireControllerSelectedApplicationAuthorities,
   requireControllerSelectedCatalogAuthorities,
 } from "./release-authority-configuration.mts";
+import { configureFixedControllerJob, runFixedControllerJob } from "./release-controller-job.mts";
+import { requireFixedControllerConfigurationSource } from "./release-authority-configuration-contract.mts";
 import {
   fixedJobJournalAuthoritiesFixture,
   selectedPublicationAuthoritiesFixture,
@@ -1015,5 +1023,187 @@ void test("complete controller classification jobs retain separate fixed source 
     ])
       assert.throws(() => admit(raw, { ...env, ...changed }, source));
     assert.throws(() => admit(raw, env, Buffer.from("changed controller")));
+  }
+});
+
+void test("fixed job source projections require original full purpose/phase and never fabricate dispatch Apps", () => {
+  for (const purpose of ["application", "catalog-publication"] as const) {
+    const configuration = selectedPublicationAuthoritiesFixture(purpose);
+    const bounded = {
+      ...policy,
+      schema_version: 2,
+      mode:
+        purpose === "application" ? "bounded-application-release" : "bounded-catalog-publication",
+      authority_configuration_sha256: releaseCanonicalDigest(configuration),
+      grant_sha256: "f".repeat(64),
+    };
+    const admitted = (
+      purpose === "application" ? admitProductionInputReader : admitProductionCatalogInputReader
+    )(
+      JSON.stringify(bounded),
+      { ...environment, GITHUB_JOB: "coordinator" },
+      source,
+      "coordinator",
+    );
+    const projection = requireFixedControllerJobSourceConfiguration(
+      configuration,
+      admitted,
+      "coordinator",
+      purpose,
+    );
+    assert.equal(projection.actor_id, policy.actor_id);
+    assert.equal(projection.namespace, configuration.journal.namespace);
+    assert.equal(projection.authority_configuration_sha256, bounded.authority_configuration_sha256);
+    assert.ok(!Object.hasOwn(projection, "apps"));
+    for (const value of [
+      configuration.journal,
+      { ...configuration, schema_version: 3 },
+      { ...configuration, apps: { dispatch: { actor_id: policy.actor_id } } },
+    ])
+      assert.throws(() =>
+        requireFixedControllerJobSourceConfiguration(value, admitted, "coordinator", purpose),
+      );
+    assert.throws(() =>
+      requireFixedControllerJobSourceConfiguration(
+        configuration,
+        { ...admitted },
+        "coordinator",
+        purpose,
+      ),
+    );
+    assert.throws(() =>
+      requireFixedControllerJobSourceConfiguration(
+        configuration,
+        admitted,
+        "site-publication",
+        purpose,
+      ),
+    );
+    assert.throws(() =>
+      requireFixedControllerJobSourceConfiguration(
+        configuration,
+        admitted,
+        "coordinator",
+        purpose === "application" ? "catalog-publication" : "application",
+      ),
+    );
+  }
+});
+
+void test("actual selected application job configuration binds source bytes, refuses drift and preserves create-only partials", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "selected-fixed-job-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const configuration = selectedPublicationAuthoritiesFixture("application");
+  const workflow = await readFile(
+    new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+  );
+  const bounded = {
+    ...policy,
+    schema_version: 2,
+    mode: "bounded-application-release",
+    workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
+    authority_configuration_sha256: releaseCanonicalDigest(configuration),
+    grant_sha256: "f".repeat(64),
+  };
+  const needs = {
+    tool_bootstrap: {
+      result: "success",
+      outputs: {
+        source_tree: "b".repeat(40),
+        artifact_id: "1",
+        artifact_sha256: "c".repeat(64),
+      },
+    },
+    tool_attest: {
+      result: "success",
+      outputs: { bundle_artifact_id: "2", bundle_artifact_sha256: "d".repeat(64) },
+    },
+  };
+  const runtime = {
+    ...environment,
+    GITHUB_JOB: "coordinator",
+    RUNNER_TEMP: directory,
+    PORTCOVE_EXECUTION_PURPOSE: "application",
+    PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(configuration),
+    PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify(bounded),
+    PORTCOVE_FIXED_NEEDS: JSON.stringify(needs),
+    PORTCOVE_COORDINATOR_CONFIGURATION: JSON.stringify({
+      namespace: configuration.journal.namespace,
+    }),
+  };
+  const before = new Map(Object.keys(runtime).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, runtime);
+  t.after(() => {
+    for (const [key, value] of before) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+  t.mock.method(globalThis, "fetch", () => {
+    throw Error("source/configuration preparation must not request a token");
+  });
+  const admitted = await requireControllerJobSourceConfiguration("coordinator");
+  assert.equal(admitted.binding.actor_id, policy.actor_id);
+  const prepared = await configureFixedControllerJob("coordinator");
+  assert.equal(prepared.authority, "none");
+  const configFile = path.join(directory, "controller-coordinator.json");
+  const sourceFile = path.join(directory, "controller-coordinator-source.json");
+  const bytes = await readFile(configFile);
+  const retained: unknown = JSON.parse(await readFile(sourceFile, "utf8"));
+  requireFixedControllerConfigurationSource(retained, "coordinator", admitted.binding, bytes);
+  assert.throws(() =>
+    requireFixedControllerConfigurationSource(retained, "payload", admitted.binding, bytes),
+  );
+  assert.throws(() =>
+    requireFixedControllerConfigurationSource(
+      retained,
+      "coordinator",
+      admitted.binding,
+      Buffer.concat([bytes, Buffer.from(" ")]),
+    ),
+  );
+  await assert.rejects(configureFixedControllerJob("coordinator"), { code: "EEXIST" });
+  assert.deepEqual(await readFile(configFile), bytes);
+  const changed = structuredClone(configuration);
+  changed.journal.journal_seed.checkpoint = "e".repeat(40);
+  process.env.PORTCOVE_RELEASE_AUTHORITIES = JSON.stringify(changed);
+  process.env.PORTCOVE_CONTROLLER_ADMISSION = JSON.stringify({
+    ...bounded,
+    authority_configuration_sha256: releaseCanonicalDigest(changed),
+  });
+  assert.throws(admitted.recheck, /environment changed/);
+  await assert.rejects(runFixedControllerJob("coordinator"), /original full source binding/);
+  assert.deepEqual(await readFile(configFile), bytes);
+  Object.assign(process.env, runtime);
+  await rm(sourceFile);
+  await assert.rejects(runFixedControllerJob("coordinator"), { code: "ENOENT" });
+  assert.deepEqual(await readFile(configFile), bytes);
+  const attempt = requireControllerJobSourceConfiguration("coordinator");
+  process.env.PORTCOVE_EXECUTION_PURPOSE = "catalog-publication";
+  await assert.rejects(attempt, /environment changed/);
+  Object.assign(process.env, runtime);
+  const partialRoot = path.join(directory, "late-write");
+  await mkdir(partialRoot);
+  process.env.RUNNER_TEMP = partialRoot;
+  const partialConfig = path.join(partialRoot, "controller-coordinator.json");
+  const originalWrite = filesystem.writeFile.bind(filesystem);
+  t.mock.method(
+    filesystem,
+    "writeFile",
+    async (...args: Parameters<typeof filesystem.writeFile>) => {
+      await originalWrite(...args);
+      if (args[0] === partialConfig) process.env.PORTCOVE_EXECUTION_PURPOSE = "catalog-publication";
+    },
+  );
+  syncBuiltinESMExports();
+  try {
+    await assert.rejects(configureFixedControllerJob("coordinator"), /environment changed/);
+    assert.deepEqual(await readFile(partialConfig), bytes);
+    await assert.rejects(readFile(path.join(partialRoot, "controller-coordinator-source.json")), {
+      code: "ENOENT",
+    });
+  } finally {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
   }
 });

@@ -13,6 +13,7 @@ export async function retainControllerDiagnostics(root: string, rawPhase: unknow
   const directory = path.join(root, `controller-public-evidence-${phase}`);
   await mkdir(directory, { mode: 0o700 }); // Preserve earlier attempt; no overwrite.
   const names = [
+    `controller-${phase === "admission" ? "building" : phase}-source.json`,
     `controller-worker-${phase}-started.json`,
     `controller-job-settlement-${phase}.json`,
     `release-control-${phase}-process-ended.json`,

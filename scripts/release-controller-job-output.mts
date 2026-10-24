@@ -8,11 +8,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { isRecord } from "./runtime-values.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
-import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
-import {
-  requireControllerCatalogPublicationAuthorities,
-  requireControllerReleaseAuthorities,
-} from "./release-authority-configuration.mts";
+import { requireControllerJobSourceConfiguration } from "./release-authority-configuration.mts";
+import { requireFixedControllerConfigurationSource } from "./release-authority-configuration-contract.mts";
 import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
@@ -270,24 +267,20 @@ export function projectFixedControllerJobOutputs(
 }
 
 export async function finishFixedControllerJobOutputs(rawRole: unknown) {
+  const environment = { ...process.env };
   const selected = role(rawRole),
     phase = selected === "building" ? "admission" : selected,
-    root = process.env.RUNNER_TEMP;
-  if (!root || !path.isAbsolute(root) || !process.env.GITHUB_OUTPUT)
+    root = environment.RUNNER_TEMP;
+  if (!root || !path.isAbsolute(root) || !environment.GITHUB_OUTPUT)
     throw new Error("fixed output channels unavailable");
-  await (
-    inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) ===
-      "catalog-publication"
-      ? requireControllerCatalogPublicationAuthorities
-      : requireControllerReleaseAuthorities
-  )(phase);
+  const source = await requireControllerJobSourceConfiguration(phase);
   const deadline = currentControllerJobDeadline(
     selected,
     {
-      run_id: process.env.GITHUB_RUN_ID ?? "",
-      run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
-      controller_revision: process.env.GITHUB_SHA ?? "",
-      controller_ref: process.env.GITHUB_REF ?? "",
+      run_id: environment.GITHUB_RUN_ID ?? "",
+      run_attempt: Number(environment.GITHUB_RUN_ATTEMPT),
+      controller_revision: environment.GITHUB_SHA ?? "",
+      controller_ref: environment.GITHUB_REF ?? "",
     },
     root,
     performance.now() + 570000,
@@ -295,8 +288,21 @@ export async function finishFixedControllerJobOutputs(rawRole: unknown) {
   return withCoordinatorDeadline(deadline, async () => {
     const read = async (file: string, limit = 65536) => {
       await assertOwnedUnlinkedPath(root, file, "fixed output custody");
-      return readControllerToolFile(file, limit);
+      source.recheck();
+      const bytes = await readControllerToolFile(file, limit);
+      source.recheck();
+      return bytes;
     };
+    const configuration = await read(path.join(root, `controller-${selected}.json`));
+    const retainedSource: unknown = JSON.parse(
+      (await read(path.join(root, `controller-${selected}-source.json`), 4096)).toString("utf8"),
+    );
+    requireFixedControllerConfigurationSource(
+      retainedSource,
+      selected,
+      source.binding,
+      configuration,
+    );
     const settlement = record(
       JSON.parse(
         (await read(path.join(root, `controller-job-settlement-${phase}.json`))).toString("utf8"),
@@ -357,13 +363,15 @@ export async function finishFixedControllerJobOutputs(rawRole: unknown) {
       aggregatePredicate = await read(actual.predicate_path);
     }
     const outputs = projectFixedControllerJobOutputs(selected, result, custody, aggregatePredicate);
+    source.recheck();
     for (const [key, value] of Object.entries(outputs)) {
       if (Buffer.byteLength(value) > 65536) throw new Error("fixed output exceeds bound");
       const separator = `controller_${randomBytes(16).toString("hex")}`;
       await appendFile(
-        process.env.GITHUB_OUTPUT!,
+        environment.GITHUB_OUTPUT!,
         `${key}<<${separator}\n${value}\n${separator}\n`,
       );
+      source.recheck();
     }
     return outputs;
   });

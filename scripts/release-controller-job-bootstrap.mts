@@ -8,11 +8,7 @@ import {
   verifiedControllerToolPaths,
 } from "./release-controller-tool-admission.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
-import {
-  requireControllerReleaseAuthorities,
-  requireControllerCatalogPublicationAuthorities,
-} from "./release-authority-configuration.mts";
-import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
+import { requireControllerJobSourceConfiguration } from "./release-authority-configuration.mts";
 import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -58,6 +54,7 @@ export function assertControllerBootstrapEnvironment(environment: NodeJS.Process
     );
 }
 export async function launchFixedControllerJob(rawOperation: unknown) {
+  const environment = { ...process.env };
   if (
     ![
       "coordinator",
@@ -78,16 +75,13 @@ export async function launchFixedControllerJob(rawOperation: unknown) {
     typeof rawOperation !== "string"
   )
     throw new Error("fixed complete controller operation required");
-  assertControllerBootstrapEnvironment();
-  if (!process.env.RUNNER_TEMP || !path.isAbsolute(process.env.RUNNER_TEMP))
+  assertControllerBootstrapEnvironment(environment);
+  if (!environment.RUNNER_TEMP || !path.isAbsolute(environment.RUNNER_TEMP))
     throw new Error("clean fixed controller runtime required");
-  await (
-    inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) ===
-      "catalog-publication"
-      ? requireControllerCatalogPublicationAuthorities
-      : requireControllerReleaseAuthorities
-  )(rawOperation === "building" ? "admission" : rawOperation);
-  const rawNeeds = process.env.PORTCOVE_FIXED_NEEDS;
+  const source = await requireControllerJobSourceConfiguration(
+    rawOperation === "building" ? "admission" : rawOperation,
+  );
+  const rawNeeds = environment.PORTCOVE_FIXED_NEEDS;
   if (!rawNeeds || Buffer.byteLength(rawNeeds) > 256 * 1024)
     throw new Error("bounded fixed producer outputs unavailable");
   const needs: unknown = JSON.parse(rawNeeds);
@@ -102,10 +96,10 @@ export async function launchFixedControllerJob(rawOperation: unknown) {
   )
     throw new Error("successful fixed tool producers required");
   const identity = {
-    controller_revision: process.env.GITHUB_SHA ?? "",
-    controller_ref: process.env.GITHUB_REF ?? "",
-    run_id: process.env.GITHUB_RUN_ID ?? "",
-    run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+    controller_revision: environment.GITHUB_SHA ?? "",
+    controller_ref: environment.GITHUB_REF ?? "",
+    run_id: environment.GITHUB_RUN_ID ?? "",
+    run_attempt: Number(environment.GITHUB_RUN_ATTEMPT),
   };
   const deadline = currentControllerJobDeadline(
     rawOperation,
@@ -123,10 +117,12 @@ export async function launchFixedControllerJob(rawOperation: unknown) {
       artifact_id: positive(needs.tool_attest.outputs.bundle_artifact_id),
       sha256: hex(needs.tool_attest.outputs.bundle_artifact_sha256),
     },
-    parent = process.env.RUNNER_TEMP;
+    parent = environment.RUNNER_TEMP;
   return withCoordinatorDeadline(deadline, async () => {
     const receipt = await receiveControllerTools(parent, artifact, bundle, { deadline });
+    source.recheck();
     const tools = await verifiedControllerToolPaths(receipt);
+    source.recheck();
     const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
     if (
       sha(await readControllerToolFile(process.execPath)) !==
@@ -141,7 +137,10 @@ export async function launchFixedControllerJob(rawOperation: unknown) {
     if (typeof worker.runConfiguredFixedControllerJob !== "function")
       throw new Error("fixed complete job ABI unavailable");
     await verifiedControllerToolPaths(receipt);
-    return worker.runConfiguredFixedControllerJob(rawOperation, deadline);
+    source.recheck();
+    const result = await worker.runConfiguredFixedControllerJob(rawOperation, deadline);
+    source.recheck();
+    return result;
   });
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
