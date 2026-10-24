@@ -7,6 +7,7 @@ import { parse } from "yaml";
 import { slice4CapacityResources } from "./release-capacity.mts";
 
 type Step = {
+  id?: string;
   if?: string;
   run?: string;
   uses?: string;
@@ -29,6 +30,91 @@ type Workflow = {
   jobs: Record<string, Job>;
 };
 const root = new URL("../", import.meta.url);
+void test("all fixed workers select credentials from their actual full source before minting and selected jobs receive no legacy App tokens", async () => {
+  const workflow = parse(
+    await readFile(new URL(".github/workflows/application-update-production.yml", root), "utf8"),
+  ) as Workflow;
+  let workers = 0;
+  for (const [name, job] of Object.entries(workflow.jobs)) {
+    const worker = job.steps.find(
+      (step) => step.uses === "./.github/actions/release-controller-job",
+    );
+    if (!worker) continue;
+    workers++;
+    const phase = worker.with?.phase;
+    const source = job.steps.find((step) => step.id === "authorities");
+    assert.equal(source?.run, `node scripts/release-controller-job-credential-route.mts ${phase}`);
+    assert.equal(job.permissions?.contents, "write");
+    const index = job.steps.indexOf(source);
+    assert.ok(index >= 0);
+    const legacy = job.steps.filter(
+      (step) =>
+        step.uses?.startsWith("actions/create-github-app-token@") ||
+        step.env?.PORTCOVE_OBSERVED_INSTALLATION_ID,
+    );
+    assert.ok(legacy.length >= 2, name);
+    const evaluate = (expression: string, transport: string, purpose: string): unknown =>
+      runInNewContext(expression.slice(3, -2), {
+        steps: {
+          authorities: { outputs: { credential_transport: transport } },
+          journal: { outputs: { token: "inert-journal" } },
+          dispatch: { outputs: { token: purpose === "application" ? "inert-dispatch" : "" } },
+          publication: { outputs: { token: "inert-publication" } },
+        },
+        needs: { admission: { outputs: { publication_purpose: purpose } } },
+        github: { token: "inert-fixed-job" },
+      });
+    for (const step of legacy) {
+      assert.ok(job.steps.indexOf(step) > index, name);
+      assert.match(
+        step.if ?? "",
+        /steps\.authorities\.outputs\.credential_transport == 'legacy-app'/,
+      );
+      assert.ok(!step.if?.includes("always("));
+      for (const transport of ["fixed-job", "", "malformed", "common3"])
+        for (const purpose of ["application", "catalog-publication"])
+          assert.equal(
+            evaluate(step.if!, transport, purpose),
+            false,
+            `${name}/${transport}/${purpose}`,
+          );
+    }
+    for (const purpose of ["application", "catalog-publication"]) {
+      assert.equal(
+        evaluate(worker.env!.PORTCOVE_COORDINATOR_JOURNAL_TOKEN!, "fixed-job", purpose),
+        "",
+      );
+      assert.equal(
+        evaluate(worker.env!.PORTCOVE_COORDINATOR_JOURNAL_TOKEN!, "legacy-app", purpose),
+        "inert-journal",
+      );
+      if (worker.env?.PORTCOVE_RELEASE_DISPATCH_TOKEN) {
+        assert.equal(name, "coordinator");
+        assert.equal(
+          evaluate(worker.env.PORTCOVE_RELEASE_DISPATCH_TOKEN, "fixed-job", purpose),
+          purpose === "application" ? "inert-fixed-job" : "",
+        );
+        assert.equal(
+          evaluate(worker.env.PORTCOVE_RELEASE_DISPATCH_TOKEN, "legacy-app", purpose),
+          purpose === "application" ? "inert-dispatch" : "",
+        );
+      }
+      if (worker.env?.PORTCOVE_RELEASE_PUBLICATION_TOKEN) {
+        assert.equal(name, "release_publication");
+        assert.equal(
+          evaluate(worker.env.PORTCOVE_RELEASE_PUBLICATION_TOKEN, "fixed-job", purpose),
+          "inert-fixed-job",
+        );
+        assert.equal(
+          evaluate(worker.env.PORTCOVE_RELEASE_PUBLICATION_TOKEN, "legacy-app", purpose),
+          "inert-publication",
+        );
+      }
+    }
+  }
+  assert.equal(workers, 14);
+  assert.equal(workflow.jobs.coordinator?.permissions?.actions, "write");
+});
 void test("selected D1 workflow uses source-bound observer outputs and skips legacy writer credentials", async () => {
   const workflow = parse(
     await readFile(new URL(".github/workflows/application-update-production.yml", root), "utf8"),
@@ -552,7 +638,12 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       if (step.env?.PORTCOVE_COORDINATOR_JOURNAL_TOKEN)
         assert.equal(step.uses, "./.github/actions/release-controller-job");
     }
-    if (job.permissions?.contents === "write") assert.equal(name, "classification_writer");
+    if (job.permissions?.contents === "write")
+      assert.ok(
+        name === "classification_writer" ||
+          job.steps.some((step) => step.uses === "./.github/actions/release-controller-job"),
+      );
+    if (job.permissions?.actions === "write") assert.equal(name, "coordinator");
     if (job.permissions?.pages === "write") assert.equal(name, "site_publication");
   }
   assert.ok(requiredJob("attest").needs!.includes("independent_admission"));
@@ -632,17 +723,18 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       step.with?.["app-id"] ===
       "${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.release_publication.app_id }}",
   );
-  const publisherGuard = publisher.steps.findIndex((step) =>
-    step.run?.includes("requireControllerReleaseAuthorities('release-publication')"),
+  const publisherGuard = publisher.steps.findIndex(
+    (step) =>
+      step.run === "node scripts/release-controller-job-credential-route.mts release-publication",
   );
   const publishingWorker = publisher.steps.find(
     (step) => step.uses === "./.github/actions/release-controller-job",
   );
   assert.ok(publisherGuard >= 0 && publicationApp > publisherGuard);
-  assert.equal(publisher.permissions?.contents, "read");
+  assert.equal(publisher.permissions?.contents, "write");
   assert.equal(
     publishingWorker?.env?.PORTCOVE_RELEASE_PUBLICATION_TOKEN,
-    "${{ steps.publication.outputs.token }}",
+    "${{ steps.authorities.outputs.credential_transport == 'fixed-job' && github.token || steps.publication.outputs.token }}",
   );
   for (const [name, job] of Object.entries(jobs))
     if (name !== "release_publication")

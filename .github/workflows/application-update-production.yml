@@ -48,8 +48,9 @@ jobs:
           [[ "$PORTCOVE_CONTROLLER_REF" =~
           ^refs/tags/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]
 
-          case "$PORTCOVE_EXECUTION_PURPOSE" in application) [[ -n "$PORTCOVE_CONTROLLER_ADMISSION" ]];;
-          catalog-publication) [[ -n "$PORTCOVE_CATALOG_CONTROLLER_ADMISSION" ]];; *) exit 1;; esac
+          case "$PORTCOVE_EXECUTION_PURPOSE" in application) [[ -n "$PORTCOVE_CONTROLLER_ADMISSION"
+          ]];; catalog-publication) [[ -n "$PORTCOVE_CATALOG_CONTROLLER_ADMISSION" ]];; *) exit 1;;
+          esac
 
           [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]
 
@@ -62,7 +63,8 @@ jobs:
           "$PORTCOVE_CONTROLLER_REVISION" ]]
 
           [[ "$GITHUB_WORKFLOW_REF" ==
-          "boburning/portcove/.github/workflows/application-update-production.yml@$PORTCOVE_CONTROLLER_REF" ]]
+          "boburning/portcove/.github/workflows/application-update-production.yml@$PORTCOVE_CONTROLLER_REF"
+          ]]
 
           [[ "$GITHUB_RUN_ATTEMPT" == 1 ]]
       - &a1
@@ -77,11 +79,10 @@ jobs:
           package-manager-cache: false
       - run: node scripts/production-controller-admission-cli.mts
         id: admit
-    if:
-      ${{ vars.PORTCOVE_CONTROLLER_REVISION == github.sha && vars.PORTCOVE_CONTROLLER_REF == github.ref &&
-      ((inputs.publication_purpose == 'application' && vars.PORTCOVE_CONTROLLER_ADMISSION != '') ||
-      (inputs.publication_purpose == 'catalog-publication' && vars.PORTCOVE_CATALOG_CONTROLLER_ADMISSION !=
-      '')) }}
+    if: ${{ vars.PORTCOVE_CONTROLLER_REVISION == github.sha && vars.PORTCOVE_CONTROLLER_REF ==
+      github.ref && ((inputs.publication_purpose == 'application' &&
+      vars.PORTCOVE_CONTROLLER_ADMISSION != '') || (inputs.publication_purpose ==
+      'catalog-publication' && vars.PORTCOVE_CATALOG_CONTROLLER_ADMISSION != '')) }}
     outputs:
       publication_purpose: ${{ steps.admit.outputs.publication_purpose }}
       classification_transport: ${{ steps.admit.outputs.classification_transport }}
@@ -192,10 +193,11 @@ jobs:
 
           const parsed = JSON.parse(raw);
 
-          if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') throw Error('predicate shape');
+          if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') throw Error('predicate
+          shape');
 
-          await writeFile(path.join(process.env.RUNNER_TEMP, 'controller-tools-predicate.json'), raw,
-          {flag:'wx', mode:0o600});
+          await writeFile(path.join(process.env.RUNNER_TEMP, 'controller-tools-predicate.json'),
+          raw, {flag:'wx', mode:0o600});
 
           NODE
       - id: attest
@@ -221,7 +223,8 @@ jobs:
 
           if (!source || !path.isAbsolute(source)) throw Error('bundle path missing');
 
-          const handle = await open(source, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+          const handle = await open(source, constants.O_RDONLY | constants.O_NOFOLLOW |
+          constants.O_NONBLOCK);
 
           try {
             const before = await handle.stat();
@@ -302,9 +305,8 @@ jobs:
         env:
           PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ needs.admission.outputs.protection_installation_id }}
           PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer.outputs.installation-id }}
-        run:
-          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
-          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
+        run: '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ &&
+          "$PORTCOVE_OBSERVED_INSTALLATION_ID" == "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
       - id: observe
         if: ${{ steps.probe.outputs.eligible == 'true' }}
         env:
@@ -342,28 +344,29 @@ jobs:
           owner: boburning
           repositories: portcove
           permission-contents: write
-        if:
-          ${{ needs.admission.outputs.classification_transport == 'legacy-app' && steps.probe.outputs.eligible == 'true' && needs.classification_protection_observation.outputs.eligible
-          == 'true' }}
+        if: ${{ needs.admission.outputs.classification_transport == 'legacy-app' &&
+          steps.probe.outputs.eligible == 'true' &&
+          needs.classification_protection_observation.outputs.eligible == 'true' }}
       - name: Bind actual classification installation before credential use
-        if:
-          ${{ needs.admission.outputs.classification_transport == 'legacy-app' && steps.probe.outputs.eligible == 'true' && needs.classification_protection_observation.outputs.eligible
-          == 'true' }}
+        if: ${{ needs.admission.outputs.classification_transport == 'legacy-app' &&
+          steps.probe.outputs.eligible == 'true' &&
+          needs.classification_protection_observation.outputs.eligible == 'true' }}
         shell: bash
         env:
           PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.classification.installation_id }}
           PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.writer.outputs.installation-id }}
-        run:
-          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
-          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
-      - if:
-          ${{ needs.admission.outputs.classification_transport == 'legacy-app' && steps.probe.outputs.eligible == 'true' && needs.classification_protection_observation.outputs.eligible
-          == 'true' }}
+        run: '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ &&
+          "$PORTCOVE_OBSERVED_INSTALLATION_ID" == "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
+      - if: ${{ needs.admission.outputs.classification_transport == 'legacy-app' &&
+          steps.probe.outputs.eligible == 'true' &&
+          needs.classification_protection_observation.outputs.eligible == 'true' }}
         env:
           PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.writer.outputs.token }}
           PORTCOVE_TRUSTED_PROTECTION_OBSERVATION: ${{ needs.classification_protection_observation.outputs.observation }}
         run: node scripts/release-reviewed-inputs.mts persist-production-request
-      - if: ${{ needs.admission.outputs.classification_transport == 'fixed-job' && steps.probe.outputs.eligible == 'true' && needs.classification_protection_observation.outputs.eligible == 'true' }}
+      - if: ${{ needs.admission.outputs.classification_transport == 'fixed-job' &&
+          steps.probe.outputs.eligible == 'true' &&
+          needs.classification_protection_observation.outputs.eligible == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           PORTCOVE_TRUSTED_PROTECTION_OBSERVATION: ${{ needs.classification_protection_observation.outputs.observation }}
@@ -372,8 +375,8 @@ jobs:
   coordinator:
     name: Coordinate application release
     if:
-      ${{ always() && needs.admission.result == 'success' && needs.tool_bootstrap.result == 'success' &&
-      needs.tool_attest.result == 'success' }}
+      ${{ always() && needs.admission.result == 'success' && needs.tool_bootstrap.result == 'success'
+      && needs.tool_attest.result == 'success' }}
     needs: &a3
       - admission
       - tool_bootstrap
@@ -383,8 +386,8 @@ jobs:
     timeout-minutes: 3
     environment: production-release-coordinator
     permissions:
-      contents: read
-      actions: read
+      contents: write
+      actions: write
       id-token: write
       attestations: write
       checks: read
@@ -403,11 +406,9 @@ jobs:
     steps:
       - *a1
       - *a2
-      - name: Bind protected source and exact role before credential release
-        run: 'node --input-type=module -e "await (await
-          import(''./scripts/release-authority-configuration.mts''))[process.env.PORTCOVE_EXECUTION_PURPOSE
-          === ''catalog-publication'' ? ''requireControllerCatalogPublicationAuthorities'' :
-          ''requireControllerReleaseAuthorities''](''coordinator'')"'
+      - name: Bind protected source and exact role before App or signing-key release
+        run: "node scripts/release-controller-job-credential-route.mts coordinator"
+        id: authorities
       - &a9
         id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
@@ -415,59 +416,71 @@ jobs:
           app-id: ${{ needs.admission.outputs.publication_purpose == 'catalog-publication' &&
             fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.coordinator_journal.app_id ||
             fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.app_id }}
-          private-key: ${{ (needs.admission.outputs.publication_purpose == 'catalog-publication' && secrets.PORTCOVE_CATALOG_COORDINATOR_JOURNAL_APP_PRIVATE_KEY) || (needs.admission.outputs.publication_purpose == 'application' && secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY) }}
+          private-key: ${{ (needs.admission.outputs.publication_purpose == 'catalog-publication' &&
+            secrets.PORTCOVE_CATALOG_COORDINATOR_JOURNAL_APP_PRIVATE_KEY) ||
+            (needs.admission.outputs.publication_purpose == 'application' &&
+            secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY) }}
           owner: boburning
           repositories: portcove
           permission-contents: write
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
       - &a10
         name: Bind actual coordinator_journal installation before credential use
         shell: bash
         env:
-          PORTCOVE_EXPECTED_INSTALLATION_ID:
-            ${{ needs.admission.outputs.publication_purpose == 'catalog-publication' &&
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ needs.admission.outputs.publication_purpose ==
+            'catalog-publication' &&
             fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.coordinator_journal.installation_id ||
             fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id }}
           PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.journal.outputs.installation-id }}
-        run:
-          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
-          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
+        run: '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ &&
+          "$PORTCOVE_OBSERVED_INSTALLATION_ID" == "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
       - id: dispatch
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
           app-id: ${{ needs.admission.outputs.publication_purpose == 'catalog-publication' &&
             fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.dispatch.app_id ||
             fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.dispatch.app_id }}
-          private-key: ${{ (needs.admission.outputs.publication_purpose == 'catalog-publication' && secrets.PORTCOVE_CATALOG_DISPATCH_APP_PRIVATE_KEY) || (needs.admission.outputs.publication_purpose == 'application' && secrets.PORTCOVE_DISPATCH_APP_PRIVATE_KEY) }}
+          private-key: ${{ (needs.admission.outputs.publication_purpose == 'catalog-publication' &&
+            secrets.PORTCOVE_CATALOG_DISPATCH_APP_PRIVATE_KEY) ||
+            (needs.admission.outputs.publication_purpose == 'application' &&
+            secrets.PORTCOVE_DISPATCH_APP_PRIVATE_KEY) }}
           owner: boburning
           repositories: portcove
           permission-actions: write
-        if: ${{ needs.admission.outputs.publication_purpose == 'application' }}
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' &&
+          (needs.admission.outputs.publication_purpose == 'application') }}
       - name: Bind actual dispatch installation before credential use
         shell: bash
         env:
-          PORTCOVE_EXPECTED_INSTALLATION_ID:
-            ${{ needs.admission.outputs.publication_purpose == 'catalog-publication' &&
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ needs.admission.outputs.publication_purpose ==
+            'catalog-publication' &&
             fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.dispatch.installation_id ||
             fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.dispatch.installation_id }}
           PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.dispatch.outputs.installation-id }}
-        run:
-          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
-          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
-        if: ${{ needs.admission.outputs.publication_purpose == 'application' }}
+        run: '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ &&
+          "$PORTCOVE_OBSERVED_INSTALLATION_ID" == "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' &&
+          (needs.admission.outputs.publication_purpose == 'application') }}
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
           PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
-          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.journal.outputs.token }}
-          PORTCOVE_RELEASE_DISPATCH_TOKEN: ${{ steps.dispatch.outputs.token }}
+          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
+            'legacy-app' && steps.journal.outputs.token || '' }}
+          PORTCOVE_RELEASE_DISPATCH_TOKEN:
+            ${{ steps.authorities.outputs.credential_transport == 'fixed-job'
+            && needs.admission.outputs.publication_purpose == 'application' && github.token ||
+            steps.dispatch.outputs.token }}
         with:
           operation: coordinator
           phase: coordinator
   coordinator_protection_observation:
     name: Observe application coordinator protections
     if:
-      ${{ always() && needs.admission.result == 'success' && needs.tool_bootstrap.result == 'success' &&
-      needs.tool_attest.result == 'success' }}
+      ${{ always() && needs.admission.result == 'success' && needs.tool_bootstrap.result == 'success'
+      && needs.tool_attest.result == 'success' }}
     needs: *a3
     runs-on: ubuntu-22.04
     timeout-minutes: 3
@@ -486,15 +499,16 @@ jobs:
           rounds: "14"
           initial: "true"
           app_id: ${{ needs.admission.outputs.protection_app_id }}
-          private_key:
-            ${{ (needs.admission.outputs.publication_purpose == 'catalog-publication' && secrets.PORTCOVE_CATALOG_PROTECTION_APP_PRIVATE_KEY) || (needs.admission.outputs.publication_purpose == 'application' && secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY)
-            }}
+          private_key: ${{ (needs.admission.outputs.publication_purpose == 'catalog-publication' &&
+            secrets.PORTCOVE_CATALOG_PROTECTION_APP_PRIVATE_KEY) ||
+            (needs.admission.outputs.publication_purpose == 'application' &&
+            secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY) }}
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
   independent_admission:
     name: Authenticate release control inputs
-    if:
-      ${{ needs.admission.outputs.publication_purpose == 'application' && (needs.coordinator.outputs.mode ==
-      'release' && needs.coordinator.outputs.publication_custody != 'reused') }}
+    if: ${{ needs.admission.outputs.publication_purpose == 'application' &&
+      (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody
+      != 'reused') }}
     needs:
       - admission
       - tool_bootstrap
@@ -504,7 +518,7 @@ jobs:
     timeout-minutes: 9
     environment: production-release-admission
     permissions:
-      contents: read
+      contents: write
       actions: read
       id-token: write
       checks: read
@@ -523,9 +537,9 @@ jobs:
     steps:
       - *a1
       - *a2
-      - name: Bind protected source and exact role before credential release
-        run: node --input-type=module -e "await (await
-          import('./scripts/release-authority-configuration.mts')).requireControllerReleaseAuthorities('admission')"
+      - name: Bind protected source and exact role before App or signing-key release
+        run: node scripts/release-controller-job-credential-route.mts admission
+        id: authorities
       - &a5
         id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
@@ -535,28 +549,31 @@ jobs:
           owner: boburning
           repositories: portcove
           permission-contents: write
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
       - &a6
         name: Bind actual coordinator_journal installation before credential use
         shell: bash
         env:
-          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id }}
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{
+            fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id }}
           PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.journal.outputs.installation-id }}
-        run:
-          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
-          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
+        run: '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ &&
+          "$PORTCOVE_OBSERVED_INSTALLATION_ID" == "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
           PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
-          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.journal.outputs.token }}
+          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
+            'legacy-app' && steps.journal.outputs.token || '' }}
         with:
           operation: building
           phase: admission
   protection_observation:
     name: Observe production release input protections
-    if:
-      ${{ needs.admission.outputs.publication_purpose == 'application' && (needs.coordinator.outputs.mode ==
-      'release' && needs.coordinator.outputs.publication_custody != 'reused') }}
+    if: ${{ needs.admission.outputs.publication_purpose == 'application' &&
+      (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody
+      != 'reused') }}
     needs:
       - admission
       - tool_bootstrap
@@ -615,10 +632,11 @@ jobs:
 
           const parsed = JSON.parse(raw);
 
-          if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') throw Error('predicate shape');
+          if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') throw Error('predicate
+          shape');
 
-          await writeFile(path.join(process.env.RUNNER_TEMP, 'aggregate-predicate.json'), raw, {flag:'wx',
-          mode:0o600});
+          await writeFile(path.join(process.env.RUNNER_TEMP, 'aggregate-predicate.json'), raw,
+          {flag:'wx', mode:0o600});
 
           NODE
       - id: attest
@@ -644,7 +662,8 @@ jobs:
 
           if (!source || !path.isAbsolute(source)) throw Error('bundle path missing');
 
-          const handle = await open(source, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+          const handle = await open(source, constants.O_RDONLY | constants.O_NOFOLLOW |
+          constants.O_NONBLOCK);
 
           try {
             const before = await handle.stat();
@@ -682,14 +701,14 @@ jobs:
           if-no-files-found: warn
           overwrite: false
           retention-days: 7
-    if:
-      ${{ needs.admission.outputs.publication_purpose == 'application' && (needs.coordinator.outputs.mode ==
-      'release' && needs.coordinator.outputs.publication_custody != 'reused') }}
+    if: ${{ needs.admission.outputs.publication_purpose == 'application' &&
+      (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody
+      != 'reused') }}
   payload_signing:
     name: Sign admitted updater payloads
-    if:
-      ${{ needs.admission.outputs.publication_purpose == 'application' && (needs.coordinator.outputs.mode ==
-      'release' && needs.coordinator.outputs.signing_custody != 'reused') }}
+    if: ${{ needs.admission.outputs.publication_purpose == 'application' &&
+      (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody !=
+      'reused') }}
     needs: &a7
       - admission
       - tool_bootstrap
@@ -701,7 +720,7 @@ jobs:
     timeout-minutes: 10
     environment: production-payload-signing
     permissions:
-      contents: read
+      contents: write
       issues: read
       actions: read
       id-token: write
@@ -715,16 +734,17 @@ jobs:
     steps:
       - *a1
       - *a2
-      - name: Bind protected source and exact role before credential release
-        run: node --input-type=module -e "await (await
-          import('./scripts/release-authority-configuration.mts')).requireControllerReleaseAuthorities('payload')"
+      - name: Bind protected source and exact role before App or signing-key release
+        run: node scripts/release-controller-job-credential-route.mts payload
+        id: authorities
       - *a5
       - *a6
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
           PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
-          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.journal.outputs.token }}
+          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
+            'legacy-app' && steps.journal.outputs.token || '' }}
         with:
           operation: payload
           phase: payload
@@ -732,9 +752,9 @@ jobs:
           role_password: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
   payload_protection_observation:
     name: Observe payload signing input protections
-    if:
-      ${{ needs.admission.outputs.publication_purpose == 'application' && (needs.coordinator.outputs.mode ==
-      'release' && needs.coordinator.outputs.signing_custody != 'reused') }}
+    if: ${{ needs.admission.outputs.publication_purpose == 'application' &&
+      (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody !=
+      'reused') }}
     needs: *a7
     runs-on: ubuntu-22.04
     timeout-minutes: 10
@@ -757,11 +777,11 @@ jobs:
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
   tuf_releases:
     name: Sign authenticated Releases metadata
-    if:
-      ${{ needs.admission.outputs.publication_purpose == 'application' && (always() && needs.tool_attest.result
-      == 'success' && needs.coordinator.result == 'success' && ((needs.coordinator.outputs.mode == 'metadata')
-      || (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused'
-      && needs.payload_signing.result == 'success'))) }}
+    if: ${{ needs.admission.outputs.publication_purpose == 'application' && (always() &&
+      needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' &&
+      ((needs.coordinator.outputs.mode == 'metadata') || (needs.coordinator.outputs.mode ==
+      'release' && needs.coordinator.outputs.signing_custody != 'reused' &&
+      needs.payload_signing.result == 'success'))) }}
     needs:
       - admission
       - tool_bootstrap
@@ -774,7 +794,7 @@ jobs:
     timeout-minutes: 2
     environment: production-tuf-releases
     permissions:
-      contents: read
+      contents: write
       actions: read
       id-token: write
       attestations: write
@@ -786,16 +806,17 @@ jobs:
     steps:
       - *a1
       - *a2
-      - name: Bind protected source and exact role before credential release
-        run: node --input-type=module -e "await (await
-          import('./scripts/release-authority-configuration.mts')).requireControllerReleaseAuthorities('tuf-releases')"
+      - name: Bind protected source and exact role before App or signing-key release
+        run: node scripts/release-controller-job-credential-route.mts tuf-releases
+        id: authorities
       - *a5
       - *a6
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
           PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
-          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.journal.outputs.token }}
+          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
+            'legacy-app' && steps.journal.outputs.token || '' }}
         with:
           operation: tuf-releases
           phase: tuf-releases
@@ -803,11 +824,11 @@ jobs:
           role_password: ""
   tuf_preview:
     name: Sign authenticated Preview metadata
-    if:
-      ${{ needs.admission.outputs.publication_purpose == 'application' && (always() && needs.tool_attest.result
-      == 'success' && needs.coordinator.result == 'success' && ((needs.coordinator.outputs.mode == 'metadata')
-      || (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused'
-      && needs.payload_signing.result == 'success')) && needs.tuf_releases.result == 'success') }}
+    if: ${{ needs.admission.outputs.publication_purpose == 'application' && (always() &&
+      needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' &&
+      ((needs.coordinator.outputs.mode == 'metadata') || (needs.coordinator.outputs.mode ==
+      'release' && needs.coordinator.outputs.signing_custody != 'reused' &&
+      needs.payload_signing.result == 'success')) && needs.tuf_releases.result == 'success') }}
     needs:
       - admission
       - tool_bootstrap
@@ -821,7 +842,7 @@ jobs:
     timeout-minutes: 2
     environment: production-tuf-preview
     permissions:
-      contents: read
+      contents: write
       actions: read
       id-token: write
       attestations: write
@@ -833,16 +854,17 @@ jobs:
     steps:
       - *a1
       - *a2
-      - name: Bind protected source and exact role before credential release
-        run: node --input-type=module -e "await (await
-          import('./scripts/release-authority-configuration.mts')).requireControllerReleaseAuthorities('tuf-preview')"
+      - name: Bind protected source and exact role before App or signing-key release
+        run: node scripts/release-controller-job-credential-route.mts tuf-preview
+        id: authorities
       - *a5
       - *a6
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
           PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
-          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.journal.outputs.token }}
+          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
+            'legacy-app' && steps.journal.outputs.token || '' }}
         with:
           operation: tuf-preview
           phase: tuf-preview
@@ -850,11 +872,11 @@ jobs:
           role_password: ""
   tuf_stable:
     name: Sign authenticated Stable metadata
-    if:
-      ${{ needs.admission.outputs.publication_purpose == 'application' && (always() && needs.tool_attest.result
-      == 'success' && needs.coordinator.result == 'success' && ((needs.coordinator.outputs.mode == 'metadata')
-      || (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused'
-      && needs.payload_signing.result == 'success')) && needs.tuf_preview.result == 'success') }}
+    if: ${{ needs.admission.outputs.publication_purpose == 'application' && (always() &&
+      needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' &&
+      ((needs.coordinator.outputs.mode == 'metadata') || (needs.coordinator.outputs.mode ==
+      'release' && needs.coordinator.outputs.signing_custody != 'reused' &&
+      needs.payload_signing.result == 'success')) && needs.tuf_preview.result == 'success') }}
     needs:
       - admission
       - tool_bootstrap
@@ -869,7 +891,7 @@ jobs:
     timeout-minutes: 2
     environment: production-tuf-stable
     permissions:
-      contents: read
+      contents: write
       actions: read
       id-token: write
       attestations: write
@@ -881,16 +903,17 @@ jobs:
     steps:
       - *a1
       - *a2
-      - name: Bind protected source and exact role before credential release
-        run: node --input-type=module -e "await (await
-          import('./scripts/release-authority-configuration.mts')).requireControllerReleaseAuthorities('tuf-stable')"
+      - name: Bind protected source and exact role before App or signing-key release
+        run: node scripts/release-controller-job-credential-route.mts tuf-stable
+        id: authorities
       - *a5
       - *a6
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
           PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
-          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.journal.outputs.token }}
+          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
+            'legacy-app' && steps.journal.outputs.token || '' }}
         with:
           operation: tuf-stable
           phase: tuf-stable
@@ -898,11 +921,11 @@ jobs:
           role_password: ""
   tuf_snapshot:
     name: Sign authenticated Snapshot metadata
-    if:
-      ${{ needs.admission.outputs.publication_purpose == 'application' && (always() && needs.tool_attest.result
-      == 'success' && needs.coordinator.result == 'success' && ((needs.coordinator.outputs.mode == 'metadata')
-      || (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused'
-      && needs.payload_signing.result == 'success')) && needs.tuf_stable.result == 'success') }}
+    if: ${{ needs.admission.outputs.publication_purpose == 'application' && (always() &&
+      needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' &&
+      ((needs.coordinator.outputs.mode == 'metadata') || (needs.coordinator.outputs.mode ==
+      'release' && needs.coordinator.outputs.signing_custody != 'reused' &&
+      needs.payload_signing.result == 'success')) && needs.tuf_stable.result == 'success') }}
     needs:
       - admission
       - tool_bootstrap
@@ -918,7 +941,7 @@ jobs:
     timeout-minutes: 2
     environment: production-tuf-snapshot
     permissions:
-      contents: read
+      contents: write
       actions: read
       id-token: write
       attestations: write
@@ -930,16 +953,17 @@ jobs:
     steps:
       - *a1
       - *a2
-      - name: Bind protected source and exact role before credential release
-        run: node --input-type=module -e "await (await
-          import('./scripts/release-authority-configuration.mts')).requireControllerReleaseAuthorities('tuf-snapshot')"
+      - name: Bind protected source and exact role before App or signing-key release
+        run: node scripts/release-controller-job-credential-route.mts tuf-snapshot
+        id: authorities
       - *a5
       - *a6
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
           PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
-          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.journal.outputs.token }}
+          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
+            'legacy-app' && steps.journal.outputs.token || '' }}
         with:
           operation: tuf-snapshot
           phase: tuf-snapshot
@@ -947,11 +971,11 @@ jobs:
           role_password: ""
   tuf_timestamp:
     name: Sign authenticated Timestamp metadata
-    if:
-      ${{ needs.admission.outputs.publication_purpose == 'application' && (always() && needs.tool_attest.result
-      == 'success' && needs.coordinator.result == 'success' && ((needs.coordinator.outputs.mode == 'metadata')
-      || (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused'
-      && needs.payload_signing.result == 'success')) && needs.tuf_snapshot.result == 'success') }}
+    if: ${{ needs.admission.outputs.publication_purpose == 'application' && (always() &&
+      needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' &&
+      ((needs.coordinator.outputs.mode == 'metadata') || (needs.coordinator.outputs.mode ==
+      'release' && needs.coordinator.outputs.signing_custody != 'reused' &&
+      needs.payload_signing.result == 'success')) && needs.tuf_snapshot.result == 'success') }}
     needs:
       - admission
       - tool_bootstrap
@@ -968,7 +992,7 @@ jobs:
     timeout-minutes: 2
     environment: production-tuf-timestamp
     permissions:
-      contents: read
+      contents: write
       actions: read
       id-token: write
       attestations: write
@@ -980,16 +1004,17 @@ jobs:
     steps:
       - *a1
       - *a2
-      - name: Bind protected source and exact role before credential release
-        run: node --input-type=module -e "await (await
-          import('./scripts/release-authority-configuration.mts')).requireControllerReleaseAuthorities('tuf-timestamp')"
+      - name: Bind protected source and exact role before App or signing-key release
+        run: node scripts/release-controller-job-credential-route.mts tuf-timestamp
+        id: authorities
       - *a5
       - *a6
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
           PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
-          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.journal.outputs.token }}
+          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
+            'legacy-app' && steps.journal.outputs.token || '' }}
         with:
           operation: tuf-timestamp
           phase: tuf-timestamp
@@ -1060,8 +1085,8 @@ jobs:
   release_publication:
     name: Publish immutable application release
     if: ${{ needs.admission.outputs.publication_purpose == 'application' && (always() &&
-      needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody != 'reused'
-      && needs.attest.result == 'success' && (needs.tuf_timestamp.result == 'success' ||
+      needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody
+      != 'reused' && needs.attest.result == 'success' && (needs.tuf_timestamp.result == 'success' ||
       needs.coordinator.outputs.signing_custody == 'reused')) }}
     needs: &a8
       - admission
@@ -1080,7 +1105,7 @@ jobs:
     timeout-minutes: 6
     environment: production-release-publication
     permissions:
-      contents: read
+      contents: write
       issues: read
       actions: read
       id-token: write
@@ -1094,9 +1119,9 @@ jobs:
     steps:
       - *a1
       - *a2
-      - name: Bind protected source and exact role before credential release
-        run: node --input-type=module -e "await (await
-          import('./scripts/release-authority-configuration.mts')).requireControllerReleaseAuthorities('release-publication')"
+      - name: Bind protected source and exact role before App or signing-key release
+        run: node scripts/release-controller-job-credential-route.mts release-publication
+        id: authorities
       - *a5
       - *a6
       - id: publication
@@ -1107,28 +1132,32 @@ jobs:
           owner: boburning
           repositories: portcove
           permission-contents: write
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
       - name: Bind actual release_publication installation before credential use
         shell: bash
         env:
-          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.release_publication.installation_id }}
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{
+            fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.release_publication.installation_id }}
           PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.publication.outputs.installation-id }}
-        run:
-          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
-          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
+        run: '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ &&
+          "$PORTCOVE_OBSERVED_INSTALLATION_ID" == "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
           PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
-          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.journal.outputs.token }}
-          PORTCOVE_RELEASE_PUBLICATION_TOKEN: ${{ steps.publication.outputs.token }}
+          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
+            'legacy-app' && steps.journal.outputs.token || '' }}
+          PORTCOVE_RELEASE_PUBLICATION_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
+            'fixed-job' && github.token || steps.publication.outputs.token }}
         with:
           operation: release-publication
           phase: release-publication
   release_protection_observation:
     name: Observe immutable application release publication protections
     if: ${{ needs.admission.outputs.publication_purpose == 'application' && (always() &&
-      needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody != 'reused'
-      && needs.attest.result == 'success' && (needs.tuf_timestamp.result == 'success' ||
+      needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody
+      != 'reused' && needs.attest.result == 'success' && (needs.tuf_timestamp.result == 'success' ||
       needs.coordinator.outputs.signing_custody == 'reused')) }}
     needs: *a8
     runs-on: ubuntu-22.04
@@ -1153,11 +1182,11 @@ jobs:
   site_publication:
     name: Publish authenticated application site
     if: ${{ always() && ((needs.admission.outputs.publication_purpose == 'catalog-publication' &&
-      needs.catalog_timestamp.result == 'success') || (needs.admission.outputs.publication_purpose ==
-      'application' && (always() && ((needs.coordinator.outputs.mode == 'metadata' &&
+      needs.catalog_timestamp.result == 'success') || (needs.admission.outputs.publication_purpose
+      == 'application' && (always() && ((needs.coordinator.outputs.mode == 'metadata' &&
       needs.tuf_timestamp.result == 'success') || (needs.coordinator.outputs.mode == 'release' &&
-      (needs.release_publication.result == 'success' || needs.coordinator.outputs.publication_custody ==
-      'reused')))))) }}
+      (needs.release_publication.result == 'success' ||
+      needs.coordinator.outputs.publication_custody == 'reused')))))) }}
     needs:
       - admission
       - tool_bootstrap
@@ -1180,7 +1209,7 @@ jobs:
     timeout-minutes: 5
     environment: github-pages
     permissions:
-      contents: read
+      contents: write
       issues: read
       actions: read
       id-token: write
@@ -1194,29 +1223,28 @@ jobs:
     steps:
       - *a1
       - *a2
-      - name: Bind protected source and exact role before credential release
-        run: 'node --input-type=module -e "await (await
-          import(''./scripts/release-authority-configuration.mts''))[process.env.PORTCOVE_EXECUTION_PURPOSE
-          === ''catalog-publication'' ? ''requireControllerCatalogPublicationAuthorities'' :
-          ''requireControllerReleaseAuthorities''](''site-publication'')"'
+      - name: Bind protected source and exact role before App or signing-key release
+        run: "node scripts/release-controller-job-credential-route.mts site-publication"
+        id: authorities
       - *a9
       - *a10
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
           PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
-          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.journal.outputs.token }}
+          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
+            'legacy-app' && steps.journal.outputs.token || '' }}
         with:
           operation: site-publication
           phase: site-publication
   site_protection_observation:
     name: Observe application site publication protections
     if: ${{ always() && ((needs.admission.outputs.publication_purpose == 'catalog-publication' &&
-      needs.catalog_timestamp.result == 'success') || (needs.admission.outputs.publication_purpose ==
-      'application' && (always() && ((needs.coordinator.outputs.mode == 'metadata' &&
+      needs.catalog_timestamp.result == 'success') || (needs.admission.outputs.publication_purpose
+      == 'application' && (always() && ((needs.coordinator.outputs.mode == 'metadata' &&
       needs.tuf_timestamp.result == 'success') || (needs.coordinator.outputs.mode == 'release' &&
-      (needs.release_publication.result == 'success' || needs.coordinator.outputs.publication_custody ==
-      'reused')))))) }}
+      (needs.release_publication.result == 'success' ||
+      needs.coordinator.outputs.publication_custody == 'reused')))))) }}
     needs:
       - admission
       - tool_bootstrap
@@ -1252,9 +1280,10 @@ jobs:
           rounds: "5"
           initial: "false"
           app_id: ${{ needs.admission.outputs.protection_app_id }}
-          private_key:
-            ${{ (needs.admission.outputs.publication_purpose == 'catalog-publication' && secrets.PORTCOVE_CATALOG_PROTECTION_APP_PRIVATE_KEY) || (needs.admission.outputs.publication_purpose == 'application' && secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY)
-            }}
+          private_key: ${{ (needs.admission.outputs.publication_purpose == 'catalog-publication' &&
+            secrets.PORTCOVE_CATALOG_PROTECTION_APP_PRIVATE_KEY) ||
+            (needs.admission.outputs.publication_purpose == 'application' &&
+            secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY) }}
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
   catalog_definitions:
     name: Sign catalog definitions
@@ -1270,7 +1299,7 @@ jobs:
     timeout-minutes: 2
     environment: production-catalog-definitions
     permissions:
-      contents: read
+      contents: write
       actions: read
       id-token: write
       attestations: write
@@ -1282,9 +1311,9 @@ jobs:
     steps:
       - *a1
       - *a2
-      - name: Bind protected source and exact role before credential release
-        run: node --input-type=module -e "await (await
-          import('./scripts/release-authority-configuration.mts')).requireControllerCatalogPublicationAuthorities('catalog-definitions')"
+      - name: Bind protected source and exact role before App or signing-key release
+        run: node scripts/release-controller-job-credential-route.mts catalog-definitions
+        id: authorities
       - &a11
         id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
@@ -1294,20 +1323,23 @@ jobs:
           owner: boburning
           repositories: portcove
           permission-contents: write
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
       - &a12
         name: Bind actual coordinator_journal installation before credential use
         shell: bash
         env:
-          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.coordinator_journal.installation_id }}
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{
+            fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.coordinator_journal.installation_id }}
           PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.journal.outputs.installation-id }}
-        run:
-          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
-          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
+        run: '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ &&
+          "$PORTCOVE_OBSERVED_INSTALLATION_ID" == "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
           PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
-          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.journal.outputs.token }}
+          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
+            'legacy-app' && steps.journal.outputs.token || '' }}
         with:
           operation: catalog-definitions
           phase: catalog-definitions
@@ -1317,7 +1349,8 @@ jobs:
     name: Sign catalog policy
     if: ${{ always() && needs.admission.outputs.publication_purpose == 'catalog-publication' &&
       needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' &&
-      needs.coordinator.outputs.mode == 'catalog' && needs.catalog_definitions.result == 'success' }}
+      needs.coordinator.outputs.mode == 'catalog' && needs.catalog_definitions.result == 'success'
+      }}
     needs:
       - admission
       - tool_bootstrap
@@ -1328,7 +1361,7 @@ jobs:
     timeout-minutes: 2
     environment: production-catalog-policy
     permissions:
-      contents: read
+      contents: write
       actions: read
       id-token: write
       attestations: write
@@ -1340,16 +1373,17 @@ jobs:
     steps:
       - *a1
       - *a2
-      - name: Bind protected source and exact role before credential release
-        run: node --input-type=module -e "await (await
-          import('./scripts/release-authority-configuration.mts')).requireControllerCatalogPublicationAuthorities('catalog-policy')"
+      - name: Bind protected source and exact role before App or signing-key release
+        run: node scripts/release-controller-job-credential-route.mts catalog-policy
+        id: authorities
       - *a11
       - *a12
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
           PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
-          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.journal.outputs.token }}
+          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
+            'legacy-app' && steps.journal.outputs.token || '' }}
         with:
           operation: catalog-policy
           phase: catalog-policy
@@ -1359,8 +1393,8 @@ jobs:
     name: Sign catalog snapshot
     if: ${{ always() && needs.admission.outputs.publication_purpose == 'catalog-publication' &&
       needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' &&
-      needs.coordinator.outputs.mode == 'catalog' && needs.catalog_definitions.result == 'success' &&
-      needs.catalog_policy.result == 'success' }}
+      needs.coordinator.outputs.mode == 'catalog' && needs.catalog_definitions.result == 'success'
+      && needs.catalog_policy.result == 'success' }}
     needs:
       - admission
       - tool_bootstrap
@@ -1372,7 +1406,7 @@ jobs:
     timeout-minutes: 2
     environment: production-catalog-snapshot
     permissions:
-      contents: read
+      contents: write
       actions: read
       id-token: write
       attestations: write
@@ -1384,16 +1418,17 @@ jobs:
     steps:
       - *a1
       - *a2
-      - name: Bind protected source and exact role before credential release
-        run: node --input-type=module -e "await (await
-          import('./scripts/release-authority-configuration.mts')).requireControllerCatalogPublicationAuthorities('catalog-snapshot')"
+      - name: Bind protected source and exact role before App or signing-key release
+        run: node scripts/release-controller-job-credential-route.mts catalog-snapshot
+        id: authorities
       - *a11
       - *a12
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
           PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
-          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.journal.outputs.token }}
+          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
+            'legacy-app' && steps.journal.outputs.token || '' }}
         with:
           operation: catalog-snapshot
           phase: catalog-snapshot
@@ -1403,8 +1438,8 @@ jobs:
     name: Sign catalog timestamp
     if: ${{ always() && needs.admission.outputs.publication_purpose == 'catalog-publication' &&
       needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' &&
-      needs.coordinator.outputs.mode == 'catalog' && needs.catalog_definitions.result == 'success' &&
-      needs.catalog_policy.result == 'success' && needs.catalog_snapshot.result == 'success' }}
+      needs.coordinator.outputs.mode == 'catalog' && needs.catalog_definitions.result == 'success'
+      && needs.catalog_policy.result == 'success' && needs.catalog_snapshot.result == 'success' }}
     needs:
       - admission
       - tool_bootstrap
@@ -1417,7 +1452,7 @@ jobs:
     timeout-minutes: 2
     environment: production-catalog-timestamp
     permissions:
-      contents: read
+      contents: write
       actions: read
       id-token: write
       attestations: write
@@ -1429,16 +1464,17 @@ jobs:
     steps:
       - *a1
       - *a2
-      - name: Bind protected source and exact role before credential release
-        run: node --input-type=module -e "await (await
-          import('./scripts/release-authority-configuration.mts')).requireControllerCatalogPublicationAuthorities('catalog-timestamp')"
+      - name: Bind protected source and exact role before App or signing-key release
+        run: node scripts/release-controller-job-credential-route.mts catalog-timestamp
+        id: authorities
       - *a11
       - *a12
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
           PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
-          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.journal.outputs.token }}
+          PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
+            'legacy-app' && steps.journal.outputs.token || '' }}
         with:
           operation: catalog-timestamp
           phase: catalog-timestamp
@@ -1497,6 +1533,5 @@ jobs:
           app_id: ${{ needs.admission.outputs.protection_app_id }}
           private_key: ${{ secrets.PORTCOVE_CATALOG_PROTECTION_APP_PRIVATE_KEY }}
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
-run-name:
-  Portcove ${{ inputs.publication_purpose == 'catalog-publication' && 'catalog publication' ||
-  'application release' }} wake ${{ inputs.wake_run_id }}
+run-name: Portcove ${{ inputs.publication_purpose == 'catalog-publication' && 'catalog publication'
+  || 'application release' }} wake ${{ inputs.wake_run_id }}
