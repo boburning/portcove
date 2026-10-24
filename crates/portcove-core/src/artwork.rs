@@ -13,11 +13,13 @@ use serde::{Deserialize, Serialize};
 use crate::{Library, PortcoveError, PortcoveService, Result};
 
 mod destination;
+mod igdb_cache;
 pub use destination::{
     ARTWORK_HANDOFF_SCHEMA, DestinationArtworkBytes, DestinationArtworkContent,
     DestinationArtworkHandoff, DestinationArtworkRole, DestinationArtworkSource,
     DestinationArtworkUnavailableReason,
 };
+pub use igdb_cache::IGDB_ARTWORK_WORK_LIMIT;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -648,6 +650,7 @@ pub(super) struct IgdbRetry {
 #[derive(Default)]
 pub(super) struct IgdbRequests {
     entries: BTreeMap<IgdbRequestKey, IgdbRequestState>,
+    derivatives: igdb_cache::Derivatives,
 }
 
 impl IgdbRequests {
@@ -675,29 +678,56 @@ fn igdb_requests() -> &'static Mutex<IgdbRequests> {
     REQUESTS.get_or_init(|| Mutex::new(IgdbRequests::default()))
 }
 
-fn igdb_request_state(library: &Library, artwork: &crate::IgdbArtwork) -> Result<IgdbRequestState> {
+fn igdb_request_key(library: &Library, artwork: &crate::IgdbArtwork) -> Result<IgdbRequestKey> {
     let identity = library.identity_record()?;
-    let key = (
+    Ok((
         identity.root,
         identity.id,
         artwork.image_id.clone(),
         artwork.image_sha256.clone(),
-    );
+    ))
+}
+
+fn igdb_request_state(key: &IgdbRequestKey) -> Result<IgdbRequestState> {
     igdb_requests()
         .lock()
         .map_err(|_| PortcoveError::state("cover request state is unavailable"))?
-        .request(key)
+        .request(key.clone())
 }
 
 fn clear_igdb_requests(library: &Library) -> Result<()> {
     // Detached in-flight/waiting callers cannot repopulate this registry after clear.
     // No per-request mutex is acquired while holding the registry or artwork lock.
     let identity = library.identity_record()?;
-    igdb_requests()
+    let mut requests = igdb_requests()
         .lock()
-        .map_err(|_| PortcoveError::state("cover request state is unavailable"))?
+        .map_err(|_| PortcoveError::state("cover request state is unavailable"))?;
+    requests
         .entries
         .retain(|(root, id, _, _), _| root != &identity.root || id != &identity.id);
+    requests
+        .derivatives
+        .clear_library(&identity.root, &identity.id);
+    Ok(())
+}
+
+fn retain_igdb_derivative(
+    key: &IgdbRequestKey,
+    state: &IgdbRequestState,
+    png: &[u8],
+) -> Result<()> {
+    let mut requests = igdb_requests()
+        .lock()
+        .map_err(|_| PortcoveError::state("cover request state is unavailable"))?;
+    // Clearing the library detaches outstanding callers. Their completion must
+    // not restore disposable memory state, even if a new request has the same key.
+    if requests
+        .entries
+        .get(key)
+        .is_some_and(|current| Arc::ptr_eq(current, state))
+    {
+        requests.derivatives.insert(key.clone(), png);
+    }
     Ok(())
 }
 
@@ -705,16 +735,32 @@ fn cached_igdb_thumbnail(
     library: &Library,
     artwork: &crate::IgdbArtwork,
     revision: u64,
+    key: &IgdbRequestKey,
+    state: &IgdbRequestState,
 ) -> Result<Option<ArtworkThumbnail>> {
     let path = igdb_original_path(library, artwork)?;
     if let Ok(original) =
         crate::path::read_bounded_regular(&path, crate::artwork_image::MAX_ORIGINAL_BYTES)
-        && let Ok(decoded) = decode_igdb_original(&original, artwork)
+        && verify_igdb_original(&original, artwork).is_ok()
     {
+        let cached = igdb_requests()
+            .lock()
+            .map_err(|_| PortcoveError::state("cover request state is unavailable"))?
+            .derivatives
+            .get(key);
+        let png = if let Some(png) = cached {
+            png
+        } else {
+            let Ok(decoded) = decode_igdb_original(&original, artwork) else {
+                return Ok(None);
+            };
+            retain_igdb_derivative(key, state, &decoded.thumbnail)?;
+            decoded.thumbnail
+        };
         return Ok(Some(ArtworkThumbnail {
             asset_sha256: igdb_cache_id(artwork),
             choice_revision: revision,
-            png: decoded.thumbnail,
+            png,
         }));
     }
     Ok(None)
@@ -728,15 +774,16 @@ pub(super) fn igdb_thumbnail_with_fetch(
     fetch: impl FnOnce() -> std::result::Result<Vec<u8>, IgdbFetchFailure>,
     now: impl Fn() -> Instant,
 ) -> Result<ArtworkThumbnail> {
-    if let Some(thumbnail) = cached_igdb_thumbnail(library, artwork, revision)? {
-        return Ok(thumbnail);
-    }
-    let state = igdb_request_state(library, artwork)?;
+    let key = igdb_request_key(library, artwork)?;
+    let state = igdb_request_state(&key)?;
     let mut retry = state
         .lock()
         .map_err(|_| PortcoveError::state("cover request state is unavailable"))?;
-    // A concurrent retrieval may have published while this caller waited.
-    if let Some(thumbnail) = cached_igdb_thumbnail(library, artwork, revision)? {
+    // Admit before allocating the original or converting it, including warm
+    // reads. Core never queues a blocking worker behind unrelated cover work.
+    static WORK: igdb_cache::WorkBudget = igdb_cache::WorkBudget::new();
+    let _permit = WORK.try_acquire()?;
+    if let Some(thumbnail) = cached_igdb_thumbnail(library, artwork, revision, &key, &state)? {
         *retry = None;
         return Ok(thumbnail);
     }
@@ -764,6 +811,7 @@ pub(super) fn igdb_thumbnail_with_fetch(
     };
     let decoded = decode_igdb_original(&original, artwork)?;
     publish(&original)?;
+    retain_igdb_derivative(&key, &state, &decoded.thumbnail)?;
     Ok(ArtworkThumbnail {
         asset_sha256: igdb_cache_id(artwork),
         choice_revision: revision,
@@ -784,6 +832,21 @@ fn fetch_igdb_original(
         "https://images.igdb.com/igdb/image/upload/t_cover_big/{}.jpg",
         artwork.image_id
     );
+    let response = igdb_http_client()?
+        .get(url)
+        .send()
+        .map_err(|error| IgdbFetchFailure {
+            retryable: error.is_timeout() || error.is_connect(),
+            error: PortcoveError::network(format!("IGDB image request failed: {error}")),
+        })?;
+    read_igdb_response(response)
+}
+
+fn igdb_http_client() -> std::result::Result<&'static reqwest::blocking::Client, IgdbFetchFailure> {
+    static CLIENT: OnceLock<reqwest::blocking::Client> = OnceLock::new();
+    if let Some(client) = CLIENT.get() {
+        return Ok(client);
+    }
     let client = reqwest::blocking::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .connect_timeout(Duration::from_secs(5))
@@ -794,10 +857,12 @@ fn fetch_igdb_original(
                 "IGDB image client failed: {error}"
             )))
         })?;
-    let response = client.get(url).send().map_err(|error| IgdbFetchFailure {
-        retryable: error.is_timeout() || error.is_connect(),
-        error: PortcoveError::network(format!("IGDB image request failed: {error}")),
-    })?;
+    Ok(CLIENT.get_or_init(|| client))
+}
+
+fn read_igdb_response(
+    response: reqwest::blocking::Response,
+) -> std::result::Result<Vec<u8>, IgdbFetchFailure> {
     if !response.status().is_success() {
         return Err(IgdbFetchFailure {
             retryable: igdb_status_retryable(response.status()),
@@ -837,13 +902,7 @@ fn decode_igdb_original(
     original: &[u8],
     artwork: &crate::IgdbArtwork,
 ) -> Result<crate::artwork_image::DecodedArtwork> {
-    if original.len() as u64 > crate::artwork_image::MAX_ORIGINAL_BYTES
-        || crate::signed_catalog::digest(original) != artwork.image_sha256
-    {
-        return Err(PortcoveError::verification(
-            "IGDB cover no longer matches its catalog identity",
-        ));
-    }
+    verify_igdb_original(original, artwork)?;
     let decoded = crate::artwork_image::decode(original)?;
     if decoded.format != ArtworkImageFormat::Jpeg {
         return Err(PortcoveError::verification(
@@ -851,6 +910,17 @@ fn decode_igdb_original(
         ));
     }
     Ok(decoded)
+}
+
+fn verify_igdb_original(original: &[u8], artwork: &crate::IgdbArtwork) -> Result<()> {
+    if original.len() as u64 > crate::artwork_image::MAX_ORIGINAL_BYTES
+        || crate::signed_catalog::digest(original) != artwork.image_sha256
+    {
+        return Err(PortcoveError::verification(
+            "IGDB cover no longer matches its catalog identity",
+        ));
+    }
+    Ok(())
 }
 
 fn igdb_original_path(library: &Library, artwork: &crate::IgdbArtwork) -> Result<PathBuf> {

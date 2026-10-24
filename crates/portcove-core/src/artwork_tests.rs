@@ -2123,3 +2123,225 @@ fn cover_backoff_and_clear_share_canonical_library_alias_identity() {
     cover_with_fetch(&service, &artwork, now, failure).unwrap_err();
     assert_eq!(requests.get(), 2);
 }
+
+#[test]
+fn warm_cover_reuses_conversion_but_always_verifies_the_original() {
+    use std::{cell::Cell, time::Instant};
+    let temp = tempfile::tempdir().unwrap();
+    let (service, artwork, bytes) = backoff_fixture(temp.path());
+    let now = Instant::now();
+    let requests = Cell::new(0);
+    let before = crate::artwork_image::decode_count();
+    let cold = cover_with_fetch(&service, &artwork, now, || {
+        requests.set(requests.get() + 1);
+        Ok(bytes.clone())
+    })
+    .unwrap();
+    assert_eq!(crate::artwork_image::decode_count(), before + 1);
+    for _ in 0..20 {
+        let warm = cover_with_fetch(&service, &artwork, now, || panic!("warm fetch")).unwrap();
+        assert_eq!(warm.png, cold.png);
+    }
+    assert_eq!(requests.get(), 1);
+    assert_eq!(crate::artwork_image::decode_count(), before + 1);
+
+    let original = service
+        .library()
+        .root()
+        .join("artwork-cache")
+        .join(format!("{}.jpg", artwork.image_sha256));
+    fs::write(&original, b"changed original").unwrap();
+    let invalid = cover_with_fetch(&service, &artwork, now, || {
+        requests.set(requests.get() + 1);
+        Ok(b"still not the admitted image".to_vec())
+    })
+    .unwrap_err();
+    assert_eq!(invalid.code, crate::ErrorCode::Verification);
+    fs::remove_file(&original).unwrap();
+    assert!(cover_with_fetch(&service, &artwork, now, || Err(transient_cover_error())).is_err());
+
+    // Restoring the exact original permits reuse even during the outage window.
+    fs::write(&original, &bytes).unwrap();
+    assert_eq!(
+        cover_with_fetch(&service, &artwork, now, || panic!("restored original"))
+            .unwrap()
+            .png,
+        cold.png
+    );
+    assert_eq!(crate::artwork_image::decode_count(), before + 1);
+    assert_eq!(service.clear_artwork_cache().unwrap().removed_files, 1);
+    fs::write(&original, &bytes).unwrap();
+    assert_eq!(
+        cover_with_fetch(&service, &artwork, now, || panic!("disk original retained"))
+            .unwrap()
+            .png,
+        cold.png
+    );
+    assert_eq!(crate::artwork_image::decode_count(), before + 2);
+}
+
+#[test]
+fn concurrent_cover_successes_share_fetch_and_conversion() {
+    use std::{
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            mpsc,
+        },
+        time::{Duration, Instant},
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let (service, artwork, bytes) = backoff_fixture(temp.path());
+    let now = Instant::now();
+    let requests = AtomicUsize::new(0);
+    let (started, waiting) = mpsc::channel();
+    let (release, released) = mpsc::channel();
+    std::thread::scope(|scope| {
+        let service = &service;
+        let artwork = &artwork;
+        let requests = &requests;
+        let first = scope.spawn(move || {
+            let before = crate::artwork_image::decode_count();
+            let output = cover_with_fetch(service, artwork, now, || {
+                requests.fetch_add(1, Ordering::SeqCst);
+                started.send(()).unwrap();
+                released.recv_timeout(Duration::from_secs(10)).unwrap();
+                Ok(bytes)
+            })
+            .unwrap();
+            (output, crate::artwork_image::decode_count() - before)
+        });
+        waiting.recv_timeout(Duration::from_secs(10)).unwrap();
+        let second = scope.spawn(|| {
+            let before = crate::artwork_image::decode_count();
+            let output =
+                cover_with_fetch(service, artwork, now, || panic!("duplicate fetch")).unwrap();
+            (output, crate::artwork_image::decode_count() - before)
+        });
+        release.send(()).unwrap();
+        let (first, first_decodes) = first.join().unwrap();
+        let (second, second_decodes) = second.join().unwrap();
+        assert_eq!(first.png, second.png);
+        assert_eq!((first_decodes, second_decodes), (1, 0));
+    });
+    assert_eq!(requests.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn distinct_cover_work_is_bounded_and_busy_is_not_negatively_cached() {
+    use std::{
+        sync::mpsc,
+        time::{Duration, Instant},
+    };
+    let first_root = tempfile::tempdir().unwrap();
+    let second_root = tempfile::tempdir().unwrap();
+    let third_root = tempfile::tempdir().unwrap();
+    let (first_service, first_artwork, _) = backoff_fixture(first_root.path());
+    let (second_service, second_artwork, second_bytes) = backoff_fixture(second_root.path());
+    let (third_service, third_artwork, third_bytes) = backoff_fixture(third_root.path());
+    let now = Instant::now();
+    let (started, waiting) = mpsc::channel();
+    let (release_first, first_released) = mpsc::channel();
+    let (release_second, second_released) = mpsc::channel();
+    std::thread::scope(|scope| {
+        let first_started = started.clone();
+        let first = scope.spawn(move || {
+            cover_with_fetch(&first_service, &first_artwork, now, || {
+                first_started.send(()).unwrap();
+                first_released
+                    .recv_timeout(Duration::from_secs(10))
+                    .unwrap();
+                Err(transient_cover_error())
+            })
+        });
+        let second = scope.spawn(move || {
+            cover_with_fetch(&second_service, &second_artwork, now, || {
+                started.send(()).unwrap();
+                second_released
+                    .recv_timeout(Duration::from_secs(10))
+                    .unwrap();
+                Ok(second_bytes)
+            })
+        });
+        for _ in 0..crate::IGDB_ARTWORK_WORK_LIMIT {
+            waiting.recv_timeout(Duration::from_secs(10)).unwrap();
+        }
+        let busy = cover_with_fetch(&third_service, &third_artwork, now, || {
+            panic!("excess fetch")
+        })
+        .unwrap_err();
+        assert_eq!(busy.code, crate::ErrorCode::Conflict);
+        // No library operation lock is held by the artwork admission budget.
+        assert!(third_service.library().try_lock_artwork().is_ok());
+        release_first.send(()).unwrap();
+        release_second.send(()).unwrap();
+        assert_eq!(
+            first.join().unwrap().unwrap_err().code,
+            crate::ErrorCode::Network
+        );
+        assert!(second.join().unwrap().is_ok());
+    });
+    assert!(cover_with_fetch(&third_service, &third_artwork, now, || Ok(third_bytes)).is_ok());
+}
+
+#[test]
+fn clearing_cover_cache_detaches_in_flight_derivative() {
+    use std::{
+        sync::mpsc,
+        time::{Duration, Instant},
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let (service, artwork, bytes) = backoff_fixture(temp.path());
+    let now = Instant::now();
+    let (started, waiting) = mpsc::channel();
+    let (release, released) = mpsc::channel();
+    std::thread::scope(|scope| {
+        let service = &service;
+        let artwork = &artwork;
+        let first = scope.spawn(move || {
+            cover_with_fetch(service, artwork, now, || {
+                started.send(()).unwrap();
+                released.recv_timeout(Duration::from_secs(10)).unwrap();
+                Ok(bytes)
+            })
+            .unwrap()
+        });
+        waiting.recv_timeout(Duration::from_secs(10)).unwrap();
+        service.clear_artwork_cache().unwrap();
+        release.send(()).unwrap();
+        let completed = first.join().unwrap();
+        // Clear does not cancel the existing fetch's disk publication. It does
+        // detach its memory state, so this verified original must convert anew.
+        let before = crate::artwork_image::decode_count();
+        let rebuilt =
+            cover_with_fetch(service, artwork, now, || panic!("published original")).unwrap();
+        assert_eq!(rebuilt.png, completed.png);
+        assert_eq!(crate::artwork_image::decode_count(), before + 1);
+    });
+}
+
+#[test]
+fn cover_derivatives_follow_canonical_library_and_durable_identity() {
+    let temp = tempfile::tempdir().unwrap();
+    let (service, artwork, bytes) = backoff_fixture(temp.path());
+    let now = std::time::Instant::now();
+    cover_with_fetch(&service, &artwork, now, || Ok(bytes.clone())).unwrap();
+    fs::create_dir(temp.path().join("alias")).unwrap();
+    let alias =
+        PortcoveService::new(Library::open(temp.path().join("alias/../library")).unwrap()).unwrap();
+    let before = crate::artwork_image::decode_count();
+    cover_with_fetch(&alias, &artwork, now, || panic!("canonical alias")).unwrap();
+    assert_eq!(crate::artwork_image::decode_count(), before);
+    let identity = service.library().identity_record().unwrap();
+    drop((service, alias));
+    fs::remove_dir_all(&identity.root).unwrap();
+    let (replacement, artwork, bytes) = backoff_fixture(temp.path());
+    assert_ne!(
+        identity.id,
+        replacement.library().identity_record().unwrap().id
+    );
+    let cache = replacement.library().root().join("artwork-cache");
+    fs::create_dir(&cache).unwrap();
+    fs::write(cache.join(format!("{}.jpg", artwork.image_sha256)), bytes).unwrap();
+    cover_with_fetch(&replacement, &artwork, now, || panic!("copied original")).unwrap();
+    assert_eq!(crate::artwork_image::decode_count(), before + 1);
+}

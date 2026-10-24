@@ -490,9 +490,11 @@ across listing changes; favorites retain their stable IDs independently.
 Imports accept static PNG/JPEG files with at most 16 MiB encoded bytes, 8192 pixels
 per dimension, 8 megapixels and 32 MiB decoded pixel storage. Decoder allocation
 limits also apply; destination pixel allocation is checked explicitly. A separate
-library artwork lock bounds concurrent decoding and serializes import, reset,
-thumbnail generation, cache clearing and unused-original removal without holding
-a game's operation lock. Expected slot revisions reject stale changes, including
+library artwork lock serializes local import/thumbnail decoding, reset, cache
+publication/clearing and unused-original removal without holding a game's operation
+lock. Remote original reads, fetching and conversion use a separate process-wide
+two-worker budget; Core refuses excess work promptly instead of blocking a shared
+worker behind another image. Expected slot revisions reject stale changes, including
 reset/reselect cycles. Missing or changed originals retain the selection and report
 unavailability through the artwork API; ordinary lifecycle reads do not read images.
 
@@ -516,11 +518,23 @@ Catalog cover retrieval checks validated cached bytes before process-local retry
 state. Request timeout/connect failures and HTTP 408, 429 or 5xx responses
 retain their network error for 30 seconds after completion. At most 256 exact
 canonical-root/durable-library/image/content request identities are retained; same-identity requests
-serialize, idle entries may be evicted and a full active registry refuses new
+serialize before reading or converting an original, idle entries may be evicted and a full active registry refuses new
 retrieval. Integrity, decode, filesystem, publication and other HTTP failures
 are not retained. Cache clearing detaches that library's retry state, including
 in-flight requests, without changing choices or imported originals.
 Unexpected files or symlink paths are retained and rejected, never traversed.
+
+A process-local least-recently-used cache retains at most 8 MiB of converted PNG
+bytes across 256 entries. Each entry binds canonical root, durable library ID,
+provider image/content identity and the conversion version/limits. Every hit first
+reads and hashes the original, then verifies the cached PNG digest; healthy warm
+hits do not decode, resize or encode again. Missing/corrupt originals cannot be
+masked by a retained derivative. Missing/corrupt derivatives rebuild from verified
+originals. This cache does not use the local-assets thumbnail table or survive the
+executable. Clear removes its library's derivatives and prevents detached requests
+from restoring memory state; it does not cancel an already-running fetch or its
+later original publication. The 8 MiB bound covers retained derivative bytes,
+not active original/pixel buffers, returned copies or total process memory.
 
 Library metadata format 3 exports logical choices and local asset identities with
 an explicit `artwork` payload root. Moves and metadata/content imports use existing
@@ -533,8 +547,19 @@ continue to cover saved data; whole-library backup copies include the artwork ro
 Desktop owns native file selection and routes each read/change through a library
 generation check. React displays core results through a disposable cache for the
 visible viewport plus at most 32 inactive previews per generation. Requests are
-serialized to avoid competing for the artwork lock; queued reads are discarded
-when their view no longer needs them. Visible cards load asynchronously and preserve
+serialized for local-choice work to avoid competing for the artwork lock, while
+IGDB thumbnail retrieval uses a separate two-request drain. Undispatched requests
+are keyed by port/slot, share the inactive-preview retention bound and recheck
+current state and viewport interest before IPC. A refreshed choice replaces queued
+work, and offscreen queued work is discarded so current covers can proceed.
+The native adapter
+uses Core's resolved source to await remote admission asynchronously before
+dispatching a thumbnail worker; local thumbnails, imports, resets and unrelated
+game work do not wait on that remote gate. Its capacity matches Core's two-worker
+limit. A dispatched worker retains its permit even if its IPC waiter is cancelled.
+Library generation and slot revision are rechecked after admission. Queued renderer
+reads are discarded when their view no longer needs them, and stale completions
+cannot replace a changed choice or generation. Visible cards load asynchronously and preserve
 the cached image while refreshing. PNG data URLs carry only bounded core thumbnails;
 the renderer never reads original files or changes the content-security policy.
 Picker cancellation, closing the editor, changing ports or changing libraries
@@ -571,7 +596,9 @@ the generated fallback. The Desktop host remains a thin adapter. Core
 fetches only the fixed IGDB cover CDN path, without Twitch credentials or a
 client-side catalog search; a bounded JPEG is checked against the catalog digest
 before decoding, and its original bytes are retained in the disposable shared
-cache. Every cache read rechecks that digest before deriving a thumbnail. A missing, changed or
+cache. A shared HTTP client pools connections while retaining redirect refusal,
+the five-second connect limit and the fifteen-second request limit. Every cache
+read rechecks that digest before reusing or deriving a thumbnail. A missing, changed or
 unreachable image falls back in the renderer without blocking library or port
 operations. The catalog mapping is presentation data, so a reviewed signed
 catalog update can correct it without changing the installed app. An absent
