@@ -1282,9 +1282,7 @@ impl PortcoveService {
         port: &PortDefinition,
         install: &InstallRecord,
     ) -> Option<LaunchBlocker> {
-        if port.managed_shared_preferences.is_none() {
-            return None;
-        }
+        port.managed_shared_preferences?;
         let accepted = (|| {
             let proof =
                 Installer::new(self.library.clone())?.retained_shared_preferences(install)?;
@@ -2927,10 +2925,10 @@ impl PortcoveService {
             port,
             DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
         )?;
-        if port.adapter == AdapterKind::NativePortable {
-            if let Some(active) = &status.active {
-                self.require_portable_runtime_unchanged(active)?;
-            }
+        if port.adapter == AdapterKind::NativePortable
+            && let Some(active) = &status.active
+        {
+            self.require_portable_runtime_unchanged(active)?;
         }
         if let Some(active) = &status.active {
             self.require_portable_transition(active, port)?;
@@ -3873,7 +3871,7 @@ impl PortcoveService {
             if staged_user.exists() {
                 copy_tree(&staged_user, &self.library.user_dir(&port_id))?;
             }
-            crate::runtime_data_policy::refuse_sensitive_tree(&operation_root)?;
+            crate::runtime_data_policy::refuse_sensitive_tree(operation_root)?;
             if let Err(error) = fs::remove_dir_all(operation_root) {
                 lifecycle.phase = LifecyclePhase::CleanupPending;
                 lifecycle.last_error = Some(error.to_string());
@@ -5089,7 +5087,7 @@ impl PortcoveService {
         source_override: Option<&Path>,
         operation: &OperationCoordinator,
     ) -> Result<crate::LaunchSpec> {
-        if record.user_selected.is_some() {
+        if let Some(user_selected) = &record.user_selected {
             if source_override.is_some() {
                 return Err(PortcoveError::usage(
                     "user-managed setup supplies its own original files; source overrides are not offered",
@@ -5106,12 +5104,7 @@ impl PortcoveService {
                 install_root: record.path.clone(),
                 working_directory: record.path.clone(),
                 environment: std::collections::BTreeMap::new(),
-                arguments: record
-                    .user_selected
-                    .as_ref()
-                    .expect("checked user intent")
-                    .arguments
-                    .clone(),
+                arguments: user_selected.arguments.clone(),
                 fixed_arguments_only: true,
                 launch_kind: crate::LaunchKind::Native,
             });

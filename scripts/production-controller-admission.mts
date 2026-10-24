@@ -185,6 +185,35 @@ export function admitProductionInputReader(
   );
 }
 
+/** Four fixed native parent entry points, under the existing bounded
+ * application source/grant. Source admission grants no candidate execution,
+ * native acceptance, protected configuration or proof-signing capability. */
+export function productionHostedNativeJob(platform: unknown, stage: unknown) {
+  if (platform !== "windows-x86_64" && platform !== "linux-x86_64") refuse("fixed native platform");
+  if (stage !== "payload-signing" && stage !== "release-publication") refuse("fixed native stage");
+  return `native_${stage === "payload-signing" ? "payload" : "publication"}_${platform === "windows-x86_64" ? "windows" : "linux"}`;
+}
+export function admitProductionNativeParent(
+  rawPolicy: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+  platform: unknown,
+  stage: unknown,
+) {
+  const job = productionHostedNativeJob(platform, stage);
+  if (environment.PORTCOVE_EXECUTION_PURPOSE !== "application")
+    refuse("native application purpose");
+  const source = admitController(
+    productionControllerWorkflow,
+    rawPolicy,
+    environment,
+    workflowBytes,
+    job,
+  );
+  if (source.mode !== "bounded-application-release") refuse("bounded native source grant");
+  return source;
+}
+
 /** Separate owner grant and purpose. Shared coordinator/Pages jobs may consume
  * catalog controls, but application admission and signing jobs cannot. */
 export function admitProductionCatalogInputReader(

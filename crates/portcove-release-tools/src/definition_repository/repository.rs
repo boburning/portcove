@@ -460,10 +460,11 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
                 role.name()
             )
         };
-        if let Some(old) = files.get(&name) {
-            if role != DefinitionOnlineRole::Timestamp && old != bytes {
-                return invalid("catalog immutable metadata history replacement");
-            }
+        if let Some(old) = files.get(&name)
+            && role != DefinitionOnlineRole::Timestamp
+            && old != bytes
+        {
+            return invalid("catalog immutable metadata history replacement");
         }
         files.insert(name, bytes.clone());
     }
@@ -538,9 +539,9 @@ fn repository_report(
     index_sha256: &str,
     changed: bool,
 ) -> Result<DefinitionRepositoryReport> {
-    let identities = bundle::identities(&files);
+    let identities = bundle::identities(files);
     let repository_sha256 = sha(&serde_json::to_vec(&identities)?);
-    let actual_roles = current_roles(&files)?;
+    let actual_roles = current_roles(files)?;
     let mut versions = BTreeMap::new();
     let mut expires = BTreeMap::new();
     for (label, name) in [

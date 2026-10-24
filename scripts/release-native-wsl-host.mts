@@ -57,11 +57,12 @@ export function inspectNativeWslRegistration(
     authority: "none" as const,
   });
 }
-export function inspectNativeWslGuestHost(
+function inspectNativeLinuxHost(
   raw: unknown,
   boundary: { account: { qualification: string }; qualification_gid: string },
   invocation: string,
   expected: { machine_id_sha256: string; minimum_os_version: string },
+  minimumKind: "kernel" | "distribution",
 ) {
   assert.ok(
     isRecord(raw) &&
@@ -94,7 +95,7 @@ export function inspectNativeWslGuestHost(
   const actual = /^([0-9]+(?:\.[0-9]+){1,3})(?:[-+][A-Za-z0-9._+-]+)?$/u.exec(raw.kernel_release),
     minimum = /^[0-9]+(?:\.[0-9]+){1,3}$/u.exec(expected.minimum_os_version);
   assert.ok(actual && minimum, "actual Linux kernel/minimum field differs");
-  const a = actual[1]!.split(".").map(BigInt),
+  const a = (minimumKind === "kernel" ? actual[1]! : os.get("VERSION_ID")!).split(".").map(BigInt),
     b = minimum[0].split(".").map(BigInt);
   let comparison = 0;
   for (let index = 0; index < Math.max(a.length, b.length); index++) {
@@ -105,8 +106,35 @@ export function inspectNativeWslGuestHost(
       break;
     }
   }
-  assert.ok(comparison >= 0, "actual kernel is below configured minimum");
+  assert.ok(
+    comparison >= 0,
+    minimumKind === "kernel"
+      ? "actual kernel is below configured minimum"
+      : "actual Ubuntu distribution is below configured minimum",
+  );
   return Object.freeze({ ...raw, authority: "none" as const });
+}
+
+/** Existing local/WSL compatibility floor remains a kernel version. */
+export function inspectNativeWslGuestHost(
+  raw: unknown,
+  boundary: { account: { qualification: string }; qualification_gid: string },
+  invocation: string,
+  expected: { machine_id_sha256: string; minimum_os_version: string },
+) {
+  return inspectNativeLinuxHost(raw, boundary, invocation, expected, "kernel");
+}
+
+/** Selected hosted compatibility uses the observed Ubuntu distribution floor.
+ * Kernel syntax, exact Ubuntu24.04, account and machine joins remain required.
+ * This is an inert inspection, never source or direct-capture provenance. */
+export function inspectHostedNativeLinuxHost(
+  raw: unknown,
+  boundary: { account: { qualification: string }; qualification_gid: string },
+  invocation: string,
+  expected: { machine_id_sha256: string; minimum_os_version: string },
+) {
+  return inspectNativeLinuxHost(raw, boundary, invocation, expected, "distribution");
 }
 
 export async function observeActualNativeWslRegistration(claim: object) {

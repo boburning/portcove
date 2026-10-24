@@ -475,10 +475,9 @@ impl PortcoveService {
         })();
         if result.is_err()
             && crate::runtime_data_policy::refuse_sensitive_tree(&staging_path).is_err()
+            && let Some(temporary) = temporary.take()
         {
-            if let Some(temporary) = temporary.take() {
-                let _ = temporary.keep();
-            }
+            let _ = temporary.keep();
         }
         result
     }

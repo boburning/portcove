@@ -624,6 +624,10 @@ fn normalize_archive_directories(destination: &Path, deepest: &Path) -> Result<(
 }
 
 #[cfg(test)]
+#[path = "archive_fuzz_tests.rs"]
+mod fuzz_tests;
+
+#[cfg(test)]
 mod tests {
     use proptest::prelude::*;
     use std::{

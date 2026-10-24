@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import childProcess from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, copyFile, writeFile, rm, readFile, readdir } from "node:fs/promises";
 import os from "node:os";
@@ -17,6 +18,9 @@ import {
   admitReviewedInputsWriter,
   admitProductionClassificationWriter,
   admitProductionClassificationObserver,
+  admitProductionNativeParent,
+  productionHostedNativeJob,
+  requireAdmittedProductionSource,
 } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
@@ -48,7 +52,21 @@ import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority
 import {
   capacityExecutorRolesForPurpose,
   capacityExecutorJobProfile,
+  controllerOidcSubject,
 } from "./assembler-job-identity.mts";
+import { performance } from "node:perf_hooks";
+import {
+  createActualHostedNativeParentSource,
+  requireActualHostedNativeParentSource,
+} from "./release-hosted-native-parent.mts";
+import {
+  assemblerIdentityFixture,
+  jwk,
+  expected as nativeIdentityExpected,
+} from "./fixtures/assembler-identity-fixture.mts";
+import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
+import type { PreparedReleaseAdmissionFacts } from "./acquire-release-admission.mts";
+import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 
 const source = Buffer.from("independently selected workflow fixture\n");
 const policy = {
@@ -84,6 +102,465 @@ const environment = {
   PORTCOVE_CONTROLLER_REF: "refs/tags/portcove-production-controller-fixture",
 };
 const raw = JSON.stringify(policy);
+
+void test("hosted native parent default path retains original source and issuer without credentials, refuses changed inputs and cannot mint native acceptance", async (t) => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "hosted-native-parent-source-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const before = { ...process.env };
+  t.after(() => {
+    for (const key of Object.keys(process.env)) if (!(key in before)) delete process.env[key];
+    Object.assign(process.env, before);
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+  const configuration = selectedPublicationAuthoritiesFixture("application");
+  const workflow = await readFile(
+    new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+  );
+  const selectedPolicy = {
+    ...policy,
+    schema_version: 2,
+    mode: "bounded-application-release",
+    actor_id: nativeIdentityExpected.actor_id,
+    authority_configuration_sha256: releaseCanonicalDigest(configuration),
+    grant_sha256: "d".repeat(64),
+    workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
+  };
+  Object.assign(process.env, environment, {
+    GITHUB_ACTOR_ID: nativeIdentityExpected.actor_id,
+    GITHUB_RUN_ID: nativeIdentityExpected.run_id,
+    GITHUB_JOB: productionHostedNativeJob("linux-x86_64", "payload-signing"),
+    PORTCOVE_EXECUTION_PURPOSE: "application",
+    PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(configuration),
+    PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify(selectedPolicy),
+    GH_TOKEN: "inert-reader-only",
+    ACTIONS_ID_TOKEN_REQUEST_URL: "https://fixture.actions.githubusercontent.com/token",
+    ACTIONS_ID_TOKEN_REQUEST_TOKEN: "inert-parent-oidc-only",
+    PORTCOVE_SEMANTIC_APP_KEY: "inert-excluded-key",
+  });
+  const good = assemblerIdentityFixture(
+    {
+      aud: "portcove-hosted-native-linux-v1",
+      sub: controllerOidcSubject(nativeIdentityExpected.controller_ref, "production-native-linux"),
+      environment: "production-native-linux",
+    },
+    {},
+    {
+      workflow: ".github/workflows/application-update-production.yml",
+      job: "Qualify hosted Linux installed continuity",
+      runAttempt: 1,
+    },
+  );
+  let tokenCalls = 0,
+    metadataCalls = 0;
+  t.mock.method(globalThis, "fetch", async (endpoint: string | URL | Request) => {
+    const endpointUrl = endpoint instanceof Request ? endpoint.url : endpoint.toString();
+    if (endpointUrl.includes("/.well-known/jwks"))
+      return new Response(JSON.stringify({ keys: [jwk] }));
+    assert.equal(
+      new URL(endpointUrl).searchParams.get("audience"),
+      "portcove-hosted-native-linux-v1",
+    );
+    tokenCalls++;
+    return new Response(JSON.stringify({ value: good.token }));
+  });
+  t.mock.method(
+    childProcess,
+    "spawnSync",
+    (
+      command: string,
+      args: readonly string[],
+      options: Parameters<typeof good.transport.spawn>[2],
+    ) => {
+      metadataCalls++;
+      assert.equal(options?.env?.GH_TOKEN, "inert-reader-only");
+      for (const key of ["ACTIONS_ID_TOKEN_REQUEST_TOKEN", "PORTCOVE_SEMANTIC_APP_KEY"])
+        assert.equal(options?.env?.[key], undefined);
+      return good.transport.spawn(command, args, options) as ReturnType<
+        typeof childProcess.spawnSync
+      >;
+    },
+  );
+  syncBuiltinESMExports();
+  const configured = JSON.stringify(configuration);
+  const pending = createActualHostedNativeParentSource(
+    parent,
+    "linux-x86_64",
+    "payload-signing",
+    performance.now() + 10000,
+  );
+  process.env.PORTCOVE_RELEASE_AUTHORITIES = "{}";
+  await assert.rejects(pending, /source or credential boundary changed/);
+  assert.equal(tokenCalls, 0);
+  assert.equal(metadataCalls, 0);
+  assert.deepEqual(await readdir(parent), []);
+  process.env.PORTCOVE_RELEASE_AUTHORITIES = configured;
+  const receipt = await createActualHostedNativeParentSource(
+    parent,
+    "linux-x86_64",
+    "payload-signing",
+    performance.now() + 10000,
+  );
+  const actual = await requireActualHostedNativeParentSource(receipt);
+  assert.equal(actual.producer.run_id, nativeIdentityExpected.run_id);
+  assert.equal(actual.producer.run_attempt, 1);
+  assert.equal(actual.producer.configuration_sha256, releaseCanonicalDigest(configuration));
+  assert.equal(actual.candidate_isolation, "unproven");
+  assert.equal(actual.native_acceptance, "not-established");
+  assert.equal(actual.authority, "none");
+  for (const name of ["source.json", "configuration.json", "identity.json"]) {
+    const bytes = await readFile(path.join(actual.directory, name), "utf8");
+    for (const secret of [
+      good.token,
+      "inert-reader-only",
+      "inert-parent-oidc-only",
+      "inert-excluded-key",
+    ])
+      assert.equal(bytes.includes(secret), false);
+  }
+  for (const imported of [{ ...receipt }, JSON.parse(JSON.stringify(receipt)) as object])
+    await assert.rejects(requireActualHostedNativeParentSource(imported), /original active/);
+  // Default source/issuer binding above; collector and journal are controlled
+  // here to exercise custody and refusals, not actual provider acquisition.
+  const assembly = await trustedAssemblyFixture(t, "initial-beta-win-linux");
+  const file = assembly.request.files.find(
+    (entry) => entry.platform_label === "linux-x86_64" && entry.filename.endsWith(".AppImage"),
+  );
+  assert.ok(file);
+  const packageBytes = assembly.contents.get(`linux-x86_64/${file.filename}`);
+  assert.ok(packageBytes);
+  const checkpoint = "f".repeat(40);
+  let currentCheckpoint = checkpoint;
+  let collectorCalls = 0;
+  let transientRetries = 0;
+  let outcome = "selected";
+  const syntheticFacts = {
+    checkpoint,
+    assembly: assembly.request,
+    archives: ["windows-x86_64", "linux-x86_64"].map((platform, index) => ({
+      platform,
+      artifact_id: 100 + index,
+      bytes: 123,
+      sha256: "d".repeat(64),
+    })),
+  } as unknown as PreparedReleaseAdmissionFacts;
+  const originalCollector = await import("./acquire-release-admission.mts");
+  t.mock.module("./acquire-release-admission.mts", {
+    namedExports: {
+      ...originalCollector,
+      acquireHostedNativePreparation: async (
+        originalParent: object,
+        _root: string,
+        _configuration: unknown,
+        options: Parameters<typeof originalCollector.acquireHostedNativePreparation>[3],
+        receiveFacts: Parameters<typeof originalCollector.acquireHostedNativePreparation>[4],
+      ) => {
+        collectorCalls++;
+        if (outcome === "prior-hold")
+          throw new CoordinatorRemoteError("hold", { phase: "repository-and-reservation" });
+        await requireActualHostedNativeParentSource(originalParent);
+        assert.ok(options.retainDesktopPackage);
+        await options.retainDesktopPackage(
+          file,
+          outcome === "bad-bytes" ? Buffer.from("changed") : packageBytes,
+        );
+        await receiveFacts(syntheticFacts);
+        if (outcome === "unexpected-success") return {};
+        if (outcome === "changed-checkpoint") currentCheckpoint = "e".repeat(40);
+        throw new CoordinatorRemoteError("no native acceptance", {
+          phase: "actual-stage-native-qualification",
+        });
+      },
+    },
+  });
+  const originalRecovery = await import("./release-coordinator-recovery.mts");
+  t.mock.module("./release-coordinator-recovery.mts", {
+    namedExports: {
+      ...originalRecovery,
+      recoverRemoteCoordinator: async () => ({
+        checkpoint: currentCheckpoint,
+        input: {
+          active_candidate: {
+            phase: "qualifying",
+            version: assembly.request.version,
+            transient_retries: transientRetries,
+            substantive_repairs: 0,
+          },
+          controller: {
+            capacity_attempt: { schema_version: 2, operation: null, prior_operations: [] },
+          },
+        },
+      }),
+    },
+  });
+  const hostedCandidate = await import("./release-hosted-native-candidate.mts");
+  await assert.rejects(hostedCandidate.acquireActualHostedNativeCandidate({}), /original active/);
+  assert.equal(collectorCalls, 0);
+  const selected = await hostedCandidate.acquireActualHostedNativeCandidate(receipt);
+  const selectedValue = await hostedCandidate.requireActualHostedNativeCandidate(selected);
+  assert.equal(selectedValue.parent_source, receipt);
+  assert.equal(selectedValue.candidate.package.sha256, file.sha256);
+  assert.equal(selectedValue.checkpoint, checkpoint);
+  assert.equal(selectedValue.native_acceptance, "not-established");
+  assert.equal(
+    createHash("sha256")
+      .update(await readFile(selectedValue.package_path))
+      .digest("hex"),
+    file.sha256,
+  );
+  // Real source/candidate private factories above; only the system observations
+  // below are controlled. No Linux account, host, isolation or native run occurs.
+  let hostFault = "";
+  let machine = "a".repeat(32);
+  const systemBytes = (filename: string) => {
+    if (filename === "/etc/passwd")
+      return Buffer.from(
+        hostFault === "missing-account"
+          ? "root:x:0:0::/root:/bin/bash\n"
+          : `portcove-native:x:${hostFault === "same-account" ? 1000 : 1002}:1002::/home/portcove-native:${hostFault === "interactive" ? "/bin/bash" : "/usr/sbin/nologin"}\n`,
+      );
+    if (filename === "/etc/machine-id") return Buffer.from(`${machine}\n`);
+    if (filename === "/usr/lib/os-release")
+      return Buffer.from(`ID=ubuntu\nVERSION_ID="${hostFault === "old-os" ? "22.04" : "24.04"}"\n`);
+    return null;
+  };
+  t.mock.module("node:process", {
+    defaultExport: {
+      ...process,
+      platform: "linux",
+      arch: "x64",
+      getuid: () => 1000,
+      getgid: () => 1000,
+    },
+  });
+  const originalLstat = filesystem.lstat;
+  const originalRealpath = filesystem.realpath;
+  t.mock.method(
+    filesystem,
+    "realpath",
+    async (filename: Parameters<typeof filesystem.realpath>[0]) => {
+      if (filename === "/etc/os-release") return "/usr/lib/os-release";
+      if (filename === "/etc/passwd" || filename === "/etc/machine-id") return filename;
+      return originalRealpath(filename);
+    },
+  );
+  t.mock.method(filesystem, "lstat", async (filename: Parameters<typeof filesystem.lstat>[0]) => {
+    if (typeof filename === "string") {
+      const bytes = systemBytes(filename);
+      if (bytes) {
+        const info = await originalLstat(selectedValue.package_path);
+        info.uid = hostFault === "root-owner" ? 1000 : 0;
+        info.mode = 0o100644;
+        info.nlink = 1;
+        info.size = bytes.length;
+        return info;
+      }
+      if (["/", "/etc", "/usr", "/usr/lib"].includes(filename)) {
+        const info = await originalLstat(selectedValue.directory);
+        info.uid = 0;
+        info.mode = hostFault === "writable-dir" ? 0o40777 : 0o40755;
+        return info;
+      }
+    }
+    return originalLstat(filename);
+  });
+  const originalTools = await import("./release-controller-tools.mts");
+  t.mock.module("./release-controller-tools.mts", {
+    namedExports: {
+      ...originalTools,
+      readControllerToolFile: async (filename: string, maximum?: number) => {
+        const bytes = systemBytes(filename);
+        if (bytes) {
+          assert.ok(bytes.length <= (maximum ?? 0));
+          return bytes;
+        }
+        return originalTools.readControllerToolFile(filename, maximum);
+      },
+    },
+  });
+  t.mock.method(os, "release", () => "6.8.0");
+  t.mock.method(os, "machine", () => "x86_64");
+  syncBuiltinESMExports();
+  const linuxRequest = await import("./release-hosted-native-linux-request.mts");
+  await assert.rejects(linuxRequest.prepareActualHostedNativeLinuxRequest({}), /original active/);
+  const linux = await linuxRequest.prepareActualHostedNativeLinuxRequest(selected);
+  const linuxValue = await linuxRequest.requireActualHostedNativeLinuxRequest(linux);
+  assert.deepEqual(linuxValue.prepared.request.expected.host.account, {
+    kind: "linux-uid",
+    broker: "1000",
+    qualification: "1002",
+  });
+  assert.equal(linuxValue.prepared.request.expected.compatibility.minimum_os_version, "24.04");
+  assert.equal(linuxValue.host.observed.kernel_release, "6.8.0");
+  assert.equal(linuxValue.authority, "none");
+  assert.equal(linuxValue.parent_source, receipt);
+  await assert.rejects(
+    linuxRequest.prepareActualHostedNativeLinuxRequest(selected),
+    /one original/,
+  );
+  await assert.rejects(
+    linuxRequest.requireActualHostedNativeLinuxRequest({ ...linux }),
+    /original active/,
+  );
+  machine = "b".repeat(32);
+  await assert.rejects(
+    linuxRequest.requireActualHostedNativeLinuxRequest(linux),
+    /host or account changed/,
+  );
+  machine = "a".repeat(32);
+  await assert.rejects(
+    linuxRequest.requireActualHostedNativeLinuxRequest(linux),
+    /original active/,
+  );
+  for (hostFault of [
+    "missing-account",
+    "same-account",
+    "interactive",
+    "old-os",
+    "root-owner",
+    "writable-dir",
+    "counter-limit",
+  ]) {
+    transientRetries = hostFault === "counter-limit" ? 3 : 0;
+    const sourceAttempt = await createActualHostedNativeParentSource(
+      parent,
+      "linux-x86_64",
+      "payload-signing",
+      performance.now() + 10000,
+    );
+    const candidateAttempt =
+      await hostedCandidate.acquireActualHostedNativeCandidate(sourceAttempt);
+    await assert.rejects(
+      linuxRequest.prepareActualHostedNativeLinuxRequest(candidateAttempt),
+      /retain/,
+    );
+    await assert.rejects(
+      linuxRequest.prepareActualHostedNativeLinuxRequest(candidateAttempt),
+      /one original/,
+    );
+    const value = await hostedCandidate.requireActualHostedNativeCandidate(candidateAttempt);
+    const refusal = JSON.parse(
+      await readFile(path.join(value.directory, "hosted-linux-request-refusal.json"), "utf8"),
+    ) as { automatic_retry: boolean };
+    assert.equal(refusal.automatic_retry, false);
+  }
+  hostFault = "";
+  transientRetries = 0;
+  await assert.rejects(hostedCandidate.acquireActualHostedNativeCandidate(receipt), /one original/);
+  await assert.rejects(
+    hostedCandidate.requireActualHostedNativeCandidate({ ...selected }),
+    /original active/,
+  );
+  currentCheckpoint = "e".repeat(40);
+  await assert.rejects(
+    hostedCandidate.requireActualHostedNativeCandidate(selected),
+    /reservation changed/,
+  );
+  currentCheckpoint = checkpoint;
+  await assert.rejects(
+    hostedCandidate.requireActualHostedNativeCandidate(selected),
+    /original active/,
+  );
+  for (outcome of ["prior-hold", "bad-bytes", "unexpected-success", "changed-checkpoint"]) {
+    const attempt = await createActualHostedNativeParentSource(
+      parent,
+      "linux-x86_64",
+      "payload-signing",
+      performance.now() + 10000,
+    );
+    await assert.rejects(hostedCandidate.acquireActualHostedNativeCandidate(attempt), /retain/);
+    await assert.rejects(
+      hostedCandidate.acquireActualHostedNativeCandidate(attempt),
+      /one original/,
+    );
+    currentCheckpoint = checkpoint;
+  }
+  const originalBytes = await readFile(path.join(actual.directory, "identity.json"));
+  await writeFile(path.join(actual.directory, "identity.json"), "{}");
+  await assert.rejects(requireActualHostedNativeParentSource(receipt), /retained evidence changed/);
+  await writeFile(path.join(actual.directory, "identity.json"), originalBytes);
+  await assert.rejects(requireActualHostedNativeParentSource(receipt), /original active/);
+  const next = await createActualHostedNativeParentSource(
+    parent,
+    "linux-x86_64",
+    "payload-signing",
+    performance.now() + 10000,
+  );
+  process.env.PORTCOVE_CONTROLLER_ADMISSION = JSON.stringify({
+    ...selectedPolicy,
+    grant_sha256: "e".repeat(64),
+  });
+  await assert.rejects(
+    requireActualHostedNativeParentSource(next),
+    /source or credential boundary changed/,
+  );
+  process.env.PORTCOVE_CONTROLLER_ADMISSION = JSON.stringify(selectedPolicy);
+  await assert.rejects(requireActualHostedNativeParentSource(next), /original active/);
+  const deadline = performance.now() + 10000;
+  const expired = await createActualHostedNativeParentSource(
+    parent,
+    "linux-x86_64",
+    "payload-signing",
+    deadline,
+  );
+  t.mock.method(performance, "now", () => deadline + 1);
+  await assert.rejects(requireActualHostedNativeParentSource(expired), /deadline exhausted/);
+});
+
+void test("native parent source admits only the four exact bounded application jobs without appointing execution authority", () => {
+  const bounded = {
+    ...policy,
+    schema_version: 2,
+    mode: "bounded-application-release",
+    authority_configuration_sha256: "b".repeat(64),
+    grant_sha256: "c".repeat(64),
+  };
+  const selected = JSON.stringify(bounded);
+  for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
+    for (const stage of ["payload-signing", "release-publication"] as const) {
+      const job = productionHostedNativeJob(platform, stage);
+      const current = {
+        ...environment,
+        PORTCOVE_EXECUTION_PURPOSE: "application",
+        GITHUB_JOB: job,
+      };
+      const actual = admitProductionNativeParent(selected, current, source, platform, stage);
+      assert.equal(actual.mode, "bounded-application-release");
+      assert.equal(actual.qualification.startsWith("Source admission only"), true);
+      requireAdmittedProductionSource(actual, job, "application");
+      assert.throws(() => requireAdmittedProductionSource({ ...actual }, job, "application"));
+      assert.throws(() => requireAdmittedProductionSource(actual, job, "catalog-publication"));
+      for (const changed of [
+        { ...current, GITHUB_JOB: "independent_admission" },
+        {
+          ...current,
+          GITHUB_JOB: productionHostedNativeJob(
+            platform,
+            stage === "payload-signing" ? "release-publication" : "payload-signing",
+          ),
+        },
+        { ...current, GITHUB_RUN_ATTEMPT: "2" },
+        { ...current, RUNNER_ENVIRONMENT: "self-hosted" },
+        { ...current, PORTCOVE_EXECUTION_PURPOSE: "catalog-publication" },
+        { ...current, GITHUB_REF_PROTECTED: "false" },
+      ])
+        assert.throws(() =>
+          admitProductionNativeParent(selected, changed, source, platform, stage),
+        );
+      assert.throws(
+        () => admitProductionNativeParent(raw, current, source, platform, stage),
+        /bounded native source grant/,
+      );
+      assert.throws(
+        () =>
+          admitProductionNativeParent(selected, current, Buffer.from("changed"), platform, stage),
+        /workflow source byte identity/,
+      );
+    }
+  }
+  assert.throws(() => productionHostedNativeJob("linux-arm64", "payload-signing"));
+  assert.throws(() => productionHostedNativeJob("linux-x86_64", "publication"));
+});
 
 void test("full selected scopes have separate purpose digests and the same custody-only journal projection", () => {
   const app = inspectSelectedPublicationAuthorityConfiguration(

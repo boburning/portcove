@@ -642,13 +642,46 @@ export async function verifyHostedNativeJobIdentity(
   )
     throw new Error("hosted native audience/environment differs from fixed parent");
   const observed = await verifyJobIdentity(profile, token, expected, options);
-  return {
+  const result = {
     ...observed,
     platform_label: platform,
     native_acceptance: "not-established" as const,
     candidate_isolation: "unproven" as const,
     installed_continuity: "unproven" as const,
   };
+  const original = verifiedJobs.get(observed)!;
+  verifiedJobs.set(result, { ...original, snapshot: JSON.stringify(result) });
+  return result;
+}
+
+/** Original fixed native job identity only. Even this private binding grants
+ * no candidate isolation, execution, capture, native result or signing right. */
+export function requireVerifiedHostedNativeJobIdentity(
+  value: unknown,
+  platform: "windows-x86_64" | "linux-x86_64",
+  rawExpected: unknown,
+  now = Date.now(),
+): asserts value is Awaited<ReturnType<typeof verifyHostedNativeJobIdentity>> {
+  const saved = isRecord(value) ? verifiedJobs.get(value) : undefined;
+  const profile = hostedNativeJobProfile(platform);
+  const expected = inspectAssemblerIdentityExpectation(rawExpected);
+  if (
+    !Number.isFinite(now) ||
+    now < 0 ||
+    !saved ||
+    JSON.stringify(saved.profile) !== JSON.stringify(profile) ||
+    saved.snapshot !== JSON.stringify(value) ||
+    JSON.stringify(saved.expected) !== JSON.stringify(expected) ||
+    expected.audience !== profile.audience ||
+    expected.subject !== controllerOidcSubject(expected.controller_ref, profile.environment) ||
+    !isRecord(value) ||
+    value.evidence_scope !== "github.com" ||
+    value.platform_label !== platform ||
+    typeof value.expires_at !== "string" ||
+    !Number.isFinite(Date.parse(value.expires_at)) ||
+    now >= Date.parse(value.expires_at)
+  )
+    throw new Error("original unexpired fixed hosted native job identity required");
 }
 
 /** Fixed coordinator/publication profiles; names supplied by a caller cannot

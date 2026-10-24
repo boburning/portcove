@@ -250,21 +250,19 @@ pub(super) fn validate_bound_tree(
         }
     }
     for file in &mut expected.files {
-        if file.relative_path == Path::new("backup.json")
-            || file.relative_path == Path::new(RUNTIME_RECEIPT)
-        {
-            if let Some(actual) = actual
+        if (file.relative_path == Path::new("backup.json")
+            || file.relative_path == Path::new(RUNTIME_RECEIPT))
+            && let Some(actual) = actual
                 .files
                 .iter()
                 .find(|entry| entry.relative_path == file.relative_path)
-            {
-                if actual.size > 1024 * 1024 {
-                    return Err(PortcoveError::verification(
-                        "runtime safety metadata exceeded its bound",
-                    ));
-                }
-                file.size = actual.size;
+        {
+            if actual.size > 1024 * 1024 {
+                return Err(PortcoveError::verification(
+                    "runtime safety metadata exceeded its bound",
+                ));
             }
+            file.size = actual.size;
         }
     }
     if actual
