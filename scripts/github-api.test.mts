@@ -196,6 +196,105 @@ void test("GraphQL errors retain safe provider quota evidence", () => {
   );
 });
 
+void test("nonzero gh GraphQL responses preserve typed rate limits with quota still remaining", () => {
+  for (const classification of [
+    { type: "RATE_LIMITED" },
+    { extensions: { code: "RATE_LIMITED" } },
+  ]) {
+    const body = JSON.stringify({
+      errors: [{ ...classification, message: "API rate limit exceeded" }],
+    });
+    const client = new GitHubApiClient(
+      createGitHubRunner({
+        spawn: () => ({
+          status: 1,
+          stdout:
+            "HTTP/2.0 200 OK\r\n" +
+            "x-ratelimit-resource: graphql\r\n" +
+            "x-ratelimit-limit: 5000\r\n" +
+            "x-ratelimit-remaining: 58\r\n" +
+            "x-ratelimit-used: 4942\r\n" +
+            "x-ratelimit-reset: 1789524000\r\n" +
+            "x-github-request-id: rate-request\r\n" +
+            "date: Wed, 16 Sep 2026 02:00:00 GMT\r\n\r\n" +
+            body,
+          stderr: "gh: API rate limit exceeded for user ID 1.",
+        }),
+      }),
+    );
+    assert.throws(
+      () => client.graphql("query { viewer { login } }"),
+      (error) => {
+        assert(error instanceof GitHubApiError);
+        assert.equal(error.code, "rate_limited");
+        assert.equal(error.status, 200);
+        assert.equal(error.rateLimit?.remaining, 58);
+        assert.equal(error.rateLimit?.resetAt, new Date(1789524000 * 1000).toISOString());
+        assert.equal(error.requestId, "rate-request");
+        assert.equal(error.responseDate, "Wed, 16 Sep 2026 02:00:00 GMT");
+        assert.equal(error.responseBytes, Buffer.byteLength(body));
+        assert.match(error.message, /58 points remain; reset at/u);
+        return true;
+      },
+    );
+    assert.equal(client.observations.length, 1);
+    assert.equal(client.observations[0]?.failure, "rate_limited");
+    assert.equal(client.observations[0]?.rate?.remaining, 58);
+    assert.equal(client.observations[0]?.bytes, Buffer.byteLength(body));
+  }
+});
+
+void test("nonzero GraphQL failures retain retry boundaries and reject partial mutation data", () => {
+  const client = new GitHubApiClient(
+    createGitHubRunner({
+      spawn: () => ({
+        status: 1,
+        stdout:
+          "HTTP/2.0 200 OK\r\nretry-after: 60\r\n\r\n" +
+          JSON.stringify({
+            data: { updateProject: { id: "partial" } },
+            errors: [{ type: "RATE_LIMITED", message: "Temporarily limited" }],
+          }),
+        stderr: "gh: Temporarily limited",
+      }),
+    }),
+  );
+  assert.throws(
+    () => client.graphql("mutation { updateProject { id } }"),
+    (error) =>
+      error instanceof GitHubApiError && error.code === "rate_limited" && error.retryAfter === "60",
+  );
+});
+
+void test("nonzero GraphQL auth, schema and malformed failures are not mislabeled rate limits", () => {
+  const cases = [
+    [
+      'HTTP/2.0 403 Forbidden\r\nx-ratelimit-remaining: 100\r\n\r\n{"message":"Forbidden"}',
+      "command_failed",
+      403,
+    ],
+    [
+      'HTTP/2.0 200 OK\r\n\r\n{"errors":[{"type":"undefinedField","message":"Field unavailable"}]}',
+      "graphql_error",
+      200,
+    ],
+    ['HTTP/2.0 200 OK\r\n\r\n{"data":{"partial":true}}', "command_failed", 200],
+    ["HTTP/2.0 200 OK\r\n\r\n{", "command_failed", null],
+  ] as const;
+  for (const [stdout, code, status] of cases) {
+    const client = new GitHubApiClient(
+      createGitHubRunner({
+        spawn: () => ({ status: 1, stdout, stderr: "gh: rejected request" }),
+      }),
+    );
+    assert.throws(
+      () => client.graphql("query { viewer { login } }"),
+      (error) => error instanceof GitHubApiError && error.code === code && error.status === status,
+    );
+    assert.equal(client.observations[0]?.failure, code);
+  }
+});
+
 void test("the shared runner preserves command failures without echoing stdin", () => {
   const run = createGitHubRunner({
     spawn: (_command, _args, options) => ({

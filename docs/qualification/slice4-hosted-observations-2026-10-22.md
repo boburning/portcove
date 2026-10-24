@@ -628,3 +628,54 @@ spending or custody boundary is increased. Availability/headroom remain Unknown,
 with no capacity reservation. No manual owner action is needed for this delivery.
 #254 stays Done; #315/#534/#246 acceptance and existing Chameleon runtime holds
 remain pending; production held; slice 5 excluded.
+
+## Original native source bootstrap and shared clock (October 24)
+
+`release-hosted-native-bootstrap.mts` prepares the fixed source-to-attested-runner
+join for `pre-sign` and `post-sign`. It admits the actual protected application
+source and full selected configuration before tool acquisition, reads the original
+fixed native job start, then consumes only successful fixed bootstrap/attester
+outputs. The receiver authenticates the exact artifact; the imported bundle uses
+its own default receiver again rather than accepting a serialized private receipt.
+Actual Node bytes must match the attested runtime.
+
+Both stages share one no-replace monotonic clock, bound to the original source,
+actor, configuration and workflow. The existing ten-minute native allocation
+includes setup, both stages and waiting; its usable clock reserves thirty seconds
+for cleanup. Post-sign requires the original clock and a successful local pre-sign
+settlement hint. That hint is sequencing data only: the post-sign pipeline still
+authenticates its coordinator, source and predecessor evidence independently.
+Changed bindings, missing/expired/enlarged clocks, incomplete tool outputs and
+replayed stage directories refuse. No stage receives a new job allowance.
+
+Review caught an import-order custody gap before delivery. The repaired bootstrap
+checks the original clock and the complete attested materialization, manifest and
+executing Node with the existing filesystem-custody inspector before import.
+Synchronous identity rechecks follow awaited byte/source reads and precede import
+and invocation. A later runtime check cannot substitute for this pre-import check.
+Writable or linked ancestry, foreign ownership and byte-identical file replacement
+must refuse before the imported runner's top level executes.
+
+Local controlled source/tool/worker tests and existing signing-clock contracts
+pass 21 tests with three Linux-only skips. A separate Linux fixture uses the real
+custody inspector and a private copied Node; source, artifact and worker authority
+remain controlled. Its hosted result is recorded on the delivery receipt. This
+does not establish actual producer, native or protected acceptance.
+
+Initial CI 40136707823/1's Linux contract lane and hosted fixture 40136707962/1
+reached the real custody cases, then failed with `EEXIST` because the copied `node`
+file collided with the `node` negative-test directory. The retained failure is a
+test-namespace defect. The copy now uses
+`bootstrap-node`; no custody assertion, product behavior or budget was relaxed.
+
+The held workflow/composite launcher still needs to supply a protected private
+Node and temporary tree automatically; shared-writable setup-node/cache/temp
+ancestry correctly refuses. No administrator or owner-host step is requested.
+The bootstrap does not add a production job, install software, change credentials
+or bypass these checks. Remaining composition must connect same-job pre/post
+handoffs without a DAG cycle, preserve exclusive coordinator/executor ownership,
+and demonstrate whole-graph fit inside 99/hard 100 job-minutes. A bounded clock is
+not evidence that the full graph fits or that an operation has capacity. Capacity
+remains bounded-attempt eligibility with Unknown availability/headroom and no
+reservation. Windows and actual native/public/client acceptance remain pending;
+#254 stays Done, existing Chameleon holds remain, production held, slice 5 excluded.

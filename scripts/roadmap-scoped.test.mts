@@ -210,22 +210,187 @@ void test("direct prerequisites use their own complete memberships rather than a
     f.values.set("Release commitment", "Required");
     const graphql = f.client.graphql.bind(f.client);
     f.client.graphql = (query, variables) => {
+      const dependency = {
+        ...f.issue,
+        id: "I2",
+        number: 2,
+        url: `https://github.com/${config.repository}/issues/2`,
+      };
+      if (query.includes("nodes(ids:"))
+        return {
+          nodes: [
+            {
+              ...dependency,
+              __typename: "Issue",
+              projectItems: connection(present ? [{ ...f.item(), id: "PVTI2" }] : []),
+            },
+          ],
+        };
       const result = graphql(query, variables);
       assert(isRecord(result) && isRecord(result.repository) && isRecord(result.repository.issue));
-      result.repository.issue.blockedBy = connection([
-        {
-          ...f.issue,
-          id: "I2",
-          number: 2,
-          url: `https://github.com/${config.repository}/issues/2`,
-          projectItems: connection(present ? [{ ...f.item(), id: "PVTI2" }] : []),
-        },
-      ]);
+      result.repository.issue.blockedBy = connection([dependency]);
       return result;
     };
     const check = runScopedDoctor(config, f.client, { issues: [1], catalog: { ports: [] } });
     if (present) assert.equal((await check).global_health, "not_evaluated");
     else await assert.rejects(check, /direct dependency outside/);
+  }
+});
+
+void test("dependency memberships query only actual identities in bounded batches", () => {
+  const f = fixture();
+  const dependencies = Array.from({ length: 11 }, (_, index) => ({
+    ...f.issue,
+    id: `I${index + 2}`,
+    number: index + 2,
+    url: `https://github.com/${index === 0 ? "other/repository" : config.repository}/issues/${index + 2}`,
+  }));
+  const initial = f.client.graphql.bind(f.client);
+  const batches: unknown[][] = [];
+  f.client.graphql = (query, variables) => {
+    assert.match(query, /rateLimit\{cost limit remaining resetAt used\}/u);
+    if (query.includes("nodes(ids:")) {
+      const ids = variables?.ids;
+      assert(Array.isArray(ids));
+      batches.push(ids);
+      return {
+        nodes: ids.toReversed().map((id) => ({
+          ...dependencies.find((node) => node.id === id),
+          __typename: "Issue",
+          projectItems: connection([{ ...f.item(), id: `PVTI-${id}` }]),
+        })),
+      };
+    }
+    assert.doesNotMatch(query, /blockedBy[^]*projectItems/u);
+    const result = initial(query, variables);
+    assert(isRecord(result) && isRecord(result.repository) && isRecord(result.repository.issue));
+    result.repository.issue.blockedBy = connection(dependencies);
+    return result;
+  };
+  const result = f.client.executionIssue(1);
+  assert.deepEqual(
+    batches.map((batch) => batch.length),
+    [10, 1],
+  );
+  assert.deepEqual(
+    result.relationships.blockedBy.map((node) => node.id),
+    dependencies.map((node) => node.id),
+  );
+  assert(result.relationships.blockedBy.every((node) => node.projectItemId === `PVTI-${node.id}`));
+  assert.equal(result.relationships.blockedBy[0]?.url, dependencies[0]?.url);
+});
+
+void test("dependency hydration refuses incomplete identities and concurrent content changes", () => {
+  const corruptions: ((nodes: Record<string, unknown>[]) => unknown[])[] = [
+    () => [],
+    () => [null],
+    (nodes) => [nodes[0], nodes[0]],
+    ([node]) => [{ ...node, id: "foreign" }],
+    ([node]) => [{ ...node, __typename: "PullRequest" }],
+    ([node]) => [{ ...node, url: "https://github.com/other/repository/issues/2" }],
+    ([node]) => [{ ...node, number: 99 }],
+    ([node]) => [{ ...node, body: "changed" }],
+    ([node]) => [{ ...node, title: "changed" }],
+    ([node]) => [{ ...node, state: "CLOSED" }],
+  ];
+  for (const [index, corrupt] of corruptions.entries()) {
+    const f = fixture();
+    const dependency = {
+      ...f.issue,
+      id: "I2",
+      number: 2,
+      url: `https://github.com/${config.repository}/issues/2`,
+    };
+    const initial = f.client.graphql.bind(f.client);
+    f.client.graphql = (query, variables) => {
+      if (query.includes("nodes(ids:"))
+        return {
+          nodes: corrupt([
+            { ...dependency, __typename: "Issue", projectItems: connection([f.item()]) },
+          ]),
+        };
+      const result = initial(query, variables);
+      assert(isRecord(result) && isRecord(result.repository) && isRecord(result.repository.issue));
+      result.repository.issue.blockedBy = connection([dependency]);
+      return result;
+    };
+    assert.throws(
+      () => f.client.executionIssue(1),
+      (error: unknown) => {
+        assert(error instanceof InventoryError);
+        assert.equal(
+          error.kind,
+          index >= 7
+            ? "inventory_changed"
+            : [0, 2].includes(index)
+              ? "inventory_incomplete"
+              : "inventory_identity",
+        );
+        return true;
+      },
+    );
+  }
+});
+
+void test("planning failures retain the complete checked scope without granting coverage to provider failures", async () => {
+  const f = fixture();
+  f.issue.state = "CLOSED";
+  await assert.rejects(
+    runScopedDoctor(config, f.client, { issues: [1], catalog: { ports: [] } }),
+    (error: unknown) => {
+      assert(isRecord(error));
+      assert.deepEqual(error.doctorScope, { kind: "issues", issues: [1], checked_issues: [1] });
+      return true;
+    },
+  );
+  f.client.executionIssue = () => {
+    throw new InventoryError("inventory_incomplete", "Missing membership");
+  };
+  await assert.rejects(
+    runScopedDoctor(config, f.client, { issues: [1], catalog: { ports: [] } }),
+    (error: unknown) => {
+      assert(isRecord(error));
+      assert.equal(error.doctorScope, undefined);
+      return true;
+    },
+  );
+});
+
+void test("diagnostics show bounded redacted findings and provider reset evidence", () => {
+  const report = {
+    status: "failed",
+    scope: { kind: "issues", issues: [1] },
+    coverage: "inconclusive",
+    errors: [
+      "API quota exhausted ghp_secret @someone <details>",
+      "API quota exhausted ghp_secret @someone <details>",
+    ],
+    diagnosis: doctorFailureDiagnostics(
+      new GitHubApiError("rate_limited", "quota", {
+        status: 200,
+        retryAfter: "60",
+        rateLimit: {
+          resource: "graphql",
+          limit: 5000,
+          remaining: 58,
+          used: 4942,
+          resetAt: "2026-10-24T22:15:26Z",
+        },
+      }),
+    ),
+  };
+  for (const text of [
+    roadmapHealthComment(report, null, "https://github.test/run/1"),
+    roadmapHealthSummary(report, "https://github.test/run/1"),
+  ]) {
+    assert(text);
+    assert.match(text, /Observed findings/u);
+    assert.match(text, /Remaining quota: 58/u);
+    assert.match(text, /2026-10-24T22:15:26.000Z/u);
+    assert.match(text, /Retry-After: 60 seconds/u);
+    assert.doesNotMatch(text, /ghp_secret/u);
+    assert(text.includes("\\@someone \\<details\\>"));
+    assert.match(text, /No complete checked issue set is established/u);
   }
 });
 
@@ -707,11 +872,13 @@ void test("actual unattended entrypoint retains missing-credential diagnostics w
       result.stderr || result.stdout || String(result.error),
     );
     const report = JSON.parse(readFileSync(reference, "utf8")) as {
+      scope: { kind: string; issues: number[] };
       diagnosis: { kind: string };
       planning_findings_evaluated: boolean;
       coverage: string;
       observation: { observed_at: string; checkout_head: string; run_url: string };
     };
+    assert.deepEqual(report.scope, { kind: "issues", issues: [42] });
     assert.equal(report.diagnosis.kind, "configuration_missing");
     assert.equal(report.coverage, "inconclusive");
     assert.equal(report.planning_findings_evaluated, false);

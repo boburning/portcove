@@ -110,15 +110,24 @@ export function baselineRequiresRust(plan: ValidationPlan) {
   );
 }
 
-export function baselineRequiresPython(plan: ValidationPlan) {
+export function baselineRequiresPython(plan: ValidationPlan, options: ClassifyOptions = {}) {
   if (plan.mode === "qualification") return true;
   if (!["fast", "prose"].includes(plan.mode)) return false;
-  return baselineContractTests(plan).some((file) =>
-    [
-      "scripts/nextest-equivalence.test.mts",
-      "scripts/ci-workflow.test.mts",
-      ...pythonContractTests,
-    ].includes(file),
+  const selected = baselineContractTests(plan, options);
+  return (
+    selected.some((file) =>
+      [
+        "scripts/nextest-equivalence.test.mts",
+        "scripts/ci-rust-workflow.test.mts",
+        ...pythonContractTests,
+      ].includes(file),
+    ) ||
+    plan.changes.some(
+      (change) =>
+        change.oldPath === "scripts/ci-rust-workflow.test.mts" &&
+        change.newPath !== change.oldPath &&
+        selected.includes(change.newPath),
+    )
   );
 }
 
