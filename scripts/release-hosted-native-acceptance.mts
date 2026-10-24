@@ -388,14 +388,19 @@ async function readBoundHostedNativeQualification(bound: Retained) {
   }
 }
 
-async function readActiveBoundHostedNativeQualification(bound: Retained) {
+function assertOriginalHostedNativeActive(bound: Retained) {
+  if (bound.stopped) throw new Error("hosted native original proof is permanently stopped");
   bound.active();
+}
+
+async function readActiveBoundHostedNativeQualification(bound: Retained) {
+  assertOriginalHostedNativeActive(bound);
   const files = {} as HostedNativeProofFiles;
   for (const key of keys) {
     files[key] = await readControllerToolFile(bound.filenames[key], hostedNativeProofLimits[key]);
     if (!files[key].equals(bound.prepared.files[key]))
       throw new Error("hosted native retained proof changed");
-    bound.active();
+    assertOriginalHostedNativeActive(bound);
   }
   const prepared = inspectHostedNativeProofFiles(files, bound.authorities, bound.expected.producer);
   association(prepared, bound.expected);
@@ -431,7 +436,7 @@ async function readActiveBoundHostedNativeQualification(bound: Retained) {
     }
   };
   freeze(result);
-  bound.active();
+  assertOriginalHostedNativeActive(bound);
   return result;
 }
 
@@ -472,7 +477,7 @@ export async function prepareHostedNativeCustody(rawReceipts: readonly object[])
     }),
   );
   const checked = inspectHostedNativeCustodyBundle(bytes);
-  for (const { bound } of proofs) bound.active();
+  for (const { bound } of proofs) assertOriginalHostedNativeActive(bound);
   const receipt = Object.freeze({
     kind: "prepared-hosted-native-custody",
     bytes: bytes.length,
@@ -506,7 +511,7 @@ export async function requirePreparedHostedNativeCustody(receipt: object, deadli
   for (const proof of retained.receipts) {
     const bound = receipts.get(proof);
     if (!bound) throw new Error("actual original native custody proof unavailable");
-    bound.active();
+    assertOriginalHostedNativeActive(bound);
   }
   const original = retained.receipts.map((proof) => receipts.get(proof)!);
   current();
@@ -514,7 +519,7 @@ export async function requirePreparedHostedNativeCustody(receipt: object, deadli
     ...checked,
     deadline: Math.min(...original.map((proof) => proof.deadline)),
     assertCurrent: () => {
-      for (const proof of original) proof.active();
+      for (const proof of original) assertOriginalHostedNativeActive(proof);
     },
   };
 }

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
 import { appendFile, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import filesystem from "node:fs/promises";
 import childProcess from "node:child_process";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
@@ -273,6 +274,7 @@ for (const scenario of [
   "regressed",
   "changed-completion",
   "multiple-witnesses",
+  "interleaved-failure",
 ] as const) {
   void test(`current signed native stage retains original custody without terminal journey credit: ${scenario}`, async (t) => {
     const directory = await root(t),
@@ -357,6 +359,44 @@ for (const scenario of [
         /historical-job/,
       );
       assert.ok(await verifiedHostedNativeReleaseQualification(receipt));
+      if (scenario === "interleaved-failure") {
+        const entered = Promise.withResolvers<void>(),
+          release = Promise.withResolvers<void>();
+        const originalOpen = filesystem.open;
+        let suspend = true;
+        t.mock.method(filesystem, "open", async (...args: Parameters<typeof filesystem.open>) => {
+          const file = await originalOpen(...args);
+          if (suspend && args[0] === path.join(receipt.capture_directory, "subject.json")) {
+            suspend = false;
+            entered.resolve();
+            await release.promise;
+          }
+          return file;
+        });
+        syncBuiltinESMExports();
+        const first = assert.rejects(
+          verifiedHostedNativeReleaseQualification(receipt),
+          /permanently stopped/,
+        );
+        await entered.promise;
+        try {
+          Object.assign(f.provider.job, {
+            status: "completed",
+            conclusion: "failure",
+            completed_at: "2026-10-20T12:01:00Z",
+          });
+          await assert.rejects(verifiedHostedNativeReleaseQualification(receipt), /native phase/);
+          complete();
+        } finally {
+          release.resolve();
+        }
+        await first;
+        await assert.rejects(
+          verifiedHostedNativeReleaseQualification(receipt),
+          /permanently stopped/,
+        );
+        return;
+      }
       if (scenario === "live" || scenario === "multiple-witnesses") return;
       if (scenario === "failed")
         Object.assign(f.provider.job, {
