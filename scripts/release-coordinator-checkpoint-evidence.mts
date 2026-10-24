@@ -10,6 +10,7 @@ import { productionControllerWorkflow } from "./production-controller-admission.
 import { isRecord } from "./runtime-values.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { performance } from "node:perf_hooks";
+import { inspectNativeCheckpointCustody } from "./release-native-checkpoint-custody.mts";
 
 type Checkpoint = Awaited<ReturnType<typeof exportCoordinatorCheckpoint>>;
 export type CoordinatorRefUpdate = {
@@ -24,6 +25,9 @@ export interface CoordinatorCheckpointEvidence {
 }
 export const coordinatorCheckpointPredicateType =
   "https://portcove.dev/attestations/coordinator-checkpoint/v1";
+export const nativeCoordinatorCheckpointPredicateType =
+  "https://portcove.dev/attestations/coordinator-checkpoint/v2";
+export const coordinatorCheckpointSubjectLimit = 1024 * 1024;
 const zero = "0".repeat(40);
 const subjectName = "portcove-coordinator-checkpoint-transition";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -101,14 +105,17 @@ export function coordinatorCheckpointEvidenceSubject(
   checkpoint: Checkpoint,
   configuration: unknown,
   producer: unknown,
+  nativeCustody?: unknown,
 ) {
+  const identity = producerIdentity(producer);
+  const native = inspectNativeCheckpointCustody(checkpoint, configuration, identity, nativeCustody);
   const scope = inspectCoordinatorRemoteNamespace(configuration);
   const updates = coordinatorCheckpointUpdates(checkpoint, scope).sort((a, b) =>
     a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
   );
   return Buffer.from(
     JSON.stringify({
-      schema_version: 1,
+      schema_version: native ? 2 : 1,
       purpose: "coordinator-checkpoint-transition",
       repository: "boburning/portcove",
       repository_id: 1354613114,
@@ -120,7 +127,8 @@ export function coordinatorCheckpointEvidenceSubject(
       updates,
       proof_ref: `refs/tags/${scope}-checkpoint-proof/${checkpoint.checkpoint}`,
       proof_ref_before: zero,
-      producer: producerIdentity(producer),
+      producer: identity,
+      ...(native ? { native_custody: native.value } : {}),
     }),
   );
 }
@@ -131,14 +139,27 @@ export function prepareCoordinatorCheckpointSigningInput(
   checkpoint: Checkpoint,
   configuration: unknown,
   producer: unknown,
+  nativeCustody?: unknown,
 ) {
-  const subject = coordinatorCheckpointEvidenceSubject(checkpoint, configuration, producer);
+  const subject = coordinatorCheckpointEvidenceSubject(
+    checkpoint,
+    configuration,
+    producer,
+    nativeCustody,
+  );
+  if (
+    subject.length > (nativeCustody === undefined ? 16 * 1024 : coordinatorCheckpointSubjectLimit)
+  )
+    throw new Error("checkpoint transition subject exceeds its version bound");
   const statement = {
     _type: "https://in-toto.io/Statement/v1",
     subject: [{ name: subjectName, digest: { sha256: hash(subject) } }],
-    predicateType: coordinatorCheckpointPredicateType,
+    predicateType:
+      nativeCustody === undefined
+        ? coordinatorCheckpointPredicateType
+        : nativeCoordinatorCheckpointPredicateType,
     predicate: {
-      schema_version: 1,
+      schema_version: nativeCustody === undefined ? 1 : 2,
       transition_sha256: hash(subject),
       producer: producerIdentity(producer),
     },
@@ -157,17 +178,19 @@ export function inspectCoordinatorCheckpointEvidence(
   if (
     !Buffer.isBuffer(evidence.subject) ||
     evidence.subject.length < 1 ||
-    evidence.subject.length > 16 * 1024 ||
+    evidence.subject.length > coordinatorCheckpointSubjectLimit ||
     !Buffer.isBuffer(evidence.bundle) ||
     evidence.bundle.length < 1 ||
     evidence.bundle.length > 64 * 1024
   )
     throw new Error("checkpoint evidence exceeds its byte bounds");
   const subject: unknown = JSON.parse(evidence.subject.toString("utf8"));
+  const native =
+    isRecord(subject) && subject.schema_version === 2 ? subject.native_custody : undefined;
   if (
     !isRecord(subject) ||
     !evidence.subject.equals(
-      coordinatorCheckpointEvidenceSubject(checkpoint, configuration, subject.producer),
+      coordinatorCheckpointEvidenceSubject(checkpoint, configuration, subject.producer, native),
     )
   )
     throw new Error("checkpoint evidence subject differs from the exact transition");
@@ -190,6 +213,7 @@ export function inspectCoordinatorCheckpointEvidence(
     checkpoint,
     configuration,
     subject.producer,
+    native,
   ).statement;
   if (!isDeepStrictEqual(statement, expectedStatement))
     throw new Error("checkpoint evidence envelope differs from the exact transition subject");
@@ -224,7 +248,7 @@ export function inspectCoordinatorCheckpointEvidence(
     email: "coordinator@portcove.invalid",
     date: "2000-01-01T00:00:00Z",
   };
-  const message = "Portcove checkpoint evidence v1";
+  const message = `Portcove checkpoint evidence v${native === undefined ? 1 : 2}`;
   const commitBytes = Buffer.from(
     `tree ${tree.oid}\nparent ${checkpoint.checkpoint}\nauthor ${actor.name} <${actor.email}> 946684800 +0000\ncommitter ${actor.name} <${actor.email}> 946684800 +0000\n\n${message}`,
   );
@@ -336,10 +360,10 @@ export function readCoordinatorCheckpointEvidence(
     if (
       blob.encoding !== "base64" ||
       typeof blob.content !== "string" ||
-      blob.content.length > 96 * 1024 ||
+      blob.content.length > (index === 0 ? 96 * 1024 : 1500 * 1024) ||
       typeof blob.size !== "number" ||
       blob.size < 1 ||
-      blob.size > (index === 0 ? 64 : 16) * 1024
+      blob.size > (index === 0 ? 64 * 1024 : coordinatorCheckpointSubjectLimit)
     )
       throw new Error("checkpoint evidence blob exceeds its bound");
     // GitHub's blob response may wrap base64 with LF; no other whitespace is accepted.

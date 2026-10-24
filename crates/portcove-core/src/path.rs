@@ -2,6 +2,10 @@ use std::path::Path;
 
 use crate::{PortcoveError, Result};
 
+#[cfg(test)]
+#[path = "path_property_tests.rs"]
+mod property_tests;
+
 pub(crate) fn is_portcove_metadata(path: &Path) -> bool {
     path.to_str().is_some_and(|relative| {
         relative.split(['/', '\\']).any(|name| {

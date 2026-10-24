@@ -75,7 +75,7 @@ import {
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
-import { requireControllerReleaseAuthorities } from "./release-authority-configuration.mts";
+import { requireControllerApplicationJobAuthorities } from "./release-authority-configuration.mts";
 import type { NativeQualificationStage } from "./release-native-qualification-contract.mts";
 import type { VerifiedNativeReleaseQualification } from "./release-native-acceptance.mts";
 import { nativeQualificationTransportIdentity } from "./release-native-acceptance.mts";
@@ -1403,7 +1403,7 @@ async function acquireBuildingEligibility(
   const capturedConfiguration: unknown = structuredClone(rawConfiguration),
     nativeLocators: unknown = structuredClone(rawNativeLocators);
   const tools = await verifiedControllerToolPaths(controllerTools);
-  const authorities = await requireControllerReleaseAuthorities("admission");
+  const authorities = await requireControllerApplicationJobAuthorities("admission");
   const configured = configuration(capturedConfiguration);
   if (
     configured.namespace !== authorities.namespace ||
@@ -1507,7 +1507,7 @@ export async function runFixedBuildingConfiguration(raw: unknown, root: string, 
       !path.isAbsolute(root)
     )
       throw new Error("fixed building admission caller fields differ");
-    await requireControllerReleaseAuthorities("admission");
+    await requireControllerApplicationJobAuthorities("admission");
     const { receiveControllerTools } = await import("./release-controller-tool-admission.mts");
     const tools = await receiveControllerTools(
       root,
@@ -1564,7 +1564,7 @@ async function runBuildingCli() {
     !process.env.GITHUB_OUTPUT
   )
     throw new Error("fixed building caller channels required");
-  const authorities = await requireControllerReleaseAuthorities("admission");
+  const authorities = await requireControllerApplicationJobAuthorities("admission");
   const raw = process.env.PORTCOVE_FIXED_BUILDING_CONFIGURATION;
   if (!raw || Buffer.byteLength(raw) > 65536)
     throw new Error("bounded fixed building configuration required");

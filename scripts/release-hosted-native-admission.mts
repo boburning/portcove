@@ -1,6 +1,7 @@
 /** Selected source-bound pre-sign reader. The transferred proof is inert until
  * the actual receiver verifies it; no locator may appoint source or authority. */
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { performance } from "node:perf_hooks";
 import { isDeepStrictEqual } from "node:util";
 import {
@@ -10,7 +11,10 @@ import {
 import { readProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import { artifactName } from "./release-package-policy.mts";
-import { inspectNativeQualificationCandidate } from "./release-native-qualification-contract.mts";
+import {
+  inspectNativeQualificationCandidate,
+  inspectNativeQualificationJourney,
+} from "./release-native-qualification-contract.mts";
 import {
   hostedNativeProofLimits,
   inspectHostedNativeProducer,
@@ -20,6 +24,9 @@ import { collectHostedNativeReleaseQualification } from "./release-hosted-native
 import { requireNativeReleaseQualificationPair } from "./release-native-admission.mts";
 import { coordinatorCommandTimeout } from "./release-coordinator-deadline.mts";
 import { isRecord } from "./runtime-values.mts";
+import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import { readHostedNativeProofArtifact } from "./release-hosted-native-artifact.mts";
 
 /** Independent exact package opportunity only; no runtime or issuer acceptance. */
 export async function deriveHostedNativePayloadOpportunities(
@@ -83,6 +90,51 @@ export async function deriveHostedNativePayloadOpportunities(
   });
 }
 
+/** Exact package and independently derived signed-repository journey data.
+ * This parser grants no TUF/context, producer or native authority. */
+export async function deriveHostedNativePublicationOpportunities(
+  rawAuthorities: unknown,
+  rawAssembly: unknown,
+  rawArchives: unknown,
+  rawJourneys: unknown,
+) {
+  const journeys: unknown = structuredClone(rawJourneys);
+  if (
+    !Array.isArray(journeys) ||
+    journeys.length !== 2 ||
+    journeys.some(
+      (value: unknown) =>
+        !isRecord(value) ||
+        Object.keys(value).sort().join(",") !== "journey,platform_label" ||
+        !["windows-x86_64", "linux-x86_64"].includes(String(value.platform_label)),
+    ) ||
+    new Set(journeys.map((value: unknown) => (isRecord(value) ? value.platform_label : null)))
+      .size !== 2
+  )
+    throw new Error("exact independently derived native publication journey pair required");
+  const opportunities = await deriveHostedNativePayloadOpportunities(
+    rawAuthorities,
+    rawAssembly,
+    rawArchives,
+  );
+  return opportunities.map((opportunity) => {
+    const value: unknown = journeys.find(
+      (entry: unknown) => isRecord(entry) && entry.platform_label === opportunity.platform_label,
+    );
+    if (!isRecord(value)) throw new Error("native publication journey platform differs");
+    return {
+      ...opportunity,
+      stage: "release-publication" as const,
+      journey: inspectNativeQualificationJourney(
+        value.journey,
+        "release-publication",
+        opportunity.candidate,
+        true,
+      ),
+    };
+  });
+}
+
 function transfers(raw: unknown) {
   if (!Array.isArray(raw) || raw.length !== 2)
     throw new Error("two original native proof transfers required");
@@ -130,31 +182,119 @@ export async function collectConfiguredHostedNativePayloadPair(
   rawAssembly: unknown,
   rawArchives: unknown,
   phase: "admission" | "payload" = "payload",
+  originalDeadline?: number,
 ) {
   if (phase !== "admission" && phase !== "payload")
     throw new Error("fixed payload native reader phase required");
-  const deadline = performance.now() + coordinatorCommandTimeout(120000);
-  const captured = transfers(rawTransfers),
+  return collectConfiguredHostedNativePair(
+    outputParent,
+    rawTransfers,
+    rawAssembly,
+    rawArchives,
+    "payload-signing",
+    phase,
+    originalDeadline ?? performance.now() + coordinatorCommandTimeout(120000),
+    null,
+  );
+}
+
+/** The owning post-sign caller must separately verify actual TUF/context and
+ * current reservation before and after this exact signed-proof collection. */
+export function collectConfiguredHostedNativePublicationPair(
+  outputParent: string,
+  rawTransfers: unknown,
+  rawAssembly: unknown,
+  rawArchives: unknown,
+  rawJourneys: unknown,
+  originalDeadline: number,
+) {
+  return collectConfiguredHostedNativePair(
+    outputParent,
+    rawTransfers,
+    rawAssembly,
+    rawArchives,
+    "release-publication",
+    "release-publication",
+    originalDeadline,
+    rawJourneys,
+  );
+}
+
+async function collectConfiguredHostedNativePair(
+  outputParent: string,
+  rawTransfers: unknown,
+  rawAssembly: unknown,
+  rawArchives: unknown,
+  stage: "payload-signing" | "release-publication",
+  phase: "admission" | "payload" | "release-publication",
+  deadline: number,
+  rawJourneys: unknown,
+) {
+  if (!Number.isFinite(deadline) || deadline - performance.now() > 120000)
+    throw new Error("configured native bounded original deadline required");
+  const supplied = rawTransfers === null ? null : transfers(rawTransfers),
     assembly: unknown = structuredClone(rawAssembly),
-    archives: unknown = structuredClone(rawArchives);
+    archives: unknown = structuredClone(rawArchives),
+    journeys: unknown = structuredClone(rawJourneys);
   const active = () => {
     if (performance.now() >= deadline)
       throw new Error("configured native original deadline exhausted");
   };
+  active();
   const view = await requireControllerApplicationJobAuthorities(phase);
   active();
   const configuration = inspectSelectedPublicationAuthorityConfiguration(view.configuration);
   if (configuration.purpose !== "application")
     throw new Error("selected native application source required");
-  const opportunities = await deriveHostedNativePayloadOpportunities(
-    configuration,
-    assembly,
-    archives,
-  );
+  const opportunities =
+    stage === "payload-signing"
+      ? await deriveHostedNativePayloadOpportunities(configuration, assembly, archives)
+      : await deriveHostedNativePublicationOpportunities(
+          configuration,
+          assembly,
+          archives,
+          journeys,
+        );
   active();
   const workflow = await readProductionControllerWorkflowBytes();
   active();
   const workflowDigest = createHash("sha256").update(workflow).digest("hex");
+  const captured =
+    supplied ??
+    (() => {
+      const runId = view.source.run_id;
+      if (typeof runId !== "string")
+        throw new Error("native artifact discovery requires the original source run");
+      const environment = readOnlyReleaseChildEnvironment();
+      if (!environment)
+        throw new Error("native artifact discovery requires isolated reader credentials");
+      const api = new GitHubApiClient((args, input) => {
+        active();
+        const result = createGitHubRunner({
+          cwd: outputParent,
+          timeoutMs: Math.max(1, Math.floor(Math.min(30000, deadline - performance.now()))),
+          maxBuffer: 2 * 1024 * 1024,
+          spawn: (command, values, settings) =>
+            spawnSync(command, values, { ...settings, env: environment }),
+        })([...args, "--hostname", "github.com"], input);
+        active();
+        return result;
+      });
+      return opportunities.map((opportunity) =>
+        readHostedNativeProofArtifact(
+          api,
+          {
+            controller_revision: view.source.controller_revision,
+            run_id: runId,
+            run_attempt: view.source.run_attempt,
+            platform_label: opportunity.platform_label,
+            stage: opportunity.stage,
+          },
+          outputParent,
+          deadline,
+        ),
+      );
+    })();
   const receipts = [];
   for (const opportunity of opportunities) {
     const transfer = captured.find(
@@ -189,7 +329,7 @@ export async function collectConfiguredHostedNativePayloadPair(
   }
   // Existing association reads the actual assembly/archive facts, rather than
   // inferring candidate eligibility from a signed native report.
-  await requireNativeReleaseQualificationPair(receipts, assembly, archives, "payload-signing");
+  await requireNativeReleaseQualificationPair(receipts, assembly, archives, stage);
   active();
   const rechecked = await requireControllerApplicationJobAuthorities(phase);
   active();

@@ -470,21 +470,21 @@ export async function runReleasePublicationController(
             },
           );
           stage = "durable-publishing-phase";
-          if (
-            mode === "publication" &&
-            !reportRepair &&
-            isRecord(initialState.input.active_candidate) &&
-            initialState.input.active_candidate.phase === "building"
-          ) {
-            const phase = await advanceActualCandidateToPublishing(actual, { deadline });
-            await rebindPreparedImmutableReleaseAfterPhase(prepared, phase, deadline);
-          }
           const executor = await authenticateCapacityExecutor(
             "release-publication",
             { ...identity, audience: "portcove-capacity-executor" },
             directory,
             deadline,
           );
+          if (
+            mode === "publication" &&
+            !reportRepair &&
+            isRecord(initialState.input.active_candidate) &&
+            initialState.input.active_candidate.phase === "building"
+          ) {
+            const phase = await advanceActualCandidateToPublishing(actual, { deadline, executor });
+            await rebindPreparedImmutableReleaseAfterPhase(prepared, phase, deadline);
+          }
           let controls = admitted.controls;
           let usedRound = 0;
           const fresh = async (ordinal: number) => {
@@ -536,7 +536,7 @@ export async function runReleasePublicationController(
           ) {
             // The immutable Release and its original settled operation were
             // verified above before even advancing the repair's journal phase.
-            const phase = await advanceActualCandidateToPublishing(actual, { deadline });
+            const phase = await advanceActualCandidateToPublishing(actual, { deadline, executor });
             await rebindPreparedImmutableReleaseAfterPhase(prepared, phase, deadline);
             await fresh(usedRound + 1);
             completion = await observeOwnedImmutableReleaseCompletion(
@@ -549,7 +549,10 @@ export async function runReleasePublicationController(
           }
           let checkpoint = admitted.checkpoint;
           if (mode !== "completion-only") {
-            const promoting = await advanceActualCandidateToPromoting(completion, { deadline });
+            const promoting = await advanceActualCandidateToPromoting(completion, {
+              deadline,
+              executor,
+            });
             checkpoint = (await requireActualCandidatePhaseAdvance(promoting, "promoting"))
               .checkpoint;
           }

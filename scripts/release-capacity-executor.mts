@@ -76,6 +76,18 @@ interface PrivateSession {
   identity: CapacityExecutorIdentity;
   observed: number;
   deadline?: number;
+  journalDeadline?: number;
+  nativePreparing?: boolean;
+  nativeCheckpoint?: {
+    owner: object;
+    custody: object;
+    previous: string;
+    deadline: number;
+    sha256: string;
+    bytes: number;
+    assertCurrent: () => void;
+    attempted: boolean;
+  };
   requiresSignedJournal: boolean;
   journalBinding?: "binding" | "bound" | "stopped";
   journal?: {
@@ -235,22 +247,18 @@ export async function createOwnedCheckpointSigningApi(
   if (!value || value.deadline === undefined)
     throw new Error("actual executor with original bounded deadline required for job journal");
   capacityExecutorIdentity(session);
-  const remaining = value.deadline - performance.now();
+  const deadline = value.journalDeadline ?? value.deadline;
+  const remaining = deadline - performance.now();
   if (remaining <= 0 || remaining > 120000)
     throw new Error("job journal requires the original bounded executor phase");
   const frozenConfiguration = structuredClone(configuration);
   inspectCoordinatorRemoteNamespace(frozenConfiguration);
   await refreshCapacityExecutor(session);
-  const checkpoint = await withCoordinatorDeadline(value.deadline, () =>
+  const checkpoint = await withCoordinatorDeadline(deadline, () =>
     exportCoordinatorCheckpoint(repository, expected),
   );
   capacityExecutorIdentity(session);
-  return createCheckpointJobTokenApi(
-    value.directory,
-    checkpoint,
-    frozenConfiguration,
-    value.deadline,
-  );
+  return createCheckpointJobTokenApi(value.directory, checkpoint, frozenConfiguration, deadline);
 }
 
 /** First join for the selected profile. This reads actual protected source
@@ -271,8 +279,11 @@ export async function authenticateOwnedCheckpointJournalHistory(
       "journal history is already binding/bound or stopped; explicit recovery required",
     );
   value.journalBinding = "binding";
+  // A distinct journal operation has a bounded subdeadline inside the original
+  // job budget. Failed sessions are stopped, never given a fresh retry clock.
+  value.journalDeadline = Math.min(value.deadline, performance.now() + 120000);
   try {
-    const result = await withCoordinatorDeadline(value.deadline, () =>
+    const result = await withCoordinatorDeadline(value.journalDeadline, () =>
       withReadOnlyReleaseChildren(value.directory, () =>
         authenticateOwnedCheckpointJournalHistoryWithinScope(session, repository, expected),
       ),
@@ -282,6 +293,8 @@ export async function authenticateOwnedCheckpointJournalHistory(
   } catch (error) {
     value.journalBinding = "stopped";
     throw error;
+  } finally {
+    delete value.journalDeadline;
   }
 }
 async function authenticateOwnedCheckpointJournalHistoryWithinScope(
@@ -297,7 +310,7 @@ async function authenticateOwnedCheckpointJournalHistoryWithinScope(
   const { authenticateFixedJobCoordinatorHistory } =
     await import("./release-coordinator-checkpoint-authentication.mts");
   const value = sessions.get(session)!;
-  const deadline = value.deadline!;
+  const deadline = value.journalDeadline!;
   capacityExecutorIdentity(session);
   const selected = await requireControllerFixedJobJournalAuthorities(value.role);
   const identity = await refreshCapacityExecutor(session);
@@ -338,6 +351,117 @@ async function authenticateOwnedCheckpointJournalHistoryWithinScope(
   };
 }
 
+/** Bind genuine native custody to this actual executor BEFORE local intent.
+ * A public digest, imported receipt or journal-only configuration cannot enter.
+ * No provider mutation occurs here. The next exact child checkpoint owns it. */
+export async function prepareOwnedNativeCandidateCheckpoint(
+  session: ExecutorSession,
+  repository: string,
+  expected: string,
+  custody: object,
+  currentControls: () => Promise<void>,
+) {
+  const value = sessions.get(session);
+  if (
+    !value ||
+    !value.requiresSignedJournal ||
+    value.deadline === undefined ||
+    value.nativePreparing ||
+    value.nativeCheckpoint ||
+    !["aggregate-assembly", "release-publication"].includes(value.role)
+  )
+    throw new Error("actual unused native phase executor required");
+  value.nativePreparing = true;
+  try {
+    if (value.journalBinding === undefined)
+      await authenticateOwnedCheckpointJournalHistory(session, repository, expected);
+    await publishOwnedSignedCoordinatorCheckpointWithinScope(
+      session,
+      repository,
+      expected,
+      currentControls,
+      true,
+    );
+    const { requirePreparedHostedNativeCustody } =
+      await import("./release-hosted-native-acceptance.mts");
+    const checked = await requirePreparedHostedNativeCustody(custody, value.deadline);
+    const { requireControllerSelectedApplicationAuthorities } =
+      await import("./release-authority-configuration.mts");
+    const selected = await requireControllerSelectedApplicationAuthorities(value.role);
+    if (
+      !value.journal ||
+      value.journal.checkpoint !== expected ||
+      capacityDigest(selected.configuration) !== capacityDigest(checked.configuration) ||
+      capacityDigest(selected.source) !== capacityDigest(value.journal.configuration.source) ||
+      selected.configuration_sha256 !==
+        value.journal.configuration.authority_configuration_sha256 ||
+      checked.stage !==
+        (value.role === "aggregate-assembly" ? "payload-signing" : "release-publication") ||
+      checked.proofs.some(
+        ({ producer }) =>
+          producer.grant_sha256 !== selected.source.grant_sha256 ||
+          producer.configuration_sha256 !== selected.configuration_sha256 ||
+          producer.controller_revision !== selected.source.revision ||
+          producer.controller_ref !== selected.source.execution_ref ||
+          producer.workflow_sha256 !== selected.source.workflow_sha256 ||
+          producer.actor_id !== selected.source.actor_id ||
+          producer.setup_sha256 !== selected.configuration.journal.setup_plan_sha256,
+      )
+    )
+      throw new Error(
+        "native custody differs from actual executor source, full authority or grant",
+      );
+    await currentControls();
+    capacityExecutorIdentity(session);
+    checked.assertCurrent();
+    if (performance.now() >= value.deadline)
+      throw new Error("native phase original deadline exhausted");
+    const owner = Object.freeze({
+      sha256: checked.sha256,
+      bytes: checked.bytes.length,
+      stage: checked.stage,
+    });
+    value.nativeCheckpoint = {
+      owner,
+      custody,
+      previous: expected,
+      deadline: Math.min(value.deadline, checked.deadline),
+      sha256: checked.sha256,
+      bytes: checked.bytes.length,
+      assertCurrent: checked.assertCurrent,
+      attempted: false,
+    };
+    return owner;
+  } catch (error) {
+    value.journalBinding = "stopped";
+    if (value.journal) value.journal.stopped = true;
+    throw error;
+  } finally {
+    delete value.nativePreparing;
+  }
+}
+
+/** Reuse only this actual session's same head. A stopped/ambiguous history is
+ * never rebound, and legacy callers cannot use this to select a job journal. */
+export async function ensureOwnedCheckpointJournalHistory(
+  session: ExecutorSession,
+  repository: string,
+  expected: string,
+  currentControls: () => Promise<void>,
+) {
+  const value = sessions.get(session);
+  if (!value) throw new Error("actual executor required before journal selection");
+  if (value.nativePreparing || value.nativeCheckpoint)
+    throw new Error("native phase owns executor until exact checkpoint settlement");
+  capacityExecutorIdentity(session);
+  value.requiresSignedJournal ||= selectedJournalRequired();
+  if (!value.requiresSignedJournal && value.journalBinding === undefined) return false;
+  if (value.journalBinding === undefined)
+    await authenticateOwnedCheckpointJournalHistory(session, repository, expected);
+  await publishOwnedSignedCoordinatorCheckpoint(session, repository, expected, currentControls);
+  return true;
+}
+
 /** Selected private-session composition. A caller supplies current controls as
  * trusted controller code, never a report/accepted Boolean or signing API. The
  * existing exchange keeps durable intent, actual signer/verifier, original
@@ -347,6 +471,24 @@ export async function publishOwnedSignedCoordinatorCheckpoint(
   repository: string,
   expected: string,
   currentControls: () => Promise<void>,
+  nativeOwner?: object,
+) {
+  return publishOwnedSignedCoordinatorCheckpointWithinScope(
+    session,
+    repository,
+    expected,
+    currentControls,
+    false,
+    nativeOwner,
+  );
+}
+async function publishOwnedSignedCoordinatorCheckpointWithinScope(
+  session: ExecutorSession,
+  repository: string,
+  expected: string,
+  currentControls: () => Promise<void>,
+  preparingOwner: boolean,
+  nativeOwner?: object,
 ) {
   const value = sessions.get(session),
     journal = value?.journal;
@@ -355,6 +497,9 @@ export async function publishOwnedSignedCoordinatorCheckpoint(
     !journal ||
     value.deadline === undefined ||
     value.journalBinding !== "bound" ||
+    (value.nativePreparing && !preparingOwner) ||
+    (preparingOwner && expected !== journal.checkpoint) ||
+    (value.nativeCheckpoint !== undefined && value.nativeCheckpoint.owner !== nativeOwner) ||
     journal.busy ||
     journal.stopped
   )
@@ -362,6 +507,12 @@ export async function publishOwnedSignedCoordinatorCheckpoint(
       "actual authenticated journal history unavailable or stopped; explicit recovery required",
     );
   journal.busy = true;
+  const native = value.nativeCheckpoint;
+  value.journalDeadline = Math.min(
+    value.deadline,
+    performance.now() + 120000,
+    native?.deadline ?? Number.POSITIVE_INFINITY,
+  );
   const configuration = {
     schema_version: 1,
     namespace: journal.configuration.configuration.namespace,
@@ -373,30 +524,50 @@ export async function publishOwnedSignedCoordinatorCheckpoint(
       const { signAndPublishCoordinatorCheckpoint } =
         await import("./release-coordinator-signing-exchange.mts");
       const refresh = async () => {
+        native?.assertCurrent();
         const identity = await refreshCapacityExecutor(session);
         const current = await requireControllerFixedJobJournalAuthorities(value.role);
         if (capacityDigest(current) !== capacityDigest(journal.configuration))
           throw new Error("selected journal source/configuration changed before signing");
+        if (native) {
+          const { requireControllerSelectedApplicationAuthorities } =
+            await import("./release-authority-configuration.mts");
+          const selected = await requireControllerSelectedApplicationAuthorities(value.role);
+          if (
+            selected.configuration_sha256 !==
+              journal.configuration.authority_configuration_sha256 ||
+            capacityDigest(selected.source) !== capacityDigest(journal.configuration.source)
+          )
+            throw new Error("native phase full source or grant changed before signing");
+        }
         await currentControls();
         capacityExecutorIdentity(session);
+        native?.assertCurrent();
         return identity;
       };
       const identity = await refresh();
       if (expected === journal.checkpoint) {
+        if (native)
+          throw new Error("prepared native phase requires its new exact child checkpoint");
         const reader = createCheckpointHistoryReader(
           value.directory,
           expected,
           configuration,
-          value.deadline!,
+          value.journalDeadline!,
         );
         reader.assertCurrentUnclaimedHead();
         return { checkpoint: expected, changed: false, authority: "none" as const };
       }
-      const checkpoint = await withCoordinatorDeadline(value.deadline!, () =>
+      const checkpoint = await withCoordinatorDeadline(value.journalDeadline!, () =>
         exportCoordinatorCheckpoint(repository, expected),
       );
       if (checkpoint.previous !== journal.checkpoint)
         throw new Error("selected checkpoint does not extend the authenticated owned head");
+      if (native) {
+        if (native.attempted || native.previous !== checkpoint.previous)
+          throw new Error("native phase custody was consumed or its predecessor changed");
+        native.attempted = true;
+      }
       const api = await createOwnedCheckpointSigningApi(
         session,
         repository,
@@ -424,15 +595,17 @@ export async function publishOwnedSignedCoordinatorCheckpoint(
             setup_sha256: journal.configuration.configuration.setup_plan_sha256,
           },
         },
-        value.deadline!,
+        value.journalDeadline!,
         {
           api,
+          ...(native ? { nativeCustody: native.custody } : {}),
           async refresh() {
             await refresh();
           },
         },
       );
       journal.checkpoint = result.checkpoint;
+      if (native) delete value.nativeCheckpoint;
       return result;
     });
   } catch (error) {
@@ -441,6 +614,7 @@ export async function publishOwnedSignedCoordinatorCheckpoint(
     throw error;
   } finally {
     journal.busy = false;
+    delete value.journalDeadline;
   }
 }
 
@@ -693,6 +867,8 @@ function ownedCheckpointTransport(
   purpose?: "application" | "catalog-publication",
 ) {
   const value = sessions.get(session)!;
+  if (value.nativePreparing || value.nativeCheckpoint)
+    throw new Error("prepared native phase owns executor until exact checkpoint settlement");
   let remote: NonNullable<CapacityOperationOptions["remote"]>;
   value.requiresSignedJournal ||= selectedJournalRequired();
   if (value.requiresSignedJournal || value.journalBinding !== undefined) {

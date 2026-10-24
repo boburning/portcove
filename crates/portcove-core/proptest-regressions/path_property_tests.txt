@@ -1,0 +1,9 @@
+# Captured by a deliberate metadata-guard mutation control, not a production defect.
+# Retain the generator seed so the correct guard also replays this regression.
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 36c451b2b50b5b63daba517f23bce37d24f9a55b58c77229ce5acfb9909b1e45 # shrinks to before = [], after = [], slug = "_", source_suffix = false, case_mask = 0, separator = "/"

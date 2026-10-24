@@ -1024,6 +1024,35 @@ void test("payload reader and observer are fresh distinct fixed jobs and cannot 
   assert.throws(() => source.read(control.api, opportunity), /fresh/);
 });
 
+void test("application control re-read refuses expiry inside its final observer GET before a following mutation", async (t) => {
+  const control = releaseControlInputsFixture(
+    capacityDocumentFixture(),
+    opportunity,
+    config,
+    false,
+  );
+  persistReviewedClassification(control.api, config, opportunity, 303, () => {});
+  const runtime = liveControlRuntimeFixture(protectionFixture(control.head()), config, "payload");
+  const request = runtime.options.observerApi.request.bind(runtime.options.observerApi);
+  let armed = false,
+    posts = 0;
+  t.mock.method(runtime.options.observerApi, "request", (method: string, endpoint: string) => {
+    const result = request(method, endpoint);
+    if (armed) runtime.advance(2000);
+    return result;
+  });
+  const source = await runtime.create();
+  runtime.advance(59000);
+  armed = true;
+  const before = control.mutations();
+  assert.throws(() => {
+    source.read(control.api, opportunity);
+    posts++;
+  }, /fresh/);
+  assert.equal(posts, 0);
+  assert.equal(control.mutations(), before);
+});
+
 void test("publication source requires isolated fresh enabled setting and never accepts input-only observation", async () => {
   const f = fixture();
   for (const mode of ["enabled", "disabled", "missing"] as const) {

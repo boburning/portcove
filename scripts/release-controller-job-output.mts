@@ -14,6 +14,7 @@ import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { inspectAggregateOriginalUpload } from "./release-aggregate-locator.mts";
+import { inspectNativeCheckpointLocator } from "./release-native-custody-locator.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 function record(value: unknown) {
@@ -147,7 +148,11 @@ export function projectFixedControllerJobOutputs(
         result.original_upload === undefined
           ? undefined
           : inspectAggregateOriginalUpload(result.original_upload),
-      uploaded = artifact(result.artifact);
+      uploaded = artifact(result.artifact),
+      nativeCustody =
+        result.native_custody === undefined
+          ? undefined
+          : inspectNativeCheckpointLocator(result.native_custody);
     if (
       predicate.role !== "package-aggregate-assembler" ||
       predicate.evidence_scope !== "github.com" ||
@@ -157,7 +162,10 @@ export function projectFixedControllerJobOutputs(
       predicate.producer_profile !==
         (original ? "admitted-aggregate-recovery-v1" : "admitted-aggregate-v1") ||
       releaseCanonicalDigest(predicate.original_upload ?? null) !==
-        releaseCanonicalDigest(original ?? null)
+        releaseCanonicalDigest(original ?? null) ||
+      releaseCanonicalDigest(predicate.native_custody ?? null) !==
+        releaseCanonicalDigest(nativeCustody ?? null) ||
+      (nativeCustody && original && nativeCustody.checkpoint !== original.before_checkpoint)
     )
       throw new Error("aggregate producer lineage differs");
     return {
@@ -170,6 +178,7 @@ export function projectFixedControllerJobOutputs(
       predicate_type: result.predicate_type,
       stage: String(result.stage),
       ...(original ? { original_upload: JSON.stringify(original) } : {}),
+      ...(nativeCustody ? { native_custody: JSON.stringify(nativeCustody) } : {}),
     };
   }
   if (selected === "site-publication") {

@@ -28,6 +28,12 @@ import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mt
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
 type Phase = "building" | "publishing" | "promoting";
+type PhaseOptions = {
+  deadline?: number;
+  executor?: Awaited<
+    ReturnType<typeof import("./release-capacity-executor.mts").authenticateCapacityExecutor>
+  >;
+};
 type Locator = { kind: string; id: string; sha256: string | null };
 async function actualProof(receipt: object, target: Phase) {
   if (target === "building") {
@@ -155,14 +161,14 @@ const advances = new WeakMap<
  * No aggregation, signing, payload execution or candidate completion occurs here. */
 export async function advanceActualCandidateToBuilding(
   receipt: object,
-  options: { deadline?: number } = {},
+  options: PhaseOptions = {},
 ) {
   return advance(receipt, "building", options);
 }
 /** Full post-sign publication admission, never qualifying or payload admission. */
 export async function advanceActualCandidateToPublishing(
   receipt: object,
-  options: { deadline?: number } = {},
+  options: PhaseOptions = {},
 ) {
   return advance(receipt, "publishing", options);
 }
@@ -170,20 +176,17 @@ export async function advanceActualCandidateToPublishing(
  * Release presence. Site publication and final completion remain separate. */
 export async function advanceActualCandidateToPromoting(
   receipt: object,
-  options: { deadline?: number } = {},
+  options: PhaseOptions = {},
 ) {
   return advance(receipt, "promoting", options);
 }
-async function advance(receipt: object, target: Phase, options: { deadline?: number }) {
-  const deadline = options.deadline;
-  const work = () => advanceWithinDeadline(receipt, target, options);
+async function advance(receipt: object, target: Phase, options: PhaseOptions) {
+  const selected = { ...options };
+  const deadline = selected.deadline;
+  const work = () => advanceWithinDeadline(receipt, target, selected);
   return deadline === undefined ? work() : withCoordinatorDeadline(deadline, work);
 }
-async function advanceWithinDeadline(
-  receipt: object,
-  target: Phase,
-  options: { deadline?: number },
-) {
+async function advanceWithinDeadline(receipt: object, target: Phase, options: PhaseOptions) {
   const deadline = options.deadline;
   const remaining = () => {
     const left = deadline === undefined ? 15000 : Math.floor(deadline - performance.now());
@@ -242,6 +245,28 @@ async function advanceWithinDeadline(
   const sbom = await requireVerifiedReleaseSbomDocument(proof.sbom_receipt);
   await proof.recheck();
   const observed = fresh();
+  const hosted = native.filter((report) => report.hosted_job);
+  let custody: { sha256: string; bytes: number } | null = null;
+  if (hosted.length) {
+    if (hosted.length !== 2 || !options.executor)
+      throw new Error(
+        "selected native phase requires its actual private executor and complete pair",
+      );
+    const { prepareHostedNativeCustody } = await import("./release-hosted-native-acceptance.mts");
+    const { prepareOwnedNativeCandidateCheckpoint } =
+      await import("./release-capacity-executor.mts");
+    const prepared = await prepareHostedNativeCustody(proof.native_qualifications);
+    custody = await prepareOwnedNativeCandidateCheckpoint(
+      options.executor,
+      proof.repository,
+      proof.checkpoint,
+      prepared,
+      async () => {
+        fresh();
+      },
+    );
+    remaining();
+  }
   const locators = [
     ...native.map((report) =>
       report.hosted_job
@@ -256,6 +281,15 @@ async function advanceWithinDeadline(
             sha256: report.check.report_sha256,
           },
     ),
+    ...(custody
+      ? [
+          {
+            kind: "native-custody",
+            id: `${custody.sha256}:${custody.bytes}`,
+            sha256: custody.sha256,
+          },
+        ]
+      : []),
     ...proof.facts.archives.map((archive) => ({
       kind: "artifact",
       id: String(archive.artifact_id),
@@ -310,21 +344,37 @@ async function advanceWithinDeadline(
   // must reconcile the existing checkpoint; this function never loops or re-POSTs.
   fresh();
   const saved = await checkpointReleaseOpportunity(proof.repository, proof.checkpoint, next);
-  const journal = createCoordinatorJournalApi(proof.repository, deadline);
-  const remote = await publishCoordinatorCheckpoint(
-    proof.repository,
-    saved.checkpoint,
-    { schema_version: 1, namespace: proof.namespace },
-    {
-      api: {
-        request: journal.request.bind(journal),
-        graphql(query, variables) {
-          if (/^\s*mutation\b/u.test(query)) fresh();
-          return journal.graphql(query, variables);
+  const publishLegacy = async () => {
+    const journal = createCoordinatorJournalApi(proof.repository, deadline);
+    return publishCoordinatorCheckpoint(
+      proof.repository,
+      saved.checkpoint,
+      { schema_version: 1, namespace: proof.namespace },
+      {
+        api: {
+          request: journal.request.bind(journal),
+          graphql(query, variables) {
+            if (/^\s*mutation\b/u.test(query)) fresh();
+            return journal.graphql(query, variables);
+          },
         },
       },
-    },
-  );
+    );
+  };
+  const remote =
+    custody && options.executor
+      ? await (
+          await import("./release-capacity-executor.mts")
+        ).publishOwnedSignedCoordinatorCheckpoint(
+          options.executor,
+          proof.repository,
+          saved.checkpoint,
+          async () => {
+            fresh();
+          },
+          custody,
+        )
+      : await publishLegacy();
   await recoverReleaseOpportunity(proof.repository, saved.checkpoint);
   remaining();
   const result = Object.freeze({

@@ -97,6 +97,7 @@
     "frontend-full-6": {
       "arguments": [
         "--test",
+        "--experimental-test-module-mocks",
         "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ]
@@ -170,6 +171,7 @@
     "release-check": {
       "arguments": [
         "--test",
+        "--experimental-test-module-mocks",
         "--test-timeout=60000",
         "--test-reporter=./scripts/test-duration-reporter.mts"
       ]
@@ -1336,6 +1338,34 @@
       "memberships": [
         ["frontend-full-6", 2330],
         ["release-check", 3130]
+      ]
+    },
+    {
+      "file": "scripts/release-native-checkpoint-custody.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2331],
+        ["release-check", 3131]
+      ]
+    },
+    {
+      "file": "scripts/release-coordinator-signing-custody.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2332],
+        ["release-check", 3132]
+      ]
+    },
+    {
+      "file": "scripts/release-coordinator-native-deadline.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2333],
+        ["release-check", 3133]
+      ]
+    },
+    {
+      "file": "scripts/release-checkpoint-store.test.mts",
+      "memberships": [
+        ["frontend-full-6", 2334],
+        ["release-check", 3134]
       ]
     },
     {
