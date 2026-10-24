@@ -758,6 +758,24 @@ observed relevant cache hits. Keep cold, broad and unknown-cache observations
 separate and link evidence on #1104. Instrumentation delivery alone proves no
 hosted speedup.
 
+### Coordinator fixture setup and cleanup observations
+
+The slow report-repair integration case observes its temporary directory,
+independent Git source, initial checkpoint, version preparation and actual cleanup
+through `Coordinator fixture phase:` JSON lines. Started/completed/failed states
+retain the last completed and failed spans, so successful cleanup does not erase
+the preceding setup failure. Each line is bounded to 4 KiB and uses fixed phase
+labels; fixture paths, commands, credentials and error payloads are excluded.
+
+The context identifies the test label, worker PID, runtime/platform and available
+source/checkout labels. File concurrency remains unknown unless explicitly supplied
+by the owning recipe; the observed Node worker context is retained separately.
+These labels are diagnostics, not source custody. Clock/writer failures cannot
+change an operation's result, original error or cleanup. Phase clocks never supply
+product deadlines. Correlate phase timestamps with the original runner failure;
+the last observed marker alone does not establish its cause. The retained earlier
+incomplete Windows run has no such phase evidence and cannot be reconstructed.
+
 ## Generated GitHub text
 
 Use `node scripts/github-body.mts --help` for guarded file-based issue/PR edits,
