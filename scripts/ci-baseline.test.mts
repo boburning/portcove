@@ -20,6 +20,34 @@ import {
   baselineRequiresRust,
   baselineRequiresDesktopDependencies,
 } from "./ci-baseline.mts";
+
+void test("unknown and empty hosted plans retain every catalog generator family", () => {
+  const unknown = make(["unknown/input.bin"]);
+  assert.ok(unknown.fallback);
+  const empty = buildValidationPlan({
+    changes: [],
+    eventName: "workflow_dispatch",
+    checkout: "b".repeat(40),
+  });
+  assert.equal(empty.mode, "fast");
+  assert.equal(empty.changes.length, 0);
+  assert.equal(empty.fallback, null);
+  for (const plan of [unknown, empty]) {
+    const selected = baselineContractTests(plan, { fileExists: () => false });
+    for (const file of [
+      "scripts/generate-catalog.test.mts",
+      "scripts/catalog-source-authoring.test.mts",
+      "scripts/catalog-proposal-comparison.test.mts",
+      "scripts/catalog-artwork-dispatch.test.mts",
+      "scripts/catalog-artwork-batches.test.mts",
+      "scripts/catalog-artwork-provider.test.mts",
+      "scripts/catalog-artwork-lifecycle.test.mts",
+      "scripts/catalog-artwork-backoff.test.mts",
+    ]) {
+      assert.equal(selected.filter((entry) => entry === file).length, 1, file);
+    }
+  }
+});
 void test("Linux reviewer boundary edits retain protected ownership and Python contract execution", () => {
   for (const file of [
     "scripts/semantic-review-linux-supervisor.py",

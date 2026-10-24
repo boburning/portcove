@@ -928,10 +928,26 @@ void test("current and historical catalog authorities select their generator con
   const current = planFor([
     "crates/portcove-core/catalog/catalog-current-authoring.json",
   ]).selection;
-  assert.deepEqual([...current.nodeTests], ["scripts/generate-catalog.test.mts"]);
+  assert.deepEqual([...current.nodeTests].sort(), [
+    "scripts/catalog-artwork-backoff.test.mts",
+    "scripts/catalog-artwork-batches.test.mts",
+    "scripts/catalog-artwork-dispatch.test.mts",
+    "scripts/catalog-artwork-lifecycle.test.mts",
+    "scripts/catalog-artwork-provider.test.mts",
+    "scripts/catalog-proposal-comparison.test.mts",
+    "scripts/catalog-source-authoring.test.mts",
+    "scripts/generate-catalog.test.mts",
+  ]);
 
   const embedded = planFor(["crates/portcove-core/catalog/catalog.json"]).selection;
   assert.deepEqual([...embedded.nodeTests].sort(), [
+    "scripts/catalog-artwork-backoff.test.mts",
+    "scripts/catalog-artwork-batches.test.mts",
+    "scripts/catalog-artwork-dispatch.test.mts",
+    "scripts/catalog-artwork-lifecycle.test.mts",
+    "scripts/catalog-artwork-provider.test.mts",
+    "scripts/catalog-proposal-comparison.test.mts",
+    "scripts/catalog-source-authoring.test.mts",
     "scripts/generate-catalog.test.mts",
     "scripts/release-native-source-contract.test.mts",
     "scripts/repository-skills.test.mts",
@@ -2398,6 +2414,103 @@ void test("Roadmap test families preserve shared owners and narrow the New Port 
           [...planner].sort(),
           label,
         );
+      }
+    }
+  }
+});
+
+void test("catalog generator families retain shared inputs and narrow authoring to its consumers", async () => {
+  const { buildValidationPlan } = await import("./validation-plan.mts");
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const broad = [
+    "scripts/generate-catalog.test.mts",
+    "scripts/catalog-source-authoring.test.mts",
+    "scripts/catalog-proposal-comparison.test.mts",
+    "scripts/catalog-artwork-dispatch.test.mts",
+    "scripts/catalog-artwork-batches.test.mts",
+    "scripts/catalog-artwork-provider.test.mts",
+    "scripts/catalog-artwork-lifecycle.test.mts",
+    "scripts/catalog-artwork-backoff.test.mts",
+  ];
+  const authoring = [
+    "scripts/generate-catalog.test.mts",
+    "scripts/catalog-source-authoring.test.mts",
+    "scripts/catalog-proposal-comparison.test.mts",
+    "scripts/catalog-artwork-dispatch.test.mts",
+  ];
+  for (const file of [
+    "scripts/generate-catalog.mts",
+    "scripts/catalog-authoring.mts",
+    "scripts/catalog-authoring-inspector.mts",
+    "scripts/inspect-igdb-artwork.mts",
+    "scripts/upstream-lineage.mts",
+    "scripts/maintainer-config.mts",
+    "scripts/runtime-values.mts",
+    "scripts/fixtures/catalog-generator-fixtures.mts",
+    "crates/portcove-core/catalog/catalog-current-authoring.json",
+    "crates/portcove-core/catalog/catalog-schema1-fixture.json",
+    "crates/portcove-core/catalog/catalog-schema2-migration-fixture.json",
+    "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",
+    "crates/portcove-core/catalog/catalog.json",
+    "crates/portcove-core/catalog/catalog-shared.json",
+    "crates/portcove-core/catalog/listings.json",
+    "crates/portcove-core/catalog/ports/historical-fixture.json",
+  ]) {
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const input = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [
+          {
+            status: input.status,
+            path: input.newPath,
+            ...(input.oldPath !== input.newPath ? { previousPath: input.oldPath } : {}),
+          },
+        ],
+        { fileExists: () => false },
+      );
+      const plan = buildValidationPlan({
+        changes: [input],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      const hosted = baselineContractTests(plan, { fileExists: () => false });
+      const expected = file === "scripts/catalog-authoring.mts" ? authoring : broad;
+      const label = JSON.stringify(input);
+      for (const required of expected) {
+        assert.ok(local.nodeTests.has(required), "local " + required + ": " + label);
+        assert.equal(
+          hosted.filter((selected) => selected === required).length,
+          1,
+          "hosted " + required + ": " + label,
+        );
+      }
+      if (file === "scripts/catalog-authoring.mts") {
+        assert.deepEqual(
+          [...local.nodeTests].filter((selected) => broad.includes(selected)).sort(),
+          [...authoring].sort(),
+          label,
+        );
+        assert.deepEqual(
+          hosted.filter((selected) => broad.includes(selected)).sort(),
+          [...authoring].sort(),
+          label,
+        );
+        for (const retained of [
+          "scripts/prepare-port.test.mts",
+          "scripts/catalog-staged-check.test.mts",
+        ]) {
+          assert.ok(local.nodeTests.has(retained), label);
+          assert.ok(hosted.includes(retained), label);
+        }
       }
     }
   }
