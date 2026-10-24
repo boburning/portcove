@@ -155,6 +155,13 @@ void test("shared browser trace runtime selects required frontend coverage", () 
   assert.ok(plan([change(file)]).groups.includes("frontend"));
 });
 
+void test("frontend outcome reporter selects the full maintained frontend consumer", () => {
+  const file = "scripts/frontend-case-observations.ts";
+  const ownership = validationOwnershipForPath(file);
+  assert.ok(ownership.groups.includes("frontend"));
+  assert.ok(plan([change(file)]).groups.includes("frontend"));
+});
+
 void test("shared frontend compiler policy selects the same required checks as the root compiler config", () => {
   const shared = validationOwnershipForPath("tsconfig.base.json");
   const root = validationOwnershipForPath("tsconfig.json");

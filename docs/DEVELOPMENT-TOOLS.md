@@ -467,6 +467,24 @@ need the prefetched Chromium shell. `vp test watch --project unit` provides watc
 with literal files for exact Node/browser selection and `just test-ui-related`
 for the public import graph. Failed browser
 screenshots and traces remain under `.vitest` and `work/bt`.
+
+Unit and browser projects append bounded `Frontend test case observation:` JSON
+records while retaining the default human reporters. Test records distinguish
+passed, failed, skipped and unfinished results, retain available skip notes and
+TODO mode, duration, retry/repeat counts and bounded original errors/causes.
+Suite records retain nested hook failures; module records retain collection
+failures separately. A run context reports
+invalid/omitted diagnostics and unhandled errors. Diagnostics cannot replace the
+runner's original failure or exit.
+
+Each invocation owns a fresh UUID; UUID plus observation index identifies a row.
+Definition hashes use project, repository-relative file, location and full name;
+they may repeat for repeated definitions. Runner IDs depend on registration order.
+Logs retain at most 4096 records, 16 KiB per record and 4 MiB total, plus one bounded
+context. Labels and errors may be truncated; unavailable source, skip reason and
+duration remain unknown. Source/run labels are diagnostics, not source custody or
+proof of complete selection. Retry counts describe Vitest's aggregate result;
+these observations do not reconstruct individual attempts.
 `pnpm --dir apps/desktop test:browser:trace-probe` succeeds only after the single
 deliberate assertion fails, the runner closes without additional errors, its
 fresh ZIP passes bounded structure/CRC and JSON event checks, and Chromium
