@@ -139,6 +139,16 @@ resumes a fresh pass over the same fixed window on a later admitted run. It does
 not retry an HTTP failure or recollect in the same run. Malformed results and
 provider identity/continuity conflicts still refuse. This search-index rule
 does not change the stricter canonical inventory reconciliation rules below.
+Defer only the drifting family for that foreground session and continue the
+independent families within the same six-request allowance. Keep validated
+positive lead identities from the refused page, but never count it as validated
+pagination or advance its successful clock. The receipt lists observed and
+deferred families separately from successful pages. Quiet rotation may proceed
+after four successful pages, or after all four families have a valid page,
+current completion, retained cap or typed drift deferral in this session, and
+the required upstream investigations are complete. Budget refusal, failed HTTP
+and malformed/identity failures cannot manufacture that coverage. A session
+that finishes this bounded effort still reports partial source coverage.
 
 Up to four charged five-release hint pages prioritize observed package assets;
 these are positive leads, not complete release investigation or qualification.
