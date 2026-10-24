@@ -16,6 +16,16 @@ export interface UiRunObservation {
 const identity = (file: string): string =>
   process.platform === "win32" ? file.toLowerCase() : file;
 
+/** Explicit reproducible input; absent or malformed seeds never become a clock seed. */
+export function uiShuffleSeed(value: string | undefined): number {
+  if (value === undefined || !/^(?:0|[1-9][0-9]{0,9})$/u.test(value))
+    throw new Error("Shuffled UI runs require a decimal seed from 0 through 4294967295");
+  const seed = Number(value);
+  if (seed > 0xffff_ffff)
+    throw new Error("Shuffled UI runs require a decimal seed from 0 through 4294967295");
+  return seed;
+}
+
 /** This diagnostic deliberately fails only when explicitly enabled. */
 export function allowedUiSkippedFiles(
   files: readonly string[],

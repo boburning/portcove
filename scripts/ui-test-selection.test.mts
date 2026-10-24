@@ -8,8 +8,24 @@ import {
   resolveUiSelection,
   reconcileUiSelection,
   allowedUiSkippedFiles,
+  uiShuffleSeed,
 } from "./ui-test-selection.mts";
 import type { UiModuleObservation, UiRunObservation } from "./ui-test-selection.mts";
+
+void test("shuffled diagnostics reject ambiguous or unbounded seeds before runner initialization", () => {
+  for (const seed of [undefined, "", "-1", "1.5", "01", "Infinity", "4294967296", "1e2"])
+    assert.throws(() => uiShuffleSeed(seed), /decimal seed/);
+  assert.equal(uiShuffleSeed("0"), 0);
+  assert.equal(uiShuffleSeed("4294967295"), 4294967295);
+  const result = spawnSync(process.execPath, ["scripts/run-ui-tests.mts", "shuffled", "-1"], {
+    encoding: "utf8",
+    timeout: 5000,
+    env: { ...process.env, PATH: "" },
+  });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /decimal seed/);
+  assert.doesNotMatch(result.stdout, /admitted|RUN|passed/);
+});
 
 void test("literal UI paths reject omissions, ambiguous filters and outside files before execution", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "ui-selection-"));

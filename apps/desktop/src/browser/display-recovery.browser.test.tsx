@@ -1,16 +1,19 @@
-import { afterEach, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { AppErrorBoundary } from "../ErrorBoundary";
+import { browserFixture } from "../../test/browser-fixture";
 import "../styles/index.css";
 
-let root: HTMLDivElement | undefined;
+let fixture: ReturnType<typeof browserFixture>;
+beforeEach(() => {
+  fixture = browserFixture({ styles: ["font-size"], viewport: true });
+  fixture.defer(() => {
+    vi.restoreAllMocks();
+  });
+});
 afterEach(async () => {
-  await cleanup();
-  root?.remove();
-  document.documentElement.style.removeProperty("font-size");
-  vi.restoreAllMocks();
-  await page.viewport(1280, 800);
+  await fixture.dispose();
 });
 
 function BrokenPanel({ message }: { message: string }): never {
@@ -33,9 +36,11 @@ it.each([
     const message = long
       ? `Diagnostic identity 42\n${"Long detail ".repeat(3000)}`
       : "Diagnostic identity 42";
-    root = document.createElement("div");
+    const root = document.createElement("div");
     root.id = "root";
     document.body.append(root);
+    fixture.defer(() => root.remove());
+    fixture.defer(() => cleanup());
     await render(
       <AppErrorBoundary report={report}>
         <BrokenPanel message={message} />
