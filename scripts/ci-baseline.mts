@@ -10,6 +10,7 @@ import {
   buildPlan,
   executePlan,
   pythonContractTests,
+  coordinatorStateContractTests,
   catalogGeneratorContractTests,
 } from "./ordinary-validation.mts";
 import { validateValidationPlan, readValidationPlanInput } from "./validation-plan.mts";
@@ -124,11 +125,13 @@ export function baselineRequiresPython(plan: ValidationPlan) {
 export function baselineRequiresDesktopDependencies(plan: ValidationPlan) {
   if (plan.mode === "qualification") return true;
   if (plan.mode !== "fast") return false;
-  // The actual native-source consumer imports the desktop-owned SemVer policy
-  // even when its source declarations changed outside release-security paths.
+  // These actual consumers import Desktop-owned version policy even for helper
+  // or test-family changes outside release-security path ownership.
+  const selected = baselineContractTests(plan);
   return (
     plan.areas.includes("release-security") ||
-    baselineContractTests(plan).includes("scripts/release-native-source-contract.test.mts")
+    selected.includes("scripts/release-native-source-contract.test.mts") ||
+    selected.some((file) => coordinatorStateContractTests.includes(file))
   );
 }
 
