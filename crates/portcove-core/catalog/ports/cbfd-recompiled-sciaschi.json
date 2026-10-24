@@ -6,9 +6,8 @@
     "summary": "Explore Conker's Bad Fur Day: Recompiled (sciaschi) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/sciaschi/CBFD-Recompiled",
     "issue_number": 1216,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/sciaschi/CBFD-Recompiled",
+    "availability": "packages",
+    "setup_url": "https://github.com/sciaschi/CBFD-Recompiled/blob/V0.1.6/README.md",
     "artwork": {
       "game_id": 1286,
       "cover_id": 86478,
@@ -16,6 +15,47 @@
       "image_sha256": "b069fddecc98b4807eca1682d4c3858eff1cbce95901329777305ee1338ccab7",
       "game_slug": "conker-s-bad-fur-day",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/sciaschi/CBFD-Recompiled/releases/tag/V0.1.6",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install or keep your existing copy",
+          "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options also retain a non-owning route for an existing or customized copy."
+        },
+        {
+          "title": "Start with your original game",
+          "instruction": "On first Play, choose your own US Conker’s Bad Fur Day ROM in big-endian .z64 format. The launcher extracts what it needs from that ROM; the published player does not require compiling the game."
+        },
+        {
+          "title": "Keep your progress",
+          "instruction": "The default imported ROM, EEPROM saves, save states, achievements, settings and mods live in LocalAppData/ConkerRecompiled, outside Portcove backups. Declared crash.log and rt64_fb_log.txt diagnostics beside the executable, and the conker_data legacy/headless directory, are retained if present. Use an external copy for portable.txt mode, headless flags or customized storage. Save states remain build-sensitive."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/sciaschi/CBFD-Recompiled/blob/V0.1.6/README.md"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "sciaschi/CBFD-Recompiled",
+      "asset_hints": {
+        "windows-x86-64": ["conkerrecompiled-", "-windows.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["ConkerRecomp.exe"]
+    },
+    "persistent_paths": ["crash.log", "rt64_fb_log.txt", "conker_data"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "On first Play, choose your own US Conker’s Bad Fur Day ROM in big-endian .z64 format. The launcher extracts what it needs from that ROM; the published player does not require compiling the game. The default imported ROM, EEPROM saves, save states, achievements, settings and mods live in LocalAppData/ConkerRecompiled, outside Portcove backups. Declared crash.log and rt64_fb_log.txt diagnostics beside the executable, and the conker_data legacy/headless directory, are retained if present. Use an external copy for portable.txt mode, headless flags or customized storage. Save states remain build-sensitive. Existing external installations retain their files and runtime owner. Gameplay and packaged Desktop acceptance remain separate observations."
     }
   }
 }

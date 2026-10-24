@@ -21260,6 +21260,131 @@
       }
     },
     {
+      "id": "cbfd-recompiled-sciaschi",
+      "name": "Conker's Bad Fur Day: Recompiled (sciaschi)",
+      "summary": "Explore Conker's Bad Fur Day: Recompiled (sciaschi) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/sciaschi/CBFD-Recompiled",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "sciaschi/CBFD-Recompiled",
+        "asset_hints": {
+          "windows-x86-64": [
+            "conkerrecompiled-",
+            "-windows.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "ConkerRecomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "crash.log",
+        "rt64_fb_log.txt",
+        "conker_data"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, choose your own US Conker’s Bad Fur Day ROM in big-endian .z64 format. The launcher extracts what it needs from that ROM; the published player does not require compiling the game. The default imported ROM, EEPROM saves, save states, achievements, settings and mods live in LocalAppData/ConkerRecompiled, outside Portcove backups. Declared crash.log and rt64_fb_log.txt diagnostics beside the executable, and the conker_data legacy/headless directory, are retained if present. Use an external copy for portable.txt mode, headless flags or customized storage. Save states remain build-sensitive. Existing external installations retain their files and runtime owner. Gameplay and packaged Desktop acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install or keep your existing copy",
+              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options also retain a non-owning route for an existing or customized copy."
+            },
+            {
+              "title": "Start with your original game",
+              "instruction": "On first Play, choose your own US Conker’s Bad Fur Day ROM in big-endian .z64 format. The launcher extracts what it needs from that ROM; the published player does not require compiling the game."
+            },
+            {
+              "title": "Keep your progress",
+              "instruction": "The default imported ROM, EEPROM saves, save states, achievements, settings and mods live in LocalAppData/ConkerRecompiled, outside Portcove backups. Declared crash.log and rt64_fb_log.txt diagnostics beside the executable, and the conker_data legacy/headless directory, are retained if present. Use an external copy for portable.txt mode, headless flags or customized storage. Save states remain build-sensitive."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/sciaschi/CBFD-Recompiled/blob/V0.1.6/README.md"
+        },
+        "artwork": {
+          "game_id": 1286,
+          "cover_id": 86478,
+          "image_id": "co1uq6",
+          "image_sha256": "b069fddecc98b4807eca1682d4c3858eff1cbce95901329777305ee1338ccab7",
+          "game_slug": "conker-s-bad-fur-day",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "cdlewis-snowboardkids-recomp",
+      "name": "Snowboard Kids / Snowboard Kids: Recompiled (cdlewis)",
+      "summary": "Explore Snowboard Kids / Snowboard Kids: Recompiled (cdlewis) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/cdlewis/snowboardkids-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "cdlewis/snowboardkids-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "snowboardkidsrecompiled-windows.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "SnowboardKidsRecompiled.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, select your own North American Snowboard Kids ROM in the main menu. The game verifies and imports it, converting supported byte orders. No separate extraction or game build is required. Windows requires the upstream Visual C++ runtime. The default imported ROM, settings, saves and mods live in LocalAppData/SnowboardKidsRecompiled, outside Portcove backups. The runtime package has no declared in-folder player data. Keep the default storage mode; register an external copy for portable.txt mode or custom storage. Existing external installations retain their files and runtime owner. Gameplay and packaged Desktop acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install or keep your existing copy",
+              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options also retain a non-owning route for an existing or customized copy."
+            },
+            {
+              "title": "Start with your original game",
+              "instruction": "On first Play, select your own North American Snowboard Kids ROM in the main menu. The game verifies and imports it, converting supported byte orders. No separate extraction or game build is required. Windows requires the upstream Visual C++ runtime."
+            },
+            {
+              "title": "Keep your progress",
+              "instruction": "The default imported ROM, settings, saves and mods live in LocalAppData/SnowboardKidsRecompiled, outside Portcove backups. The runtime package has no declared in-folder player data. Keep the default storage mode; register an external copy for portable.txt mode or custom storage."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/cdlewis/snowboardkids-recomp/blob/v1.0.6/README.md"
+        },
+        "artwork": {
+          "game_id": 3342,
+          "cover_id": 104128,
+          "image_id": "co28cg",
+          "image_sha256": "e6de2524e0b09d327d373cfd986e9f4c77cd451f56dcff7c09b68a0a8a5b49bb",
+          "game_slug": "snowboard-kids",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "colin-mcrae-rally-2-opencmr2",
       "name": "Colin McRae Rally 2.0 / OpenCMR2",
       "summary": "Explore Colin McRae Rally 2.0 / OpenCMR2 and follow the upstream project for requirements, downloads and setup.",
@@ -21393,6 +21518,76 @@
           "image_sha256": "85d8be21323ee5747b4316fbffc8045bff5916899e2746958c8beca93f894f2e",
           "game_slug": "corsixth",
           "match_kind": "port"
+        }
+      }
+    },
+    {
+      "id": "craigshaw-fzerorecomp",
+      "name": "F-Zero / F-Zero Recomp (craigshaw)",
+      "summary": "Explore F-Zero / F-Zero Recomp (craigshaw) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/craigshaw/FZeroRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "craigshaw/FZeroRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "fzerorecomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "fzero_recomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "config.ini",
+        "config.ini.tmp",
+        "config.ini.save-folder.tmp",
+        "keybinds.ini",
+        "rom.cfg",
+        "fzero_usa_reference.sfc",
+        "saves",
+        "screenshots"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "On first Play, select your own F-Zero USA ROM and press Play in the launcher. The package includes its native runtime and does not require generating or compiling game code. The launcher remembers the selected ROM path. Settings, key bindings, the remembered ROM path, default saves and screenshots live beside fzero_recomp.exe and are declared for compatible updates and backup. The optional fzero_usa_reference.sfc original file is retained if supplied. A ROM selected elsewhere and a custom save folder remain external and outside backups. Runtime rollback carries current declared data; it does not rewind saves. Existing external installations retain their files and runtime owner. Gameplay and packaged Desktop acceptance remain separate observations.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install or keep your existing copy",
+              "instruction": "Install uses the official portable runtime with updates managed by Portcove. Installation options also retain a non-owning route for an existing or customized copy."
+            },
+            {
+              "title": "Start with your original game",
+              "instruction": "On first Play, select your own F-Zero USA ROM and press Play in the launcher. The package includes its native runtime and does not require generating or compiling game code. The launcher remembers the selected ROM path."
+            },
+            {
+              "title": "Keep your progress",
+              "instruction": "Settings, key bindings, the remembered ROM path, default saves and screenshots live beside fzero_recomp.exe and are declared for compatible updates and backup. The optional fzero_usa_reference.sfc original file is retained if supplied. A ROM selected elsewhere and a custom save folder remain external and outside backups. Runtime rollback carries current declared data; it does not rewind saves."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/craigshaw/FZeroRecomp/blob/v0.6.0/README.md"
+        },
+        "artwork": {
+          "game_id": 3490,
+          "cover_id": 319391,
+          "image_id": "co6ufz",
+          "image_sha256": "c504dbfa253882ca87b76d75a5cd290aef6b717a368617107d69e836bd651553",
+          "game_slug": "f-zero",
+          "match_kind": "underlying-game"
         }
       }
     },

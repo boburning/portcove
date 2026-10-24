@@ -20,16 +20,16 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Prepare the game with upstream setup",
-          "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          "title": "Start with the precompiled player",
+          "instruction": "Extract the complete Windows ZIP into a writable folder. MediEvilIIRecomp.exe is the player and launcher. OpenBIOS is included; no compiler, Python or Generate step is required."
         },
         {
-          "title": "Supply only the files the upstream guide requires",
-          "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          "title": "Choose your own USA disc",
+          "instruction": "In the launcher, select your MediEvil II USA SCUS-94564 CUE with its BIN tracks, or a supported CHD, then choose controls and Play. The disc remains required. The first run prepares a verified loading cache; later runs reuse it."
         },
         {
-          "title": "Confirm the game or launcher",
-          "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          "title": "Keep your progress",
+          "instruction": "Windows settings, memory cards, mods and diagnostics live beside the player. Linux uses the documented user-data location and a separate user cache. Preserve this data when updating an external copy; Portcove does not back up or replace that copy. Adding a native player saves launch details; Play is separate."
         }
       ],
       "warnings": [],

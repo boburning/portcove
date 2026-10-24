@@ -20,16 +20,16 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Prepare the game with upstream setup",
-          "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
+          "title": "Run the reviewed upstream setup",
+          "instruction": "Extract the complete Windows owned-input setup kit to an ASCII path without spaces, such as C:\\SF2Kit. Place your own SCUS-94451 Disc 1 CUE/BIN beside the kit; Disc 2 may also be present. Run SETUP.bat yourself. It downloads verified pinned tools, builds locally and opens the launcher. Downloading through Portcove does not run setup."
         },
         {
-          "title": "Supply only the files the upstream guide requires",
-          "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
+          "title": "Use the generated launcher",
+          "instruction": "Use the generated play.bat for later starts. It sets required runtime environment variables and passes the private game configuration, disc and memory-card paths. Selecting the native executable alone does not reproduce that supported invocation; keep using play.bat outside Portcove."
         },
         {
-          "title": "Confirm the game or launcher",
-          "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
+          "title": "Keep setup and progress together",
+          "instruction": "The upstream launcher owns disc selection, video, controls and memory cards. Review setup.log if setup fails. Keep the complete kit and generated files; upstream owns updates and these external files stay outside Portcove backups. Portcove does not currently reproduce this batch launcher contract."
         }
       ],
       "warnings": [],
