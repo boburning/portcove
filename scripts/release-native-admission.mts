@@ -16,7 +16,7 @@ import {
 import { isRecord } from "./runtime-values.mts";
 import {
   inspectReleaseAuthorityConfiguration,
-  requireControllerReleaseAuthorities,
+  requireControllerApplicationJobAuthorities,
 } from "./release-authority-configuration.mts";
 
 /** Pure reconstruction of expected inputs, not a source of native authority.
@@ -149,11 +149,23 @@ export async function collectConfiguredNativeReleaseQualificationPair(
   const capturedLocators: unknown = structuredClone(locators),
     capturedAssembly: unknown = structuredClone(assembly),
     capturedArchives: unknown = structuredClone(archives);
-  const authorities = await requireControllerReleaseAuthorities(phase);
+  const view = await requireControllerApplicationJobAuthorities(phase);
+  if (view.configuration.schema_version === 4) {
+    const { collectConfiguredHostedNativePayloadPair } =
+      await import("./release-hosted-native-admission.mts");
+    return collectConfiguredHostedNativePayloadPair(
+      outputParent,
+      capturedLocators,
+      capturedAssembly,
+      capturedArchives,
+      phase,
+      deadline,
+    );
+  }
   if (!path.isAbsolute(outputParent))
     throw new Error("native evidence output parent must be absolute");
   const templates = await deriveNativeQualificationTemplates(
-    authorities,
+    view.configuration,
     capturedAssembly,
     capturedArchives,
   );

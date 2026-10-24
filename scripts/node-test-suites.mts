@@ -102,6 +102,7 @@ export function parseNodeTestSuites(text: string): NodeTestSuites {
     // Only maintained test-runner flags and their literal values belong here.
     for (let i = 1; i < args.length; i++) {
       const arg = args[i] ?? "";
+      if (arg === "--experimental-test-module-mocks") continue;
       if (/^--test-(?:timeout|concurrency)=\d+$/u.test(arg)) continue;
       if (/^--test-reporter=\.\/scripts\/[a-z-]+\.mts$/u.test(arg)) continue;
       if (/^--test-(?:name|skip)-pattern=.+$/u.test(arg)) continue;

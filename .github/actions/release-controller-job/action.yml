@@ -59,6 +59,9 @@ outputs:
   original_upload:
     description: Exact original producer for resumed aggregate custody
     value: ${{ steps.output.outputs.original_upload }}
+  native_custody:
+    description: Exact retained coordinator checkpoint for original native proof custody
+    value: ${{ steps.output.outputs.native_custody }}
   context_locator:
     description: Immutable context and attestation locators
     value: ${{ steps.output.outputs.context_locator }}

@@ -15,11 +15,24 @@ import {
   baselineIntegrityCommands,
   baselineBootstrapTests,
   baselineTestEnvironment,
+  baselineTestArguments,
   baselineSelection,
   baselineRequiresPython,
   baselineRequiresRust,
   baselineRequiresDesktopDependencies,
 } from "./ci-baseline.mts";
+
+void test("hosted Node contracts enable fixed module mocks without changing budgets or selectors", () => {
+  const files = ["scripts/release-coordinator-signing-custody.test.mts"];
+  const common = ["--test", "--test-timeout=60000", "--experimental-test-module-mocks"];
+  assert.deepEqual(baselineTestArguments(files), [...common, ...files]);
+  assert.deepEqual(baselineTestArguments(files, true), [
+    ...common,
+    "--test-skip-pattern=pnpm uses|direct just recipes",
+    "--test-reporter=./scripts/test-duration-reporter.mts",
+    ...files,
+  ]);
+});
 
 void test("unknown and empty hosted plans retain every catalog generator family", () => {
   const unknown = make(["unknown/input.bin"]);
