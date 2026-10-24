@@ -45,6 +45,14 @@ differing canonical/runtime data. Other staged-source contracts and older
 retained readers keep their existing interpretation; advertising version 22
 does not grant acquisition, publisher or external-data ownership.
 
+Version 23 also covers a ready archive with one explicit verified raw-file
+`copy` whose exact destination is declared persistent. BIOS, source sets,
+compilers, setup helpers and richer initialization/account policies remain outside
+this ready-archive boundary. Existing raw-copy installations receive conservative
+additive collection if initial restoration was not recorded; retained contracts
+are not rewritten. Source destination, materialization, identity-profile, expected
+runtime hashes and source-environment changes hold replacement before collection.
+
 Version 23 additionally preserves exact declared-file modification times through
 collection, synchronization, backup and restore. A destination that rounds a
 timestamp refuses before private replacement publication. New ready-archive

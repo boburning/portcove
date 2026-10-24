@@ -6,9 +6,9 @@
     "summary": "Explore SSX Tricky / OpenTricky (GiZcesi) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/GiZcesi/OpenTricky",
     "issue_number": 1857,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/GiZcesi/OpenTricky",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/GiZcesi/OpenTricky/blob/b20f394f3fc11b684fbbe01ad70f795def4ae70b/README.md",
     "artwork": {
       "game_id": 4176,
       "cover_id": 130705,
@@ -16,6 +16,30 @@
       "image_sha256": "f43279b1c16e39ea01ddb8b9f1a2c125866da61dad63bb2e596b8b4adca2edb3",
       "game_slug": "ssx-tricky",
       "match_kind": "underlying-game"
+    },
+    "original_game_title": "SSX Tricky",
+    "release_url": "https://github.com/GiZcesi/OpenTricky/releases",
+    "recommended_download_channel": "beta",
+    "download_asset_hints": {
+      "windows-x86-64": ["OpenTricky-", "-unstable-win64.zip"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/GiZcesi/OpenTricky/blob/b20f394f3fc11b684fbbe01ad70f795def4ae70b/README.md",
+      "warnings": [],
+      "steps": [
+        {
+          "title": "Let the upstream launcher finish setup",
+          "instruction": "Extract the complete official unstable Windows x64 ZIP into a new empty folder. On first deliberate launch of OpenTricky.exe, choose your own USA original-Xbox SSX Tricky ISO or XISO. PS2, GameCube, PAL and Japanese editions are not supported by this route. Windows 10/11 x64 and Direct3D 11 are required. The package has no installer."
+        },
+        {
+          "title": "Keep the launcher as the update owner",
+          "instruction": "Choose OpenTricky.exe with its folder as the working directory when registering it, then save launch details and choose Play separately. The launcher controls game settings, original-disc selection and consented signature-checked updates. Portcove leaves the external runtime under that owner; discovery never starts the updater. The documented Linux/Steam Deck route uses Wine/Proton with the Windows package; it is not a separate native Linux archive."
+        },
+        {
+          "title": "Preserve saves when changing versions",
+          "instruction": "Back up Documents/My Games/SSX Tricky/Saves, or the local Saves directory and portable.txt if you chose portable saves. Keep settings.ini, screenshots and bug reports separately as needed. For 0.1.2 use the launcher’s updater. From 0.1.1 upstream requires a fresh folder, choosing the disc again and fresh settings; keep the old working copy and do not copy its settings.ini over 0.1.3. New launch shortcuts use bin/SSX Tricky.exe. External registration provides no Portcove-managed Update, Backup or Rollback."
+        }
+      ]
     }
   }
 }

@@ -6,18 +6,27 @@ use crate::{PersistentFilePattern, PortDefinition, PortcoveError, Result};
 const MAX_DIRECTORY_ENTRIES: usize = 4096;
 const MAX_MATCHING_FILES: usize = 1024;
 
-/// A ready managed archive with no Core-owned source or preparation workflow.
+/// A ready managed archive with at most one verified, persistent raw-file copy.
 /// Decide from the retained definition before collecting data from an install.
-pub(crate) fn standalone_staged_archive(port: &PortDefinition) -> bool {
+pub(crate) fn ready_staged_archive(port: &PortDefinition) -> bool {
+    let source_is_ready = match (
+        &port.source_profile,
+        &port.runtime_source_filename,
+        port.runtime_source_materialization,
+    ) {
+        (None, None, None) => true,
+        (Some(_), Some(filename), Some(crate::RuntimeSourceMaterialization::Copy)) => {
+            port.persistent_paths.contains(filename)
+        }
+        _ => false,
+    };
     port.adapter == crate::AdapterKind::StagedSourcePortable
         && port.release.provider != crate::ReleaseSource::UserPrepared
         && port.release.user_prepared.is_empty()
         && port.release.managed_build.is_empty()
         && port.bundled_runtime.is_empty()
-        && port.source_profile.is_none()
+        && source_is_ready
         && port.bios_source_profile.is_none()
-        && port.runtime_source_filename.is_none()
-        && port.runtime_source_materialization.is_none()
         && port.runtime_source_set.is_empty()
         && port.setup_executable_hints.is_empty()
         && port.setup_arguments.is_empty()
@@ -33,7 +42,7 @@ pub(crate) fn collect_before_first_launch(port: &PortDefinition) -> bool {
 }
 
 pub(crate) fn requires_restore_receipt(port: &PortDefinition) -> bool {
-    port.adapter == crate::AdapterKind::PsxRecompManaged || standalone_staged_archive(port)
+    port.adapter == crate::AdapterKind::PsxRecompManaged || ready_staged_archive(port)
 }
 
 impl PersistentFilePattern {
@@ -139,6 +148,54 @@ pub(crate) fn entries(port: &PortDefinition, roots: &[&Path]) -> Result<Vec<Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ready_raw_copy_requires_the_complete_persistent_source_contract() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog
+            .port("crash-team-racing-ctr-native")
+            .unwrap()
+            .clone();
+        assert!(ready_staged_archive(&port));
+        assert!(collect_before_first_launch(&port));
+        assert!(requires_restore_receipt(&port));
+        for field in [
+            "source_profile",
+            "runtime_source_filename",
+            "runtime_source_materialization",
+        ] {
+            let mut value = serde_json::to_value(&port).unwrap();
+            value.as_object_mut().unwrap().remove(field);
+            let incomplete = serde_json::from_value(value).unwrap();
+            assert!(!ready_staged_archive(&incomplete), "{field}");
+        }
+        for (field, value) in [
+            (
+                "persistent_paths",
+                serde_json::json!(["assets", "memcards"]),
+            ),
+            ("bios_source_profile", serde_json::json!("additional-bios")),
+            (
+                "runtime_source_materialization",
+                serde_json::json!("psx-bin-cue"),
+            ),
+            ("setup_marker", serde_json::json!("prepared")),
+            ("setup_arguments", serde_json::json!(["--prepare"])),
+            (
+                "managed_initialization",
+                serde_json::json!("tfe-dark-forces-portable-v1"),
+            ),
+        ] {
+            let mut document = serde_json::to_value(&port).unwrap();
+            document[field] = value;
+            let excluded = serde_json::from_value(document).unwrap();
+            assert!(!ready_staged_archive(&excluded), "{field}");
+        }
+        assert!(ready_staged_archive(catalog.port("alariq-mc2").unwrap()));
+        assert!(!ready_staged_archive(
+            catalog.port("the-force-engine-dark-forces").unwrap()
+        ));
+    }
 
     fn pattern_catalog() -> crate::Catalog {
         // These filesystem rules need no production source or release identity.

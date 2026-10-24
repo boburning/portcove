@@ -155,7 +155,7 @@ impl<'a> IndexedCatalogFixture<'a> {
             .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
         {
             20
-        } else if crate::persistence::standalone_staged_archive(port) {
+        } else if crate::persistence::ready_staged_archive(port) {
             23
         } else if crate::managed_runtime_policy::requires_provider_resolution(port) {
             21

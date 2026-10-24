@@ -12,15 +12,15 @@ impl PortcoveService {
         let retained = self.installed_port(from)?;
         if retained.adapter != AdapterKind::NativePortable
             && to.adapter != AdapterKind::NativePortable
-            && !crate::persistence::standalone_staged_archive(&retained)
-            && !crate::persistence::standalone_staged_archive(to)
+            && !crate::persistence::ready_staged_archive(&retained)
+            && !crate::persistence::ready_staged_archive(to)
         {
             return Ok(());
         }
         let platform = Platform::current()?;
         if retained.adapter != to.adapter
-            || crate::persistence::standalone_staged_archive(&retained)
-                != crate::persistence::standalone_staged_archive(to)
+            || crate::persistence::ready_staged_archive(&retained)
+                != crate::persistence::ready_staged_archive(to)
             || retained.persistent_paths != to.persistent_paths
             || retained.persistent_file_patterns != to.persistent_file_patterns
             || retained.runtime_subdirectory != to.runtime_subdirectory
@@ -29,6 +29,11 @@ impl PortcoveService {
             || retained.launch_arguments != to.launch_arguments
             || retained.launch_environment != to.launch_environment
             || retained.user_data_environment != to.user_data_environment
+            || retained.source_profile != to.source_profile
+            || retained.runtime_source_filename != to.runtime_source_filename
+            || retained.runtime_source_materialization != to.runtime_source_materialization
+            || retained.runtime_source_hashes != to.runtime_source_hashes
+            || retained.source_environment != to.source_environment
         {
             return Err(PortcoveError::conflict(
                 "The new package changes how this installation stores or locates player data. Keep the current version and use upstream instructions until a supported data migration is available. Your installation and files have been preserved.",
@@ -40,7 +45,7 @@ impl PortcoveService {
     pub(super) fn require_portable_runtime_unchanged(&self, install: &InstallRecord) -> Result<()> {
         let port = self.installed_port(install)?;
         if port.adapter != AdapterKind::NativePortable
-            && !crate::persistence::standalone_staged_archive(&port)
+            && !crate::persistence::ready_staged_archive(&port)
         {
             return Ok(());
         }
@@ -217,6 +222,266 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn ready_archive_profile_times_survive_update_backup_and_runtime_rollback() {
+        const ID: &str = "infinite-undiscovery-doc-haz";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
+            "v1.0.0-rc1",
+            1,
+            "",
+            "InfiniteUndiscoveryRecomp.exe",
+        ))));
+        let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        let first = service
+            .install(ID, Some(ReleaseChannel::Beta), None, None, true, |_| {})
+            .await
+            .unwrap();
+        let relative = "USA/assets/disc1/owned-original.bin";
+        let original = first.path.join(relative);
+        fs::create_dir_all(original.parent().unwrap()).unwrap();
+        fs::write(&original, b"inert owned data, not retail content").unwrap();
+        let stamp = std::time::UNIX_EPOCH + Duration::new(1_700_000_000, 123_456_700);
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&original)
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(stamp))
+            .unwrap();
+        fs::write(first.path.join("setup.json"), b"selected USA profile").unwrap();
+        fs::create_dir_all(first.path.join("USA/saves")).unwrap();
+        fs::write(first.path.join("USA/saves/progress"), b"before first Play").unwrap();
+        fs::create_dir_all(first.path.join("USA/cache")).unwrap();
+        fs::write(
+            first.path.join("USA/cache/runtime.toml"),
+            b"user runtime settings",
+        )
+        .unwrap();
+        fs::create_dir_all(first.path.join("USA/shaders")).unwrap();
+        fs::write(
+            first.path.join("USA/shaders/old-cache"),
+            b"old shader cache",
+        )
+        .unwrap();
+        assert!(!first.path.join(LAUNCH_MARKER).exists());
+        let backup = service.create_backup(ID).unwrap();
+        assert_eq!(
+            fs::metadata(backup.path.join("data").join(relative))
+                .unwrap()
+                .modified()
+                .unwrap(),
+            stamp
+        );
+        assert!(!backup.path.join("data/USA/shaders").exists());
+        *provider.0.lock().unwrap() =
+            server.release_in_folder("v1.0.0-rc2", 2, "", "InfiniteUndiscoveryRecomp.exe");
+        let update = service.update(ID, None, None, false, |_| {}).await.unwrap();
+        assert!(update.staged);
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+        let second = service.activate_staged(ID).unwrap();
+        assert_eq!(
+            fs::read(second.path.join(relative)).unwrap(),
+            b"inert owned data, not retail content"
+        );
+        assert_eq!(
+            fs::metadata(second.path.join(relative))
+                .unwrap()
+                .modified()
+                .unwrap(),
+            stamp
+        );
+        assert_eq!(
+            fs::read(second.path.join("USA/cache/runtime.toml")).unwrap(),
+            b"user runtime settings"
+        );
+        assert!(!second.path.join("USA/shaders/old-cache").exists());
+        fs::write(second.path.join("USA/saves/progress"), b"newest progress").unwrap();
+        let previous = service.rollback(ID).unwrap();
+        assert_eq!(previous.id, first.id);
+        assert_eq!(
+            fs::read(previous.path.join("USA/saves/progress")).unwrap(),
+            b"newest progress"
+        );
+        assert_eq!(
+            fs::metadata(previous.path.join(relative))
+                .unwrap()
+                .modified()
+                .unwrap(),
+            stamp
+        );
+        fs::create_dir_all(previous.path.join("USA/.iu-install-partial")).unwrap();
+        fs::write(
+            previous.path.join("USA/.iu-install-partial/recover"),
+            b"interrupted import",
+        )
+        .unwrap();
+        let error = service
+            .update(ID, None, None, true, |_| {})
+            .await
+            .unwrap_err();
+        assert_eq!(
+            error.presentation().presentation_key,
+            "portable_runtime_modified"
+        );
+        assert!(error.details["failures"].contains("USA/.iu-install-partial/recover"));
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, previous.id);
+        assert_eq!(
+            fs::read(previous.path.join("USA/.iu-install-partial/recover")).unwrap(),
+            b"interrupted import"
+        );
+        // No package executable, original media wizard or game is run.
+        assert!(!previous.path.join(LAUNCH_MARKER).exists());
+        let fresh_library = Library::open(temporary.path().join("fresh-library")).unwrap();
+        let fresh = PortcoveService::with_provider(fresh_library, provider).unwrap();
+        let newest = fresh
+            .install(ID, Some(ReleaseChannel::Beta), None, None, true, |_| {})
+            .await
+            .unwrap();
+        assert_eq!(newest.version, "v1.0.0-rc2");
+        assert!(!newest.path.join(relative).exists());
+        assert!(!newest.path.join(LAUNCH_MARKER).exists());
+    }
+
+    fn raw_copy_fixture_catalog(owned: &[u8]) -> Catalog {
+        // Preserve the authored route while admitting only first-party inert
+        // bytes in this private schema-1 source authority, never a retail ROM.
+        const ID: &str = "crash-team-racing-ctr-native";
+        const PROFILE: &str = "ctr-native-ntsc-u-raw-bin";
+        let embedded = Catalog::embedded().unwrap();
+        assert_eq!(
+            embedded.source_profile(PROFILE).unwrap().accepted_sha1,
+            ["1bb785082def3fe25f6b46be06d4eaf33c5bc772"]
+        );
+        let port = embedded.port(ID).unwrap().clone();
+        Catalog::from_json(&serde_json::json!({
+            "schema_version":1,
+            "source_profiles":[{"id":PROFILE,"label":"Your USA retail raw Crash Team Racing BIN","kind":"file","accepted_extensions":["bin"],"accepted_sha256":[hex::encode(Sha256::digest(owned))]}],
+            "ports":[port]
+        }).to_string()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn exact_raw_source_route_carries_memcards_and_holds_build_local_states() {
+        const ID: &str = "crash-team-racing-ctr-native";
+        const PROFILE: &str = "ctr-native-ntsc-u-raw-bin";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let source = temporary.path().join("owned.bin");
+        let owned = b"first-party inert raw source fixture, never retail bytes";
+        fs::write(&source, owned).unwrap();
+        let catalog = raw_copy_fixture_catalog(owned);
+        let port = catalog.port(ID).unwrap().clone();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
+            "beta-7.1",
+            1,
+            "ctr-native-beta-7_1-windows-x86/",
+            "ctr_native.exe",
+        ))));
+        let mut service =
+            PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        service.replace_catalog_for_test(catalog);
+        service.register_source(PROFILE, &source).unwrap();
+        let first = service
+            .install(ID, Some(ReleaseChannel::Beta), None, None, true, |_| {})
+            .await
+            .unwrap();
+        let root = first.path.join("ctr-native-beta-7_1-windows-x86");
+        // Explicit launch preparation copies the admitted raw source; it does
+        // not run the package or establish that Play completed.
+        let prepared = service
+            .prepare_launch_for_install(&port, &first, None, None)
+            .unwrap();
+        assert_eq!(prepared.working_directory, root);
+        assert_eq!(fs::read(root.join("assets/ctr-u.bin")).unwrap(), owned);
+        fs::create_dir_all(root.join("memcards/slot0")).unwrap();
+        fs::write(root.join("memcards/slot0/normal-save"), b"current progress").unwrap();
+        fs::write(root.join("SCREENSHOT.BMP"), b"owned capture").unwrap();
+        fs::write(root.join("Crash Team Racing.log"), b"old log").unwrap();
+        fs::create_dir_all(root.join("debug/states")).unwrap();
+        let state = root.join("debug/states/quick.ctrstates");
+        fs::write(&state, b"same-build memory snapshot").unwrap();
+        let error = service
+            .prepare_launch_for_install(&port, &first, None, None)
+            .unwrap_err();
+        assert!(error.details["failures"].contains("debug/states/quick.ctrstates"));
+        let error = service
+            .update(ID, None, None, false, |_| {})
+            .await
+            .unwrap_err();
+        assert_eq!(
+            error.presentation().presentation_key,
+            "portable_runtime_modified"
+        );
+        assert!(error.details["failures"].contains("debug/states/quick.ctrstates"));
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+        let preserved = temporary.path().join("preserved-same-build-state");
+        fs::copy(&state, &preserved).unwrap();
+        assert_eq!(fs::read(&preserved).unwrap(), fs::read(&state).unwrap());
+        fs::remove_file(&state).unwrap();
+        service
+            .prepare_launch_for_install(&port, &first, None, None)
+            .unwrap();
+        *provider.0.lock().unwrap() = server.release_in_folder(
+            "beta-7.2",
+            2,
+            "ctr-native-beta-7_2-windows-x86/",
+            "ctr_native.exe",
+        );
+        let update = service.update(ID, None, None, false, |_| {}).await.unwrap();
+        assert!(update.staged);
+        let next = service.activate_staged(ID).unwrap();
+        let next_root = next.path.join("ctr-native-beta-7_2-windows-x86");
+        assert_eq!(
+            fs::read(next_root.join("memcards/slot0/normal-save")).unwrap(),
+            b"current progress"
+        );
+        assert_eq!(fs::read(next_root.join("assets/ctr-u.bin")).unwrap(), owned);
+        assert_eq!(
+            fs::read(next_root.join("SCREENSHOT.BMP")).unwrap(),
+            b"owned capture"
+        );
+        assert!(!next_root.join("Crash Team Racing.log").exists());
+        assert!(!next_root.join("debug/states/quick.ctrstates").exists());
+        fs::write(
+            next_root.join("memcards/slot0/normal-save"),
+            b"newest progress",
+        )
+        .unwrap();
+        let old = service.rollback(ID).unwrap();
+        assert_eq!(old.id, first.id);
+        assert_eq!(
+            fs::read(root.join("memcards/slot0/normal-save")).unwrap(),
+            b"newest progress"
+        );
+        assert_eq!(fs::read(preserved).unwrap(), b"same-build memory snapshot");
+        assert!(!first.path.join(LAUNCH_MARKER).exists());
+        let fresh_library = Library::open(temporary.path().join("fresh-library")).unwrap();
+        let mut fresh = PortcoveService::with_provider(fresh_library, provider).unwrap();
+        fresh.replace_catalog_for_test(service.catalog.clone());
+        fresh.register_source(PROFILE, &source).unwrap();
+        let newest = fresh
+            .install(ID, Some(ReleaseChannel::Beta), None, None, true, |_| {})
+            .await
+            .unwrap();
+        assert_eq!(newest.version, "beta-7.2");
+        fresh
+            .prepare_launch_for_install(&port, &newest, None, None)
+            .unwrap();
+        assert_eq!(
+            fs::read(
+                newest
+                    .path
+                    .join("ctr-native-beta-7_2-windows-x86/assets/ctr-u.bin")
+            )
+            .unwrap(),
+            owned
+        );
+        assert!(!newest.path.join(LAUNCH_MARKER).exists());
+    }
+
+    #[tokio::test]
     async fn ready_staged_archive_preserves_preplay_data_and_successor_cache_defaults() {
         const ID: &str = "alariq-mc2";
         let temporary = tempfile::tempdir().unwrap();
@@ -230,7 +495,7 @@ mod tests {
         ))));
         let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
         let port = service.catalog.port(ID).unwrap();
-        assert!(crate::persistence::standalone_staged_archive(port));
+        assert!(crate::persistence::ready_staged_archive(port));
         let first = service
             .install(ID, None, None, None, true, |_| {})
             .await
@@ -374,135 +639,175 @@ mod tests {
 
     #[tokio::test]
     async fn ready_staged_archive_raw_activation_refuses_before_acquisition() {
-        const ID: &str = "alariq-mc2";
-        let temporary = tempfile::tempdir().unwrap();
-        let library = Library::open(temporary.path().join("library")).unwrap();
-        let catalog = Catalog::embedded().unwrap();
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        listener.set_nonblocking(true).unwrap();
-        let error = Installer::new(library.clone())
-            .unwrap()
-            .install(
-                InstallRequest {
-                    port_id: ID.into(),
-                    release: ResolvedRelease {
-                        version: "v0.1.3".into(),
-                        channel: ReleaseChannel::Stable,
-                        published_at: None,
-                        asset: crate::ReleaseAsset {
-                            name: "mc2-win64-v0.1.3.zip".into(),
-                            url: format!("http://{}/fixture.zip", listener.local_addr().unwrap()),
-                            size: 42,
-                            sha256: "ab".repeat(32),
+        for id in ["alariq-mc2", "crash-team-racing-ctr-native"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let catalog = Catalog::embedded().unwrap();
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            listener.set_nonblocking(true).unwrap();
+            let error = Installer::new(library.clone())
+                .unwrap()
+                .install(
+                    InstallRequest {
+                        port_id: id.into(),
+                        release: ResolvedRelease {
+                            version: "v0.1.3".into(),
+                            channel: ReleaseChannel::Stable,
+                            published_at: None,
+                            asset: crate::ReleaseAsset {
+                                name: "mc2-win64-v0.1.3.zip".into(),
+                                url: format!(
+                                    "http://{}/fixture.zip",
+                                    listener.local_addr().unwrap()
+                                ),
+                                size: 42,
+                                sha256: "ab".repeat(32),
+                            },
                         },
+                        output_root: library.versions_dir().join(id),
+                        activate: true,
+                        managed: None,
+                        qualification: InstallQualification::from_catalog(
+                            &catalog,
+                            id,
+                            Platform::WindowsX86_64,
+                        )
+                        .unwrap(),
                     },
-                    output_root: library.versions_dir().join(ID),
-                    activate: true,
-                    managed: None,
-                    qualification: InstallQualification::from_catalog(
-                        &catalog,
-                        ID,
-                        Platform::WindowsX86_64,
-                    )
-                    .unwrap(),
-                },
-                &OperationCoordinator::new("ready-archive-raw", None),
-                |_| {},
-            )
-            .await
-            .unwrap_err();
-        assert!(error.message.contains("preflight before activation"));
-        assert_eq!(
-            listener.accept().unwrap_err().kind(),
-            std::io::ErrorKind::WouldBlock
-        );
-        assert!(OperationStore::new(library).all().unwrap().is_empty());
+                    &OperationCoordinator::new("ready-archive-raw", None),
+                    |_| {},
+                )
+                .await
+                .unwrap_err();
+            assert!(error.message.contains("preflight before activation"));
+            assert_eq!(
+                listener.accept().unwrap_err().kind(),
+                std::io::ErrorKind::WouldBlock
+            );
+            assert!(OperationStore::new(library).all().unwrap().is_empty());
+        }
     }
 
     #[tokio::test]
     async fn ready_staged_archive_recovery_refuses_changed_data_coordinates_before_collection() {
-        const ID: &str = "alariq-mc2";
-        let temporary = tempfile::tempdir().unwrap();
-        let library = Library::open(temporary.path().join("library")).unwrap();
-        let server = Server::new();
-        let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
-            "v0.1.3",
-            1,
-            "mc2-win64-v0.1.3/",
-            "mc2.exe",
-        ))));
-        let service = PortcoveService::with_provider(library.clone(), provider).unwrap();
-        let first = service
-            .install(ID, None, None, None, true, |_| {})
-            .await
-            .unwrap();
-        let user = library.user_dir(ID);
-        fs::create_dir_all(&user).unwrap();
-        fs::write(user.join("options.cfg"), b"reviewed canonical").unwrap();
-        fs::write(
-            first.path.join("mc2-win64-v0.1.3/options.cfg"),
-            b"uncollected current settings",
-        )
-        .unwrap();
-        let mut document = service.catalog.authoritative_document().clone();
-        document
-            .ports
-            .iter_mut()
-            .find(|p| p.id == ID)
-            .unwrap()
-            .persistent_paths = vec!["different.cfg".into()];
-        let changed = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
-        let new = Installer::new(library.clone())
-            .unwrap()
-            .install(
-                InstallRequest {
-                    port_id: ID.into(),
-                    release: server.release_in_folder("v0.1.4", 2, "mc2-win64-v0.1.4/", "mc2.exe"),
-                    output_root: library.versions_dir().join(ID),
-                    activate: false,
-                    managed: None,
-                    qualification: InstallQualification::from_catalog(
-                        &changed,
-                        ID,
-                        Platform::WindowsX86_64,
-                    )
-                    .unwrap(),
-                },
-                &OperationCoordinator::new("changed-coordinate-stage", None),
-                |_| {},
-            )
-            .await
-            .unwrap();
-        let id = Uuid::new_v4().to_string();
-        let mut journal = crate::operation::LifecycleOperation::new(
-            &id,
-            crate::operation::LifecycleOperationKind::Install,
-            ID,
-        );
-        journal.install = Some(new.clone());
-        journal.activate = true;
-        journal.phase = crate::operation::LifecyclePhase::PayloadPublished;
-        journal.paths.staging = Some(library.staging_dir().join(&id));
-        journal.paths.final_path = Some(new.path.clone());
-        fs::create_dir_all(journal.paths.staging.as_ref().unwrap()).unwrap();
-        let store = OperationStore::new(library.clone());
-        store.put(&mut journal).unwrap();
-        let error =
-            crate::recovery::recover_published_install(&service, &store, &mut journal).unwrap_err();
-        assert!(
-            error
-                .message
-                .contains("changes how this installation stores"),
-            "{error}"
-        );
-        assert_eq!(
-            fs::read(user.join("options.cfg")).unwrap(),
-            b"reviewed canonical"
-        );
-        assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
-        assert!(first.path.is_dir() && new.path.is_dir());
-        assert!(store.get(&journal.id).unwrap().is_some());
-        assert!(!new.path.join(PSX_DATA_RECEIPT).exists());
+        for (id, program, relative) in [
+            ("alariq-mc2", "mc2.exe", "options.cfg"),
+            (
+                "crash-team-racing-ctr-native",
+                "ctr_native.exe",
+                "memcards/slot0/progress",
+            ),
+        ] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
+                "v0.1.3",
+                1,
+                "mc2-win64-v0.1.3/",
+                program,
+            ))));
+            let mut service = PortcoveService::with_provider(library.clone(), provider).unwrap();
+            if id == "crash-team-racing-ctr-native" {
+                let owned = b"inert recovery source";
+                service.replace_catalog_for_test(raw_copy_fixture_catalog(owned));
+                let source = temporary.path().join("owned.bin");
+                fs::write(&source, owned).unwrap();
+                service
+                    .register_source("ctr-native-ntsc-u-raw-bin", &source)
+                    .unwrap();
+            }
+            let first = service
+                .install(
+                    id,
+                    if id == "crash-team-racing-ctr-native" {
+                        Some(ReleaseChannel::Beta)
+                    } else {
+                        None
+                    },
+                    None,
+                    None,
+                    true,
+                    |_| {},
+                )
+                .await
+                .unwrap();
+            let user = library.user_dir(id);
+            fs::create_dir_all(user.join(relative).parent().unwrap()).unwrap();
+            fs::write(user.join(relative), b"reviewed canonical").unwrap();
+            let local = first.path.join("mc2-win64-v0.1.3").join(relative);
+            fs::create_dir_all(local.parent().unwrap()).unwrap();
+            fs::write(&local, b"uncollected current settings").unwrap();
+            let mut document = service.catalog.authoritative_document().clone();
+            document
+                .ports
+                .iter_mut()
+                .find(|p| p.id == id)
+                .unwrap()
+                .persistent_paths = if id == "crash-team-racing-ctr-native" {
+                vec!["assets/ctr-u.bin".into(), "different.cfg".into()]
+            } else {
+                vec!["different.cfg".into()]
+            };
+            let changed = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+            let new = Installer::new(library.clone())
+                .unwrap()
+                .install(
+                    InstallRequest {
+                        port_id: id.into(),
+                        release: server.release_in_folder(
+                            "v0.1.4",
+                            2,
+                            "mc2-win64-v0.1.4/",
+                            program,
+                        ),
+                        output_root: library.versions_dir().join(id),
+                        activate: false,
+                        managed: None,
+                        qualification: InstallQualification::from_catalog(
+                            &changed,
+                            id,
+                            Platform::WindowsX86_64,
+                        )
+                        .unwrap(),
+                    },
+                    &OperationCoordinator::new("changed-coordinate-stage", None),
+                    |_| {},
+                )
+                .await
+                .unwrap();
+            let operation_id = Uuid::new_v4().to_string();
+            let mut journal = crate::operation::LifecycleOperation::new(
+                &operation_id,
+                crate::operation::LifecycleOperationKind::Install,
+                id,
+            );
+            journal.install = Some(new.clone());
+            journal.activate = true;
+            journal.phase = crate::operation::LifecyclePhase::PayloadPublished;
+            journal.paths.staging = Some(library.staging_dir().join(&operation_id));
+            journal.paths.final_path = Some(new.path.clone());
+            fs::create_dir_all(journal.paths.staging.as_ref().unwrap()).unwrap();
+            let store = OperationStore::new(library.clone());
+            store.put(&mut journal).unwrap();
+            let error = crate::recovery::recover_published_install(&service, &store, &mut journal)
+                .unwrap_err();
+            assert!(
+                error
+                    .message
+                    .contains("changes how this installation stores"),
+                "{error}"
+            );
+            assert_eq!(
+                fs::read(user.join(relative)).unwrap(),
+                b"reviewed canonical"
+            );
+            assert_eq!(fs::read(local).unwrap(), b"uncollected current settings");
+            assert_eq!(service.status(id).unwrap().active.unwrap().id, first.id);
+            assert!(first.path.is_dir() && new.path.is_dir());
+            assert!(store.get(&journal.id).unwrap().is_some());
+            assert!(!new.path.join(PSX_DATA_RECEIPT).exists());
+        }
     }
 
     fn register_external_copy(service: &PortcoveService, root: &Path) -> ExternalRuntimeRecord {

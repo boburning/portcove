@@ -3021,7 +3021,7 @@ impl PortcoveService {
         let staged_activation = matches!(
             port.adapter,
             AdapterKind::NativePortable | AdapterKind::PsxRecompManaged
-        ) || crate::persistence::standalone_staged_archive(port);
+        ) || crate::persistence::ready_staged_archive(port);
         let installed = Installer::with_faults(self.library.clone(), self.faults.clone())?
             .install(
                 InstallRequest {

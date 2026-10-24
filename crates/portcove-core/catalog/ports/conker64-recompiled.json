@@ -3,12 +3,12 @@
   "listing": {
     "id": "conker64-recompiled",
     "name": "Conker64: Recompiled",
-    "summary": "Explore Conker64: Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Early Conker rendering prototype; the game’s recompiled logic is not yet connected.",
     "project_url": "https://github.com/Conker64Recomp/conker64-recompiled",
     "issue_number": 123,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Conker64Recomp/conker64-recompiled",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/6e58a2a6ff5501cfa9a4380b8522d5a1119d4839/README.md",
     "artwork": {
       "game_id": 1286,
       "cover_id": 86478,
@@ -16,6 +16,27 @@
       "image_sha256": "b069fddecc98b4807eca1682d4c3858eff1cbce95901329777305ee1338ccab7",
       "game_slug": "conker-s-bad-fur-day",
       "match_kind": "underlying-game"
-    }
+    },
+    "original_game_title": "Conker’s Bad Fur Day",
+    "release_url": "https://github.com/Conker64Recomp/conker64-recompiled/releases",
+    "recommended_download_channel": "beta",
+    "download_asset_hints": {
+      "windows-x86-64": ["Conker64-Recompiled-", ".zip"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/6e58a2a6ff5501cfa9a4380b8522d5a1119d4839/README.md",
+      "warnings": [],
+      "steps": [
+        {
+          "title": "Understand the scene-only prototype",
+          "instruction": "The reviewed Windows x64 ZIP contains Conker.exe, SDL2.dll and notices. Its recovered scene does not execute the game’s recompiled logic or levels; it is not a playable Conker release. Source extraction tools are not included in this player package. The existing useful-output hold on new installation and registration remains in place."
+        },
+        {
+          "title": "Preserve an already registered copy",
+          "instruction": "Keep any already registered, permitted development copy and your own ROM under its existing contract. Upstream identifies the USA Conker’s Bad Fur Day ROM by SHA-1 4cbadd3c4e0729dec46af64ad018050eada4f47a; this fact does not establish a useful new player. The declared EEPROM location is Windows AppData/ConkerRecompiled/Saves/conker.eep. You or upstream own updates and external data. Portcove does not replace, back up or roll back that external runtime. Reconsider new setup when upstream supplies useful runnable game output or a separately evidenced useful operation."
+        }
+      ]
+    },
+    "download_block_reason": "The reviewed v0.1.0-beta package remains the scene-only prototype covered by this port’s existing useful-output hold. New installation and registration wait for a useful game runtime or a separately evidenced useful operation. Already registered permitted copies retain their existing contracts."
   }
 }

@@ -6749,12 +6749,14 @@
     {
       "id": "conker64-recompiled",
       "name": "Conker64: Recompiled",
-      "summary": "Explore Conker64: Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Early Conker rendering prototype; the game’s recompiled logic is not yet connected.",
       "project_url": "https://github.com/Conker64Recomp/conker64-recompiled",
       "issue_number": 123,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Conker64Recomp/conker64-recompiled",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/6e58a2a6ff5501cfa9a4380b8522d5a1119d4839/README.md",
       "artwork": {
         "game_id": 1286,
         "cover_id": 86478,
@@ -6762,7 +6764,31 @@
         "image_sha256": "b069fddecc98b4807eca1682d4c3858eff1cbce95901329777305ee1338ccab7",
         "game_slug": "conker-s-bad-fur-day",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Conker’s Bad Fur Day",
+      "release_url": "https://github.com/Conker64Recomp/conker64-recompiled/releases",
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Conker64-Recompiled-",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/6e58a2a6ff5501cfa9a4380b8522d5a1119d4839/README.md",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Understand the scene-only prototype",
+            "instruction": "The reviewed Windows x64 ZIP contains Conker.exe, SDL2.dll and notices. Its recovered scene does not execute the game’s recompiled logic or levels; it is not a playable Conker release. Source extraction tools are not included in this player package. The existing useful-output hold on new installation and registration remains in place."
+          },
+          {
+            "title": "Preserve an already registered copy",
+            "instruction": "Keep any already registered, permitted development copy and your own ROM under its existing contract. Upstream identifies the USA Conker’s Bad Fur Day ROM by SHA-1 4cbadd3c4e0729dec46af64ad018050eada4f47a; this fact does not establish a useful new player. The declared EEPROM location is Windows AppData/ConkerRecompiled/Saves/conker.eep. You or upstream own updates and external data. Portcove does not replace, back up or roll back that external runtime. Reconsider new setup when upstream supplies useful runnable game output or a separately evidenced useful operation."
+          }
+        ]
+      },
+      "download_block_reason": "The reviewed v0.1.0-beta package remains the scene-only prototype covered by this port’s existing useful-output hold. New installation and registration wait for a useful game runtime or a separately evidenced useful operation. Already registered permitted copies retain their existing contracts."
     },
     {
       "id": "corsixth-corsixth",
@@ -6873,9 +6899,8 @@
       "summary": "Explore Crash Team Racing / CTR Native and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/CTR-tools/ctr-native",
       "issue_number": 318,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/CTR-tools/ctr-native",
+      "availability": "packages",
+      "setup_url": "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
       "artwork": {
         "game_id": 1192,
         "cover_id": 361766,
@@ -6883,7 +6908,36 @@
         "image_sha256": "857ab4be415b6baf136a594b32afa654c830446c1e565cb8e047a9bd76bb18d6",
         "game_slug": "crash-team-racing",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Crash Team Racing",
+      "release_url": "https://github.com/CTR-tools/ctr-native/releases",
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "-windows-x86.zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Use your own USA raw disc",
+            "instruction": "For an existing official beta7.1 Windows copy, choose ctr_native.exe inside its extracted wrapper, with that executable’s folder as the working directory. Place your own NTSC-U raw MODE2/2352 disc BIN at assets/ctr-u.bin beside it; the data track must start at byte 0. A cooked 2048 ISO, another edition or a CUE file is not this route. No compiler, BIOS or extraction helper is needed for the official player archive. Windows runs its x86 player through x64 compatibility; upstream also offers a separate 32-bit Linux package with its own dependency requirements."
+          },
+          {
+            "title": "Prefer in-game memory-card saves",
+            "instruction": "Normal saves and ghosts live under memcards. F12 captures SCREENSHOT.BMP and the VRAM debug capture uses VRAM.TGA. Internal F5 quickstates under debug/states hold runtime memory and are tied to their creating build; replay reports under debug/reports can include independent recorded memory-card progress. Keep the old runtime with those files for matching-build use; do not insert them into another version."
+          },
+          {
+            "title": "Keep external ownership or preserve debug output before retrying",
+            "instruction": "You or upstream update an external copy. Keep its complete working folder and back up memcards and captures before extracting a new player separately. Keep debug output with the originating runtime for matching-build use; no cross-version state compatibility is promised. External registration preserves every file and supplies no managed Backup or Rollback."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cut-the-rope-dx",
@@ -7203,9 +7257,14 @@
       "summary": "Explore ActRaiser / ActRaiser Recompiled (DerrickGold) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/DerrickGold/ar-recomp",
       "issue_number": 1791,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/DerrickGold/ar-recomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/DerrickGold/ar-recomp/blob/93c2786af6012325cc00c414c7bff07aa22ce672/README.md",
       "artwork": {
         "game_id": 6468,
         "cover_id": 292420,
@@ -7213,6 +7272,38 @@
         "image_sha256": "aedb4a72a76144aa114d97520dbff8883f8e5e874dec8a3439577b51aa29e401",
         "game_slug": "actraiser",
         "match_kind": "underlying-game"
+      },
+      "original_game_title": "ActRaiser",
+      "release_url": "https://github.com/DerrickGold/ar-recomp/releases",
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "ActRaiserRecompBuilder-windows-x86_64-portable.zip"
+        ],
+        "macos-x86-64": [
+          "ActRaiserRecompBuilder-macos-x86_64-portable.zip"
+        ],
+        "macos-aarch64": [
+          "ActRaiserRecompBuilder-macos-arm64-portable.zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/DerrickGold/ar-recomp/blob/93c2786af6012325cc00c414c7bff07aa22ce672/README.md",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Prepare the game with the upstream Builder",
+            "instruction": "The portable download is ActRaiser Recomp Builder, not a prepared player. For a Windows or macOS portable desktop bundle, extract it into a writable folder, keep its .portable marker and BuilderData together, then deliberately open the Builder’s Workshop. The generic Linux x64 tar.xz uses ./run-build.sh to open the Workshop in your browser; follow its upstream prerequisites. Choose your own supported USA ActRaiser ROM and Build game. The bundle supplies its compiler; Portcove does not run it during discovery. Use the matching package and instructions for your platform."
+          },
+          {
+            "title": "Add the completed game",
+            "instruction": "The default output is ActRaiserRecomp beside the Builder. Choose the completed game executable in that output folder in Portcove, with its folder as the working directory. Keep its DLLs, user-rom.sfc, tools, assets, settings and saves together. Save launch details, then choose Play separately. If application control blocks a builder tool, retain its error and use upstream/administrator guidance."
+          },
+          {
+            "title": "Back up and rebuild to update",
+            "instruction": "You or upstream own the generated player and updates. Close the game and back up its entire saves directory before using the new Builder’s Update existing installation to rebuild that game folder. Upstream migrates older save.srm/save.ini or actraiser.srm to Slot 1 and keeps originals under saves/legacy-layout. Use Import previous installation for older utils layouts. Moving between portable and per-user storage does not transfer data automatically. Keep the working copy recoverable. External registration leaves every file untouched; Portcove supplies no managed Update, Backup or Rollback."
+          }
+        ]
       }
     },
     {
@@ -7877,9 +7968,13 @@
       "summary": "Explore Fatal Frame / MikuPan and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/Mikompilation/MikuPan",
       "issue_number": 346,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Mikompilation/MikuPan",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Mikompilation/MikuPan/blob/ec204d75441e98d8bd43ddd95cae744eb683f00c/README.md",
       "artwork": {
         "game_id": 5106,
         "cover_id": 445266,
@@ -7887,6 +7982,40 @@
         "image_sha256": "2416f2d6b5f72ad7064b72b465aaa9f6bcb14d2e3d1a9a4b07b5b1943e80eaf0",
         "game_slug": "fatal-frame",
         "match_kind": "underlying-game"
+      },
+      "original_game_title": "Fatal Frame",
+      "release_url": "https://github.com/Mikompilation/MikuPan/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "MikuPan_windows_",
+          ".zip"
+        ],
+        "linux-x86-64": [
+          "MikuPan_linux_",
+          ".zip"
+        ]
+      },
+      "recommended_download_channel": "beta",
+      "download_block_reason": "Portcove downloads are paused while the selected package’s embedded Adobe CenturyOldStyleStd-Regular font has no established attributable acquisition/distribution grant. Its name table identifies Adobe copyright and All rights reserved; the project’s AGPL does not establish that separate font’s grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable resource permission or removes/replaces that font.",
+      "manual_setup": {
+        "help_url": "https://github.com/Mikompilation/MikuPan/blob/ec204d75441e98d8bd43ddd95cae744eb683f00c/README.md",
+        "warnings": [
+          "Portcove downloads are paused while the selected package’s embedded Adobe CenturyOldStyleStd-Regular font has no established attributable acquisition/distribution grant. Its name table identifies Adobe copyright and All rights reserved; the project’s AGPL does not establish that separate font’s grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable resource permission or removes/replaces that font."
+        ],
+        "steps": [
+          {
+            "title": "Use a permitted copy and your matching game files",
+            "instruction": "Keep an existing permitted complete native player, including its resources and libraries. The Windows player is MikuPan.exe; register it with its folder as the working directory. Save launch details, then choose Play separately. Prepare your own IMG_HD.BIN and IMG_BD.BIN from the matching Fatal Frame disc in a separate retained data folder. Default upstream builds use NTSC-U USA; PAL/EU needs the matching EU build, and the Japanese edition is unsupported. No original files or PS2 BIOS are supplied by Portcove."
+          },
+          {
+            "title": "Choose the original-data folder on first Play",
+            "instruction": "The native player asks for the folder containing the missing game files on first deliberate Play and remembers your selection. Keep that original-data folder outside any separately managed runtime so replacing a player does not replace your originals. The package is portable and has no installer. Source builds have their own CMake/dependency instructions. Linux is a separate upstream route; macOS is an experimental Apple Silicon community build with no maintained hardware coverage, not Windows qualification."
+          },
+          {
+            "title": "Back up the actual profile before updating",
+            "instruction": "You or upstream update this external copy. Close the game, keep the working folder, and extract a new permitted player separately. Back up the SDL profile for Mikompilation/MikuPan, including mikupan.ini, memory-card saves, albums and PNG captures; on Windows this is normally under AppData/Roaming. If profile-directory creation fails, upstream uses the local MikuPan directory instead; retain that too. Preserve the original-data folder separately. External registration leaves every file untouched and provides no managed Update, Backup or Rollback. Runtime replacement does not rewind saves or establish older-version readability."
+          }
+        ]
       }
     },
     {
@@ -8040,9 +8169,11 @@
       "summary": "Explore SSX Tricky / OpenTricky (GiZcesi) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/GiZcesi/OpenTricky",
       "issue_number": 1857,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/GiZcesi/OpenTricky",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/GiZcesi/OpenTricky/blob/b20f394f3fc11b684fbbe01ad70f795def4ae70b/README.md",
       "artwork": {
         "game_id": 4176,
         "cover_id": 130705,
@@ -8050,6 +8181,33 @@
         "image_sha256": "f43279b1c16e39ea01ddb8b9f1a2c125866da61dad63bb2e596b8b4adca2edb3",
         "game_slug": "ssx-tricky",
         "match_kind": "underlying-game"
+      },
+      "original_game_title": "SSX Tricky",
+      "release_url": "https://github.com/GiZcesi/OpenTricky/releases",
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "OpenTricky-",
+          "-unstable-win64.zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/GiZcesi/OpenTricky/blob/b20f394f3fc11b684fbbe01ad70f795def4ae70b/README.md",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Let the upstream launcher finish setup",
+            "instruction": "Extract the complete official unstable Windows x64 ZIP into a new empty folder. On first deliberate launch of OpenTricky.exe, choose your own USA original-Xbox SSX Tricky ISO or XISO. PS2, GameCube, PAL and Japanese editions are not supported by this route. Windows 10/11 x64 and Direct3D 11 are required. The package has no installer."
+          },
+          {
+            "title": "Keep the launcher as the update owner",
+            "instruction": "Choose OpenTricky.exe with its folder as the working directory when registering it, then save launch details and choose Play separately. The launcher controls game settings, original-disc selection and consented signature-checked updates. Portcove leaves the external runtime under that owner; discovery never starts the updater. The documented Linux/Steam Deck route uses Wine/Proton with the Windows package; it is not a separate native Linux archive."
+          },
+          {
+            "title": "Preserve saves when changing versions",
+            "instruction": "Back up Documents/My Games/SSX Tricky/Saves, or the local Saves directory and portable.txt if you chose portable saves. Keep settings.ini, screenshots and bug reports separately as needed. For 0.1.2 use the launcher’s updater. From 0.1.1 upstream requires a fresh folder, choosing the disc again and fresh settings; keep the old working copy and do not copy its settings.ini over 0.1.3. New launch shortcuts use bin/SSX Tricky.exe. External registration provides no Portcove-managed Update, Backup or Rollback."
+          }
+        ]
       }
     },
     {
@@ -8241,9 +8399,12 @@
       "summary": "Explore Golden Sun Recompiled (GSRecomp) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/Shmargus/GSRecomp",
       "issue_number": 1619,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Shmargus/GSRecomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Shmargus/GSRecomp/blob/27fedb57bf1e9f016a791529e0a7e89a1fa89f2c/README.md",
       "artwork": {
         "game_id": 1172,
         "cover_id": 85978,
@@ -8251,6 +8412,37 @@
         "image_sha256": "dff4cc742ba8d38f9e5ebe17b900ea1f1dfa453be1bff6ffedfa321e339aba0c",
         "game_slug": "golden-sun",
         "match_kind": "underlying-game"
+      },
+      "original_game_title": "Golden Sun",
+      "release_url": "https://github.com/Shmargus/GSRecomp/releases",
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "GoldenSunRecompiled-",
+          "-windows.zip"
+        ],
+        "linux-x86-64": [
+          "GoldenSunRecompiled-",
+          "-linux.zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/Shmargus/GSRecomp/blob/27fedb57bf1e9f016a791529e0a7e89a1fa89f2c/README.md",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Prepare either game with the shared launcher",
+            "instruction": "Extract the whole official package. Choose GoldenSunLauncher.exe on Windows, or GoldenSunLauncher on Linux, then choose The Broken Seal or The Lost Age and your own matching USA/Europe GBA ROM. Keep the normal SHA-1 ROM check enabled. No GBA BIOS is required. The bundled compiler prepares game code on first launch and after updates; Linux also needs system SDL2 and OpenGL. Portcove does not run this builder during discovery."
+          },
+          {
+            "title": "Register the collection launcher",
+            "instruction": "Choose the shared launcher and its folder as the working directory in Portcove. Save launch details, then choose Play separately. Keep the complete collection together, including the per-game builders and generated output. This remains one collection identity for both games. Upstream reports public-testing bugs; successful preparation is not completed gameplay qualification."
+          },
+          {
+            "title": "Keep current data and rebuild after updates",
+            "instruction": "You or upstream own this external player. The launcher can open a newer release download; it is not a managed Portcove Update. Close both games, retain your working folder and back up ROMs, Saves, Controls, per-game settings and any imported saves before following upstream’s update instructions. A new version may rebuild generated game code from your ROM. Runtime replacement does not rewind saves or guarantee savestate compatibility. Keep original-containing data private. External registration preserves every file and supplies no managed Backup or Rollback."
+          }
+        ]
       }
     },
     {
@@ -8380,9 +8572,8 @@
       "summary": "Explore Infinite Undiscovery Recomp (doc-haz) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/doc-haz/infinite-undiscovery-recomp",
       "issue_number": 1670,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/doc-haz/infinite-undiscovery-recomp",
+      "availability": "packages",
+      "setup_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/ce6586c0a237541caa438122ecdd99c62982b288/README.md",
       "artwork": {
         "game_id": 7019,
         "cover_id": 157311,
@@ -8390,7 +8581,37 @@
         "image_sha256": "3a2351226d066b1b6aea6f1a053216d0519f30b5301e9a623b3c27a39d72e2fa",
         "game_slug": "infinite-undiscovery",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Infinite Undiscovery",
+      "release_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/releases",
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "InfiniteUndiscoveryRecomp-",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/ce6586c0a237541caa438122ecdd99c62982b288/README.md",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Import your own game on first Play",
+            "instruction": "The official Windows x64 ZIP is portable and has no installer. Choose InfiniteUndiscoveryRecomp.exe and keep its DLLs and notices together. On first Play, the game’s integrated wizard validates and imports your own Disc 1 from a supported XDVDFS ISO or extracted folder; Disc 2 and A/B Voucher DLC are optional. It identifies supported USA, USA-UNDUB, Europe, Japan and Asia editions from the media. Do not mix editions. Portcove does not run an extraction helper or developer compiler. Windows 10/11 x64 and Direct3D 12 are required; use Microsoft’s Visual C++ 2015–2022 x64 Redistributable if the documented runtime DLLs are missing."
+          },
+          {
+            "title": "Keep each content profile together",
+            "instruction": "The complete portable folder holds setup.json and separate USA, USA-UNDUB, EUROPE, JAPAN and ASIA profiles. Each configured profile owns its imported assets/DLC, saves and configuration. Keep cache/runtime.toml too: it contains runtime settings despite the cache folder name. Close the game before updates or copying data. Keep interrupted import/staging folders recoverable and consult upstream; do not merge different editions. Backups can include large original-game files and DLC, so keep them private. The separate IU Save Bridge companion is optional and is not run by Portcove."
+          },
+          {
+            "title": "Update an existing copy safely",
+            "instruction": "For a copy you register yourself, you or upstream provide updates. Extract a new official player into a separate folder, keep the working copy, and follow the selected release’s instructions for carrying its complete compatible content profiles and setup.json. Do not copy old runtime DLLs or shader caches over the replacement. Runtime rollback does not rewind saves or guarantee that older software can read them. The selected release-tag documentation had not tested the Disc 1 to Disc 2 transition. Later upstream documentation at 614a0a0ebd72103fce8aaa52c715d847b703a53e reports repeated successful transitions, while complete Disc 2 progression and a full playthrough remain unverified and a Vesplume Tower / Orb of Patience softlock remains under investigation. These are upstream reports; Portcove has not run the game."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "initial-d-arcade-stage-3-native-sh-4-recompilation-wip",
@@ -13093,12 +13314,26 @@
     {
       "id": "wave-race-64-recompiled",
       "name": "Wave Race 64 Recompiled",
-      "summary": "Explore Wave Race 64 Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Experimental Wave Race 64 renderer prototype; upstream has not published a playable game package.",
       "project_url": "https://github.com/chronic8000/WaveRace64Recompiled",
       "issue_number": 168,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/chronic8000/WaveRace64Recompiled"
+      "availability": "source-only",
+      "setup_url": "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md",
+      "manual_setup": {
+        "help_url": "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Understand the current prototype",
+            "instruction": "This upstream currently reports only two boxes of visual noise, with no published player archive. A managed download would not supply the missing playable implementation. Its README asks for your own USA Rev A Wave Race 64 Z64 dump, but BUILDING.md still contains inherited Majora’s Mask/Zelda64 commands; do not substitute that other game or treat those commands as a verified Wave Race preparation guide."
+          },
+          {
+            "title": "Preserve an already registered development copy",
+            "instruction": "Keep any already registered Wave Race development copy and its complete folder under its existing contract. You or upstream own runtime updates, original files, generated data, saves and settings; retain those files separately. Portcove does not supply a playable package or managed update, backup or rollback for this copy. New installation and registration remain on the existing useful-output hold. Reconsider them when upstream demonstrates useful runnable output and supplies a title-specific reproducible preparation or player package."
+          }
+        ]
+      }
     },
     {
       "id": "wave-race-blue-storm-recompiled",

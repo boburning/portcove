@@ -69,6 +69,19 @@ it("audits narrow dark navigation while preserving focus containment and return"
   await navigation.click();
   const dialog = page.getByRole("dialog", { name: "Navigation", exact: true });
   await expect.element(dialog.getByRole("button", { name: /^Library/ })).toHaveFocus();
+  // Focus moves before the popup's fade finishes. Audit its fully open state;
+  // intermediate opacity changes the computed text contrast during entrance.
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
+  await Promise.all(
+    dialog
+      .element()
+      .getAnimations({ subtree: true })
+      .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
+      .map((animation) => animation.finished.catch(() => {})),
+  );
+  await expect.poll(() => getComputedStyle(dialog.element()).opacity).toBe("1");
   await auditAccessibility(dialog.element(), "navigation-modal/dark/320", context);
   for (let index = 0; index < 10; index++) {
     await userEvent.keyboard("{Tab}");

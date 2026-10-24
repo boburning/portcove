@@ -269,6 +269,88 @@ fn variant_port() -> PortDefinition {
 }
 
 #[tokio::test]
+async fn unchanged_beta_staged_rules_follow_player_successors_and_skip_compliance_archives() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    // Both successors are controlled fixtures, not published upstream releases.
+    for (id, old_tag, old_name, new_tag, new_name) in [
+        (
+            "infinite-undiscovery-doc-haz",
+            "v1.0.0-rc1",
+            "InfiniteUndiscoveryRecomp-v1.0.0-rc1.zip",
+            "v1.0.0-rc2",
+            "InfiniteUndiscoveryRecomp-v1.0.0-rc2.zip",
+        ),
+        (
+            "crash-team-racing-ctr-native",
+            "beta-7.1",
+            "ctr-native-beta-7_1-windows-x86.zip",
+            "beta-7.2",
+            "ctr-native-beta-7_2-windows-x86.zip",
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let mut old = release(old_tag, vec![asset(old_name, Some('a'))]);
+        old["prerelease"] = true.into();
+        let mut next = release(
+            new_tag,
+            vec![
+                asset(new_name, Some('b')),
+                asset(&new_name.replace(".zip", "-LGPL-Compliance.zip"), Some('c')),
+                asset(&new_name.replace(".zip", "-arm64.zip"), Some('d')),
+                asset(&new_name.replace(".zip", "-symbols.zip"), Some('e')),
+                asset(&format!("{new_name}.sha256"), None),
+            ],
+        );
+        next["prerelease"] = true.into();
+        let current = vec![next, old.clone()];
+        let (root, requests, server) = serve_http(vec![
+            metadata(),
+            releases(&[old]),
+            metadata(),
+            metadata(),
+            releases(&current),
+            metadata(),
+            releases(&current),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(root.clone()).unwrap();
+        let baseline = provider
+            .resolve(port, ReleaseChannel::Beta, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        assert_eq!(baseline.asset.name, old_name, "{id}");
+        assert_eq!(
+            provider
+                .resolve(port, ReleaseChannel::Beta, Platform::WindowsX86_64)
+                .await
+                .unwrap()
+                .asset,
+            baseline.asset
+        );
+        for value in provider.cache.write().await.values_mut() {
+            value.stored_at -= RELEASE_CACHE_TTL + Duration::from_secs(1);
+        }
+        let successor = provider
+            .resolve(port, ReleaseChannel::Beta, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        let fresh = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Beta, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(successor.version, release_version(new_tag), "{id}");
+        assert_eq!(successor.asset.name, new_name, "{id}");
+        assert_eq!(successor.asset.sha256, "b".repeat(64));
+        assert_eq!(
+            fresh.asset, successor.asset,
+            "fresh successor install: {id}"
+        );
+        assert_eq!(requests.try_iter().count(), 7);
+    }
+}
+
+#[tokio::test]
 async fn successor_resolution_refuses_lost_variant_ambiguity_wrong_architecture_and_missing_integrity()
  {
     for adapter in [

@@ -932,6 +932,26 @@
         "claim": "Pinned Windows WinMain accepts a positional raw verified USA original. SNESRECOMP_NO_LAUNCHER bypasses the artwork launcher. Private player-prepared projection omits retail cover art, preserves all remaining published runtime bytes and notices, and grants no acquisition or redistribution authority. Actual operations remain separately qualified.",
         "immutable_url": "https://github.com/mstan/DKC2Recomp/blob/e181419f2f8ff7b12494453e74840a4828bdb723/runner/desktop_main.c",
         "live_url": "https://github.com/mstan/DKC2Recomp/blob/main/runner/desktop_main.c"
+      },
+      {
+        "id": "ctr-native-raw-disc-layout-2026-10-24",
+        "role": "upstream_support",
+        "authority": "CTR-tools/ctr-native",
+        "authority_ref": "9b574960fa8a4b897d373bab8a330ecb0626b474",
+        "reviewed_at": "2026-10-24",
+        "claim": "The selected beta7.1 native player directly reads own NTSC-U single-track raw MODE2/2352 disc with data starting at byte0, assets/ctr-u.bin. Cooked2048ISO and other editions are not this route. Static selected-binary build-prefix and path strings corroborate this later-than-bundled-README source; no game execution.",
+        "immutable_url": "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
+        "live_url": "https://github.com/CTR-tools/ctr-native/blob/master/README.md"
+      },
+      {
+        "id": "ctr-native-usa-raw-bin-identity-2026-10-24",
+        "role": "byte_identity",
+        "authority": "libretro/libretro-database maintained Redump mirror",
+        "authority_ref": "12c21cf79f1e20eff6ac68b80875816c717d0a7a",
+        "reviewed_at": "2026-10-24",
+        "claim": "The pinned DAT has SCUS-94426 and SCUS-94426CE serial aliases with identical 605698800-byte raw CTR USA BIN: SHA1 1bb785082def3fe25f6b46be06d4eaf33c5bc772, CRC9a742438. Byte identity is separate from native player/source applicability; no original media acquisition.",
+        "immutable_url": "https://github.com/libretro/libretro-database/blob/12c21cf79f1e20eff6ac68b80875816c717d0a7a/metadat%2Fredump%2FSony%20-%20PlayStation.dat",
+        "live_url": "https://github.com/libretro/libretro-database/blob/master/metadat/redump/Sony%20-%20PlayStation.dat"
       }
     ],
     "identities": [
@@ -7083,6 +7103,50 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "ctr-native-ntsc-u-raw-bin",
+        "label": "Your USA retail raw Crash Team Racing BIN",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "usa-retail",
+            "title": "USA retail raw MODE2/2352 disc",
+            "region": "USA",
+            "revision": "retail",
+            "product_codes": [
+              "SCUS-94426",
+              "SCUS-94426CE"
+            ],
+            "representations": [
+              {
+                "id": "raw-bin",
+                "extensions": [
+                  "bin"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "normalized-content",
+                    "sha1": "1bb785082def3fe25f6b46be06d4eaf33c5bc772",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "ctr-native-usa-raw-bin-identity-2026-10-24"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "ctr-native-raw-disc-layout-2026-10-24",
+              "ctr-native-usa-raw-bin-identity-2026-10-24"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -10137,6 +10201,29 @@
             "artifact_sha256": "33e36ad0a83b47de4a723fbe2d45e17a30c3bbbb15f6998173684317dc1abb89"
           }
         ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "crash-team-racing-ctr-native-game-source",
+        "port_id": "crash-team-racing-ctr-native",
+        "role": "game",
+        "profile_id": "ctr-native-ntsc-u-raw-bin",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-retail"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "ctr-native-raw-disc-layout-2026-10-24",
+          "ctr-native-usa-raw-bin-identity-2026-10-24"
+        ],
+        "authority_ref": "9b574960fa8a4b897d373bab8a330ecb0626b474",
+        "reviewed_at": "2026-10-24",
+        "immutable_review_url": "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
+        "live_review_url": "https://github.com/CTR-tools/ctr-native/blob/master/README.md",
+        "evidence_gap": null,
+        "applicability": [],
         "aliases": [],
         "tombstones": []
       }
@@ -21943,6 +22030,85 @@
       }
     },
     {
+      "id": "crash-team-racing-ctr-native",
+      "name": "Crash Team Racing / CTR Native",
+      "summary": "Explore Crash Team Racing / CTR Native and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/CTR-tools/ctr-native",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "release": {
+        "repository": "CTR-tools/ctr-native",
+        "asset_hints": {
+          "windows-x86-64": [
+            "-windows-x86.zip"
+          ]
+        }
+      },
+      "source_profile": "ctr-native-ntsc-u-raw-bin",
+      "runtime_source_filename": "assets/ctr-u.bin",
+      "runtime_source_materialization": "copy",
+      "executable_hints": {
+        "windows-x86-64": [
+          "ctr_native.exe"
+        ]
+      },
+      "persistent_paths": [
+        "assets/ctr-u.bin",
+        "memcards",
+        "SCREENSHOT.BMP",
+        "VRAM.TGA"
+      ],
+      "runtime_mutable_paths": [
+        "Crash Team Racing.log"
+      ],
+      "presentation": {
+        "installation_method": "staged-game-files",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "ctr-native-ntsc-u-raw-bin",
+            "label": "Your USA retail raw Crash Team Racing BIN",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Portcove copies your verified USA raw disc into the official player; no installer or compiler is required. Compatible updates preserve the verified disc copy, in-game memory-card saves, ghosts and captures. Backups include the original disc and can be large; keep them private. Prefer in-game saves: internal F5 quickstates and replay reports belong to their creating runtime. If debug output holds Play or an update after exit, preserve/move the exact shown files outside the managed folder and retain their original runtime before retrying. They are never inserted into a successor. Runtime rollback keeps current declared saves and does not guarantee older software can read them. The Windows x86 player runs on x64 Windows; OpenGL 3.3 is required.",
+        "original_game_title": "Crash Team Racing",
+        "manual_setup": {
+          "help_url": "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
+          "warnings": [],
+          "steps": [
+            {
+              "title": "Use your own USA raw disc",
+              "instruction": "For an existing official beta7.1 Windows copy, choose ctr_native.exe inside its extracted wrapper, with that executable’s folder as the working directory. Place your own NTSC-U raw MODE2/2352 disc BIN at assets/ctr-u.bin beside it; the data track must start at byte 0. A cooked 2048 ISO, another edition or a CUE file is not this route. No compiler, BIOS or extraction helper is needed for the official player archive. Windows runs its x86 player through x64 compatibility; upstream also offers a separate 32-bit Linux package with its own dependency requirements."
+            },
+            {
+              "title": "Prefer in-game memory-card saves",
+              "instruction": "Normal saves and ghosts live under memcards. F12 captures SCREENSHOT.BMP and the VRAM debug capture uses VRAM.TGA. Internal F5 quickstates under debug/states hold runtime memory and are tied to their creating build; replay reports under debug/reports can include independent recorded memory-card progress. Keep the old runtime with those files for matching-build use; do not insert them into another version."
+            },
+            {
+              "title": "Keep external ownership or preserve debug output before retrying",
+              "instruction": "You or upstream update an external copy. Keep its complete working folder and back up memcards and captures before extracting a new player separately. Keep debug output with the originating runtime for matching-build use; no cross-version state compatibility is promised. External registration preserves every file and supplies no managed Backup or Rollback."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 1192,
+          "cover_id": 361766,
+          "image_id": "co7r52",
+          "image_sha256": "857ab4be415b6baf136a594b32afa654c830446c1e565cb8e047a9bd76bb18d6",
+          "game_slug": "crash-team-racing",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "dethrace-labs-dethrace",
       "name": "Carmageddon / Dethrace (dethrace-labs)",
       "summary": "Explore Carmageddon / Dethrace (dethrace-labs) and follow the upstream project for requirements, downloads and setup.",
@@ -22443,6 +22609,113 @@
           "image_id": "co3r78",
           "image_sha256": "6ab4d0a4eebe33c774cb97817538cd171d8489fcad57c8b0fcd8ed3378dace3d",
           "game_slug": "ico",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "infinite-undiscovery-doc-haz",
+      "name": "Infinite Undiscovery Recomp (doc-haz)",
+      "summary": "Explore Infinite Undiscovery Recomp (doc-haz) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/doc-haz/infinite-undiscovery-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "release": {
+        "repository": "doc-haz/infinite-undiscovery-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "InfiniteUndiscoveryRecomp-",
+            ".zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "InfiniteUndiscoveryRecomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "setup.json",
+        "setup.json.tmp",
+        "USA/assets",
+        "USA/saves",
+        "USA/config.json",
+        "USA/config.json.tmp",
+        "USA/cache/runtime.toml",
+        "USA-UNDUB/assets",
+        "USA-UNDUB/saves",
+        "USA-UNDUB/config.json",
+        "USA-UNDUB/config.json.tmp",
+        "USA-UNDUB/cache/runtime.toml",
+        "EUROPE/assets",
+        "EUROPE/saves",
+        "EUROPE/config.json",
+        "EUROPE/config.json.tmp",
+        "EUROPE/cache/runtime.toml",
+        "JAPAN/assets",
+        "JAPAN/saves",
+        "JAPAN/config.json",
+        "JAPAN/config.json.tmp",
+        "JAPAN/cache/runtime.toml",
+        "ASIA/assets",
+        "ASIA/saves",
+        "ASIA/config.json",
+        "ASIA/config.json.tmp",
+        "ASIA/cache/runtime.toml"
+      ],
+      "runtime_mutable_paths": [
+        "USA/shaders",
+        "USA/logs",
+        "USA/cache/metadata",
+        "USA-UNDUB/shaders",
+        "USA-UNDUB/logs",
+        "USA-UNDUB/cache/metadata",
+        "EUROPE/shaders",
+        "EUROPE/logs",
+        "EUROPE/cache/metadata",
+        "JAPAN/shaders",
+        "JAPAN/logs",
+        "JAPAN/cache/metadata",
+        "ASIA/shaders",
+        "ASIA/logs",
+        "ASIA/cache/metadata"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Choose Play to import your own supported Disc 1 with the game’s setup wizard. Disc 2 and DLC are optional. Portcove updates the Windows player and preserves imported game files, saves and settings. Backups can be large and contain original-game files; keep them private. Runtime rollback keeps current saves, which older versions may not read. Requires Windows 10/11 x64, Direct3D 12 and Microsoft’s documented VC++ x64 runtime. Upstream reports incomplete full-game validation and a Vesplume Tower softlock under investigation.",
+        "original_game_title": "Infinite Undiscovery",
+        "manual_setup": {
+          "help_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/ce6586c0a237541caa438122ecdd99c62982b288/README.md",
+          "warnings": [],
+          "steps": [
+            {
+              "title": "Import your own game on first Play",
+              "instruction": "The official Windows x64 ZIP is portable and has no installer. Choose InfiniteUndiscoveryRecomp.exe and keep its DLLs and notices together. On first Play, the game’s integrated wizard validates and imports your own Disc 1 from a supported XDVDFS ISO or extracted folder; Disc 2 and A/B Voucher DLC are optional. It identifies supported USA, USA-UNDUB, Europe, Japan and Asia editions from the media. Do not mix editions. Portcove does not run an extraction helper or developer compiler. Windows 10/11 x64 and Direct3D 12 are required; use Microsoft’s Visual C++ 2015–2022 x64 Redistributable if the documented runtime DLLs are missing."
+            },
+            {
+              "title": "Keep each content profile together",
+              "instruction": "The complete portable folder holds setup.json and separate USA, USA-UNDUB, EUROPE, JAPAN and ASIA profiles. Each configured profile owns its imported assets/DLC, saves and configuration. Keep cache/runtime.toml too: it contains runtime settings despite the cache folder name. Close the game before updates or copying data. Keep interrupted import/staging folders recoverable and consult upstream; do not merge different editions. Backups can include large original-game files and DLC, so keep them private. The separate IU Save Bridge companion is optional and is not run by Portcove."
+            },
+            {
+              "title": "Update an existing copy safely",
+              "instruction": "For a copy you register yourself, you or upstream provide updates. Extract a new official player into a separate folder, keep the working copy, and follow the selected release’s instructions for carrying its complete compatible content profiles and setup.json. Do not copy old runtime DLLs or shader caches over the replacement. Runtime rollback does not rewind saves or guarantee that older software can read them. The selected release-tag documentation had not tested the Disc 1 to Disc 2 transition. Later upstream documentation at 614a0a0ebd72103fce8aaa52c715d847b703a53e reports repeated successful transitions, while complete Disc 2 progression and a full playthrough remain unverified and a Vesplume Tower / Orb of Patience softlock remains under investigation. These are upstream reports; Portcove has not run the game."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 7019,
+          "cover_id": 157311,
+          "image_id": "co3ddr",
+          "image_sha256": "3a2351226d066b1b6aea6f1a053216d0519f30b5301e9a623b3c27a39d72e2fa",
+          "game_slug": "infinite-undiscovery",
           "match_kind": "underlying-game"
         }
       }

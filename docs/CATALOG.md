@@ -124,7 +124,10 @@ the authored guide; downloading an installer never runs it.
 
 A ready native archive with reviewed disposable runtime writes may instead fit
 the existing `staged-source-portable` adapter; it does not require a source
-profile or build step. Establish its actual executable-relative working directory,
+profile or build step. A ready archive may also receive one explicitly declared
+verified raw-file `copy`, with its exact destination declared persistent. This
+does not include extraction, generation, BIOS or helper preparation. Establish
+its actual executable-relative working directory,
 declare player data separately from disposable caches and diagnostics, and keep
 new package defaults version-owned. MC2 is an example: local settings/custom
 multiplayer data persist, while generated texture/geometry caches stay with each

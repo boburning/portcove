@@ -74,7 +74,7 @@ impl InstalledContract {
             contract.original_format = Some(contract.format);
             contract.format = 5;
             contract.external_trust = Some(crate::ExternalRuntimeTrust::UserSelected);
-        } else if crate::persistence::standalone_staged_archive(catalog.port(port_id)?) {
+        } else if crate::persistence::ready_staged_archive(catalog.port(port_id)?) {
             // Embedded/unscoped installs need the same old-reader fence as an
             // indexed capability. Do not rewrite existing retained contracts.
             contract.original_format = Some(contract.format);
@@ -204,7 +204,7 @@ impl InstalledContract {
 
     fn require_metadata_semantics(&self, catalog: &Catalog) -> Result<()> {
         if self.format == 6
-            && !crate::persistence::standalone_staged_archive(catalog.port(&self.port_id)?)
+            && !crate::persistence::ready_staged_archive(catalog.port(&self.port_id)?)
         {
             return Err(PortcoveError::verification(
                 "retained metadata-preserving envelope has no matching ready archive semantics",
@@ -248,27 +248,29 @@ mod tests {
     #[test]
     fn ready_archive_metadata_fence_preserves_origins_without_rewriting_history() {
         let embedded = Catalog::embedded().unwrap();
-        for catalog in [
-            embedded.clone(),
-            crate::test_fixture::indexed_catalog(&embedded, "alariq-mc2"),
-            crate::test_fixture::admitted_indexed_catalog(&embedded, "alariq-mc2"),
-        ] {
-            let contract = InstalledContract::capture(&catalog, "alariq-mc2").unwrap();
-            let value = serde_json::to_value(&contract).unwrap();
-            assert_eq!(value["format"], 6);
-            assert!(matches!(contract.original_format, Some(1..=3)));
-            contract.catalog("alariq-mc2").unwrap();
-            let mut historical = contract.clone();
-            historical.format = historical.original_format.take().unwrap();
-            historical.catalog("alariq-mc2").unwrap();
-            assert_eq!(
-                historical.format,
-                value["original_format"].as_u64().unwrap() as u32
-            );
-            for invalid in [None, Some(4), Some(5), Some(6)] {
-                let mut malformed = contract.clone();
-                malformed.original_format = invalid;
-                assert!(malformed.catalog("alariq-mc2").is_err());
+        for id in ["alariq-mc2", "crash-team-racing-ctr-native"] {
+            for catalog in [
+                embedded.clone(),
+                crate::test_fixture::indexed_catalog(&embedded, id),
+                crate::test_fixture::admitted_indexed_catalog(&embedded, id),
+            ] {
+                let contract = InstalledContract::capture(&catalog, id).unwrap();
+                let value = serde_json::to_value(&contract).unwrap();
+                assert_eq!(value["format"], 6);
+                assert!(matches!(contract.original_format, Some(1..=3)));
+                contract.catalog(id).unwrap();
+                let mut historical = contract.clone();
+                historical.format = historical.original_format.take().unwrap();
+                historical.catalog(id).unwrap();
+                assert_eq!(
+                    historical.format,
+                    value["original_format"].as_u64().unwrap() as u32
+                );
+                for invalid in [None, Some(4), Some(5), Some(6)] {
+                    let mut malformed = contract.clone();
+                    malformed.original_format = invalid;
+                    assert!(malformed.catalog(id).is_err());
+                }
             }
         }
         // A raw catalog shares its complete projection across identities. Even

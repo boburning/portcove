@@ -6,9 +6,8 @@
     "summary": "Explore Crash Team Racing / CTR Native and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/CTR-tools/ctr-native",
     "issue_number": 318,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/CTR-tools/ctr-native",
+    "availability": "packages",
+    "setup_url": "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
     "artwork": {
       "game_id": 1192,
       "cover_id": 361766,
@@ -16,6 +15,63 @@
       "image_sha256": "857ab4be415b6baf136a594b32afa654c830446c1e565cb8e047a9bd76bb18d6",
       "game_slug": "crash-team-racing",
       "match_kind": "underlying-game"
+    },
+    "original_game_title": "Crash Team Racing",
+    "release_url": "https://github.com/CTR-tools/ctr-native/releases",
+    "recommended_download_channel": "beta",
+    "download_asset_hints": {
+      "windows-x86-64": ["-windows-x86.zip"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
+      "warnings": [],
+      "steps": [
+        {
+          "title": "Use your own USA raw disc",
+          "instruction": "For an existing official beta7.1 Windows copy, choose ctr_native.exe inside its extracted wrapper, with that executable’s folder as the working directory. Place your own NTSC-U raw MODE2/2352 disc BIN at assets/ctr-u.bin beside it; the data track must start at byte 0. A cooked 2048 ISO, another edition or a CUE file is not this route. No compiler, BIOS or extraction helper is needed for the official player archive. Windows runs its x86 player through x64 compatibility; upstream also offers a separate 32-bit Linux package with its own dependency requirements."
+        },
+        {
+          "title": "Prefer in-game memory-card saves",
+          "instruction": "Normal saves and ghosts live under memcards. F12 captures SCREENSHOT.BMP and the VRAM debug capture uses VRAM.TGA. Internal F5 quickstates under debug/states hold runtime memory and are tied to their creating build; replay reports under debug/reports can include independent recorded memory-card progress. Keep the old runtime with those files for matching-build use; do not insert them into another version."
+        },
+        {
+          "title": "Keep external ownership or preserve debug output before retrying",
+          "instruction": "You or upstream update an external copy. Keep its complete working folder and back up memcards and captures before extracting a new player separately. Keep debug output with the originating runtime for matching-build use; no cross-version state compatibility is promised. External registration preserves every file and supplies no managed Backup or Rollback."
+        }
+      ]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "release": {
+      "repository": "CTR-tools/ctr-native",
+      "asset_hints": {
+        "windows-x86-64": ["-windows-x86.zip"]
+      }
+    },
+    "source_profile": "ctr-native-ntsc-u-raw-bin",
+    "runtime_source_filename": "assets/ctr-u.bin",
+    "runtime_source_materialization": "copy",
+    "executable_hints": {
+      "windows-x86-64": ["ctr_native.exe"]
+    },
+    "persistent_paths": ["assets/ctr-u.bin", "memcards", "SCREENSHOT.BMP", "VRAM.TGA"],
+    "runtime_mutable_paths": ["Crash Team Racing.log"],
+    "presentation": {
+      "installation_method": "staged-game-files",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "ctr-native-ntsc-u-raw-bin",
+          "label": "Your USA retail raw Crash Team Racing BIN",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Portcove copies your verified USA raw disc into the official player; no installer or compiler is required. Compatible updates preserve the verified disc copy, in-game memory-card saves, ghosts and captures. Backups include the original disc and can be large; keep them private. Prefer in-game saves: internal F5 quickstates and replay reports belong to their creating runtime. If debug output holds Play or an update after exit, preserve/move the exact shown files outside the managed folder and retain their original runtime before retrying. They are never inserted into a successor. Runtime rollback keeps current declared saves and does not guarantee older software can read them. The Windows x86 player runs on x64 Windows; OpenGL 3.3 is required."
     }
   }
 }
