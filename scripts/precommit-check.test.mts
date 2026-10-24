@@ -20,9 +20,16 @@ import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { configureHooks } from "./hooks-install.mts";
 import { vitePlusCommand } from "./viteplus-cli.mts";
+import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const vp = vitePlusCommand(root);
+// The hook launches these programs separately; imports alone cannot discover them.
+const fixtureEntries = [
+  "scripts/precommit.mts",
+  "scripts/node-test-inventory.mts",
+  "scripts/catalog-staged-check.mts",
+];
 const base = path.join(tmpdir(), "portcove-vite-hooks");
 mkdirSync(base, { recursive: true });
 const env = {
@@ -95,19 +102,10 @@ function fixture(context: FixtureContext, drain?: () => Promise<void>) {
   symlinkSync(path.join(root, "node_modules"), path.join(cwd, "node_modules"), "junction");
   mkdirSync(path.join(cwd, ".vite-hooks"));
   mkdirSync(path.join(cwd, "scripts"));
-  for (const name of [
-    "node-test-inventory.mts",
-    "node-test-suites.mts",
-    "qualification-coverage.mts",
-    "validation-platforms.mts",
-    "runtime-values.mts",
-    "catalog-staged-check.mts",
-    "catalog-authoring.mts",
-    "upstream-lineage.mts",
-    "precommit.mts",
-    "viteplus-cli.mts",
-  ])
-    writeFileSync(path.join(cwd, "scripts", name), readFileSync(path.join(root, "scripts", name)));
+  for (const module of readFixtureModuleClosure(root, fixtureEntries).modules) {
+    mkdirSync(path.dirname(path.join(cwd, module.path)), { recursive: true });
+    writeFileSync(path.join(cwd, module.path), module.bytes);
+  }
   writeFileSync(
     path.join(cwd, ".vite-hooks/pre-commit"),
     readFileSync(path.join(root, ".vite-hooks/pre-commit")),
@@ -117,6 +115,24 @@ function fixture(context: FixtureContext, drain?: () => Promise<void>) {
   assert.equal(git(cwd, "ls-files", "--", "node_modules").trim(), "");
   return cwd;
 }
+
+void test("hook fixture runtime dependencies match the independently reviewed module inventory", () => {
+  assert.deepEqual(
+    readFixtureModuleClosure(root, fixtureEntries).modules.map((module) => module.path),
+    [
+      "scripts/catalog-authoring.mts",
+      "scripts/catalog-staged-check.mts",
+      "scripts/node-test-inventory.mts",
+      "scripts/node-test-suites.mts",
+      "scripts/precommit.mts",
+      "scripts/qualification-coverage.mts",
+      "scripts/runtime-values.mts",
+      "scripts/upstream-lineage.mts",
+      "scripts/validation-platforms.mts",
+      "scripts/viteplus-cli.mts",
+    ],
+  );
+});
 
 void test("dependency patch context survives real hooks while source whitespace remains rejected", (context) => {
   const cwd = fixture(context);

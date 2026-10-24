@@ -1194,7 +1194,7 @@ jobs:
         working-directory: .
         run: |
           # node-suite: frontend-full
-          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/precommit-check.test.mts scripts/run-oxlint.test.mts
+          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mts scripts/fixture-module-closure.test.mts scripts/precommit-check.test.mts scripts/run-oxlint.test.mts
       - name: Prove frontend formatting and lint rules reject invalid fixtures
         working-directory: .
         run: node scripts/lint-tools.integration.mts oxfmt oxlint stylelint
