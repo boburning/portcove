@@ -84,3 +84,72 @@ console.log('controlled original pipeline and upload refusals passed');
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   assert.match(result.stdout, /controlled original pipeline and upload refusals passed/u);
 });
+
+void test("hosted post-sign source binds the original timestamp executor and permanently refuses drift or unresolved effects", (t) => {
+  const root = disposableDirectory(t, path.join(os.tmpdir(), "hosted-native-postsign-"));
+  const entry = new URL("./release-hosted-native-candidate.mts", import.meta.url).href;
+  const capacity = new URL("./release-capacity.mts", import.meta.url).href;
+  const deadlineModule = new URL("./release-coordinator-deadline.mts", import.meta.url).href;
+  const code = String.raw`
+import assert from 'node:assert/strict';
+import {registerHooks} from 'node:module';
+import {mkdirSync,readFileSync,writeFileSync,readdirSync} from 'node:fs';
+import * as files from 'node:fs/promises';
+import path from 'node:path';
+import {performance} from 'node:perf_hooks';
+import {capacityDigest as digest} from ${JSON.stringify(capacity)};
+import {coordinatorCommandTimeout} from ${JSON.stringify(deadlineModule)};
+const root=process.argv[1]; process.env.GH_TOKEN='inert-reader';
+const originals=new Set(); let parentReceipt, directory, fault='', stale=false, calls=0, hydrated=0, clock=1000, originalDeadline=101000; Object.defineProperty(performance,'now',{value:()=>clock});
+const producer={controller_revision:'a'.repeat(40),controller_ref:'refs/tags/portcove-production-controller-fixture',actor_id:'123',run_id:'12345',run_attempt:1};
+const candidate={phase:'publishing',source_commit:'b'.repeat(40),prepared_commit:'c'.repeat(40),version:'0.1.0-beta.1',transient_retries:0,substantive_repairs:0,release_run:{run_id:999,attempt:1,revision:'c'.repeat(40)}};
+const {phase,release_run,...subject}=candidate;
+function operation(){
+ const executor={actor_id:'123',check_run_id:'456',controller_revision:producer.controller_revision,execution_ref:producer.controller_ref,job_id:789,role:'tuf-timestamp',run_attempt:1,run_id:'12345',workflow:'.github/workflows/application-update-production.yml'};
+ if(fault==='foreign-run')executor.run_id='54321';
+ if(fault==='foreign-ref')executor.execution_ref='refs/tags/portcove-production-controller-other';
+ if(fault==='foreign-actor')executor.actor_id='321';
+ if(fault==='foreign-revision')executor.controller_revision='d'.repeat(40);
+ const identity={before_checkpoint:'d'.repeat(40),candidate:subject,destination:'github-actions:boburning/portcove:0.1.0-beta.1:tuf-timestamp-envelope',executor_nonce:'e'.repeat(64),executor_identity:executor,receipt_limit:1,kind:'upload',sequence:1,policy_sha256:'f'.repeat(64),ratification_sha256:'1'.repeat(64)};
+ return {...identity,id:digest(identity),outcome:fault==='pending'?'pending':fault==='ambiguous'?'ambiguous':fault==='refused'?'refused':fault==='recovered'?'recovered':'succeeded',completed_effects:fault==='pending'?[]:[{remote_identity:'artifact:fixture',evidence_sha256:'2'.repeat(64)}],recovery:fault==='recovered'?{checkpoint:'8'.repeat(40),resolution:'effect-completed',evidence_sha256:'9'.repeat(64)}:null,failure_evidence:null};
+}
+const check=()=>{if(stale)throw Error('original parent expired')};
+globalThis.postsignFixture={
+ parent:async receipt=>{assert.ok(originals.has(receipt),'original active hosted native parent source required');check();return {directory,stage:fault==='wrong-stage'?'payload-signing':'release-publication',deadline:originalDeadline,configuration:{journal:{namespace:'fixture'}},producer:{...producer},recheck:check}},
+ recover:async()=>{calls++;check();const op=operation();const groups=[];if(['history','history-budget','history-expiry','duplicate','pending-history','hydrate-drift'].includes(fault))groups.push({summary_schema_version:1,subject:{kind:'candidate',identity:candidate.prepared_commit},kind:'upload',destination_sha256:digest(op.destination),transient_retries:0,substantive_repairs:0,completed:true,attempts:[{checkpoint:'3'.repeat(40),id:op.id,operation_sha256:digest(op)}]});return {checkpoint:(fault==='journal-drift'&&calls>1)?'8'.repeat(40):'7'.repeat(40),repository:directory,input:{active_candidate:structuredClone(candidate),controller:{capacity_attempt:{schema_version:2,operation:['history','history-budget','history-expiry','hydrate-drift','missing'].includes(fault)?null:fault==='pending-history'?{...op,outcome:'pending',completed_effects:[]}:op,prior_operations:groups}}}}},
+ hydrate:async()=>{hydrated++; if(fault==='history-budget'||fault==='history-expiry'){assert.equal(coordinatorCommandTimeout(),100,'local Git must inherit the original100ms deadline');if(fault==='history-expiry'){clock+=101;assert.throws(()=>coordinatorCommandTimeout(),/exhausted/)}} if(fault==='hydrate-drift')stale=true; return operation()},
+ write:async(...args)=>{await files.writeFile(...args);if(fault==='late-write'&&path.basename(args[0])==='original-controller-selection.json')stale=true}
+};
+const routes={'./release-hosted-native-parent.mts':"export const requireActualHostedNativeParentSource=globalThis.postsignFixture.parent;",'./release-coordinator-recovery.mts':"export const recoverRemoteCoordinator=globalThis.postsignFixture.recover; export const hydrateRetainedCoordinatorOperation=globalThis.postsignFixture.hydrate;",'node:fs/promises':"export {chmod,mkdtemp} from 'node:fs/promises'; export const writeFile=globalThis.postsignFixture.write;"};
+registerHooks({resolve(specifier,context,next){if(context.parentURL===${JSON.stringify(entry)}&&routes[specifier])return {url:'postsign-fixture:'+specifier,shortCircuit:true};return next(specifier,context)},load(url,context,next){if(url.startsWith('postsign-fixture:'))return {format:'module',source:routes[url.slice('postsign-fixture:'.length)],shortCircuit:true};return next(url,context)}});
+const api=await import(${JSON.stringify(entry)});
+const reset=name=>{fault=name;stale=false;calls=0;hydrated=0;clock=1000;originalDeadline=name.startsWith('history-')?1100:101000;directory=path.join(root,name||'current');mkdirSync(directory);parentReceipt={};originals.add(parentReceipt)};
+for(const name of ['','history','history-budget','recovered']){
+ reset(name); const receipt=await api.readActualHostedNativePostSignController(parentReceipt);
+ const value=await api.requireActualHostedNativePostSignController(receipt);
+ assert.equal(value.controller.run_id,producer.run_id);assert.notEqual(value.controller.run_id,String(candidate.release_run.run_id));assert.equal(value.parent_source,parentReceipt);assert.equal(value.authority,'none');assert.equal(value.native_acceptance,'not-established');
+ assert.equal(hydrated,name.startsWith('history')?1:0); assert.equal(value.checkpoint,'7'.repeat(40));
+ await assert.rejects(api.requireActualHostedNativePostSignController({...receipt}),/original/);
+ await assert.rejects(api.readActualHostedNativePostSignController(parentReceipt),/recovery/);
+ const retained=path.join(value.directory,'original-controller-selection.json');const bytes=readFileSync(retained);assert.equal(bytes.includes(Buffer.from('inert-reader')),false);writeFileSync(retained,'{}');
+ await assert.rejects(api.requireActualHostedNativePostSignController(receipt),/changed/);writeFileSync(retained,bytes);
+ await assert.rejects(api.requireActualHostedNativePostSignController(receipt),/original active/);
+}
+for(const name of ['foreign-run','foreign-ref','foreign-actor','foreign-revision','pending','ambiguous','refused','missing','duplicate','pending-history','journal-drift','hydrate-drift','history-expiry','late-write']){
+ reset(name);await assert.rejects(api.readActualHostedNativePostSignController(parentReceipt),/retain/);
+ const retained=readdirSync(directory).filter(name=>name.startsWith('post-sign-source-'));assert.equal(retained.length,1);
+ const refusal=JSON.parse(readFileSync(path.join(directory,retained[0],'refusal.json')));assert.equal(refusal.automatic_retry,false);assert.equal(refusal.recovery_required,true);assert.equal(refusal.native_acceptance,'not-established');
+ stale=false;fault=''; await assert.rejects(api.readActualHostedNativePostSignController(parentReceipt),/recovery/);
+}
+reset('wrong-stage');await assert.rejects(api.readActualHostedNativePostSignController(parentReceipt),/post-sign/);
+await assert.rejects(api.readActualHostedNativePostSignController({}),/original active/);
+console.log('controlled hosted timestamp binding and refusal cases passed');
+`;
+  const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
+    encoding: "utf8",
+    timeout: 45000,
+    maxBuffer: 1024 * 1024,
+  });
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stdout, /controlled hosted timestamp binding and refusal cases passed/u);
+});
