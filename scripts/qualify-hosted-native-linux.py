@@ -369,7 +369,6 @@ def probe():
     attempt = GUEST / "invocations" / invocation
     for directory in (GUEST / "invocations", attempt, attempt / "work", attempt / "work/home", attempt / "capture"):
         directory.mkdir(mode=0o700)
-    home = attempt / "work/home"
     ready = attempt / "capture/ready.json"
     unit = "portcove-native-" + invocation + ".service"
     result = {"scope": "inert hosted primitive observation only", "authority": "none",
